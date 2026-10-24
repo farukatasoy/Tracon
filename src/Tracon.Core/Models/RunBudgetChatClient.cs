@@ -113,10 +113,12 @@ internal sealed class RunBudgetChatClient(
 
         var tokens = usage.TotalTokenCount ?? 0;
 
-        // The resolver is skipped entirely when no cost cap is set: it is not
-        // free (a catalog scan, then a configuration lookup), and a tree with
-        // no cost limit has no use for the answer.
-        var cost = budget.MaxTotalCost is not null
+        // The resolver is skipped entirely when nothing reads the answer: it is not
+        // free (a catalog scan, then a configuration lookup). A cost cap reads it, and
+        // so does the tenant's quota (F-529): the tree's spend its counter has not seen
+        // is the budget's meter less what the tree wrote, and a meter that left model
+        // calls out would make a running tree look cheaper than it is.
+        var cost = budget.MeasuresCost
             ? pricingResolver?.Resolve(provider, model, ToRunUsage(usage))?.Total()
             : null;
 

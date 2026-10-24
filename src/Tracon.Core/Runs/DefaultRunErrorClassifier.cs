@@ -58,6 +58,10 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         // the deadline an operator set for an answer, not a fault of the workflow.
         [WorkflowRequestExpiry.ErrorType] = RunErrorClass.Timeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
+
+        // A tenant's quota refused work inside a tree that was already running (F-529): the
+        // class an operator filters on is the same as the door's 429, the remedy is the tenant's.
+        [TraconTenantQuotaExceededException.TenantQuotaExceededErrorType] = RunErrorClass.QuotaExceeded,
         [TraconStructuredResponseException.StructuredResponseInvalidErrorType] = RunErrorClass.StructuredResponseInvalid,
         [TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType] = RunErrorClass.LoopUnsatisfied,
         [TraconOutputTruncatedException.OutputTruncatedErrorType] = RunErrorClass.OutputTruncated,

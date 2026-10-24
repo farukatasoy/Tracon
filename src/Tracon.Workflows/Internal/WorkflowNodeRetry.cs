@@ -160,7 +160,10 @@ internal static class WorkflowNodeRetry
         // MaxAttempts times for the same answer. Local to the retry on purpose; FinalFailure
         // is also read by online evaluation, whose new run opens a new budget where the
         // refusal can change.
-        if (exception is TraconRunBudgetExceededException)
+        //
+        // F-529: a tenant's spent quota is the same. It resets when its period ends, not between two
+        // attempts a few milliseconds apart.
+        if (exception is TraconRunBudgetExceededException or TraconTenantQuotaExceededException)
         {
             return false;
         }

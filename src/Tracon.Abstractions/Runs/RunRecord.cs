@@ -191,6 +191,9 @@ public sealed record RunRecord
     /// the interrupted run (<see cref="Depth"/> does not increase for it).
     /// Orphaned-run reconciliation opens one for an agent run, and a queued
     /// workflow's job opens one when it resumes an interrupted workflow run.
+    /// A workflow run that an operator resumes records the run it resumes the same way.
+    /// A workflow run that answers a person's request does not: it names the run that
+    /// waited in its own history.
     /// </para>
     /// <para>
     /// The link points back. To walk a chain forward, query

@@ -5653,3 +5653,15 @@ Tracon.ToolDescriptor.HostedKind.init -> void
 const Tracon.ToolUsageUnits.Calls = "calls" -> string!
 const Tracon.RunEventCustomTypes.ToolInputDeclined = "tracon.tool.input.declined" -> string!
 const Tracon.RunEventCustomTypes.AGUIToolsIgnored = "tracon.agui.tools.ignored" -> string!
+const Tracon.TraconTenantQuotaExceededException.TenantQuotaExceededErrorType = "tenant_quota_exceeded" -> string!
+override Tracon.TraconTenantQuotaExceededException.ErrorType.get -> string!
+Tracon.TraconTenantQuotaExceededException
+Tracon.TraconTenantQuotaExceededException.Limit.get -> decimal?
+Tracon.TraconTenantQuotaExceededException.Limit.init -> void
+Tracon.TraconTenantQuotaExceededException.Metric.get -> Tracon.QuotaMetric?
+Tracon.TraconTenantQuotaExceededException.Metric.init -> void
+Tracon.TraconTenantQuotaExceededException.Period.get -> Tracon.QuotaPeriod?
+Tracon.TraconTenantQuotaExceededException.Period.init -> void
+Tracon.TraconTenantQuotaExceededException.TraconTenantQuotaExceededException() -> void
+Tracon.TraconTenantQuotaExceededException.TraconTenantQuotaExceededException(string! message) -> void
+Tracon.TraconTenantQuotaExceededException.TraconTenantQuotaExceededException(string! message, System.Exception! innerException) -> void

@@ -55,8 +55,8 @@ public sealed class WorkflowFunctionOptions
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the node starts even when the call tree's cost or time budget is
-    /// already spent. <see langword="false"/> (the default) refuses it.
+    /// Gets or sets whether the node starts even when the call tree's cost or time budget, or
+    /// the tenant's cost quota, is already spent. <see langword="false"/> (the default) refuses it.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -67,9 +67,21 @@ public sealed class WorkflowFunctionOptions
     /// stops a node. A host that sets neither ceiling is not affected.
     /// </para>
     /// <para>
+    /// The ceiling is the logical run's. A run that continues an earlier one (a person's answer, an
+    /// operator's resume, a recovery after an interruption) starts from what the earlier runs spent,
+    /// and the time they were executing, so a workflow that waits for a person does not get the whole
+    /// ceiling again with every answer.
+    /// </para>
+    /// <para>
+    /// The tenant's quota is read at the same place. Once the tenant's cost quota for the current period
+    /// is spent, counting what this run has spent that its counter has not seen yet, the node does not start
+    /// either: the run ends <c>Failed</c> with <see cref="TraconTenantQuotaExceededException"/>
+    /// (<c>tenant_quota_exceeded</c>). The quota resets when its period ends; the budget is a setting.
+    /// </para>
+    /// <para>
     /// Set this to <see langword="true"/> for a node that spends nothing and should still run
     /// after a costly one: a step that stores the output the budget has just paid for. The
-    /// node's own reported spend still counts against the budget; only its start is exempt.
+    /// node's own reported spend still counts against the budget and the quota; only its start is exempt.
     /// The exemption is a property of the node's code, so it is set here and cannot be set by
     /// an operator in a workflow definition.
     /// </para>

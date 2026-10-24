@@ -21,4 +21,11 @@ namespace Tracon;
 /// <param name="RootName">The root's agent or workflow name: the counter every run of the tree adds to.</param>
 /// <param name="UserId">The root's user, or <see langword="null"/> when the root carries no attribution.</param>
 /// <param name="Quota">Where the entries go, or <see langword="null"/> when no quota is registered.</param>
-internal sealed record TreeAccount(string TenantId, string RootName, string? UserId, IQuotaRecorder? Quota);
+internal sealed record TreeAccount(string TenantId, string RootName, string? UserId, IQuotaRecorder? Quota)
+{
+    /// <summary>
+    /// Gets what the tree has written to the counter. Written by <c>TreeQuota.RecordAsync</c> alone, read by the
+    /// budget to tell a quota check how much of the tree's spend the counter has not seen yet.
+    /// </summary>
+    public TreeLedger Ledger { get; } = new();
+}

@@ -550,7 +550,7 @@ anyone reports it.
 
 A workflow run is classified the same way. Its `error.type` is the same stable
 identity the failing step's own run records — `loop_unsatisfied`,
-`child_run_timeout`, `run_budget_exceeded` — not the exception's .NET type name,
+`child_run_timeout`, `run_budget_exceeded`, `tenant_quota_exceeded` — not the exception's .NET type name,
 and its class is the step's class.
 
 Both the class and the clustering fingerprint come from a classifier you can
@@ -676,7 +676,11 @@ for what gets replayed, what runs live, and which tools it refuses to continue.
 A workflow run is continued by a different owner: the job that started it resumes
 it from its latest checkpoint when it is leased again, if `ResumeInterruptedRuns` is
 on (see [Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically)).
-The new run carries the same `continuedFromRunId` link.
+The new run carries the same `continuedFromRunId` link. So does the run an operator starts with
+`POST /api/workflows/runs/{runId}/resume`: it names the run it resumes. A run that answers a person's
+request does not carry it; the answer names the run that waited in its own history. All of them
+start their budget from what the runs before them spent (see
+[the ceiling is the logical run's](/guides/reliability/#the-ceiling-of-a-workflow-is-the-logical-run)).
 
 The link points back. To walk a chain forward, ask for the runs that continue a run,
 then for those of the newest one returned:

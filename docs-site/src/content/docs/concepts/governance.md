@@ -500,8 +500,9 @@ re-notify. To turn the notifications off, clear the list in code
 configuration keeps the default. An entry that is not a whole number from 1 to 100
 stops the application at startup, and the error quotes it.
 
-The threshold event is a notification, not a decision: it stops nothing, and `429`
-remains the only thing that refuses a run.
+The threshold event is a notification, not a decision: it stops nothing. `429` refuses a run at the
+door, and a spent cost quota stops new work inside a run that is already going (see
+[below](#a-quota-also-stops-work-that-has-not-started)).
 
 A **cost** limit counts what a run spent, not only its tokens. The amount a run
 writes into the counter is its token cost plus what its workflow function nodes and tools
@@ -543,12 +544,48 @@ finishes. A run already in progress is never cut off during execution, so brief 
 possible by design.
 :::
 
+### A quota also stops work that has not started
+
+The quota is read where the work begins, not only where the request comes in. A workflow that waits
+for a person, or that simply runs for hours, would otherwise pass a quota that was spent in its first
+minutes. Before a **workflow function node** or an **agent step** starts, Tracon asks the tenant's
+quota whether the tree may start one more thing:
+
+| What is about to start | The limits that stop it |
+|---|---|
+| A workflow function node | The **cost** limit. A node spends no tokens, so a token limit does not stop it |
+| An agent step, or one agent's call to another | The **token** and **cost** limits. A child run adds no run to the counter, so the run limit does not stop it |
+
+The run limit stays at the door: it is the one limit that counts runs, and a tree that is already
+running is not a new run.
+
+A refused node or step does not start. A workflow run ends `Failed` with error type
+`tenant_quota_exceeded` (`TraconTenantQuotaExceededException`, class `QuotaExceeded`, the same class a spent call-tree budget has, with a
+different remedy: the budget is a setting, and the quota resets when its period ends). The message
+names the metric, the period and the limit. When one agent calls another, the refusal comes back to the
+calling model as a tool result, as a spent call-tree budget does, and the run goes on. A refused
+node is not retried by its retry policy, and a node registered with
+`options.StartsWhenBudgetIsSpent = true` is exempt from the quota as it is from the budget.
+
+Only the **start** is refused. A node or a model call that is running is never stopped, so a tenant
+can pass its limit by as much as the work that was running when the limit was reached. The check adds
+what the tree has spent that its counter has not seen yet (a run writes its consumption when it
+ends), so the nodes the run already finished count before the root has written anything. What an
+earlier run of the same workflow chain wrote is in the counter already and is not added a second time.
+The tenant is the tree's, the one its root names, never the caller's: an agent step that runs in a
+background task reads its own tenant's counter.
+
+The check costs the store one read of the tenant's rules when it has none, and two (the rules and the
+current periods' usage) when it has some, per node or step that starts. A store that cannot be read
+follows `Quotas:AllowOnStoreFailure`: the node starts when it is on (the default), and is refused when it
+is off. With quotas off (`Quotas:Enabled = false`) nothing is read.
+
 This is a *different* budget from the one every root run's call tree carries
 (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration`, see [Reliable
 runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
 or agent over a day or month and never interrupts a run in progress; the call-tree
-budget is scoped to one run's tree and is checked between model turns, so it *does*
-cut a long tool loop off mid-run.
+budget is scoped to one run's tree (for a workflow, the whole chain of runs that continue one
+another) and is checked between model turns, so it *does* cut a long tool loop off mid-run.
 
 ## Retention
 

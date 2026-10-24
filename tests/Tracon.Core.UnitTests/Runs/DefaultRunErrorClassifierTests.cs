@@ -44,6 +44,9 @@ public sealed class DefaultRunErrorClassifierTests
     // the message below deliberately carries neither "quota" nor "kota" to
     // prove the mapping does not depend on the regex.
     [InlineData("run_budget_exceeded", "The run tree's token budget is exhausted (200000/200000). No further model calls can be made in this run tree.", RunErrorClass.QuotaExceeded)]
+    // F-529: a tenant's quota that refused work inside a running tree. By identity again: the text
+    // names a period and a limit, and a message with "timeout" or "rate" in it must not move the class.
+    [InlineData("tenant_quota_exceeded", "Could not start function node 'render': The daily cost quota for the whole tenant has been exceeded (5/5). The counter resets at 2026-10-25T00:00:00.0000000+00:00.", RunErrorClass.QuotaExceeded)]
     // Phase 192: a loop that fails on exhaustion is a quality rejection with its own
     // class; the message names a criterion, never a provider.
     [InlineData("loop_unsatisfied", "The loop of agent 'writer' reached its ceiling of 3 iterations while criterion 'aiJudge' still asked for another iteration, and OnExhausted is FailRun.", RunErrorClass.LoopUnsatisfied)]

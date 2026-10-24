@@ -163,6 +163,15 @@ public sealed class TraconValidationOptions
 /// Limits apply <em>per tree</em>: the root run creates an
 /// <see cref="AgentRunBudget"/>, and every run in the tree shares it.
 /// </para>
+/// <para>
+/// For a workflow, the tree is the <em>logical run</em>: a run that continues an earlier
+/// one (a person's answer to a request, an operator's resume, a recovery after an
+/// interruption) starts from what the earlier runs of the chain spent, and from the time
+/// they were executing. A workflow with a human approval loop does not get the whole
+/// limit again with every answer. The time a workflow waited for a person does not count
+/// against <see cref="MaxDuration"/>. A chain that cannot be read does not start with a
+/// budget of zero: the run ends <c>Failed</c> before its first node.
+/// </para>
 /// </remarks>
 public sealed class TraconAgentGraphOptions
 {
@@ -283,10 +292,17 @@ public sealed class TraconAgentGraphOptions
     /// </param>
     /// <returns>The budget that the root run shares through its tree.</returns>
     public AgentRunBudget CreateBudget(TimeProvider timeProvider)
+        => CreateBudget(timeProvider, BudgetCarryOver.None);
+
+    /// <summary>Creates the budget of a run that continues earlier runs of the same workflow.</summary>
+    /// <param name="timeProvider">The time source the deadline is computed from.</param>
+    /// <param name="carryOver">What the earlier runs spent and how long they were executing.</param>
+    /// <returns>The budget, which starts from what the chain already spent.</returns>
+    internal AgentRunBudget CreateBudget(TimeProvider timeProvider, BudgetCarryOver carryOver)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
 
-        return new(MaxDuration > TimeSpan.Zero ? MaxDuration : null, timeProvider)
+        return new(MaxDuration > TimeSpan.Zero ? MaxDuration : null, timeProvider, carryOver)
         {
             MaxDepth = Math.Max(MaxDepth, 0),
             MaxTotalTokens = MaxTotalTokens > 0 ? MaxTotalTokens : null,

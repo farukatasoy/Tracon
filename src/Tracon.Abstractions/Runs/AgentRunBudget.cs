@@ -44,6 +44,12 @@ namespace Tracon;
 /// no tokens. A node that is already running is never stopped, so the tree can
 /// pass a ceiling by as much as its last node spends; the ceiling is not absolute.
 /// </para>
+/// <para>
+/// The budget of a workflow run that continues earlier runs starts from what they spent
+/// (<see cref="ConsumedTokens"/>, <see cref="ConsumedCost"/>, <see cref="StartedRuns"/>) and has
+/// a <see cref="Deadline"/> that is as far behind a fresh one as the earlier runs were executing:
+/// the ceiling is the logical run's, and the time a workflow waited for a person is not counted.
+/// </para>
 /// </remarks>
 public sealed class AgentRunBudget
 {
@@ -84,6 +90,17 @@ public sealed class AgentRunBudget
     /// expiry check reads. Defaults to <see cref="TimeProvider.System"/>.
     /// </param>
     public AgentRunBudget(TimeSpan? maxDuration = null, TimeProvider? timeProvider = null)
+        : this(maxDuration, timeProvider, BudgetCarryOver.None)
+    {
+    }
+
+    /// <summary>
+    /// Creates the budget of a run that continues earlier runs of the same workflow: it starts from what they spent.
+    /// </summary>
+    /// <param name="maxDuration">The wall-clock time the whole chain may take; <see langword="null"/> for no limit.</param>
+    /// <param name="timeProvider">The time source. Defaults to <see cref="TimeProvider.System"/>.</param>
+    /// <param name="carryOver">What the earlier runs spent and how long they were executing.</param>
+    internal AgentRunBudget(TimeSpan? maxDuration, TimeProvider? timeProvider, BudgetCarryOver carryOver)
     {
         _timeProvider = timeProvider ?? TimeProvider.System;
         MaxDuration = maxDuration;
@@ -92,12 +109,23 @@ public sealed class AgentRunBudget
         {
             var now = _timeProvider.GetUtcNow();
 
+            // The chain's clock began when its first run began; it has been running for
+            // ActiveDuration of it, so the deadline is that far behind a fresh one. The
+            // person's wait between two runs is not in ActiveDuration. A chain that used all
+            // of the time has a deadline that has already passed: the first node refuses.
+            var used = carryOver.ActiveDuration > TimeSpan.Zero ? carryOver.ActiveDuration : TimeSpan.Zero;
+            var start = used <= now - DateTimeOffset.MinValue ? now - used : DateTimeOffset.MinValue;
+
             // A caller-supplied TimeSpan.MaxValue (or anything close to it) would
             // overflow DateTimeOffset's year-9999 ceiling; clamped rather than
             // thrown, since an absurd duration should behave as "practically
             // unlimited", not crash run creation.
-            Deadline = duration <= DateTimeOffset.MaxValue - now ? now + duration : DateTimeOffset.MaxValue;
+            Deadline = duration <= DateTimeOffset.MaxValue - start ? start + duration : DateTimeOffset.MaxValue;
         }
+
+        _consumedTokens = Math.Max(carryOver.Tokens, 0);
+        _consumedCostNanoUnits = carryOver.Cost > 0m ? ToNanoUnits(carryOver.Cost) : 0;
+        _startedRuns = Math.Max(carryOver.Runs, 0);
     }
 
     /// <summary>
@@ -134,12 +162,19 @@ public sealed class AgentRunBudget
     /// The wall-clock time the whole tree may take, counted from when this
     /// budget was constructed. If <see langword="null"/>, there is no time limit.
     /// </summary>
+    /// <remarks>
+    /// A workflow run that continues an earlier one (a person's answer, an operator's resume,
+    /// a recovery after an interruption) counts the time the earlier runs were executing too,
+    /// and not the time the workflow waited for a person: the limit is the logical run's.
+    /// </remarks>
     public TimeSpan? MaxDuration { get; }
 
     /// <summary>
     /// The instant the tree's time budget runs out. Computed once, when this
     /// budget was constructed; every run in the tree shares the same value.
     /// <see langword="null"/> when <see cref="MaxDuration"/> is <see langword="null"/>.
+    /// For a run that continues an earlier one it is earlier than a fresh budget's
+    /// by the time the earlier runs were executing.
     /// </summary>
     public DateTimeOffset? Deadline { get; }
 
@@ -154,7 +189,51 @@ public sealed class AgentRunBudget
     /// its root. A root assigns it afresh, so a budget a consumer reuses for a second root
     /// names that root and never the earlier one's tenant.
     /// </remarks>
-    internal TreeAccount? Account { get; set; }
+    internal TreeAccount? Account
+    {
+        get;
+        set
+        {
+            field = value;
+
+            // What the budget holds now is not this root's to write: the earlier runs of a
+            // continued workflow wrote their own share when they ended (or, on a reused
+            // budget, the earlier root did). A check that counted it again would count it twice.
+            value?.Ledger.Rebase(ConsumedTokens, Interlocked.Read(ref _consumedCostNanoUnits));
+        }
+    }
+
+    /// <summary>
+    /// Gets the spend of this tree its quota counter has not seen yet: the tokens and the amount the
+    /// budget holds, less what the tree held when it named its account, less what it has written.
+    /// </summary>
+    /// <returns>The tokens and the amount; both zero when the tree has no account.</returns>
+    /// <remarks>
+    /// A run writes its own consumption when it ends, so a tree that runs for hours has spent more than its
+    /// counter shows. A quota check at the start of new work adds this to the counter. It is never negative:
+    /// an amount a run wrote that the budget did not measure (a model call priced in another currency than
+    /// the installation's) cannot make a running tree look cheaper than the counter already says.
+    /// </remarks>
+    internal (long Tokens, decimal Cost) UnrecordedSpend()
+    {
+        if (Account?.Ledger is not { } ledger)
+        {
+            return (0, 0m);
+        }
+
+        var tokens = Math.Max(0, ConsumedTokens - ledger.BaselineTokens - ledger.RecordedTokens);
+        var costNanoUnits = Math.Max(
+            0,
+            Interlocked.Read(ref _consumedCostNanoUnits) - ledger.BaselineCostNanoUnits - ledger.RecordedCostNanoUnits);
+
+        return (tokens, costNanoUnits / CostScale);
+    }
+
+    /// <summary>
+    /// Gets whether a model call's price must be worked out: a cost limit reads it, and so does a quota
+    /// check, which needs the part of the tree's spend its counter has not seen.
+    /// </summary>
+    internal bool MeasuresCost => MaxTotalCost is not null || Account is { Quota.IsEnabled: true };
 
     /// <summary>The tokens spent across the tree so far.</summary>
     public long ConsumedTokens => Interlocked.Read(ref _consumedTokens);
@@ -252,14 +331,15 @@ public sealed class AgentRunBudget
 
         if (cost is { } value && value > 0)
         {
-            // An amount the counter cannot hold is the counter's maximum, not a wrap.
-            var nanoUnits = value >= MaxRecordableCost
-                ? long.MaxValue
-                : (long)Math.Round(value * CostScale, MidpointRounding.AwayFromZero);
-
-            AddSaturating(ref _consumedCostNanoUnits, nanoUnits);
+            AddSaturating(ref _consumedCostNanoUnits, ToNanoUnits(value));
         }
     }
+
+    // An amount the counter cannot hold is the counter's maximum, not a wrap.
+    internal static long ToNanoUnits(decimal value)
+        => value >= MaxRecordableCost
+            ? long.MaxValue
+            : (long)Math.Round(value * CostScale, MidpointRounding.AwayFromZero);
 
     // A counter that wraps turns a spent budget into a fresh one: a limit passed long ago
     // would stop being passed. The total stays at the maximum instead, so an exhausted

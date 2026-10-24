@@ -258,6 +258,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **A workflow run that continues an earlier run no longer starts with a budget of zero.** A person's answer to a
+  request, an operator's resume (`POST /api/workflows/runs/{runId}/resume`) and a recovery after an interruption each
+  start a new run row, and each used to build a new call-tree budget: a workflow with an approval loop got the whole
+  `Tracon:AgentGraph` ceiling again with every answer, and a run that failed for its budget was resumed into the node
+  that had been refused. The ceiling is now the logical run's. The new run starts from what the runs before it spent
+  (tokens, cost and child runs), and the time limit counts the time the chain's runs were **executing**, not the time
+  the workflow waited for a person. A workflow that stayed under its ceiling only because every answer got a new one now
+  fails at the node that crosses it, with `run_budget_exceeded`: raise `MaxTotalCost`, `MaxTotalTokens`, `MaxTotalRuns` or
+  `MaxDuration` to the size of the whole review, not of one round. A chain that cannot be read (the run store does not
+  answer, or it is longer than 128 runs) ends the run `Failed` before its first node. A run that an interruption closed
+  holds what its function nodes reported only in its items, and Tracon reads them from there. A nested sub-agent call is
+  spent but not counted as a started run. See
+  [the ceiling of a workflow](https://tracon.dev/guides/reliability/#the-ceiling-of-a-workflow-is-the-logical-run).
+- **An operator's resume of a workflow run records the run it resumes in `continuedFromRunId`.** Until now only a
+  recovery wrote the link, so the resume run looked unrelated to its source and `GET /api/runs?continuedFromRunId=`
+  did not list it. A run that answers a person's request still does not carry it; the answer names the run that waited
+  in its own history. A continuation that a recovery opened keeps the link the recovery wrote. The resume run joins the
+  chain the recovery and the response gate read, so a repeated answer follows it, and a resume of a run whose queued job
+  may still recover it is recovered with that job: resume a run only after its job has ended.
+- **A workflow function node or an agent step is refused once the tenant's cost quota is spent.** The quota was read
+  at the door only (`429`), so a workflow that waited for a person, or ran for hours, passed a quota that was spent in its
+  first minutes. Before a function node or an agent step starts, the tree asks the tenant's quota: the **cost** limit
+  stops a function node, and the **token** and **cost** limits stop an agent step or one agent's call to another. The run
+  ends `Failed` with the new error type `tenant_quota_exceeded` (`TraconTenantQuotaExceededException`, class
+  `QuotaExceeded`); when one agent calls another, the refusal comes back to the model as a tool result, as a spent call-tree
+  budget does. Only a start is refused, and the check counts what the run has spent that its counter has not seen yet, so
+  the nodes it already finished count. The run limit stays at the door. A node registered with
+  `options.StartsWhenBudgetIsSpent = true` is exempt from the quota as it is from the budget, and a refusal is never retried
+  by a node's retry policy. The check reads the tenant's rules (one read; two when the tenant has a rule) each time a node
+  or step starts, and follows `Quotas:AllowOnStoreFailure` when the store cannot be read. With `Quotas:Enabled = false`
+  nothing is read. Quotas are on by default, so a model call is priced in every installation that has not turned them off:
+  `AgentRunBudget.ConsumedCost` now holds the cost of the model calls even when `AgentGraph.MaxTotalCost` is not set.
+  The price lookup costs about 1 microsecond per model call (24 models in the catalog). See
+  [A quota also stops work that has not started](https://tracon.dev/concepts/governance/#a-quota-also-stops-work-that-has-not-started).
 - **A data subject erasure deletes the copies of a session outside the SQL rows before it opens its
   transaction.** The copies are the records of conversation memory in your vector store and the files of a session
   workspace. They used to go after the rows were deleted and before the commit. The files live in the same
