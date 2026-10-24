@@ -146,6 +146,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (migration `0063` PostgreSQL, `0051` SQL Server, `0050` SQLite). A cell of that column that SQL
   Server or SQLite holds as text and that is no longer the array Tracon writes reads as an entry no run
   can call, so the case fails instead of passing with nothing to check, and the listing still works.
+  A custom `IEvalStore` meets this in `Tracon.Testing.Contracts.Xunit`: `EvalStoreContract` adds
+  `EvalStoreContract.ReplaceCasesAsync_round_trips_an_expected_argument_of_every_json_kind`,
+  `EvalStoreContract.ReplaceCasesAsync_reads_back_an_empty_list_for_a_case_that_expects_no_tool_call` and
+  `EvalStoreContract.A_row_written_before_expected_tool_calls_existed_reads_back_its_names`, and renames
+  `ReplaceCasesAsync_stores_expected_tools_and_context` to
+  `EvalStoreContract.ReplaceCasesAsync_stores_expected_tool_calls_and_context`. The last one needs three
+  hooks a store on SQL overrides (`SupportsRawSql`, `ExecuteRawAsync`, `QualifiedEvalCasesTable`, and
+  `FormatIdForRawSql` when it spells an id otherwise); a store without SQL skips it.
 
 - **A host registers a tool the model provider runs, and a definition selects it by name.**
   `AddHostedTool(name, kind, factory)` registers a web search, a code interpreter or a file search

@@ -1,6 +1,6 @@
 # Faz 237 — .NET Yüzeyinin 1.x Evrim Kuralları ve Donmuş Hat Kapısı
 
-> **Durum:** 📋 Planlandı (2026-10-23)
+> **Durum:** ✅ Tamamlandı (2026-10-24)
 > **Kademe:** tam — geri dönüşü pahalı karar: 1.x evrim kuralı `rc.1`'den sonra değiştirilemez; kırılma kapısının davranışı değişir
 > **Plan onayı:** Bakımcı, 2026-10-23 (engelleyici kararlar sohbette alındı: F-559 iki faza bölünür — bu faz .NET yüzeyi, Faz 238 .NET dışı yüzeyler; contract paketine minor sürümde yalnız **belgelenmiş davranışı** ölçen test girer)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-559** (A-76 dilimi; A-67 ve A-68 dilimi Faz 238'dedir)
@@ -284,17 +284,28 @@ ile kırmızı olur, yeşil **olmaz** (birim testi).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `reference/versioning.md` §237.1 tablosunu ve üç tamamlayıcı cümleyi taşır; `npm run build` + `check-links.mjs` temiz
-- [ ] §237.3 yoklama tablosu dolu; ApiCompat'ın görmediği her satırın kapısı var ve yalıtılmış kırılmada kırmızı görüldü
-- [ ] `breaking_changes_test.py` hat tablosunun yedi satırını (Hata Modları) kanıtlar; `python3 -m unittest discover -s scripts -p "breaking_changes_test.py"` yeşil
-- [ ] `kapi.py yayin --kuru` çıktısı hat satırını ve contract eklemesi listesini yazar (Manuel 1)
-- [ ] Contract paketi `README.md`'si büyüme kuralını yazar
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (kod yolu değişmez; açılış + bir `run` ile gerileme olmadığı gösterilir)
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `YAYIN-HAZIRLIK.md` §2 ölçüt 5: F-559 satırı "A-76 ✅ Faz 237 · A-67/A-68 Faz 238" olur
+- [x] `reference/versioning.md` §237.1 tablosunu ve üç tamamlayıcı cümleyi taşır; `npm run check` (içerik · build · bağlantılar · ağırlık) temiz — `kapi.py kapanis` 2026-10-24: `npm run check` ✅ 39 sn, 179 166 iç bağlantı kırık değil
+- [x] §237.3 yoklama tablosu dolu (*Plandan Sapmalar*): `required` üye ApiCompat'a görünmez → anlık görüntü; gerisi görünür. Anlık görüntü testi yalıtılmış kırılmada kırmızı görüldü (`AgentDefinition`'a `Probe237` eklendi: `1 line(s) in the code but not in the file`; yenileme: yeşil; geri alındı)
+- [x] `breaking_changes_test.py` hat tablosunu ve Hata Modları'nın yedi satırını kanıtlar (98 test); `python3 -m unittest discover -s scripts -p "breaking_changes_test.py"` yeşil
+- [x] Hat satırı ve contract eklemesi listesi gerçek depoda yazıldı (aşağıdaki çıktı). Tam `kapi.py yayin --kuru` koşamadı: taban `v1.0.0-preview.5` paketleri nuget.org'da yok; aynı kod yolu (`kapi._check_breaking_changes` → `breaking_changes.check(repo=…)`) gerçek depoda koşuldu
+- [x] Contract paketi `README.md`'si büyüme kuralını yazar (*How this package grows*)
+- [x] Dört doğrulama kapısı sıfır uyarı: `python3 scripts/kapi.py kapanis --taban 2ba2017e` — restore · build · pack · `npm run check` · `dotnet format` yeşil; tam test 26 680 test, 0 düşen. (İlk tam koşumda beş SqlServer entegrasyon testi düştü, izole geçti: kaynak çekişmesi sınıfı; ikinci koşum 0 düşen)
+- [x] `samples/Tracon.Api` gerçek koşum (kod yolu değişmez): dört boş ortam değişkeniyle `dotnet run --no-build -c Release --urls http://localhost:5081`; 51 migration SQLite'a uygulandı, günlükte `Npgsql` satırı 0; `GET /tracon/api/meta` → `"version":"1.0.0-preview.5.82"`; `POST /tracon/api/agents/support/run` (`{"message":"Where is my order 1042?"}`) SSE: `event: run` + `Echo: Where is my order 1042?` parçaları; `GET /tracon/api/runs?limit=1` → `agentName=support, status=Completed, kind=Agent`. Üretilen SQLite dosyaları silindi
+- [x] `secret` taraması boş (`kapi.py tarama`, `kapanis` içinde ✅)
+- [x] `🤖` case'ler `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içinde: `MT-PKG-170` koşuldu ✅ (17 satırlık tablo beklenenle aynı; snapshot kırmızı/yeşil); `MT-PKG-169` ☐ — taban paketleri nuget.org'da olmadığından tam prova koşamadı; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu (*Denetim Bulguları*): bir 🔴 (gerçek, kapandı), 🟡'ler kapandı ya da gerekçelendi
+- [x] `YAYIN-HAZIRLIK.md` §2 ölçüt 5: F-559 satırı "A-76 ✅ Faz 237 · A-67/A-68 Faz 238" oldu
+
+**Hat satırı ve contract listesi, gerçek depo** (`kapi._check_breaking_changes`, taban `1.0.0-preview.5`, sürüm `1.0.0-preview.5.12`, boş ApiCompat raporu):
+
+```
+Hat: preview (K-602 — kırılma notta adıyla)
+ℹ️ docs/sozlesme/required-uyeler.txt 'v1.0.0-preview.5' etiketinde yok (ilk kayıt): required üye karşılaştırması atlandı
+✅ Kırıcı liste: 0 tip, 0 TFM düşüşü, 0 paket — not gerekmiyor
+✅ Contract testi eklemesi (taban v1.0.0-preview.5'den beri): 4 — hepsi 'Unreleased' notunda
+```
+
+`CHANGELOG.md` eklemesi olmadan aynı koşum `❌ Contract testi eklemesi sürüm notunda adıyla geçmiyor` ile çıkış 1 verdi (4 ad).
 
 ### Doğrulama komutları
 
@@ -327,6 +338,65 @@ grep -n "What 1.x promises" docs-site/src/content/docs/reference/versioning.md
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır. §237.3 yoklama sonucu buraya yazılır.
 
+**§237.3 yoklama sonucu** (2026-10-24, SDK 10.0.402; `python3 scripts/apicompat_yoklama.py`, 17 varyant, ~18 sn):
+
+| Değişiklik | Tanı (taban doğrulaması) | Sonuç |
+|---|---|---|
+| Arayüze gövdesiz üye | CP0006 | görülür |
+| Arayüze varsayılan gövdeli üye | yok | doğru (kırılma değil) |
+| Abstract sınıfa abstract üye | CP0005 | görülür |
+| Mevcut tipe yeni `required` üye | **yok** | **GÖRÜLMEZ** → anlık görüntü |
+| Opsiyonel üye `required` olur | **yok** | **GÖRÜLMEZ** → anlık görüntü |
+| `required` üye opsiyonel olur | yok | doğru |
+| Enum değerinin sayısını değiştirmek | CP0011 | görülür |
+| Enum'a değer ekleyip sonrakini örtük kaydırmak | CP0011 | görülür |
+| Enum değerini silmek | CP0002 | görülür |
+| Metoda opsiyonel parametre | CP0002 (eski imza yok) | görülür |
+| Kayda konumsal parametre (opsiyonelli de) | CP0002 ×2 (kurucu + `Deconstruct`) | görülür |
+| Yeni tip · yeni üye · yeni overload · enum ekleme | yok | doğru |
+
+Strict mode (`EnableStrictModeForBaselineValidation`) her eklemeyi CP0001/CP0002 diye, silmeyle **aynı kimlikle**
+raporlar ve örnek projede ek olarak CP0003 (derleme kimliği) verdi (elle koşuldu; betik yalnız taban doğrulamasını ölçer).
+
+**Sapmalar:**
+
+1. **Yoklama worktree'de değil, örnek projede koştu.** Plan `Tracon.Abstractions` üzerinde `kapi.py yayin --kuru` istiyordu.
+   Taban `v1.0.0-preview.5`'in paketleri nuget.org'da yok (flat container `1.0.0-preview.1…4` listeler), bu yüzden
+   prova `restore`'da düşerdi; ayrıca soru SDK'nın ApiCompat'ıdır, paketin içeriği değil. Yoklama tekrar koşulabilsin diye
+   `scripts/apicompat_yoklama.py` olarak depoya girdi (+ `apicompat_yoklama_test.py`, `MT-PKG-170`) — plan dosya listesinde yoktu.
+2. **Açık Soru 2 = B** (yama kuralı `PublicAPI` farkından). Planın şartı "strict mode yalnız eklemeyi yakalarsa A"
+   idi; yakalamıyor (silmeyle karışır, CP0003 ekler) ve sürüm pack içinde MinVer'le çözüldüğü için bayrak pack'ten
+   önce verilemez. **Açık Soru 1 = A** (öneri).
+3. **`required` sayısı:** plan 851 (A-76: 833) yazıyordu; bu ham `public required` sayısıdır. `internal` tiplerdeki
+   315'i çıkınca görünür yüzey **536** satırdır (`docs/sozlesme/required-uyeler.txt`).
+4. **`EnumValueSnapshotTests.cs` ve `enum-degerleri.txt` yazılmadı:** ApiCompat enum silmeyi (CP0002) ve yeniden
+   numaralamayı (CP0011) görür; plan "görünmezse" şartıyla koymuştu.
+5. **Anlık görüntü testi Roslyn ister:** çekirdek test projesi yalnız `Tracon.Core`'u referanslar, `required` üyeler yedi
+   pakettedir; reflection yetmez. `Core.UnitTests` `Microsoft.CodeAnalysis.CSharp` (test-only, merkezi sürüm 4.8.0) aldı.
+   Tarayıcı `RequiredMemberScanner.cs`'tir (planda yoktu); kaynağı okur, build sırasına bağlı değildir.
+6. **Kural tablosuna iki satır eklendi** (public tip/üye silme-yeniden adlandırma-imza değişikliği · TFM düşürme):
+   plan tablosunda yoktu, kapı ikisini de reddeder.
+7. **"Yama" tanımı:** plan tanımsız bırakmıştı. Donmuş hatta yama = tabanla aynı major.minor (`rc.1` → `rc.2` ve
+   `rc.1` → GA dahil): yüzey `rc.1`'de donar, eklenen üye yamada kırmızıdır.
+8. **Contract testi tanımı PublicAPI biçiminden çıkar:** 698 metot ölçüldü, 696 `[Fact]`/`[Theory]`; fazla ikisi
+   `protected void` yardımcıdır (`Enter`, `UseAmbientTenant`). Kapı onları da anılmasını ister.
+   `v1.0.0-preview.5`'ten beri **4** metot eklendi (3 yeni + 1 yeniden adlandırma); `CHANGELOG.md` `[Unreleased]` onları
+   `Sınıf.Metot` olarak adlandırır (Faz 227'den kalan borç).
+9. **Manuel case'ler:** planın 3 case'inden yalnız ikisi sete girdi (`MT-PKG-169`, `170`); üçüncüsü kodla tekrarlanır
+   (`test_cli_donmus_hat_kirmizi_ayni_rapor_major_ile_yesil`). `MT-PKG-169` gerçek provada koşamadı: taban paketleri
+   nuget.org'da yok. Yerine aynı kod yolu gerçek depoda iki kez koşuldu (aşağı, DoD).
+11. **Denetim sonrası kapıda üç değişiklik** (bulgular aşağıda): (a) yamada yeni contract testini bildiren `PublicAPI` satırı
+    "eklenen üye" sayılmaz — kural tablosu "yama ✓ (kusur düzeltmesi)" diyordu, ilk yazılan kapı reddediyordu; notta
+    `Sınıf.Metot` zorunlu kalır (kullanıcı kararı, 2026-10-24); (b) anlık görüntüden düşen satır yamada kırmızıdır —
+    "`required` üye opsiyonel olur: yama ✗" hücresinin kapısı yoktu; (c) donmuş tabanda anlık görüntü yoksa `SurfaceError`:
+    "ilk kayıt" notu yalnız `rc.1` altı taban içindir, yoksa `required` eklemesi donmuş hatta sessiz geçerdi.
+12. **Site metni yumuşatıldı:** "yeni davranış isteyen contract testi" ve "XML'de belgelenen davranışın değişmesi" satırları
+    bakımcı yargısıdır; kapı yalnız her yeni contract testini listeler ve notta adı yoksa durur. Giriş paragrafındaki
+    "`1.0.0`'a kadar söz yok" cümlesi `1.0.0-rc.1`'e çekildi. "Yama = tabanla aynı major.minor (rc→GA dahil)" siteye ve
+    K-1078 başlığına yazıldı (kullanıcı onayı, 2026-10-24).
+10. **Kapıya `--depo` eklendi:** `breaking_changes.py` CLI'si yüzey okuyucularını yalnız depo verilince koşar (sahte rapor
+    dizinli manuel case 3 bu yüzden etiketsiz çalışır); `kapi.py` her zaman verir.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -335,6 +405,14 @@ grep -n "What 1.x promises" docs-site/src/content/docs/reference/versioning.md
 > etmez. Beklenen kayıt: 1.x evrim kuralı *(kategori: public-api,
 > geri-dönüşü-pahalı)* — reddedilen alternatifler: contract testi "yalnız major'da"
 > ve "serbest" (bakımcı, 2026-10-23).
+
+- **K-1078** (public-api, geri-dönüşü-pahalı; kullanıcı kararı) `docs/KARARLAR.md`'ye girdi: `rc.1` sonrası aynı major'da
+  kırılma notla kurtarılmaz, yama yüzeyi büyütmez; contract testi yalnız belgelenmiş davranışı ölçer.
+- Kullanıcı kararları (denetim triyajı, 2026-10-24; K-1078 içinde): yamada belgelenmiş davranışı ölçen contract testi serbesttir
+  (kapı düzeltildi); yama = tabanla aynı major.minor, `rc.1` → `rc.2` ve `rc.1` → GA dahil.
+- Kategori dışı (kapanış commit mesajına): Açık Soru 1 = A (contract kapısı preview hattında da koşar) · Açık Soru 2 = B
+  (yama kuralı `PublicAPI` farkından, strict mode değil) · `required` anlık görüntüsü Roslyn'le kaynaktan üretilir ·
+  rc→rc ve rc→GA yama sayılır.
 
 ## Süreç Ölçümü
 
@@ -346,10 +424,10 @@ grep -n "What 1.x promises" docs-site/src/content/docs/reference/versioning.md
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (sapmalar *Plandan Sapmalar*'da; plan metni değişmedi) |
+| Düzeltme turu sayısı | 2 (denetim bulguları · `SourceLanguageTests` kapı kırmızısı) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 1 (`SourceLanguageTests`: test dosyasındaki `docs/sozlesme/…` yolu; kapanış kapısı yakaladı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -357,3 +435,16 @@ grep -n "What 1.x promises" docs-site/src/content/docs/reference/versioning.md
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | Site ve plan "yamada belgelenmiş davranışı ölçen yeni contract testi serbest" diyor; kapı yamada her eklenen `PublicAPI` satırını (test dahil) reddediyordu | 🔴 gerçek (kullanıcı: kapıyı düzelt) | Düzeltildi: `surface_delta` yeni test satırlarını `added_members`'tan düşer; testler `test_yama_surumunde_adli_contract_testi_yesil` · `…adsiz…kirmizi` · `…contract_testi_ile_baska_uye_kirmizi` |
+| 2 | Giriş paragrafı "`1.0.0`'a kadar söz yok" diyor, yeni bölüm `rc.1`'de donduruyor | 🟡 | Düzeltildi (`versioning.md`), `llms-full.txt` yeniden üretildi |
+| 3 | Üç "No" hücresinin kapısı yok (yeni davranış isteyen test · XML davranışı · `required` opsiyonel olur — yamada) | 🟡 | İlk ikisi gerekçelendi (insan yargısı, §237.4; site metni yumuşatıldı); üçüncüsü kapıya bağlandı (`required_dropped`, `test_yama_surumunde_required_uyenin_opsiyonel_olmasi_kirmizi`) |
+| 4 | Sitede "yama" tanımsız; `rc.1` → GA arası üye eklenemiyor | 🟡 | Kullanıcı onayladı; siteye ve K-1078 başlığına yazıldı |
+| 5 | `FROZEN_FROM` her major için `1.0.0-rc.1` | 🟢 | F-670 |
+| 6 | `_show` eksik dosya ile git hatasını ayırmıyor; contract testi yalnız `Task`/`void`. Donmuş tabanda anlık görüntü yoksa `required` eklemesi geçiyordu | 🟢 | Son kısım düzeltildi (`SurfaceError`, `test_donmus_tabanda_anlik_goruntu_yoksa_surface_error`); kalan F-671 |
+| 7 | `MT-PKG-170` adım 3 `git checkout -- src` ile geniş geri alıyor | 🟢 | Düzeltildi: iki dosyaya daraltıldı |
+| 8 | Yama büyüme kuralı `Tracon.Client`/`Tracon.Cli`'ye bakmaz (K-566) | 🟢 | Faz 238'in devir bölümüne yazıldı (OpenAPI kapısı) |
+| 9 | Kapanış commit'inden önce `YAYIN-HAZIRLIK`/Faz 238 "Faz 237 kapandı" diyor | süreç notu | Kapanış commit'iyle doğru olur |
+| 10 | `SourceLanguageTests` (kapanış kapısı): test dosyasında `docs/sozlesme/required-uyeler.txt` Türkçe sözcük sayıldı | kapı kırmızısı | Düzeltildi: `docs/sozlesme/…` yolu geliştirme aparatı maskesine eklendi (taban büyümedi) |

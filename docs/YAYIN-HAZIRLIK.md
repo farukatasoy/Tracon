@@ -11,7 +11,7 @@
 > ölçütü bitti: küçültme (Faz 212–213), bağımlılık yükseltmesi (Faz 214–216)
 > ve modernizasyon (Faz 217). **UR-012 = B (2026-10-19): ölçüt en iyi RC'dir;
 > `rc.1`'e kadar kırıcılık ölçüt değildir, RC'yi iyileştiren ekleyici yetenek de
-> girer.** Ölçüt 5'ten F-290 Faz 218'de kapandı (2026-10-17: son `[Obsolete]` üye ve sütun kalktı); sıradaki iş F-559 — Faz 237 (A-76) ve Faz 238 (A-67, A-68) olarak planlandı (2026-10-23); F-560 MAF GA'sını bekler (UR-013). Faz 212–218 `origin/main`'de yok; CI onları hiç koşmadı. GA
+> girer.** Ölçüt 5'ten F-290 Faz 218'de kapandı (2026-10-17: son `[Obsolete]` üye ve sütun kalktı); F-559'un A-76 dilimi Faz 237'de kapandı (2026-10-24: 1.x .NET kuralı yazıldı, donmuş hat kapısı kuruldu); sıradaki iş Faz 238 (A-67, A-68); F-560 MAF GA'sını bekler (UR-013). Faz 212–218 `origin/main`'de yok; CI onları hiç koşmadı. GA
 > hâlâ ❌ (`NU5104`, ER-001). UR-004 = A (2026-10-17): `rc.1` de ER-001 kalkana kadar çıkmaz.
 
 ## 1. Canlı durum (ölçüldü 2026-10-16)
@@ -46,7 +46,7 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
 | 3 | Modernizasyon | ✅ **Faz 217** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
 | 4 | Yeni yetenekler toplu girer | ⏳ UR-012 = B 👤 (2026-10-19) | Ölçüt en iyi RC'dir: RC'yi iyileştiren iş, kırıcı ya da ekleyici, freeze'den **önce** girer. Kaynak MAF kapsama matrisinin dalgalarıdır; Dalga 1 ölçüldü (2026-10-19, kırıcı kalem kalmadı). F-290 ✅ Faz 218. RC ile GA arasında yetenek eklenmez. Önceki karar (A, 2026-10-17) UR-012 satırındadır |
-| 5 | Kırıcı kalemler kapandı · ailenin public imzasında upstream deneysel tip yok (uydu hattı hariç, K-1036) · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **Faz 218** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559 📋 **Faz 237** (A-76) + **Faz 238** (A-67, A-68) · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
+| 5 | Kırıcı kalemler kapandı · ailenin public imzasında upstream deneysel tip yok (uydu hattı hariç, K-1036) · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **Faz 218** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559: A-76 ✅ **Faz 237** (2026-10-24) · A-67/A-68 **Faz 238** · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
 | 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | **Yalnız son adımda sayılır** 👤 (2026-10-19, UR-012 B): 4–6 bittikten sonra, `rc.1`'den hemen önceki son preview sessiz geçer; `kapi.py yayin` kırılma listesi boş olur. Pencere o güne kadar sayılmaz; o aralıkta giren kırıcı değişiklik ya da yeni yetenek pencereyi yeniden başlatır |
 | 8 | Upstream kararlı (ER-001 kalktı) · `1.0.0-rc.1` provası yeşil | ⏳ dış | UR-004 A: Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alır. Sonra `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-rc.1` |
@@ -117,7 +117,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 - HTTP, SSE, MCP, A2A ve OpenAI uyumlu transport sözleşmeleri, artifact seviyesinde.
 - Yetkilendirme, onay, egress ve content guard sınırları; timeout ile iptal ayrımı; retry ve circuit breaker.
 - AOT ve trimming iddiaları (Anthropic ve Google için F-558'de kısmen).
-- Her public değişikliğin SemVer sınıflandırması (F-559: Faz 237 + Faz 238).
+- Her public değişikliğin SemVer sınıflandırması (F-559: A-76 ✅ Faz 237 · A-67/A-68 Faz 238).
 
 ## 4. Açık ürün kararları 👤
 

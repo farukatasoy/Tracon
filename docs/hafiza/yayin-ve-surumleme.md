@@ -151,3 +151,39 @@
   `success`. `upload-artifact@v4` adı denemeye bağlar; `overwrite: true` gerekmez.
 - **Depo imzası:** nuget.org `.signature.p7s` ekler; itilen ile indirilen ham
   SHA-256 farklıdır. Karşılaştırma girdi bazında yapılır (MT-PKG-160, etiket günü).
+
+## 1.x evrim kuralı ve donmuş hat kapısı (Faz 237, K-1078)
+
+Kapı `scripts/breaking_changes.py` içindedir. Hat kararı **tek fonksiyondadır**
+(`release_line(taban, sürüm)`); Faz 238'in HTTP ve ad kümesi kapıları aynı
+fonksiyonu kullanır, ikinci kopya yazılmaz.
+
+- **Hat:** `preview` (taban `rc.1` altında) · `major` (donmuş taban, major arttı) ·
+  `frozen` (taban `1.0.0-rc.1`+ ve aynı major). `frozen` içinde **yama** =
+  tabanla aynı major.minor (`rc.1` → `rc.2` ve `rc.1` → GA dahil: yüzey `rc.1`'de donar).
+  `preview.5` → `rc.1` donmuş sayılmaz; yoksa donma adımı kendini reddederdi.
+- **🚨 ApiCompat `required` üyeyi GÖRMEZ.** Ölçüldü (2026-10-24, SDK 10.0.402,
+  `python3 scripts/apicompat_yoklama.py`, 17 varyant): mevcut tipe eklenen `required`
+  üye ve opsiyonelden `required`'a geçiş **kayıt üretmez**; arayüze gövdesiz üye CP0006,
+  abstract üye CP0005, enum yeniden numaralama (örtük dahil) CP0011, enum silme / opsiyonel
+  parametre / konumsal record parametresi CP0002. Gövdeli arayüz üyesi, yeni overload,
+  yeni tip, enum ekleme: kayıt yok (doğru). SDK yükselince yoklamayı yeniden koş.
+- **`required` anlık görüntüsü:** `docs/sozlesme/required-uyeler.txt` (536 satır; ham
+  `public required` 851, geri kalanı `internal` tiplerde). `RequiredMemberSnapshotTests`
+  Roslyn ile kaynağı okur (yenileme: `TRACON_REQUIRED_MEMBERS_REFRESH=1`); betik dosyayı
+  taban etiketindekiyle karşılaştırır. Tabanda dosya yoksa ve taban `rc.1` altındaysa
+  (ilk kayıt) karşılaştırma **atlanır ve bunu söyler**; donmuş tabanda dosya yoksa
+  `SurfaceError` (kapı kırmızı). Tabandaki satır tree'de yoksa (`required` kalktı ya da
+  üye silindi) yalnız **yama** için kırmızıdır; minor'da ApiCompat silmeyi zaten yakalar.
+  `docs/sozlesme/` yolu `SourceLanguageTests` maskesindedir (geliştirme aparatı Türkçe kalır).
+- **Yama kuralı PublicAPI farkıyla**, strict mode ile değil: sürüm `dotnet pack` içinde
+  MinVer'le çözülür, bayrak pack'ten önce gerekir; strict ayrıca her eklemeyi ve silmeyi
+  CP0002 diye karıştırır. Etkin yüzey = `Shipped ∪ Unshipped − *REMOVED*`; GA dolumu
+  (K-603) satır taşır ama yüzeyi değiştirmez. Yeni bir contract testini bildiren satır
+  eklenen üye sayılmaz (yama test ekleyebilir, notta `Sınıf.Metot` zorunlu); `Tracon.Client`
+  ve `Tracon.Cli` PublicAPI taşımaz (K-566), yama kuralı onlara bakmaz — Faz 238'in OpenAPI kapısı.
+- **Contract testi listesi:** `Task`/`void` dönen, kurucu ve yaşam döngüsü olmayan, ne
+  `abstract` ne `static` metot. Ölçüm: 698 metot, 696 `[Fact]`/`[Theory]`; fazla ikisi
+  `protected void` yardımcıdır (`Enter`, `UseAmbientTenant`) ve notta anılması gerekir.
+  Ad `Sınıf.Metot` olarak **aynı** code span'de geçer (metot adları sınıflar arasında tekrarlanır).
+- Taban etiketi git'te yoksa kapı `BaselineError` ile kırmızıdır, yeşil değildir.

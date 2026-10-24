@@ -503,6 +503,8 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-667** · AG-UI istemci tool denetimi en son tanımı okur, run ise deney kolunun sürümünü çözer | Faz 236 denetimi 🟢1: `AGUIInputMapper.CheckToolsAsync` `FindDescriptorAsync` ile katalogdaki güncel tanıma bakar; `PrepareAsync` deney kolunun `AgentVersion`'ını çözer. Kolun sürümü, güncel tanımda olmayan bir istemci tool'u taşıyorsa ve ön yüz onu beyan etmediyse run tool'u çağırır ve sonuç bekler (`AGUIInputMapper.cs`, `AgentTurnService.cs`). Zarar run'ın beklemesidir, güvenlik değil; deney + istemci tool'u birlikte nadir | Denetimi `PrepareAsync`'in çözdüğü tanım üzerinden yapmak (agent'ı bir kez çözmek) ya da kol sürümünü `CheckToolsAsync`'e geçirmek. Kapı: deney kolu eski sürümde istemci tool'u taşıyan bir fonksiyonel test |
 | 🟢 | **F-668** · Aynı kesintiyi karara bağlayan iki paralel istek tool'u iki kez koşturabilir | Faz 236 denetimi 🟢2 (kod okuması, ölçülmedi): bekleyen onay oturum geçmişinden okunur ve kayıp yalnız oturum kaydında (`SaveSession`) anlaşılır; yönetim API'sinin run ucunda da aynı (önceden var). AG-UI'da çift tıklama daha olası; bağlantı kopması kaydı atlar ve tool zaten koşmuş olur (`AgentTurnService.cs`, `AGUIEventStream.cs`) | Önce ölç: iki eşzamanlı `resume` ile tool sayacı. İkiyse kusur sınıfı iki yüzeyi birden kapsar (`kusur-giderme`): kararı oturum sürümüne bağlı yazmak ya da karar anında istek başına kilit |
 | 🟢 | **F-669** · Yok sayılan AG-UI tool bildirimi `RunEventWriter` yerine doğrudan `IRunStore`'a yazılır | Faz 236 denetimi 🟢3: `tracon.agui.tools.ignored` olayı olay yazarının sink dağıtımını, `RecordToolPayloads` kapalı politikasını ve kayıp sayacını atlar (`AGUIRunStream.RecordIgnoredToolsAsync` ↔ `RunEventWriter`). `SessionWriteConflicted` aynı yoldan yazılır (emsal var); yük yalnız tool adlarıdır | Olayı koşunun kendi yazarı üzerinden yazmak (`AgentRunScope`). Tüketici sink'te bu olayı bekliyorsa |
+| 🟢 | **F-670** · Donmuş hat eşiği her major için `1.0.0-rc.1`'dir | Faz 237 denetimi 🟢1 (ölçüldü): `release_line("2.0.0-preview.1", "2.0.0-preview.2")` `Hat: donmuş 2.x yama` verir; `FROZEN_FROM` sabittir (`breaking_changes.py`). 2.x ön sürümleri kırılamaz | 2.0 planlanırsa eşik taban sürümün majoruna göre türer (`<major>.0.0-rc.1`). Faz 238 aynı fonksiyonu kullanır; orada karar verilir |
+| 🟢 | **F-671** · Kapı `ValueTask`/`Task<T>` dönen contract testini ve taban dosyasının okunamamasını ayırt etmez | Faz 237 denetimi 🟢2: `contract_test_name` yalnız `Task`/`void` biçimine bakar (bugün 696/696 test bu biçimde); `_show` "dosya tabanda yok" ile "git hata verdi"yi birleştirir, ilk kayıt notu ikisinde de çıkar | Contract paketine `Task<T>`/`ValueTask` dönen test girerse biçim genişler; `_show` için `git cat-file -e` ile ayrım. Önce ölç |
 
 ### Tetik bekleyenler
 
@@ -654,7 +656,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-670**.
+numara: **F-672**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -131,13 +131,14 @@ public sealed class SourceLanguageTests
     /// Turkish-named identifiers that are not prose and must survive translation:
     /// defect ids (<c>HATA-S3-008</c>), manual test case ids (<c>MT-MCP-023</c>),
     /// and paths into the development tooling, which stays Turkish by design
-    /// (<c>docs/MIMARI.md</c>, <c>scripts/dokuman-bakim.py</c>).
+    /// (<c>docs/MIMARI.md</c>, <c>scripts/dokuman-bakim.py</c>, and the contract
+    /// snapshots under <c>docs/sozlesme/</c>, whose file names the release gate reads).
     /// They are removed from a line before it is inspected — otherwise
     /// <c>HATA-</c> would forever match the word <c>hata</c> and the baseline
     /// could never reach zero.
     /// </summary>
     private static readonly Regex IdentifierMaskPattern = new(
-        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:md|py|sh)\b|\.agents/skills/[A-Za-z0-9_/-]+",
+        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:md|py|sh)\b|\.agents/skills/[A-Za-z0-9_/-]+|docs/sozlesme/[A-Za-z0-9_./-]+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 

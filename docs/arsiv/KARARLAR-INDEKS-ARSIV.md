@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1015 kalem)
+## Arşivlenen Kararlar (1016 kalem)
 
 | K | Karar |
 |---|---|
@@ -1024,3 +1024,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1023 | Migration `authorization_configuration_key` değerini `header_configuration_keys["Authorization"]`'a taşır ve sütunu AYNI migration'da düşürür; geri dönüş yoktur (PostgreSQL `0062`, SQL Server `0050`, SQLite `0049`) (F-290, Faz 218) (kullanıcı kararı) 👤 |
 | K-1024 | `WorkflowRunRequest.DefinitionVersion` public; checkpoint'siz kurtarma yeniden başlatması zincirin ilk run'ının sürümünü sabitler (F-492) |
 | K-1025 | `/v1/chat/completions` görsel, ses ve dosyayı modele verir; tool geçmişi ve bilinmeyen rol `400` (F-580) (kullanıcı kararı) 👤 |
+| K-1026 | OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil (F-579) |

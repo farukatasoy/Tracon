@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214, 237
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -4592,3 +4592,66 @@ sahte sunucuya karşı gerçek çağrıyı yapabilmeli ve yayın hiçbir IL/AOT 
 **Beklenen sonuç**
 - (2) Kapı `Tracon.Anthropic is promised 'Native AOT: Yes' … the promise has no smoke behind it` basar ve kırmızıdır.
 - (3) Kapı yeşile döner.
+
+---
+
+### MT-PKG-169 — Yayın provası hat satırını ve eklenen contract testlerini yazar; adsız test kırmızıdır (Faz 237)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 237 |
+| **İlgili karar** | K-1078 · K-864 |
+| **Devir** | 🤖 ajan koşar — `scripts/kapi.py yayin --kuru` (nuget.org'dan taban restore'u ağ ister) |
+
+Prova her koşumda hangi kuralla yargıladığını söyler ve son etiketten beri contract paketine eklenen her test
+`CHANGELOG.md`'de `Sınıf.Metot` olarak anılmalıdır.
+
+**Ön koşul**
+- Temiz ağaç; ağ var; son `v*` etiketinin paketleri nuget.org'dadır
+  (`curl -s https://api.nuget.org/v3-flatcontainer/tracon.abstractions/index.json` o sürümü listeler).
+- `git describe --tags --abbrev=0 --match 'v*'` etiketinden beri `src/Tracon.Testing.Contracts.Xunit/PublicAPI.*.txt`'e en az bir
+  test metodu eklenmiştir.
+
+**Adımlar**
+1. `python3 scripts/kapi.py yayin --kuru --surum <taban üstü sürüm>`
+2. Çıktıda `Hat:` satırını ve `Contract testi eklemesi` bölümünü oku.
+3. `CHANGELOG.md` `[Unreleased]` içinden eklenen bir testin `Sınıf.Metot` adını sil; aynı komutu tekrar koş; silineni geri koy.
+4. Aynı adı yalnız `Metot` olarak (sınıfsız) yaz; komutu tekrar koş; geri al.
+
+**Beklenen sonuç**
+- (1) Çıkış `0`. Taban `1.0.0-rc.1` altındaysa `Hat: preview (K-602 — kırılma notta adıyla)`; değilse `Hat: donmuş 1.x …`.
+  `✅ Contract testi eklemesi (taban v<etiket>'den beri): N` ve altında N ad.
+- (3) Çıkış `1`; `❌ Contract testi eklemesi sürüm notunda adıyla geçmiyor` ve silinen ad.
+- (4) Aynı kırmızı: sınıfsız ad testi adlandırmaz.
+
+---
+
+### MT-PKG-170 — ApiCompat'ın görmediği değişiklikler: yoklama beklenen tabloyu verir; `required` anlık görüntüsü yalıtılmış kırılmada kırmızıdır (Faz 237)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 237 |
+| **İlgili karar** | K-1078 |
+| **Devir** | 🤖 ajan koşar — `scripts/apicompat_yoklama.py` (gerçek `dotnet pack` + ApiCompat) ve `dotnet test` |
+
+.NET SDK yükselince ApiCompat'ın neyi raporladığı değişebilir. Yoklama bunu ölçer; fark çıkarsa donmuş hat
+kapısının varsayımları (`scripts/breaking_changes.py`, `reference/versioning.md`) yeniden düşünülür.
+
+**Ön koşul**
+- Temiz ağaç; .NET SDK kurulu (`global.json`'daki sürüm). Ağ gerekmez.
+
+**Adımlar**
+1. `python3 scripts/apicompat_yoklama.py`
+2. `src/Tracon.Abstractions/Agents/AgentDefinition.cs` içindeki `Name` özelliğinin üstüne
+   `public required string Probe237 { get; init; }` ekle. `dotnet test --project tests/Tracon.Core.UnitTests -c Release
+   --filter-class "*RequiredMemberSnapshotTests*"` koş.
+3. Aynı testi `TRACON_REQUIRED_MEMBERS_REFRESH=1` ile koş. Sonra `git checkout -- src/Tracon.Abstractions/Agents/AgentDefinition.cs docs/sozlesme/required-uyeler.txt` ile geri al.
+
+**Beklenen sonuç**
+- (1) Çıkış `0`; 17 satırlık tablo `Measured` = `Expected`. `V_REQUIRED_NEW` ve `V_OPTIONAL_TO_REQUIRED` satırları `-` (kayıt yok).
+- (2) `RequiredMemberSnapshotTests` kırmızı; ileti `+ Tracon.AgentDefinition.Probe237` satırını ve yenileme komutunu söyler.
+- (3) Yenilemeden sonra yeşil; `docs/sozlesme/required-uyeler.txt` tek satır büyür.

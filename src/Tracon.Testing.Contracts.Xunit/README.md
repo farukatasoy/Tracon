@@ -256,6 +256,27 @@ One constant per family: `ContractCoverage.StorageContracts`,
 not implement goes in the `except` argument, where a name that matches
 nothing is itself reported — a stale exemption must not pass quietly.
 
+## How this package grows
+
+A test you inherit can start to fail after an upgrade, because a newer
+version of this package can add tests. The rules, from `1.0.0-rc.1`:
+
+- **A new test measures behavior the documentation already states.** The XML
+  documentation or the [versions page](https://tracon.dev/reference/versioning/)
+  said it before the version that adds the test. A test that asks for new
+  behavior waits for a major version.
+- **The release notes name every new test** as `Class.Method`, for example
+  `EvalStoreContract.ReplaceCasesAsync_round_trips_an_expected_argument_of_every_json_kind`.
+  The release process stops when a new test is not named.
+- **A test added in a patch version is a defect fix.** A patch adds no other
+  public member.
+- **A new test that fails against your implementation is an issue.** Either
+  your implementation breaks the documented behavior, or the documentation is
+  wrong. Do not skip the test; report which one it is.
+
+Pin the version of this package to the version of `Tracon.Abstractions` you
+test against, and read the release notes when you move both.
+
 ## See also
 
 - [Write your own store](https://tracon.dev/guides/write-your-own-store/) —

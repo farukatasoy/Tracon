@@ -32,10 +32,8 @@
    HTTP kapısı istemciyi de korur), **K-864** (son etikete karşı kırılma kapısı),
    **K-993** (okunamayan yapılandırma açılışta hata verir), **K-1012** (HTTP DTO'su
    `internal`)
-3. Önceki fazdan devir: Faz 237'nin `## Plandan Sapmalar` bölümü — §237.3
-   yoklaması anlık görüntü mekanizmasını yazdı mı? Yazdıysa bu faz onu kullanır.
-   Faz 237 kapandıktan sonra:
-   `git show <Faz 237 Kayıt sha>:docs/237-NET-YUZEYI-1X-EVRIM-KURALLARI.md | awk '/## Plandan Sapmalar/,/## Bu Fazda/'`
+3. Önceki fazdan devir: aşağıdaki **Önceki Fazdan Devir (Faz 237)** bölümü. Faz 237 anlık görüntü mekanizmasını
+   yalnız `required` üyeler için yazdı; ad kümeleri ve OpenAPI karşılaştırması bu fazındır (§238.2, §238.4)
 4. Alan hafızası (dört alan):
    [`hafiza/yayin-turu.md`](hafiza/yayin-turu.md) (taban etiketi, sürüm notu span eşleşmesi) ·
    [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) (istemci adları) ·
@@ -43,6 +41,34 @@
    [`hafiza/secenek-baglama-ve-gizlilik.md`](hafiza/secenek-baglama-ve-gizlilik.md) (bağlayıcı deseni, K-993)
 5. A-67 ve A-68'in tam metni:
    `git show 96d3929328cc738d5f3de84274348cd27093c7b9:docs/YAYIN-HAZIRLIK.md | grep -n "A-67\|A-68"`
+
+---
+
+## Önceki Fazdan Devir (Faz 237)
+
+Faz 237 kapandı (2026-10-24). Bu faz şunları hazır bulur:
+
+- **Hat kararı:** `scripts/breaking_changes.py` → `release_line(baseline, version) -> ReleaseLine(kind, major, patch)`;
+  `kind` ∈ `preview` · `major` · `frozen`, `describe()` hat satırını verir. `version=None` yalnız taban `1.0.0-rc.1`
+  altındayken geçerlidir (aksi `ValueError`). Donmuş hatta **yama** = tabanla aynı major.minor (`rc.1` → `rc.2` ve
+  `rc.1` → GA dahil). İkinci bir hat fonksiyonu yazılmaz.
+- **Kapı akışı:** `breaking_changes.check(…, repo=<kök>)` hat satırını **ilk** yazar, sonra ApiCompat raporunu, sonra
+  `surface_delta(repo, taban)` (PublicAPI farkı · `required` anlık görüntüsü · contract testleri) okur.
+  `kapi.py` `_check_breaking_changes`'ten çağırır. Bu fazın `sozlesme_kirilma.py` çağrısı o çağrıdan **sonra** gelir.
+- **Anlık görüntü deseni:** `docs/sozlesme/required-uyeler.txt` (`#` ile başlayan satırlar yorumdur) · üreten test
+  `RequiredMemberSnapshotTests` (`Tracon.Core.UnitTests`, yenileme `TRACON_REQUIRED_MEMBERS_REFRESH=1`) · okuyucu
+  `required_member_additions` (`git show v<taban>:<yol>`). Taban etiketinde dosya yoksa **not yazar, hata vermez**;
+  taban etiketi git'te yoksa `BaselineError`, kapı kırmızıdır. Bu fazın dosyaları aynı davranışı izler.
+- **ApiCompat'ın görmedikleri:** `python3 scripts/apicompat_yoklama.py` (17 varyant) — yalnız `required` görünmez; enum,
+  arayüz, abstract, opsiyonel parametre ve konumsal record parametresi görünür. Kural tablosu:
+  `docs-site/src/content/docs/reference/versioning.md` § *What 1.x promises for the .NET API*. Bu faz aynı sayfaya kendi
+  bölümünü ekler; Faz 237 "başka yüzeyler için aşağıya bak" cümlesini **yazmadı**.
+- **🚨 Taban `v1.0.0-preview.5`'in paketleri nuget.org'da yoktu** (2026-10-24, flat container `preview.1…4` listeler):
+  `kapi.py yayin --kuru` restore'da düşer. Gerçek tam prova bu yüzden Faz 237'de koşmadı; `MT-PKG-169` ☐.
+- **Yama kuralı `Tracon.Client`/`Tracon.Cli`'ye bakmaz:** ikisi `PublicAPI` taşımaz (K-566); yamada büyüyen istemci yüzeyini
+  bu fazın OpenAPI karşılaştırması tutar (yamada eklenen uç ya da alan kırmızıdır).
+- **Contract testi kapısı:** `v1.0.0-preview.5`'ten beri 4 test `CHANGELOG.md` `[Unreleased]`'da `Sınıf.Metot` olarak adlandırıldı.
+  Bu fazın yeni `Tracon.Testing.Contracts.Xunit` testi varsa aynı biçimde anılmalıdır.
 
 ---
 
