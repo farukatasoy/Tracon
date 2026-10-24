@@ -173,6 +173,104 @@ public sealed class WorkflowNodeBudgetGateTests
         calls.ShouldBe(1);
     }
 
+    // --- The tenant's quota (F-529) ---
+
+    [Fact]
+    public async Task A_quota_the_tenant_has_spent_refuses_a_node_whose_budget_has_room()
+    {
+        var recorder = new RefusingRecorder();
+        var budget = new AgentRunBudget { Account = new TreeAccount("acme", "podcast", UserId: null, recorder) };
+        var calls = 0;
+
+        var refusal = await InScopeAsync(budget, () =>
+            Should.ThrowAsync<TraconTenantQuotaExceededException>(async () =>
+                await Gate(() => calls++)(Messages, NoContext, CancellationToken.None)));
+
+        calls.ShouldBe(0, "the handler was called after the refusal");
+        refusal.ErrorType.ShouldBe(TraconTenantQuotaExceededException.TenantQuotaExceededErrorType);
+        refusal.Metric.ShouldBe(QuotaMetric.Cost);
+        refusal.Period.ShouldBe(QuotaPeriod.Daily);
+        refusal.Limit.ShouldBe(10m);
+        refusal.Message.ShouldStartWith("Could not start function node 'render': ", Case.Sensitive);
+        refusal.Message.ShouldContain("The daily cost quota", Case.Sensitive);
+        refusal.Message.ShouldEndWith("A node that is already running is not stopped.", Case.Sensitive);
+        recorder.Kind.ShouldBe(TreeStartKind.FunctionNode);
+    }
+
+    [Fact]
+    public async Task The_quota_is_asked_what_the_tree_has_spent_that_its_counter_has_not_seen()
+    {
+        var recorder = new RefusingRecorder();
+        var budget = new AgentRunBudget();
+
+        budget.RecordUsage(10, 0.25m);
+        budget.Account = new TreeAccount("acme", "podcast", UserId: null, recorder);
+        budget.RecordUsage(5, 0.5m);
+
+        await InScopeAsync(budget, () =>
+            Should.ThrowAsync<TraconTenantQuotaExceededException>(async () =>
+                await Gate(static () => { })(Messages, NoContext, CancellationToken.None)));
+
+        // What the budget held when the account was named belongs to the earlier runs.
+        recorder.UnrecordedCost.ShouldBe(0.5m);
+        recorder.UnrecordedTokens.ShouldBe(5);
+        recorder.Account!.TenantId.ShouldBe("acme");
+        recorder.Account.RootName.ShouldBe("podcast");
+    }
+
+    [Fact]
+    public async Task A_spent_budget_answers_before_the_quota_is_read()
+    {
+        var recorder = new RefusingRecorder();
+        var budget = new AgentRunBudget { MaxTotalCost = 1m, Account = new TreeAccount("acme", "podcast", UserId: null, recorder) };
+
+        budget.RecordUsage(0, 1m);
+
+        var refusal = await InScopeAsync(budget, () =>
+            Should.ThrowAsync<TraconRunBudgetExceededException>(async () =>
+                await Gate(static () => { })(Messages, NoContext, CancellationToken.None)));
+
+        refusal.Message.ShouldContain("cost budget is exhausted", Case.Sensitive);
+        recorder.Checks.ShouldBe(0, "the budget is in memory and the quota is a store read");
+    }
+
+    [Fact]
+    public async Task A_cancelled_call_throws_the_cancellation_before_the_quota_refusal()
+    {
+        var budget = new AgentRunBudget { Account = new TreeAccount("acme", "podcast", UserId: null, new RefusingRecorder()) };
+
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var calls = 0;
+
+        await InScopeAsync(budget, () =>
+            Should.ThrowAsync<OperationCanceledException>(async () =>
+                await Gate(() => calls++)(Messages, NoContext, cancellation.Token)));
+
+        calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_tree_with_no_account_or_a_quota_that_is_off_is_not_asked()
+    {
+        var off = new RefusingRecorder(enabled: false);
+        var calls = 0;
+
+        await InScopeAsync(new AgentRunBudget(), async () =>
+        {
+            await Gate(() => calls++)(Messages, NoContext, CancellationToken.None);
+        });
+
+        await InScopeAsync(new AgentRunBudget { Account = new TreeAccount("acme", "podcast", UserId: null, off) }, async () =>
+        {
+            await Gate(() => calls++)(Messages, NoContext, CancellationToken.None);
+        });
+
+        calls.ShouldBe(2);
+        off.Checks.ShouldBe(0);
+    }
+
     [Fact]
     public async Task A_call_outside_a_run_scope_passes()
     {
@@ -206,6 +304,49 @@ public sealed class WorkflowNodeBudgetGateTests
     }
 
     private static List<ChatMessage> Messages { get; } = [new(ChatRole.User, "go")];
+
+    /// <summary>A quota that is spent: every check at the start of new work is refused.</summary>
+    private sealed class RefusingRecorder(bool enabled = true) : IQuotaRecorder
+    {
+        public int Checks { get; private set; }
+
+        public TreeStartKind Kind { get; private set; }
+
+        public long UnrecordedTokens { get; private set; }
+
+        public decimal UnrecordedCost { get; private set; }
+
+        public TreeAccount? Account { get; private set; }
+
+        public bool IsEnabled => enabled;
+
+        public ValueTask<IReadOnlyList<QuotaThresholdCrossing>> RecordAsync(QuotaConsumption consumption, CancellationToken cancellationToken = default)
+            => new([]);
+
+        public ValueTask<QuotaDecision> CheckTreeStartAsync(
+            TreeAccount account,
+            TreeStartKind kind,
+            long unrecordedTokens,
+            decimal unrecordedCost,
+            CancellationToken cancellationToken = default)
+        {
+            Checks++;
+            Account = account;
+            Kind = kind;
+            UnrecordedTokens = unrecordedTokens;
+            UnrecordedCost = unrecordedCost;
+
+            return new(new QuotaDecision
+            {
+                IsAllowed = false,
+                Metric = QuotaMetric.Cost,
+                Period = QuotaPeriod.Daily,
+                Limit = 10m,
+                Used = 10m,
+                Reason = "The daily cost quota for the whole tenant has been exceeded (10/10).",
+            });
+        }
+    }
 
     private static Func<List<ChatMessage>, IWorkflowContext, CancellationToken, ValueTask<List<ChatMessage>>> Gate(Action onCall)
         => WorkflowNodeBudgetGate.Wrap<List<ChatMessage>, List<ChatMessage>>(

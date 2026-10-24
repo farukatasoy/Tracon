@@ -97,17 +97,29 @@ internal static class QueuedWorkflowHarness
 
         builder.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
             FirstStep,
-            _ => (messages, _, _) =>
+            _ => async (messages, context, _) =>
             {
                 probe.CountFirst();
 
-                return new ValueTask<List<ChatMessage>>(messages);
+                // What a paid step reports (speech, a render); nothing unless a case sets an amount (F-531).
+                if (probe.FirstAmount > 0m)
+                {
+                    await context.ReportUsageAsync(RecoveryProbe.Spent(probe.FirstAmount)).ConfigureAwait(false);
+                }
+
+                return messages;
             });
 
         builder.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
             SecondStep,
             _ => async (messages, context, cancellationToken) =>
             {
+                // Reported before the step can hang: the process that dies in it has spent this much.
+                if (probe.SecondAmount > 0m)
+                {
+                    await context.ReportUsageAsync(RecoveryProbe.Spent(probe.SecondAmount)).ConfigureAwait(false);
+                }
+
                 await probe.SecondAsync(context.GetRunParameters(), cancellationToken).ConfigureAwait(false);
 
                 return messages;
@@ -437,6 +449,7 @@ internal sealed class RecoveryProbe : IAsyncDisposable
 {
     private readonly ConcurrentQueue<(StepBehavior Behavior, TaskCompletionSource Reached)> _script = new();
     private readonly ConcurrentQueue<string?> _tones = new();
+    private readonly ConcurrentQueue<decimal> _costAtSecond = new();
     private readonly ConcurrentBag<Task> _attempts = [];
     private int _first;
     private int _second;
@@ -455,6 +468,29 @@ internal sealed class RecoveryProbe : IAsyncDisposable
 
     /// <summary>Gets the run the second step last ran in.</summary>
     public Guid? RunOfLastSecondStep { get; private set; }
+
+    /// <summary>Gets or sets the amount the first step reports; none by default.</summary>
+    public decimal FirstAmount { get; set; }
+
+    /// <summary>Gets or sets the amount the second step reports before it runs; none by default.</summary>
+    public decimal SecondAmount { get; set; }
+
+    /// <summary>Gets what the tree's budget held each time the second step started, after the step reported, in order.</summary>
+    public IReadOnlyList<decimal> CostAtSecond => [.. _costAtSecond];
+
+    /// <summary>An item a step reports: characters with an amount in USD.</summary>
+    /// <param name="amount">The amount.</param>
+    /// <returns>The item.</returns>
+    public static ToolCallUsage Spent(decimal amount)
+        => new()
+        {
+            Unit = ToolUsageUnits.Characters,
+            Quantity = 100m,
+            Cost = amount,
+            Currency = "USD",
+            Provider = "elevenlabs",
+            Model = "eleven_multilingual_v2",
+        };
 
     /// <summary>Scripts the next call of the second step.</summary>
     /// <param name="behavior">What the call does.</param>
@@ -483,6 +519,11 @@ internal sealed class RecoveryProbe : IAsyncDisposable
         Interlocked.Increment(ref _second);
         _tones.Enqueue(parameters.TryGetValue("tone", out var tone) ? tone : null);
         RunOfLastSecondStep = TraconRunContext.Current?.RootRunId ?? TraconRunContext.Current?.RunId;
+
+        if (TraconRunContext.Current?.Budget is { } budget)
+        {
+            _costAtSecond.Enqueue(budget.ConsumedCost);
+        }
 
         if (!_script.TryDequeue(out var next))
         {

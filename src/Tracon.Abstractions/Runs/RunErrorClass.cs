@@ -45,8 +45,10 @@ public enum RunErrorClass
     RateLimited = 3,
 
     /// <summary>
-    /// A Tracon quota was exhausted, or a run tree's token, cost, or time
-    /// budget ran out mid-run (<see cref="TraconRunBudgetExceededException"/>).
+    /// A Tracon quota was exhausted, a tenant's quota refused new work inside a run
+    /// tree that was already running (<see cref="TraconTenantQuotaExceededException"/>),
+    /// or a run tree's token, cost, or time budget ran out mid-run
+    /// (<see cref="TraconRunBudgetExceededException"/>).
     /// </summary>
     QuotaExceeded = 4,
 

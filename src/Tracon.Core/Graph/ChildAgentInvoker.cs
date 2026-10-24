@@ -211,7 +211,7 @@ public sealed class ChildAgentInvoker : AIAgent
     {
         var scope = TraconRunContext.Current;
 
-        if (Refuse(scope) is { } refusal)
+        if (await RefuseAsync(scope, cancellationToken).ConfigureAwait(false) is { } refusal)
         {
             return Refused(refusal);
         }
@@ -303,7 +303,7 @@ public sealed class ChildAgentInvoker : AIAgent
     {
         var scope = TraconRunContext.Current;
 
-        if (Refuse(scope) is { } refusal)
+        if (await RefuseAsync(scope, cancellationToken).ConfigureAwait(false) is { } refusal)
         {
             yield return RefusedUpdate(refusal);
             yield break;
@@ -466,7 +466,7 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <c>Completed</c>.
     /// </para>
     /// </remarks>
-    private ChildRefusal? Refuse(AgentRunScope? scope)
+    private async ValueTask<ChildRefusal?> RefuseAsync(AgentRunScope? scope, CancellationToken cancellationToken)
     {
         if (scope is null)
         {
@@ -508,11 +508,26 @@ public sealed class ChildAgentInvoker : AIAgent
             return new ChildRefusal($"Could not call agent '{_childName}': a sub-run cannot leave the caller's tenant.");
         }
 
-        if (scope.Budget is { } budget && !budget.TryReserveRun())
+        if (scope.Budget is { } budget)
         {
-            return new ChildRefusal(
-                $"Could not call agent '{_childName}': {budget.DescribeExhaustion()}",
-                ChildRefusalCause.Budget);
+            // F-529: the tenant's quota is read where the work begins. A spent tree budget answers
+            // first, because it is held in memory and a quota read is not; and the quota is read
+            // BEFORE the run is reserved, because a refused step must not use up a run of the tree.
+            if (!budget.IsExhausted &&
+                await TreeQuotaGate.RefusalAsync(budget, TreeStartKind.AgentStep, cancellationToken).ConfigureAwait(false) is { } quota)
+            {
+                return new ChildRefusal(
+                    $"Could not call agent '{_childName}': {quota.Reason} A new child run cannot be started.",
+                    ChildRefusalCause.Quota,
+                    quota);
+            }
+
+            if (!budget.TryReserveRun())
+            {
+                return new ChildRefusal(
+                    $"Could not call agent '{_childName}': {budget.DescribeExhaustion()}",
+                    ChildRefusalCause.Budget);
+            }
         }
 
         return null;
@@ -708,6 +723,7 @@ public sealed class ChildAgentInvoker : AIAgent
         => refusal.Cause switch
         {
             ChildRefusalCause.Budget => new TraconRunBudgetExceededException(refusal.Text),
+            ChildRefusalCause.Quota => TreeQuotaGate.ToException(refusal.Quota!, refusal.Text),
             ChildRefusalCause.Timeout => new TraconChildRunTimeoutException(refusal.Text)
             {
                 AgentName = _childName,
@@ -831,7 +847,10 @@ public sealed class ChildAgentInvoker : AIAgent
     }
 
     /// <summary>Why a call cannot deliver the sub-agent's answer, and the text that says so.</summary>
-    private sealed record ChildRefusal(string Text, ChildRefusalCause Cause = ChildRefusalCause.Other);
+    private sealed record ChildRefusal(
+        string Text,
+        ChildRefusalCause Cause = ChildRefusalCause.Other,
+        QuotaDecision? Quota = null);
 
     private enum ChildRefusalCause
     {
@@ -839,6 +858,9 @@ public sealed class ChildAgentInvoker : AIAgent
 
         /// <summary>The tree's run, token, cost or time budget refused the call.</summary>
         Budget,
+
+        /// <summary>The tenant's quota refused the call: its period is spent.</summary>
+        Quota,
 
         /// <summary>The sub-agent's wait limit fired.</summary>
         Timeout,

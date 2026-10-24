@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1016 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1018 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1068 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1070 kalem)
 
 | K | Karar |
 |---|---|
-| K-1027 | `/v1/chat/completions` agent'ın istek ayarını `400` ile reddeder; `/v1/conversations` ilk `items`'ı reddeder (F-581) |
-| K-1028 | `RunRecordingAgent` iç agent'a düz `AgentRunOptions` verir, `TraconRunOptions` değil (G-07) |
 | K-1029 | Agent uzantısı MAF seçenek nesnesinin kendisini alır; korunan üye tablosu ve ratchet testi sınırı zorlar (F-588) |
 | K-1030 | Uzantıyı kod kaydeder, tanım yalnız adla seçer: `AddAgentExtension`, `ExtensionNames` (F-588) |
 | K-1031 | SQL payload'ında sonradan gelen liste alanı null okunabilir; boş liste yazılmaz (F-588) |
@@ -62,3 +60,5 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1076 | AG-UI ucu ayrı `Tracon.AGUI` paketidir; AG-UI SDK'sı yalnız orada, meta pakete girmez 👤 |
 | K-1077 | AG-UI isteğindeki tool yalnız kodda kayıtlı istemci tool'uyla kesişirse kullanılır; şema koddan gelir 👤 |
 | K-1078 | `rc.1` sonrası aynı major'da kırılma notla kurtarılmaz; yama (aynı major.minor, rc→GA dahil) yüzeyi büyütmez (F-559, Faz 237) 👤 |
+| K-1079 | Devam run'ı bütçeyi zincirden devralır: cevap, resume ve kurtarma aynı kuralı alır; süre yalnız aktif yürütmedir (F-531) 👤 |
+| K-1080 | Kiracı kotası çalışan ağaçta düğüm ve agent adımı başlamadan okunur: sayaç + ağacın yazılmamış payı (F-529) 👤 |

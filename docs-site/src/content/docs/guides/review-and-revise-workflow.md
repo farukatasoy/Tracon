@@ -151,9 +151,13 @@ next node its final iteration only.
 
 ## Limits that work together
 
-- **A revision limit and a cost ceiling.** Each answer is a new run with a new budget, so
-  `MaxTotalCost` does not add up across rounds. Bound the rounds with your own counter, as here, and
-  set the ceiling for one round.
+- **A revision limit and a cost ceiling.** Each answer is a new run, and the ceiling is the logical run's: a
+  run that answers a request starts from what the runs before it spent, so `MaxTotalCost` and `MaxTotalTokens` add
+  up across rounds, and the time the workflow waited for the reviewer does not count against `MaxDuration`. Bound
+  the rounds with your own counter, as here, because the ceiling counts money and the counter counts attempts, and
+  set the ceiling for the whole review, not for one round. A round the ceiling refuses fails the run with
+  `run_budget_exceeded`; the tenant's quota refuses it with `tenant_quota_exceeded` (see
+  [Governance](/concepts/governance/#a-quota-also-stops-work-that-has-not-started)).
 - **`MaxConcurrency` is per process and per function.** It holds across workflows and tenants, in a stored chain
   and in a graph built in code, and it multiplies with the number of replicas. A call that finds every slot taken
   waits. The wait is not part of the node's own `Timeout`, and it ends when the run is cancelled or reaches its

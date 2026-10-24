@@ -1,6 +1,6 @@
 # 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe (`RET`)
 
-> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146, 205, 209
+> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146, 205, 209, 239
 > **Kaynak:** `src/Tracon.Abstractions/Retention/` (tümü) ·
 > `src/Tracon.Core/Retention/` (tümü) ·
 > `src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
@@ -2241,3 +2241,28 @@ Otomatik karşılığı: `WorkflowRequestRetentionTests` (SQLite, PostgreSQL, SQ
 
 **Beklenen sonuç**
 - Hedef `workflow_requests` tanınır (bilinmeyen hedef `400` değildir); yalnız kapalı satır silinir; açık satır kalır ve `MaxRows` hesabına girmez.
+
+### MT-RET-087 — Kiracı kotası dolunca çalışan workflow'un sonraki düğümü başlamaz (Faz 239, F-529)
+
+Otomatik karşılık: `TreeQuotaGateTests`, `TreeQuotaHostTests`, `ChildAgentInvokerQuotaTests`.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | 239 |
+| **İlgili karar** | — (karar defteri kaydı Faz 239 kapanışında) |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), yerel `echo-writer-1`, `curl` · ➜ CI: `TreeQuotaHostTests` |
+
+**Ön koşul** — Örnek uygulama, SQLite, `Tracon__AgentGraph__MaxTotalTokens=100000`. `GET /api/quotas/usage` ile günlük sayacın `cost` değerini oku (`C`). `PUT /api/quotas` ile `{"period":"Daily","maxCost":<C + 0.00009>}` (bir taslağın maliyeti ≈ 0.00015: limit ilk adımdan sonra dolar).
+
+**Adımlar**
+1. `POST /api/workflows/review-and-revise/run` ile `Prefer: respond-async`, gövde `{"message":"start","parameters":{"productionId":"p-3","language":"en"}}`.
+2. Run bitince `GET /api/runs?kind=Workflow&take=1` ile oku. `GET /api/quotas/usage` ile sayacı oku.
+
+**Beklenen sonuç**
+- Kapıdaki `429` kontrolü geçer (sayaç henüz limitin altındadır); yazar adımı koşar ve kendi tutarını kapanırken yazar.
+- Run `Failed`; `error.type` `tenant_quota_exceeded`, `error.class` `QuotaExceeded`; mesaj `Could not start function node 'episode-validate'`, `daily cost quota for the whole tenant has been exceeded (<kullanım>/<limit>)` ve `A node that is already running is not stopped.` yazar. Hiçbir düğüm yarıda kesilmez.
+- Sayaç yazarın tutarını taşır ve run'ın kendisi bir run olarak sayılır; reddedilen düğüm koşmadığı için başka tutar eklenmez.
+- 🚨 Kota yalnız girişte okunsaydı bu run `episode-validate`, `ask` ve onay isteğine kadar ilerler ve limit aşılmış olsa da `AwaitingInput` olurdu.
+- Ölçülen (2026-10-24, SQLite, `samples/Tracon.Api`): sayaç 0.000312 · limit 0.0004 · run `Failed`, `tenant_quota_exceeded`, `QuotaExceeded`, `Could not start function node 'episode-validate': The daily cost quota for the whole tenant has been exceeded (0.000461/0.0004). The counter resets at 2026-10-25T00:00:00.0000000+00:00. A node that is already running is not stopped.` · sayaç `runs` 5, `cost` 0.000461.

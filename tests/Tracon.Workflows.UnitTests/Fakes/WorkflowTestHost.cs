@@ -297,11 +297,41 @@ internal sealed class WorkflowTestHost
             runInputStore: runInputStore);
     }
 
+    /// <summary>
+    /// Builds a runner with the collaborators a continuation or quota test chooses: its own run store (to make a
+    /// read fail), its own clock, and a quota enforcer. Everything else is what <c>CreateRunner</c> builds.
+    /// </summary>
+    /// <param name="runStore">The run store the runner reads and writes; <see cref="RunStore"/> when omitted.</param>
+    /// <param name="timeProvider">The runner's time source; the system's when omitted.</param>
+    /// <param name="quotaEnforcer">The quota enforcer; none when omitted, as in <c>CreateRunner</c>.</param>
+    /// <param name="configure">Changes the workflow options.</param>
+    /// <param name="services">The container the code workflow factories get.</param>
+    /// <param name="codeWorkflows">Code workflow registrations.</param>
+    /// <returns>The runner.</returns>
+    public WorkflowRunner CreateRunnerWith(
+        IRunStore? runStore = null,
+        TimeProvider? timeProvider = null,
+        QuotaEnforcer? quotaEnforcer = null,
+        Action<TraconWorkflowOptions>? configure = null,
+        IServiceProvider? services = null,
+        params CodeWorkflowRegistration[] codeWorkflows)
+        => CreateRunnerCore(configure, services, sinks: null, timeProvider, runStore, quotaEnforcer, codeWorkflows);
+
     private WorkflowRunner CreateRunnerCore(
         Action<TraconWorkflowOptions>? configure,
         IServiceProvider? services,
         IEnumerable<IRunEventSink>? sinks,
         TimeProvider? timeProvider,
+        params CodeWorkflowRegistration[] codeWorkflows)
+        => CreateRunnerCore(configure, services, sinks, timeProvider, runStore: null, quotaEnforcer: null, codeWorkflows);
+
+    private WorkflowRunner CreateRunnerCore(
+        Action<TraconWorkflowOptions>? configure,
+        IServiceProvider? services,
+        IEnumerable<IRunEventSink>? sinks,
+        TimeProvider? timeProvider,
+        IRunStore? runStore,
+        QuotaEnforcer? quotaEnforcer,
         params CodeWorkflowRegistration[] codeWorkflows)
     {
         var settings = new TraconWorkflowOptions();
@@ -316,13 +346,14 @@ internal sealed class WorkflowTestHost
 
         return new WorkflowRunner(
             catalog,
-            RunStore,
+            runStore ?? RunStore,
             CheckpointStore,
             TenantContext,
             Options.Create(settings),
             Options.Create(TraconOptions),
             RunnerLogger,
             timeProvider: timeProvider,
+            quotaEnforcer: quotaEnforcer,
             sinks: sinks,
             runInputStore: RecordsRunInput ? RunInputs : null,
             agentCache: AgentCache);

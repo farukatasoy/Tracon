@@ -462,6 +462,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             ResumeFrom = null,
             Parameters = request.Parameters,
             DefinitionVersion = request.DefinitionVersion,
+
+            // A queued run, or a recovery's continuation that starts the work again, arrives under an id whose row
+            // is already open and may already name the run it continues (F-531).
+            RowMayBeOpen = request.RunId is not null,
         };
 
         await foreach (var runEvent in ExecuteAsync(execution, cancellationToken).ConfigureAwait(false))
@@ -516,6 +520,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Parameters = await ReadRecordedParametersAsync(record, "resumed", definitionVersion, cancellationToken)
                 .ConfigureAwait(false),
             DefinitionVersion = definitionVersion,
+            SourceRunId = record.Id,
+            RecordsContinuation = true,
+            RowMayBeOpen = request.NewRunId is not null,
         };
     }
 
@@ -569,6 +576,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Parameters = await ReadRecordedParametersAsync(record, "answered", definitionVersion, cancellationToken)
                 .ConfigureAwait(false),
             DefinitionVersion = definitionVersion,
+
+            // The answer names the run it answers in its own history (WorkflowResponseApplied), and the
+            // budget is read back along that link. The row does not name it as a continuation (K-130).
+            SourceRunId = record.Id,
+            RowMayBeOpen = request.NewRunId is not null,
         };
     }
 
@@ -723,6 +735,54 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             candidate => string.Equals(candidate.CheckpointId, checkpointId, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Reads what the runs this execution continues already spent, and the run its row must name as the one it continues.
+    /// </summary>
+    /// <param name="execution">The execution.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The carry-over for the budget (empty for a new run), and the run to record as the one this run
+    /// continues (<see langword="null"/> when the row names it already, or when this run continues none).
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// A row opened before the run starts names what it continues, and that name is the more exact one: a
+    /// recovery opens its continuation with a link to the interrupted run, while the checkpoint it resumes from
+    /// may belong to an earlier run of the chain. The chain is read from the row's link first, and a link
+    /// the row has is never overwritten. A resume whose row names nothing records its source.
+    /// </para>
+    /// <para>
+    /// A new run costs nothing here: it has no source and no row.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<(BudgetCarryOver CarryOver, Guid? Continues)> ReadContinuationAsync(
+        WorkflowExecution execution,
+        CancellationToken cancellationToken)
+    {
+        if (execution.SourceRunId is null && !execution.RowMayBeOpen)
+        {
+            return (BudgetCarryOver.None, null);
+        }
+
+        var opened = execution.RowMayBeOpen
+            ? await _runStore.GetRunAsync(execution.RunId, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        var continuesFrom = opened?.ContinuedFromRunId ?? execution.SourceRunId;
+        var records = execution.RecordsContinuation && opened?.ContinuedFromRunId is null ? execution.SourceRunId : null;
+
+        if (continuesFrom is not { } source)
+        {
+            return (BudgetCarryOver.None, records);
+        }
+
+        var carryOver = await BudgetLineage
+            .ReadAsync(_runStore, source, _tenantContext.TenantId, _traconOptions.Value.Pricing.Currency, _timeProvider, _logger, cancellationToken)
+            .ConfigureAwait(false);
+
+        return (carryOver, records);
+    }
+
     private async IAsyncEnumerable<RunEvent> ExecuteAsync(
         WorkflowExecution execution,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -817,7 +877,28 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // freezes the time, and an edit made while the run waits does not move it.
         var requestTimeout = found?.Code?.RequestTimeout ?? found?.Definition?.RequestTimeout;
 
-        var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider);
+        // F-531: the ceiling is the logical run's. A run that continues an earlier one (a person's answer, an
+        // operator's resume, a recovery) starts from what the chain already spent. Read before the budget is
+        // built and held like the definition's read: the row must open first, and a chain that cannot be read
+        // fails the run in the setup block below, not with a budget of zero.
+        var carryOver = BudgetCarryOver.None;
+        Guid? continues = null;
+        ExceptionDispatchInfo? lineageFailure = null;
+
+        try
+        {
+            (carryOver, continues) = await ReadContinuationAsync(execution, linked.Token).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
+        {
+            lineageFailure = ExceptionDispatchInfo.Capture(exception);
+        }
+        catch (OperationCanceledException)
+        {
+            // Stopped before the row opened: the run opens, then closes Canceled in the setup block below.
+        }
+
+        var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider, carryOver);
 
         // F-418: the workflow names the counter its steps add to. An agent step is a child
         // run of this root and writes its own tokens and cost when it ends, even one that a
@@ -887,6 +968,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 // The version the run is compiled from. A workflow defined in code has no
                 // versions, and a run whose definition could not be read stamps none.
                 AgentVersion = found?.Definition?.Version,
+
+                // A resume points back at the run it resumes, so the chain a later continuation reads
+                // its budget back along is whole (F-531). Null when the row was opened with a link already.
+                ContinuedFromRunId = continues,
             },
 
             // Workflow runs start with a structured input, not a single user
@@ -950,6 +1035,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             try
             {
                 lookupFailure?.Throw();
+                lineageFailure?.Throw();
 
                 var resolved = found
                     ?? throw new TraconException(
@@ -2577,6 +2663,24 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         /// runs the current definition (a new run, or a source that recorded no version).
         /// </summary>
         public int? DefinitionVersion { get; init; }
+
+        /// <summary>
+        /// The run this execution continues from its checkpoint: the one a resume or a response names.
+        /// <see langword="null"/> for a new run.
+        /// </summary>
+        public Guid? SourceRunId { get; init; }
+
+        /// <summary>
+        /// Whether the row of this execution records <see cref="SourceRunId"/> as the run it continues
+        /// (<see cref="RunRecord.ContinuedFromRunId"/>): a resume does, a response does not.
+        /// </summary>
+        public bool RecordsContinuation { get; init; }
+
+        /// <summary>
+        /// Whether the caller chose the run's id, so a row may already be open under it: a queued run's, or
+        /// the continuation a recovery opened. That row may name the run it continues already.
+        /// </summary>
+        public bool RowMayBeOpen { get; init; }
     }
 
     /// <summary>

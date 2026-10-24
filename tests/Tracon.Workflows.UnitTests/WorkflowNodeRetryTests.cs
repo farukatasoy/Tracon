@@ -166,6 +166,20 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
+    /// F-529: a tenant's spent quota is not given back between two attempts a few milliseconds apart,
+    /// whatever class a registered classifier files it under.
+    /// </summary>
+    [Fact]
+    public async Task A_tenant_quota_refusal_is_never_retried_even_when_the_classifier_calls_it_transient()
+    {
+        var attempts = await CountAttemptsAsync(
+            new TraconTenantQuotaExceededException("The daily cost quota for the whole tenant has been exceeded."),
+            new FixedClassifier(RunErrorClass.RateLimited));
+
+        attempts.ShouldBe(1);
+    }
+
+    /// <summary>
     /// F-338: <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx (K-817
     /// widened it on purpose), so the class alone cannot say whether a retry helps. A node
     /// that calls <c>EnsureSuccessStatusCode()</c> and gets a 401 used to run

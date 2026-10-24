@@ -95,12 +95,7 @@
   `IRunStore` henuz koleksiyonda degildir; `FaultInjection.ThrowFrom<T>`
   `configureTracon: b => b.Services...` icinde cagrilir ("Sequence contains no
   matching element"). `when:` suzgeci yalniz eslesen argumanla hata verir.
-- **Test: TestServer'da `500` istisna olarak gelir** — uygulamada exception
-  handler yok; ilk cagri `try/catch` icinde yapilir, sonra durum okunur.
-- **Elle repro: cokme penceresi** — ornek uygulama `Tracon__Scheduling__RunWorker=false`
-  ile kuyruklu cevap al, uygulamayi durdur, SQLite'ta `tracon_jobs` ve
-  `tracon_job_items` satirini sil (kimlikler BUYUK harf), isciyle yeniden ac,
-  ayni cevabi gonder.
+- Test ve elle repro ayrıntıları (TestServer `500`, çökme penceresi): [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) § Faz 239.
 
 - **🚨 `ExternalRequest.TryGetDataAs<T>` checkpoint'ten gelen JSON'u İSTENEN tipe deserialize etmeyi dener** (2026-10-15, Faz 211, ölçüldü): cevap run'ı isteği checkpoint'ten okur, veri artık canlı nesne değil JSON'dur; `{"text":"...","violation":null}` gibi bir kayıt `MagenticPlanReviewRequest`'e (tüm üyeleri isteğe bağlı) hatasız okunur ve cevap yanlış tipte (`MagenticPlanReviewResponse`) üretilirdi. İsteği yayınlayan ilk run canlı nesneyi tuttuğu için kusur yalnız CEVAP run'ında çıkar. Plan-review kararı port'un bildirdiği istek tipine bağlanır (`WorkflowRequestDescriptor.IsPlanReview`); `ChatMessage` için de aynı. Sınıf taraması: `TryGetDataAs` çağıranları (`Prompt`, `Create`). Console bir kayıt tipini yalnız tip adıyla gösterir; insana gösterilecek metin `string` istek tipidir.
 - **Süre dolumu servisi yalnız `Failed` kapanışında `run.failed` yayınlar** (2026-10-15, Faz 211, K-1011): cevaplanan isteğin run'ı süre dolunca `Completed` kapanır (sık yol); o kapanışta olay yayınlamak aynı üretim için ikinci bir `run.completed` olurdu. Yük `WorkflowRunWebhooks.RunPayload`'dan gelir (runner ile ortak); yayın `CancellationToken.None` ile, hata loglanır ve kapanışı bozmaz.
@@ -122,3 +117,13 @@
 - **Tool adı, ajan adı ve argüman özeti istek olayının yükündedir** (`WorkflowToolApprovalFacts`, `prompt`'tan ÖNCE yazılır): `/respond` Tracon.Workflows'a erişemez, olayı okur. Ham argüman yazılmaz.
 - **Süre dolumu bekleyen adımı da kapatır, workflow run'ından ÖNCE** (`WorkflowRequestExpirationService.CloseWaitingStepsAsync`): run kapandıktan sonra tarama onu bulmaz. Cevaplanan adım `AwaitingApproval` kalır (K-014).
 - **Test tuzakları:** `FakeModelProvider.EchoesLastToolResult` kuyruk BİTİNCE devreye giren yedektir; iki run'ın aracı çağırması için `CallsTool(..).RespondsWith(..).CallsTool(..)` yaz. Graf fabrikası aynı `AIAgent` örneğini döndürmelidir (kimlik örnekten türer). MAF `CreateCompletedApprovalResponse` yüzünden motor testindeki sahte agent çağrıyı ve sonucu kendisi döndürmelidir.
+
+## Devam bütçesi (Faz 239, F-531)
+
+- **Tavan mantıksal run'ındır: devam run'ı zincirin harcadığını devralır** (2026-10-24): `BudgetLineage` (`Workflows/Internal`) kaynaktan GERİYE yürür; halkanın öncülü `ContinuedFromRunId` (kurtarma, operatör resume'u) ya da `WorkflowResponseApplied` olayının `sourceRunId`'sidir (cevap run'ı; `workflow_responses` isteğe bağlı depodur, olay değil). Toplam satırın ağaç sütunlarından, `RunSpend.Total` ile; süre = Σ(`CompletedAt` − `StartedAt`), insan bekleme süresi yok. Okunamayan zincir run'ı `Failed` kapatır, sıfır bütçeyle koşturmaz (128 halka sınırı).
+- **🚨 Resume bağı YALNIZ satır bağsızsa yazılır** (Kural A'): kurtarma devam satırını `ContinuedFromRunId = son halka` ile ÖNCEDEN açar, resume'un checkpoint'i ise daha ESKİ bir run'a ait olabilir; `StartRunAsync`'te YENİ değer kazanır (`COALESCE(EXCLUDED, mevcut)`), ezilirse zincir kopar. Runner satırı önce okur (`ReadContinuationAsync`): bağ varsa zincir ondan başlar ve yazılmaz.
+- **🚨 Kesintiyle kapanan satır `NonTokenCost` özeti taşımaz** (`CloseInterruptedAsync`): tutarlar `non_token_usage` kalemlerindedir; lineage onları `NonTokenCostAccumulator` kuralıyla toplar (`WorkflowTreeSpend`).
+- **🚨 Başkasının kapattığı satırın aktif süresi son KENDİ olayına kadardır** (denetim 🔴1): kurtarma (`interrupted`) ve uzlaştırma (`orphaned`) satırı kendi saatiyle kapatır; `CompletedAt − StartedAt` kesinti + kurtarma arasındaki bekleyişi de sayardı ve `MaxDuration` altında devam run'ı ilk düğümde reddedilirdi. `BudgetLineage.LastOwnWriteAsync` kapanış olayını (son `RunFailed`) atar. Uzun süre olay yazmadan ölen run kısa sayılır.
+- **🚨 Operatör resume'u, işin zincirine katılır** (denetim 🟡1): `ContinuedFromRunId` onu `WorkflowContinuationChain`'in son halkası yapar. Cevap kapısı tekrar edilen cevabı onu izleyerek yanıtlar (istenen); işi hâlâ sahipli bir run'ın resume'u kurtarma planında `Running` halka olur ve `MaxResumeAttempts`'tan yer yer (F-675). Test: `ContinuationBudgetTests.A_resume_an_operator_started_is_the_work_in_flight_at_the_end_of_the_chain`, `WorkflowRecoveryBudgetTests.A_queued_resume_that_was_interrupted_…`.
+- **🚨 `RunEventWriter.CompleteAsync` `CompletedAt`'i `DateTimeOffset.UtcNow` ile yazar, `StartedAt` runner'ın `TimeProvider`'ı ile**: sahte saatli testte aktif süre bozulur; süre testleri satır zamanını elle yazar (`SetTimesAsync`). Üretimde iki saat aynıdır.
+- Alt run sayısı doğrudan çocuklardır (`ChildRunCount`); iç içe alt-agent çağrısı harcanır ama `StartedRuns`'a girmez. Testler: `ContinuationBudgetTests`, `BudgetLineageTests`, `*HttpTests`.

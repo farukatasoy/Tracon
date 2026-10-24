@@ -712,7 +712,9 @@ of agent steps is bounded the same way a single agent's own tool loop is. A step
 the budget refuses fails the run (see above), and so does a function node it
 refuses to start. What a function node
 [reported beyond tokens](#report-what-a-node-spent-beyond-tokens) counts against
-`MaxTotalCost` too.
+`MaxTotalCost` too. The budget is [the logical run's](/guides/reliability/#the-ceiling-of-a-workflow-is-the-logical-run): a
+run that continues an earlier one starts from what the earlier runs spent. The tenant's cost quota
+[stops a node that has not started](/concepts/governance/#a-quota-also-stops-work-that-has-not-started) too.
 
 ## Checkpoints
 

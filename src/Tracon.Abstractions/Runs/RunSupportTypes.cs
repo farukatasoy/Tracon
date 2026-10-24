@@ -350,7 +350,7 @@ public sealed record RunStartInfo
     public Guid? ReplayOfRunId { get; init; }
 
     /// <summary>
-    /// Gets the id of the run this one continues after an interruption, or
+    /// Gets the id of the run this one continues after an interruption or a resume, or
     /// <see langword="null"/> for a run that is not a continuation.
     /// </summary>
     /// <remarks>
@@ -547,7 +547,8 @@ public sealed record RunQuery
     /// A continuation points back at the run it continues, so this is how a
     /// chain is walked forward: ask for the continuations of the first run, then
     /// for those of the newest one returned, until none is left. Interrupted-run
-    /// continuation (agent runs) and workflow recovery both write the link.
+    /// continuation (agent runs), workflow recovery and an operator's resume of a
+    /// workflow run all write the link.
     /// </para>
     /// <para>
     /// The filter is combined with the others. A continuation is a root run, so

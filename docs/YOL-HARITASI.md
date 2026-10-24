@@ -16,7 +16,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
 | [238](238-NET-DISI-YUZEYLERIN-1X-KURALLARI.md) | .NET Dışı Yüzeylerin 1.x Kuralları, Sözleşme Anlık Görüntüleri ve Kiracı Metrik Etiketi | 📋 Planlandı |
-| [239](239-BUTCE-VE-KOTA-SUREKLILIGI.md) | Devam Zincirinde Bütçe ve Çalışan Ağaçta Kiracı Kotası | 📋 Planlandı |
+| [239](239-BUTCE-VE-KOTA-SUREKLILIGI.md) | Devam Zincirinde Bütçe ve Çalışan Ağaçta Kiracı Kotası | ✅ Tamamlandı |
 | [240](240-KIRACI-BASINA-WORKFLOW-ESZAMANLILIGI.md) | Kiracı Başına Workflow Eşzamanlılığı, `Queued` Bekleme ve Adil Kiralama | 📋 Planlandı |
 
 Kapanan fazlar (237 kayıt; son: Faz 237 — .NET Yüzeyinin 1.x Evrim Kuralları ve Donmuş Hat Kapısı): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).

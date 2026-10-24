@@ -139,10 +139,9 @@ ile gerekçeli muaf olduğunu zorlar. Bulduğu kusurlar: K-277 · K-278 · K-279
 Veritabanı RLS'i **bilinçli olarak yoktur** — bir savunma derinliği reddi değil,
 sıralama kararıdır (gerekçe K-623; tüketici karşılığı governance sayfası).
 
-**Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).** `TraconRateLimitOptions` ve
-`InboundTriggerRateLimiter` süreç belleğinde sayar; `Partition = Tenant` her örneğin
-**kendi** penceresini böler. Kiracının toplam tüketimini bağlayan şey kotadır — o
-veritabanında sayılır ve örnek sayısından etkilenmez.
+**Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).** Süreç belleğinde sayar;
+`Partition = Tenant` her örneğin **kendi** penceresini böler. Toplam tüketimi
+bağlayan şey veritabanındaki kotadır.
 
 **Kiracı sağlayıcı anahtarları / BYOK ve egress (Faz 65).** Varsayılan
 **kapalıdır**. Açıldığında her sağlayıcı çağrısından önce iki kontrol TEK yerde sırayla çalışır:
@@ -297,7 +296,8 @@ anahtarının **adını** taşır; sözleşmede `secret` alanı hiç yoktur (K-0
 **Kota ve hız sınırı ayrı mekanizmalardır** (K-158): hız sınırı saniye/dakika
 ölçeğinde bellekte, kota gün/ay ölçeğinde veritabanında. İkisi de **varsayılan
 olarak hiçbir isteği reddetmez** (K-165). Kota **yaklaşıktır** — denetim çalıştırma
-öncesinde, tüketim sonrasında yazılır (K-159).
+öncesinde, tüketim sonrasında yazılır (K-159). Çalışan ağaçta yeni iş başlamadan
+kota yeniden okunur (kimlik: ağacın `TreeAccount`'u, Faz 239).
 
 ## MCP OAuth ve kaynak erişimi
 

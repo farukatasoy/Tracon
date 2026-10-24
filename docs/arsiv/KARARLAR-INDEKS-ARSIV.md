@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1016 kalem)
+## Arşivlenen Kararlar (1018 kalem)
 
 | K | Karar |
 |---|---|
@@ -1025,3 +1025,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1024 | `WorkflowRunRequest.DefinitionVersion` public; checkpoint'siz kurtarma yeniden başlatması zincirin ilk run'ının sürümünü sabitler (F-492) |
 | K-1025 | `/v1/chat/completions` görsel, ses ve dosyayı modele verir; tool geçmişi ve bilinmeyen rol `400` (F-580) (kullanıcı kararı) 👤 |
 | K-1026 | OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil (F-579) |
+| K-1027 | `/v1/chat/completions` agent'ın istek ayarını `400` ile reddeder; `/v1/conversations` ilk `items`'ı reddeder (F-581) |
+| K-1028 | `RunRecordingAgent` iç agent'a düz `AgentRunOptions` verir, `TraconRunOptions` değil (G-07) |

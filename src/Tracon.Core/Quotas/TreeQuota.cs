@@ -15,7 +15,8 @@ namespace Tracon;
 /// <see cref="TreeAccount"/>, never from whoever happens to be calling.
 /// </para>
 /// <para>
-/// <c>grep -rn "new QuotaConsumption" src/</c> shows this file and nothing else.
+/// <c>grep -rn "new QuotaConsumption" src/</c> shows this file and nothing else. It is also the only
+/// place that tells the tree's ledger what the counter took (<see cref="TreeLedger"/>).
 /// </para>
 /// </remarks>
 internal static class TreeQuota
@@ -61,7 +62,7 @@ internal static class TreeQuota
             return [];
         }
 
-        return await quota.RecordAsync(
+        var crossings = await quota.RecordAsync(
             new QuotaConsumption
             {
                 TenantId = account.TenantId,
@@ -74,5 +75,14 @@ internal static class TreeQuota
                 UserId = account.UserId,
             },
             cancellationToken).ConfigureAwait(false);
+
+        // F-529: the ledger is the other side of the difference the budget's live meter makes with the
+        // counter. It is written here and nowhere else, after the entry went to the store, so a quota check
+        // at the start of new work adds to the counter only the spend that entry has not covered yet. A
+        // counter that could not be written does not fail a run (RecordAsync keeps that contract) and is
+        // not told apart from one that could: the entry is lost to the counter, not owed to it.
+        account.Ledger.Record(tokens, amount);
+
+        return crossings;
     }
 }

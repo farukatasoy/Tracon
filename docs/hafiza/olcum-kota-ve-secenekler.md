@@ -31,6 +31,7 @@
 ## Kota
 
 - **🚨 Süreç içi "bir kez" kümesi zaman anahtarlıysa budanır; kalıcı claim atarsa anahtar geri alınır** (2026-09-23): `QuotaEnforcer._firedThresholds` dönem başı taşıyan anahtarı hiç silmiyordu ve singleton süreç ömrü boyunca büyüdü. Anahtar claim'den ÖNCE ekleniyordu; claim atınca (iptal dahil) eşik dönem sonuna kadar o süreçte sustu. Kalıcı claim (K-682) tek doğru kaynak olduğu için budama çift yayın üretmez. Desen: `(dönem, dönem başı)` kovası, kapanan kovanın fırsatçı silinmesi, claim hatasında `TryRemove`.
+- **🚨 Kota ÇALIŞAN ağaçta da okunur: sayaç + ağacın yazılmamış payı** (2026-10-24, Faz 239, F-529): kapı `TreeQuotaGate.RefusalAsync` (`ChildAgentInvoker` agent adımı/alt çağrı: bütçe `IsExhausted` DEĞİLSE, `TryReserveRun`'dan ÖNCE; `WorkflowNodeBudgetGate` bütçeden SONRA). Pay = `AgentRunBudget.UnrecordedSpend()` = bütçe tüketimi − `Account` atandığı andaki tutar − `TreeLedger` (yalnız `TreeQuota.RecordAsync` yazar). Kimlik `TreeAccount`'tandır (arka plan adımı kökün kiracısını okur). Fonksiyon düğümü yalnız `Cost`, agent adımı `Tokens`+`Cost` durdurur; `Runs` girişte kalır. Tuzaklar: (1) `RunBudgetChatClient` model maliyetini yalnız `MaxTotalCost` varken fiyatlıyordu; kota açıkken de fiyatlar (`MeasuresCost`) — yoksa defter bütçeden büyük kalır, pay `Math.Max(0, …)`'a takılır ve düğüm tutarı sessizce gizlenir. (2) Temel `Account` atamasında alınır: devralınan harcama (F-531) ve yeniden kullanılan bütçe iki kez sayılmaz. (3) Başka para birimli alt run'ın token maliyeti bütçede vardır, deftere girmez: pay kalıcı fazla görünür (yalnız özel `IRunPricingResolver`). (4) Kesinti kök yazımını kaybeder: o run'ın düğüm tutarı sayaçta yoktur. Kapı: `TreeQuotaGateTests`, `ChildAgentInvokerQuotaTests`, `TreeQuotaHostTests`; ölçüm `QuotaGateRoundTripTests` (tanımsız kiracı 1, tanımlı 2 depo turu).
 - **Kota HER run'da yazilir; kimlik agacin butcesindedir** (2026-10-14, Faz 205, K-990): kok `AgentRunBudget.Account`'u (`TreeAccount`: kiraci, kok adi, kullanici, `IQuotaRecorder`) `PrepareRun`'da her seferinde YENIDEN atar; cocuk (`Runs = 0`), workflow adimi ve gec tool girdisini oradan yazar. Arka plan cocugu kok bittikten sonra biter ve ortam kiraci/kullanicisi kokunki degildir (ortamdan okuyan surumde `A_late_childs_entry_goes_to_the_roots_tenant` kirmizi). Tek yazim yolu `TreeQuota.RecordAsync` (kapi `QuotaWriteSiteTests`). `run.*` webhook'u ve ornekleme yalniz kokte; webhook kapanis aninin goruntusudur (`ReadTreeConsumptionAsync` yalniz onun icin).
 - **🚨 Gec tool tutari kayittan degil birikimciden okunur** (F-482): tool suresi icinde raporlayip run kapandiktan sonra donerse kayit da toplam da tutari tutar; kayittan okumak iki kez sayardi. `NonTokenCostAccumulator.TakeLateToolAmount` yalniz muhurden SONRA raporlananı verir (kapi `A_tool_that_reported_in_time_and_returns_late_is_counted_once`).
 - **Alt run'in tutari yalniz fiyat para biriminde girer** (K-976 uzantisi): kokun para birimi cocuk kapanirken bilinmez. Token maliyeti `Tracon:Pricing:Currency` disindaysa (etiketsiz = o) cocuk token ve token disi tutari ile girer, token maliyeti ile girmez; kok kendi maliyetini oldugu gibi yazar.
@@ -61,41 +62,6 @@ kapasitesi iddiası değil; vaka sayılmaz.
 
 ## 🚨 Dürüst bir "bilmiyorum" bir süre sonra kırık bir rapordan ayırt edilemez
 
-`RunPricingResolver` fiyat hiçbir kaynakta yoksa `PricingSource.Unknown` yazar
-ve maliyet sütunlarını **boş** bırakır — sıfır değil, çünkü sıfır modelin
-bedava olduğunu iddia ederdi. Mekanizma doğrudur ve öyle kalır. Kusur
-(`HATA-S1-010`) mekanizmada değil **sessizliğindeydi**: örnek kurulumun 13
-modelinin hiçbirinde fiyat yoktu, yani her `run` maliyetsiz kaydediliyordu ve
-sebebini öğrenmenin tek yolu bir satırdaki `pricing_source` enum'unu okumaktı.
-Operatörün gördüğü şey kırık bir maliyet raporundan ayırt edilemezdi.
-
-**Kural:** `null` ile "ölçülmedi"yi ayıran her alan için, o durumun **kalıcı**
-hâle gelebileceği bir kurulum var mı diye sor. Varsa durumu bir kez söyle —
-açılışta bir `Warning` (`UnpricedModelWarningService`, Aile A'nın
-`PreservedStoreRegistrationWarningService` emsali) ve `/api/diagnostics`'te bir
-alan (Aile F'nin `runRecording` emsali). K-808.
-
-🚨 **Aynı sınıfın ikinci ölçülmüş vakası: `/health`** (2026-09-18, Aile M,
-K-822). Hiçbir şey bir model sağlayıcısını kendiliğinden problamaz —
-`ModelProviderHealthCache` yalnız `GET /api/models/health` ya da
-`Tracon:Health:BackgroundInterval` ile dolar, ve **gerçek bir sohbet çağrısı
-ona yazmaz** (ölçüldü: başarılı bir `run`'dan sonra beş sağlayıcının beşi
-`Unknown`). `TraconHealthCheck` "hiç ölçülmedi" ile "ölçüldü ve bozuk"u tek
-dala koyuyordu, yani doğru kurulmuş bir uygulama kalıcı `Degraded` raporluyordu
-ve operatör gerçek bir bozulmayı bu gürültüden ayıramıyordu. Durum artık yalnız
-**bilinen** arızayı yansıtır; ölçümün yokluğu mesajda söylenir. **Üç durumlu
-bir göstergede "bilmiyorum" ile "bozuk" ayrı dallardır** — yukarıdaki kuralın
-`null` yerine ENUM ile yazılmış hâli.
-
-**İki okuyucu tek kural uygular.** Uyarı ile rapor aynı `UnpricedModels.Find`
-metodunu çağırır. Aynı mantığın iki kopyası kaçınılmaz olarak kayar ve
-raporu uyarıyı doğrulamak için açan operatör farklı bir liste görür.
-
-**Sınıf taraması (2026-09-18):** `grep -rn "PricingSource.Unknown" src/` —
-diğer okuyucular (`RunRecordingAgent.Completion`, `RunCostRecalculationService`,
-`OnlineEvalSummaryService`, `QuotaTypes`) durumu zaten doğru ele alıyor; hiçbiri
-sıfır yazmıyor. `RunCostRecalculationService` fiyat sonradan girilince geçmişi
-geri hesaplar, yani bu kusurda **veri kaybı yoktur** — `HATA-S1-025`'ten (tool
-harcamasının kalıcı kaybı) ayıran şey budur.
+`null` ile "ölçülmedi"yi ayıran her alan için, o durumun **kalıcı** hâle gelebileceği bir kurulum var mı diye sor; varsa durumu bir kez söyle: açılışta bir `Warning` (`UnpricedModelWarningService`) ve `/api/diagnostics`'te bir alan (K-808, `HATA-S1-010`). İkinci vaka `/health` (K-822): "hiç ölçülmedi" ile "ölçüldü ve bozuk" ayrı dallardır. Uyarı ile rapor tek kural uygular (`UnpricedModels.Find`). Sınıf taraması: `grep -rn "PricingSource.Unknown" src/`. Tam metin: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) § Faz 239.
 - **`ITenantStore` kaydi zorunlu DEGILDIR; kayitsiz kiracinin verisi `ListAsync()` taramasinda GORUNMEZ** (Faz 35, K-257): `QuotaUsageObserver` yalniz KAYITLI kiracilari tarar. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Bucket araligi `Variants`'in fiziksel sirasina bagliysa, bir kolun agirligini degistirmek DIGER kollarin araligini kaydirir ve var olan atamalari bozar** (Faz 56, K-374): degisken agirlikli kolun araligi konumdan bagimsiz sabit bir uca ankorlanmali.

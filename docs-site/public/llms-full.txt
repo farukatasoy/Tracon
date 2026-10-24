@@ -165,7 +165,7 @@ is the list.
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
 | Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()`, `GetWorkflowFunction` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin, and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
-| Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
+| Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and a spent cost quota of the tenant does too (`tenant_quota_exceeded`), and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one from both; the ceiling is the logical run's, so a run that continues an earlier one (an answer, a resume, a recovery) starts from what the earlier runs spent; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
 | Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution; an agent run and a workflow run, resume or respond queue the same way |
@@ -2057,8 +2057,9 @@ re-notify. To turn the notifications off, clear the list in code
 configuration keeps the default. An entry that is not a whole number from 1 to 100
 stops the application at startup, and the error quotes it.
 
-The threshold event is a notification, not a decision: it stops nothing, and `429`
-remains the only thing that refuses a run.
+The threshold event is a notification, not a decision: it stops nothing. `429` refuses a run at the
+door, and a spent cost quota stops new work inside a run that is already going (see
+[below](#a-quota-also-stops-work-that-has-not-started)).
 
 A **cost** limit counts what a run spent, not only its tokens. The amount a run
 writes into the counter is its token cost plus what its workflow function nodes and tools
@@ -2100,12 +2101,48 @@ finishes. A run already in progress is never cut off during execution, so brief 
 possible by design.
 :::
 
+### A quota also stops work that has not started
+
+The quota is read where the work begins, not only where the request comes in. A workflow that waits
+for a person, or that simply runs for hours, would otherwise pass a quota that was spent in its first
+minutes. Before a **workflow function node** or an **agent step** starts, Tracon asks the tenant's
+quota whether the tree may start one more thing:
+
+| What is about to start | The limits that stop it |
+|---|---|
+| A workflow function node | The **cost** limit. A node spends no tokens, so a token limit does not stop it |
+| An agent step, or one agent's call to another | The **token** and **cost** limits. A child run adds no run to the counter, so the run limit does not stop it |
+
+The run limit stays at the door: it is the one limit that counts runs, and a tree that is already
+running is not a new run.
+
+A refused node or step does not start. A workflow run ends `Failed` with error type
+`tenant_quota_exceeded` (`TraconTenantQuotaExceededException`, class `QuotaExceeded`, the same class a spent call-tree budget has, with a
+different remedy: the budget is a setting, and the quota resets when its period ends). The message
+names the metric, the period and the limit. When one agent calls another, the refusal comes back to the
+calling model as a tool result, as a spent call-tree budget does, and the run goes on. A refused
+node is not retried by its retry policy, and a node registered with
+`options.StartsWhenBudgetIsSpent = true` is exempt from the quota as it is from the budget.
+
+Only the **start** is refused. A node or a model call that is running is never stopped, so a tenant
+can pass its limit by as much as the work that was running when the limit was reached. The check adds
+what the tree has spent that its counter has not seen yet (a run writes its consumption when it
+ends), so the nodes the run already finished count before the root has written anything. What an
+earlier run of the same workflow chain wrote is in the counter already and is not added a second time.
+The tenant is the tree's, the one its root names, never the caller's: an agent step that runs in a
+background task reads its own tenant's counter.
+
+The check costs the store one read of the tenant's rules when it has none, and two (the rules and the
+current periods' usage) when it has some, per node or step that starts. A store that cannot be read
+follows `Quotas:AllowOnStoreFailure`: the node starts when it is on (the default), and is refused when it
+is off. With quotas off (`Quotas:Enabled = false`) nothing is read.
+
 This is a *different* budget from the one every root run's call tree carries
 (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration`, see [Reliable
 runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
 or agent over a day or month and never interrupts a run in progress; the call-tree
-budget is scoped to one run's tree and is checked between model turns, so it *does*
-cut a long tool loop off mid-run.
+budget is scoped to one run's tree (for a workflow, the whole chain of runs that continue one
+another) and is checked between model turns, so it *does* cut a long tool loop off mid-run.
 
 ## Retention
 
@@ -3099,7 +3136,7 @@ anyone reports it.
 
 A workflow run is classified the same way. Its `error.type` is the same stable
 identity the failing step's own run records — `loop_unsatisfied`,
-`child_run_timeout`, `run_budget_exceeded` — not the exception's .NET type name,
+`child_run_timeout`, `run_budget_exceeded`, `tenant_quota_exceeded` — not the exception's .NET type name,
 and its class is the step's class.
 
 Both the class and the clustering fingerprint come from a classifier you can
@@ -3225,7 +3262,11 @@ for what gets replayed, what runs live, and which tools it refuses to continue.
 A workflow run is continued by a different owner: the job that started it resumes
 it from its latest checkpoint when it is leased again, if `ResumeInterruptedRuns` is
 on (see [Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically)).
-The new run carries the same `continuedFromRunId` link.
+The new run carries the same `continuedFromRunId` link. So does the run an operator starts with
+`POST /api/workflows/runs/{runId}/resume`: it names the run it resumes. A run that answers a person's
+request does not carry it; the answer names the run that waited in its own history. All of them
+start their budget from what the runs before them spent (see
+[the ceiling is the logical run's](/guides/reliability/#the-ceiling-of-a-workflow-is-the-logical-run)).
 
 The link points back. To walk a chain forward, ask for the runs that continue a run,
 then for those of the newest one returned:
@@ -5294,7 +5335,9 @@ of agent steps is bounded the same way a single agent's own tool loop is. A step
 the budget refuses fails the run (see above), and so does a function node it
 refuses to start. What a function node
 [reported beyond tokens](#report-what-a-node-spent-beyond-tokens) counts against
-`MaxTotalCost` too.
+`MaxTotalCost` too. The budget is [the logical run's](/guides/reliability/#the-ceiling-of-a-workflow-is-the-logical-run): a
+run that continues an earlier one starts from what the earlier runs spent. The tenant's cost quota
+[stops a node that has not started](/concepts/governance/#a-quota-also-stops-work-that-has-not-started) too.
 
 ## Checkpoints
 
@@ -14054,7 +14097,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
-| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node from starting once it is spent |
+| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node from starting once it has passed |
 
 Six of these rows — multi-tenancy, session ownership, at-rest content encryption,
@@ -15068,11 +15111,40 @@ refused. It applies the same way to a queued (`Prefer: respond-async`) run,
 whose lease is otherwise renewed for as long as the run keeps going — before
 `MaxDuration`, nothing capped a queued run's wall-clock time.
 
+**For a workflow, the tree is the logical run** (see [the ceiling of a workflow](#the-ceiling-of-a-workflow-is-the-logical-run)).
+
 Because several branches of a tree can be mid-turn at the same time, the check
 is not perfectly precise: two concurrent turns can each pass the check before
 either records its spend, so a tree can still overshoot its limit by a bounded
 amount before the next check on each branch catches it. Use stricter per-run
 budgets for externally exposed MCP and A2A agents.
+
+### The ceiling of a workflow is the logical run
+
+A workflow that waits for a person, is resumed by an operator, or is picked up after an interruption is one run to its
+owner, but each step of that chain is a run row with a budget of its own. A run that continues an earlier one starts from
+what the earlier runs spent (tokens, cost and child runs), so a workflow with an approval loop does not get the whole
+ceiling again with every answer.
+
+| The run that continues | Its budget starts from |
+|---|---|
+| The answer to a request (`POST /api/workflows/runs/{runId}/respond`) | The run that waited, and every run it continues |
+| An operator's resume (`POST /api/workflows/runs/{runId}/resume`) | The run it resumes, and every run it continues. The resume run records that run in `continuedFromRunId` |
+| A recovery after an interruption | The interrupted run, and the runs before it. What its function nodes reported is read from the run's items, because the process that kept the total is gone |
+
+The time limit counts the time the chain's runs were **executing**. The time a workflow waited for a person does not count:
+`MaxDuration` bounds the work, not the answer. A chain that has used all of its time refuses its first function node, and a
+resume of a run that failed for its budget is refused at the same node. Raise the setting in `Tracon:AgentGraph` and resume
+again; the run goes on from what it spent.
+
+A run that someone else closed after its process died (an interruption the recovery closed) counts to the last thing it
+wrote, not to the moment it was closed, so the time the host was down is not charged to the ceiling. A run that did
+nothing for a long time before it died is counted short by that time.
+
+The chain is read once, when the run starts. If it cannot be read (the run store does not answer, or the chain is longer than
+128 runs), the run does not start with a budget of zero: it ends `Failed` before its first node. Two limits are worth knowing.
+The child count is the direct children of each run, so a nested sub-agent call is spent but not counted as a started run. A
+model call that was still running when the process stopped is in no row at all.
 
 ### Function nodes and the budget
 
@@ -15110,6 +15182,13 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 A refusal is never retried, whatever the registered `IRunErrorClassifier` says about it: cost and time
 only grow within a run, so waiting cannot change the answer. When the first attempt spent past
 `MaxTotalCost`, the second does not start and the run ends with the refusal.
+
+The tenant's cost quota stands at the same place. A node does not start either once the quota for the
+current period is spent, counting what the run has spent that the quota's counter has not seen yet; the
+run ends `Failed` with error type `tenant_quota_exceeded` (`TraconTenantQuotaExceededException`, which carries the metric, the
+period and the limit), in the same class (`QuotaExceeded`). The remedy
+differs: a budget is a setting you raise, and a quota resets when its period ends. The exemption above covers
+both. See [A quota also stops work that has not started](/concepts/governance/#a-quota-also-stops-work-that-has-not-started).
 
 A graph built in code with `AddWorkflow` and its own executors is not wrapped, so nothing gates its
 executors. Such an executor reads the budget itself: `TraconRunContext.Current?.Budget` has
@@ -15360,9 +15439,13 @@ next node its final iteration only.
 
 ## Limits that work together
 
-- **A revision limit and a cost ceiling.** Each answer is a new run with a new budget, so
-  `MaxTotalCost` does not add up across rounds. Bound the rounds with your own counter, as here, and
-  set the ceiling for one round.
+- **A revision limit and a cost ceiling.** Each answer is a new run, and the ceiling is the logical run's: a
+  run that answers a request starts from what the runs before it spent, so `MaxTotalCost` and `MaxTotalTokens` add
+  up across rounds, and the time the workflow waited for the reviewer does not count against `MaxDuration`. Bound
+  the rounds with your own counter, as here, because the ceiling counts money and the counter counts attempts, and
+  set the ceiling for the whole review, not for one round. A round the ceiling refuses fails the run with
+  `run_budget_exceeded`; the tenant's quota refuses it with `tenant_quota_exceeded` (see
+  [Governance](/concepts/governance/#a-quota-also-stops-work-that-has-not-started)).
 - **`MaxConcurrency` is per process and per function.** It holds across workflows and tenants, in a stored chain
   and in a graph built in code, and it multiplies with the number of replicas. A call that finds every slot taken
   waits. The wait is not part of the node's own `Timeout`, and it ends when the run is cancelled or reaches its

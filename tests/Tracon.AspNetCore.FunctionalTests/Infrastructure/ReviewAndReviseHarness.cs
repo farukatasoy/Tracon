@@ -52,11 +52,22 @@ internal sealed class ReviewAndReviseHarness
     /// <summary>Initializes the harness.</summary>
     /// <param name="drafts">What the writer answers, in order.</param>
     public ReviewAndReviseHarness(params string[] drafts)
+        : this(Writing().RespondsWith(drafts))
     {
-        Provider = new FakeModelProvider(ProviderName)
-            .WithModel(new ModelDescriptor { Name = ModelName, ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 })
-            .RespondsWith(drafts);
     }
+
+    /// <summary>Initializes the harness over a provider the test scripted, for a case that needs the writer's turns to report tokens.</summary>
+    /// <param name="provider">The provider the writer runs on; <see cref="Writing"/> makes one.</param>
+    public ReviewAndReviseHarness(FakeModelProvider provider)
+    {
+        Provider = provider;
+    }
+
+    /// <summary>Makes the provider the writer runs on, with the writer's model and no script yet.</summary>
+    /// <returns>The provider.</returns>
+    public static FakeModelProvider Writing()
+        => new FakeModelProvider(ProviderName)
+            .WithModel(new ModelDescriptor { Name = ModelName, ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 });
 
     /// <summary>Gets the provider the writer runs on; its requests show what the writer was given.</summary>
     public FakeModelProvider Provider { get; }

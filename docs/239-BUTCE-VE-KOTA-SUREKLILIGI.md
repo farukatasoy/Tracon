@@ -1,6 +1,6 @@
 # Faz 239 — Devam Zincirinde Bütçe ve Çalışan Ağaçta Kiracı Kotası
 
-> **Durum:** 📋 Planlandı (2026-10-23)
+> **Durum:** ✅ Tamamlandı (2026-10-24)
 > **Kademe:** tam — kiracı sınırı: kiracı kotası ilk kez çalışan bir ağacın içinde yeni işi durdurur; public sözleşme: yeni ret kimliği
 > **Plan onayı:** Bakımcı, 2026-10-23 (engelleyici kararlar sohbette alındı: üç devam yolu da bütçeyi devralır ve sıfırlama yoktur; süre boyutu yalnız aktif yürütme süresini devralır; harcanan bütçe devam başında zincirden okunur — migration yok; kiracı kotası fonksiyon düğümü ve agent adımı başlamadan okunur)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-529**, **F-531**
@@ -206,6 +206,19 @@ Faz 210 "düğüm başına okuma pahalıdır" dedi ama bir sayı vermedi. Bu faz
   (tanımlar ağaç başına) ayrı bir aday olur. Gerekçe: önbellek, eşzamanlı
   run'ların harcamasını bayat okur; doğruluk önce gelir (Açık Soru 1).
 
+**Ölçüm sonucu (2026-10-24).** `QuotaGateRoundTripTests` (`Tracon.AspNetCore.FunctionalTests`) sayar ve
+yerel SQLite dosyasında ölçer; 21 düğümlü ve 1 düğümlü zincirin farkı, kök kapanışı ve giriş kapısı iki tarafta aynı
+olduğu için düğüm başına eklenen okumayı verir:
+
+| Kiracı | Düğüm başına depo turu | 21 düğümlü zincirin süresi (medyan, 5 koşu, üç tur) |
+|---|---|---|
+| Kota kapalı | 0 | 24–30 ms |
+| Kota açık, kural yok | 1 (`ListAsync`) | 29–33 ms |
+| Kota açık, kural var | 2 (`ListAsync` + `GetUsageAsync`) | 29–30 ms |
+
+Düğüm başına fark 0,1–0,3 ms'dir ve gürültü içindedir. Bir tur sayısı kesindir (test sabitler); süre makineye ve depoya
+bağlıdır ve yerel SQLite en ucuz turdur. Önbellek gerekmedi (Açık Soru 1: A).
+
 ---
 
 ## Planlanan Public API
@@ -327,23 +340,28 @@ başlamaz), kota deposu (`AllowOnStoreFailure`).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `ContinuationBudgetTests` üç devam yolunu (cevap, resume, kurtarma) ve süre kuralını kanıtlar; testler taban sürümde kırmızıdır (kayıt: komut + çıktı)
-- [ ] `TreeQuotaGateTests` düğüm ve agent adımı kapısını, çift sayım yokluğunu, kiracı yalıtımını ve muafiyeti kanıtlar
-- [ ] §239.1 kararı (A ya da B) ve ölçümü *Plandan Sapmalar*'da; kurtarma testleri değişmeden yeşil
-- [ ] §239.4 ölçümü (depo turu sayısı, süre) dokümanda
-- [ ] `CHANGELOG.md [Unreleased]` devam bütçesi davranışını ve yeni ret kodunu adıyla yazar
-- [ ] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (Manuel 1–3), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/15-WORKFLOWS.md` ve `23-SAKLAMA-ARSIV-KOTA.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `ContinuationBudgetTests` üç devam yolunu (cevap, resume, kurtarma) ve süre kuralını kanıtlar; testler taban sürümde kırmızıdır (kayıt: komut + çıktı — *Denetim Bulguları*)
+- [x] `TreeQuotaGateTests` düğüm ve agent adımı kapısını, çift sayım yokluğunu, kiracı yalıtımını ve muafiyeti kanıtlar
+- [x] §239.1 kararı (A ya da B) ve ölçümü *Plandan Sapmalar*'da; kurtarma testleri değişmeden yeşil
+- [x] §239.4 ölçümü (depo turu sayısı, süre) dokümanda
+- [x] `CHANGELOG.md [Unreleased]` devam bütçesi davranışını ve yeni ret kodunu adıyla yazar
+- [x] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis`: restore · build · pack · site · format · 26.881 test, 0 hata)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (Manuel 1–3), çıktı belgeye yazıldı (`MT-WF-187`, `MT-RET-087`, `MT-WF-188`)
+- [x] `secret` taraması boş döndü (`kapi.py tarama` temiz)
+- [x] `🤖` case'ler `docs/manuel-test/15-WORKFLOWS.md` ve `23-SAKLAMA-ARSIV-KOTA.md` içinde ve koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (tek 🔴 düzeltildi, kapılar yeniden koşuldu)
 
 ### Doğrulama komutları
 
 ```bash
 python3 scripts/kapi.py test --proje Tracon.Workflows.UnitTests --sinif ContinuationBudgetTests
 python3 scripts/kapi.py test --proje Tracon.Workflows.UnitTests --sinif TreeQuotaGateTests
+python3 scripts/kapi.py test --proje Tracon.Workflows.UnitTests --sinif BudgetLineageTests
+python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "ContinuationBudgetHttpTests"
+python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "WorkflowRecoveryBudgetTests"
+python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "TreeQuotaHostTests"
+python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "QuotaGateRoundTripTests"
 grep -rn "ContinuedFromRunId" src/ --include='*.cs'      # §239.1 çağıran listesi
 ```
 
@@ -371,6 +389,57 @@ grep -rn "ContinuedFromRunId" src/ --include='*.cs'      # §239.1 çağıran li
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır. §239.1 kararı buraya yazılır.
 
+1. **§239.1 kararı: Kural A, ama yalnız satır bağsızsa.** Ölçüm (`grep -rn "ContinuedFromRunId" src/`): workflow satırının
+   bağını okuyanlar `WorkflowContinuationChain` (kurtarma planı ve cevap kapısı), `WorkflowFollowStream.NextRunAsync` ve
+   `GET /api/runs?continuedFromRunId=`; `RunReconciliationService` workflow satırını `RunContinuationEligibility` ile baştan
+   reddeder, etkilenmez. Mevcut 2.701 fonksiyonel ve 474 birim test **değişmeden** yeşil kaldı. Ama "runner kaynağı
+   yazar" biçimi kurtarmayı bozardı: kurtarma devam satırını önceden **son halkaya** bağlar, resume'un checkpoint'i ise
+   daha eski bir run'a ait olabilir ve `StartRunAsync`'te YENİ değer kazanır (`COALESCE(EXCLUDED, mevcut)`). Bu yüzden
+   runner satırı önce okur; bağ varsa dokunmaz, zinciri o bağdan başlatır (`ReadContinuationAsync`). Kural B kullanılmadı.
+   Plan satır 7'nin iki testi: `ContinuationBudgetTests.A_resume_an_operator_started_is_the_work_in_flight_at_the_end_of_the_chain`
+   (resume, zincirin son halkasıdır) ve `WorkflowRecoveryBudgetTests.A_queued_resume_that_was_interrupted_is_continued_from_its_own_link_and_carries_the_whole_chain`
+   (kuyruklu resume kesilir; devam, resume'a bağlanır ve ikisinin harcamasını taşır). **İstenen yan etki:** cevap kapısı,
+   operatör resume edilmiş cevap run'ı için aynı cevabın tekrarında yeni run açmaz, resume'u izler. **Bilinen sınır (F-675):**
+   işi hâlâ sahipli bir run'ın resume'u kurtarma planında `Running` halka olur ve `MaxResumeAttempts`'tan yer yer;
+   CHANGELOG "işi bitmemiş run'ı resume etme" der.
+2. **Cevap run'ının öncülü olaydan okunur, `workflow_responses` satırından değil.** Satır deposu isteğe bağlıdır ve
+   birim testteki çıplak runner onu almaz; `WorkflowResponseApplied` olayı işlev-kritiktir ve yük her zaman yazılır
+   (`RunEventWriter`). Cevap satırı bağ almaz (K-130 değişmedi).
+3. **`BudgetLineage` `Tracon.Workflows/Internal/`'dadır** (plan: `Core/Scheduling/`): `WorkflowResponseLink` Workflows'ta
+   internal'dır ve zincir yalnız runner'dan okunur.
+4. **Seed miktarı için ayrı alan yok.** `AgentRunBudget.Account` atandığı anda bütçenin tuttuğu tutar defterin temelidir
+   (`TreeLedger.Rebase`). Devralınan harcama (F-531) ve yeniden kullanılan bütçe aynı kuralla iki kez sayılmaz.
+5. **`RunBudgetChatClient` model maliyetini yalnız `MaxTotalCost` varken fiyatlıyordu.** Plan "bütçe − seed − defter"
+   formülünü bütçenin maliyeti her zaman ölçtüğünü varsayarak yazmıştı. Ölçülmeden bırakılsaydı defter (alt run'ların token
+   maliyeti dahil) bütçeden büyük kalır, pay sıfıra takılır ve fonksiyon düğümünün tutarı sessizce gizlenirdi. Kota açıkken
+   model çağrısı da fiyatlanır (`AgentRunBudget.MeasuresCost`); tüketiciye görünen sonuç: `ConsumedCost` artık `MaxTotalCost`
+   olmadan da model maliyetini taşır. CHANGELOG'da yazılı. Kota varsayılan açık ve `QuotaEnforcer` hep kayıtlı olduğundan bu
+   **her** kurulumda geçerlidir (denetim 🟡2); fiyat araması ölçüldü: 24 modelli katalogda `Resolve` ≈ 1,2 µs, model çağrısının
+   yanında ihmal edilir.
+6. **Kesintiyle kapanan satır `NonTokenCost` anlık görüntüsü taşımaz** (plan öngörmedi). `WorkflowRecovery.CloseInterruptedAsync`
+   yalnız durumu yazar; düğüm tutarları `non_token_usage` kalemlerindedir. Zincir okuması o satırlar için kalemleri
+   `NonTokenCostAccumulator` kuralıyla toplar. Kesintinin kök kota yazımını kaybetmesi (sayaç eksik kalır) bu fazın
+   dışındadır ve aday olarak kaydedilir.
+7. **`RunEventWriter.CompleteAsync` `CompletedAt`'i `DateTimeOffset.UtcNow` ile yazar**; `StartedAt` runner'ın
+   `TimeProvider`'ından gelir. Üretimde aynıdır; sahte saatli testte aktif süre bozulur. Düzeltme kapsam dışı (aday);
+   süre testleri satır zamanını elle yazar.
+8. **Test yerleri ve komutlar.** Plan `Tracon.Workflows.UnitTests` altında "fonksiyonel" dedi: `ContinuationBudgetTests`
+   ve `TreeQuotaGateTests` orada, gerçek runner ve bellek içi depolarla koşar. Sınırı (HTTP, DI, kiracı, depo, job
+   handler'ı) geçen davranış için ayrıca `ContinuationBudgetHttpTests`, `WorkflowRecoveryBudgetTests` ve
+   `TreeQuotaHostTests` (`Tracon.AspNetCore.FunctionalTests`) eklendi. §239.4 ölçümü `Tracon.Capacity.Tests`'te değil
+   `QuotaGateRoundTripTests`'tedir: o proje HTTP sürücüsünü sınar, workflow koşmaz.
+9. **Public API.** Yalnız `TraconTenantQuotaExceededException`. `Metric`, `Period` ve `Limit` **nullable**'dır (taslakta
+   değildi): `AllowOnStoreFailure = false` iken depo okunamazsa red metriği taşımaz. Plandaki sabit adı `ErrorType` kodda `TenantQuotaExceededErrorType` (taban sınıfın `ErrorType` üyesiyle çakışırdı). Ad `tenant_quota_exceeded` korundu;
+   giriş kapısının 429 problem tipi ayrı bir kimlik taşımadığı için kök seçimi serbesttir.
+10. **Hata mesajı dönem sonunu söyler** (Açık Soru 3: B önerilmişti). Giriş kapısıyla aynı `Exceeded` metni kullanıldı
+    ("The counter resets at …"): ayrı bir metin üretmek iki kural yazmak olurdu. Sapma küçüktür ve metin yalnız bilgi taşır.
+11. **Kapanış kapısında iki E2E testi zaman aşımına düştü**, sonra başka testle üçüncü kez: `Playground_stream_arrives_and_tool_card_fills_in`,
+    `Runs_button_on_session_page_navigates_to_filtered_list`, ayrı bir koşuda `Playground_voice_mode_opens_microphone_and_shows_transcript`
+    (Playwright 30 sn). `src/Tracon.UI` bu fazda değişmedi; iki sınıf yalıtık koşuda üç tur geçti ve test adımı yeniden koşulunca
+    26.881 testin hepsi yeşil kaldı. Yük altında (iki test modülü paralel) kırılgan bir zaman aşımı olarak kaydedildi; her turda başka test düşüyor.
+12. **Açık sorular:** 1 → A (önbellek yok, ölçüm gerektirmedi) · 2 → A (zincir okunamazsa run `Failed`) · 4 → A (alt agent
+    çağrısında ret tool sonucuna döner, `ChildRefusalCause.Quota`).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -380,6 +449,11 @@ grep -rn "ContinuedFromRunId" src/ --include='*.cs'      # §239.1 çağıran li
 > resume sıfırdan, sıfırlama bayrağı, sütun ve checkpoint)* · çalışan ağaçta
 > kiracı kotası *(güvenlik — kiracı sınırı; alternatifler: yalnız düğüm, her
 > model çağrısı)*.
+
+- **K-1079** — devam run'ı bütçeyi zincirden devralır (kategori: public-api, geri-dönüşü-pahalı).
+- **K-1080** — kiracı kotası çalışan ağaçta başlamadan okunur (kategori: güvenlik, public-api).
+- Karar defterine girmeyen (commit mesajına gider): `AgentRunBudget.MeasuresCost` (kota açıkken model çağrısı fiyatlanır);
+  kesinti kapanışının kalemlerden okunması; `TreeAccount.Ledger` temelinin `Account` atamasında alınması.
 
 ## Süreç Ölçümü
 
@@ -391,10 +465,10 @@ grep -rn "ContinuedFromRunId" src/ --include='*.cs'      # §239.1 çağıran li
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (11 sapma kayıtlı, plan metni değişmedi) |
+| Düzeltme turu sayısı | 1 (denetimden sonra: 1 🔴, 4 🟡) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (mevcut testler değişmeden yeşil) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -402,3 +476,21 @@ grep -rn "ContinuedFromRunId" src/ --include='*.cs'      # §239.1 çağıran li
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+**Taban sürümde kırmızı kaydı (DoD 1, 2).** Komut: taban commit `59515c65`'in temiz worktree'sine yeni test dosyaları kopyalandı
+(`git worktree add --detach … HEAD`), sonra her sınıf `./artifacts/bin/<Proje>/release/<Proje> --filter-class "*<Sınıf>"` ile koşuldu.
+Çıktı (yalnız sayılar): `ContinuationBudgetTests` 13 testin **11'i** kırmızı · `TreeQuotaGateTests` 16'nın **9'u** · `ContinuationBudgetHttpTests`
+3'ün **2'si** · `WorkflowRecoveryBudgetTests` 2'nin **2'si** · `TreeQuotaHostTests` 4'ün **3'ü** kırmızı. Kırmızı kalmayanlar
+tabanda da doğru olan davranışı sabitler (yeni run sıfırdan başlar; kota kapalıyken düğüm başlar). Kapanıştan sonra eklenen testler
+(denetim 🔴1, 🟡1) tabanda koşulmadı: bütçe devri tabanda yoktur, `LastOwnWriteAsync` bu fazda doğdu.
+
+1. 🔴 **Başkasının kapattığı satırın aktif süresi kesinti + kurtarma arasındaki beklemeyi sayıyordu** (`CompletedAt` kurtarma anı).
+   `MaxDuration = 1 sa` ile 10 dk koşup 2 sa sonra kurtarılan run'ın devamı ilk düğümde `time budget is exhausted (02:10:00/01:00:00)` alırdı.
+   **Düzeltildi:** `interrupted` ve `orphaned` satırlar son KENDİ olayına kadar sayılır (`BudgetLineage.LastOwnWriteAsync`).
+   Testler: `BudgetLineageTests.The_wait_between_a_crash_and_the_recovery_is_not_active_time` (iki hata tipi) ve üç kenar, `ContinuationBudgetTests.A_continuation_does_not_lose_time_to_the_outage_that_came_before_the_recovery`.
+2. 🟡 **Plan satır 7'nin iki testi yoktu** — **düzeltildi**, sapma 1'de (yan etki ve F-675 sınırı yazılı).
+3. 🟡 **`MeasuresCost` varsayılan açık, fiyat araması ölçülmemişti** — **ölçüldü** (≈ 1,2 µs), CHANGELOG "her kurulumda" der.
+4. 🟡 **DoD 1 taban-kırmızı kaydı dokümanda yoktu** — yukarıda.
+5. 🟡 **CHANGELOG bağlantısı çapasızdı** — düzeltildi (`/guides/reliability/#the-ceiling-of-a-workflow-is-the-logical-run`).
+6. 🟢 → **F-672** (kesinti kota yazımını kaybeder; sapma 6) · **F-673** (`CompletedAt` sistem saati) · **F-674** (iptalde bağ yazılmaz; çok para biriminde sessiz 0) · **F-675** (resume işin zincirine katılır).
+7. 🟢 **Gerekçelendi / düzeltildi:** zamanlama testi yalnız `> 0` iddia eder (sayılar assert edilemez, makineye bağlıdır) · "Try again." mesajı düzeltildi (kuyruk işi yeniden denenmez; mesaj yeniden başlatmayı söyler) · sabit adı sapma 9'da · `MIMARI-GUVENLIK` kısaltmasının eski metni `HAFIZA-GECMISI`'ne taşındı · kiracı ayrımı testi eklendi (`ChildAgentInvokerQuotaTests.The_counter_read_is_the_trees_and_not_the_ambient_callers`) · `concepts/workflows.md` kota reddini zaten `guides/reliability` ve `concepts/governance`'a bağlar (sayfa ağırlık tavanında, 81 B pay).

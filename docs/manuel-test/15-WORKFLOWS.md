@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209, 211, 230
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209, 211, 230, 239
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -4055,3 +4055,54 @@ Otomatik karşılığı: `WorkflowHandoffTests.The_model_sees_the_handoff_tools_
 - (3) Yeni run `Completed` biter; çıktı siparişin iptal edildiğini söyler.
 - (4) `tool:cancel_order` için bir `approval.decision` satırı (`approved: true`, gerekçe).
 - Ölçülen (2026-10-21, SQLite, `gpt-5.4-mini`): (1) `AwaitingInput` · (2) istek kimliği `order_canceler_…_UserInput:ficc_call_…`, prompt yukarıdaki gibi, liste `[]` · (3) `Completed`, `Your order **ORD-1001** has been canceled successfully.` · (4) `{"approved":true,"reason":"Checked with the customer."}`.
+
+### MT-WF-187 — Cevap run'ı bütçeyi sıfırdan almaz; devralınan harcama tavanı geçerse düğüm reddedilir (Faz 239, F-531)
+
+Otomatik karşılık: `ContinuationBudgetTests.An_answer_does_not_get_the_whole_ceiling_again`, `ContinuationBudgetHttpTests.An_answer_over_HTTP_is_not_given_a_writer_turn_the_chain_has_no_tokens_left_for`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 239 |
+| **İlgili karar** | — (karar defteri kaydı Faz 239 kapanışında) |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), yerel `echo-writer-1`, `curl` · ➜ CI: `ContinuationBudgetHttpTests` |
+
+**Ön koşul** — Örnek uygulama, SQLite (`Tracon__PostgreSql__ConnectionString=""`, `Tracon__Sqlite__ConnectionString=...`, `Tracon__Ui__AuthToken=...`) ve `Tracon__AgentGraph__MaxTotalTokens=1`: ilk taslağın harcadığı token tavanı aşar.
+
+**Adımlar**
+1. `POST /api/workflows/review-and-revise/run` ile `Prefer: respond-async`, gövde `{"message":"start","parameters":{"productionId":"p-1","language":"en"}}`.
+2. Run `AwaitingInput` olunca `GET /api/runs/{runId}` ile `treeUsage`'ı oku. `GET /api/workflows/requests?state=pending` ile isteği al.
+3. `POST /api/workflows/runs/{runId}/respond` ile `{"requestId":"...","data":{"approved":false,"note":"Make it shorter."}}`.
+4. Cevap run'ını `GET /api/runs?kind=Workflow` ile oku.
+
+**Beklenen sonuç**
+- (2) `treeUsage.totalTokens` birden büyüktür (taslağı yazan agent adımı koştu: tavan, adım başladıktan sonra aşıldı).
+- (4) Cevap run'ı `Failed`; `error.type` `run_budget_exceeded`, `error.class` `QuotaExceeded`; mesaj `episode-writer` adımının çağrılamadığını ve `token budget is exhausted (<ilk run'ın tokenı>/1)` yazdığını söyler. Yazar ikinci taslağı üretmez.
+- 🚨 Cevap run'ı yeni bir bütçe alsaydı yazar yeni bir taslak yazar ve run yine `AwaitingInput` olurdu: tavan her cevapta yenilenirdi.
+- Ölçülen (2026-10-24, SQLite, `samples/Tracon.Api`): (2) `totalTokens` 170 · (4) `Failed`, `run_budget_exceeded`, `Could not call agent 'episode-writer': The run tree's token budget is exhausted (170/1). Raise Tracon:AgentGraph:MaxTotalTokens to allow more. A new child run cannot be started.`
+
+### MT-WF-188 — Operatör resume'u bütçeyi devralır, kaynağı `continuedFromRunId`'ye yazar ve tavan yükselince devam eder (Faz 239, F-531)
+
+Otomatik karşılık: `ContinuationBudgetTests.A_resume_of_a_run_that_failed_for_its_budget_is_refused_at_the_same_node_and_goes_on_once_the_ceiling_is_raised`, `ContinuationBudgetHttpTests.An_operator_resume_over_HTTP_is_refused_at_the_node_that_was_refused_and_goes_on_once_the_ceiling_is_raised`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 239 |
+| **İlgili karar** | — (karar defteri kaydı Faz 239 kapanışında) |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), yerel `echo-writer-1`, `curl` · ➜ CI: `ContinuationBudgetHttpTests`, `WorkflowRecoveryBudgetTests` |
+
+**Ön koşul** — MT-WF-187'nin ortamı ve sonu: reddedilmiş cevap run'ı (`Failed`, `run_budget_exceeded`).
+
+**Adımlar**
+1. `POST /api/workflows/runs/{reddedilenCevapRunId}/resume` ile `Prefer: respond-async`, gövde `{}`.
+2. Yeni run'ı oku: `GET /api/runs?kind=Workflow`.
+3. Uygulamayı `Tracon__AgentGraph__MaxTotalTokens=100000` ile aynı veritabanında yeniden başlat; aynı `resume` çağrısını tekrarla.
+
+**Beklenen sonuç**
+- (2) Yeni run `Failed`, aynı `run_budget_exceeded` ile reddedilir (`170/1`): bütçe zincirin tamamını (bekleyen run, cevap run'ı) devraldı. `continuedFromRunId` reddedilen cevap run'ını gösterir.
+- (3) Yeni run devam eder: yazar adımı koşar, run `AwaitingInput` olur ve `treeUsage` yeni taslağı içerir; `continuedFromRunId` yine reddedilen run'dır.
+- 🚨 Resume yeni bir bütçe alsaydı (2)'de yazar adımı koşardı ve tavan operatör için de bir şey durdurmazdı.
+- Ölçülen (2026-10-24): (2) `Failed`, `run_budget_exceeded` `(170/1)`, `continuedFromRunId` = cevap run'ı · (3) `AwaitingInput`, `treeUsage.totalTokens` 217, `continuedFromRunId` = cevap run'ı.

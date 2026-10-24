@@ -62,6 +62,9 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
     /// <summary>Gets how many thresholds the in-process fast path holds. Test seam.</summary>
     internal int FiredThresholdCount => _firedThresholds.Values.Sum(static bucket => bucket.Count);
 
+    /// <inheritdoc />
+    public bool IsEnabled => _optionsMonitor.CurrentValue.Enabled;
+
     /// <summary>
     /// Checks whether a new run is allowed.
     /// </summary>
@@ -69,13 +72,75 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
     /// <param name="agentName">The name of the agent to run.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The decision. If allowed, <see cref="QuotaDecision.IsAllowed"/> is <see langword="true"/>.</returns>
-    public async ValueTask<QuotaDecision> CheckAsync(
+    public ValueTask<QuotaDecision> CheckAsync(
         string tenantId,
         string agentName,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
+        return CheckCoreAsync(tenantId, agentName, Unrecorded.None, Compared.NewRun, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// The same rules, the same reads and the same answer to a store that cannot be read as
+    /// <see cref="CheckAsync"/>; the tree's own spend that the counter has not seen is added to
+    /// the counter's value before it is compared. The identity is the tree's
+    /// (<see cref="TreeAccount"/>), never the caller's: a step that runs in a background task
+    /// carries neither the root's tenant nor its user.
+    /// </para>
+    /// <para>
+    /// A counter that does not exist yet counts as zero when the tree has spent something: a
+    /// workflow whose first node already passed the limit is stopped before its root has written
+    /// a single entry.
+    /// </para>
+    /// </remarks>
+    public ValueTask<QuotaDecision> CheckTreeStartAsync(
+        TreeAccount account,
+        TreeStartKind kind,
+        long unrecordedTokens,
+        decimal unrecordedCost,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(account);
+
+        return CheckCoreAsync(
+            account.TenantId,
+            account.RootName,
+            new Unrecorded(Math.Max(unrecordedTokens, 0), Math.Max(unrecordedCost, 0m)),
+            kind == TreeStartKind.AgentStep ? Compared.AgentStep : Compared.FunctionNode,
+            cancellationToken);
+    }
+
+    // What a tree has spent that its counter has not seen, added to the counter's value.
+    private readonly record struct Unrecorded(long Tokens, decimal Cost)
+    {
+        public static Unrecorded None => default;
+    }
+
+    // The limits a check compares. A new run is held to all three; a tree that is already
+    // running starts new work, not a new run (a child run adds Runs = 0, K-990), and a function
+    // node spends no tokens.
+    [Flags]
+    private enum Compared
+    {
+        Runs = 1,
+        Tokens = 2,
+        Cost = 4,
+        NewRun = Runs | Tokens | Cost,
+        AgentStep = Tokens | Cost,
+        FunctionNode = Cost,
+    }
+
+    private async ValueTask<QuotaDecision> CheckCoreAsync(
+        string tenantId,
+        string agentName,
+        Unrecorded unrecorded,
+        Compared compared,
+        CancellationToken cancellationToken)
+    {
         var options = _optionsMonitor.CurrentValue;
 
         if (!options.Enabled)
@@ -135,7 +200,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
                 continue;
             }
 
-            var decision = Evaluate(definition, usage, agentName, now, timeZone);
+            var decision = Evaluate(definition, usage, agentName, now, timeZone, unrecorded, compared);
 
             if (!decision.IsAllowed)
             {
@@ -219,7 +284,9 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
         IReadOnlyList<QuotaUsageRecord> usage,
         string agentName,
         DateTimeOffset now,
-        TimeZoneInfo timeZone)
+        TimeZoneInfo timeZone,
+        Unrecorded unrecorded,
+        Compared compared)
     {
         // A tenant-wide rule reads the counter with an empty name; a rule
         // scoped to an agent reads its own agent's counter.
@@ -232,24 +299,30 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
             && record.Period == definition.Period
             && record.PeriodStart == periodStart);
 
-        if (current is null)
+        // A counter nothing has written to is zero. It stays "allowed" for a check that adds
+        // nothing: that is every check of a run that is about to start.
+        if (current is null && unrecorded == Unrecorded.None)
         {
             return QuotaDecision.Allowed;
         }
 
-        if (definition.MaxRuns is { } maxRuns && current.Runs >= maxRuns)
+        var runs = current?.Runs ?? 0;
+        var tokens = (current?.Tokens ?? 0) + unrecorded.Tokens;
+        var cost = (current?.Cost ?? 0m) + unrecorded.Cost;
+
+        if (compared.HasFlag(Compared.Runs) && definition.MaxRuns is { } maxRuns && runs >= maxRuns)
         {
-            return Exceeded(definition, QuotaMetric.Runs, maxRuns, current.Runs, resetsAt);
+            return Exceeded(definition, QuotaMetric.Runs, maxRuns, runs, resetsAt);
         }
 
-        if (definition.MaxTokens is { } maxTokens && current.Tokens >= maxTokens)
+        if (compared.HasFlag(Compared.Tokens) && definition.MaxTokens is { } maxTokens && tokens >= maxTokens)
         {
-            return Exceeded(definition, QuotaMetric.Tokens, maxTokens, current.Tokens, resetsAt);
+            return Exceeded(definition, QuotaMetric.Tokens, maxTokens, tokens, resetsAt);
         }
 
-        if (definition.MaxCost is { } maxCost && current.Cost >= maxCost)
+        if (compared.HasFlag(Compared.Cost) && definition.MaxCost is { } maxCost && cost >= maxCost)
         {
-            return Exceeded(definition, QuotaMetric.Cost, maxCost, current.Cost, resetsAt);
+            return Exceeded(definition, QuotaMetric.Cost, maxCost, cost, resetsAt);
         }
 
         return QuotaDecision.Allowed;

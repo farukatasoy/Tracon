@@ -1564,3 +1564,57 @@ Kural alan dosyasında kısa kaldı; tam metin aynen buradadır.
   koşmalıdır; `FakeModelProvider` kuyruğu provider'da yaşar, ikinci run'dan
   önce `CallsTool` yeniden kuyruğa konur. Kapı: `McpToolCacheTests` (beş case,
   `{server}_read_resource` dahil). K-880.
+
+## `docs/hafiza/olcum-kota-ve-secenekler.md`'den — Faz 239 (kota kapısı notuna yer açmak için)
+
+## 🚨 Dürüst bir "bilmiyorum" bir süre sonra kırık bir rapordan ayırt edilemez
+
+`RunPricingResolver` fiyat hiçbir kaynakta yoksa `PricingSource.Unknown` yazar
+ve maliyet sütunlarını **boş** bırakır — sıfır değil, çünkü sıfır modelin
+bedava olduğunu iddia ederdi. Mekanizma doğrudur ve öyle kalır. Kusur
+(`HATA-S1-010`) mekanizmada değil **sessizliğindeydi**: örnek kurulumun 13
+modelinin hiçbirinde fiyat yoktu, yani her `run` maliyetsiz kaydediliyordu ve
+sebebini öğrenmenin tek yolu bir satırdaki `pricing_source` enum'unu okumaktı.
+Operatörün gördüğü şey kırık bir maliyet raporundan ayırt edilemezdi.
+
+**Kural:** `null` ile "ölçülmedi"yi ayıran her alan için, o durumun **kalıcı**
+hâle gelebileceği bir kurulum var mı diye sor. Varsa durumu bir kez söyle —
+açılışta bir `Warning` (`UnpricedModelWarningService`, Aile A'nın
+`PreservedStoreRegistrationWarningService` emsali) ve `/api/diagnostics`'te bir
+alan (Aile F'nin `runRecording` emsali). K-808.
+
+🚨 **Aynı sınıfın ikinci ölçülmüş vakası: `/health`** (2026-09-18, Aile M,
+K-822). Hiçbir şey bir model sağlayıcısını kendiliğinden problamaz —
+`ModelProviderHealthCache` yalnız `GET /api/models/health` ya da
+`Tracon:Health:BackgroundInterval` ile dolar, ve **gerçek bir sohbet çağrısı
+ona yazmaz** (ölçüldü: başarılı bir `run`'dan sonra beş sağlayıcının beşi
+`Unknown`). `TraconHealthCheck` "hiç ölçülmedi" ile "ölçüldü ve bozuk"u tek
+dala koyuyordu, yani doğru kurulmuş bir uygulama kalıcı `Degraded` raporluyordu
+ve operatör gerçek bir bozulmayı bu gürültüden ayıramıyordu. Durum artık yalnız
+**bilinen** arızayı yansıtır; ölçümün yokluğu mesajda söylenir. **Üç durumlu
+bir göstergede "bilmiyorum" ile "bozuk" ayrı dallardır** — yukarıdaki kuralın
+`null` yerine ENUM ile yazılmış hâli.
+
+**İki okuyucu tek kural uygular.** Uyarı ile rapor aynı `UnpricedModels.Find`
+metodunu çağırır. Aynı mantığın iki kopyası kaçınılmaz olarak kayar ve
+raporu uyarıyı doğrulamak için açan operatör farklı bir liste görür.
+
+**Sınıf taraması (2026-09-18):** `grep -rn "PricingSource.Unknown" src/` —
+diğer okuyucular (`RunRecordingAgent.Completion`, `RunCostRecalculationService`,
+`OnlineEvalSummaryService`, `QuotaTypes`) durumu zaten doğru ele alıyor; hiçbiri
+sıfır yazmıyor. `RunCostRecalculationService` fiyat sonradan girilince geçmişi
+geri hesaplar, yani bu kusurda **veri kaybı yoktur** — `HATA-S1-025`'ten (tool
+harcamasının kalıcı kaybı) ayıran şey budur.
+
+## `docs/MIMARI-GUVENLIK.md`'den — Faz 239 (kota paragrafına yer açmak için)
+
+Hız sınırı paragrafının önceki hâli: "**Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).** `TraconRateLimitOptions` ve `InboundTriggerRateLimiter` süreç belleğinde sayar; `Partition = Tenant` her örneğin **kendi** penceresini böler. Kiracının toplam tüketimini bağlayan şey kotadır — o veritabanında sayılır ve örnek sayısından etkilenmez." Bugünkü paragraf aynı kuralı kısa söyler; tipler `grep -rn "InboundTriggerRateLimiter" src/` ile bulunur.
+
+## `docs/hafiza/workflow-cevaplari.md`'den — Faz 239 (devam bütçesi notuna yer açmak için)
+
+- **Test: TestServer'da `500` istisna olarak gelir** — uygulamada exception
+  handler yok; ilk cagri `try/catch` icinde yapilir, sonra durum okunur.
+- **Elle repro: cokme penceresi** — ornek uygulama `Tracon__Scheduling__RunWorker=false`
+  ile kuyruklu cevap al, uygulamayi durdur, SQLite'ta `tracon_jobs` ve
+  `tracon_job_items` satirini sil (kimlikler BUYUK harf), isciyle yeniden ac,
+  ayni cevabi gonder.

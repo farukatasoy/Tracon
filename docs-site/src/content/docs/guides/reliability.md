@@ -443,11 +443,40 @@ refused. It applies the same way to a queued (`Prefer: respond-async`) run,
 whose lease is otherwise renewed for as long as the run keeps going — before
 `MaxDuration`, nothing capped a queued run's wall-clock time.
 
+**For a workflow, the tree is the logical run** (see [the ceiling of a workflow](#the-ceiling-of-a-workflow-is-the-logical-run)).
+
 Because several branches of a tree can be mid-turn at the same time, the check
 is not perfectly precise: two concurrent turns can each pass the check before
 either records its spend, so a tree can still overshoot its limit by a bounded
 amount before the next check on each branch catches it. Use stricter per-run
 budgets for externally exposed MCP and A2A agents.
+
+### The ceiling of a workflow is the logical run
+
+A workflow that waits for a person, is resumed by an operator, or is picked up after an interruption is one run to its
+owner, but each step of that chain is a run row with a budget of its own. A run that continues an earlier one starts from
+what the earlier runs spent (tokens, cost and child runs), so a workflow with an approval loop does not get the whole
+ceiling again with every answer.
+
+| The run that continues | Its budget starts from |
+|---|---|
+| The answer to a request (`POST /api/workflows/runs/{runId}/respond`) | The run that waited, and every run it continues |
+| An operator's resume (`POST /api/workflows/runs/{runId}/resume`) | The run it resumes, and every run it continues. The resume run records that run in `continuedFromRunId` |
+| A recovery after an interruption | The interrupted run, and the runs before it. What its function nodes reported is read from the run's items, because the process that kept the total is gone |
+
+The time limit counts the time the chain's runs were **executing**. The time a workflow waited for a person does not count:
+`MaxDuration` bounds the work, not the answer. A chain that has used all of its time refuses its first function node, and a
+resume of a run that failed for its budget is refused at the same node. Raise the setting in `Tracon:AgentGraph` and resume
+again; the run goes on from what it spent.
+
+A run that someone else closed after its process died (an interruption the recovery closed) counts to the last thing it
+wrote, not to the moment it was closed, so the time the host was down is not charged to the ceiling. A run that did
+nothing for a long time before it died is counted short by that time.
+
+The chain is read once, when the run starts. If it cannot be read (the run store does not answer, or the chain is longer than
+128 runs), the run does not start with a budget of zero: it ends `Failed` before its first node. Two limits are worth knowing.
+The child count is the direct children of each run, so a nested sub-agent call is spent but not counted as a started run. A
+model call that was still running when the process stopped is in no row at all.
 
 ### Function nodes and the budget
 
@@ -485,6 +514,13 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 A refusal is never retried, whatever the registered `IRunErrorClassifier` says about it: cost and time
 only grow within a run, so waiting cannot change the answer. When the first attempt spent past
 `MaxTotalCost`, the second does not start and the run ends with the refusal.
+
+The tenant's cost quota stands at the same place. A node does not start either once the quota for the
+current period is spent, counting what the run has spent that the quota's counter has not seen yet; the
+run ends `Failed` with error type `tenant_quota_exceeded` (`TraconTenantQuotaExceededException`, which carries the metric, the
+period and the limit), in the same class (`QuotaExceeded`). The remedy
+differs: a budget is a setting you raise, and a quota resets when its period ends. The exemption above covers
+both. See [A quota also stops work that has not started](/concepts/governance/#a-quota-also-stops-work-that-has-not-started).
 
 A graph built in code with `AddWorkflow` and its own executors is not wrapped, so nothing gates its
 executors. Such an executor reads the budget itself: `TraconRunContext.Current?.Budget` has
