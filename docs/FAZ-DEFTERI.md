@@ -251,6 +251,7 @@
 | 235 | MCP Elicitation: Askıya Alınan Tool Çağrısı | tam | ✅ | 2026-10-23 | F-617 | `e7cb8372:docs/235-MCP-ELICITATION.md` |
 | 236 | Tracon'un AG-UI Ucu | tam | ✅ | 2026-10-23 | F-616 | `daf35a77:docs/236-AGUI-UCU.md` |
 | 237 | .NET Yüzeyinin 1.x Evrim Kuralları ve Donmuş Hat Kapısı | tam | ✅ | 2026-10-24 | F-559 | `6b207110:docs/237-NET-YUZEYI-1X-EVRIM-KURALLARI.md` |
+| 239 | Devam Zincirinde Bütçe ve Çalışan Ağaçta Kiracı Kotası | tam | ✅ | 2026-10-24 | F-529 · F-531 | `91b8ab0b:docs/239-BUTCE-VE-KOTA-SUREKLILIGI.md` |
 
 ## Süreç Ölçümü
 
@@ -329,3 +330,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 235 | 3 | 1 | 1 / 0 / 0 | 1 | ölçülmedi |
 | 236 | 4 | 1 | 1 / 0 / 0 | 1 | ölçülmedi |
 | 237 | 0 | 2 | 1 / 0 / 0 | 1 | ölçülmedi |
+| 239 | 0 | 1 | 1 / 0 / 0 | 0 | ölçülmedi |
