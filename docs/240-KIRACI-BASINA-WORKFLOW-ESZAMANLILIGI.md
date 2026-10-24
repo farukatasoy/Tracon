@@ -1,6 +1,6 @@
 # Faz 240 — Kiracı Başına Workflow Eşzamanlılığı, `Queued` Bekleme ve Adil Kiralama
 
-> **Durum:** 📋 Planlandı (2026-10-23)
+> **Durum:** ✅ Tamamlandı (2026-10-24)
 > **Kademe:** tam — kiracı sınırı (bir kiracı diğerlerini aç bırakamaz) · migration (kiralama indeksi, üç sağlayıcı) · public API'den değişen satır (`IJobStore.LeaseAsync` imzası) · orphan uzlaştırmasının sözleşmesi değişir
 > **Plan onayı:** Bakımcı, 2026-10-23 (engelleyici kararlar sohbette alındı: sınır süreç içinde **ve** kuyruk kiralamasında küme geneli; adalet kuralı "tavan + en eski iş"; slot bekleme süresi `RunTimeout`'a sayılmaya devam eder; bekleyen run `Queued` görünür, sıra numarası yoktur)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-322**
@@ -309,12 +309,17 @@ işçi bugünkü geri çekilme yolunu izler.
 - [x] Site sayfaları güncel (`guides/background-work`, `concepts/workflows`, `concepts/runs`, `guides/reliability`, `guides/production`,
   `reference/configuration`, `capabilities`, `packages`, `getting-started/persistence`); `npm run check` (içerik · build · bağlantı ·
   ağırlık) temiz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis --taban 9174be12`: build 0 uyarı, `dotnet format`, `pack`, `npm run check`,
+  27.204 test / 39 modül yeşil; ilk koşum 🔴1'i anlık görüntü testleriyle yakaladı, düzeltmeden sonra ikinci koşum temiz).
+  `kapi.py yayin --kuru` bu makinede koşamadı: taban paketi `1.0.0-preview.5` nuget.org'da yok (yalnız preview.1–4 var).
+  Onun yerine sevk edilen sözleşmeye (`JobStoreContract`, `RunStoreContract`) dokunulduğu için örnek paket kapısı
+  (`release_extension_samples.verify`) kapanışta test edilen paketlere karşı elle koşuldu: yedi örnek test projesi, AOT ve net8.0 tüketici,
+  çıkış 0 (`FileRunStore` örneği `Queued` heartbeat kuralını uygular)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (Manuel 1–3), çıktı `docs/manuel-test/` case'lerinde (`MT-WF-189`, `MT-WF-190`,
   `MT-JOB-153`)
 - [x] `secret` taraması boş döndü (`kapi.py tarama` kapanışta koşar)
 - [x] `🤖` case'ler `docs/manuel-test/15-WORKFLOWS.md` ve `16-IS-KUYRUGU-VE-ZAMANLAMA.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (iki 🔴 kapandı; bkz. Denetim Bulguları)
 
 ### Doğrulama komutları
 
@@ -413,10 +418,10 @@ grep -rn "ClaimOrphanedRunsAsync" src/ --include='*.cs' # çağıranlar: davran�
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan metni yeniden yazılmadı; 10 sapma notu, Plandan Sapmalar) |
+| Düzeltme turu sayısı | 1 (denetim ve ilk kapanış koşumundan sonra tek tur) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 1 (🔴2: akışlı cevabın tekrarı ikinci job yazıp cevabı iki kez uygulardı; kapanıştan önce yakalandı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
