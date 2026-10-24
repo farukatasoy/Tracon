@@ -456,7 +456,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         await Store.EnqueueAsync(TestData.Job() with { Lane = "default" }, ["a"]);
         var mediaJob = await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
 
-        var leased = await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"]);
+        var leased = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"]);
 
         leased.ShouldNotBeNull();
         leased.Id.ShouldBe(mediaJob.Id);
@@ -468,7 +468,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     {
         await Store.EnqueueAsync(TestData.Job() with { Lane = "default" }, ["a"]);
 
-        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"])).ShouldBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"])).ShouldBeNull();
     }
 
     [Fact]
@@ -476,7 +476,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     {
         await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
 
-        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), lanes: null)).ShouldNotBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), lanes: null)).ShouldNotBeNull();
     }
 
     [Fact]
@@ -484,7 +484,154 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     {
         await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
 
-        (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5), lanes: [])).ShouldNotBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), lanes: [])).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_skips_a_tenant_at_the_cap_and_leases_the_oldest_job_of_another()
+    {
+        // Tenant A holds the three oldest jobs, tenant B has one newer job: the plain order would give A
+        // everything first.
+        var oldest = await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 10), ["a"]);
+        var other = await Store.EnqueueAsync(WorkflowJob("tenant-b", age: 5), ["a"]);
+
+        var first = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1));
+        var second = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1));
+        var third = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1));
+
+        first.ShouldNotBeNull().Id.ShouldBe(oldest.Id);
+        second.ShouldNotBeNull().Id.ShouldBe(other.Id);
+        third.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_without_a_tenant_cap_gives_one_tenant_the_whole_queue_in_age_order()
+    {
+        // The same queue as above, leased the way it always was: the cap is what changes the order.
+        var oldest = await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        var second = await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-b", age: 5), ["a"]);
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5)))!.Id.ShouldBe(oldest.Id);
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5)))!.Id.ShouldBe(second.Id);
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_leases_up_to_the_cap_for_one_tenant()
+    {
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 10), ["a"]);
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(2))).ShouldNotBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(2))).ShouldNotBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(2))).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_counts_both_workflow_handler_keys_together()
+    {
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30, JobHandlerKeys.Workflow), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20, JobHandlerKeys.WorkflowRun), ["a"]);
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_still_leases_a_job_of_another_handler_key_of_a_tenant_at_the_cap()
+    {
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+        var delivery = await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 10, JobHandlerKeys.WebhookDelivery), ["a"]);
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+
+        // The tenant is at the cap for workflows; the older workflow job is skipped, the delivery is not.
+        var leased = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1));
+
+        leased.ShouldNotBeNull().Id.ShouldBe(delivery.Id);
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_does_not_count_a_job_of_another_handler_key()
+    {
+        // A tenant's leased delivery is not a workflow: it does not use up the workflow cap.
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30, JobHandlerKeys.WebhookDelivery), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_counts_a_running_job()
+    {
+        var first = await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+        var owner = Owner();
+
+        (await LeaseAsync(owner, TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+        (await Store.MarkRunningAsync(first.Id, owner)).ShouldBeTrue();
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_does_not_count_a_lease_that_has_expired()
+    {
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMilliseconds(20), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
+
+        // The dead worker's lease no longer holds the tenant at the cap: a job is leased again.
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_does_not_count_the_leases_of_another_tenant()
+    {
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        var other = await Store.EnqueueAsync(WorkflowJob("tenant-b", age: 20), ["a"]);
+
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+
+        // Tenant A holds its one lease; tenant B holds none, so its job is leased.
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1)))!.Id.ShouldBe(other.Id);
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_still_honors_the_lane_filter()
+    {
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30) with { Lane = "media" }, ["a"]);
+        var inLane = await Store.EnqueueAsync(WorkflowJob("tenant-b", age: 20) with { Lane = "media" }, ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-c", age: 40), ["a"]);
+
+        var leased = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"], WorkflowCap(1));
+        var next = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"], WorkflowCap(1));
+
+        leased.ShouldNotBeNull().Lane.ShouldBe("media");
+        next.ShouldNotBeNull().Id.ShouldBe(inLane.Id);
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), ["media"], WorkflowCap(1))).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_that_names_no_handler_key_or_no_room_is_refused()
+    {
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+
+        await Should.ThrowAsync<ArgumentException>(
+            async () => await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: new JobTenantCap { HandlerKeys = [], MaxLeasedPerTenant = 1 }));
+        await Should.ThrowAsync<ArgumentException>(
+            async () => await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(0)));
+
+        // Neither call leased the job.
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
     }
 
     [Fact]
@@ -633,8 +780,25 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
             .Where(row => string.Equals(row.Lane, lane, StringComparison.Ordinal) && row.Status == status)
             .Sum(static row => row.Count);
 
-    private ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes = null)
-        => Store.LeaseAsync(owner, leaseDuration, lanes);
+    private ValueTask<JobRecord?> LeaseAsync(
+        string owner,
+        TimeSpan leaseDuration,
+        IReadOnlyList<string>? lanes = null,
+        JobTenantCap? tenantCap = null)
+        => Store.LeaseAsync(new JobLeaseRequest
+        {
+            Owner = owner,
+            LeaseDuration = leaseDuration,
+            Lanes = lanes,
+            TenantCap = tenantCap,
+        });
+
+    private static JobTenantCap WorkflowCap(int max)
+        => new() { HandlerKeys = [JobHandlerKeys.Workflow, JobHandlerKeys.WorkflowRun], MaxLeasedPerTenant = max };
+
+    /// <summary>A workflow job that is already due, <paramref name="age"/> old: a larger age is older and is leased first.</summary>
+    private static JobRecord WorkflowJob(string tenantId, int age, string handlerKey = JobHandlerKeys.Workflow)
+        => TestData.Job(tenantId, DateTimeOffset.UtcNow - TimeSpan.FromMinutes(age)) with { HandlerKey = handlerKey };
 
     private static string Owner() => $"worker-{Guid.NewGuid():N}";
 }

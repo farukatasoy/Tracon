@@ -297,16 +297,23 @@ işçi bugünkü geri çekilme yolunu izler.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `TenantWorkflowConcurrencyTests` kiracı yalıtımını, slot sırasını, iptali ve süre aşımını kanıtlar
-- [ ] `JobStoreContract` ve `RunStoreContract` yeni case'leri dört depoda (bellek içi + üç SQL) yeşil; her case yalıtılmış kırılmada kırmızı görüldü
-- [ ] Üç lehçenin sorgu planı ve indeks kararı dokümanda; migration varsa üç sağlayıcıda
-- [ ] Bekleyen workflow run'ı HTTP'de ve konsolda `Queued`
-- [ ] `CHANGELOG.md [Unreleased]` `LeaseAsync` imzasını, `Queued` beklemeyi ve orphan sözleşmesini adıyla yazar
-- [ ] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz
+- [x] `TenantWorkflowConcurrencyTests` kiracı yalıtımını, slot sırasını, iptali ve süre aşımını kanıtlar (on case + 36 run'lık
+  üç kiracılı eşzamanlılık turu; sırayı ters çeviren, kiracı slotunu kaldıran, `Queued` açmayan ve terfiyi atlayan dört mutasyon kırmızı;
+  sıra farkını ilk case ayırt eder, tur kilitlenme olmadığını ve iki sınırın aşılmadığını sabitler)
+- [x] `JobStoreContract` ve `RunStoreContract` yeni case'leri dört depoda (bellek içi + üç SQL) yeşil; her case yalıtılmış kırılmada
+  kırmızı görüldü (bellek içi tavanı yok sayma, PostgreSQL `>=` → `>`, süresi dolmuş kirayı sayma, `Queued` yok sayma, upsert'te
+  heartbeat'i sıfırlama)
+- [x] Üç lehçenin sorgu planı ve indeks kararı dokümanda (Plandan Sapmalar 1); migration yok: ölçüm indeksi gerekçelendirmedi
+- [x] Bekleyen workflow run'ı HTTP'de ve konsolda `Queued` (örnek uygulama; konsol Playwright ile)
+- [x] `CHANGELOG.md [Unreleased]` `LeaseAsync` imzasını, `Queued` beklemeyi ve orphan sözleşmesini adıyla yazar
+- [x] Site sayfaları güncel (`guides/background-work`, `concepts/workflows`, `concepts/runs`, `guides/reliability`, `guides/production`,
+  `reference/configuration`, `capabilities`, `packages`, `getting-started/persistence`); `npm run check` (içerik · build · bağlantı ·
+  ağırlık) temiz
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (Manuel 1–3), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/15-WORKFLOWS.md` ve `16-IS-KUYRUGU-VE-ZAMANLAMA.md` içinde ve koşuldu
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (Manuel 1–3), çıktı `docs/manuel-test/` case'lerinde (`MT-WF-189`, `MT-WF-190`,
+  `MT-JOB-153`)
+- [x] `secret` taraması boş döndü (`kapi.py tarama` kapanışta koşar)
+- [x] `🤖` case'ler `docs/manuel-test/15-WORKFLOWS.md` ve `16-IS-KUYRUGU-VE-ZAMANLAMA.md` içinde ve koşuldu
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 
 ### Doğrulama komutları
@@ -341,6 +348,44 @@ grep -rn "ClaimOrphanedRunsAsync" src/ --include='*.cs' # çağıranlar: davran�
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **Migration ve indeks YOK** (plan: `(tenant_id, handler_key, status)` indeksi, ölçüme bağlı). Ölçüm
+   (üç lehçe, 100 bin hazır iş): PostgreSQL 18'de satır başına ilişkili sayım 70× pahalı (3.050 hazır iş:
+   37,8 ms; düz sorgu 0,54 ms). Tavandaki kiracıları **tek ilişkisiz alt sorguyla** bulan sorgu 0,57 ms
+   (mevcut `jobs_claim_idx` ile); `(tenant_id, handler_key) WHERE status IN (1, 2)` kısmi indeksi 0,69 ms:
+   kazanç yok. PostgreSQL 16'da derin birikimde (100 bin hazır iş) 40,5 ms → indeksle 17,2 ms; ama düz sorgunun
+   kendisi orada 31 ms (O(hazır iş), faz öncesi): indeks ertelendi, kanıt gelirse aday olur. SQL Server 2022'de
+   aynı `IN (… GROUP BY …)` satır başına koştu (100.011 tarama, 76,9 milyon okuma, 177 sn) → tablo değişkeni
+   (152 ms; düz sorgu 79 ms). SQLite: düz sorgu zaten tabloyu tarar (kısmi indeks `status IN (…)` terimini
+   tanımaz); tavanlı sorgu ikinci bir tarama ekler (300 bin satırda 18 → 118 ms; gerçekçi boyutlarda ms). Bu
+   yüzden `jobs` ve `runs` şeması değişmedi; kademe `tam` kaldı (public API + kiracı sınırı).
+2. **Tavanlı kiralama ayrı SQL metnidir** (`LeaseJobWithTenantCap`); tavansız `LeaseJob` bayt bayt aynı kaldı
+   ("sınır kapalıyken sorgu bugünküyle aynı" sözü metin düzeyinde de doğru). Sorgu anlık görüntüsü yenilendi.
+3. **Köprü:** worker `Tracon.Core`'dadır, `TraconWorkflowOptions` `Tracon.Workflows`'tadır. Planda yoktu:
+   `internal IJobTenantCapSource` (Core) + `WorkflowJobTenantCapSource` (Workflows, `UseWorkflows` kaydeder).
+   Public yüzey büyümedi.
+4. **`TouchHeartbeatAsync` da `Queued`'ı yazar** (plan yalnız `ClaimOrphanedRunsAsync`'i anıyordu; "bekleyen run
+   bugün o kümedeyse değişiklik gerekmez" varsayımı ölçüldü: `TouchRunHeartbeat` yalnız `Running` güncelliyordu),
+   ve ilk heartbeat satır açılırken hemen yazılır (`RunEventWriter.TouchHeartbeatAsync`): ilk döngüden önce çöken
+   süreç satırı sonsuza dek `Queued` bırakırdı. Dört depo (bellek, üç SQL) ve `samples/Tracon.Samples.FileRunStore`
+   aynı kuralı uygular.
+5. **`POST /api/runs/{id}/cancel` kayıt defterine önce bakar** (plan "aynı yoldan geçer" diyordu): `Queued` olan her
+   run'ı kuyruğa yolluyordu, süreç içi bekleyen run'ın işi yok ve çağrı yanlışlıkla `409 already ended` verirdi.
+   `WorkflowRunner.SessionOpenStatuses` `Queued`'ı da sayar (bekleyen run eskiden `Running` olduğu için checkpoint
+   temizliğini erteliyordu).
+6. **`Queued → Running` yazımı hatası yazarı devre dışı bırakmaz** (plan: "RunRecording kuralıyla devam eder"):
+   `RunEventWriter.PromoteAsync` yalnız loglar; yazar kapanırsa run'ın kapanış yazımı atlanır ve biten run
+   `orphaned` kapanırdı. `StartedAt` terfide değişmez (bekleme `RunTimeout`'a sayılır).
+7. **OpenAPI/istemci metni değişti** (plan: "fark beklenmez, ölçülmeli"): `JobRecord.Attempt` XML'i
+   `IJobStore.LeaseAsync` imzasını açıklamaya taşıyordu. Cümle imzasız yeniden yazıldı; `docs/openapi/tracon.json`,
+   `packages/tracon-client/src/schema.ts` ve `TraconApiClient.g.cs` aynı cümleyle güncellendi.
+8. **Yumuşak tavan ölçüldü** (PostgreSQL, 4 işçi, tavan 3, 45 tur): her turda kiracı **4** kiralama aldı
+   (tavanı eşzamanlı ilk sayımların hepsi aştı); sınır `tavan − 1 + işçi` = 6. Test bu sınırı sabitler.
+9. **UI payı 0** doğrulandı: `queued` rozeti, süzgeç ve 2 sn yoklama zaten vardı; konsolda Playwright ile görüldü.
+10. **Denetimden sonra eklenenler** (bkz. Denetim Bulguları): `WorkflowResponseGate` olayı olan `Queued` satıra "job yazılmamış"
+    demez (🔴2); `JobTenantCap` pozisyonel kayıt değil `init` özellikli kayıt (🟢6, GA öncesi ucuz); ilk heartbeat yalnız
+    `RunReconciliation` açıkken yazılır (🟢9); iptal ucu `Queued` + kayıtsız satıra `409 "not executing on this instance"` der (🟢7);
+    `RunStatus.Queued`, `RunStartInfo.Status` ve `IRunStore` XML'i ile `write-your-own-store` rehberi yeni sözleşmeyi söyler (🟡4, 🟡5).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -350,6 +395,13 @@ grep -rn "ClaimOrphanedRunsAsync" src/ --include='*.cs' # çağıranlar: davran�
 > *(güvenlik — kiracı sınırı, public-api; alternatifler: yalnız süreç içi, yalnız
 > kuyruk, en az koşan önce, round-robin tablosu)* · `Queued` bekleme ve orphan
 > sözleşmesi *(public-api; alternatif: `Running` kalsın)*.
+
+- **K-1084** — kiracı başına workflow sınırı: süreçte tam, kuyrukta yumuşak; tek ayar iki katmanı besler; kiracı slotu
+  ortaktan önce.
+- **K-1085** — slot bekleyen run `Queued`; heartbeat'li `Queued` uzlaştırmayla kapanır, heartbeat'siz kuyruğundur.
+- Karar defterine girmeyenler (commit mesajına): tavanlı kiralama ayrı SQL metni; SQL Server'da tablo değişkeni;
+  `TenantSlotLimiter` yeni `internal` sınırlayıcı (iki emsal ona taşınmadı: kapsam dışı, kendi sayaçları var ve
+  boşalan kiracıyı düşürmez); migration yok.
 
 ## Süreç Ölçümü
 
@@ -369,6 +421,19 @@ grep -rn "ClaimOrphanedRunsAsync" src/ --include='*.cs' # çağıranlar: davran�
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
-> (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
-> `ADAYLAR.md`'ye gider.
+> `faz-denetim` çıktısı (`faz-denetcisi`, taze bağlam, 2026-10-24). Her satır: bulgu · seviye · sonuç.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Sözleşme anlık görüntüleri yenilenmedi (`yapilandirma.txt`, `required-uyeler.txt`, kamu yüzeyi sayımı) | 🔴1 | Düzeltildi: üçü `TRACON_*_REFRESH=1` ile yenilendi; yeni satırlar CHANGELOG'da adıyla var. Kapı (`kapi.py kapanis`) bunu da yakalamıştı |
+| `WorkflowResponseGate` "`Queued` + job yok = job yazılmamış" sezgisi: akışlı cevabın slot bekleyen run'ı `Queued` + job'suz, aynı cevabın tekrarı ikinci job yazar ve cevap iki kez uygulanır | 🔴2 | Düzeltildi: olayı olan satır bir süreçte tutulan run'dır, job yazılmaz. `A_streamed_answer_that_waits_for_a_concurrency_slot_is_followed_by_its_repeat_and_given_no_second_job` (iki tekrar kipi) düzeltmeden önce kırmızı. Kalan aralık: satırın yazılması ile ilk olayı arasına düşen tekrar |
+| İlk heartbeat ve çöken süreçte bekleyen satırın kapanması için otomatik test yok | 🟡3 | Düzeltildi: `A_run_that_waits_for_a_slot_signals_at_once_only_while_run_reconciliation_is_on` (açık/kapalı) ve `A_first_heartbeat_the_store_refuses_does_not_stop_the_run`; çağrıyı silen mutant kırmızı |
+| `RunStatus.Queued` XML'i ve `RunStartInfo.Status`/`StartRunAsync` remarks eski | 🟡4 | Düzeltildi |
+| `write-your-own-store` rehberi eski `LeaseAsync` imzasını anlatıyor, yeni iki kuralı söylemiyor | 🟡5 | Düzeltildi |
+| `JobTenantCap` pozisyonel `record` | 🟢6 | Düzeltildi (GA öncesi ucuz): `required init` özellikleri |
+| Başka örnekte bekleyen run'ın iptalinde `409` metni yanıltıcı | 🟢7 | Düzeltildi: "not executing on this instance" |
+| `PromoteAsync` koşulsuz upsert: kapanmış satırı `Running` yazabilir | 🟢8 | F-679 olarak devredildi |
+| Heartbeat `RunReconciliation` kapalıyken de yazılıyor | 🟢9 | Düzeltildi: seçenek kapalıysa yazılmaz |
+| "Only a process that runs a workflow writes a heartbeat" yanlış | 🟢10 | Düzeltildi (CHANGELOG, `IRunStore` XML) |
+| DoD "50 run'lık tur" ve testteki "none could ever finish" yorumu yanlış | 🟢11 | Düzeltildi: tur 36 run; sıra farkını ilk case ayırt eder, yorum ve DoD buna göre |
+| `ResumeInterruptedRuns` + uzlaştırmanın kapattığı bekleyen run: hak tüketimi belgelenmemiş | 🟢12 | F-680 olarak devredildi |

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1021 kalem)
+## Arşivlenen Kararlar (1023 kalem)
 
 | K | Karar |
 |---|---|
@@ -1030,3 +1030,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1029 | Agent uzantısı MAF seçenek nesnesinin kendisini alır; korunan üye tablosu ve ratchet testi sınırı zorlar (F-588) |
 | K-1030 | Uzantıyı kod kaydeder, tanım yalnız adla seçer: `AddAgentExtension`, `ExtensionNames` (F-588) |
 | K-1031 | SQL payload'ında sonradan gelen liste alanı null okunabilir; boş liste yazılmaz (F-588) |
+| K-1032 | Sohbet agent'ında `RequirePerServiceCallChatHistoryPersistence` serbesttir; açıksa model istemcisi sınır seam'inden geçer (F-588) 🔁 |
+| K-1033 | Tool oynatan yollar uzantıyı çalıştırmaz: replay `ExtensionNames`'i boşaltır, continuation reddeder (F-588) |

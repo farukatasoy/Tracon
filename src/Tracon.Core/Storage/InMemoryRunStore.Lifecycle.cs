@@ -150,9 +150,10 @@ internal sealed partial class InMemoryRunStore
 
         foreach (var runId in runIds)
         {
-            // Meaningful only for Running rows; an identity that does not
+            // Meaningful only for Running and Queued rows (a Queued row is a run waiting
+            // in-process for a workflow slot, Phase 240); an identity that does not
             // exist or is in another status is silently skipped (a maintenance signal).
-            if (_runs.TryGetValue(runId, out var run) && run.Status == RunStatus.Running)
+            if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
             {
                 _heartbeats[runId] = at;
             }
@@ -177,8 +178,12 @@ internal sealed partial class InMemoryRunStore
 
         var now = DateTimeOffset.UtcNow;
 
+        // A Running row that never sent a heartbeat falls back to its start time. A Queued row is the
+        // job queue's unless it sent one: then it is a run waiting in a process for a workflow slot
+        // (Phase 240), and that process is gone.
         var candidates = _runs.Values
-            .Where(record => record.Status == RunStatus.Running)
+            .Where(record => record.Status == RunStatus.Running
+                || (record.Status == RunStatus.Queued && _heartbeats.ContainsKey(record.Id)))
             .Select(record => (Record: record, LastSeen: _heartbeats.TryGetValue(record.Id, out var hb) ? hb : record.StartedAt))
             .Where(candidate => candidate.LastSeen < staleBefore)
             .OrderBy(static candidate => candidate.LastSeen)

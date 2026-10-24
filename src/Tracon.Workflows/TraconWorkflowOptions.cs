@@ -29,18 +29,55 @@ public sealed class TraconWorkflowOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The limit is <em>shared across all tenants</em>. A single workflow makes
-    /// dozens of model calls; leaving it unbounded would let one user consume
-    /// an entire provider quota.
+    /// The limit is <em>shared across all tenants</em>, and it is per process. A
+    /// single workflow makes dozens of model calls; leaving it unbounded would
+    /// let one user consume an entire provider quota. To keep one tenant from
+    /// taking every slot, set <see cref="MaxConcurrentRunsPerTenant"/>.
     /// </para>
     /// <para>
     /// A run over the limit waits for a slot. Its record already exists while
-    /// it waits and shows <c>Running</c>; the wait counts toward
-    /// <see cref="RunTimeout"/>, and a run whose deadline passes before it gets
-    /// a slot closes like any other timed-out run.
+    /// it waits and shows <c>Queued</c> (it shows <c>Running</c> once it has a
+    /// slot); the wait counts toward <see cref="RunTimeout"/>, and a run whose
+    /// deadline passes before it gets a slot closes like any other timed-out run.
     /// </para>
     /// </remarks>
     public int MaxConcurrentRuns { get; set; } = 4;
+
+    /// <summary>
+    /// Gets or sets the most workflow runs one tenant may have going at the same time.
+    /// <see langword="null"/> (the default) sets no per-tenant limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Without it, one tenant that starts many runs holds every slot of
+    /// <see cref="MaxConcurrentRuns"/> and the queue's lease order, and the other tenants
+    /// wait. With it, the setting limits a tenant in two places:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <strong>In each process:</strong> a tenant's runs beyond the limit wait for a tenant
+    /// slot before they take one of the shared slots, so they never hold a shared slot while
+    /// they wait. The run shows <c>Queued</c> until it has both slots. The limit is exact
+    /// within one process.
+    /// </item>
+    /// <item>
+    /// <strong>In the job queue, across every process that shares the store:</strong> a
+    /// worker does not lease a queued workflow job (<c>Prefer: respond-async</c>, a scheduled
+    /// or resumed workflow) of a tenant that already has this many workflow jobs leased, and
+    /// leases the oldest job of another tenant instead. This count is read, not locked, so
+    /// workers that lease at the same moment can take a tenant a little past the limit (by
+    /// up to the number of workers); the in-process limit above stays exact.
+    /// </item>
+    /// </list>
+    /// <para>
+    /// The wait for a tenant slot counts toward <see cref="RunTimeout"/>, like the wait for a
+    /// shared slot.
+    /// </para>
+    /// <para>
+    /// Must be from 1 to <see cref="MaxConcurrentRuns"/>; any other value fails at startup.
+    /// </para>
+    /// </remarks>
+    public int? MaxConcurrentRunsPerTenant { get; set; }
 
     /// <summary>Gets or sets the maximum duration of a single workflow run.</summary>
     /// <remarks>

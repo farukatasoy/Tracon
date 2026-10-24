@@ -316,6 +316,7 @@ internal sealed class SqlRunStore : IRunStore
             DbHelpers.Add(command, "id", runId);
             Dialect.AddTimestamp(command, "at", at);
             DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+            DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
 
             await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
         }
@@ -338,6 +339,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "error_class", (short)RunErrorClass.Infrastructure);
         DbHelpers.Add(command, "error_fingerprint", OrphanedFingerprint);
         DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+        DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
         Dialect.AddTimestamp(command, "stale_before", staleBefore);
         DbHelpers.Add(command, "max", Math.Max(max, 0));
 

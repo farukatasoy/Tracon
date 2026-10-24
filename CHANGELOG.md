@@ -271,7 +271,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   See [What 1.x promises for HTTP, telemetry, configuration, error codes and the
   CLI](https://tracon.dev/reference/versioning/#what-1x-promises-for-http-telemetry-configuration-error-codes-and-the-cli).
 
+- **One tenant can no longer take every workflow slot of a process, or the front of the job queue.** The new
+  `Tracon:Workflows:MaxConcurrentRunsPerTenant` (`TraconWorkflowOptions.MaxConcurrentRunsPerTenant`, off by default, from
+  `1` to `MaxConcurrentRuns`) limits how many workflow runs one tenant has going at the same time, in two places. In a
+  process, a run beyond the tenant's limit waits for a tenant slot **before** it takes a shared slot, so it holds nothing
+  while it waits and never delays another tenant. In the job queue, a worker does not lease a queued workflow job
+  (`tracon.workflow`, `tracon.workflow-run`) of a tenant that already holds that many leased, and leases the oldest job
+  of another tenant instead; this count covers every process that shares the store, and it is read, not locked, so
+  workers that lease at the same moment can take a tenant past the limit by up to their own number. The wait for a tenant
+  slot counts toward `RunTimeout`, as the wait for a shared slot does. The setting is checked at startup, and a value that
+  is not a number stops the host. See [workflow
+  concurrency](https://tracon.dev/guides/background-work/#limit-workflow-runs-per-tenant).
+
 ### Changed
+
+- **A workflow run that waits for a concurrency slot is `Queued`, not `Running`.** The run's record still opens before
+  the wait, but it reads `Queued` while the run waits for a slot of `MaxConcurrentRuns` or of
+  `MaxConcurrentRunsPerTenant`, and `Running` once it has them. A run that finds a slot free opens `Running` as before.
+  `GET /api/runs`, the run's detail and the console show it (the `queued` badge was already there). A dashboard that
+  counted `Running` rows as "using a slot" now counts only the runs that have one. `POST /api/runs/{id}/cancel` reaches a
+  waiting run (`202`, closed `Canceled`); until now it sent every `Queued` run to the job queue.
+- **A `Queued` run row can be closed by run reconciliation.** `IRunStore.TouchHeartbeatAsync` now marks `Queued` rows as
+  well as `Running` ones, and `IRunStore.ClaimOrphanedRunsAsync` closes a `Queued` row whose heartbeat is older than the
+  threshold as `Failed` (`orphaned`). A process writes a heartbeat for the runs it executes, and for a workflow run that waits
+  in it for a slot, so a `Queued` row with a heartbeat is a run whose process is gone. A `Queued` row that never sent
+  one is still the job queue's and is never closed by reconciliation. **An `IRunStore` you implement must do the same:**
+  the shared contract tests (`RunStoreContract`) have three new cases.
+- **Breaking for implementers (preview):** `IJobStore.LeaseAsync(owner, leaseDuration, lanes, cancellationToken)` is now
+  `IJobStore.LeaseAsync(JobLeaseRequest request, cancellationToken)`. `JobLeaseRequest` carries `Owner`, `LeaseDuration`,
+  `Lanes` and the new `TenantCap` (`JobTenantCap`: the handler keys and `MaxLeasedPerTenant`); a new option is a new
+  property, not a new parameter. An `IJobStore` you implement takes the request and, when `TenantCap` is set, skips a ready
+  job of a handler key in the cap while its tenant holds that many live leases on those keys (an expired lease does not
+  count). A caller reads `request.Lanes` where it read `lanes`. `JobStoreContract` has eleven new cases for the cap.
 
 - **`tracon.tenant.id` is no longer on metrics by default.** The metrics `tracon.runs`, `tracon.run.cost`,
   `tracon.judge.cost`, `tracon.judge.score`, `tracon.model.cache`, `tracon.audit.write_failures`,

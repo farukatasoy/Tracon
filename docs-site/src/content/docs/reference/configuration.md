@@ -698,6 +698,7 @@ tracon.UseMcp(
 | `Enabled` | `true` |
 | `EnableCheckpointing` | `true` |
 | `MaxConcurrentRuns` | `4` |
+| `MaxConcurrentRunsPerTenant` | `null`; no per-tenant limit. When set, from `1` to `MaxConcurrentRuns` |
 | `RunTimeout` | 10 minutes |
 | `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
 | `MaxSuperSteps` | `100` |
@@ -705,6 +706,10 @@ tracon.UseMcp(
 | `KeepCheckpointsAfterCompletion` | `true` |
 | `RequestExpirationScanInterval` | 1 minute |
 | `MaxRequestExpirationsPerScan` | `100` |
+
+`MaxConcurrentRunsPerTenant` limits how many runs one tenant has going at the same time,
+in each process and, for queued workflow jobs, in the job queue (a soft count across
+processes). See [How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant).
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
 binds this section and then applies its optional code override.

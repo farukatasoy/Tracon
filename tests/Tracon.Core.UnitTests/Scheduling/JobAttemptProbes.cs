@@ -218,9 +218,9 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         => inner.EnqueueAsync(job, items, cancellationToken);
 
     /// <inheritdoc />
-    public async ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes, CancellationToken cancellationToken = default)
+    public async ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
     {
-        var job = await inner.LeaseAsync(owner, leaseDuration, lanes, cancellationToken).ConfigureAwait(false);
+        var job = await inner.LeaseAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (job is not null)
         {

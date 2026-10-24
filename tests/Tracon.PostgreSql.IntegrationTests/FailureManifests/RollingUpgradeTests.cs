@@ -172,7 +172,7 @@ public sealed class RollingUpgradeTests(PostgresFixture fixture)
 
     private static async Task LeaseAllAsync(SqlJobStore store, string owner, List<Guid> leased)
     {
-        while (await store.LeaseAsync(owner, TimeSpan.FromMinutes(5), lanes: null) is { } job)
+        while (await store.LeaseAsync(new JobLeaseRequest { Owner = owner, LeaseDuration = TimeSpan.FromMinutes(5) }) is { } job)
         {
             lock (leased)
             {

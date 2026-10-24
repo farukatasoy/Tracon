@@ -50,7 +50,7 @@ public sealed class JobWorkerLeaseContractTests
         var jobId = await EnqueueAsync(jobs, maxAttempts: 1, clock.GetUtcNow());
 
         // A worker leased the job (attempt 1) and died without renewing it.
-        (await jobs.LeaseAsync("dead-worker", TimeSpan.FromMinutes(1), lanes: null, TestContext.Current.CancellationToken))
+        (await jobs.LeaseAsync(new JobLeaseRequest { Owner = "dead-worker", LeaseDuration = TimeSpan.FromMinutes(1) }, TestContext.Current.CancellationToken))
             .ShouldNotBeNull();
         clock.Advance(TimeSpan.FromMinutes(2));
 
@@ -484,8 +484,8 @@ public sealed class JobWorkerLeaseContractTests
         public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
             => Inner.EnqueueAsync(job, items, cancellationToken);
 
-        public ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes, CancellationToken cancellationToken = default)
-            => Inner.LeaseAsync(owner, leaseDuration, lanes, cancellationToken);
+        public ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+            => Inner.LeaseAsync(request, cancellationToken);
 
         public virtual ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
             => Inner.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);

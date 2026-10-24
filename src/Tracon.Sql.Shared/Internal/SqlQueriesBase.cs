@@ -546,6 +546,14 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that leases the oldest job ready to run, with <c>FOR UPDATE SKIP LOCKED</c>.</summary>
     public string LeaseJob { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the lease query with a per-tenant ceiling: it skips a ready job whose handler key is in
+    /// <c>@cap_keys</c> while its tenant already holds <c>@cap_max</c> live leases on those keys, and leases
+    /// the oldest job that is still eligible. A separate text from <see cref="LeaseJob"/> so the uncapped
+    /// statement stays exactly what it was.
+    /// </summary>
+    public string LeaseJobWithTenantCap { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that extends the lease of a running job.</summary>
     public string RenewJobLease { get; protected set; } = string.Empty;
 

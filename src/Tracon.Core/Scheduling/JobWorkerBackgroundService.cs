@@ -35,7 +35,8 @@ internal sealed class JobWorkerBackgroundService(
     TimeProvider? timeProvider = null,
     ILogger<JobWorkerBackgroundService>? logger = null,
     TraconMetrics? metrics = null,
-    IWebhookPublisher? webhookPublisher = null) : BackgroundService
+    IWebhookPublisher? webhookPublisher = null,
+    IJobTenantCapSource? tenantCapSource = null) : BackgroundService
 {
     /// <summary>
     /// The handler-key metric tag published for a job whose key no handler is
@@ -196,7 +197,15 @@ internal sealed class JobWorkerBackgroundService(
 
             try
             {
-                job = await jobStore.LeaseAsync(_ownerId, leaseDuration, lanes, stoppingToken).ConfigureAwait(false);
+                job = await jobStore.LeaseAsync(
+                    new JobLeaseRequest
+                    {
+                        Owner = _ownerId,
+                        LeaseDuration = leaseDuration,
+                        Lanes = lanes,
+                        TenantCap = tenantCapSource?.Current,
+                    },
+                    stoppingToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {

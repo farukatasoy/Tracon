@@ -696,8 +696,9 @@ instead.
 
 The deadline starts when the run starts, so it also counts the time a run waits
 for a slot when `MaxConcurrentRuns` workflows are already running. A waiting run
-already has its run record and shows `Running`; a run whose deadline passes
-before it gets a slot ends like any other timed-out run.
+already has its run record and shows `Queued` ([limit it per
+tenant](/guides/background-work/#limit-workflow-runs-per-tenant)); a run whose
+deadline passes before it gets a slot ends like any other timed-out run.
 
 A workflow stream writes an SSE comment whenever it has sent nothing for
 `StreamKeepAliveInterval` (15 seconds by default), so a node that works quietly

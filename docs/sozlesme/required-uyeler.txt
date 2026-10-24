@@ -167,6 +167,8 @@ Tracon.JobItemRecord.Status
 Tracon.JobItemResult.JobId
 Tracon.JobItemResult.Seq
 Tracon.JobItemResult.Status
+Tracon.JobLeaseRequest.LeaseDuration
+Tracon.JobLeaseRequest.Owner
 Tracon.JobQueueDepth.Count
 Tracon.JobQueueDepth.Lane
 Tracon.JobQueueDepth.Status
@@ -186,6 +188,8 @@ Tracon.JobSchedule.Name
 Tracon.JobSchedule.TargetName
 Tracon.JobSchedule.TenantId
 Tracon.JobSchedule.UpdatedAt
+Tracon.JobTenantCap.HandlerKeys
+Tracon.JobTenantCap.MaxLeasedPerTenant
 Tracon.JudgeScore.Kind
 Tracon.JudgeScore.Name
 Tracon.LateToolCompletion.LateCompletedAt

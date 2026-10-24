@@ -1618,3 +1618,9 @@ Hız sınırı paragrafının önceki hâli: "**Hız sınırı bir yalıtım sı
   ile kuyruklu cevap al, uygulamayi durdur, SQLite'ta `tracon_jobs` ve
   `tracon_job_items` satirini sil (kimlikler BUYUK harf), isciyle yeniden ac,
   ayni cevabi gonder.
+
+## `docs/hafiza/workflows.md`'den — Faz 240 (kiracı slotu ve `Queued` bekleme notlarına yer açmak için)
+
+- **🚨 Handoff adımı agent'a tool'u ve talimatı RUN SEÇENEĞİYLE verir; handoff çağrısını yalnız KENDİ agent kimliğinden okur** (2026-10-20, K-1039): `ChildAgentInvoker` gelen seçeneği düşürüyordu (model handoff tool'unu hiç görmedi) ve çocuğun güncellemesi çocuğun kimliğini taşıyordu (çağrı dış tool sanıldı, run `AwaitingInput`). Sarmalayıcı `ChatOptions`'ı `RunChatOptionsRule`'dan geçirip iletir, güncellemeye kendi `Id`'sini yazar. Kapı: `WorkflowHandoffTests`. Eski testler yalnız derlemeyi ve süreyi sınıyordu.
+- **🚨 Bekleyen istek üç yoldan kayboluyordu** (2026-10-12, F-327, K-888): (1) 8 KB'ta kesilen yük parse edilemedi — kimlik artık olay `Text`'inden, yük kesildiği yere kadar okunur, `form` `prompt`'tan önce yazılır; (2) retention `AwaitingInput` run'ın olayını ve checkpoint'ini sildi — iki hedef artık süzer; (3) checkpoint deposu OTURUM başına siler ve cevap run'ı kaynağın oturumunu paylaşır — temizlik oturumda bekleyen/koşan run varken atlanır.
+- **🚨 Zarif kapanışta `Canceled` kapanan run, `KeepCheckpointsAfterCompletion=false` iken checkpoint'ini silip devamı baştan koşturuyordu** (2026-10-14, F-433, K-978): temizlik `Canceled`'ı "bitti" sayıyordu. Ayrım `AmbientJobAttempt.Current.Reason == WorkerStopping` ve `ResumeInterruptedRuns` ile yapılır; devam aynı oturumda koşar ve bitince temizler. Kanıt iki host + tek SQLite ister (`WorkflowRecoveryTests`).

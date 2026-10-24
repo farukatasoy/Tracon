@@ -346,6 +346,7 @@ Tracon:Workflows:EnableCheckpointing
 Tracon:Workflows:Enabled
 Tracon:Workflows:KeepCheckpointsAfterCompletion
 Tracon:Workflows:MaxConcurrentRuns
+Tracon:Workflows:MaxConcurrentRunsPerTenant
 Tracon:Workflows:MaxNodeSettingsLength
 Tracon:Workflows:MaxRequestExpirationsPerScan
 Tracon:Workflows:MaxResumeAttempts

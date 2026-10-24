@@ -412,7 +412,8 @@ limit stopped (error type `job_max_duration_exceeded`): the limit ends the work.
 
 | Setting | Default | What it does |
 |------|-----------|----------|
-| `MaxConcurrentRuns` | 4 | The number of workflows running at the same time |
+| `MaxConcurrentRuns` | 4 | The number of workflows running at the same time, shared by every tenant. A run that waits for a slot reads `Queued` |
+| `MaxConcurrentRunsPerTenant` | not set | The most runs one tenant has going at once, from 1 to `MaxConcurrentRuns`. A tenant's run waits for its tenant slot before it takes a shared one, and a worker leases queued workflow jobs of a tenant under the limit first (a soft count across processes) |
 | `RunTimeout` | 10 min | The maximum duration of a single run, the wait for a slot included. Cooperative: checked between super-steps, so a node without a timeout of its own that ignores its cancellation token finishes and the run stops at the next boundary |
 | `MaxRunTimeout` | not set | The longest run timeout a definition may set; unset, a definition may only shorten `RunTimeout` |
 | `MaxSuperSteps` | 100 | Infinite-loop protection |

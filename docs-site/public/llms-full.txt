@@ -159,6 +159,7 @@ is the list.
 | Capability | Enable it | Storage and execution model |
 |---|---|---|
 | Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, and a step can pin a version of a stored agent |
+| Tenant run cap | `MaxConcurrentRunsPerTenant` | One tenant cannot take every workflow slot of a process or the front of the job queue: its run over the limit waits `Queued` for a tenant slot and holds no shared one, and a worker leases queued workflow jobs of a tenant under the limit first; across processes the count is read, not locked |
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
 | Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; an agent's tool call that needs approval is a request of the form `ToolApproval` (approve or refuse it, give a reason, optionally save a rule), where a pattern hosts the agent; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`); `GET /api/workflows/requests` lists the tenant's waiting requests, and a `RequestTimeout` closes a run nobody answered (`run.failed`) so retention can release what it kept |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
@@ -2633,6 +2634,12 @@ deliberate exception, described in [governance](/concepts/governance/).
 
 The summary — `GET /api/runs/{runId}` — has status, timings, token counts, error
 class, and cost when pricing is configured. It does not carry the conversation.
+
+`Queued` means the run has not started its work. A queued run (`Prefer: respond-async`)
+waits for a worker, and a workflow run waits for a concurrency slot when
+`MaxConcurrentRuns` or `MaxConcurrentRunsPerTenant` workflows are already going (see
+[How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant)). The record
+reads `Running` once the run has what it waited for.
 
 `modelProvider` names the provider that actually answered — the same provider
 `modelId`'s model came from. `cost` is a **price snapshot**: it also carries the
@@ -5319,8 +5326,9 @@ instead.
 
 The deadline starts when the run starts, so it also counts the time a run waits
 for a slot when `MaxConcurrentRuns` workflows are already running. A waiting run
-already has its run record and shows `Running`; a run whose deadline passes
-before it gets a slot ends like any other timed-out run.
+already has its run record and shows `Queued` ([limit it per
+tenant](/guides/background-work/#limit-workflow-runs-per-tenant)); a run whose
+deadline passes before it gets a slot ends like any other timed-out run.
 
 A workflow stream writes an SSE comment whenever it has sent nothing for
 `StreamKeepAliveInterval` (15 seconds by default), so a node that works quietly
@@ -6139,8 +6147,8 @@ raw call arguments, so it survives a restart the same way the arguments do.
 It is also what makes recovering from a crash possible at all: a run's recorded
 tool calls are what an [automatically continued run](/guides/reliability/#continue-an-interrupted-run-automatically)
 replays instead of repeating, and orphan reconciliation itself only has a stale
-`Running` row to find because that row, and every tool call it already made, outlived
-the process that opened it.
+`Running` row (or a `Queued` one that was waiting for a workflow slot) to find because
+that row, and every tool call it already made, outlived the process that opened it.
 
 Session and workflow checkpoint rows carry a version stamp of their own, separate
 from the schema migrations above: Tracon's envelope around the row, and the
@@ -7853,6 +7861,49 @@ An item whose run had not started yet stays pending for the next attempt.
 The key holds a dot, which a POSIX shell cannot put in an exported variable name;
 set it in `appsettings.json`, on the command line
 (`--Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow=00:30:00`), or in code.
+
+## Limit workflow runs per tenant
+
+A process runs at most `Tracon:Workflows:MaxConcurrentRuns` workflows at the same
+time (4 by default), counted across every tenant. A workflow makes dozens of model
+calls, so the limit protects a provider quota. It also lets one tenant that starts
+many runs take every slot while the others wait.
+
+`Tracon:Workflows:MaxConcurrentRunsPerTenant` stops that. It is off by default; set it
+from `1` to `MaxConcurrentRuns`:
+
+```json
+{
+  "Tracon": {
+    "Workflows": {
+      "MaxConcurrentRuns": 4,
+      "MaxConcurrentRunsPerTenant": 2
+    }
+  }
+}
+```
+
+The one setting limits a tenant in two places, and they mean two different things.
+
+| Where | What it does | How exact it is |
+|---|---|---|
+| In each process | A run beyond the tenant's limit waits for a tenant slot **first**, then takes a shared slot. It holds no shared slot while it waits, so it never delays another tenant. | Exact: the process counts its own runs. |
+| In the job queue (`Prefer: respond-async`, a scheduled or resumed workflow) | A worker does not lease a queued workflow job of a tenant that already holds that many leased. It leases the oldest job of another tenant instead. The held-back jobs stay `Pending` in the queue. | The count covers every process that shares the store, but it is read, not locked. Workers that lease at the same moment can take a tenant past the limit by up to their own number. |
+
+A run that waits for a slot reads `Queued` in `GET /api/runs` and in the console, and
+`Running` once it has the slots it needs. It already has its run record while it waits.
+`POST /api/runs/{runId}/cancel` stops a waiting run: it ends `Canceled` and takes no
+slot. The wait counts toward `RunTimeout`. A run that finds a slot free opens `Running`
+at once.
+
+If the process stops while a run waits, the run does not stay `Queued` for good: with
+[run reconciliation](/guides/reliability/#reconcile-runs-left-behind-by-a-crash) on, the waiting
+row is closed as `Failed` with the error type `orphaned`, like a `Running` row. A
+`Queued` row that belongs to the job queue (a queued run no worker has picked up yet) is
+never closed this way.
+
+A value outside `1` to `MaxConcurrentRuns`, or one that is not a number, stops the host
+at startup. The limit is read once, when the process starts.
 
 ## Create a recurring schedule
 
@@ -14137,6 +14188,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node from starting once it has passed |
+| Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
 
 Six of these rows — multi-tenancy, session ownership, at-rest content encryption,
 content inspection, request rate limiting and retention defaults — can be enforced
@@ -14970,8 +15022,10 @@ cancellation token.
 
 The live cancellation registry is in-process by default. A request routed to another
 instance, or sent after the owner restarts, returns `409`. Unknown and cross-tenant
-runs return `404`; terminal runs return `409`. Queued-run cancellation uses the
-shared job store and can work across processes.
+runs return `404`; terminal runs return `409`. A `Queued` run that no process has
+picked up is canceled through the shared job store and can work across processes. A
+workflow run that waits for a concurrency slot in this process is canceled like a
+running one.
 
 Canceling a root run propagates to its child runs. Canceling one child does not cancel
 the root or its siblings.
@@ -14983,8 +15037,13 @@ by default. A periodic scan closes `Running` records that have not signaled for 
 minutes. The reconciler changes them to `Failed`, records the infrastructure error
 type `orphaned`, and appends a `RunFailed` event.
 
-Only `Running` records are reconciled. Queued work belongs to the job queue and its
-leases. Heartbeat-write failures are logged, and the next interval tries again.
+Only `Running` records are reconciled, and the `Queued` records that wrote a heartbeat.
+A workflow run that waits inside its process for a concurrency slot is `Queued` and
+writes a heartbeat from the moment its record opens, so when that process dies the
+waiting record closes as `orphaned` too instead of staying `Queued` for good. Any other
+`Queued` work belongs to the job queue and its leases: a record with no heartbeat is
+never closed by the scan, however old it is. Heartbeat-write failures are logged, and the
+next interval tries again.
 
 | Setting | Default | Validation or effect |
 |---|---:|---|
@@ -18524,8 +18583,8 @@ Four have no contract yet: `IConversationBranchStore`, `IDataSubjectStore`,
 you write your own tests for it.
 
 `IJobStore`'s contract (`JobStoreContract`) also verifies lane behavior: `LeaseAsync`
-takes an optional list of lanes and must only return a job from one of them, `null` or
-an empty list applies no filter, and a retried job keeps its lane. See
+takes a `JobLeaseRequest` whose `Lanes` it must honor (only a job from one of them, `null`
+or an empty list applies no filter), and a retried job keeps its lane. See
 [Background work](/guides/background-work/) for what a lane is and how a job's lane is
 chosen.
 
@@ -18539,6 +18598,20 @@ both contracts check them:
   again after a crash finds the run its item was processing.
 - **`RunQuery.ContinuedFromRunId` filters by the continued run**, within the query's
   tenant. Recovery walks a continuation chain forward with it.
+
+Two more rules carry the
+[per-tenant workflow limit](/guides/background-work/#limit-workflow-runs-per-tenant):
+
+- **`IJobStore.LeaseAsync` honors `JobLeaseRequest.TenantCap`.** A ready job whose
+  handler key is in the cap is skipped while its tenant already holds
+  `MaxLeasedPerTenant` live leases on those keys (an expired lease does not count);
+  the oldest job that is still eligible is leased instead. With no cap the oldest
+  ready job is leased whichever tenant owns it. The count may be read without a lock.
+- **`IRunStore` marks and closes a `Queued` row that has a heartbeat.**
+  `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
+  closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
+  row that never sent a heartbeat belongs to the job queue and is never closed by it.
+  A second `StartRunAsync` leaves the heartbeat as it was.
 
 `ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
 per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are
@@ -19205,7 +19278,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
-| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts, a report of what they spent beyond tokens and a start gate on the call tree's cost and time budget, checkpoints, human input, run parameters, per-workflow run timeouts, a version history with rollback and agent version pins, a per-function concurrency limit, and the same step capabilities in graphs built in code (`GetWorkflowFunction`, `GetWorkflowAgentStep`) |
+| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts, a report of what they spent beyond tokens and a start gate on the call tree's cost and time budget, checkpoints, human input, run parameters, per-workflow run timeouts, a version history with rollback and agent version pins, a per-function concurrency limit, a per-tenant run limit, and the same step capabilities in graphs built in code (`GetWorkflowFunction`, `GetWorkflowAgentStep`) |
 | `Tracon.Mcp` | Tools discovered from remote MCP servers, and their requests for user input |
 | `Tracon.UI` | The embedded console |
 
@@ -23148,6 +23221,7 @@ tracon.UseMcp(
 | `Enabled` | `true` |
 | `EnableCheckpointing` | `true` |
 | `MaxConcurrentRuns` | `4` |
+| `MaxConcurrentRunsPerTenant` | `null`; no per-tenant limit. When set, from `1` to `MaxConcurrentRuns` |
 | `RunTimeout` | 10 minutes |
 | `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
 | `MaxSuperSteps` | `100` |
@@ -23155,6 +23229,10 @@ tracon.UseMcp(
 | `KeepCheckpointsAfterCompletion` | `true` |
 | `RequestExpirationScanInterval` | 1 minute |
 | `MaxRequestExpirationsPerScan` | `100` |
+
+`MaxConcurrentRunsPerTenant` limits how many runs one tenant has going at the same time,
+in each process and, for queued workflow jobs, in the job queue (a soft count across
+processes). See [How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant).
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
 binds this section and then applies its optional code override.

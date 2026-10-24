@@ -295,7 +295,8 @@ public sealed class JsonFileRunStore : IRunStore
         {
             foreach (var runId in runIds)
             {
-                if (_runs.TryGetValue(runId, out var run) && run.Status == RunStatus.Running)
+                // A Queued row is a workflow run waiting in its process for a concurrency slot; it signals too.
+                if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
                 {
                     _heartbeats[runId] = at;
                 }
@@ -321,8 +322,11 @@ public sealed class JsonFileRunStore : IRunStore
         {
             var now = DateTimeOffset.UtcNow;
 
+            // A Queued row belongs to the job queue unless it sent a heartbeat: then it is a run waiting in a
+            // process that is gone.
             var candidates = _runs.Values
-                .Where(record => record.Status == RunStatus.Running)
+                .Where(record => record.Status == RunStatus.Running
+                    || (record.Status == RunStatus.Queued && _heartbeats.ContainsKey(record.Id)))
                 .Select(record => (Record: record, LastSeen: _heartbeats.TryGetValue(record.Id, out var hb) ? hb : record.StartedAt))
                 .Where(candidate => candidate.LastSeen < staleBefore)
                 .OrderBy(static candidate => candidate.LastSeen)

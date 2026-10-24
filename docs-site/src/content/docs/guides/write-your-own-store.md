@@ -200,8 +200,8 @@ Four have no contract yet: `IConversationBranchStore`, `IDataSubjectStore`,
 you write your own tests for it.
 
 `IJobStore`'s contract (`JobStoreContract`) also verifies lane behavior: `LeaseAsync`
-takes an optional list of lanes and must only return a job from one of them, `null` or
-an empty list applies no filter, and a retried job keeps its lane. See
+takes a `JobLeaseRequest` whose `Lanes` it must honor (only a job from one of them, `null`
+or an empty list applies no filter), and a retried job keeps its lane. See
 [Background work](/guides/background-work/) for what a lane is and how a job's lane is
 chosen.
 
@@ -215,6 +215,20 @@ both contracts check them:
   again after a crash finds the run its item was processing.
 - **`RunQuery.ContinuedFromRunId` filters by the continued run**, within the query's
   tenant. Recovery walks a continuation chain forward with it.
+
+Two more rules carry the
+[per-tenant workflow limit](/guides/background-work/#limit-workflow-runs-per-tenant):
+
+- **`IJobStore.LeaseAsync` honors `JobLeaseRequest.TenantCap`.** A ready job whose
+  handler key is in the cap is skipped while its tenant already holds
+  `MaxLeasedPerTenant` live leases on those keys (an expired lease does not count);
+  the oldest job that is still eligible is leased instead. With no cap the oldest
+  ready job is leased whichever tenant owns it. The count may be read without a lock.
+- **`IRunStore` marks and closes a `Queued` row that has a heartbeat.**
+  `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
+  closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
+  row that never sent a heartbeat belongs to the job queue and is never closed by it.
+  A second `StartRunAsync` leaves the heartbeat as it was.
 
 `ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
 per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are

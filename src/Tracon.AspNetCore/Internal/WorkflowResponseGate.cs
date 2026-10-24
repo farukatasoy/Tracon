@@ -274,7 +274,10 @@ internal static class WorkflowResponseGate
     /// closed either). Nothing else moves such a run: run reconciliation reads only running rows,
     /// and a queued run with no job cannot be cancelled. The follower is told to write the job
     /// (<see cref="Decision.MissingJob"/>); the queue's refusal of a second job with the same id
-    /// keeps two followers from starting the work twice.
+    /// keeps two followers from starting the work twice. A <see cref="RunStatus.Queued"/> run that has
+    /// written an event is not such a run: a streamed answer waiting for a concurrency slot is
+    /// <see cref="RunStatus.Queued"/> with no job, and a second owner beside it would apply the answer
+    /// twice. The one gap is a repeat that lands between the engine writing the row and its first event.
     /// </para>
     /// <para>
     /// <strong>Delivery.</strong> A record still <see cref="WorkflowResponseStatus.Accepted"/> with a
@@ -316,9 +319,15 @@ internal static class WorkflowResponseGate
             // run id). A process that stopped between the record and the enqueue, or an enqueue
             // whose row could not be closed either, left a row no worker will ever lease: the
             // follower writes the job.
+            //
+            // A Queued row with no job is not always that: a streamed answer whose run waits in its own
+            // process for a concurrency slot is Queued too, and its process is the owner. The engine
+            // appends the run's first event the moment it writes the row, and a row nobody ever started
+            // has none, so a row with an event is a run some process holds.
             var missingJob = chain.Count == 1
                 && last.Status == RunStatus.Queued
-                && await jobs.GetAsync(tenantId, existing.ResponseRunId, cancellationToken).ConfigureAwait(false) is null;
+                && await jobs.GetAsync(tenantId, existing.ResponseRunId, cancellationToken).ConfigureAwait(false) is null
+                && !await HasEventAsync(runs, last.Id, cancellationToken).ConfigureAwait(false);
 
             return new RecordState(Gone: false, Stopped: false, last.Id, missingJob);
         }
@@ -345,6 +354,17 @@ internal static class WorkflowResponseGate
         }
 
         return new RecordState(Gone: false, Stopped: true, last.Id, MissingJob: false);
+    }
+
+    /// <summary>Whether the run has written at least one event: whether a process started it.</summary>
+    private static async ValueTask<bool> HasEventAsync(IRunStore runs, Guid runId, CancellationToken cancellationToken)
+    {
+        await foreach (var _ in runs.ReadEventsAsync(runId, 0, cancellationToken).ConfigureAwait(false))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

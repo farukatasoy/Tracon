@@ -996,7 +996,13 @@ internal static class RunEndpoints
     /// </item>
     /// <item>If the run has already ended, <c>409</c> is returned along with the current status.</item>
     /// <item>
-    /// A run in the <see cref="RunStatus.Queued"/> status is NOT
+    /// A run in the <see cref="RunStatus.Queued"/> status that is registered in
+    /// <see cref="IRunCancellationRegistry"/> is a workflow run waiting in this process for a
+    /// concurrency slot (<c>TraconWorkflowOptions.MaxConcurrentRuns</c>): it is canceled like a
+    /// running one, and its own runner closes the row.
+    /// </item>
+    /// <item>
+    /// Any other <see cref="RunStatus.Queued"/> run is NOT
     /// executing YET; it cannot be registered in <see cref="IRunCancellationRegistry"/>.
     /// In this case cancellation happens FROM THE QUEUE, via
     /// <c>IJobStore.CancelAsync</c> (Job.Id == RunId), and the
@@ -1043,13 +1049,20 @@ internal static class RunEndpoints
             return authorizationProblem;
         }
 
-        if (run.Status == RunStatus.Queued)
+        // Registered here means this process is executing the run, whatever its status shows: a workflow
+        // run that waits for a concurrency slot is Queued and its runner holds the registration (Phase 240).
+        var registered = cancellations.TryCancel(runId, tenants.TenantId);
+
+        if (!registered && run.Status == RunStatus.Queued)
         {
             if (!await jobs.CancelAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false))
             {
+                // No open job holds the run and this process does not run it: it ended a moment ago, or a workflow
+                // run is waiting for a concurrency slot in another instance.
                 return TypedResults.Problem(
-                    title: "Run already ended",
-                    detail: $"Run '{runId}' is already in status '{run.Status}'.",
+                    title: "Run is not executing on this instance",
+                    detail: $"Run '{runId}' is 'Queued', but no queued job holds it and this process is not running it. " +
+                            "It may have just ended, or it may be waiting for a workflow concurrency slot in a different instance.",
                     statusCode: StatusCodes.Status409Conflict);
             }
 
@@ -1082,7 +1095,7 @@ internal static class RunEndpoints
             return TypedResults.Accepted($"/api/runs/{runId}", run with { Status = RunStatus.Canceled, CompletedAt = now });
         }
 
-        if (!cancellations.TryCancel(runId, tenants.TenantId))
+        if (!registered)
         {
             return run.Status == RunStatus.Running
                 ? TypedResults.Problem(

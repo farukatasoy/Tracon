@@ -53,19 +53,28 @@ public interface IJobStore
     /// Leases the oldest job ready to run. Returns <see langword="null"/> if
     /// no such job exists.
     /// </summary>
-    /// <param name="owner">The leasing worker's identifier.</param>
-    /// <param name="leaseDuration">The lease's validity duration.</param>
-    /// <param name="lanes">
-    /// Restricts leasing to these lanes (see <see cref="JobLanes"/>).
-    /// <see langword="null"/> or empty applies no filter — a job from any
-    /// lane may be leased, the same behavior as before lanes existed.
+    /// <param name="request">
+    /// The lease request: the worker, the lease duration, the lanes
+    /// (<see cref="JobLeaseRequest.Lanes"/>, <see langword="null"/> or empty applies no
+    /// filter) and an optional per-tenant ceiling (<see cref="JobLeaseRequest.TenantCap"/>).
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The leased job; <see langword="null"/> if none exists.</returns>
+    /// <remarks>
+    /// <para>
+    /// With <see cref="JobLeaseRequest.TenantCap"/> set, a ready job whose handler key is in
+    /// the cap's keys is skipped while its tenant already holds the cap's number of live
+    /// leases on those keys; the oldest job that is still eligible is leased instead. A job
+    /// with an expired lease is not counted, and it can be leased again. With no cap the
+    /// oldest ready job is leased, whichever tenant owns it.
+    /// </para>
+    /// <para>
+    /// The count is read, not locked: workers that lease at the same moment can take the
+    /// tenant past the ceiling by up to their own number (see <see cref="JobTenantCap"/>).
+    /// </para>
+    /// </remarks>
     ValueTask<JobRecord?> LeaseAsync(
-        string owner,
-        TimeSpan leaseDuration,
-        IReadOnlyList<string>? lanes,
+        JobLeaseRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>Extends an in-progress job's lease. Does not change the job's status.</summary>

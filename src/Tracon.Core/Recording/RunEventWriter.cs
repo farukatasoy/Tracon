@@ -204,6 +204,73 @@ public sealed class RunEventWriter
         await AppendAsync(new RunEventDraft(RunEventType.RunStarted) { Text = query }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Moves a run that <see cref="StartAsync"/> opened <see cref="RunStatus.Queued"/> to the status in
+    /// <paramref name="running"/>, once the process has what the run waited for.
+    /// </summary>
+    /// <param name="running">
+    /// The start information the run was opened with, with <see cref="RunStartInfo.Status"/> changed.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// Writes the row again (<see cref="IRunStore.StartRunAsync"/> is an upsert) and appends no event: the
+    /// stream already says the run started. A store failure is logged and ignored, and the writer stays
+    /// usable: the row only shows <see cref="RunStatus.Queued"/> for a run that is already going, and the
+    /// closing write at the end of the run still lands. Disabling the writer here would cost a finished run its
+    /// closing write and leave its row to be closed as an orphan.
+    /// </remarks>
+    internal async ValueTask PromoteAsync(RunStartInfo running, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(running);
+
+        if (IsDisabled)
+        {
+            return;
+        }
+
+        try
+        {
+            await _store.StartRunAsync(running, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+        {
+            _logger.LogWarning(
+                ex,
+                "Run {RunId} has its concurrency slot but its record could not be moved from Queued to Running; the run continues and its record is closed at the end.",
+                RunId);
+        }
+    }
+
+    /// <summary>
+    /// Writes this run's "still here" mark now, instead of at the next heartbeat cycle.
+    /// </summary>
+    /// <param name="at">The mark time (UTC).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// For a run opened <see cref="RunStatus.Queued"/> in the process that will run it: the reconciliation
+    /// scan closes a <c>Queued</c> row only when it has a heartbeat, so a process that stops before its first
+    /// cycle would otherwise leave the row queued for good. A failure is logged and ignored; the cycle
+    /// that follows writes the mark again, and the writer stays usable.
+    /// </remarks>
+    internal async ValueTask TouchHeartbeatAsync(DateTimeOffset at, CancellationToken cancellationToken = default)
+    {
+        if (IsDisabled)
+        {
+            return;
+        }
+
+        try
+        {
+            await _store.TouchHeartbeatAsync([RunId], at, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+        {
+            _logger.LogWarning(ex, "The first heartbeat of run {RunId} could not be written; the next cycle writes it.", RunId);
+        }
+    }
+
     /// <summary>Appends an event to the stream and assigns its sequence number.</summary>
     /// <param name="draft">The event draft.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

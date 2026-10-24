@@ -65,7 +65,7 @@ public sealed record JobRecord
     /// <summary>The number of items that failed.</summary>
     public int FailedItems { get; init; }
 
-    /// <summary>The number of lease attempts. Increments on every <see cref="IJobStore.LeaseAsync"/> call.</summary>
+    /// <summary>The number of lease attempts. Increments each time a worker leases the job.</summary>
     public int Attempt { get; init; }
 
     /// <summary>

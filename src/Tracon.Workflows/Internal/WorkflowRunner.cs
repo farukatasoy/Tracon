@@ -52,6 +52,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly RunTraceCollector? _traceCollector;
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _concurrency;
+    private readonly TenantSlotLimiter? _tenantSlots;
+    private readonly IOptions<RunReconciliationOptions>? _reconciliation;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IRunErrorClassifier? _errorClassifier;
@@ -125,6 +127,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The agent wrappers of the workflows, which name the agent behind an executor id. When <see langword="null"/> a
     /// tool approval request does not name the agent that asked, and an approval of it cannot be remembered.
     /// </param>
+    /// <param name="reconciliationOptions">
+    /// The run reconciliation settings. A run that waits for a concurrency slot writes its first heartbeat at once only when
+    /// reconciliation is on; when <see langword="null"/> it does.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -148,7 +154,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IWorkflowResponseStore? responseStore = null,
         IWorkflowRequestStore? requestStore = null,
         ToolApprovalPresenterRunner? approvalPresenter = null,
-        WorkflowAgentCache? agentCache = null)
+        WorkflowAgentCache? agentCache = null,
+        IOptions<RunReconciliationOptions>? reconciliationOptions = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -169,6 +176,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _traceCollector = traceCollector;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _concurrency = new SemaphoreSlim(Math.Max(options.Value.MaxConcurrentRuns, 1));
+        _tenantSlots = options.Value.MaxConcurrentRunsPerTenant is { } perTenant ? new TenantSlotLimiter(perTenant) : null;
         _cancellationRegistry = cancellationRegistry;
         _quotaEnforcer = quotaEnforcer;
         _attributionContext = attributionContext;
@@ -181,6 +189,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _requests = requestStore;
         _approvalPresenter = approvalPresenter;
         _agentCache = agentCache;
+        _reconciliation = reconciliationOptions;
     }
 
     /// <inheritdoc />
@@ -939,46 +948,74 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         TraconRunContext.SetCurrent(scope);
 
+        // Phase 240: a read, not a reservation. The slot is taken after setup; if one is free now the row opens
+        // Running as it always did, and a race with another run only shows a run as Queued (or Running) for
+        // a moment longer than it was.
+        //
+        // The tenant is read ONCE, here: the ambient tenant is an AsyncLocal, and this iterator resumes on
+        // whatever flow its consumer moves it with, so a later read could name another tenant's slot.
+        var tenantId = _tenantContext.TenantId;
+        var opensQueued = _concurrency.CurrentCount == 0 || _tenantSlots?.IsFull(tenantId) == true;
+
+        var startInfo = new RunStartInfo
+        {
+            RunId = execution.RunId,
+            AgentName = execution.WorkflowName,
+            Kind = RunKind.Workflow,
+            WorkflowName = execution.WorkflowName,
+            StartedAt = _timeProvider.GetUtcNow(),
+            TenantId = scope.TenantId,
+
+            // A workflow is ONE run for quota purposes (K-394), so it is one
+            // run for attribution too: the whole workflow belongs to whoever
+            // started it. The agent steps underneath resolve the same
+            // ambient attribution independently and record it on their own
+            // child rows.
+            //
+            // 🚨 Read through RunAttributionReader, NOT straight off the
+            // interface: a consumer implementation can throw, and an
+            // over-long user id would fail the insert on SQL Server
+            // (user_id is nvarchar(200)) and silently disable the writer for
+            // the whole workflow. The agent path shares this reader.
+            UserId = attribution.UserId,
+            Labels = attribution.Labels,
+            SessionId = execution.SessionId,
+            IsStreaming = true,
+
+            // The version the run is compiled from. A workflow defined in code has no
+            // versions, and a run whose definition could not be read stamps none.
+            AgentVersion = found?.Definition?.Version,
+
+            // A resume points back at the run it resumes, so the chain a later continuation reads
+            // its budget back along is whole (F-531). Null when the row was opened with a link already.
+            ContinuedFromRunId = continues,
+
+            // Phase 240: a run that would wait for a slot is Queued while it waits and Running once it has
+            // one, so what the list shows is what the run is doing.
+            Status = opensQueued ? RunStatus.Queued : RunStatus.Running,
+        };
+
         await writer.StartAsync(
-            new RunStartInfo
-            {
-                RunId = execution.RunId,
-                AgentName = execution.WorkflowName,
-                Kind = RunKind.Workflow,
-                WorkflowName = execution.WorkflowName,
-                StartedAt = _timeProvider.GetUtcNow(),
-                TenantId = scope.TenantId,
-
-                // A workflow is ONE run for quota purposes (K-394), so it is one
-                // run for attribution too: the whole workflow belongs to whoever
-                // started it. The agent steps underneath resolve the same
-                // ambient attribution independently and record it on their own
-                // child rows.
-                //
-                // 🚨 Read through RunAttributionReader, NOT straight off the
-                // interface: a consumer implementation can throw, and an
-                // over-long user id would fail the insert on SQL Server
-                // (user_id is nvarchar(200)) and silently disable the writer for
-                // the whole workflow. The agent path shares this reader.
-                UserId = attribution.UserId,
-                Labels = attribution.Labels,
-                SessionId = execution.SessionId,
-                IsStreaming = true,
-
-                // The version the run is compiled from. A workflow defined in code has no
-                // versions, and a run whose definition could not be read stamps none.
-                AgentVersion = found?.Definition?.Version,
-
-                // A resume points back at the run it resumes, so the chain a later continuation reads
-                // its budget back along is whole (F-531). Null when the row was opened with a link already.
-                ContinuedFromRunId = continues,
-            },
+            startInfo,
 
             // Workflow runs start with a structured input, not a single user
             // message; phase 45's eval case promotion covers only agent
             // runs (Phase 45).
             query: null,
             linked.Token).ConfigureAwait(false);
+
+        // 🚨 A Queued row is closed by reconciliation only when it has a heartbeat (IRunStore
+        // .ClaimOrphanedRunsAsync): the job queue owns every other Queued row. This one is owned by this
+        // process, so it says so now and does not wait for the first heartbeat cycle; a process that stopped
+        // in between would leave the row Queued for good.
+        //
+        // Only while run reconciliation is on: with it off nothing writes a heartbeat and nothing reads one, and a
+        // host that turned it off does not get a write it never asked for. A runner built with no options (by hand)
+        // writes it.
+        if (opensQueued && (_reconciliation?.Value.Enabled ?? true))
+        {
+            await writer.TouchHeartbeatAsync(_timeProvider.GetUtcNow(), CancellationToken.None).ConfigureAwait(false);
+        }
 
         var startedAt = _timeProvider.GetTimestamp();
         var status = RunStatus.Completed;
@@ -1000,6 +1037,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // be reported, minutes later, as a failure that never happened.
         var closed = false;
         var holdsSlot = false;
+        IDisposable? tenantSlot = null;
 
         try
         {
@@ -1068,10 +1106,20 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // The wait for a concurrency slot belongs to the run: the deadline
             // already counts it, so a run that times out here closes like any
             // other timed-out run — Canceled, naming the setting.
+            //
+            // 🚨 Phase 240: the tenant's slot comes FIRST, the shared one second, and they are given back
+            // the other way round. A run held back by its tenant's limit then waits holding no shared
+            // slot, so it delays nobody else; taken the other way round it would sit on a shared slot
+            // that another tenant's run could use. Both are released in the finally below.
             if (workflow is not null)
             {
                 try
                 {
+                    if (_tenantSlots is not null)
+                    {
+                        tenantSlot = await _tenantSlots.AcquireAsync(tenantId, linked.Token).ConfigureAwait(false);
+                    }
+
                     await _concurrency.WaitAsync(linked.Token).ConfigureAwait(false);
                     holdsSlot = true;
                 }
@@ -1083,6 +1131,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
             if (workflow is not null && holdsSlot)
             {
+                // The run has what it waited for: a row opened Queued becomes Running now, on the token that
+                // cannot be canceled, because the wait is over and the next write is the run's own.
+                if (opensQueued)
+                {
+                    await writer.PromoteAsync(startInfo with { Status = RunStatus.Running }, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+
                 await foreach (var produced in PumpAsync(
                                        workflow,
                                        execution,
@@ -1162,6 +1218,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             {
                 _concurrency.Release();
             }
+
+            tenantSlot?.Dispose();
 
             // Reached only when the body did not close the run itself. The
             // status is Canceled rather than Failed because nothing failed:
@@ -2283,8 +2341,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// A store that cannot answer counts as "yes": cleanup is optional, a
     /// deleted checkpoint is not.
     /// </para>
+    /// <para>
+    /// <see cref="RunStatus.Queued"/> counts as open too: a run that waits for a
+    /// concurrency slot is <c>Queued</c> and was <c>Running</c> before, and an answer or a resume
+    /// that is queued reads the session's checkpoints as soon as it starts.
+    /// </para>
     /// </remarks>
-    private static readonly RunStatus[] SessionOpenStatuses = [RunStatus.AwaitingInput, RunStatus.Running];
+    private static readonly RunStatus[] SessionOpenStatuses = [RunStatus.AwaitingInput, RunStatus.Running, RunStatus.Queued];
 
     /// <summary>
     /// Whether a run that closes now is not finished: a worker that is stopping

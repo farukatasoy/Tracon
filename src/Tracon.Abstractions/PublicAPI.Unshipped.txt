@@ -1062,7 +1062,7 @@ Tracon.IJobStore.CompleteAsync(Tracon.JobCompletion! completion, System.Threadin
 Tracon.IJobStore.EnqueueAsync(Tracon.JobRecord! job, System.Collections.Generic.IReadOnlyList<string!>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.JobRecord!>
 Tracon.IJobStore.GetAsync(string! tenantId, System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.JobRecord?>
 Tracon.IJobStore.GetQueueDepthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.JobQueueDepth!>!>
-Tracon.IJobStore.LeaseAsync(string! owner, System.TimeSpan leaseDuration, System.Collections.Generic.IReadOnlyList<string!>? lanes, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.JobRecord?>
+Tracon.IJobStore.LeaseAsync(Tracon.JobLeaseRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.JobRecord?>
 Tracon.IJobStore.ListItemsAsync(System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.JobItemRecord!>!>
 Tracon.IJobStore.MarkRunningAsync(System.Guid jobId, string! owner, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IJobStore.QueryAsync(Tracon.JobQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.JobRecord!>!>
@@ -1444,6 +1444,18 @@ Tracon.JobItemStatus.Completed = 1 -> Tracon.JobItemStatus
 Tracon.JobItemStatus.Failed = 2 -> Tracon.JobItemStatus
 Tracon.JobItemStatus.Pending = 0 -> Tracon.JobItemStatus
 Tracon.JobLanes
+Tracon.JobLeaseRequest
+Tracon.JobLeaseRequest.<Clone>$() -> Tracon.JobLeaseRequest!
+Tracon.JobLeaseRequest.Equals(Tracon.JobLeaseRequest? other) -> bool
+Tracon.JobLeaseRequest.JobLeaseRequest() -> void
+Tracon.JobLeaseRequest.Lanes.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Tracon.JobLeaseRequest.Lanes.init -> void
+Tracon.JobLeaseRequest.LeaseDuration.get -> System.TimeSpan
+Tracon.JobLeaseRequest.LeaseDuration.init -> void
+Tracon.JobLeaseRequest.Owner.get -> string!
+Tracon.JobLeaseRequest.Owner.init -> void
+Tracon.JobLeaseRequest.TenantCap.get -> Tracon.JobTenantCap?
+Tracon.JobLeaseRequest.TenantCap.init -> void
 Tracon.JobQuery
 Tracon.JobQuery.<Clone>$() -> Tracon.JobQuery!
 Tracon.JobQuery.Equals(Tracon.JobQuery? other) -> bool
@@ -1587,6 +1599,14 @@ Tracon.JobStatus.Failed = 4 -> Tracon.JobStatus
 Tracon.JobStatus.Leased = 1 -> Tracon.JobStatus
 Tracon.JobStatus.Pending = 0 -> Tracon.JobStatus
 Tracon.JobStatus.Running = 2 -> Tracon.JobStatus
+Tracon.JobTenantCap
+Tracon.JobTenantCap.<Clone>$() -> Tracon.JobTenantCap!
+Tracon.JobTenantCap.Equals(Tracon.JobTenantCap? other) -> bool
+Tracon.JobTenantCap.HandlerKeys.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.JobTenantCap.HandlerKeys.init -> void
+Tracon.JobTenantCap.JobTenantCap() -> void
+Tracon.JobTenantCap.MaxLeasedPerTenant.get -> int
+Tracon.JobTenantCap.MaxLeasedPerTenant.init -> void
 Tracon.JudgeScore
 Tracon.JudgeScore.<Clone>$() -> Tracon.JudgeScore!
 Tracon.JudgeScore.Comment.get -> string?
@@ -4580,6 +4600,12 @@ override Tracon.JobQueueDepth.ToString() -> string!
 override Tracon.JobRecord.Equals(object? obj) -> bool
 override Tracon.JobRecord.GetHashCode() -> int
 override Tracon.JobRecord.ToString() -> string!
+override Tracon.JobLeaseRequest.Equals(object? obj) -> bool
+override Tracon.JobLeaseRequest.GetHashCode() -> int
+override Tracon.JobLeaseRequest.ToString() -> string!
+override Tracon.JobTenantCap.Equals(object? obj) -> bool
+override Tracon.JobTenantCap.GetHashCode() -> int
+override Tracon.JobTenantCap.ToString() -> string!
 override Tracon.JobRequest.Equals(object? obj) -> bool
 override Tracon.JobRequest.GetHashCode() -> int
 override Tracon.JobRequest.ToString() -> string!
@@ -5099,6 +5125,10 @@ static Tracon.JobQueueDepth.operator !=(Tracon.JobQueueDepth? left, Tracon.JobQu
 static Tracon.JobQueueDepth.operator ==(Tracon.JobQueueDepth? left, Tracon.JobQueueDepth? right) -> bool
 static Tracon.JobRecord.operator !=(Tracon.JobRecord? left, Tracon.JobRecord? right) -> bool
 static Tracon.JobRecord.operator ==(Tracon.JobRecord? left, Tracon.JobRecord? right) -> bool
+static Tracon.JobLeaseRequest.operator !=(Tracon.JobLeaseRequest? left, Tracon.JobLeaseRequest? right) -> bool
+static Tracon.JobLeaseRequest.operator ==(Tracon.JobLeaseRequest? left, Tracon.JobLeaseRequest? right) -> bool
+static Tracon.JobTenantCap.operator !=(Tracon.JobTenantCap? left, Tracon.JobTenantCap? right) -> bool
+static Tracon.JobTenantCap.operator ==(Tracon.JobTenantCap? left, Tracon.JobTenantCap? right) -> bool
 static Tracon.JobRequest.operator !=(Tracon.JobRequest? left, Tracon.JobRequest? right) -> bool
 static Tracon.JobRequest.operator ==(Tracon.JobRequest? left, Tracon.JobRequest? right) -> bool
 static Tracon.JobSchedule.operator !=(Tracon.JobSchedule? left, Tracon.JobSchedule? right) -> bool

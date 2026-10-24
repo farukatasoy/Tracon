@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137, 194, 196, 197
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137, 194, 196, 197, 240
 > **Kaynak:** `src/Tracon.Abstractions/Scheduling/` (tümü) ·
 > `src/Tracon.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -3462,3 +3462,27 @@ kalıyor, kira dolunca ikinci deneme hiç koşmadan `Failed` oluyordu.
 - İş `Completed`, `attempt = 2`; handler iki kez çağrılır.
 - İş başka yerde bittiyse bekleyen kira handler'ı yeniden çağırmaz.
 
+---
+
+### MT-JOB-153 — Worker, tavandaki kiracının eski workflow işlerini kuyrukta bırakır ve başka kiracının işini kiralar (Faz 240, F-322)
+
+Otomatik karşılık: `JobStoreContract.Lease_with_a_tenant_cap_*` (dört depoda), `JobWorkerTenantCapTests`, `TenantWorkflowConcurrencyHttpTests.The_worker_leaves_the_older_jobs_of_a_tenant_at_its_ceiling_in_the_queue_and_runs_another_tenants_job`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 240 |
+| **İlgili karar** | — (karar defteri kaydı Faz 240 kapanışında) |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), `curl` · ➜ CI: `JobStoreContract`, `TenantWorkflowConcurrencyHttpTests` |
+
+**Ön koşul** — MT-WF-189'un ortamı; `Tracon__Scheduling__PollInterval=00:00:01` ve varsayılan `MaxConcurrentJobs` (2). İki kiracıda `episode` tanımlı.
+
+**Adımlar**
+1. `acme` kiracısıyla beş, ardından `globex` kiracısıyla bir `POST /api/workflows/episode/run` gönder; hepsi `Prefer: respond-async` ve ayrı `Idempotency-Key` taşır.
+2. Dört saniye sonra her kiracının `GET /api/jobs?handlerKey=tracon.workflow-run` listesini oku.
+
+**Beklenen sonuç**
+- (2) `acme`: en eski iş `Running` (`attempt 1`), kalan dört iş `Pending` (`attempt 0`). `globex`: işi `Running`. `acme`'nin dört eski işi, `globex`'in daha yeni işinden önce kiralanmadı.
+- 🚨 Sınır olmasaydı worker iki slotunu `acme`'nin ilk iki işine verirdi ve `globex` beklerdi.
+- Ölçülen (2026-10-24, SQLite): `acme` bir iş `Running`, dört iş `Pending`; `globex` `Running`.

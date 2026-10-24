@@ -351,7 +351,7 @@ internal static class QueuedWorkflowHarness
         var store = host.Services.GetRequiredService<IJobStore>();
 
         return (await WaitUntil.ValueAsync(
-            async () => await store.LeaseAsync(owner, lease, lanes: null),
+            async () => await store.LeaseAsync(new JobLeaseRequest { Owner = owner, LeaseDuration = lease }),
             static job => job is not null,
             $"a job to lease as '{owner}'"))!;
     }

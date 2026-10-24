@@ -308,13 +308,15 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Orphaned run reconciliation (Phase 54). Affects only Running rows;
-        // for an id that does not exist or is in another status it silently
-        // updates zero rows (a maintenance signal, not a thrown error).
+        // Orphaned run reconciliation (Phase 54). Affects only Running and Queued
+        // rows (Phase 240: a run waiting in-process for a workflow slot is Queued
+        // and still owned by this process); for an id that does not exist or is in
+        // another status it silently updates zero rows (a maintenance signal, not
+        // a thrown error).
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
             SET heartbeat_at = @at
-            WHERE id = @id AND status = @status_running;
+            WHERE id = @id AND status IN (@status_running, @status_queued);
             """;
 
         // In one statement: candidate selection (falls back to started_at when
@@ -324,8 +326,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // -- NOT a SHA-256 hash, because every orphaned run is the same
         // failure, and this is how behavioral parity with InMemoryRunStore is
         // achieved (ErrorFingerprint is internal in Tracon.Core and cannot
-        // be reached from this assembly). Queued rows never match the
-        // status=@status_running filter (the Phase 46 ownership split).
+        // be reached from this assembly). A Queued row is claimed only when it
+        // has a heartbeat (Phase 240): the job queue owns a Queued row that never
+        // sent one (the Phase 46 ownership split), while a Queued row that did is
+        // a run waiting in a process for a workflow slot, and that process is gone.
         ClaimOrphanedRuns = $"""
             UPDATE {Schema}.runs
             SET status            = @status_failed,
@@ -338,8 +342,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 event_count       = event_count + 1
             WHERE id IN (
                 SELECT id FROM {Schema}.runs
-                WHERE status = @status_running
-                  AND COALESCE(heartbeat_at, started_at) < @stale_before
+                WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
+                    OR (status = @status_queued AND heartbeat_at < @stale_before))
                 ORDER BY COALESCE(heartbeat_at, started_at) ASC
                 LIMIT @max
             )
@@ -1225,6 +1229,37 @@ internal sealed class PostgresQueries : SqlQueriesBase
                       AND (@lanes IS NULL OR lane = ANY(@lanes))
                     ORDER BY scheduled_for
                     FOR UPDATE SKIP LOCKED
+                    LIMIT 1)
+            RETURNING {JobColumns};
+            """;
+
+        // The same statement with a per-tenant ceiling (Phase 240). A job whose handler key is one of
+        // @cap_keys is skipped while its tenant holds @cap_max or more LIVE leases on those keys
+        // (status IN (1, 2) AND lease_until >= @now); an expired lease does not count. The tenants at the
+        // ceiling come from ONE uncorrelated subquery, which the planner hashes and evaluates once per
+        // call; a per-row correlated count was measured at 70x the cost with 3,000 ready jobs (37.8 ms
+        // against 0.54 ms) and the single subquery at 0.57 ms, on the existing jobs_claim_idx. The count
+        // is a plain read, not a lock: SKIP LOCKED protects the row being leased, not the tenant's total,
+        // so workers that lease at the same moment can take a tenant past the ceiling by up to their own
+        // number.
+        LeaseJobWithTenantCap = $"""
+            UPDATE {Schema}.jobs
+               SET status = 1, lease_owner = @owner, lease_until = @lease_until, attempt = attempt + 1,
+                   started_at = COALESCE(started_at, @now)
+             WHERE id = (
+                   SELECT j.id FROM {Schema}.jobs AS j
+                    WHERE ((j.status = 0 AND j.scheduled_for <= @now)
+                       OR (j.status IN (1, 2) AND j.lease_until < @now))
+                      AND (@lanes IS NULL OR j.lane = ANY(@lanes))
+                      AND NOT (j.handler_key = ANY(@cap_keys) AND j.tenant_id IN (
+                            SELECT held.tenant_id FROM {Schema}.jobs AS held
+                             WHERE held.handler_key = ANY(@cap_keys)
+                               AND held.status IN (1, 2)
+                               AND held.lease_until >= @now
+                             GROUP BY held.tenant_id
+                            HAVING COUNT(*) >= @cap_max))
+                    ORDER BY j.scheduled_for
+                    FOR UPDATE OF j SKIP LOCKED
                     LIMIT 1)
             RETURNING {JobColumns};
             """;

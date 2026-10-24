@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209, 211, 230, 239
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209, 211, 230, 239, 240
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -4106,3 +4106,55 @@ Otomatik karşılık: `ContinuationBudgetTests.A_resume_of_a_run_that_failed_for
 - (3) Yeni run devam eder: yazar adımı koşar, run `AwaitingInput` olur ve `treeUsage` yeni taslağı içerir; `continuedFromRunId` yine reddedilen run'dır.
 - 🚨 Resume yeni bir bütçe alsaydı (2)'de yazar adımı koşardı ve tavan operatör için de bir şey durdurmazdı.
 - Ölçülen (2026-10-24): (2) `Failed`, `run_budget_exceeded` `(170/1)`, `continuedFromRunId` = cevap run'ı · (3) `AwaitingInput`, `treeUsage.totalTokens` 217, `continuedFromRunId` = cevap run'ı.
+
+### MT-WF-189 — Kiracı sınırında bekleyen run `Queued` görünür, iptal edilir ve slotu başka kiracıya bırakır (Faz 240, F-322)
+
+Otomatik karşılık: `TenantWorkflowConcurrencyTests.A_tenant_at_its_limit_waits_Queued_and_leaves_the_shared_slot_to_another_tenant`, `TenantWorkflowConcurrencyHttpTests.A_run_waiting_for_its_tenants_slot_reads_Queued_over_HTTP_and_a_cancel_reaches_it`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 240 |
+| **İlgili karar** | — (karar defteri kaydı Faz 240 kapanışında) |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), `curl` · konsol: Playwright MCP · ➜ CI: `TenantWorkflowConcurrencyHttpTests` |
+
+**Ön koşul** — Örnek uygulama, SQLite, `Tracon__Tenancy__Enabled=true`, `Tracon__Tenancy__AllowHeaderResolution=true`, `Tracon__Workflows__MaxConcurrentRuns=2`, `Tracon__Workflows__MaxConcurrentRunsPerTenant=1`. `acme` ve `globex` kiracılarının ikisinde de `PUT /api/workflows/episode`, gövde `{"kind":"Sequential","nodes":[{"name":"word-count","kind":"Function"},{"name":"render","kind":"Function","settings":{"seconds":40}}]}`.
+
+**Adımlar**
+1. `acme` kiracısıyla üç, ardından `globex` kiracısıyla bir `POST /api/workflows/episode/run` başlat (akış açık kalsın). Her biri `X-Tracon-Tenant` başlığını taşır.
+2. İki saniye sonra her kiracının `GET /api/runs?kind=Workflow` listesini oku.
+3. `acme`'nin ilk `Queued` run'ına `POST /api/runs/{id}/cancel` gönder; listeyi yeniden oku.
+4. 40 sn bekle (ilk `acme` run'ının render'ı bitsin); listeyi yeniden oku.
+5. Konsolda `Runs` ekranını aç (kiracı başlığı göndermeyen run'larla: varsayılan kiracı) ve `queued` rozetini ara.
+
+**Beklenen sonuç**
+- (2) `acme`: ilk run `Running`, ikinci ve üçüncü `Queued`. `globex`: run hemen `Running` (iki ortak slottan biri, `acme`'nin bekleyen run'ı ortak slot tutmaz).
+- (3) İptal `202` döner; iptal edilen run `Canceled`, öbürü `Queued` kalır. Cevap `409 "already ended"` değildir.
+- (4) İlk `acme` run'ı `Completed`; kalan `Queued` run `Running` olur. `globex` run'ı `Completed`.
+- (5) Bekleyen run'lar listede `queued` rozetiyle görünür; ekran bu faz için değişmedi.
+- Ölçülen (2026-10-24, SQLite, `samples/Tracon.Api`): (2) `Running`/`Queued`/`Queued` ve `globex` `Running` · (3) `HTTP 202`, `Canceled`/`Queued` · (4) `Completed`/`Canceled`/`Running` ve `globex` `Completed` · (5) üç run `queued` rozetiyle (ortak slotlar başka iki run'da dolu olduğundan üçü de bekler).
+
+### MT-WF-190 — Süreç içi bekleyen `Queued` run çöken süreçten sonra `Failed` + `orphaned` kapanır (Faz 240, F-322)
+
+Otomatik karşılık: `RunStoreContract.ClaimOrphanedRunsAsync_closes_a_Queued_row_whose_heartbeat_is_stale`, `…does_not_touch_a_Queued_row_with_a_fresh_heartbeat`, `…never_touches_a_Queued_row_that_has_no_heartbeat`, `A_run_promoted_from_Queued_to_Running_keeps_the_heartbeat_it_sent_while_it_waited` (dört depoda).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 240 |
+| **İlgili karar** | — (karar defteri kaydı Faz 240 kapanışında) |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), `kill -9`, `curl` · ➜ CI: `RunStoreContract` |
+
+**Ön koşul** — MT-WF-189'un ortamı, ayrıca `Tracon__RunReconciliation__Enabled=true`, `HeartbeatInterval=00:00:02`, `OrphanThreshold=00:00:08`, `ScanInterval=00:00:03`.
+
+**Adımlar**
+1. `acme` kiracısıyla iki `POST /api/workflows/episode/run` başlat; biri `Running`, biri `Queued` olsun.
+2. Süreci `kill -9` ile öldür ve aynı veritabanıyla yeniden başlat.
+3. Birkaç saniye bekle ve `GET /api/runs?kind=Workflow` listesini oku.
+
+**Beklenen sonuç**
+- (3) İki run da `Failed`, `error.type` `orphaned`. `Queued` olan satır sonsuza dek `Queued` kalmaz. Günlükte `2 orphaned run(s) closed` uyarısı görünür.
+- 🚨 Kuyruğun kendi `Queued` satırı (heartbeat'i hiç yazılmamış, ör. `Prefer: respond-async` yer tutucusu) bu taramada kapanmaz; onu `RunStoreContract` doğrular.
+- Ölçülen (2026-10-24, SQLite): iki run da `Failed` + `orphaned`, günlükte `2 orphaned run(s) closed`; `Npgsql` satırı 0.

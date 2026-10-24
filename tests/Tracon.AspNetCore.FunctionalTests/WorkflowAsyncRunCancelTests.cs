@@ -34,7 +34,7 @@ public sealed class WorkflowAsyncRunCancelTests
         (await host.Services.GetRequiredService<IJobStore>().GetAsync(TenantOf(host), runId)).ShouldNotBeNull().Status.ShouldBe(JobStatus.Cancelled);
 
         // A worker would never lease a cancelled job; nothing is ready to lease.
-        (await host.Services.GetRequiredService<IJobStore>().LeaseAsync("worker", TimeSpan.FromMinutes(5), lanes: null)).ShouldBeNull();
+        (await host.Services.GetRequiredService<IJobStore>().LeaseAsync(new JobLeaseRequest { Owner = "worker", LeaseDuration = TimeSpan.FromMinutes(5) })).ShouldBeNull();
         probe.FirstCalls.ShouldBe(0);
     }
 
