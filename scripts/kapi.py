@@ -2217,13 +2217,27 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
               "kendisiyle karşılaştırma sessiz bir 'kırıcı değişiklik yok' üretirdi")
         return 1
 
-    return breaking_changes.check(
+    result = breaking_changes.check(
         report_dir=gate.report_dir,
         baseline=gate.baseline,
         version=resolved_version,
         changelog=root / "CHANGELOG.md",
         result_path=root / breaking_changes.RESULT_FILE,
         repo=root,
+    )
+    if result:
+        return result
+
+    # Faz 238 - ApiCompat .NET assembly'lerini okur; HTTP, SSE, telemetri, yapılandırma,
+    # hata kodu ve CLI için son sürümle karşılaştırma ayrı bir okuyucudur ve ApiCompat'tan
+    # SONRA koşar (hat satırı iki kez yazılır, ikincisi bu yüzeylerin hattıdır).
+    import sozlesme_kirilma
+
+    return sozlesme_kirilma.check(
+        repo=root,
+        baseline=gate.baseline,
+        version=resolved_version,
+        changelog=root / "CHANGELOG.md",
     )
 
 

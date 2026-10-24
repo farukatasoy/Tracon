@@ -4,10 +4,10 @@ namespace Tracon;
 internal sealed partial class AgentDefinitionValidator
 {
     /// <summary>The code of the warning about workspace settings on an agent that has no workspace.</summary>
-    internal const string WorkspaceSettingsWithoutWorkspaceCode = "workspace_settings_without_workspace";
+    internal const string WorkspaceSettingsWithoutWorkspaceCode = ValidationCodes.WorkspaceSettingsWithoutWorkspace;
 
     /// <summary>The code of the error about an agent name the workspace paths cannot hold.</summary>
-    internal const string WorkspaceAgentNameCode = "workspace_agent_name";
+    internal const string WorkspaceAgentNameCode = ValidationCodes.WorkspaceAgentName;
 
     /// <summary>
     /// Checks a definition that carries <see cref="AgentDefinition.Workspace"/>: settings that change nothing

@@ -35,13 +35,13 @@ namespace Tracon;
 public static class AgentParameterValidator
 {
     /// <summary>Error code: a required parameter has neither a supplied value nor a default.</summary>
-    public const string MissingParameterCode = "missing_parameter";
+    public const string MissingParameterCode = ValidationCodes.MissingParameter;
 
     /// <summary>Error code: a supplied value's name is not declared in the schema.</summary>
-    public const string UnknownParameterCode = "unknown_parameter";
+    public const string UnknownParameterCode = ValidationCodes.UnknownParameter;
 
     /// <summary>Error code: a supplied value exceeds the configured maximum length.</summary>
-    public const string ValueTooLongCode = "value_too_long";
+    public const string ValueTooLongCode = ValidationCodes.ValueTooLong;
 
     private static readonly Regex IdentifierPattern = new(
         @"^[A-Za-z_][A-Za-z0-9_]*$",

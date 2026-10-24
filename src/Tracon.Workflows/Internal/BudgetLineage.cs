@@ -53,7 +53,7 @@ internal static class BudgetLineage
 
     // The error type a run carries when the reconciliation claimed it after its process stopped (the run store
     // contracts pin the value; the recovery's own is WorkflowRecovery.InterruptedErrorType).
-    private const string OrphanedErrorType = "orphaned";
+    private const string OrphanedErrorType = TraconErrorTypes.Orphaned;
 
     // The link is written before the graph does anything (WorkflowRunner.RunGuardedAsync), right after
     // the first event; a few events are enough to find it and a long history is never read for it.

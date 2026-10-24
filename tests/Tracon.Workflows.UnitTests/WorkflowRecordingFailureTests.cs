@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Options;
 using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
@@ -125,7 +126,7 @@ public sealed class WorkflowRecordingFailureTests
 
         public WorkflowMetricProbe()
         {
-            Metrics = new TraconMetrics(new SingleMeterFactory(_meter));
+            Metrics = new TraconMetrics(new SingleMeterFactory(_meter), new TenantTaggedOptions());
 
             _listener.InstrumentPublished = (instrument, listener) =>
             {
@@ -185,6 +186,19 @@ public sealed class WorkflowRecordingFailureTests
             {
                 // The meter is owned by the probe, which disposes it.
             }
+        }
+
+        /// <summary>
+        /// The options that switch <c>tracon.tenant.id</c> on (Phase 238): the tag is off by default and
+        /// these tests read it.
+        /// </summary>
+        private sealed class TenantTaggedOptions : IOptionsMonitor<TraconOptions>
+        {
+            public TraconOptions CurrentValue { get; } = new() { Observability = { IncludeTenantTag = true } };
+
+            public TraconOptions Get(string? name) => CurrentValue;
+
+            public IDisposable? OnChange(Action<TraconOptions, string?> listener) => null;
         }
     }
 }

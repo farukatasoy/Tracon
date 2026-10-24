@@ -1661,12 +1661,58 @@ class YayinTestleri(unittest.TestCase):
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
 
-        with mock.patch.object(breaking_changes, "check", return_value=0) as checked:
+        import sozlesme_kirilma
+
+        with mock.patch.object(breaking_changes, "check", return_value=0) as checked, \
+                mock.patch.object(sozlesme_kirilma, "check", return_value=0):
             result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
 
         self.assertEqual(result, 0)
         self.assertEqual(checked.call_args.kwargs["repo"], ROOT)
         self.assertEqual(checked.call_args.kwargs["version"], "1.0.0-preview.3")
+
+    def test_kapi_sozlesme_yuzeylerini_apicompat_kapisindan_sonra_okur(self):
+        """Faz 238: the non-.NET surfaces are read after ApiCompat, with the same baseline, version and repo."""
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import breaking_changes
+        import sozlesme_kirilma
+
+        order: list[str] = []
+        with mock.patch.object(breaking_changes, "check", side_effect=lambda **_: order.append("apicompat") or 0), \
+                mock.patch.object(sozlesme_kirilma, "check", side_effect=lambda **_: order.append("sozlesme") or 0) as surfaces:
+            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+
+        self.assertEqual(result, 0)
+        self.assertEqual(order, ["apicompat", "sozlesme"])
+        self.assertEqual(surfaces.call_args.kwargs["repo"], ROOT)
+        self.assertEqual(surfaces.call_args.kwargs["baseline"], "1.0.0-preview.2")
+        self.assertEqual(surfaces.call_args.kwargs["version"], "1.0.0-preview.3")
+
+    def test_apicompat_kirmizisi_sozlesme_okuyucusunu_calistirmaz(self):
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import breaking_changes
+        import sozlesme_kirilma
+
+        with mock.patch.object(breaking_changes, "check", return_value=1), \
+                mock.patch.object(sozlesme_kirilma, "check", return_value=0) as surfaces:
+            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+
+        self.assertEqual(result, 1)
+        surfaces.assert_not_called()
+
+    def test_sozlesme_okuyucusunun_kirmizisi_provayi_kirmizi_yapar(self):
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import breaking_changes
+        import sozlesme_kirilma
+
+        with mock.patch.object(breaking_changes, "check", return_value=0), \
+                mock.patch.object(sozlesme_kirilma, "check", return_value=1):
+            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+
+        self.assertEqual(result, 1)
 
 
 class TekDerlemeZinciriTestleri(unittest.TestCase):
@@ -1764,6 +1810,8 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             stack.enter_context(mock.patch.object(bc, "resolve_baseline", return_value=baseline or self.BASELINE))
             not_run = stack.enter_context(mock.patch.object(bc, "validation_not_run", return_value=[]))
             check = stack.enter_context(mock.patch.object(bc, "check", return_value=breaking))
+            # Faz 238: the surfaces of the other kinds are read after ApiCompat; their own tests are in sozlesme_kirilma_test.py.
+            stack.enter_context(mock.patch.object(importlib.import_module("sozlesme_kirilma"), "check", return_value=0))
             run = stack.enter_context(mock.patch("subprocess.run"))
             stack.enter_context(mock.patch.object(kapi, "_npm_dry_run", return_value=0))
             stack.enter_context(mock.patch.object(samples, "verify", return_value=0))

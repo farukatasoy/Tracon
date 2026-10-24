@@ -4,10 +4,10 @@ namespace Tracon;
 internal sealed partial class AgentDefinitionValidator
 {
     /// <summary>The code of the warning about conversation memory settings on an agent that turns memory off.</summary>
-    internal const string ConversationMemorySettingsWithoutMemoryCode = "conversation_memory_settings_without_memory";
+    internal const string ConversationMemorySettingsWithoutMemoryCode = ValidationCodes.ConversationMemorySettingsWithoutMemory;
 
     /// <summary>The code of a conversation memory search limit outside its range.</summary>
-    internal const string ConversationMemoryLimitCode = "invalid_conversation_memory_limit";
+    internal const string ConversationMemoryLimitCode = ValidationCodes.ConversationMemoryLimit;
 
     /// <summary>
     /// Reports a search limit the compiler would refuse, and warns when the memory settings change nothing

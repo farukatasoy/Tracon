@@ -63,13 +63,13 @@ internal sealed class WorkflowRunJobHandler(
     ILogger<WorkflowRunJobHandler>? logger = null) : IJobHandler
 {
     /// <summary>The job's payload cannot be run.</summary>
-    internal const string PayloadInvalidCode = "tracon.job.workflow-run-payload-invalid";
+    internal const string PayloadInvalidCode = TraconErrorTypes.JobWorkflowRunPayloadInvalid;
 
     /// <summary>The run was refused, failed or was cancelled; the run's own error says why.</summary>
-    internal const string RunFailedCode = "tracon.job.workflow-run-failed";
+    internal const string RunFailedCode = TraconErrorTypes.JobWorkflowRunFailed;
 
     /// <summary>The run was interrupted and its chain is at the continuation limit.</summary>
-    internal const string NotContinuedCode = "tracon.job.workflow-run-not-continued";
+    internal const string NotContinuedCode = TraconErrorTypes.JobWorkflowRunNotContinued;
 
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)

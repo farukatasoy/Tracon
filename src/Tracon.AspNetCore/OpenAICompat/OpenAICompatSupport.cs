@@ -77,7 +77,7 @@ internal static class OpenAICompatSupport
     /// on the client. The management API (<c>/api/*</c>) continues to use
     /// <c>ProblemDetails</c>.
     /// </remarks>
-    public static IResult Error(int statusCode, string message, string type = "invalid_request_error")
+    public static IResult Error(int statusCode, string message, string type = TraconErrorTypes.InvalidRequestError)
         => Results.Json(
             new OpenAIErrorEnvelope(new OpenAIErrorBody(message, type)),
             JsonOptions,
@@ -92,7 +92,7 @@ internal static class OpenAICompatSupport
     /// <returns>The refusal, or <see langword="null"/> when the process is not draining.</returns>
     public static IResult? DrainRefusal(ITraconDrainState drainState)
         => drainState.IsDraining
-            ? Error(StatusCodes.Status503ServiceUnavailable, DrainGate.Detail, type: "service_unavailable")
+            ? Error(StatusCodes.Status503ServiceUnavailable, DrainGate.Detail, type: TraconErrorTypes.ServiceUnavailable)
             : null;
 
     /// <summary>

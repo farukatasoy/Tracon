@@ -31,7 +31,7 @@ public sealed class TelemetryTagTests
     public async Task Attribution_never_becomes_a_metric_tag()
     {
         using var meterFactory = new TestMeterFactory();
-        using var metrics = new TraconMetrics(meterFactory);
+        using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         using var collector = new TagCollector(meterFactory.Meter);
 
         await RunOnceAsync(metrics);
@@ -54,7 +54,7 @@ public sealed class TelemetryTagTests
     public async Task The_tag_set_of_every_run_instrument_is_exactly_what_it_was()
     {
         using var meterFactory = new TestMeterFactory();
-        using var metrics = new TraconMetrics(meterFactory);
+        using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         using var collector = new TagCollector(meterFactory.Meter);
 
         await RunOnceAsync(metrics);
@@ -101,7 +101,7 @@ public sealed class TelemetryTagTests
         // them as extra `direction` values would double count every token in the
         // consumer's dashboard, on top of tripling the series count.
         using var meterFactory = new TestMeterFactory();
-        using var metrics = new TraconMetrics(meterFactory);
+        using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         using var collector = new TagCollector(meterFactory.Meter);
 
         await RunOnceAsync(metrics);

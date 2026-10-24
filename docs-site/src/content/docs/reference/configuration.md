@@ -188,6 +188,7 @@ on the model binding, not a global setting. See
 | `Observability:MaxSpansPerRun` | `200` |
 | `Observability:RecordSensitiveData` | `false` |
 | `Observability:IncludeAgentVersionTag` | `true` |
+| `Observability:IncludeTenantTag` | `false` |
 | `Observability:EnableQuotaUsageGauge` | `false` |
 | `Observability:QuotaUsageRefreshInterval` | 30 seconds |
 | `Observability:EnableJobQueueDepthGauge` | `false` |
@@ -196,6 +197,12 @@ on the model binding, not a global setting. See
 
 These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
+
+`IncludeTenantTag` adds `tracon.tenant.id` to eight metrics (run, cost, judge,
+response cache, audit failures, recording failures and jobs). It is off by default,
+because it multiplies each series by the number of tenants. Spans and the quota
+gauges always carry the tenant. A value other than `true` or `false` stops startup.
+See [the tenant tag on metrics](/guides/observability/#the-tenant-tag-on-metrics).
 
 Both gauges are off by default because each one reads the database. When a gauge
 is on, a background refresh reads it at startup and then once per matching

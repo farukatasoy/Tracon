@@ -81,14 +81,14 @@ internal sealed class AgentExtensionRegistry
             if (!_byName.ContainsKey(name))
             {
                 (problems ??= []).Add(new AgentExtensionProblem(
-                    "unknown_extension",
+                    ValidationCodes.UnknownExtension,
                     $"The agent extension '{name}' is not registered in this code.",
                     path));
             }
             else if (!(seen ??= new HashSet<string>(StringComparer.Ordinal)).Add(name))
             {
                 (problems ??= []).Add(new AgentExtensionProblem(
-                    "duplicate_extension",
+                    ValidationCodes.DuplicateExtension,
                     $"The agent extension '{name}' is listed more than once.",
                     path));
             }

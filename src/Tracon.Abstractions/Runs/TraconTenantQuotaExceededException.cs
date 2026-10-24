@@ -29,7 +29,7 @@ public sealed class TraconTenantQuotaExceededException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string TenantQuotaExceededErrorType = "tenant_quota_exceeded";
+    public const string TenantQuotaExceededErrorType = TraconErrorTypes.TenantQuotaExceeded;
 
     /// <summary>Creates a new error.</summary>
     public TraconTenantQuotaExceededException()

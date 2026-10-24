@@ -4,4 +4,9 @@
     <ProjectReference Include="../../src/Tracon.Client/Tracon.Client.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Reads the generated sources by path (phase 238). -->
+    <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

@@ -638,9 +638,22 @@ def effective_api(shipped: str, unshipped: str) -> set[str]:
 
 
 def _show(root: pathlib.Path, tag: str, path: str) -> str | None:
-    """A file as it was at `tag`, None when the tag has no such path."""
+    """A file as it was at `tag`, None when the tag has no such path.
+
+    "No such path" and "cannot be read" are different answers (Faz 238 audit): a missing file is a first record,
+    an unreadable one is a hole, and a gate that treats the hole as a first record turns green on a broken
+    baseline. `ls-tree` tells them apart; a failure of either git call raises BaselineError."""
+    listing = _git(root, "ls-tree", tag, "--", path)
+    if listing.returncode:
+        reason = (listing.stderr or listing.stdout).strip() or f"çıkış {listing.returncode}"
+        raise BaselineError(f"'{tag}' ağacında '{path}' sorgulanamadı ({reason})")
+    if not listing.stdout.strip():
+        return None
     shown = _git(root, "show", f"{tag}:{path}")
-    return shown.stdout if shown.returncode == 0 else None
+    if shown.returncode:
+        reason = (shown.stderr or shown.stdout).strip() or f"çıkış {shown.returncode}"
+        raise BaselineError(f"'{tag}:{path}' okunamadı ({reason})")
+    return shown.stdout
 
 
 def api_at_tag(root: pathlib.Path, tag: str) -> dict[str, set[str]]:

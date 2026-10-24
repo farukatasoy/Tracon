@@ -48,10 +48,10 @@ internal static class WorkflowResponseGate
     public const string AuditAction = "workflow.respond";
 
     /// <summary>The error type of a run that lost the claim to another answer before it started.</summary>
-    public const string AlreadyAnsweredErrorType = "request_already_answered";
+    public const string AlreadyAnsweredErrorType = TraconErrorTypes.RequestAlreadyAnswered;
 
     /// <summary>The error type of a run whose answer could not be recorded, so it never started.</summary>
-    public const string NotRecordedErrorType = "answer_not_recorded";
+    public const string NotRecordedErrorType = TraconErrorTypes.AnswerNotRecorded;
 
     /// <summary>
     /// How many times a claim that keeps changing hands under this answer is read again before

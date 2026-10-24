@@ -39,13 +39,13 @@ namespace Tracon;
 internal sealed partial class AgentDefinitionValidator
 {
     /// <summary>The code of a sampling parameter a catalog model rejects.</summary>
-    internal const string SamplingUnsupportedCode = "sampling_unsupported";
+    internal const string SamplingUnsupportedCode = ValidationCodes.SamplingUnsupported;
 
     /// <summary>The code of a request field the provider's API surface would drop.</summary>
-    internal const string SamplingFieldUnsupportedCode = "sampling_field_unsupported";
+    internal const string SamplingFieldUnsupportedCode = ValidationCodes.SamplingFieldUnsupported;
 
     /// <summary>The code of the warning about a low default output limit.</summary>
-    internal const string OutputTruncationRiskCode = "output_truncation_risk";
+    internal const string OutputTruncationRiskCode = ValidationCodes.OutputTruncationRisk;
 
     private async ValueTask CheckOutputLimitsAsync(
         AgentDefinition definition,

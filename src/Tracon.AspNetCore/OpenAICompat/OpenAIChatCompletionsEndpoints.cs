@@ -53,9 +53,6 @@ internal static class OpenAIChatCompletionsEndpoints
     private const string ObjectCompletion = "chat.completion";
     private const string ObjectChunk = "chat.completion.chunk";
 
-    /// <summary>The OpenAI error type of a request that stopped at a tool approval.</summary>
-    private const string ApprovalRequiredType = "approval_required";
-
     /// <summary>Connects the Chat Completions endpoint.</summary>
     /// <param name="builder">Endpoint group.</param>
     /// <param name="roles">Resolved role policies.</param>
@@ -193,7 +190,7 @@ internal static class OpenAIChatCompletionsEndpoints
             return OpenAICompatSupport.Error(
                 StatusCodes.Status404NotFound,
                 $"There is no agent named '{agentName}'.",
-                type: "model_not_found");
+                type: TraconErrorTypes.ModelNotFound);
         }
 
         // F-330: this protocol carries no parameter values; an agent whose
@@ -207,7 +204,7 @@ internal static class OpenAIChatCompletionsEndpoints
         // agent run endpoint; this protocol's own error shape carries it.
         if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
         {
-            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, attributionError, type: "invalid_run_attribution");
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, attributionError, type: TraconErrorTypes.InvalidRunAttribution);
         }
 
         // 🚨 This is the SIXTH run-starting surface and phase 139 missed it:
@@ -225,7 +222,7 @@ internal static class OpenAIChatCompletionsEndpoints
             return OpenAICompatSupport.Error(
                 StatusCodes.Status403Forbidden,
                 authorizationProblem.ProblemDetails.Detail ?? "The registered IRunAuthorizationHandler denied this run.",
-                type: "run_not_authorized");
+                type: TraconErrorTypes.RunNotAuthorized);
         }
 
         // F-580: a part is handed to the model or refused by name, never dropped.
@@ -277,7 +274,7 @@ internal static class OpenAIChatCompletionsEndpoints
                 return OpenAICompatSupport.Error(
                     StatusCodes.Status409Conflict,
                     ApprovalRequiredMessage(agentName, pending),
-                    type: ApprovalRequiredType);
+                    type: TraconErrorTypes.ApprovalRequired);
             }
 
             return Results.Json(
@@ -320,7 +317,7 @@ internal static class OpenAIChatCompletionsEndpoints
             return OpenAICompatSupport.Error(
                 StatusCodes.Status502BadGateway,
                 SafeErrorText.ForPersistence(ex, correlationId),
-                type: "upstream_error");
+                type: TraconErrorTypes.UpstreamError);
         }
     }
 
@@ -427,7 +424,7 @@ internal static class OpenAIChatCompletionsEndpoints
                     await WriteErrorAsync(
                         writer,
                         ApprovalRequiredMessage(model, string.Join(", ", pending.Distinct(StringComparer.Ordinal))),
-                        ApprovalRequiredType,
+                        TraconErrorTypes.ApprovalRequired,
                         cancellationToken).ConfigureAwait(false);
 
                     return;
@@ -460,7 +457,7 @@ internal static class OpenAIChatCompletionsEndpoints
                     .CreateLogger("Tracon.OpenAICompat")
                     .LogError(ex, "Streaming Chat Completions run for agent '{AgentName}' failed. (ref: {CorrelationId})", model, correlationId);
 
-                await WriteErrorAsync(writer, SafeErrorText.ForPersistence(ex, correlationId), "upstream_error", CancellationToken.None)
+                await WriteErrorAsync(writer, SafeErrorText.ForPersistence(ex, correlationId), TraconErrorTypes.UpstreamError, CancellationToken.None)
                     .ConfigureAwait(false);
             }
         }

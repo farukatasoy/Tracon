@@ -138,7 +138,7 @@ internal sealed class ApprovalExpirationService(
                     NonTokenCost = run.NonTokenCost,
                     Error = new RunError
                     {
-                        Type = "ApprovalExpired",
+                        Type = TraconErrorTypes.ApprovalExpired,
                         Message = $"The approval request for tool '{approval.ToolName}' expired at " +
                                   $"{approval.ExpiresAt:O}.",
                     },

@@ -124,6 +124,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
 
         ValidateGaugeRefresh(options.Observability, ref failures);
+        ValidateTenantTag(options.Observability, ref failures);
 
         var skills = options.Skills;
 
@@ -354,6 +355,20 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 break;
             }
         }
+    }
+
+    private static void ValidateTenantTag(TraconObservabilityOptions? observability, ref List<string>? failures)
+    {
+        // The failure holds while the value is the one the binder left: code that assigns the opposite value
+        // after binding wins (the same rule as the utility model's unreadable numbers).
+        if (observability?.UnreadableIncludeTenantTag is not { } unreadable || observability.IncludeTenantTag != unreadable.Bound)
+        {
+            return;
+        }
+
+        (failures ??= []).Add(
+            $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.IncludeTenantTag)} is '{unreadable.Text}', " +
+            "which is not true or false. Write true or false, or remove the key to keep the tenant tag off the metrics.");
     }
 
     private static void ValidateUtilityModel(TraconOptions options, ref List<string>? failures)

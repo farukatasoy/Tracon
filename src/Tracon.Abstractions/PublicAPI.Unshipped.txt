@@ -3634,6 +3634,7 @@ Tracon.TraconEgressOptions
 Tracon.TraconEgressOptions.AllowPrivateNetworkTargets.get -> bool
 Tracon.TraconEgressOptions.AllowPrivateNetworkTargets.set -> void
 Tracon.TraconEgressOptions.TraconEgressOptions() -> void
+Tracon.TraconErrorTypes
 Tracon.TraconException
 Tracon.TraconException.TraconException() -> void
 Tracon.TraconException.TraconException(string! message) -> void
@@ -4339,6 +4340,53 @@ const Tracon.TraconCompilationException.CompilationFailedErrorType = "compilatio
 const Tracon.TraconContentBlockedException.ContentBlockedErrorType = "content_blocked" -> string!
 const Tracon.TraconContentFilteredException.ContentFilteredErrorType = "content_filtered" -> string!
 const Tracon.TraconEgressOptions.SectionName = "Tracon:Egress" -> string!
+const Tracon.TraconErrorTypes.AgentSourceContract = "agent_source_contract" -> string!
+const Tracon.TraconErrorTypes.AgentSourceFailed = "agent_source_failed" -> string!
+const Tracon.TraconErrorTypes.AnswerNotRecorded = "answer_not_recorded" -> string!
+const Tracon.TraconErrorTypes.ApprovalExpired = "ApprovalExpired" -> string!
+const Tracon.TraconErrorTypes.ApprovalRequired = "approval_required" -> string!
+const Tracon.TraconErrorTypes.ApprovalUnanswerable = "approval_unanswerable" -> string!
+const Tracon.TraconErrorTypes.ChildRunTimeout = "child_run_timeout" -> string!
+const Tracon.TraconErrorTypes.CompilationFailed = "compilation_failed" -> string!
+const Tracon.TraconErrorTypes.ContentBlocked = "content_blocked" -> string!
+const Tracon.TraconErrorTypes.ContentFiltered = "content_filtered" -> string!
+const Tracon.TraconErrorTypes.EvalRunDiffUnavailable = "eval_run_diff_unavailable" -> string!
+const Tracon.TraconErrorTypes.ExternalCallRejected = "external_call_rejected" -> string!
+const Tracon.TraconErrorTypes.Interrupted = "interrupted" -> string!
+const Tracon.TraconErrorTypes.InvalidRequestError = "invalid_request_error" -> string!
+const Tracon.TraconErrorTypes.InvalidRunAttribution = "invalid_run_attribution" -> string!
+const Tracon.TraconErrorTypes.JobApprovalSaveFailed = "tracon.job.approval-save-failed" -> string!
+const Tracon.TraconErrorTypes.JobAttemptsExhausted = "tracon.job.attempts-exhausted" -> string!
+const Tracon.TraconErrorTypes.JobHandlerActivationFailed = "tracon.job.handler-activation-failed" -> string!
+const Tracon.TraconErrorTypes.JobMaxDurationExceeded = "job_max_duration_exceeded" -> string!
+const Tracon.TraconErrorTypes.JobMaxDurationExceededCode = "tracon.job.max-duration-exceeded" -> string!
+const Tracon.TraconErrorTypes.JobRetry = "job_retry" -> string!
+const Tracon.TraconErrorTypes.JobSessionSaveFailed = "tracon.job.session-save-failed" -> string!
+const Tracon.TraconErrorTypes.JobUnknownHandlerKey = "tracon.job.unknown-handler-key" -> string!
+const Tracon.TraconErrorTypes.JobWorkflowRunFailed = "tracon.job.workflow-run-failed" -> string!
+const Tracon.TraconErrorTypes.JobWorkflowRunNotContinued = "tracon.job.workflow-run-not-continued" -> string!
+const Tracon.TraconErrorTypes.JobWorkflowRunPayloadInvalid = "tracon.job.workflow-run-payload-invalid" -> string!
+const Tracon.TraconErrorTypes.LoopUnsatisfied = "loop_unsatisfied" -> string!
+const Tracon.TraconErrorTypes.ModelNotFound = "model_not_found" -> string!
+const Tracon.TraconErrorTypes.NotFoundError = "not_found_error" -> string!
+const Tracon.TraconErrorTypes.Orphaned = "orphaned" -> string!
+const Tracon.TraconErrorTypes.OutputTruncated = "output_truncated" -> string!
+const Tracon.TraconErrorTypes.ProviderCredentialUnsupported = "provider_credential_unsupported" -> string!
+const Tracon.TraconErrorTypes.ProviderUnavailable = "provider_unavailable" -> string!
+const Tracon.TraconErrorTypes.ReplayToolMismatch = "replay_tool_mismatch" -> string!
+const Tracon.TraconErrorTypes.RequestAlreadyAnswered = "request_already_answered" -> string!
+const Tracon.TraconErrorTypes.RunBudgetExceeded = "run_budget_exceeded" -> string!
+const Tracon.TraconErrorTypes.RunNotAuthorized = "run_not_authorized" -> string!
+const Tracon.TraconErrorTypes.ServiceUnavailable = "service_unavailable" -> string!
+const Tracon.TraconErrorTypes.SessionConflict = "session_conflict" -> string!
+const Tracon.TraconErrorTypes.SessionOwnerRequired = "session_owner_required" -> string!
+const Tracon.TraconErrorTypes.StructuredResponseInvalid = "structured_response_invalid" -> string!
+const Tracon.TraconErrorTypes.TenantProviderRefused = "tenant_provider_refused" -> string!
+const Tracon.TraconErrorTypes.TenantQuotaExceeded = "tenant_quota_exceeded" -> string!
+const Tracon.TraconErrorTypes.ToolTimeout = "tool_timeout" -> string!
+const Tracon.TraconErrorTypes.UpstreamError = "upstream_error" -> string!
+const Tracon.TraconErrorTypes.WorkflowFunctionTimeout = "workflow_function_timeout" -> string!
+const Tracon.TraconErrorTypes.WorkflowRequestExpired = "WorkflowRequestExpired" -> string!
 const Tracon.TraconExternalCallException.ExternalCallRejectedErrorType = "external_call_rejected" -> string!
 const Tracon.TraconMcpSecurityOptions.SectionName = "Tracon:Mcp" -> string!
 const Tracon.TraconProviderUnavailableException.ProviderUnavailableErrorType = "provider_unavailable" -> string!

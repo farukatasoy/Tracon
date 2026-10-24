@@ -4,7 +4,7 @@ namespace Tracon;
 internal sealed partial class AgentDefinitionValidator
 {
     /// <summary>The validation code of an <c>aiJudge</c> criterion whose judge model cannot be built.</summary>
-    internal const string LoopJudgeUnavailableCode = "loop_judge_unavailable";
+    internal const string LoopJudgeUnavailableCode = ValidationCodes.LoopJudgeUnavailable;
 
     /// <summary>
     /// Reports every problem of the definition's loop, each with its own code and

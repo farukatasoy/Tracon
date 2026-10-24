@@ -128,15 +128,15 @@ internal sealed class TraconMetrics : IDisposable
         AuditWriteFailures = _meter.CreateCounter<long>(
             TraconDiagnostics.AuditWriteFailureCounterName,
             unit: "{failure}",
-            description: "Audit entries that could not be written, tagged by tenant, action and outcome.");
+            description: "Audit entries that could not be written, tagged by action and outcome, and by tenant when IncludeTenantTag is on.");
 
         RunRecordingFailures = _meter.CreateCounter<long>(
             TraconDiagnostics.RunRecordingFailureCounterName,
             unit: "{failure}",
-            description: "Run-record write attempts whose record was lost, tagged by tenant and stage.");
+            description: "Run-record write attempts whose record was lost, tagged by stage, and by tenant when IncludeTenantTag is on.");
     }
 
-    /// <summary>Run counter. Tags: agent, status, tenant.</summary>
+    /// <summary>Run counter. Tags: agent, status, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Counter<long> Runs { get; }
 
     /// <summary>Run duration. Tags: agent, status.</summary>
@@ -151,28 +151,28 @@ internal sealed class TraconMetrics : IDisposable
     /// <summary>Tool call duration. Tags: tool.</summary>
     public Histogram<double> ToolDuration { get; }
 
-    /// <summary>Cost counter. Tags: agent, model, tenant, currency.</summary>
+    /// <summary>Cost counter. Tags: agent, model, currency, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Counter<double> RunCost { get; }
 
-    /// <summary>Judge cost counter. Tags: judge, model, tenant, currency.</summary>
+    /// <summary>Judge cost counter. Tags: judge, model, currency, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Counter<double> JudgeCost { get; }
 
-    /// <summary>Judge score histogram. Tags: judge, agent, tenant.</summary>
+    /// <summary>Judge score histogram. Tags: judge, agent, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Histogram<double> JudgeScore { get; }
 
-    /// <summary>Response-cache lookup counter. Tags: provider, tenant, result (hit/miss).</summary>
+    /// <summary>Response-cache lookup counter. Tags: provider, result (hit/miss), and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Counter<long> ModelCacheLookups { get; }
 
     /// <summary>Agent-source failure counter. Tags: source, operation.</summary>
     public Counter<long> AgentSourceFailures { get; }
 
-    /// <summary>Audit write-failure counter. Tags: tenant, action, outcome (swallowed/refused).</summary>
+    /// <summary>Audit write-failure counter. Tags: action, outcome (swallowed/refused), and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Counter<long> AuditWriteFailures { get; }
 
-    /// <summary>Run-recording failure counter. Tags: tenant, stage.</summary>
+    /// <summary>Run-recording failure counter. Tags: stage, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Counter<long> RunRecordingFailures { get; }
 
-    /// <summary>Finished-job counter. Tags: lane, kind, status, tenant.</summary>
+    /// <summary>Finished-job counter. Tags: lane, kind, status, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     /// <remarks>
     /// Only a TERMINAL status is counted. A lease renewal or a release for
     /// retry is not an outcome, and counting it would turn this instrument's
@@ -216,8 +216,9 @@ internal sealed class TraconMetrics : IDisposable
         {
             { TraconDiagnostics.Tags.AgentName, agentName },
             { TraconDiagnostics.Tags.Status, statusTag },
-            { TraconDiagnostics.Tags.TenantId, tenantId },
         };
+
+        AddTenantTag(ref runTags, tenantId);
 
         var durationTags = new TagList
         {
@@ -262,15 +263,17 @@ internal sealed class TraconMetrics : IDisposable
     /// <param name="cost">The run's OWN cost (input + output). NOT the tree total.</param>
     /// <param name="currency">Currency.</param>
     public void RecordCost(string agentName, string? modelId, string tenantId, decimal cost, string currency)
-        => RunCost.Add(
-            (double)cost,
-            new TagList
-            {
-                { TraconDiagnostics.Tags.AgentName, agentName },
-                { TraconDiagnostics.Tags.ModelId, modelId ?? "unknown" },
-                { TraconDiagnostics.Tags.TenantId, tenantId },
-                { TraconDiagnostics.Tags.Currency, currency },
-            });
+    {
+        var tags = new TagList
+        {
+            { TraconDiagnostics.Tags.AgentName, agentName },
+            { TraconDiagnostics.Tags.ModelId, modelId ?? "unknown" },
+            { TraconDiagnostics.Tags.Currency, currency },
+        };
+
+        AddTenantTag(ref tags, tenantId);
+        RunCost.Add((double)cost, tags);
+    }
 
     /// <summary>Records a judge call's OWN cost.</summary>
     /// <param name="judgeName">The judge's name (<see cref="IRunJudge.Name"/>).</param>
@@ -279,15 +282,17 @@ internal sealed class TraconMetrics : IDisposable
     /// <param name="cost">The judge's OWN cost (input + output).</param>
     /// <param name="currency">Currency.</param>
     public void RecordJudgeCost(string judgeName, string? modelId, string tenantId, decimal cost, string currency)
-        => JudgeCost.Add(
-            (double)cost,
-            new TagList
-            {
-                { TraconDiagnostics.Tags.JudgeName, judgeName },
-                { TraconDiagnostics.Tags.ModelId, modelId ?? "unknown" },
-                { TraconDiagnostics.Tags.TenantId, tenantId },
-                { TraconDiagnostics.Tags.Currency, currency },
-            });
+    {
+        var tags = new TagList
+        {
+            { TraconDiagnostics.Tags.JudgeName, judgeName },
+            { TraconDiagnostics.Tags.ModelId, modelId ?? "unknown" },
+            { TraconDiagnostics.Tags.Currency, currency },
+        };
+
+        AddTenantTag(ref tags, tenantId);
+        JudgeCost.Add((double)cost, tags);
+    }
 
     /// <summary>Records the score given by a judge.</summary>
     /// <param name="judgeName">The judge's name (<see cref="IRunJudge.Name"/>).</param>
@@ -295,14 +300,16 @@ internal sealed class TraconMetrics : IDisposable
     /// <param name="tenantId">Tenant identifier.</param>
     /// <param name="score">Score, 0-100.</param>
     public void RecordJudgeScore(string judgeName, string agentName, string tenantId, double score)
-        => JudgeScore.Record(
-            score,
-            new TagList
-            {
-                { TraconDiagnostics.Tags.JudgeName, judgeName },
-                { TraconDiagnostics.Tags.AgentName, agentName },
-                { TraconDiagnostics.Tags.TenantId, tenantId },
-            });
+    {
+        var tags = new TagList
+        {
+            { TraconDiagnostics.Tags.JudgeName, judgeName },
+            { TraconDiagnostics.Tags.AgentName, agentName },
+        };
+
+        AddTenantTag(ref tags, tenantId);
+        JudgeScore.Record(score, tags);
+    }
 
     /// <summary>Records the result of a tool call.</summary>
     /// <param name="toolName">Tool name.</param>
@@ -330,14 +337,16 @@ internal sealed class TraconMetrics : IDisposable
     /// <param name="tenantId">Tenant identifier.</param>
     /// <param name="hit">Whether the lookup found a cached response.</param>
     public void RecordModelCacheLookup(string provider, string tenantId, bool hit)
-        => ModelCacheLookups.Add(
-            1,
-            new TagList
-            {
-                { TraconDiagnostics.Tags.Provider, provider },
-                { TraconDiagnostics.Tags.TenantId, tenantId },
-                { TraconDiagnostics.Tags.CacheResult, hit ? "hit" : "miss" },
-            });
+    {
+        var tags = new TagList
+        {
+            { TraconDiagnostics.Tags.Provider, provider },
+            { TraconDiagnostics.Tags.CacheResult, hit ? "hit" : "miss" },
+        };
+
+        AddTenantTag(ref tags, tenantId);
+        ModelCacheLookups.Add(1, tags);
+    }
 
     /// <summary>Records an agent-source failure or contract violation.</summary>
     /// <param name="sourceName">The source name.</param>
@@ -359,14 +368,16 @@ internal sealed class TraconMetrics : IDisposable
     /// write stopped it.
     /// </param>
     public void RecordAuditWriteFailure(string tenantId, string action, string outcome)
-        => AuditWriteFailures.Add(
-            1,
-            new TagList
-            {
-                { TraconDiagnostics.Tags.TenantId, tenantId },
-                { TraconDiagnostics.Tags.AuditAction, action },
-                { TraconDiagnostics.Tags.AuditOutcome, outcome },
-            });
+    {
+        var tags = new TagList
+        {
+            { TraconDiagnostics.Tags.AuditAction, action },
+            { TraconDiagnostics.Tags.AuditOutcome, outcome },
+        };
+
+        AddTenantTag(ref tags, tenantId);
+        AuditWriteFailures.Add(1, tags);
+    }
 
     /// <summary>Records a run-record write attempt whose record was lost.</summary>
     /// <param name="tenantId">
@@ -382,13 +393,15 @@ internal sealed class TraconMetrics : IDisposable
     /// carried on the span and in the accompanying log entry.
     /// </remarks>
     public void RecordRunRecordingFailure(string? tenantId, string stage)
-        => RunRecordingFailures.Add(
-            1,
-            new TagList
-            {
-                { TraconDiagnostics.Tags.TenantId, tenantId ?? "unknown" },
-                { TraconDiagnostics.Tags.RecordingStage, stage },
-            });
+    {
+        var tags = new TagList
+        {
+            { TraconDiagnostics.Tags.RecordingStage, stage },
+        };
+
+        AddTenantTag(ref tags, tenantId);
+        RunRecordingFailures.Add(1, tags);
+    }
 
     /// <summary>Records a background job that reached a terminal status.</summary>
     /// <param name="lane">
@@ -411,15 +424,15 @@ internal sealed class TraconMetrics : IDisposable
 
         var statusTag = status.ToString();
 
-        JobExecutions.Add(
-            1,
-            new TagList
-            {
-                { TraconDiagnostics.Tags.Lane, laneTag },
-                { TraconDiagnostics.Tags.JobHandlerKey, handlerKey },
-                { TraconDiagnostics.Tags.JobStatus, statusTag },
-                { TraconDiagnostics.Tags.TenantId, tenantId ?? "unknown" },
-            });
+        var executionTags = new TagList
+        {
+            { TraconDiagnostics.Tags.Lane, laneTag },
+            { TraconDiagnostics.Tags.JobHandlerKey, handlerKey },
+            { TraconDiagnostics.Tags.JobStatus, statusTag },
+        };
+
+        AddTenantTag(ref executionTags, tenantId);
+        JobExecutions.Add(1, executionTags);
 
         JobDuration.Record(
             duration.TotalSeconds,
@@ -429,6 +442,27 @@ internal sealed class TraconMetrics : IDisposable
                 { TraconDiagnostics.Tags.JobHandlerKey, handlerKey },
                 { TraconDiagnostics.Tags.JobStatus, statusTag },
             });
+    }
+
+    /// <summary>
+    /// Adds <c>tracon.tenant.id</c> to a metric's tags when
+    /// <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.
+    /// </summary>
+    /// <param name="tags">The tags of the measurement being built.</param>
+    /// <param name="tenantId">The tenant. <c>"unknown"</c> is written when null, so that an alert rule never has to tell an empty series from a missing one.</param>
+    /// <remarks>
+    /// The one place that decides. The option is read on every call, so a change through
+    /// <see cref="IOptionsMonitor{TOptions}"/> reaches the next measurement. A tag per tenant multiplies
+    /// every series by the tenant count, which is why it is off by default; spans and the quota gauges
+    /// do not go through here and always carry it. When no options are known (a test that builds the
+    /// set alone) the setting's own default applies.
+    /// </remarks>
+    private void AddTenantTag(ref TagList tags, string? tenantId)
+    {
+        if (_options?.CurrentValue.Observability.IncludeTenantTag ?? false)
+        {
+            tags.Add(TraconDiagnostics.Tags.TenantId, tenantId ?? "unknown");
+        }
     }
 
     /// <summary>

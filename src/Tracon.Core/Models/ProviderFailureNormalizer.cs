@@ -9,8 +9,8 @@ namespace Tracon;
 /// <summary>Normalizes foreign provider failures at the outer model-call boundary.</summary>
 internal static partial class ProviderFailureNormalizer
 {
-    internal const string UpstreamErrorType = "upstream_error";
-    internal const string CredentialUnsupportedErrorType = "provider_credential_unsupported";
+    internal const string UpstreamErrorType = TraconErrorTypes.UpstreamError;
+    internal const string CredentialUnsupportedErrorType = TraconErrorTypes.ProviderCredentialUnsupported;
     internal const string UpstreamMessage = "The model provider request failed.";
     internal const string CredentialUnsupportedMessage = "The model provider does not support tenant credentials.";
 

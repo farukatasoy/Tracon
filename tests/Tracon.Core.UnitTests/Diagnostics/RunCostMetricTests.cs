@@ -24,7 +24,7 @@ public sealed class RunCostMetricTests
     {
         var store = new InMemoryRunStore();
         using var meterFactory = new TestMeterFactory();
-        using var metrics = new TraconMetrics(meterFactory);
+        using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         using var collector = new MetricCollector(meterFactory.Meter);
 
         var usage = new UsageDetails { InputTokenCount = 1_000_000, OutputTokenCount = 500_000, TotalTokenCount = 1_500_000 };
@@ -74,7 +74,7 @@ public sealed class RunCostMetricTests
     {
         var store = new InMemoryRunStore();
         using var meterFactory = new TestMeterFactory();
-        using var metrics = new TraconMetrics(meterFactory);
+        using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         using var collector = new MetricCollector(meterFactory.Meter);
 
         var usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 10, TotalTokenCount = 20 };
@@ -113,7 +113,7 @@ public sealed class RunCostMetricTests
     {
         var store = new InMemoryRunStore();
         using var meterFactory = new TestMeterFactory();
-        using var metrics = new TraconMetrics(meterFactory);
+        using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         using var collector = new MetricCollector(meterFactory.Meter);
 
         // Tokens decreasing by call order: root spends the most, sub-runs spend

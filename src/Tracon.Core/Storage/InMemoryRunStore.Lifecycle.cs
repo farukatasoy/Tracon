@@ -192,7 +192,7 @@ internal sealed partial class InMemoryRunStore
             var message = $"The process running the run is not responding; last heartbeat: {lastSeen:O}.";
             var error = new RunError
             {
-                Type = "orphaned",
+                Type = TraconErrorTypes.Orphaned,
                 Message = message,
                 Class = RunErrorClass.Infrastructure,
 

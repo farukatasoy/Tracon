@@ -11,5 +11,5 @@ namespace Tracon;
 internal static class WorkflowRequestExpiry
 {
     /// <summary>The <see cref="RunError.Type"/> of a run closed because a request nobody answered expired.</summary>
-    public const string ErrorType = "WorkflowRequestExpired";
+    public const string ErrorType = TraconErrorTypes.WorkflowRequestExpired;
 }

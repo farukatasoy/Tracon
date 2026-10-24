@@ -98,7 +98,7 @@ internal sealed class ReplayToolMismatchException : TraconException
     /// <summary>
     /// The stable value written for <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string ReplayToolMismatchErrorType = "replay_tool_mismatch";
+    public const string ReplayToolMismatchErrorType = TraconErrorTypes.ReplayToolMismatch;
 
     /// <summary>Creates a new mismatch error.</summary>
     public ReplayToolMismatchException()

@@ -153,7 +153,7 @@ public sealed class JobMetricsTests
             new SchemaReadyGate([]),
             new NotDrainingState(),
             logger: NullLogger<JobWorkerBackgroundService>.Instance,
-            metrics: new TraconMetrics(factory));
+            metrics: new TraconMetrics(factory, TenantTaggedMetricsOptions.Create()));
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
@@ -245,7 +245,7 @@ public sealed class JobMetricsTests
                 new NotDrainingState(),
                 timeProvider: clock,
                 logger: NullLogger<JobWorkerBackgroundService>.Instance,
-                metrics: new TraconMetrics(_meterFactory));
+                metrics: new TraconMetrics(_meterFactory, TenantTaggedMetricsOptions.Create()));
         }
 
         public InMemoryJobStore Jobs { get; }
