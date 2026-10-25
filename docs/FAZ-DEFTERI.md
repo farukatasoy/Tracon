@@ -254,6 +254,7 @@
 | 238 | .NET Dışı Yüzeylerin 1.x Kuralları, Sözleşme Anlık Görüntüleri ve Kiracı Metrik Etiketi | tam | ✅ | 2026-10-24 | F-559 | `4131ace5:docs/238-NET-DISI-YUZEYLERIN-1X-KURALLARI.md` |
 | 239 | Devam Zincirinde Bütçe ve Çalışan Ağaçta Kiracı Kotası | tam | ✅ | 2026-10-24 | F-529 · F-531 | `91b8ab0b:docs/239-BUTCE-VE-KOTA-SUREKLILIGI.md` |
 | 240 | Kiracı Başına Workflow Eşzamanlılığı, `Queued` Bekleme ve Adil Kiralama | tam | ✅ | 2026-10-24 | F-322 | `e10973ee:docs/240-KIRACI-BASINA-WORKFLOW-ESZAMANLILIGI.md` |
+| 241 | Native Agent Akışında Loop İterasyon Sınırı | hafif | ✅ | 2026-10-25 | F-544 | `1896bc24:docs/241-LOOP-ITERASYON-CERCEVESI.md` |
 
 ## Süreç Ölçümü
 
@@ -335,3 +336,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 238 | 14 | 1 | 2 / 0 / 0 | 0 | ölçülmedi |
 | 239 | 0 | 1 | 1 / 0 / 0 | 0 | ölçülmedi |
 | 240 | 0 | 1 | 2 / 0 / 0 | 1 | ölçülmedi |
+| 241 | 0 | 3 | 0 / 0 / 0 | 0 | ölçülmedi |
