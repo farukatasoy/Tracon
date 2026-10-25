@@ -26077,6 +26077,34 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
+    /// The limits of one dialogue request, as the provider states them.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SpeechDialogueCapabilities
+    {
+
+        /// <summary>
+        /// Gets the most distinct voices one request can use.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxVoices")]
+        public int MaxVoices { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the most characters one request can carry, summed over its turns.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxCharactersPerRequest")]
+        public int MaxCharactersPerRequest { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the provider reports each turn's time range when the request sets
+        /// <br/>`IncludeTimestamps`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("supportsSegmentTimestamps")]
+        public bool SupportsSegmentTimestamps { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// A registered speech provider, as the speech provider list reports it.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -26107,6 +26135,13 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("supportsTenantCredentials")]
         public bool SupportsTenantCredentials { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the limits of one dialogue request, or `null` when the provider
+        /// <br/>cannot voice a dialogue.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("dialogue")]
+        public SpeechDialogueCapabilities? Dialogue { get; set; } = default!;
 
     }
 

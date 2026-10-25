@@ -99,7 +99,9 @@ public static class GoogleProviderExtensions
             return builder;
         }
 
-        builder.AddModelProvider(static provider =>
+        // The concrete provider is a service of its own: speech shares its tenant credential
+        // cache (UseGoogleSpeech), and the registry still sees the one instance.
+        services.AddSingleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<GoogleProviderOptions>>().Value;
 
@@ -111,6 +113,7 @@ public static class GoogleProviderExtensions
                 healthCheckOptions: options,
                 egressGuard: provider.GetService<EgressSocketGuard>());
         });
+        builder.AddModelProvider(static provider => provider.GetRequiredService<GoogleModelProvider>());
 
         return builder;
     }

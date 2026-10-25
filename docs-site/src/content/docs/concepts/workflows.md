@@ -114,9 +114,8 @@ arguments of its registration (`inputType` and `outputType` on
 declares `object` as its output is not checked against the next node. Saving a chain
 that breaks this answers `400` and names both nodes and both types: Microsoft Agent
 Framework drops a message that no handler takes, without an error, so the chain would
-end every run `Completed` with no output. A run of a chain stored before this check,
-or after a deployment changed a function's types, fails before its first node runs and
-says the same.
+end every run `Completed` with no output. A stored chain that fails this check
+fails before its first node runs, with the same message.
 
 The first node must not take `object`. Every start and every resume also sends the first
 node Microsoft Agent Framework's turn token, and a node that takes `object` receives it as a
@@ -147,17 +146,16 @@ handler closure, so **the handler must be thread-safe**: a captured counter or
 non-thread-safe client needs its own guard.
 
 :::note[Code only, same boundary as tools]
-A function's body is never written from the UI or the database — only its
-*name* crosses that boundary, the identical shape `AgentDefinition.ToolNames`
-already uses for tools. `GET /api/workflows/functions` lists what is
-registered, for a picker to choose from.
+A function's body is never written from the UI or the database; only its
+*name* crosses that boundary, as `AgentDefinition.ToolNames` does for tools.
+`GET /api/workflows/functions` lists what is registered, for a picker.
 :::
 
 A function node opens no `runs` row of its own and adds nothing to the token
 totals — it made no model call. What it spent that is not tokens, it can report
 itself ([below](#report-what-a-node-spent-beyond-tokens)). `ExecutorInvoked` /
-`ExecutorCompleted` / `ExecutorFailed` still fire for it, same as any node, so
-it is visible in the run's event stream and colored live in the graph.
+`ExecutorCompleted` / `ExecutorFailed` still fire for it as for any node, so
+it shows in the run's event stream and live in the graph.
 
 :::caution[The handler must be idempotent]
 Resuming from the run's *latest* checkpoint after it already completed does
@@ -608,7 +606,7 @@ nodes, so a workflow saved under that name could not be read back. Saving it ans
 ### Queue a run instead of streaming it
 
 A streamed run belongs to the connection that reads it: if the client stops reading,
-the run ends `Canceled`. To run a workflow in the background — a render that takes
+the run ends `Canceled`. To run in the background — a render that takes
 minutes, a pipeline a deploy must not cut short — send `Prefer: respond-async`:
 
 ```bash
@@ -667,7 +665,7 @@ your own node's included — carries only its exception type and a correlation i
 and its message goes to the server log under the same id. Throw a
 `TraconException` when a node's message is meant for the person reading the run.
 
-A workflow run ends `Canceled` only when the run was actually cancelled — the
+A workflow run ends `Canceled` only when it was cancelled — the
 caller's request going away, `POST /api/runs/{id}/cancel`, a worker that stops
 gracefully while it runs a queued run, or `Tracon:Workflows:RunTimeout` being
 reached. The call-tree budget's
@@ -727,15 +725,15 @@ A workflow writes checkpoints as it goes, controlled by
 `POST /api/workflows/runs/{runId}/resume` continues from one — omit the id to resume
 from the latest.
 
-Resuming opens a **new** run. The original is never rewritten, so "what happened, then
-what we did about it" stays two readable records rather than one edited one. The new run
+Resuming opens a **new** run. The original is never rewritten, so the history stays two readable
+records, not one edited one. The new run
 compiles the definition version the original recorded, unless the request names another
 (see [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
 
 A workflow run whose process stopped is closed as `Failed` by
 [run reconciliation](/guides/reliability/#reconcile-runs-left-behind-by-a-crash), like
-any other orphaned run. Automatic run continuation does not pick it up, and does not
-pick up any of its steps: continuation repeats an agent turn, and a workflow run is
+any other orphaned run. Automatic run continuation does not pick it up or any of its
+steps: continuation repeats an agent turn, and a workflow run is
 not one. With continuation on, the run's event stream records a
 `RunContinuationBlocked` event that names the call to make instead,
 `POST /api/workflows/runs/{runId}/resume`. Resuming from the latest checkpoint repeats

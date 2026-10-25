@@ -50,6 +50,45 @@ Every `IChatClient` produced goes through the same pipeline as `Tracon.OpenAI`:
 `UseOpenTelemetry()` produces spans under the `Tracon` source. Circuit breaker
 and content filter detection live at the `ModelProviderRegistry` level.
 
+## Speech and dialogue
+
+After `UseGoogle(...)`, call `UseGoogleSpeech(...)` to register a Gemini text-to-speech model as a
+named speech provider. The same instance speaks one voice and voices a dialogue of two.
+
+```csharp
+tracon.UseGoogleSpeech(options =>
+{
+    options.Model = "gemini-3.8-flash-tts";
+    options.Voices.Add(new VoiceDescriptor { VoiceId = "Kore", Name = "Kore" });
+    options.Voices.Add(new VoiceDescriptor { VoiceId = "Puck", Name = "Puck" });
+});
+```
+
+- **One voice.** `POST /api/voice/speak` with `"provider": "gemini"` and a prebuilt voice name
+  (`Kore`) as `voiceId` answers a WAV file. `OutputFormat` takes `wav` (the default) or `pcm`;
+  another format is refused before the call.
+- **A dialogue.** `ISpeechProviderResolver.GetDialogueSynthesizerAsync("gemini")` returns the
+  same instance. Gemini takes exactly two voices per request; a request for timestamps is refused
+  because Gemini reports no timing. `GET /api/voice/providers` lists the limits in `dialogue`.
+- **The speaker format follows the model generation.** The `gemini-3.8` models want the speaker on
+  each text part and refuse a label in the text; `gemini-2.5-flash-preview-tts` and
+  `gemini-3.1-flash-tts-preview` want a label in the text and refuse the part metadata. Set
+  `DialogueSpeakerMode` to `PartMetadata` (the default) or `TextLabels` to match the model. A model
+  that gets the wrong one answers `400`, and the error names the other mode.
+- **The audio container follows the model too.** The `gemini-3.8` models answer a WAV file, and
+  append a `C2PA` provenance chunk after the samples; the older models answer raw 16-bit PCM. A
+  `wav` request returns the model's own file, or wraps the PCM in a header. A `pcm` request returns
+  the samples alone. The sample rate is the one the answer states (24 kHz so far).
+- **Streaming** (`SynthesizeStreamingAsync`) yields raw PCM, never a WAV header. Whether the model
+  streams in many parts depends on the model: `gemini-3.8-flash-tts` sends the first part after about
+  a second, `gemini-2.5-flash-preview-tts` sends the whole audio as one part.
+- **Tenants.** Every call passes the tenant's egress policy against the provider name `google`, the
+  name the chat provider has. A tenant with its own Google key is served with that key, on the same
+  client its chat requests use.
+- **Billing is an estimate.** Gemini bills speech by tokens and the answer carries no character
+  count, so Tracon records the length of the text and labels it as estimated. A character price under
+  `Tracon:Pricing:Voice:google:{model}` gives the cost; the price reader comes with `UseVoice()`.
+
 ## SDK used and dependency weight
 
 The official [`Google.GenAI`](https://www.nuget.org/packages/Google.GenAI) package
@@ -155,6 +194,7 @@ GET /tracon/api/models/health/google
 ## Links
 
 - Guide: <https://tracon.dev/guides/model-providers/>
+- Speech and dialogue: <https://tracon.dev/guides/gemini-speech/>
 - Capability map: <https://tracon.dev/capabilities/>
 - API reference: <https://tracon.dev/api/>
 

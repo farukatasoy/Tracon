@@ -142,8 +142,8 @@ claim to provide an operating-system sandbox.
 | Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new Tracon message abstraction |
 | Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `Tracon:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
 | Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy; per-request provider settings (`elevenlabs.*`) are refused, never ignored, when unknown |
-| Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, and `UseOpenAISpeech()` registers OpenAI speech as the provider `openai` |
-| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range, from a workflow function node; the built-in ElevenLabs client implements it, and a request over the provider's voice or character limit is refused rather than split |
+| Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, `UseOpenAISpeech()` registers OpenAI speech as the provider `openai`, `UseGoogleSpeech()` Gemini speech as `gemini` |
+| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range where the provider reports it, from a workflow function node; the built-in ElevenLabs client and `UseGoogleSpeech()` (two voices) implement it, and a request over the provider's voice or character limit is refused rather than split |
 | Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
@@ -1819,7 +1819,7 @@ same one the run judge calls, and keeps the shared setup-time key.
 Speech calls obey the same policy and the same bindings: text-to-speech,
 speech-to-text and the voice list check the provider name the engine reports, before
 any text or audio leaves the process. A tenant's own key reaches only an engine that
-accepts one; for any other engine the call is refused rather than billed to the host.
+accepts one (the [Gemini speech](/guides/gemini-speech/) provider does, on the `google` name); for any other engine the call is refused rather than billed to the host.
 See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
 
 Knowledge base embedding calls obey the policy too: an upload, a knowledge search and
@@ -4833,9 +4833,8 @@ arguments of its registration (`inputType` and `outputType` on
 declares `object` as its output is not checked against the next node. Saving a chain
 that breaks this answers `400` and names both nodes and both types: Microsoft Agent
 Framework drops a message that no handler takes, without an error, so the chain would
-end every run `Completed` with no output. A run of a chain stored before this check,
-or after a deployment changed a function's types, fails before its first node runs and
-says the same.
+end every run `Completed` with no output. A stored chain that fails this check
+fails before its first node runs, with the same message.
 
 The first node must not take `object`. Every start and every resume also sends the first
 node Microsoft Agent Framework's turn token, and a node that takes `object` receives it as a
@@ -4866,17 +4865,16 @@ handler closure, so **the handler must be thread-safe**: a captured counter or
 non-thread-safe client needs its own guard.
 
 :::note[Code only, same boundary as tools]
-A function's body is never written from the UI or the database — only its
-*name* crosses that boundary, the identical shape `AgentDefinition.ToolNames`
-already uses for tools. `GET /api/workflows/functions` lists what is
-registered, for a picker to choose from.
+A function's body is never written from the UI or the database; only its
+*name* crosses that boundary, as `AgentDefinition.ToolNames` does for tools.
+`GET /api/workflows/functions` lists what is registered, for a picker.
 :::
 
 A function node opens no `runs` row of its own and adds nothing to the token
 totals — it made no model call. What it spent that is not tokens, it can report
 itself ([below](#report-what-a-node-spent-beyond-tokens)). `ExecutorInvoked` /
-`ExecutorCompleted` / `ExecutorFailed` still fire for it, same as any node, so
-it is visible in the run's event stream and colored live in the graph.
+`ExecutorCompleted` / `ExecutorFailed` still fire for it as for any node, so
+it shows in the run's event stream and live in the graph.
 
 :::caution[The handler must be idempotent]
 Resuming from the run's *latest* checkpoint after it already completed does
@@ -5327,7 +5325,7 @@ nodes, so a workflow saved under that name could not be read back. Saving it ans
 ### Queue a run instead of streaming it
 
 A streamed run belongs to the connection that reads it: if the client stops reading,
-the run ends `Canceled`. To run a workflow in the background — a render that takes
+the run ends `Canceled`. To run in the background — a render that takes
 minutes, a pipeline a deploy must not cut short — send `Prefer: respond-async`:
 
 ```bash
@@ -5386,7 +5384,7 @@ your own node's included — carries only its exception type and a correlation i
 and its message goes to the server log under the same id. Throw a
 `TraconException` when a node's message is meant for the person reading the run.
 
-A workflow run ends `Canceled` only when the run was actually cancelled — the
+A workflow run ends `Canceled` only when it was cancelled — the
 caller's request going away, `POST /api/runs/{id}/cancel`, a worker that stops
 gracefully while it runs a queued run, or `Tracon:Workflows:RunTimeout` being
 reached. The call-tree budget's
@@ -5446,15 +5444,15 @@ A workflow writes checkpoints as it goes, controlled by
 `POST /api/workflows/runs/{runId}/resume` continues from one — omit the id to resume
 from the latest.
 
-Resuming opens a **new** run. The original is never rewritten, so "what happened, then
-what we did about it" stays two readable records rather than one edited one. The new run
+Resuming opens a **new** run. The original is never rewritten, so the history stays two readable
+records, not one edited one. The new run
 compiles the definition version the original recorded, unless the request names another
 (see [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
 
 A workflow run whose process stopped is closed as `Failed` by
 [run reconciliation](/guides/reliability/#reconcile-runs-left-behind-by-a-crash), like
-any other orphaned run. Automatic run continuation does not pick it up, and does not
-pick up any of its steps: continuation repeats an agent turn, and a workflow run is
+any other orphaned run. Automatic run continuation does not pick it up or any of its
+steps: continuation repeats an agent turn, and a workflow run is
 not one. With continuation on, the run's event stream records a
 `RunContinuationBlocked` event that names the call to make instead,
 `POST /api/workflows/runs/{runId}/resume`. Resuming from the latest checkpoint repeats
@@ -11175,6 +11173,139 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 
 ---
 
+# Gemini speech and two-voice dialogue
+
+Source: https://tracon.dev/guides/gemini-speech/
+
+How do you speak with a Gemini text-to-speech model, and voice a two-host dialogue with it? You register the model
+with `UseGoogleSpeech`, and a caller names the provider `gemini`. This page covers the provider. The speech
+layer it plugs into, the tenant's checks and the dialogue contract are in [Voice and live
+conversation](/guides/voice/).
+
+`UseGoogleSpeech` registers a Gemini text-to-speech model as a named provider. It shares the
+client of `UseGoogle`, so call that first. The same provider speaks one voice and voices a
+dialogue of two.
+
+```mermaid
+flowchart LR
+    accTitle: How a Gemini speech call reaches the model
+    accDescr: A caller names the provider gemini. The resolver applies the tenant's egress policy to the name google and chooses the setup key or the tenant's own key. The synthesizer sends one voice, or a dialogue of two voices in the speaker format the model takes, and returns a WAV file or raw 16-bit PCM.
+    CALL["Caller<br/>provider: gemini"] --> RES["Resolver<br/>egress policy on google<br/>setup key or tenant key"]
+    RES --> SYN["UseGoogleSpeech<br/>synthesizer"]
+    SYN --> ONE["One voice"]
+    SYN --> TWO["Dialogue of two voices<br/>PartMetadata or TextLabels"]
+    ONE --> GEM["Gemini text-to-speech model"]
+    TWO --> GEM
+    GEM --> OUT["WAV file or<br/>raw 16-bit PCM"]
+```
+
+## Register it
+
+```csharp
+builder.AddTracon()
+    .UseGoogle(builder.Configuration["Google:ApiKey"]!)
+    .UseGoogleSpeech(options =>
+    {
+        options.Model = "gemini-3.8-flash-tts";
+        options.Voices.Add(new VoiceDescriptor { VoiceId = "Kore", Name = "Kore" });
+        options.Voices.Add(new VoiceDescriptor { VoiceId = "Puck", Name = "Puck" });
+    });
+```
+
+```http
+POST /tracon/api/voice/speak
+{ "text": "Your order is on its way.", "provider": "gemini", "voiceId": "Kore" }
+```
+
+## Voice a dialogue
+
+The same provider voices a dialogue. Take the capability from the resolver, as [the voice
+guide](/guides/voice/#voice-a-dialogue-with-several-speakers) describes:
+
+```csharp
+var dialogue = await speech.GetDialogueSynthesizerAsync("gemini", cancellationToken);
+var result = await dialogue.SynthesizeDialogueAsync(
+    new SpeechDialogueRequest
+    {
+        Turns =
+        [
+            new SpeechDialogueTurn { Text = "Welcome back.", VoiceId = "Kore" },
+            new SpeechDialogueTurn { Text = "Glad to be here.", VoiceId = "Puck" },
+        ],
+    },
+    cancellationToken);
+```
+
+A synthesizer of your own refuses the same requests, in the same words, with
+`DialogueCapabilities.Check(request, ProviderName)`.
+
+`result.Audio` is one WAV file. `GET /api/voice/providers` shows `dialogue` for `gemini` as
+`maxVoices: 2` and `supportsSegmentTimestamps: false`.
+
+## Options
+
+`Model` is the only required option of `GoogleSpeechOptions`: Tracon carries no Gemini model or voice list. The provider
+name is `google`, the name the chat provider uses, so one egress rule covers chat, images, and speech.
+A prebuilt voice name such as `Kore` is the `voiceId`.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `Model` | none | The text-to-speech model. A request can name another model. |
+| `Name` | `gemini` | The registration name. |
+| `DialogueSpeakerMode` | `PartMetadata` | How a dialogue names its speakers. See the rule below. |
+| `MaxCharactersPerRequest` | `5000` | The limit `speak` enforces. Tracon's own guard: Gemini bounds a request by tokens. |
+| `MaxDialogueCharactersPerRequest` | `2000` | The most characters one dialogue request carries. |
+| `Voices` | empty | The voices `GET /api/voice/voices` lists. |
+| `UseAsDefault` | `false` | Also register the synthesizer as the unnamed default, with `TryAdd`. Call `UseGoogleSpeech` before `UseVoice` for it to take effect. The `speak` tool then sends `Tracon:Voice:OutputFormat`, which defaults to `mp3_44100_128` and which Gemini cannot produce: set it to `wav`. Keep Gemini a named provider for the live conversation socket, which streams the raw PCM the shipped panel cannot play. |
+
+## Rules that follow from the Gemini service
+
+- **The speaker format follows the model generation.** The `gemini-3.8` models want the speaker
+  on each text part and refuse a label in the text; `gemini-2.5-flash-preview-tts` and
+  `gemini-3.1-flash-tts-preview` want a label in the text (`Speaker1: …`) and refuse the part
+  metadata. Set `DialogueSpeakerMode` to `PartMetadata` or `TextLabels` to match the model. The wrong
+  one answers `400`, and the error names the other mode. With `TextLabels`, a turn that has a line
+  starting with a speaker label would change the voice, so Tracon refuses that turn before the call
+  and does not rewrite it.
+- **A dialogue takes exactly two voices.** One voice or three is refused before the call. Voice
+  a single-voice text with `SynthesizeAsync`.
+- **Timing is refused.** `IncludeTimestamps` fails on a speech and on a dialogue: Gemini reports no
+  timing, so a dialogue result has no `Segments`.
+- **The audio container follows the model.** The `gemini-3.8` models answer a WAV file with a `C2PA`
+  provenance chunk after the samples; the older models answer raw 16-bit PCM. `OutputFormat` takes
+  `wav` (the default) or `pcm`, and another format is refused. A `wav` result is the model's own
+  file, or the samples in a new header. A `pcm` result is the samples alone, at the sample rate the
+  answer states (24 kHz so far).
+- **Streaming yields raw PCM** and never a WAV header, because a header carries the length of the
+  audio. A `wav` request on a stream is refused. Whether the model streams in many parts depends on
+  the model: `gemini-3.8-flash-tts` sends the first part after about a second, and
+  `gemini-2.5-flash-preview-tts` sends the whole audio as one part.
+- **A tenant with its own Google key is served with that key,** on the same client its chat
+  requests use. A binding with an endpoint override is refused: the synthesizer calls the address
+  it was built with.
+- **Billing is an estimate.** Gemini bills speech by tokens and the answer carries no character
+  count, so Tracon records the length of the text and marks it as estimated. A character price under
+  `Tracon:Pricing:Voice:google:{model}` gives the cost; the price reader comes with `UseVoice()`.
+- **Provider settings are refused.** Gemini speech reads no `google.*` setting.
+- **A failure is a `502`** that carries the HTTP status and Google's status name
+  (`HTTP 400 (INVALID_ARGUMENT)`), never the service's text.
+- **The sample application** registers this provider when `Tracon:Providers:Google:ApiKey` is set.
+
+## When a Gemini dialogue fails
+
+The run's error names the cause. `takes exactly 2 voices` means the dialogue used one voice. `starts with
+a speaker label` means a turn of a `TextLabels` dialogue would change the voice; rephrase the line. An
+`HTTP 400` whose message names `DialogueSpeakerMode` means the model wants the other speaker format.
+`GET /api/voice/providers` shows `dialogue: null` for a provider that cannot voice a dialogue at all.
+
+## Read next
+
+- [Voice and live conversation](/guides/voice/) - named speech providers, the tenant's checks and the dialogue contract
+- [Model providers](/guides/model-providers/) - `UseGoogle`, the client this provider shares
+- [Packages](/packages/) - when to add `Tracon.Google`
+
+---
+
 # Hosted tools - web search, code interpreter, file search
 
 Source: https://tracon.dev/guides/hosted-tools/
@@ -11904,7 +12035,7 @@ the database or the console.
 | `Tracon.OpenAI` | `UseOpenAI()` | `openai-responses` | OpenAI Responses |
 | `Tracon.OpenAI` | `UseOpenAICompatible(name, …)` | your `name` | Compatible Chat Completions |
 | `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Anthropic Messages |
-| `Tracon.Google` | `UseGoogle()` | `google` | Gemini Developer API |
+| `Tracon.Google` | `UseGoogle()` | `google` | Gemini Developer API; [speech](/guides/gemini-speech/) with `UseGoogleSpeech()` |
 | `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure OpenAI Chat Completions |
 
 The `Tracon` meta package includes `Tracon.OpenAI`. Add the Anthropic, Google,
@@ -16829,8 +16960,9 @@ A caller selects an engine by name:
 | The `speak`, `transcribe` and `list_voices` tools, the conversation socket | Always the default provider |
 
 `GET /api/voice/providers` lists every registration — its name (`null` for the
-default), its kind, the provider name it reports, and whether it accepts a tenant's own
-key. An unknown name answers `400` and names the registered ones; a request without a
+default), its kind, the provider name it reports, whether it accepts a tenant's own
+key, and `dialogue`: the limits of one dialogue request, or `null` when the provider cannot voice
+a dialogue. An unknown name answers `400` and names the registered ones; a request without a
 name when no default is registered answers `501`. A provider failure the speech
 adapter reports as a `TraconException` (the built-in adapters do) answers `502`, while
 it speaks or lists its voices; any other exception is a server error.
@@ -16985,6 +17117,8 @@ Rules that follow from the OpenAI service:
   `OpenAI speech request failed with HTTP 403 (model_not_found)`: status and error code, never the
   service's text.
 - **Native AOT.** The package publishes with Native AOT, including this path.
+
+Gemini speech has [its own page](/guides/gemini-speech/).
 
 ### Voice a dialogue with several speakers
 
@@ -19474,7 +19608,7 @@ Add these when you need them.
 | `Tracon.SqlServer` | You run SQL Server instead of PostgreSQL |
 | `Tracon.Sqlite` | One node, or durable local development |
 | `Tracon.Anthropic` | You call Claude models — with effort, adaptive thinking and prompt-cache TTL and placement settings |
-| `Tracon.Google` | You call Gemini models |
+| `Tracon.Google` | You call Gemini models, or speak and voice a two-voice dialogue with a Gemini text-to-speech model |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
 | `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents. It takes the AG-UI SDK, which the other packages never see |

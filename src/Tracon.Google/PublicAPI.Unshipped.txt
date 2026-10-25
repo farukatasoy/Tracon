@@ -30,3 +30,23 @@ static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! bui
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.GoogleProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, System.Action<Tracon.GoogleProviderOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.GoogleDialogueSpeakerMode
+Tracon.GoogleDialogueSpeakerMode.PartMetadata = 0 -> Tracon.GoogleDialogueSpeakerMode
+Tracon.GoogleDialogueSpeakerMode.TextLabels = 1 -> Tracon.GoogleDialogueSpeakerMode
+Tracon.GoogleSpeechBuilderExtensions
+Tracon.GoogleSpeechOptions
+Tracon.GoogleSpeechOptions.DialogueSpeakerMode.get -> Tracon.GoogleDialogueSpeakerMode
+Tracon.GoogleSpeechOptions.DialogueSpeakerMode.set -> void
+Tracon.GoogleSpeechOptions.GoogleSpeechOptions() -> void
+Tracon.GoogleSpeechOptions.MaxCharactersPerRequest.get -> int
+Tracon.GoogleSpeechOptions.MaxCharactersPerRequest.set -> void
+Tracon.GoogleSpeechOptions.MaxDialogueCharactersPerRequest.get -> int
+Tracon.GoogleSpeechOptions.MaxDialogueCharactersPerRequest.set -> void
+Tracon.GoogleSpeechOptions.Model.get -> string?
+Tracon.GoogleSpeechOptions.Model.set -> void
+Tracon.GoogleSpeechOptions.Name.get -> string!
+Tracon.GoogleSpeechOptions.Name.set -> void
+Tracon.GoogleSpeechOptions.UseAsDefault.get -> bool
+Tracon.GoogleSpeechOptions.UseAsDefault.set -> void
+Tracon.GoogleSpeechOptions.Voices.get -> System.Collections.Generic.IList<Tracon.VoiceDescriptor!>!
+static Tracon.GoogleSpeechBuilderExtensions.UseGoogleSpeech(this Tracon.ITraconBuilder! builder, System.Action<Tracon.GoogleSpeechOptions!>! configure) -> Tracon.ITraconBuilder!

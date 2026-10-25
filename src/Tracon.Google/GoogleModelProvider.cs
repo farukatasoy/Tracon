@@ -131,6 +131,15 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
                 static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
     }
 
+    /// <summary>Returns the client factory for a tenant credential (BYOK), the one the tenant's chat clients are built from.</summary>
+    /// <param name="credential">The tenant's resolved credential.</param>
+    /// <returns>The same factory for the same credential.</returns>
+    /// <remarks>
+    /// Google speech shares it: a tenant has one SDK client per credential, whether it chats or speaks.
+    /// </remarks>
+    internal GoogleChatClientFactory GetTenantFactory(ModelProviderCredential credential)
+        => _core.GetTenantFactory(credential, BuildCredentialFactory);
+
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint fallback rationale.</remarks>
     private GoogleChatClientFactory BuildCredentialFactory(ModelProviderCredential credential)

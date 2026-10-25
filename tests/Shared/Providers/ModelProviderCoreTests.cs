@@ -96,6 +96,39 @@ public sealed class ModelProviderCoreTests
     }
 
     [Fact]
+    public void Tenant_factory_is_the_one_the_tenant_chat_client_is_built_from()
+    {
+        var core = new ModelProviderCore<object>([], null);
+        var credential = new ModelProviderCredential { ApiKey = "tenant-key" };
+        var factoryBuilds = 0;
+
+        object Build(ModelProviderCredential _)
+        {
+            factoryBuilds++;
+            return new object();
+        }
+
+        var factory = core.GetTenantFactory(credential, Build);
+        object? seenByChat = null;
+
+        // A capability beside chat asks for the factory first; chat must then reuse it, not build a second.
+        _ = core.GetTenantChatClient(
+            credential,
+            Binding,
+            Build,
+            (chatFactory, _) =>
+            {
+                seenByChat = chatFactory;
+                return Substitute.For<IChatClient>();
+            });
+
+        seenByChat.ShouldBeSameAs(factory);
+        core.GetTenantFactory(new ModelProviderCredential { ApiKey = "tenant-key" }, Build).ShouldBeSameAs(factory);
+        core.GetTenantFactory(new ModelProviderCredential { ApiKey = "other-key" }, Build).ShouldNotBeSameAs(factory);
+        factoryBuilds.ShouldBe(2);
+    }
+
+    [Fact]
     public void Diagnostic_names_the_key_and_never_carries_a_value()
     {
         var diagnostic = ModelProviderCore.ConfigurationDiagnosticFor("Tracon:Providers:Test", resolved: false);

@@ -29,7 +29,7 @@ the database or the console.
 | `Tracon.OpenAI` | `UseOpenAI()` | `openai-responses` | OpenAI Responses |
 | `Tracon.OpenAI` | `UseOpenAICompatible(name, …)` | your `name` | Compatible Chat Completions |
 | `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Anthropic Messages |
-| `Tracon.Google` | `UseGoogle()` | `google` | Gemini Developer API |
+| `Tracon.Google` | `UseGoogle()` | `google` | Gemini Developer API; [speech](/guides/gemini-speech/) with `UseGoogleSpeech()` |
 | `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure OpenAI Chat Completions |
 
 The `Tracon` meta package includes `Tracon.OpenAI`. Add the Anthropic, Google,

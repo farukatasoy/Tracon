@@ -99,6 +99,49 @@ public sealed class NamedSpeechProviderTests
     }
 
     [Fact]
+    public async Task Providers_reports_the_dialogue_limits_of_a_provider_that_voices_a_dialogue_and_null_for_the_rest()
+    {
+        // F-465: a caller learned that a provider cannot voice a dialogue from the failure of
+        // GetDialogueSynthesizerAsync. The list says it up front, for the default synthesizer too.
+        var engines = new Engines();
+        var duo = new CountingDialogueSpeechProvider("duo-engine");
+        var defaultDuo = new CountingDialogueSpeechProvider("default-duo-engine");
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder =>
+            {
+                engines.Register(builder);
+                builder.AddSpeechSynthesizer("duo", _ => duo);
+            },
+            configureServices: services => services.AddSingleton<ISpeechSynthesizer>(defaultDuo));
+
+        using var response = await host.Client.GetAsync(new Uri("/tracon/api/voice/providers", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var dialogue = (await TraconTestHost.ReadJsonAsync(response)).EnumerateArray()
+            .Where(static entry => string.Equals(entry.GetProperty("kind").GetString(), "Synthesizer", StringComparison.Ordinal))
+            .ToDictionary(
+                static entry => entry.GetProperty("name").GetString() ?? "(default)",
+                static entry => entry.GetProperty("dialogue"),
+                StringComparer.Ordinal);
+
+        foreach (var name in new[] { "duo", "(default)" })
+        {
+            dialogue[name].GetProperty("maxVoices").GetInt32().ShouldBe(2, name);
+            dialogue[name].GetProperty("maxCharactersPerRequest").GetInt32().ShouldBe(2000, name);
+            dialogue[name].GetProperty("supportsSegmentTimestamps").GetBoolean().ShouldBeTrue(name);
+        }
+
+        dialogue["gpu"].ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        dialogue["studio"].ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+
+        // Listing calls no provider.
+        duo.Calls.ShouldBe(0);
+        defaultDuo.Calls.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Two_names_for_one_instance_resolve_to_that_instance()
     {
         // One account shared by two names: one instance, so one concurrency counter.
