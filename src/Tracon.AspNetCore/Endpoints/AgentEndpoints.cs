@@ -278,6 +278,15 @@ internal static class AgentEndpoints
                 "data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the " +
                 "model cut off at its output token limit or its context window) always, and " +
                 "'tracon.quota.threshold' when the quota options publish it to the run stream. " +
+                "An agent with a harness loop streams every iteration, so the 'update' events carry the drafts and " +
+                "the feedback as well as the answer. After each iteration the loop evaluated, the stream sends a " +
+                "'loop.iteration-completed' event, between that iteration's last 'update' and the first 'update' of the " +
+                "next. Its data is the event GET /api/runs/{id}/events serves; its 'payload' holds 'iteration', " +
+                "'continued', 'continuedBy', 'failedCriterion' and 'ceilingReached'. The answer is the iteration the last " +
+                "event closes, when that event has 'continued' false. When the last event has 'ceilingReached' true, the " +
+                "answer is the iteration after it, because the turn at the ceiling is not evaluated and has no event of " +
+                "its own. " +
+                "A run that does not record its events sends no 'loop.iteration-completed' event. " +
                 "When an MCP server asks the user for input in the middle of a tool call (elicitation), " +
                 "the run ends as 'AwaitingInput' and the stream sends an 'inputs' event right before " +
                 "'done' (the non-streaming response carries the same list as 'inputs'): one entry per " +
@@ -1069,6 +1078,16 @@ internal static class AgentEndpoints
                             sequence++,
                             "inputs",
                             JsonSerializer.Serialize(announcements, JsonOptions),
+                            hookCancellation).ConfigureAwait(false),
+
+                    // Phase 241: the loop evaluator hands over each iteration event between two iterations, so this frame
+                    // lands after the last update of the iteration and before the first of the next. The data is the
+                    // event GET /api/runs/{id}/events serves, byte for byte.
+                    onLoopIteration: async (iteration, hookCancellation) =>
+                        await writer.WriteEventAsync(
+                            sequence++,
+                            "loop.iteration-completed",
+                            RunNoticeMirror.Serialize(iteration),
                             hookCancellation).ConfigureAwait(false),
                     cancellationToken);
 

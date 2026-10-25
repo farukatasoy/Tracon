@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyApprovalPresentations,
+  applyLoopIteration,
   applyToolInputs,
   emptyTranscript,
   foldMessages,
@@ -374,4 +375,62 @@ describe('applyToolInputs', () => {
 
     expect(state.items.map((item) => item.kind)).toEqual(['text', 'input']);
   });
+});
+
+describe('applyLoopIteration', () => {
+  const frame = (payload: Record<string, unknown>): Pick<RunEvent, 'payload'> => ({
+    payload: JSON.stringify({
+      iteration: 1,
+      continued: false,
+      continuedBy: null,
+      hasFeedback: false,
+      failedCriterion: null,
+      ceilingReached: false,
+      failsRun: false,
+      ...payload,
+    }),
+  });
+
+  const divider = (state: ReturnType<typeof applyLoopIteration>) => state.items.at(-1);
+
+  it('puts a divider after the draft and keeps the next iteration out of it', () => {
+    let state = foldUpdate(emptyTranscript, { contents: [{ $type: 'text', text: 'draft' }] });
+
+    state = applyLoopIteration(state, frame({ continued: true, continuedBy: 'completionMarker' }));
+    state = foldUpdate(state, { contents: [{ $type: 'text', text: 'answer' }] });
+
+    expect(state.items.map((item) => item.kind)).toEqual(['text', 'iteration', 'text']);
+    expect(state.items[0]).toMatchObject({ text: 'draft' });
+    expect(state.items[2]).toMatchObject({ text: 'answer' });
+  });
+
+  it.each([
+    [{ continued: true, continuedBy: 'completionMarker' }, 'continued', 'completionMarker'],
+    [{ continued: true, continuedBy: 'aiJudge', ceilingReached: true }, 'ceiling', 'aiJudge'],
+    [{ failedCriterion: 'aiJudge' }, 'failed', 'aiJudge'],
+    [{ continued: false }, 'stopped', null],
+  ])('reads %j as %s', (payload, outcome, criterion) => {
+    expect(divider(applyLoopIteration(emptyTranscript, frame(payload)))).toMatchObject({
+      kind: 'iteration',
+      iteration: 1,
+      outcome,
+      criterion,
+    });
+  });
+
+  it('names a criterion that failed to evaluate before the ceiling it also reached', () => {
+    const state = applyLoopIteration(
+      emptyTranscript,
+      frame({ continued: true, continuedBy: 'completionMarker', failedCriterion: 'aiJudge', ceilingReached: true }),
+    );
+
+    expect(divider(state)).toMatchObject({ outcome: 'failed', criterion: 'aiJudge' });
+  });
+
+  it.each([[null], [''], ['not json'], ['{}'], ['{"iteration":"1"}'], ['null']])(
+    'leaves the transcript alone for the payload %j',
+    (payload) => {
+      expect(applyLoopIteration(emptyTranscript, { payload })).toBe(emptyTranscript);
+    },
+  );
 });

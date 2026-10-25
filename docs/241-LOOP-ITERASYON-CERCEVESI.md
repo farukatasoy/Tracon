@@ -81,14 +81,14 @@ Playground her iterasyonun sonunda bir ayraç gösterir.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Loop'lu agent'ın native akışında her değerlendirilen iterasyondan sonra bir `loop.iteration-completed` çerçevesi gelir; Loop'suz agent'ın akışı değişmez
-- [ ] Çerçeve verisi `GET /api/runs/{id}/events`'teki aynı olayla bayt bayt aynıdır (test)
-- [ ] Alt agent'ın Loop'u ebeveyn akışına çerçeve yazmaz (test)
-- [ ] `docs/sozlesme/sse-olaylari.txt` `agent-stream loop.iteration-completed` satırını taşır; `SseEventNameSnapshotTests` yeşil
-- [ ] Uç noktanın OpenAPI açıklaması çerçeveyi adlandırır; iki istemci yeniden üretildi
-- [ ] Playground ayracı gösterir; `en.ts` + `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı (bugün 224,1 KB gzip / 250 KB, 2026-10-23 yapıtı)
-- [ ] `samples/Tracon.Api` `reviewed-writer` agent'ı (`Program.cs:741-762`, `MaxIterations = 3`) native akışla koşuldu; çerçeve dizisi belgeye yazıldı
-- [ ] Site sayfaları (Tüketici yüzeyi satırı) ve `CHANGELOG.md [Unreleased]` güncel
+- [x] Loop'lu agent'ın native akışında her değerlendirilen iterasyondan sonra bir `loop.iteration-completed` çerçevesi gelir; Loop'suz agent'ın akışı değişmez — `LoopIterationFrameTests`: 3 iterasyon → 3 çerçeve; tavan yolu → 1 çerçeve (2 tur); Loop'suz agent (harness'lı ve harness'sız) yalnız `run` · `update` · `done` akıtır
+- [x] Çerçeve verisi `GET /api/runs/{id}/events`'teki aynı olayla bayt bayt aynıdır (test) — `The_frame_data_is_the_event_the_events_stream_serves_byte_for_byte`
+- [x] Alt agent'ın Loop'u ebeveyn akışına çerçeve yazmaz (test) — `A_sub_agents_loop_writes_to_its_own_run_and_not_to_the_stream_above_it`: çocuk run'ı 2 `LoopIterationCompleted` yazdı, ebeveyn akışında 0 çerçeve. Test kancanın çocuğa sızmadığını `depth == 0` korumasız kanıtlamaz: çocuk seçenekleri kancayı zaten taşımaz (`ChildAgentInvoker.CreateChildOptions`)
+- [x] `docs/sozlesme/sse-olaylari.txt` `agent-stream loop.iteration-completed` satırını taşır; `SseEventNameSnapshotTests` yeşil
+- [x] Uç noktanın OpenAPI açıklaması çerçeveyi adlandırır; iki istemci yeniden üretildi — `docs/openapi/tracon.json`, `schema.ts` ve `TraconApiClient.g.cs` yalnız açıklama satırı kadar değişti
+- [x] Playground ayracı gösterir; `en.ts` + `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı: 224,5 KB gzip / 250 KB (öncesi 224,1; +0,4 KB)
+- [x] `samples/Tracon.Api` `reviewed-writer` agent'ı (`Program.cs:741-762`, `MaxIterations = 3`) native akışla koşuldu; çerçeve dizisi belgeye yazıldı — `MT-UIAG-066` Koşum satırı: `run` · 7 `update` · `loop.iteration-completed` (#1, `draft-reviewed`) · `role: "user"` geri bildirimi + 19 `update` · `loop.iteration-completed` (#2, durdu) · `done`
+- [x] Site sayfaları (Tüketici yüzeyi satırı) ve `CHANGELOG.md [Unreleased]` güncel
 - [ ] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
 
 ## Testler
@@ -123,12 +123,18 @@ ayraçların görsel kontrolü.
 
 > Çalışırken dolar; kapanışta commit mesajına taşınır.
 
+- **Kanca `WriteIterationEventAsync`'in içinde değil, `ExtraUsage` toplamından sonra çağrılır.** Plan kancayı olayı yazan metoda koyuyordu. `FailRun` yolunda toplam `failsRun` dalında run'a eklenir; kanca ondan önce atsaydı run harcadığı usage'ı yitirirdi. `WriteIterationEventAsync` olayı döndürür, `EvaluateAsync` sırayla toplamı ekler, kancayı çağırır, ölçüt/tavan istisnasını fırlatır. Sonuç: kanca hatası ölçüt hatası olmaz ve toplamı bozmaz; kanca istisna atarsa o istisna ölçütün ya da tavanın istisnasını ezer.
+- **"Kancanın hatası ölçüt hatası sayılmaz" testi birim değil fonksiyoneldir.** Plan `LoopEvaluatorRegistryTests`'te birim test diyordu; o dosya yalnız kaydı sınar, `LoopContext` hiçbir testte doğrudan kurulmaz. Test `LoopIterationFrameTests` içinde: kanca atar, varsayılan `OnCriterionError = Stop` altında run `Failed` olur ve olayın `failedCriterion` alanı boş kalır. Kanca ölçütlerin `try/catch`'i içinde olsaydı `Stop` onu yutardı ve run `Completed` kalırdı.
+- **Plana girmeyen eklemeler.** `RunNoticeMirror.Serialize` (iki akışın tek serileştiricisi); `concepts/runs.md` çerçeve tablosu (iki sözleşme tablosunda yeni ad eksik kalırdı); `FailRun` tavanı testi (son çerçeve `error` çerçevesinden hemen önce gelir, `failsRun: true`); `OpenedTurn.RunStreamingAsync` yeni zorunlu parametre alır, AG-UI `null` geçer.
+- **Geri bildirim metni akışta VAR.** Plan "geri bildirim metni gösterilmez, çünkü olay onu taşımaz" diyordu. Olay taşımaz, ama iki çerçevenin arasındaki `update` bir `role: "user"` mesajıdır ve Loop'un modele verdiği geri bildirimi taşır (`Continue working on the request…`, `Reviewer findings (round 1): …`). Transcript `update`'in rolünü okumaz; metin ayraçtan sonraki iterasyonun paragrafına katılır. Ayraç yine de iki metni ayırır, yani eski görünümden kötü değildir; geri bildirimi gizleme ya da ayrı gösterme kararı bu fazın dışında kaldı (🟢, `ADAYLAR.md`).
+- **Yerel PostgreSQL'e kısa bağlantı.** Örnek uygulamanın ilk açılışı `faz-tamamlama` Adım 2'nin dört boş ortam değişkeni olmadan koştu; `user-secrets` içindeki bağlantı dizesi (`localhost:55432`, `agentprism` şeması) devreye girdi ve uygulama ~12 sn sonra durdurulana kadar migration kaydı okudu, kuyruk sorgusu çalıştırdı. Run koşulmadı. Sonraki tüm koşumlar boş değişkenlerle ve geçici SQLite dosyasıyla koştu (günlükte `Npgsql` satırı 0). Bekleyen bir migration varsa o veritabanına uygulanmış olabilir.
+
 ## Bu Fazda Verilen Kararlar
 
 > Dört kategoriden biri `docs/KARARLAR.md`'ye; gerisi kapanış commit mesajına.
-> Beklenen kayıt: native akışın `loop.iteration-completed` çerçevesi *(kategori:
-> public-api; alternatif: `loop.iteration` adı ve dar veri — iki akışın adları
-> ayrışır)*. K-1006'nın yeniden açılma koşulu bu kayıtla kapanır.
+
+- **K-1086** *(kategori: public-api; alternatif: `loop.iteration` adı ve dar veri; ayrıca çerçeveyi `custom` gibi `done` öncesinde toplu yazmak)* — native akışın `loop.iteration-completed` çerçevesi. K-1006'nın yeniden açılma koşulu bu kayıtla kapandı.
+- Kancanın hata davranışı (run'ı düşürür, ölçüt hatası olmaz) ve kancanın yalnız kök scope'a girmesi kategori dışıdır: kapanış commit mesajına gider.
 
 ## Süreç Ölçümü
 

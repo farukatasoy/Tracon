@@ -73,6 +73,7 @@ public sealed class TraconRunOptions : AgentRunOptions
         AcceptsToolInput = other.AcceptsToolInput;
         ToolInputAnswers = other.ToolInputAnswers;
         BeforePendingToolInputIsPublished = other.BeforePendingToolInputIsPublished;
+        AfterLoopIterationRecorded = other.AfterLoopIterationRecorded;
     }
 
     /// <summary>
@@ -320,6 +321,25 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// failure fails the run, because a published status whose request nobody saw cannot be answered.
     /// </remarks>
     internal Func<IReadOnlyList<PendingToolInput>, CancellationToken, ValueTask>? BeforePendingToolInputIsPublished { get; init; }
+
+    /// <summary>
+    /// Gets the callback that receives the <see cref="RunEventType.LoopIterationCompleted"/> event of this run's
+    /// harness loop right after the run recorded it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The native agent stream sets it to mirror the event as a <c>loop.iteration-completed</c> frame, so the
+    /// frame carries the very event <c>GET /api/runs/{id}/events</c> serves. It runs on the loop evaluator's
+    /// own flow, between two iterations, and only when the run records its events: a run with no event writer
+    /// has no event to hand over. A failure of the callback is not a criterion failure; it ends the run like
+    /// any other failure of the stream.
+    /// </para>
+    /// <para>
+    /// Never inherited: it reaches the scope of the root run only, so a sub-agent's loop writes to its own
+    /// run and to nobody's stream.
+    /// </para>
+    /// </remarks>
+    internal Func<RunEvent, CancellationToken, ValueTask>? AfterLoopIterationRecorded { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

@@ -77,6 +77,15 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// adding the sum there too would count it twice.
 /// </para>
 /// <para>
+/// <strong>The caller's stream sees the event it was recorded as.</strong> When the
+/// run's scope carries <see cref="TraconRunOptions.AfterLoopIterationRecorded"/>,
+/// the recorded event goes to it, after the run's usage is settled and outside the
+/// criteria's <c>try</c>/<c>catch</c>. The evaluator runs between two iterations, while
+/// the caller waits for the next update, so the callback's write lands between the
+/// last update of this iteration and the first of the next. A run with no event
+/// writer has no event, so it calls nothing.
+/// </para>
+/// <para>
 /// The evaluator holds no state between calls; every decision is made from the
 /// <see cref="LoopContext"/> it is given, and the usage sum lives in that context's
 /// <see cref="LoopContext.AdditionalProperties"/>, so concurrent runs of one
@@ -211,7 +220,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         var exhausted = failOnExhaustion && ceilingReached;
         var failsRun = exhausted || criterionError is not null;
 
-        await WriteIterationEventAsync(
+        var recorded = await WriteIterationEventAsync(
                 context, continuedBy, continuation, failedCriterion, ceilingReached, failsRun, cancellationToken)
             .ConfigureAwait(false);
 
@@ -222,6 +231,15 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
             // recorder writes NO usage for an exception-ended run: if it starts
             // keeping the streamed usage there (F-317), this sum counts it twice.
             TraconRunContext.Current?.ExtraUsage?.Add(usage);
+        }
+
+        // After the usage above, so a failing callback cannot cost the run its sum, and
+        // outside the criteria's try/catch: the callback writes to the caller's stream,
+        // and its failure is no criterion failure (OnCriterionError would swallow it).
+        if (recorded is not null
+            && TraconRunContext.Current?.AfterLoopIterationRecorded is { } afterRecorded)
+        {
+            await afterRecorded(recorded, cancellationToken).ConfigureAwait(false);
         }
 
         criterionError?.Throw();
@@ -271,7 +289,9 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         return total;
     }
 
-    private static async ValueTask WriteIterationEventAsync(
+    /// <summary>Writes the iteration's event to the run's record.</summary>
+    /// <returns>The recorded event, or <see langword="null"/> when the run has no event writer.</returns>
+    private static async ValueTask<RunEvent?> WriteIterationEventAsync(
         LoopContext context,
         string? continuedBy,
         LoopEvaluation? continuation,
@@ -282,7 +302,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
     {
         if (TraconRunContext.Current?.Writer is not { } writer)
         {
-            return;
+            return null;
         }
 
         var hasFeedback = !string.IsNullOrEmpty(continuation?.Feedback);
@@ -322,7 +342,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                         $"iteration {context.Iteration} continued by '{continuedBy}'")
                     : string.Create(CultureInfo.InvariantCulture, $"iteration {context.Iteration} stopped");
 
-        await writer.AppendAsync(
+        return await writer.AppendAsync(
             new RunEventDraft(RunEventType.LoopIterationCompleted)
             {
                 Text = text,

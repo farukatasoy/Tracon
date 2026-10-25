@@ -105,7 +105,11 @@ widget renders its own approval card instead of the built-in console's, register
 [`IToolApprovalPresenter`](/concepts/governance/#approvals) too — it turns a raw
 `{ "orderId": "ORD-1001" }` into a name your widget can show directly, and it reaches
 your widget the same way the built-in one reads it: an `approvals` frame on the
-streaming run endpoint, keyed by the pending request's `requestId`.
+streaming run endpoint, keyed by the pending request's `requestId`. A widget that shows
+the streamed reply of an agent with a [loop](/concepts/agents/#run-until-the-work-is-done)
+needs one more frame: `loop.iteration-completed` marks where an iteration ends, because
+nothing in the `update` frames does. The [embeddable chat widget](/ui/#embeddable-chat-widget)
+does not stream (it sends `Idempotency-Key`), so it gets the final iteration only.
 
 ### 4 — Run event bridge
 

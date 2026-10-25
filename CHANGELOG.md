@@ -283,6 +283,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is not a number stops the host. See [workflow
   concurrency](https://tracon.dev/guides/background-work/#limit-workflow-runs-per-tenant).
 
+- **The run stream of an agent with a loop says where each iteration ends.** `POST /api/agents/{name}/run` already
+  streamed every iteration, but nothing in the `update` frames marked the border, so a client that read the stream
+  could take the first draft for the answer. After each iteration the loop evaluated, the stream now sends a
+  `loop.iteration-completed` frame, between the last `update` of that iteration and the first of the next. Its data is
+  the recorded `LoopIterationCompleted` event, byte for byte what `GET /api/runs/{id}/events` serves. The answer is the
+  iteration the last frame closes when it has `continued: false`; when it has `ceilingReached: true`, the answer is the
+  iteration after it, because the turn at the ceiling is not evaluated. An agent without a loop, a run that records no
+  events and a sub-agent's loop send no frame. The console playground draws a divider at each frame. A client that
+  ignores a frame name it does not know needs no change. See [Streaming](https://tracon.dev/http-api/#streaming).
+
 ### Changed
 
 - **A workflow run that waits for a concurrency slot is `Queued`, not `Running`.** The run's record still opens before

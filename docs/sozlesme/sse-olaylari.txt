@@ -8,6 +8,7 @@ agent-stream done
 agent-stream error
 agent-stream event
 agent-stream inputs
+agent-stream loop.iteration-completed
 agent-stream run
 agent-stream update
 run-events child.completed

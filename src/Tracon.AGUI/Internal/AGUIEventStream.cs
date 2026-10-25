@@ -95,7 +95,7 @@ internal static class AGUIEventStream
         HttpContext httpContext,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var source = opened.RunStreamingAsync(collector.OnApprovalsAsync, collector.OnInputsAsync, cancellationToken);
+        var source = opened.RunStreamingAsync(collector.OnApprovalsAsync, collector.OnInputsAsync, onLoopIteration: null, cancellationToken);
         var enumerator = source.GetAsyncEnumerator(cancellationToken);
 
         await using (enumerator.ConfigureAwait(false))

@@ -141,6 +141,12 @@ The Run button is disabled while a required field is empty; this is the same rul
 the server enforces (a run with a missing required value never starts), surfaced
 before the round trip instead of after it.
 
+When the agent runs a [loop](/concepts/agents/#run-until-the-work-is-done), the reply
+holds every iteration. The playground draws a divider after each iteration the loop
+evaluated. The divider names the iteration and what the loop decided: another iteration
+and the criterion that asked for it, the iteration ceiling, a criterion that failed to
+evaluate, or a stop. The feedback text is not in the divider.
+
 A tool call that needs a human decision stops the stream and renders as an approval
 card instead of a result — the entity name and message from a registered
 [approval presenter](/concepts/governance/#approvals) when there is one, the raw

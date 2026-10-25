@@ -4,7 +4,7 @@
 > karşılaştırma — `agent-detail.tsx` içindeki `VersionCompare`), 142 (onay
 > kartında varlık adı sunumu ve katlanır ham argümanlar), 225 (model bölümü:
 > örnekleme alanları ve tool döngüsü), 228 (alt agent çağrı modu: çağrılabilir
-> agent bölümü)
+> agent bölümü), 241 (Loop iterasyon ayracı)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/agents.tsx` (katalog) ·
 > `screens/agent-editor.tsx` (oluşturma/düzenleme) · `screens/agent-detail.tsx`
 > (özet, versiyon geçmişi, karşılaştırma, geri alma) · `screens/playground.tsx`
@@ -2081,3 +2081,29 @@ Rol: administrator.
 - Adım 5: `get-order-status` agent'ı `201` alır. `Tool` kipi `400` verir ve ayrıntı `'get-order-status'` ile `'get_order_status'` adlarını ikisini de içerir; `callMode` olmadan kayıt `201` alır. `POST $BASE/api/agents/validate` aynı tanım için `sub_agent_tool_name_conflict` ve `callableAgentNames[0]` yolunu döner.
 
 **Koşum (2026-10-20, ajan)** — Adım 2: seçim `One tool for each agent` gösterdi, kayıttan sonra sürüm 2 `callMode: Background`. Adım 3: satır iki farklı değerle ve `bg-warn-soft` ile göründü. Adım 4 (`router` ↔ `router-tool`, üçer run): ebeveyn model çağrısı 5 ↔ 2; ebeveyn girdi token'ı 3.603–3.705 ↔ 409–412; çıktı token'ı 139–170 ↔ 48–53; süre 5,8–9,0 sn ↔ 3,1–3,3 sn. Adım 5: `400`, ayrıntı iki adı da içerdi; `callMode` olmadan `201`. Günlükte `Npgsql` satırı 0.
+
+---
+
+### MT-UIAG-066 — Playground, Loop'lu agent'ın iterasyonlarını ayraçla böler ve `loop.iteration-completed` çerçevesi `/events` ile aynıdır (Faz 241)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 241 |
+| **İlgili karar** | K-1086 |
+| **Devir** | 🤖 ajan koşar — Playwright MCP + örnek uygulama (echo kipi) + `curl` |
+
+**Ön koşul** — Örnek uygulama Development'ta, dört boş ortam değişkeniyle (`PostgreSql`, `SqlServer` bağlantı dizesi, `Ui:AuthToken`, `Providers:OpenAI:ApiKey`) ve geçici bir `Sqlite` dosyasıyla; OpenAI anahtarı **yok** (yerel `echo` kipi, `echo-reviewer-1` 1. turda `fail`, sonra `pass` döner). `reviewed-writer` kod agent'ı mevcut (`MaxIterations = 3`, `OnExhausted = FailRun`).
+
+**Adımlar**
+1. `curl -sN -X POST $BASE/api/agents/reviewed-writer/run -H 'Content-Type: application/json' -d '{"message":"Write a two-line note about tea."}'`; `event:` adlarını sırayla oku. `run` çerçevesinin `runId`'sini al.
+2. `GET $BASE/api/runs/{runId}/events` oku; `loop.iteration-completed` çerçevelerinin `data` satırlarını 1. adımdakilerle karşılaştır.
+3. Tarayıcıda `/tracon/playground/reviewed-writer` aç; "Write a two-line note about tea." gönder. Dil düğmesiyle Türkçeye geç.
+
+**Beklenen sonuç**
+- Adım 1: sıra `run` · `update`… · `loop.iteration-completed` (1. iterasyon, `continuedBy: "draft-reviewed"`, `hasFeedback: true`) · `update`… (ilki `role: "user"` geri bildirimi) · `loop.iteration-completed` (2. iterasyon, `continued: false`) · `done`. Alt agent'ın (`draft-reviewer`) Loop'u çerçeve üretmez (`LoopIterationFrameTests`).
+- Adım 2: iki çerçevenin `data` satırı bayt bayt aynıdır (`LoopIterationFrameTests`).
+- Adım 3: iki ayraç görünür: "Iteration 1 · draft-reviewed asked for another iteration" ve "Iteration 2 · the loop stopped"; Türkçede "İterasyon 1 · draft-reviewed yeni bir iterasyon istedi" ve "İterasyon 2 · döngü durdu". Ayraçlar metinlerin arasındadır, sonradan sona yığılmaz (`playground.test.tsx`, `PlaygroundTests`).
+
+**Koşum (2026-10-25, ajan)** — Adım 1: `run` · 7 `update` · `loop.iteration-completed` (id 8) · 1 `update` (`role: "user"`, "Reviewer findings (round 1): …") · 19 `update` · `loop.iteration-completed` (id 29, `iteration 2 stopped`) · `done`. Adım 3: ayraçlar iki dilde göründü. Gözlem: ayraçtan sonraki paragraf geri bildirim metnini ("Reviewer findings (round 1): …") modelin cevabıyla birleşik gösterir; transcript `update`'in rolünü okumaz. Günlükte `Npgsql` satırı 0.

@@ -89,10 +89,43 @@ export function TranscriptView({
           case 'tool':
             return <ToolCard key={item.id} item={item} />;
 
+          case 'iteration':
+            return <IterationDivider key={item.id} item={item} />;
+
           default:
             return null;
         }
       })}
+    </div>
+  );
+}
+
+const ITERATION_NOTE = {
+  continued: 'transcript.iterationContinued',
+  ceiling: 'transcript.iterationCeiling',
+  failed: 'transcript.iterationFailed',
+  stopped: 'transcript.iterationStopped',
+} as const;
+
+/**
+ * The end of one loop iteration. A rule with a note on it, so the drafts and the answer of a looping agent
+ * read as separate turns of the model, not as one text.
+ */
+function IterationDivider({ item }: { item: Extract<TranscriptItem, { kind: 'iteration' }> }): ReactNode {
+  const t = useT();
+  const note = t(ITERATION_NOTE[item.outcome], { n: item.iteration, criterion: item.criterion ?? '' });
+
+  return (
+    <div
+      role="separator"
+      aria-label={note}
+      data-testid="transcript-iteration"
+      data-outcome={item.outcome}
+      className="flex items-center gap-2 text-xs text-subtle"
+    >
+      <span className="h-px flex-1 bg-line" />
+      <span>{note}</span>
+      <span className="h-px flex-1 bg-line" />
     </div>
   );
 }
