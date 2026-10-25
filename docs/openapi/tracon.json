@@ -12939,7 +12939,7 @@
         "properties": {
           "kind": {
             "type": "string",
-            "description": "Gets the criterion kind: \u0060completionMarker\u0060, \u0060todoCompletion\u0060,\n\u0060aiJudge\u0060, \u0060backgroundTaskCompletion\u0060, or a kind registered in\ncode with \u0060AddLoopEvaluator\u0060."
+            "description": "Gets the criterion kind: \u0060completionMarker\u0060, \u0060todoCompletion\u0060,\n\u0060aiJudge\u0060, \u0060backgroundTaskCompletion\u0060, \u0060agentReview\u0060, or a kind\nregistered in code with \u0060AddLoopEvaluator\u0060."
           },
           "marker": {
             "type": [
@@ -12968,6 +12968,23 @@
               "type": "string"
             },
             "description": "Gets the agent modes the criterion applies to. Read by\n\u0060todoCompletion\u0060 only."
+          },
+          "reviewerAgent": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the name of the reviewer agent. Read by \u0060agentReview\u0060 only, where it is required."
+          },
+          "reviewerAgentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the version of the reviewer agent. Read by \u0060agentReview\u0060 only;\n\u0060null\u0060 runs the reviewer\u0027s current version.",
+            "format": "int32"
           }
         },
         "description": "One declarative stop criterion of the harness loop (see \u0060LoopSettings\u0060)."

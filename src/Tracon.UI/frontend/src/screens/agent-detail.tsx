@@ -489,6 +489,8 @@ function formatLoopCriteria(value: unknown): string {
         (criterion.judgeCriteria ?? []).length > 0 ? `judgeCriteria=[${(criterion.judgeCriteria ?? []).join('; ')}]` : null,
         criterion.judgeInstructions != null ? `judgeInstructions=${criterion.judgeInstructions}` : null,
         (criterion.modes ?? []).length > 0 ? `modes=[${(criterion.modes ?? []).join(', ')}]` : null,
+        criterion.reviewerAgent != null ? `reviewerAgent=${criterion.reviewerAgent}` : null,
+        criterion.reviewerAgentVersion != null ? `reviewerAgentVersion=${criterion.reviewerAgentVersion}` : null,
       ].filter((field) => field !== null);
 
       return `${index + 1}. ${criterion.kind}${fields.length > 0 ? ` (${fields.join(', ')})` : ''}`;

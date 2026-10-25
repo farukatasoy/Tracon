@@ -102,7 +102,9 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
           <ExtensionsSection form={form} setForm={setForm} extensions={editor.extensions} />
           <CallableAgentsSection form={form} setForm={setForm} agents={editor.agents} />
           <HarnessSection form={form} setForm={setForm} />
-          {form.harnessEnabled && <LoopSection form={form} setForm={setForm} catalog={editor.loopCriteria} />}
+          {form.harnessEnabled && (
+            <LoopSection form={form} setForm={setForm} catalog={editor.loopCriteria} agents={editor.agents} />
+          )}
           <ContextSection form={form} setForm={setForm} />
         </div>
 

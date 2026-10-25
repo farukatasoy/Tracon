@@ -62,6 +62,7 @@ public sealed class LoopCriteriaEndpointTests
                 ("todoCompletion", true),
                 ("aiJudge", true),
                 ("backgroundTaskCompletion", true),
+                ("agentReview", true),
                 ("hasCitations", false),
                 ("reviewed", false),
             ]);
@@ -69,6 +70,11 @@ public sealed class LoopCriteriaEndpointTests
         var reviewed = json.GetProperty("kinds").EnumerateArray()
             .Single(static kind => string.Equals(kind.GetProperty("kind").GetString(), "reviewed", StringComparison.Ordinal));
         reviewed.GetProperty("description").GetString().ShouldBe("The reviewer agent approves the draft.");
+
+        // The built-in agent review says what it costs: a child run of the loop's run on every iteration.
+        var agentReview = json.GetProperty("kinds").EnumerateArray()
+            .Single(static kind => string.Equals(kind.GetProperty("kind").GetString(), "agentReview", StringComparison.Ordinal));
+        agentReview.GetProperty("description").GetString().ShouldNotBeNull().ShouldContain("child run", Case.Sensitive);
 
         var judge = json.GetProperty("judgeModel");
         judge.GetProperty("provider").GetString().ShouldBe("echo");
@@ -92,7 +98,7 @@ public sealed class LoopCriteriaEndpointTests
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("judgeModel").ValueKind.ShouldBe(JsonValueKind.Null);
-        json.GetProperty("kinds").GetArrayLength().ShouldBe(4);
+        json.GetProperty("kinds").GetArrayLength().ShouldBe(5);
     }
 
     [Fact]

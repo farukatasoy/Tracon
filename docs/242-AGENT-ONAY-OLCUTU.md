@@ -370,6 +370,31 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/events | grep loop.iterati
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+- **Ret modu adı `ChildRefusalMode.Fail`'dir**, plan `Throw` yazıyordu. Davranış aynı: ret istisna olur.
+- **`SideChannelFallback` yargıç modelini taşımaz.** Plan "yedek model devreye girdiyse `SideChannelFallback`'ten okunur"
+  diyordu. Ölçüm: o alan `SideChannelUsageTrackingChatClient`'ın tek çağrılık kapsam kopyasındadır; çağrı bitince
+  kimse tutmaz ve ölçütün ambient yazımı çağırana akmaz. Bunun yerine her ölçüt çağrısı için bir `LoopCriterionTrail`
+  tutucusu açılır (`AgentRunScope.CriterionTrail`, iç alan) ve yan kanal istemcisi cevap veren `(provider, model)`'i
+  ona yazar. Yedek model ölçüldü: olay yedeğin adını taşır (`HarnessLoopTests`, akışlı ve akışsız).
+- **`reviewer.agentVersion`, kod agent'ında `null` DEĞİL, çocuk run'ın yazdığı sürümdür (kod agent'ı için 1).**
+  `AgentDescriptor.Version` kod agent'ı için hep 1'dir ve run satırı onu yazar; olayda `null` yazmak run satırıyla
+  çelişir ve "kim onayladı" sorusunu iki farklı cevaplar. Sürüm çözülen agent'ın `RunRecordingAgent.AgentVersion`'ından
+  gelir (katalog listesi okunmaz). Reviewer'ın sürümünü tanım alanı olarak kod agent'ına vermek yine hatadır
+  (`loop_reviewer_version_invalid`).
+- **Çocuk run kimliği için `internal` dönüş yolu bir `AgentRunOptions` alt tipidir** (`ChildRunReport`): invoker kimliği
+  ve sürümü çocuk başlamadan ÖNCE yazar; zaman aşımı ve hata yolunda da olay run'ı adlandırır. Ek `callKind` parametresi
+  (`internal`) reddedilen çağrının metnini "workflow step" yerine "loop reviewer" yapar.
+- **`FindProblems` agent adını alır** (`FindProblems(loop, agentName)`): `loop_reviewer_self` kuralı agent adı ister.
+  Katalogsuz ve eşzamanlı kalır.
+- **Doğrulayıcı `IAgentDefinitionStore` alır** (isteğe bağlı yapıcı parametresi): sabitlenen sürümün var olduğunu ve
+  sabitlenen sürümün karar şemasını okumak için. Mağaza yoksa sürüm denetlenmez ve şema güncel sürümden okunur.
+- **Örnek uygulamada reviewer `draft-reviewer` DEĞİL, yeni `draft-approver`'dır.** `draft-reviewer` kod ölçütünün
+  `decision`/`findings` şeklini döner; aynı agent iki karar şekli taşıyamaz. `reviewed-writer` kod deseni olarak kaldı.
+- **Geri bildirim üst sınırı 4.000 karakter** (Açık Soru 4-B); gerçek bir sağlayıcının cevap uzunluğu dağılımı
+  ölçülmedi, sayı planın örneğidir ve `AgentReviewLoopEvaluator.FeedbackLimit`'te tek yerde durur.
+- **Alan hafızası yeni dosyaya yazıldı** (`docs/hafiza/loop-denetim-izi.md`): iki komşu dosya bütçe sınırındaydı.
+  `hafiza/00-INDEKS.md` bütçesi 5.800 → 6.900 B yeniden kalibre edildi (yeni alan dosyası satırı).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)

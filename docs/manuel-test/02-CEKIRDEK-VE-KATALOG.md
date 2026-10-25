@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206, 215, 233, 234
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206, 215, 233, 234, 242
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -4356,3 +4356,57 @@ Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
 - 1: `204`.
 - 2: tablo boştur. Başka bir oturumun dosyası olsaydı kalırdı.
 - ➜ CI: `SessionWorkspaceErasureTests` (SQLite, onay akışıyla yazılan dosya) · `SessionWorkspaceFilesTests` (SQLite, PostgreSQL, SQL Server: veri sahibi silme önizleme/dışa aktarma/silme ve saklama).
+
+---
+
+### MT-CORE-160 — `agentReview` reviewer'ı çocuk run koşturur; iterasyon olayı onaylayanı adlandırır (Faz 242, F-411)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 242 |
+| **İlgili karar** | K-1087, K-1088 |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama (Echo kipi; OpenAI anahtarı varsa ikinci koşu gerçek sağlayıcıyla)
+
+**Ön koşul** — Örnek uygulama Echo kipinde; `echo-approver-1` ilk iterasyonda `approved: false`, sonra `approved: true` döner. `reviewed-writer-builtin` agent'ı yerleşik `agentReview` türünü `draft-approver` ile kullanır.
+
+**Adımlar**
+1. `GET $BASE/api/loop-criteria`.
+2. `POST $BASE/api/agents/reviewed-writer-builtin/run` `{"message":"Write a two-line note about tea."}` → `$RID`.
+3. `GET $BASE/api/runs/$RID/events` ve `GET $BASE/api/runs/$RID/tree`.
+
+**Beklenen sonuç**
+- 1: ilk beş tür sırayla `completionMarker`, `todoCompletion`, `aiJudge`, `backgroundTaskCompletion`, `agentReview` ve hepsi `builtIn: true`.
+- Run `Completed`; iki `LoopIterationCompleted`: #1 `continuedBy: "agentReview"`, `hasFeedback: true`, `criteria[0] = {kind: "agentReview", decision: "continue", reviewer: {agentName: "draft-approver", agentVersion: 1, runId}}`; #2 `continued: false`, `criteria[0].decision: "stop"`.
+- Ağaçta iki `draft-approver` run'ı: `parentRunId = rootRunId = $RID`, `depth: 1`; olaylardaki iki `runId` bu iki run'dır.
+- Olay `text`'i `iteration 1 continued by 'agentReview' (reviewer 'draft-approver' v1)`; yük reviewer'ın geri bildirim metnini taşımaz.
+- Gerçek sağlayıcı koşusunda (anahtar varsa) en az bir `continue` ve bir `stop` iterasyonu; reviewer'ın cevabı kendi run'ının çıktısındadır (`AgentReviewLoopTests`).
+
+---
+
+### MT-CORE-161 — Konsol Loop editörü `agentReview` türünü düzenler ve tür değişiminde reviewer alanlarını temizler (Faz 242, F-411)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 242 |
+| **İlgili karar** | K-918, K-1087 |
+
+**Devir** — 🤖 ajan koşar — Playwright MCP
+
+**Ön koşul** — Örnek uygulama ayakta; konsol `$UI` adresinde; katalogda `draft-approver` ve `draft-reviewer` vardır.
+
+**Adımlar**
+1. Yeni agent: harness özelliklerini ve Loop'u aç; ölçüt türünü `agentReview` yap.
+2. Reviewer olarak `draft-approver` seç, sürümü `1` yaz, kaydet; sayfayı yenile.
+3. Türü `aiJudge`'a, sonra yine `agentReview`'a çevir.
+4. Doğrula düğmesine bas.
+
+**Beklenen sonuç**
+- 1: ölçüt satırı bir agent listesi ve bir sürüm alanı gösterir; liste düzenlenen agent'ı taşımaz.
+- 2: kayıttan sonra tanım `reviewerAgent: "draft-approver"` ve `reviewerAgentVersion: 1` taşır (`GET $BASE/api/agents/{ad}`); yenilemeden sonra alanlar dolu gelir.
+- 3: `aiJudge` iken reviewer alanları görünmez; `agentReview`'a dönünce reviewer boş ve sürüm boştur (K-918: alanlar yalnız tür değişiminde temizlenir).
+- 4: reviewer boşken `loop_reviewer_missing` `harness.loop.criteria[0].reviewerAgent` yolunda raporlanır (`agent-editor.test.tsx` aynı kuralı Vitest ile sabitler).

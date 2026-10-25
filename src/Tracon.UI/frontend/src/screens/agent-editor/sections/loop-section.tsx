@@ -1,12 +1,14 @@
+import type { UseQueryResult } from '@tanstack/react-query';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { LoopCriterion, LoopCriterionCatalogResponse, LoopOutcome, LoopSettings } from '@tracon/client';
 import { useT } from '../../../lib/i18n';
 import { Badge, Button, ErrorNote, Field, Mono, Panel, Select, TextArea, TextInput, cx } from '../../../components/ui';
 import { Tooltip } from '../../../components/tooltip';
+import type { AgentDescriptor } from '../../../lib/server-types';
 import { toNumber, type FormState } from '../model';
 
 /** The kinds the server builds itself; every other kind is registered in code. */
-export const BUILT_IN_LOOP_KINDS = ['completionMarker', 'todoCompletion', 'aiJudge', 'backgroundTaskCompletion'] as const;
+export const BUILT_IN_LOOP_KINDS = ['completionMarker', 'todoCompletion', 'aiJudge', 'backgroundTaskCompletion', 'agentReview'] as const;
 type BuiltInLoopKind = (typeof BUILT_IN_LOOP_KINDS)[number];
 
 const OUTCOMES: LoopOutcome[] = ['ReturnLastResponse', 'FailRun'];
@@ -33,13 +35,25 @@ export function withKind(criterion: LoopCriterion, kind: string): LoopCriterion 
     judgeCriteria: builtIn === 'aiJudge' ? (criterion.judgeCriteria ?? []) : [],
     judgeInstructions: builtIn === 'aiJudge' ? (criterion.judgeInstructions ?? null) : null,
     modes: builtIn === 'todoCompletion' ? (criterion.modes ?? []) : [],
+    reviewerAgent: builtIn === 'agentReview' ? (criterion.reviewerAgent ?? null) : null,
+    reviewerAgentVersion: builtIn === 'agentReview' ? (criterion.reviewerAgentVersion ?? null) : null,
   };
 }
 
 /** A loop turned on from the console: one empty marker criterion and every setting at its default. */
 export function newLoop(): LoopSettings {
   return {
-    criteria: [{ kind: 'completionMarker', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] }],
+    criteria: [
+      {
+        kind: 'completionMarker',
+        marker: null,
+        judgeCriteria: [],
+        judgeInstructions: null,
+        modes: [],
+        reviewerAgent: null,
+        reviewerAgentVersion: null,
+      },
+    ],
     maxIterations: null,
     freshContextPerIteration: false,
     onExhausted: 'ReturnLastResponse',
@@ -70,6 +84,7 @@ export function LoopSection({
   form,
   setForm,
   catalog,
+  agents,
 }: {
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
@@ -79,6 +94,7 @@ export function LoopSection({
     error: unknown;
     refetch: () => unknown;
   };
+  agents: UseQueryResult<AgentDescriptor[]>;
 }): ReactNode {
   const t = useT();
   const loop = form.harness.loop ?? null;
@@ -131,6 +147,8 @@ export function LoopSection({
                   codeKinds={codeKinds}
                   catalogLoaded={catalog.data !== undefined}
                   judge={judge}
+                  agents={agents}
+                  agentName={form.name}
                   onChange={(next) =>
                     setLoop({ ...loop, criteria: loop.criteria.map((item, position) => (position === index ? next : item)) })
                   }
@@ -216,6 +234,8 @@ function CriterionRow({
   codeKinds,
   catalogLoaded,
   judge,
+  agents,
+  agentName,
   onChange,
   onMove,
   onRemove,
@@ -226,6 +246,8 @@ function CriterionRow({
   codeKinds: LoopCriterionCatalogResponse['kinds'];
   catalogLoaded: boolean;
   judge: LoopCriterionCatalogResponse['judgeModel'];
+  agents: UseQueryResult<AgentDescriptor[]>;
+  agentName: string;
   onChange: (criterion: LoopCriterion) => void;
   onMove: (to: number) => void;
   onRemove: () => void;
@@ -377,6 +399,10 @@ function CriterionRow({
           </>
         )}
 
+        {builtIn === 'agentReview' && (
+          <ReviewerFields index={index} criterion={criterion} agents={agents} agentName={agentName} onChange={onChange} />
+        )}
+
         {builtIn === 'todoCompletion' && (criterion.modes ?? []).length > 0 && (
           <p className="text-sm text-subtle">
             {t('agentEditor.loop.modesKept', { modes: (criterion.modes ?? []).join(', ') })}
@@ -384,5 +410,76 @@ function CriterionRow({
         )}
       </div>
     </li>
+  );
+}
+
+/**
+ * The fields of an `agentReview` criterion: the reviewer, picked from the catalog, and an optional version pin.
+ *
+ * The agent itself is left out of the list: the server refuses an agent as its own reviewer. A name the list does
+ * not carry (the list failed to load, or the reviewer lives in another tenant) stays an option as written, the way
+ * an unlisted criterion kind does, so opening and saving never drops it.
+ */
+function ReviewerFields({
+  index,
+  criterion,
+  agents,
+  agentName,
+  onChange,
+}: {
+  index: number;
+  criterion: LoopCriterion;
+  agents: UseQueryResult<AgentDescriptor[]>;
+  agentName: string;
+  onChange: (criterion: LoopCriterion) => void;
+}): ReactNode {
+  const t = useT();
+  const reviewer = criterion.reviewerAgent ?? '';
+  const candidates = (agents.data ?? []).filter((agent) => agent.name !== agentName);
+  const chosen = candidates.find((agent) => agent.name === reviewer);
+  const written = reviewer.length > 0 && chosen === undefined;
+
+  return (
+    <>
+      <Field label={t('agentEditor.loop.reviewerAgent')} hint={t('agentEditor.loop.reviewerAgentHint')}>
+        {(ids) => (
+          <Select
+            {...ids}
+            testId={`loop-criterion-reviewer-${index}`}
+            value={reviewer}
+            onChange={(value) => onChange({ ...criterion, reviewerAgent: value.length > 0 ? value : null })}
+          >
+            <option value="">{t('agentEditor.loop.reviewerChoose')}</option>
+            {written && <option value={reviewer}>{reviewer}</option>}
+            {candidates.map((agent) => (
+              <option key={agent.name} value={agent.name}>
+                {agent.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      {agents.isError && <ErrorNote error={agents.error} onRetry={() => void agents.refetch()} />}
+      {chosen?.description != null && (
+        <p className="text-sm text-muted" data-testid={`loop-criterion-reviewer-description-${index}`}>
+          {chosen.description}
+        </p>
+      )}
+      {written && agents.isSuccess && (
+        <p className="text-sm text-warn" data-testid={`loop-criterion-reviewer-unlisted-${index}`}>
+          {t('agentEditor.loop.reviewerNotListed')}
+        </p>
+      )}
+
+      <Field label={t('agentEditor.loop.reviewerAgentVersion')} hint={t('agentEditor.loop.reviewerAgentVersionHint')}>
+        <TextInput
+          inputMode="numeric"
+          data-testid={`loop-criterion-reviewer-version-${index}`}
+          value={criterion.reviewerAgentVersion?.toString() ?? ''}
+          onChange={(event) => onChange({ ...criterion, reviewerAgentVersion: toNumber(event.target.value) })}
+        />
+      </Field>
+      <p className="text-sm text-subtle">{t('agentEditor.loop.reviewerCost')}</p>
+    </>
   );
 }

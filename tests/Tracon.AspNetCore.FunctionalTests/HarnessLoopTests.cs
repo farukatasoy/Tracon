@@ -857,6 +857,13 @@ public sealed class HarnessLoopTests
         var root = await RootRunAsync(host);
         root.Status.ShouldBe(RunStatus.Completed);
 
+        // Phase 242: the iteration event names the model the judge called, and the judge's decision.
+        (await JudgeEntriesAsync(host)).ShouldBe(
+        [
+            ("continue", JudgeProviderName, JudgeModelName),
+            ("stop", JudgeProviderName, JudgeModelName),
+        ]);
+
         // Agent: 2 × (6 + 4). Judge: (30 + 2) + (40 + 3).
         var usage = root.Usage.ShouldNotBeNull();
         usage.InputTokens.ShouldBe(12 + 70);
@@ -971,6 +978,13 @@ public sealed class HarnessLoopTests
         var root = await RootRunAsync(host);
         root.Status.ShouldBe(RunStatus.Completed);
 
+        // Phase 242: the trail names the model that ANSWERED the judge call, not the binding that was configured.
+        (await JudgeEntriesAsync(host)).ShouldBe(
+        [
+            ("continue", JudgeFallbackProviderName, JudgeFallbackModelName),
+            ("stop", JudgeFallbackProviderName, JudgeFallbackModelName),
+        ]);
+
         // The run ran on the agent's model. The judge's fallback is not the run's.
         root.ModelProvider.ShouldBe(ProviderName);
         root.ModelId.ShouldBe(ModelName);
@@ -1069,6 +1083,26 @@ public sealed class HarnessLoopTests
         var runs = host.Services.GetRequiredService<IRunStore>();
 
         return (await runs.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+    }
+
+    /// <summary>The decision and the judge (provider, model) of the first criterion of every iteration event.</summary>
+    private static async Task<List<(string? Decision, string? Provider, string? Model)>> JudgeEntriesAsync(TraconTestHost host)
+    {
+        var entries = new List<(string? Decision, string? Provider, string? Model)>();
+
+        foreach (var runEvent in (await ReadRootEventsAsync(host)).Where(static runEvent => runEvent.Type == RunEventType.LoopIterationCompleted))
+        {
+            using var document = JsonDocument.Parse(runEvent.Payload.ShouldNotBeNull());
+            var entry = document.RootElement.GetProperty("criteria")[0];
+            var judge = entry.GetProperty("judge");
+
+            entries.Add((
+                entry.GetProperty("decision").GetString(),
+                judge.GetProperty("provider").GetString(),
+                judge.GetProperty("model").GetString()));
+        }
+
+        return entries;
     }
 
     private static async Task<List<RunEvent>> ReadRootEventsAsync(TraconTestHost host)

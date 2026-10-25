@@ -63,6 +63,10 @@ public sealed class AgentValidationLoopTests
     [InlineData("{\"criteria\":[{\"kind\":\"aiJudge\",\"judgeCriteria\":[\"\"]}]}", "loop_judge_criteria_missing", "harness.loop.criteria[0].judgeCriteria[0]")]
     [InlineData("{\"criteria\":[{\"kind\":\"aiJudge\",\"judgeCriteria\":[]}]}", "loop_judge_criteria_missing", "harness.loop.criteria[0].judgeCriteria")]
     [InlineData("{\"criteria\":[{\"kind\":\"aiJudge\",\"judgeCriteria\":[\"ok?\",\"  \"]}]}", "loop_judge_criteria_missing", "harness.loop.criteria[0].judgeCriteria[1]")]
+    [InlineData("{\"criteria\":[{\"kind\":\"agentReview\"}]}", "loop_reviewer_missing", "harness.loop.criteria[0].reviewerAgent")]
+    [InlineData("{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"  \"}]}", "loop_reviewer_missing", "harness.loop.criteria[0].reviewerAgent")]
+    [InlineData("{\"criteria\":[{\"kind\":\"completionMarker\",\"marker\":\"DONE\"},{\"kind\":\"agentReview\",\"reviewerAgent\":\"w\"}]}", "loop_reviewer_self", "harness.loop.criteria[1].reviewerAgent")]
+    [InlineData("{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"other\",\"reviewerAgentVersion\":0}]}", "loop_reviewer_version_invalid", "harness.loop.criteria[0].reviewerAgentVersion")]
     public async Task Empty_and_out_of_range_loop_input_is_reported_at_its_path(string loop, string code, string path)
     {
         await using var host = await TraconTestHost.StartAsync();
@@ -120,6 +124,137 @@ public sealed class AgentValidationLoopTests
         json.GetProperty("valid").GetBoolean().ShouldBeFalse();
         Messages(json).ShouldBe([("loop_judge_unavailable", "harness.loop.criteria[0].kind")]);
     }
+
+    // ---- Phase 242 (F-411): the catalog step for an agentReview criterion's reviewer ----
+
+    [Fact]
+    public async Task A_reviewer_that_is_not_in_the_catalog_is_reported_at_the_criterion_and_saving_is_refused()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        const string Loop = "{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"no-such-reviewer\"}]}";
+
+        var json = await ValidateAsync(host, Loop);
+
+        json.GetProperty("valid").GetBoolean().ShouldBeFalse();
+        Messages(json).ShouldBe([("loop_reviewer_not_found", "harness.loop.criteria[0].reviewerAgent")]);
+
+        // The save path runs the same validator: an agent cannot be stored with a reviewer nobody has.
+        using var save = await host.Client.PostAsync(
+            Agents,
+            new StringContent(
+                $"{{\"name\":\"w\",\"model\":{{\"provider\":\"echo\",\"model\":\"e\"}},\"harness\":{{\"loop\":{Loop}}}}}",
+                System.Text.Encoding.UTF8,
+                "application/json"));
+
+        save.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(save)).GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("no-such-reviewer");
+    }
+
+    [Fact]
+    public async Task A_reviewer_defined_in_code_cannot_be_pinned_to_a_version()
+    {
+        await using var host = await StartWithReviewerAsync(verdictSchema: false);
+
+        var json = await ValidateAsync(
+            host, "{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"code-reviewer\",\"reviewerAgentVersion\":2}]}");
+
+        json.GetProperty("valid").GetBoolean().ShouldBeFalse();
+        Messages(json).ShouldBe([("loop_reviewer_version_invalid", "harness.loop.criteria[0].reviewerAgentVersion")]);
+    }
+
+    [Fact]
+    public async Task A_reviewer_without_the_verdict_schema_is_a_warning_and_the_definition_stays_valid()
+    {
+        await using var host = await StartWithReviewerAsync(verdictSchema: false);
+
+        var json = await ValidateAsync(host, "{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"code-reviewer\"}]}");
+
+        // A warning, not an error: the reviewer may change before the loop runs, and an answer that is not the
+        // verdict is a criterion failure at run time either way.
+        json.GetProperty("valid").GetBoolean().ShouldBeTrue(json.ToString());
+
+        var warning = json.GetProperty("messages").EnumerateArray().Single();
+        warning.GetProperty("severity").ToString().ShouldBeOneOf("Warning", "2");
+        warning.GetProperty("code").GetString().ShouldBe("loop_reviewer_verdict_unknown");
+        warning.GetProperty("path").GetString().ShouldBe("harness.loop.criteria[0].reviewerAgent");
+    }
+
+    [Fact]
+    public async Task A_reviewer_with_the_verdict_schema_has_nothing_to_report()
+    {
+        await using var host = await StartWithReviewerAsync(verdictSchema: true);
+
+        var json = await ValidateAsync(host, "{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"code-reviewer\"}]}");
+
+        json.GetProperty("valid").GetBoolean().ShouldBeTrue(json.ToString());
+        json.GetProperty("messages").GetArrayLength().ShouldBe(0, json.ToString());
+    }
+
+    [Fact]
+    public async Task A_stored_reviewer_pinned_to_a_version_it_does_not_have_is_not_found_at_the_pin()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var created = await host.Client.PostAsJsonAsync(
+            Agents,
+            new { name = "stored-reviewer", model = new { provider = "echo", model = "e" } });
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        // Version 1 exists; version 5 does not.
+        var present = await ValidateAsync(
+            host, "{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"stored-reviewer\",\"reviewerAgentVersion\":1}]}");
+        Messages(present).Select(static message => message.Code).ShouldNotContain("loop_reviewer_not_found", StringComparer.Ordinal);
+
+        var absent = await ValidateAsync(
+            host, "{\"criteria\":[{\"kind\":\"agentReview\",\"reviewerAgent\":\"stored-reviewer\",\"reviewerAgentVersion\":5}]}");
+
+        absent.GetProperty("valid").GetBoolean().ShouldBeFalse();
+        Messages(absent).ShouldContain(("loop_reviewer_not_found", "harness.loop.criteria[0].reviewerAgentVersion"));
+    }
+
+    [Fact]
+    public async Task The_reviewer_problems_come_with_the_other_loop_problems_in_one_report()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        // The structural problems come first and stop the catalog step: a report that looked the reviewer up
+        // in a catalog while its name was empty would say two things about one field.
+        var json = await ValidateAsync(
+            host,
+            "{\"criteria\":[{\"kind\":\"completionMarker\"},{\"kind\":\"agentReview\"}],\"maxIterations\":0}");
+
+        Messages(json).ShouldBe(
+        [
+            ("loop_max_iterations_invalid", "harness.loop.maxIterations"),
+            ("loop_marker_missing", "harness.loop.criteria[0].marker"),
+            ("loop_reviewer_missing", "harness.loop.criteria[1].reviewerAgent"),
+        ]);
+    }
+
+    private static Task<TraconTestHost> StartWithReviewerAsync(bool verdictSchema)
+        => TraconTestHost.StartAsync(builder => builder.AddAgent(new AgentDefinition
+        {
+            Name = "code-reviewer",
+            Description = "Reviews drafts.",
+            Instructions = "Review the draft.",
+            Model = new ModelBinding
+            {
+                Provider = "echo",
+                Model = "e",
+                ResponseFormat = verdictSchema
+                    ? new AgentResponseFormat
+                    {
+                        Kind = AgentResponseFormatKind.JsonSchema,
+                        SchemaName = "verdict",
+                        Schema = JsonDocument.Parse(
+                            """{"type":"object","properties":{"approved":{"type":"boolean"},"feedback":{"type":"string"}},"required":["approved"]}""")
+                            .RootElement.Clone(),
+                    }
+                    : null,
+            },
+            Origin = AgentDefinitionOrigin.Code,
+        }));
 
     private static object ThreeProblems() => new
     {

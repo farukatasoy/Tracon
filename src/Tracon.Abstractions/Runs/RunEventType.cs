@@ -338,9 +338,13 @@ public enum RunEventType
     /// was satisfied), whether it handed the agent feedback (<c>hasFeedback</c>),
     /// the <c>kind</c> of a criterion that failed to evaluate
     /// (<c>failedCriterion</c>, <see langword="null"/> otherwise), whether
-    /// the iteration ceiling is what ends the loop (<c>ceilingReached</c>), and
+    /// the iteration ceiling is what ends the loop (<c>ceilingReached</c>),
     /// whether this evaluation fails the run (<c>failsRun</c>, see
-    /// <see cref="LoopSettings.OnExhausted"/> and <see cref="LoopSettings.OnCriterionError"/>).
+    /// <see cref="LoopSettings.OnExhausted"/> and <see cref="LoopSettings.OnCriterionError"/>),
+    /// and every criterion that was evaluated, in order (<c>criteria</c>): its <c>kind</c> and its
+    /// <c>decision</c> (<c>stop</c>, <c>continue</c> or <c>failed</c>), plus the <c>judge</c>
+    /// (<c>provider</c> and <c>model</c> an <c>aiJudge</c> really called) or the <c>reviewer</c>
+    /// (<c>agentName</c>, <c>agentVersion</c> and the child <c>runId</c> of an <c>agentReview</c>).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -358,6 +362,14 @@ public enum RunEventType
     /// The criterion's feedback <strong>text</strong> is deliberately absent:
     /// it is free-form text written for the model, and the run event stream is
     /// readable by the client. Its presence is reported, its content is not.
+    /// </para>
+    /// <para>
+    /// <c>criteria</c> answers "who decided". Evaluation stops at the first criterion that asks
+    /// for another iteration or fails, so the list ends there; an iteration every criterion
+    /// satisfied lists them all. A criterion that reports no judge and no reviewer carries only
+    /// its <c>kind</c> and <c>decision</c>. <c>reviewer.runId</c> is <see langword="null"/> when the
+    /// call was refused before a run started, and <c>reviewer.agentVersion</c> is the version that run
+    /// recorded (1 for an agent defined in code).
     /// </para>
     /// <para>
     /// 31, not 30: <see cref="ChildRunTimedOut"/> already holds 30 and

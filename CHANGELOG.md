@@ -283,6 +283,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is not a number stops the host. See [workflow
   concurrency](https://tracon.dev/guides/background-work/#limit-workflow-runs-per-tenant).
 
+- **Another agent can be the stop criterion of a loop: `agentReview`.** A `LoopCriterion` with `Kind = "agentReview"` names
+  a reviewer agent of the catalog in the new `ReviewerAgent`, and optionally a version in the new `ReviewerAgentVersion`.
+  After each iteration the reviewer reads the request, the iteration number and the draft (the last assistant message),
+  and answers with `{"approved": true|false, "feedback": "..."}`: `true` stops the loop, `false` sends the feedback to
+  the agent as the next input. The reviewer runs as a child run of the run under review, through the same door every
+  sub-agent call uses, so the tenant check, the depth limit, the run and token budget, the quota, the wait limit and the
+  refusal of a tool that waits for approval all apply. A refused call, a failed call and an answer that is not that
+  object are failures of the criterion, and `OnCriterionError` decides what follows; an answer that cannot be read is
+  never an approval. The shape is the reviewer agent's own response format, not an option the loop sets on the call.
+  Validation reports `loop_reviewer_missing`, `loop_reviewer_self`, `loop_reviewer_version_invalid` and
+  `loop_reviewer_not_found`, and warns with `loop_reviewer_verdict_unknown` when the reviewer has no JSON schema with a
+  boolean `approved` and a string `feedback`. The console's Loop panel lists the agents and takes the version.
+  `GET /api/loop-criteria` lists the kind. See [Another agent as the reviewer](https://tracon.dev/concepts/agents/#another-agent-as-the-reviewer).
+
+- **The `LoopIterationCompleted` event says who decided.** Its payload has a new `criteria` list: every criterion
+  evaluated in that iteration, in order, with its `kind` and `decision` (`stop`, `continue` or `failed`). An `aiJudge`
+  entry names the `judge` (`provider` and `model` of the call, the fallback model when the judge's own model failed over),
+  and an `agentReview` entry names the `reviewer` (`agentName`, `agentVersion` and the `runId` of its child run). The event
+  text names the reviewer too. The judge's reasoning, the reviewer's answer, the draft and the feedback are not written.
+  The `loop.iteration-completed` frame of the native stream carries the same data. A reader that ignores a field it does
+  not know needs no change.
+
 - **The run stream of an agent with a loop says where each iteration ends.** `POST /api/agents/{name}/run` already
   streamed every iteration, but nothing in the `update` frames marked the border, so a client that read the stream
   could take the first draft for the answer. After each iteration the loop evaluated, the stream now sends a
@@ -297,6 +319,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`agentReview` is now a built-in loop criterion kind, so a criterion registered in code under that name is refused.**
+  `AddLoopEvaluator("agentReview", ...)` (in any casing) throws `TraconException` at startup, the way the other four
+  built-in names do. A definition that named such a kind now means the built-in one; rename your criterion
+  before you update.
 - **A workflow run that waits for a concurrency slot is `Queued`, not `Running`.** The run's record still opens before
   the wait, but it reads `Queued` while the run waits for a slot of `MaxConcurrentRuns` or of
   `MaxConcurrentRunsPerTenant`, and `Running` once it has them. A run that finds a slot free opens `Running` as before.

@@ -500,7 +500,7 @@ tool-calling loop inside one invocation. `MaxIterations` bounds the *outer*
 loop that invokes the agent again after a criterion says the work is not
 finished.
 
-Four criterion kinds are built in, and each one takes data only:
+Five criterion kinds are built in, and each one takes data only:
 
 | Kind | What stops the loop | Fields it reads |
 |---|---|---|
@@ -508,6 +508,7 @@ Four criterion kinds are built in, and each one takes data only:
 | `todoCompletion` | The todo list has no open item left | `modes` |
 | `aiJudge` | A judge model decides the work is finished | `judgeCriteria` (required), `judgeInstructions` |
 | `backgroundTaskCompletion` | No background task is still running | — |
+| `agentReview` | Another agent of the catalog approves the draft | `reviewerAgent` (required), `reviewerAgentVersion` |
 
 A criterion whose logic is code is registered in code and referenced by name,
 the same boundary tools and eval checks live behind:
@@ -559,6 +560,17 @@ Each evaluated iteration writes a `LoopIterationCompleted` run event carrying
 the iteration number, whether a criterion asked for another iteration, and which
 one. The criterion's feedback text is not carried in the event.
 
+The event also says who decided. Its `criteria` list holds every criterion that was
+evaluated that iteration, in order, each with its `kind` and its `decision`: `stop`,
+`continue` or `failed`. The list ends at the first criterion that asks for another
+iteration or fails, because the rest are not evaluated. An `aiJudge` entry names the
+`judge` — the provider and model the judge call really used, which is the fallback
+when the judge's own model failed over. An `agentReview` entry names the `reviewer`:
+the agent, the version its run recorded, and the `runId` of the child run it executed
+in. An entry of any other kind carries only `kind` and `decision`. The event text
+names the reviewer too, for example `iteration 2 continued by 'agentReview' (reviewer
+'draft-reviewer' v3)`. No judge reasoning, reviewer answer or draft is written.
+
 The event marks an *evaluated* iteration, not a model turn. The turn that
 reaches `MaxIterations` is never evaluated — there is nothing left to decide —
 so a loop that ends at its ceiling writes one event fewer than it takes turns.
@@ -571,6 +583,60 @@ next. The answer is the iteration before the last frame when that frame has
 `continued: false`. It is the iteration **after** the last frame when that frame has
 `ceilingReached: true`, because the turn at the ceiling is not evaluated. An event the
 run could not record sends no frame.
+
+### Another agent as the reviewer
+
+`agentReview` makes an agent of the catalog the stop criterion. The reviewer reads
+the draft and either approves it or sends feedback back for the next iteration:
+
+```csharp
+Loop = new LoopSettings
+{
+    Criteria = [new LoopCriterion { Kind = "agentReview", ReviewerAgent = "draft-reviewer" }],
+    MaxIterations = 4,
+},
+```
+
+The criterion needs no code and the console builds it: pick the reviewer from the
+list of agents. `ReviewerAgentVersion` pins a version of the reviewer, the way
+`agentVersion` pins a workflow step; leave it empty to run the current one. An agent
+defined in code keeps no versions, so a version for one is refused.
+
+**The reviewer answers with a JSON object.** Its last message must be
+`{"approved": true, "feedback": ""}` or `{"approved": false, "feedback": "..."}`.
+`approved: true` stops the loop. `approved: false` continues it and sends `feedback`
+to the agent as the next input; an empty `feedback` sends a fixed sentence instead.
+An answer that is not that object — not JSON, no boolean `approved`, a `feedback`
+that is not a string — is a **failure of the criterion**. It never counts as an
+approval. The criterion cannot ask the model for this shape when it calls the
+reviewer, because a response format is a protected option of a run. Give the
+**reviewer agent** a JSON schema response format with a boolean `approved` and a
+string `feedback`, and put the review rules in its instructions. Validation warns
+(`loop_reviewer_verdict_unknown`) when the reviewer's current definition has no
+such schema; it stays a warning, because the reviewer can change after the save.
+
+**What the reviewer receives** is one text: the last user message the loop started
+with, the iteration number, and the draft — the last assistant message of the
+iteration, not the whole turn. Images and files do not go. The text carries no
+instruction of its own; the reviewer's definition holds those. Feedback longer than
+4,000 characters is cut, and the cut says so.
+
+**The reviewer is a child run.** It appears under the run being evaluated, with the
+tree's tenant check, depth limit, run and token budget, the tenant's quota, the wait
+limit (`SubAgents.ChildDeadline`, or `Tracon:AgentGraph:ChildDeadline`) and the
+refusal of a tool that waits for approval. Its tokens and cost are its own run's;
+they count against the tree budget and the tenant's quota. A refused or failed call
+is a failure of the criterion, and `OnCriterionError` decides what follows: by
+default the loop stops and the last draft comes back. A reviewer is called on every
+iteration the earlier criteria did not already keep going, so place it after the
+cheap ones.
+
+Two things are not checked before the loop runs. A reviewer deleted after the save
+fails the criterion at run time. Two agents that review each other are not detected
+when they are saved; the depth limit ends the chain and the call fails.
+
+A criterion written in code can still do more: compute a check before the reviewer
+reads the draft, keep state across rounds, or read a verdict of another shape.
 
 ### A criterion that needs your services
 
@@ -625,7 +691,7 @@ See `DraftReviewCriterion` in the sample application for the whole class.
 
 ### List, edit, and validate a loop
 
-`GET /api/loop-criteria` lists the kinds a definition can name: the four
+`GET /api/loop-criteria` lists the kinds a definition can name: the five
 built-in kinds first, then the kinds registered in code, each with its
 description. It also returns the judge model an `aiJudge` criterion calls
 (`provider` and `model` only), or `null` when the host bound none. Listing runs
@@ -647,6 +713,11 @@ returns `400` with every message:
 | `loop_judge_criteria_missing` | `harness.loop.criteria[i].judgeCriteria`, or `.judgeCriteria[j]` for a blank entry | An `aiJudge` has no criterion, or one of its criteria is blank |
 | `loop_judge_unconfigured` | `harness.loop.criteria[i].kind` | An `aiJudge` on a host with no judge model |
 | `loop_judge_unavailable` | `harness.loop.criteria[i].kind` | The judge model cannot be built: its provider is not registered, or the caller's egress policy forbids it |
+| `loop_reviewer_missing` | `harness.loop.criteria[i].reviewerAgent` | An `agentReview` names no reviewer |
+| `loop_reviewer_self` | `harness.loop.criteria[i].reviewerAgent` | The reviewer is the agent itself |
+| `loop_reviewer_version_invalid` | `harness.loop.criteria[i].reviewerAgentVersion` | The version is below 1, or the reviewer is defined in code |
+| `loop_reviewer_not_found` | `harness.loop.criteria[i].reviewerAgent`, or `.reviewerAgentVersion` | The reviewer is not in the caller's catalog, or has no such version |
+| `loop_reviewer_verdict_unknown` | `harness.loop.criteria[i].reviewerAgent` | A **warning**: the reviewer has no JSON schema with a boolean `approved` and a string `feedback` |
 
 A kind registered in code counts as known whether or not its factory has run.
 A factory that fails reports as `compilation_error`, naming the kind.

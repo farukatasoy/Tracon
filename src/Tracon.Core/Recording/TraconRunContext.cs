@@ -295,6 +295,17 @@ public sealed record AgentRunScope
     /// the agent's own tokens stay with the agent's own binding.
     /// </remarks>
     internal FallbackModelAttribution? SideChannelFallback { get; init; }
+
+    /// <summary>
+    /// Gets the holder the loop criterion being evaluated hands its identity back through, or
+    /// <see langword="null"/> outside a criterion's evaluation.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RecordingLoopEvaluator"/> sets it on a copy of the scope for one criterion's call:
+    /// the judge's chat client writes the model that answered, an <c>agentReview</c> criterion writes
+    /// its reviewer. The child run a reviewer opens builds its own scope and does not inherit it.
+    /// </remarks>
+    internal LoopCriterionTrail? CriterionTrail { get; init; }
 }
 
 /// <summary>

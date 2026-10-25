@@ -17,10 +17,10 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Four criterion kinds are built in and map directly onto MAF's own
-/// evaluators: <c>completionMarker</c>, <c>todoCompletion</c>, <c>aiJudge</c>
-/// and <c>backgroundTaskCompletion</c>. Every one of them takes DATA only. Any
-/// other kind name is looked up among the criteria registered in code with
+/// Five criterion kinds are built in: <c>completionMarker</c>, <c>todoCompletion</c>,
+/// <c>aiJudge</c> and <c>backgroundTaskCompletion</c> map directly onto MAF's own
+/// evaluators, and <c>agentReview</c> is Tracon's (<see cref="AgentReviewLoopEvaluator"/>).
+/// Every one of them takes DATA only. Any other kind name is looked up among the criteria registered in code with
 /// <c>ITraconBuilder.AddLoopEvaluator(...)</c>; if it is not there either,
 /// compilation fails. It is never ignored — a stop criterion that is silently
 /// dropped is a loop with no stop criterion, which is the one failure this
@@ -63,10 +63,20 @@ internal sealed class LoopEvaluatorRegistry
     /// <summary>The validation code of an <c>aiJudge</c> criterion on a host with no judge model.</summary>
     internal const string JudgeUnconfiguredCode = ValidationCodes.LoopJudgeUnconfigured;
 
+    /// <summary>The validation code of an <c>agentReview</c> criterion without a reviewer agent.</summary>
+    internal const string ReviewerMissingCode = ValidationCodes.LoopReviewerMissing;
+
+    /// <summary>The validation code of an <c>agentReview</c> criterion whose reviewer is the agent itself.</summary>
+    internal const string ReviewerSelfCode = ValidationCodes.LoopReviewerSelf;
+
+    /// <summary>The validation code of an <c>agentReview</c> criterion with a reviewer version below 1.</summary>
+    internal const string ReviewerVersionInvalidCode = ValidationCodes.LoopReviewerVersionInvalid;
+
     private const string CompletionMarkerKind = "completionMarker";
     private const string TodoCompletionKind = "todoCompletion";
     private const string AiJudgeKind = "aiJudge";
     private const string BackgroundTaskCompletionKind = "backgroundTaskCompletion";
+    private const string AgentReviewKind = "agentReview";
 
     private static readonly string[] BuiltInKinds =
     [
@@ -74,7 +84,14 @@ internal sealed class LoopEvaluatorRegistry
         TodoCompletionKind,
         AiJudgeKind,
         BackgroundTaskCompletionKind,
+        AgentReviewKind,
     ];
+
+    /// <summary>Says whether <paramref name="kind"/> names the built-in <c>agentReview</c> criterion, whatever its casing.</summary>
+    /// <param name="kind">The kind a definition names.</param>
+    /// <returns><see langword="true"/> for <c>agentReview</c>.</returns>
+    internal static bool IsAgentReview(string? kind)
+        => string.Equals(kind, AgentReviewKind, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The built-in spelling of <paramref name="kind"/>, or <paramref name="kind"/>
@@ -95,7 +112,8 @@ internal sealed class LoopEvaluatorRegistry
         CompletionMarkerKind => "Stops once the answer contains the marker text.",
         TodoCompletionKind => "Stops once the agent's todo list has no open item.",
         AiJudgeKind => "A judge model decides whether the answer meets the listed criteria. It calls the host's judge model on every iteration.",
-        _ => "Stops once no background task is still running.",
+        BackgroundTaskCompletionKind => "Stops once no background task is still running.",
+        _ => "A reviewer agent from the catalog reads the draft and approves it or sends feedback. It runs as a child run of the loop's run and counts against the run tree's budget on every iteration.",
     };
 
     private readonly Dictionary<string, CustomCriterion> _custom;
@@ -190,14 +208,19 @@ internal sealed class LoopEvaluatorRegistry
     /// validation report and the compiler can never apply different rules.
     /// </summary>
     /// <param name="loop">The loop settings.</param>
+    /// <param name="agentName">
+    /// The name of the agent the loop belongs to. An <c>agentReview</c> criterion may not name it as
+    /// its own reviewer; when <see langword="null"/>, that rule is not applied.
+    /// </param>
     /// <returns>The problems, in the order of the settings; empty when there is none.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="loop"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// It calls no registered factory: a kind registered in code counts as known
     /// whether or not its factory has run. A factory that fails reports at
-    /// compilation, in <see cref="Build"/>.
+    /// compilation, in <see cref="Build"/>. It reads no catalog either: whether the reviewer exists
+    /// is the validator's catalog step, and the compiler finds out when it resolves the reviewer.
     /// </remarks>
-    public IReadOnlyList<LoopSettingsProblem> FindProblems(LoopSettings loop)
+    public IReadOnlyList<LoopSettingsProblem> FindProblems(LoopSettings loop, string? agentName = null)
     {
         ArgumentNullException.ThrowIfNull(loop);
 
@@ -243,7 +266,7 @@ internal sealed class LoopEvaluatorRegistry
 
         for (var index = 0; index < loop.Criteria.Count; index++)
         {
-            AddCriterionProblems(loop.Criteria[index], index, problems);
+            AddCriterionProblems(loop.Criteria[index], index, agentName, problems);
         }
 
         return problems;
@@ -339,20 +362,27 @@ internal sealed class LoopEvaluatorRegistry
     /// <see cref="CreateJudgeChatClientAsync"/>. <see langword="null"/> when the
     /// definition has no such criterion.
     /// </param>
+    /// <param name="reviewers">
+    /// Builds the sub-agent call an <c>agentReview</c> criterion reviews through. <see langword="null"/>
+    /// when the definition has no such criterion.
+    /// </param>
     /// <returns>The single evaluator handed to the harness, and the loop options.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconCompilationException">
     /// The loop settings are not usable (every problem <see cref="FindProblems"/>
     /// reports, in one message), or the factory of a criterion registered in code failed.
     /// </exception>
-    public (LoopEvaluator Evaluator, LoopAgentOptions Options) Build(AgentDefinition definition, IChatClient? judgeClient)
+    public (LoopEvaluator Evaluator, LoopAgentOptions Options) Build(
+        AgentDefinition definition,
+        IChatClient? judgeClient,
+        ReviewerInvokerFactory? reviewers = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
         var loop = definition.Harness?.Loop
             ?? throw new ArgumentException("The definition carries no loop settings.", nameof(definition));
 
-        if (FindProblems(loop) is { Count: > 0 } problems)
+        if (FindProblems(loop, definition.Name) is { Count: > 0 } problems)
         {
             throw Invalid(definition, string.Join(" ", problems.Select(static problem => problem.Message)));
         }
@@ -362,7 +392,7 @@ internal sealed class LoopEvaluatorRegistry
 
         foreach (var criterion in loop.Criteria)
         {
-            criteria.Add(new LoopCriterionBinding(criterion.Kind, BuildCriterion(definition, criterion, judgeClient)));
+            criteria.Add(new LoopCriterionBinding(criterion.Kind, BuildCriterion(definition, criterion, judgeClient, reviewers)));
         }
 
         var evaluator = new RecordingLoopEvaluator(
@@ -398,7 +428,7 @@ internal sealed class LoopEvaluatorRegistry
         return (evaluator, options);
     }
 
-    private void AddCriterionProblems(LoopCriterion criterion, int index, List<LoopSettingsProblem> problems)
+    private void AddCriterionProblems(LoopCriterion criterion, int index, string? agentName, List<LoopSettingsProblem> problems)
     {
         var path = $"harness.loop.criteria[{index}]";
 
@@ -471,6 +501,10 @@ internal sealed class LoopEvaluatorRegistry
 
                 return;
 
+            case AgentReviewKind:
+                AddReviewerProblems(criterion, path, agentName, problems);
+                return;
+
             case TodoCompletionKind:
             case BackgroundTaskCompletionKind:
                 return;
@@ -490,9 +524,42 @@ internal sealed class LoopEvaluatorRegistry
         }
     }
 
+    private static void AddReviewerProblems(LoopCriterion criterion, string path, string? agentName, List<LoopSettingsProblem> problems)
+    {
+        if (string.IsNullOrWhiteSpace(criterion.ReviewerAgent))
+        {
+            problems.Add(new LoopSettingsProblem(
+                ReviewerMissingCode,
+                path + ".reviewerAgent",
+                $"The '{AgentReviewKind}' loop criterion requires '{nameof(LoopCriterion.ReviewerAgent)}'. " +
+                "Without it there is no agent to review the draft and the criterion can never be satisfied."));
+        }
+        else if (agentName is not null && string.Equals(criterion.ReviewerAgent, agentName, StringComparison.Ordinal))
+        {
+            problems.Add(new LoopSettingsProblem(
+                ReviewerSelfCode,
+                path + ".reviewerAgent",
+                $"The '{AgentReviewKind}' loop criterion of agent '{agentName}' names the agent itself as its reviewer. " +
+                "An agent that approves its own draft reviews nothing; name another agent."));
+        }
+
+        if (criterion.ReviewerAgentVersion is < 1)
+        {
+            problems.Add(new LoopSettingsProblem(
+                ReviewerVersionInvalidCode,
+                path + ".reviewerAgentVersion",
+                $"{nameof(LoopCriterion.ReviewerAgentVersion)} must be 1 or more, or null to run the reviewer's " +
+                $"current version. Actual value: {criterion.ReviewerAgentVersion}."));
+        }
+    }
+
     // Runs only after FindProblems found nothing, so every branch has what it
     // needs; the one check left guards a programming error.
-    private LoopEvaluator BuildCriterion(AgentDefinition definition, LoopCriterion criterion, IChatClient? judgeClient)
+    private LoopEvaluator BuildCriterion(
+        AgentDefinition definition,
+        LoopCriterion criterion,
+        IChatClient? judgeClient,
+        ReviewerInvokerFactory? reviewers)
     {
         switch (Canonical(criterion.Kind))
         {
@@ -515,9 +582,30 @@ internal sealed class LoopEvaluatorRegistry
             case BackgroundTaskCompletionKind:
                 return new BackgroundTaskCompletionLoopEvaluator(new BackgroundTaskCompletionLoopEvaluatorOptions());
 
+            case AgentReviewKind:
+                return BuildReviewCriterion(definition, criterion, reviewers);
+
             default:
                 return _custom[criterion.Kind].Resolve(definition, _services, _loggerFactory);
         }
+    }
+
+    private static AgentReviewLoopEvaluator BuildReviewCriterion(
+        AgentDefinition definition,
+        LoopCriterion criterion,
+        ReviewerInvokerFactory? reviewers)
+    {
+        if (reviewers is null)
+        {
+            throw new InvalidOperationException(
+                $"Agent '{definition.Name}' has an '{AgentReviewKind}' loop criterion, but no reviewer call was " +
+                $"built for it. Pass a {nameof(ReviewerInvokerFactory)} to {nameof(Build)}.");
+        }
+
+        // Runs only after FindProblems found nothing, so the reviewer is named.
+        return new AgentReviewLoopEvaluator(
+            reviewers(criterion.ReviewerAgent!, criterion.ReviewerAgentVersion),
+            criterion.ReviewerAgent!);
     }
 
     private AIJudgeLoopEvaluator BuildJudgeCriterion(AgentDefinition definition, LoopCriterion criterion, IChatClient? judgeClient)
@@ -710,3 +798,11 @@ internal sealed record LoopCriterionKindInfo(string Kind, bool BuiltIn, string? 
 /// <param name="Path">The JSON path of the offending field in the definition, for example <c>harness.loop.criteria[1].marker</c>.</param>
 /// <param name="Message">The explanation, written for the definition's author.</param>
 internal sealed record LoopSettingsProblem(string Code, string Path, string Message);
+
+/// <summary>
+/// Builds the sub-agent call a loop's <c>agentReview</c> criterion reviews through.
+/// </summary>
+/// <param name="reviewerName">The reviewer agent's name.</param>
+/// <param name="reviewerVersion">The version to run, or <see langword="null"/> for the current one.</param>
+/// <returns>The call: a <see cref="ChildAgentInvoker"/> that fails instead of returning a refusal as text.</returns>
+internal delegate AIAgent ReviewerInvokerFactory(string reviewerName, int? reviewerVersion);

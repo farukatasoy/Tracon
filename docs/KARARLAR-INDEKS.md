@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1024 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1026 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1076 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1078 kalem)
 
 | K | Karar |
 |---|---|
-| K-1035 | `UseProvidedChatClientAsIs` ve `AllowConcurrentInvocation` korunur: ikisi korunan bir ayarı dolaylı değiştirir |
-| K-1036 | Deneysel upstream tip yalnız ön sürüm hattındaki uydu paketin public imzasına girer; çekirdek aile kararlı kalır (D-01) |
 | K-1037 | Ön sürüm upstream'e bağlı yeni uydu paket ayrı ön sürüm hattında çıkar; mevcut aile tek hatta kalır (D-19) |
 | K-1038 | `EnableMessageInjection`, `RequirePerServiceCallChatHistoryPersistence`, `RawRepresentationFactory` korunur: Tracon'da işlemez ya da tanımı ezer 👤 |
 | K-1039 | Run başına `ChatOptions` HTTP'de yoktur; kod ve MAF yolu tek kuraldan geçer: tanımın üyesi reddedilir, ek talimat ve tool beyanı geçer 👤🔁 |
@@ -62,3 +60,5 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1084 | Kiracı başına workflow sınırı süreçte tam, kuyrukta yumuşaktır; tek ayar iki katmanı besler, kiracı slotu ortaktan önce alınır (F-322) 👤 |
 | K-1085 | Slot bekleyen workflow run'ı `Queued` yazılır, heartbeat taşır ve uzlaştırmada kapanır; heartbeat'siz `Queued` kuyruğundur (F-322) 👤 |
 | K-1086 | Native agent akışı Loop iterasyon sınırını `loop.iteration-completed` çerçevesiyle verir; veri `/events` ile bayt bayt aynıdır (F-544) |
+| K-1087 | Yerleşik `agentReview` ölçütü katalog agent'ını ad (+sürüm) ile anar, çocuk run koşar; karar şekli reviewer'ın tanımındadır (F-411) |
+| K-1088 | Loop iterasyon olayı `criteria[]` ile ölçüt kararını ve onaylayanın kimliğini yazar (yargıç, reviewer, çocuk run); metin yazmaz (F-411) |

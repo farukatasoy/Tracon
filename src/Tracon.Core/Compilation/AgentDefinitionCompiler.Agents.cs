@@ -211,6 +211,55 @@ public sealed partial class AgentDefinitionCompiler
     }
 
     /// <summary>
+    /// Gives the loop the way to call an <c>agentReview</c> criterion's reviewer: through the same
+    /// <see cref="ChildAgentInvoker"/> every sub-agent call uses, so the reviewer is a child run bound by
+    /// the tree's tenant, depth, budget, quota and wait limits.
+    /// </summary>
+    /// <param name="definition">The definition being compiled.</param>
+    /// <returns>
+    /// The factory. Nothing is built until a criterion asks: a definition with no <c>agentReview</c>
+    /// criterion never calls it, and a host without a sub-agent resolver fails only for one that has.
+    /// </returns>
+    /// <remarks>
+    /// The reviewer shares the wait limits of the agent's sub-agent calls
+    /// (<see cref="ResolveSubAgentTimeouts"/>), and a refusal fails the call
+    /// (<see cref="ChildRefusalMode.Fail"/>): no model reads the reviewer's answer as a tool result, the
+    /// loop does, and a refusal read as a verdict would approve or reject the draft by accident.
+    /// </remarks>
+    private ReviewerInvokerFactory CreateReviewerInvokerFactory(AgentDefinition definition)
+        => (reviewerName, reviewerVersion) =>
+        {
+            if (_callableAgents is null || _tenantContext is null)
+            {
+                throw new TraconCompilationException(
+                    $"Agent '{definition.Name}' has an 'agentReview' loop criterion, but the sub-agent " +
+                    "resolver is not registered.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
+            var (childDeadline, waitTimeout) = ResolveSubAgentTimeouts(definition);
+
+            return new ChildAgentInvoker(
+                _callableAgents,
+                _tenantContext,
+                _loggerFactory?.CreateLogger<ChildAgentInvoker>()
+                    ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger<ChildAgentInvoker>.Instance,
+                definition.Name,
+                new CallableAgentInfo(reviewerName, Description: null, Version: 0),
+                childDeadline,
+                waitTimeout,
+                _timeProvider,
+                ChildRefusalMode.Fail,
+                deadlineSetting: definition.SubAgents?.ChildDeadline is null
+                    ? null
+                    : "the agent's own 'SubAgents.ChildDeadline'",
+                pinnedVersion: reviewerVersion,
+                callKind: "loop reviewer");
+        };
+
+    /// <summary>
     /// Resolves the sub-agent wait limits for a definition: its own
     /// <see cref="AgentDefinition.SubAgents"/> override the tree-wide
     /// <see cref="TraconAgentGraphOptions.ChildDeadline"/>/<see cref="TraconAgentGraphOptions.WaitTimeout"/>
@@ -461,7 +510,8 @@ public sealed partial class AgentDefinitionCompiler
         // the loop at all.
         if (harness.Loop is not null)
         {
-            var (loopEvaluator, loopOptions) = _loopEvaluators.Build(definition, secondaryClients.LoopJudge);
+            var (loopEvaluator, loopOptions) = _loopEvaluators.Build(
+                definition, secondaryClients.LoopJudge, CreateReviewerInvokerFactory(definition));
 
             options.LoopEvaluators = [loopEvaluator];
             options.LoopAgentOptions = loopOptions;

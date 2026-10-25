@@ -10,7 +10,7 @@
 | Bir şeyin nerede yaşadığı | [kod-haritasi](kod-haritasi.md) |
 | Graph/Compaction/Eval/Quota/Webhook/MCP haritası | [altyapi-haritasi](altyapi-haritasi.md) |
 | MAF tipi, harness, `AIContextProvider` · konuşma hafızası · oturum dosyaları | [maf-api](maf-api.md) · [hafıza](konusma-hafizasi.md) · [dosya](oturum-calisma-alani.md) |
-| MAF Harness/`LoopAgent` bekleme tuzağı | [maf-harness-ve-loop](maf-harness-ve-loop.md) |
+| MAF Harness/`LoopAgent` bekleme tuzağı · loop ölçütü, denetim izi | [maf-harness-ve-loop](maf-harness-ve-loop.md) · [loop-denetim-izi](loop-denetim-izi.md) |
 | MAF oturumu, `ChatHistoryProvider`, Responses | [maf-oturum](maf-oturum.md) |
 | Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) · [cevap](workflow-cevaplari.md) |
 | `RunRecording` zinciri, `scope`/span, iptal | [cekirdek-calistirma](cekirdek-calistirma.md) |

@@ -28,6 +28,7 @@ internal sealed partial class AgentDefinitionValidator
     private readonly AgentDefinitionCompiler _compiler;
     private readonly IOptions<TraconOptions> _options;
     private readonly IMcpToolRefresher? _mcpRefresher;
+    private readonly IAgentDefinitionStore? _definitions;
 
     /// <summary>Initializes an agent-definition validator.</summary>
     /// <param name="models">The model provider registry.</param>
@@ -43,6 +44,10 @@ internal sealed partial class AgentDefinitionValidator
     /// found. When <see langword="null"/>, <c>Tracon.Mcp</c> is not registered
     /// and missing tool names are reported directly as errors.
     /// </param>
+    /// <param name="definitions">
+    /// The store that keeps stored agents' versions. When <see langword="null"/>, a loop reviewer's
+    /// version pin is not looked up and its verdict shape is read from the catalog's current version.
+    /// </param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     public AgentDefinitionValidator(
         IModelProviderRegistry models,
@@ -51,7 +56,8 @@ internal sealed partial class AgentDefinitionValidator
         IAgentCatalog catalog,
         AgentDefinitionCompiler compiler,
         IOptions<TraconOptions> options,
-        IMcpToolRefresher? mcpRefresher = null)
+        IMcpToolRefresher? mcpRefresher = null,
+        IAgentDefinitionStore? definitions = null)
     {
         ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(tools);
@@ -67,6 +73,7 @@ internal sealed partial class AgentDefinitionValidator
         _compiler = compiler;
         _options = options;
         _mcpRefresher = mcpRefresher;
+        _definitions = definitions;
     }
 
     /// <summary>Validates a definition without saving it or calling a model.</summary>

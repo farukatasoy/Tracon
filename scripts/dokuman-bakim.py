@@ -130,9 +130,10 @@ SORGU_BUTCESI = {
     # DERSLE; iki egri tek butcede sikisip dosyayi %1 bosluga dusurmustu.
     # BASLANGIC degil SORGU: `faz-baslangic` Adim 1 bunu okumaz, Adim 3 okur.
     # Sinir ILK KEZ konuyor -> olculene %15 bosluk eklendi (58.4 kalibrasyonu).
-    "docs/hafiza/00-INDEKS.md": 5_800,  # YENIDEN KALIBRE 2026-09-07; olculen 4_872
-                                        # (dokuman butcesi mudahale turu, 10 yeni
-                                        # alan dosyasi satiri eklendi; olculen/0.85=5_732)
+    "docs/hafiza/00-INDEKS.md": 6_900,  # YENIDEN KALIBRE 2026-10-25 (Faz 242); olculen 5_869
+                                        # (yeni alan dosyasi `loop-denetim-izi.md`: iki komsu
+                                        # dosya sinirdaydi, satir mevcut loop satirina eklendi;
+                                        # olculen/0.85=6_905). Onceki: 5_800, olculen 4_872 (2026-09-07)
     "README.md": 22_200,  # YENIDEN KALIBRE 2026-09-07; olculen 18_843
                           # (dokuman butcesi mudahale turu, MIMARI-GUVENLIK.md
                           # tekrari trimlendikten sonra bile paket tablosu +

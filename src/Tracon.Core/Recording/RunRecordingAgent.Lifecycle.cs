@@ -98,7 +98,7 @@ public sealed partial class RunRecordingAgent
         var attribution = ResolveAttribution(runId);
         var sessionId = session is null ? null : GetSessionId(session);
         var depth = Math.Max(runOptions?.Depth ?? 0, 0);
-        var agentVersion = runOptions?.AgentVersion ?? _agentVersion;
+        var agentVersion = runOptions?.AgentVersion ?? AgentVersion;
 
         var activity = ActivitySource.StartActivity(TraconDiagnostics.RunActivityName, ActivityKind.Internal);
 

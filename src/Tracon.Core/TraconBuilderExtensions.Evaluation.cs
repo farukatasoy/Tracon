@@ -112,7 +112,7 @@ public static partial class TraconBuilderExtensions
     /// <param name="kind">
     /// The criterion name. It must not be one of the built-in kinds
     /// (<c>completionMarker</c>, <c>todoCompletion</c>, <c>aiJudge</c>,
-    /// <c>backgroundTaskCompletion</c>); shadowing one is rejected, so the same
+    /// <c>backgroundTaskCompletion</c>, <c>agentReview</c>); shadowing one is rejected, so the same
     /// definition cannot mean different things in two applications.
     /// </param>
     /// <param name="evaluator">
@@ -139,7 +139,7 @@ public static partial class TraconBuilderExtensions
     /// <param name="kind">
     /// The criterion name. It must not be one of the built-in kinds
     /// (<c>completionMarker</c>, <c>todoCompletion</c>, <c>aiJudge</c>,
-    /// <c>backgroundTaskCompletion</c>); shadowing one is rejected, so the same
+    /// <c>backgroundTaskCompletion</c>, <c>agentReview</c>); shadowing one is rejected, so the same
     /// definition cannot mean different things in two applications.
     /// </param>
     /// <param name="evaluator">
@@ -206,7 +206,7 @@ public static partial class TraconBuilderExtensions
     /// <param name="kind">
     /// The criterion name. It must not be one of the built-in kinds
     /// (<c>completionMarker</c>, <c>todoCompletion</c>, <c>aiJudge</c>,
-    /// <c>backgroundTaskCompletion</c>); shadowing one, or registering the same
+    /// <c>backgroundTaskCompletion</c>, <c>agentReview</c>); shadowing one, or registering the same
     /// name twice, is rejected before any factory runs.
     /// </param>
     /// <param name="factory">
@@ -237,7 +237,7 @@ public static partial class TraconBuilderExtensions
     /// <param name="kind">
     /// The criterion name. It must not be one of the built-in kinds
     /// (<c>completionMarker</c>, <c>todoCompletion</c>, <c>aiJudge</c>,
-    /// <c>backgroundTaskCompletion</c>); shadowing one, or registering the same
+    /// <c>backgroundTaskCompletion</c>, <c>agentReview</c>); shadowing one, or registering the same
     /// name twice, is rejected before any factory runs.
     /// </param>
     /// <param name="factory">

@@ -503,6 +503,7 @@ public sealed class LoopEvaluatorRegistryTests
             ("todoCompletion", true),
             ("aiJudge", true),
             ("backgroundTaskCompletion", true),
+            ("agentReview", true),
             ("alpha", false),
             ("zeta", false),
         ]);
@@ -624,6 +625,194 @@ public sealed class LoopEvaluatorRegistryTests
 
         registry.FindProblems(new LoopSettings { Criteria = [new LoopCriterion { Kind = "Reviewed" }] }).ShouldBeEmpty();
         calls.ShouldBe(0);
+    }
+
+    // ---- Phase 242: the built-in agentReview kind (F-411) ----
+
+    [Fact]
+    public void An_agentReview_criterion_builds_its_reviewer_through_the_factory_with_the_pin()
+    {
+        var asked = new List<(string Name, int? Version)>();
+        var definition = WithLoop(new LoopSettings
+        {
+            Criteria =
+            [
+                new LoopCriterion { Kind = "completionMarker", Marker = "DONE" },
+                new LoopCriterion { Kind = "agentReview", ReviewerAgent = "draft-reviewer", ReviewerAgentVersion = 3 },
+                new LoopCriterion { Kind = "agentReview", ReviewerAgent = "style-reviewer" },
+            ],
+        });
+
+        var (evaluator, _) = BuildRegistry().Build(
+            definition,
+            judgeClient: null,
+            (name, version) =>
+            {
+                asked.Add((name, version));
+
+                return new ReviewerStub();
+            });
+
+        asked.ShouldBe([("draft-reviewer", 3), ("style-reviewer", null)]);
+
+        var composite = evaluator.ShouldBeOfType<RecordingLoopEvaluator>();
+        composite.Criteria.Select(static binding => binding.Kind).ShouldBe(["completionMarker", "agentReview", "agentReview"]);
+        composite.Criteria[1].Evaluator.ShouldBeOfType<AgentReviewLoopEvaluator>();
+        composite.Criteria[2].Evaluator.ShouldBeOfType<AgentReviewLoopEvaluator>();
+    }
+
+    [Theory]
+    [InlineData("agentreview")]
+    [InlineData("AGENTREVIEW")]
+    [InlineData("AgentReview")]
+    public void An_agentReview_kind_resolves_whatever_its_casing(string kind)
+    {
+        var definition = WithLoop(new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = kind, ReviewerAgent = "draft-reviewer" }],
+        });
+
+        var (evaluator, _) = BuildRegistry().Build(definition, judgeClient: null, (_, _) => new ReviewerStub());
+
+        evaluator.ShouldBeOfType<RecordingLoopEvaluator>().Criteria.ShouldHaveSingleItem()
+            .Evaluator.ShouldBeOfType<AgentReviewLoopEvaluator>();
+    }
+
+    [Fact]
+    public void An_agentReview_criterion_without_a_reviewer_call_is_a_programming_error_not_a_loop_with_no_reviewer()
+    {
+        var definition = WithLoop(new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "agentReview", ReviewerAgent = "draft-reviewer" }],
+        });
+
+        Should.Throw<InvalidOperationException>(() => Build(BuildRegistry(), definition))
+            .Message.ShouldContain("agentReview");
+    }
+
+    [Fact]
+    public void Registering_a_code_kind_named_agentReview_is_refused_at_construction()
+    {
+        // The kind became built in with Phase 242: a host that registered its own "agentReview" before
+        // would otherwise mean one thing in its definitions and another in everyone else's.
+        var custom = new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
+
+        foreach (var name in new[] { "agentReview", "AGENTREVIEW" })
+        {
+            Should.Throw<TraconException>(() => BuildRegistry(new TraconLoopEvaluatorRegistration(name, custom)))
+                .Message.ShouldContain("built in", Case.Sensitive);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void An_agentReview_without_a_reviewer_is_one_problem_at_the_reviewer_path(string? reviewer)
+    {
+        var problem = BuildRegistry()
+            .FindProblems(new LoopSettings { Criteria = [new LoopCriterion { Kind = "agentReview", ReviewerAgent = reviewer }] }, "writer")
+            .ShouldHaveSingleItem();
+
+        problem.Code.ShouldBe("loop_reviewer_missing");
+        problem.Path.ShouldBe("harness.loop.criteria[0].reviewerAgent");
+    }
+
+    [Fact]
+    public void An_agent_cannot_review_its_own_draft()
+    {
+        var loop = new LoopSettings
+        {
+            Criteria =
+            [
+                new LoopCriterion { Kind = "completionMarker", Marker = "DONE" },
+                new LoopCriterion { Kind = "agentReview", ReviewerAgent = "writer" },
+            ],
+        };
+
+        var problem = BuildRegistry().FindProblems(loop, "writer").ShouldHaveSingleItem();
+
+        problem.Code.ShouldBe("loop_reviewer_self");
+        problem.Path.ShouldBe("harness.loop.criteria[1].reviewerAgent");
+
+        // Names are ordinal, like the catalog's: another casing is another agent.
+        BuildRegistry().FindProblems(loop, "WRITER").ShouldBeEmpty();
+
+        // Without the agent's name the rule cannot apply; the compiler and the validator always give it.
+        BuildRegistry().FindProblems(loop).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void A_reviewer_version_below_one_is_refused_at_its_own_path(int version)
+    {
+        var problem = BuildRegistry()
+            .FindProblems(
+                new LoopSettings
+                {
+                    Criteria = [new LoopCriterion { Kind = "agentReview", ReviewerAgent = "draft-reviewer", ReviewerAgentVersion = version }],
+                },
+                "writer")
+            .ShouldHaveSingleItem();
+
+        problem.Code.ShouldBe("loop_reviewer_version_invalid");
+        problem.Path.ShouldBe("harness.loop.criteria[0].reviewerAgentVersion");
+    }
+
+    [Fact]
+    public void Build_refuses_an_agentReview_without_a_reviewer_with_the_same_message_as_the_report()
+    {
+        var definition = WithLoop(new LoopSettings { Criteria = [new LoopCriterion { Kind = "agentReview" }] });
+
+        var exception = Should.Throw<TraconCompilationException>(() => Build(BuildRegistry(), definition));
+
+        exception.Message.ShouldContain("ReviewerAgent", Case.Sensitive);
+        exception.Message.ShouldContain("agentReview", Case.Sensitive);
+    }
+
+    [Fact]
+    public void The_reviewer_fields_are_read_by_agentReview_only()
+    {
+        // The other built-in kinds ignore them, as they ignore every field that is not theirs.
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE", ReviewerAgent = "writer", ReviewerAgentVersion = 0 }],
+        };
+
+        BuildRegistry().FindProblems(loop, "writer").ShouldBeEmpty();
+    }
+
+    private sealed class ReviewerStub : AIAgent
+    {
+        protected override Task<AgentResponse> RunCoreAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            AgentSession? session = null,
+            AgentRunOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        protected override IAsyncEnumerable<AgentResponseUpdate> RunCoreStreamingAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            AgentSession? session = null,
+            AgentRunOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        protected override ValueTask<AgentSession> CreateSessionCoreAsync(CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        protected override ValueTask<AgentSession> DeserializeSessionCoreAsync(
+            System.Text.Json.JsonElement serializedState,
+            System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        protected override ValueTask<System.Text.Json.JsonElement> SerializeSessionCoreAsync(
+            AgentSession session,
+            System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 
     private static LoopEvaluatorRegistry BuildRegistry(params TraconLoopEvaluatorRegistration[] registrations)
