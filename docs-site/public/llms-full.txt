@@ -2223,7 +2223,9 @@ This is a *different* budget from the one every root run's call tree carries
 runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
 or agent over a day or month and never interrupts a run in progress; the call-tree
 budget is scoped to one run's tree (for a workflow, the whole chain of runs that continue one
-another) and is checked between model turns, so it *does* cut a long tool loop off mid-run.
+another) and is checked between model turns, so it *does* cut a long tool loop off mid-run. It also
+keeps a tool call from starting once it is spent (see [A spent budget stops a tool call from
+starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting)).
 
 ## Retention
 
@@ -3994,6 +3996,10 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   after the run closed, from a call that outlived its timeout, stays on the call's record
   and does not change the run's total, but it is added to the tenant's quota counter once,
   because that money was spent.
+- **It stops the next tool call.** Once the call tree's budget is spent, a tool call that has not
+  started does not start: its result says why, and a streaming run records the call as failed. The call that
+  crosses the ceiling runs to its end, so report the amount as soon as you know it. See [A spent
+  budget stops a tool call from starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
 - **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
   fill `Provider` and `Model` as well as the measurement. Prices come from
   `Tracon:Pricing`; with none configured the amount stays unknown.
@@ -5075,6 +5081,8 @@ node runs. A node that is already running is never stopped, so the ceiling is no
 A node that spends nothing and has to run afterwards, such as a step that stores what the budget
 has just paid for, is exempt with `options.StartsWhenBudgetIsSpent = true` in its registration. Its
 own spend still counts, and an operator cannot set the exemption in a definition.
+
+A tool call is gated the same way, and `MaxTotalTokens` stops it too: see [a tool call](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
 
 ### Retry a node on a transient error
 
@@ -14273,8 +14281,8 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
-| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
-| Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node from starting once it has passed |
+| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node or a tool call from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
+| Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
 
 Six of these rows — multi-tenancy, session ownership, at-rest content encryption,
@@ -15274,7 +15282,9 @@ the check runs between two model turns, inside the tool-call loop, so a tree
 that has already spent past its limit is cut off before its *next* model
 call — mid-run, not only at the next child call. A workflow function node is checked
 when it would start (each attempt of a retried node too): `MaxTotalCost` and `MaxDuration`
-keep it from starting, and `MaxTotalTokens` does not. The run ends `Failed` with
+keep it from starting, and `MaxTotalTokens` does not. A tool call is checked when it would
+start as well, and all three limits keep it from starting (see [A spent budget stops a tool
+call from starting](#a-spent-budget-stops-a-tool-call-from-starting)). The run ends `Failed` with
 `error_class: QuotaExceeded` and a message naming which limit was hit and
 which setting raises it. A cost limit falls back to the token limit for a
 model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
@@ -15290,8 +15300,8 @@ keeps the next function node from starting; see [Function nodes and the
 budget](#function-nodes-and-the-budget).
 
 `MaxDuration` is not a hard timeout: a tool call already running when the
-deadline passes is never interrupted, only the *next* model call after it is
-refused. It applies the same way to a queued (`Prefer: respond-async`) run,
+deadline passes is never interrupted, only the *next* tool call and the *next* model call
+after it are refused. It applies the same way to a queued (`Prefer: respond-async`) run,
 whose lease is otherwise renewed for as long as the run keeps going — before
 `MaxDuration`, nothing capped a queued run's wall-clock time.
 
@@ -15377,6 +15387,47 @@ both. See [A quota also stops work that has not started](/concepts/governance/#a
 A graph built in code with `AddWorkflow` and its own executors is not wrapped, so nothing gates its
 executors. Such an executor reads the budget itself: `TraconRunContext.Current?.Budget` has
 `IsCostBudgetExhausted` and `IsDurationBudgetExhausted`.
+
+### A spent budget stops a tool call from starting
+
+When one model turn asks for two paid tools and the first passes the ceiling, the second does not run.
+Its result would be read only by the next model call, and that call is refused. Running the tool would
+only spend money and cause its side effect.
+
+| Limit | Stops a tool call from starting | Why |
+|---|---|---|
+| `AgentGraph.MaxTotalTokens` | Yes | The next model call is refused for the same reason, so nothing reads the result |
+| `AgentGraph.MaxTotalCost` | Yes | The unit a paid tool spends. What a tool reported with `TraconToolUsage.Report` counts the moment it is reported |
+| `AgentGraph.MaxDuration` | Yes | The clock has run out, so no new work begins |
+| `AgentGraph.MaxTotalRuns`, `MaxDepth` | No | A tool call opens no child run |
+
+A function node is different on the first row: its output goes to the next node, not to a model, so
+`MaxTotalTokens` does not stop it.
+
+A refused call does not run. Its result is the limit and the setting to raise, followed by "The tool
+call did not start." No model reads that sentence, because the next model call is refused: it goes to
+the event stream and to the run record. A streaming run (the HTTP run is one) records the call as failed,
+with that sentence as its error. A run that does not stream records no call rows when it fails, the first
+call's included. The run itself ends as it always did: the next model call is refused, and the run is
+`Failed` with error type `run_budget_exceeded`. The refusal needs no setting, and a host whose run
+never passes a ceiling sees no change. The check happens before the authorization handler, so a spent
+run does not ask it. Code tools, workspace tools and MCP tools pass the check in the tool chain. A skill
+script is checked by the script runner when its run would start, with the same condition and the same
+sentence in the refusal.
+
+**Two limits remain.**
+
+- **The ceiling is not absolute.** The check happens when a call starts. A call that has started is
+  never stopped, and the amount a tool spent is known only when it ends. The call that crosses the
+  ceiling is therefore the last one that starts.
+- **Concurrent tool calls start together.** With `ToolLoop.AllowConcurrentToolCalls` on, the tools of
+  one turn start at the same time, so all of them start before any of them reports. An installation
+  that needs the ceiling to hold turns concurrent calls off.
+
+Three kinds of tool are outside the check. A hosted tool (a provider's web search or code interpreter)
+runs inside the model call, so Tracon cannot see it start. The search tool of a knowledge base
+(`search_knowledge`) and the on-demand search of conversation memory (`search_conversation_memory`) are
+not in the tool chain. The next model call is still refused in all three cases.
 
 ## Wait for in-flight runs before the process stops
 
@@ -18932,15 +18983,24 @@ the same fixed order, before your method body ever runs:
 ```mermaid
 flowchart LR
     accTitle: Tool call pipeline order
-    accDescr: A tool call passes through authorization, argument validation, timeout, approval, and output truncation, in that fixed order, before the real method body runs.
-    A["Authorization<br/>(can this caller call it at all)"] --> B["Argument validation<br/>(are these arguments acceptable)"]
+    accDescr: A tool call passes through the budget check, authorization, argument validation, timeout, approval, and output truncation, in that fixed order, before the real method body runs.
+    Z["Budget<br/>(is the call tree's budget spent)"] --> A["Authorization<br/>(can this caller call it at all)"]
+    A --> B["Argument validation<br/>(are these arguments acceptable)"]
     B --> C["Timeout<br/>(bounds the call)"]
     C --> D["Approval<br/>(does a person need to say yes)"]
     D --> E["Output truncation"]
     E --> F["your method body"]
 ```
 
-Authorization runs first: asking a person to approve, waiting out a timeout, or
+The budget check runs before everything else. Once the run's call tree has spent its token,
+cost or time budget, the call does not start: your authorization handler is not asked, your
+body does not run, and the result is "The tool call did not start." (with the limit named). A
+streaming run records the call as failed. A tool that reports what it spent with
+`TraconToolUsage.Report` feeds this check the moment it reports, so the call that crosses
+the ceiling is the last one that starts. See [Bound multi-agent
+trees](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
+
+Authorization runs next: asking a person to approve, waiting out a timeout, or
 validating arguments for a call the caller could never make at all is backwards.
 Argument validation runs next, still before the timeout and the approval wait — a
 malformed call should not consume a timeout budget or wait on a human decision. The

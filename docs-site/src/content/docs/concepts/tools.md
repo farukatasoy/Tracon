@@ -302,6 +302,10 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   after the run closed, from a call that outlived its timeout, stays on the call's record
   and does not change the run's total, but it is added to the tenant's quota counter once,
   because that money was spent.
+- **It stops the next tool call.** Once the call tree's budget is spent, a tool call that has not
+  started does not start: its result says why, and a streaming run records the call as failed. The call that
+  crosses the ceiling runs to its end, so report the amount as soon as you know it. See [A spent
+  budget stops a tool call from starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
 - **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
   fill `Provider` and `Model` as well as the measurement. Prices come from
   `Tracon:Pricing`; with none configured the amount stays unknown.

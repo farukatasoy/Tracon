@@ -319,6 +319,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **A tool call does not start once the call tree's budget is spent.** The budget (`Tracon:AgentGraph:MaxTotalTokens`,
+  `MaxTotalCost`, `MaxDuration`) already refused the next model call, a new agent step and a workflow function node. A tool
+  call was the one start it did not read, so when one model turn asked for two paid tools and the first passed the ceiling,
+  the second still ran: its money and its side effect were gone, and the model call that would have read its result was
+  refused. Now the second tool does not run. Its result is the limit, the setting to raise and "The tool call did not
+  start."; a streaming run (the HTTP run is one) records the call as failed; and the run ends at its next model call as
+  before (`Failed`, `run_budget_exceeded`). All three limits stop a tool call, `MaxTotalTokens` included, since a model reads its
+  result; a function node is still stopped by cost and time only. The check covers tools registered in code, session
+  workspace tools, MCP tools and skill scripts, and it runs before your `IToolAuthorizationHandler`. A tool that has started
+  is never stopped, so the call that crosses the ceiling is the last one that starts; with
+  `ToolLoop.AllowConcurrentToolCalls` on, the tools of one turn start together and all of them start. A hosted tool runs
+  inside the model call and is not checked, and neither are the two search tools that read a knowledge base or a conversation memory. A host that sets no ceiling still has the default `MaxTotalTokens` of 200,000:
+  a tool that a turn asks for after the tree has passed it no longer runs. See
+  [Bound multi-agent trees](https://tracon.dev/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
 - **`agentReview` is now a built-in loop criterion kind, so a criterion registered in code under that name is refused.**
   `AddLoopEvaluator("agentReview", ...)` (in any casing) throws `TraconException` at startup, the way the other four
   built-in names do. A definition that named such a kind now means the built-in one; rename your criterion

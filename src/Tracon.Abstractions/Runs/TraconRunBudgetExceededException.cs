@@ -29,6 +29,12 @@ namespace Tracon;
 /// message says "Could not start function node" and names the setting to raise. A node
 /// that is already running is never stopped by it, and the refusal is not retried.
 /// </para>
+/// <para>
+/// A tool call is refused at its start when the tree's token, cost or time budget is spent.
+/// The exception does not leave the tool: its message becomes the tool's result
+/// ("… The tool call did not start."), a streaming run records the call as failed, and the
+/// run ends at its next model call. A tool call that has started is never stopped.
+/// </para>
 /// </remarks>
 public sealed class TraconRunBudgetExceededException : TraconException
 {

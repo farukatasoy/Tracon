@@ -363,6 +363,8 @@ A node that spends nothing and has to run afterwards, such as a step that stores
 has just paid for, is exempt with `options.StartsWhenBudgetIsSpent = true` in its registration. Its
 own spend still counts, and an operator cannot set the exemption in a definition.
 
+A tool call is gated the same way, and `MaxTotalTokens` stops it too: see [a tool call](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
+
 ### Retry a node on a transient error
 
 `AddWorkflowFunction` takes an optional retry policy. For the settings overload it is

@@ -429,7 +429,9 @@ the check runs between two model turns, inside the tool-call loop, so a tree
 that has already spent past its limit is cut off before its *next* model
 call — mid-run, not only at the next child call. A workflow function node is checked
 when it would start (each attempt of a retried node too): `MaxTotalCost` and `MaxDuration`
-keep it from starting, and `MaxTotalTokens` does not. The run ends `Failed` with
+keep it from starting, and `MaxTotalTokens` does not. A tool call is checked when it would
+start as well, and all three limits keep it from starting (see [A spent budget stops a tool
+call from starting](#a-spent-budget-stops-a-tool-call-from-starting)). The run ends `Failed` with
 `error_class: QuotaExceeded` and a message naming which limit was hit and
 which setting raises it. A cost limit falls back to the token limit for a
 model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
@@ -445,8 +447,8 @@ keeps the next function node from starting; see [Function nodes and the
 budget](#function-nodes-and-the-budget).
 
 `MaxDuration` is not a hard timeout: a tool call already running when the
-deadline passes is never interrupted, only the *next* model call after it is
-refused. It applies the same way to a queued (`Prefer: respond-async`) run,
+deadline passes is never interrupted, only the *next* tool call and the *next* model call
+after it are refused. It applies the same way to a queued (`Prefer: respond-async`) run,
 whose lease is otherwise renewed for as long as the run keeps going — before
 `MaxDuration`, nothing capped a queued run's wall-clock time.
 
@@ -532,6 +534,47 @@ both. See [A quota also stops work that has not started](/concepts/governance/#a
 A graph built in code with `AddWorkflow` and its own executors is not wrapped, so nothing gates its
 executors. Such an executor reads the budget itself: `TraconRunContext.Current?.Budget` has
 `IsCostBudgetExhausted` and `IsDurationBudgetExhausted`.
+
+### A spent budget stops a tool call from starting
+
+When one model turn asks for two paid tools and the first passes the ceiling, the second does not run.
+Its result would be read only by the next model call, and that call is refused. Running the tool would
+only spend money and cause its side effect.
+
+| Limit | Stops a tool call from starting | Why |
+|---|---|---|
+| `AgentGraph.MaxTotalTokens` | Yes | The next model call is refused for the same reason, so nothing reads the result |
+| `AgentGraph.MaxTotalCost` | Yes | The unit a paid tool spends. What a tool reported with `TraconToolUsage.Report` counts the moment it is reported |
+| `AgentGraph.MaxDuration` | Yes | The clock has run out, so no new work begins |
+| `AgentGraph.MaxTotalRuns`, `MaxDepth` | No | A tool call opens no child run |
+
+A function node is different on the first row: its output goes to the next node, not to a model, so
+`MaxTotalTokens` does not stop it.
+
+A refused call does not run. Its result is the limit and the setting to raise, followed by "The tool
+call did not start." No model reads that sentence, because the next model call is refused: it goes to
+the event stream and to the run record. A streaming run (the HTTP run is one) records the call as failed,
+with that sentence as its error. A run that does not stream records no call rows when it fails, the first
+call's included. The run itself ends as it always did: the next model call is refused, and the run is
+`Failed` with error type `run_budget_exceeded`. The refusal needs no setting, and a host whose run
+never passes a ceiling sees no change. The check happens before the authorization handler, so a spent
+run does not ask it. Code tools, workspace tools and MCP tools pass the check in the tool chain. A skill
+script is checked by the script runner when its run would start, with the same condition and the same
+sentence in the refusal.
+
+**Two limits remain.**
+
+- **The ceiling is not absolute.** The check happens when a call starts. A call that has started is
+  never stopped, and the amount a tool spent is known only when it ends. The call that crosses the
+  ceiling is therefore the last one that starts.
+- **Concurrent tool calls start together.** With `ToolLoop.AllowConcurrentToolCalls` on, the tools of
+  one turn start at the same time, so all of them start before any of them reports. An installation
+  that needs the ceiling to hold turns concurrent calls off.
+
+Three kinds of tool are outside the check. A hosted tool (a provider's web search or code interpreter)
+runs inside the model call, so Tracon cannot see it start. The search tool of a knowledge base
+(`search_knowledge`) and the on-demand search of conversation memory (`search_conversation_memory`) are
+not in the tool chain. The next model call is still refused in all three cases.
 
 ## Wait for in-flight runs before the process stops
 

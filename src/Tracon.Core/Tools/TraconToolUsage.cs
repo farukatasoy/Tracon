@@ -19,6 +19,13 @@ namespace Tracon;
 /// the last report of a call replaces the earlier ones, in the record and in the total.
 /// </para>
 /// <para>
+/// The amount reaches the call tree's budget the moment it is reported. Once the tree has
+/// spent its ceiling (<c>AgentGraph.MaxTotalCost</c>), no tool call that has not started
+/// begins: its result is a sentence that says the tool call did not start, and a streaming
+/// run records the call as failed. The call that crosses the ceiling runs to its end, so a
+/// tool should report when it knows the amount, not only at its last line.
+/// </para>
+/// <para>
 /// It reads the call identifier from <see cref="FunctionInvokingChatClient.CurrentContext"/>.
 /// This was verified by measurement on 2026-08-05. The <c>AIFunctionArguments.Context</c>
 /// dictionary is <see langword="null"/> and does not carry the call identifier, while the

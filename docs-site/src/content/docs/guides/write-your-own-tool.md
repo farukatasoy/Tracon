@@ -174,15 +174,24 @@ the same fixed order, before your method body ever runs:
 ```mermaid
 flowchart LR
     accTitle: Tool call pipeline order
-    accDescr: A tool call passes through authorization, argument validation, timeout, approval, and output truncation, in that fixed order, before the real method body runs.
-    A["Authorization<br/>(can this caller call it at all)"] --> B["Argument validation<br/>(are these arguments acceptable)"]
+    accDescr: A tool call passes through the budget check, authorization, argument validation, timeout, approval, and output truncation, in that fixed order, before the real method body runs.
+    Z["Budget<br/>(is the call tree's budget spent)"] --> A["Authorization<br/>(can this caller call it at all)"]
+    A --> B["Argument validation<br/>(are these arguments acceptable)"]
     B --> C["Timeout<br/>(bounds the call)"]
     C --> D["Approval<br/>(does a person need to say yes)"]
     D --> E["Output truncation"]
     E --> F["your method body"]
 ```
 
-Authorization runs first: asking a person to approve, waiting out a timeout, or
+The budget check runs before everything else. Once the run's call tree has spent its token,
+cost or time budget, the call does not start: your authorization handler is not asked, your
+body does not run, and the result is "The tool call did not start." (with the limit named). A
+streaming run records the call as failed. A tool that reports what it spent with
+`TraconToolUsage.Report` feeds this check the moment it reports, so the call that crosses
+the ceiling is the last one that starts. See [Bound multi-agent
+trees](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
+
+Authorization runs next: asking a person to approve, waiting out a timeout, or
 validating arguments for a call the caller could never make at all is backwards.
 Argument validation runs next, still before the timeout and the approval wait — a
 malformed call should not consume a timeout budget or wait on a human decision. The

@@ -68,6 +68,17 @@ internal sealed class EchoModelProvider : IModelProvider
             SupportsTools = false,
         },
 
+        // Asks for two narrate calls in one turn, then answers with what they returned. A priced tool run with a
+        // small Tracon:AgentGraph:MaxTotalCost shows the second call refused once the first has spent the ceiling.
+        new ModelDescriptor
+        {
+            Name = EchoNarratorModel,
+            DisplayName = "Echo double narrator (local, no network)",
+            ContextWindowTokens = 8_192,
+            MaxOutputTokens = 1_024,
+            SupportsTools = true,
+        },
+
         // Answers as the writer of the review-and-revise workflow: a JSON script, a revised one when the message asks
         // for a revision, and a script over the length limit when the brief says "#long".
         new ModelDescriptor
@@ -89,6 +100,9 @@ internal sealed class EchoModelProvider : IModelProvider
     /// <summary>The model that answers with an approval verdict: declined on iteration 1, approved after.</summary>
     public const string EchoApproverModel = "echo-approver-1";
 
+    /// <summary>The model that asks for two <c>narrate</c> calls in one turn, then answers.</summary>
+    public const string EchoNarratorModel = "echo-narrator-1";
+
     /// <summary>The model that writes the script of the review-and-revise workflow as JSON.</summary>
     public const string EchoWriterModel = "echo-writer-1";
 
@@ -109,6 +123,17 @@ internal sealed class EchoModelProvider : IModelProvider
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
+            if (string.Equals(_modelId, EchoNarratorModel, StringComparison.Ordinal))
+            {
+                var turn = NarratorTurn(messages);
+
+                return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, turn))
+                {
+                    ModelId = _modelId,
+                    Usage = NarratorUsage,
+                });
+            }
+
             var reply = BuildReply(messages, options);
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, reply))
             {
@@ -127,6 +152,14 @@ internal sealed class EchoModelProvider : IModelProvider
             ChatOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            if (string.Equals(_modelId, EchoNarratorModel, StringComparison.Ordinal))
+            {
+                yield return new ChatResponseUpdate(ChatRole.Assistant, NarratorTurn(messages)) { ModelId = _modelId };
+                yield return new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(NarratorUsage)]) { ModelId = _modelId };
+
+                yield break;
+            }
+
             foreach (var word in BuildReply(messages, options).Split(' '))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -140,6 +173,32 @@ internal sealed class EchoModelProvider : IModelProvider
         public void Dispose()
         {
             // The local client has no resources to release.
+        }
+
+        private static UsageDetails NarratorUsage { get; } = new()
+        {
+            InputTokenCount = 4,
+            OutputTokenCount = 6,
+            TotalTokenCount = 10,
+        };
+
+        // Two narrate calls in the first turn; the answer once their results are in the conversation.
+        private static List<AIContent> NarratorTurn(IEnumerable<ChatMessage> messages)
+        {
+            var results = messages.SelectMany(static message => message.Contents).OfType<FunctionResultContent>().ToList();
+
+            if (results.Count > 0)
+            {
+                return [new TextContent($"Echo narrator: {string.Join(' ', results.Select(static result => result.Result))}")];
+            }
+
+            var text = messages.LastOrDefault(static message => message.Role == ChatRole.User)?.Text ?? "(empty request)";
+
+            return
+            [
+                new FunctionCallContent("narrate-1", NarrateTool.Name, new Dictionary<string, object?>(StringComparer.Ordinal) { ["text"] = text }),
+                new FunctionCallContent("narrate-2", NarrateTool.Name, new Dictionary<string, object?>(StringComparer.Ordinal) { ["text"] = $"Again: {text}" }),
+            ];
         }
 
         private string BuildReply(IEnumerable<ChatMessage> messages, ChatOptions? options)
