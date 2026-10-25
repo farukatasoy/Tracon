@@ -47,7 +47,7 @@ public sealed record RunEvent
     /// <summary>Gets the event type.</summary>
     public required RunEventType Type { get; init; }
 
-    /// <summary>Gets the moment the event occurred (UTC).</summary>
+    /// <summary>Gets the moment the event occurred (UTC), in whole microseconds.</summary>
     public required DateTimeOffset Timestamp { get; init; }
 
     /// <summary>Gets the text content. Its meaning depends on the event type.</summary>

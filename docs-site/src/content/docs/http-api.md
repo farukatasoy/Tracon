@@ -95,7 +95,9 @@ answer. After each iteration the loop evaluated, the stream sends a
 `loop.iteration-completed` frame. It comes after the last `update` of that iteration
 and before the first `update` of the next. The frame's data is the recorded
 `LoopIterationCompleted` event, byte for byte the same as `GET /api/runs/{runId}/events`
-serves it. The event's `payload` is a JSON string with these fields:
+serves it. The event's `payload` is a JSON string with these fields, and it is `null`
+when `RunRecording:RecordToolPayloads` is off (it is on by default); the frame's `text`
+then still says what happened:
 
 | Field | Meaning |
 |---|---|
@@ -113,9 +115,13 @@ iteration **after** it: the turn at the ceiling is not evaluated, so it has no f
 its own. With `OnExhausted` set to `FailRun` no turn follows, and the stream ends with
 an `error` frame.
 
-An agent without a loop never sends this frame. A run that does not record its events
-has no event to mirror, so it sends none either. A sub-agent's loop writes to the
-sub-agent's own run and never to this stream. A client that ignores a frame name it does
+After a frame with `continued: true`, the next `update` is not the model's text. It
+carries the feedback the loop gives the model, with `role` `user`. Skip it when you
+collect the answer.
+
+An agent without a loop never sends this frame. A frame mirrors a recorded event, so an
+event the run could not record (its store failed) has no frame, and the run goes on. A
+sub-agent's loop writes to the sub-agent's own run and never to this stream. A client that ignores a frame name it does
 not know needs no change.
 
 `GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger

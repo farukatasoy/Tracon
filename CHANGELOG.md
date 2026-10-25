@@ -289,8 +289,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `loop.iteration-completed` frame, between the last `update` of that iteration and the first of the next. Its data is
   the recorded `LoopIterationCompleted` event, byte for byte what `GET /api/runs/{id}/events` serves. The answer is the
   iteration the last frame closes when it has `continued: false`; when it has `ceilingReached: true`, the answer is the
-  iteration after it, because the turn at the ceiling is not evaluated. An agent without a loop, a run that records no
-  events and a sub-agent's loop send no frame. The console playground draws a divider at each frame. A client that
+  iteration after it, because the turn at the ceiling is not evaluated. The `update` after a frame with `continued: true`
+  is the loop's feedback to the model (`role` `user`), not the model's text. The event's `payload` is `null` when
+  `RecordToolPayloads` is off. An agent without a loop, an event the store could not record and a sub-agent's loop send
+  no frame. Recorded event timestamps now have whole microseconds, so the frame and `/events` agree on every store. The console playground draws a divider at each frame. A client that
   ignores a frame name it does not know needs no change. See [Streaming](https://tracon.dev/http-api/#streaming).
 
 ### Changed

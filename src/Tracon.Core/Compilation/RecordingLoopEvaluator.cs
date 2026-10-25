@@ -83,7 +83,9 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// criteria's <c>try</c>/<c>catch</c>. The evaluator runs between two iterations, while
 /// the caller waits for the next update, so the callback's write lands between the
 /// last update of this iteration and the first of the next. A run with no event
-/// writer has no event, so it calls nothing.
+/// writer, or whose store could not take the event, has no event to hand over, so it
+/// calls nothing. With <c>RecordToolPayloads</c> off the event keeps no payload, and
+/// the callback receives it as recorded.
 /// </para>
 /// <para>
 /// The evaluator holds no state between calls; every decision is made from the
@@ -290,7 +292,10 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
     }
 
     /// <summary>Writes the iteration's event to the run's record.</summary>
-    /// <returns>The recorded event, or <see langword="null"/> when the run has no event writer.</returns>
+    /// <returns>
+    /// The recorded event, or <see langword="null"/> when the run has no event writer or the writer could not store
+    /// the event (a failing store disables it): an event nobody can read back from the record is not handed on.
+    /// </returns>
     private static async ValueTask<RunEvent?> WriteIterationEventAsync(
         LoopContext context,
         string? continuedBy,
@@ -342,13 +347,17 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                         $"iteration {context.Iteration} continued by '{continuedBy}'")
                     : string.Create(CultureInfo.InvariantCulture, $"iteration {context.Iteration} stopped");
 
-        return await writer.AppendAsync(
+        var runEvent = await writer.AppendAsync(
             new RunEventDraft(RunEventType.LoopIterationCompleted)
             {
                 Text = text,
                 Payload = payload,
             },
             cancellationToken).ConfigureAwait(false);
+
+        // AppendAsync hands the event back even when the store refused it: observability must not stop the run.
+        // The caller's frame has to be the event GET /api/runs/{id}/events serves, so a refused one is not sent.
+        return writer.IsDisabled ? null : runEvent;
     }
 }
 #pragma warning restore MAAI001

@@ -569,8 +569,8 @@ The native streaming run mirrors each of these events as a `loop.iteration-compl
 frame, with the same data, between the last update of the iteration and the first of the
 next. The answer is the iteration before the last frame when that frame has
 `continued: false`. It is the iteration **after** the last frame when that frame has
-`ceilingReached: true`, because the turn at the ceiling is not evaluated. A run that
-records no events sends no frame.
+`ceilingReached: true`, because the turn at the ceiling is not evaluated. An event the
+run could not record sends no frame.
 
 ### A criterion that needs your services
 

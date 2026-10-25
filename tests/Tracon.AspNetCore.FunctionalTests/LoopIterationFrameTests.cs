@@ -80,7 +80,7 @@ public sealed class LoopIterationFrameTests
 
         provider.Requests.Count.ShouldBe(2);
 
-        // The turn that reaches the ceiling is not evaluated (hafiza: maf-harness-ve-loop). The frame of the
+        // The turn that reaches the ceiling is not evaluated. The frame of the
         // turn before it says so, and the answer is the iteration AFTER that frame.
         var payload = FramePayloads(frames).ShouldHaveSingleItem();
 
@@ -132,6 +132,39 @@ public sealed class LoopIterationFrameTests
 
         live.Count.ShouldBe(2);
         live.ShouldBe(stored);
+    }
+
+    [Fact]
+    public async Task The_frame_data_is_the_stored_event_byte_for_byte_when_a_database_keeps_it()
+    {
+        // The in-memory store hands the very instance back; a database serializes the event and reads it again,
+        // so only a database can show a field that loses something on the way (a timestamp finer than the column).
+        using var database = new TempSqliteDatabase("loop-frame-bytes");
+
+        var provider = Provider("still working", "nearly there", "ALL DONE");
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.UseSqlite(database.ConnectionString);
+            builder.AddModelProvider(provider);
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = AgentName,
+                Description = "Works until it is done.",
+                Instructions = "Work.",
+                Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
+                Harness = new HarnessSettings { Loop = MarkerLoop(maxIterations: 6) },
+                Origin = AgentDefinitionOrigin.Code,
+            });
+        });
+
+        var frames = await PostStreamingAsync(host, AgentName);
+        var run = await OutputTruncationTests.SingleRunAsync(host);
+        var recorded = await OutputTruncationStreamingTests.EventFramesAsync(host, run.Id);
+
+        var live = frames.Where(IsLoopFrame).Select(static frame => frame.Data).ToList();
+
+        live.Count.ShouldBe(3);
+        live.ShouldBe(recorded.Where(IsLoopFrame).Select(static frame => frame.Data));
     }
 
     [Theory]
@@ -201,6 +234,39 @@ public sealed class LoopIterationFrameTests
         }
 
         childEvents.Count(static runEvent => runEvent.Type == RunEventType.LoopIterationCompleted).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task A_criterion_that_fails_to_evaluate_writes_a_frame_that_names_it_and_the_stream_ends_with_done()
+    {
+        var thrower = new DelegateLoopEvaluator(static (_, _) => throw new InvalidOperationException("the judge is unreachable"));
+        var loop = new LoopSettings { Criteria = [new LoopCriterion { Kind = "explodes" }], MaxIterations = 6 };
+
+        var provider = Provider("first answer");
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+            builder.AddLoopEvaluator("explodes", thrower);
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = AgentName,
+                Description = "Works until it is done.",
+                Instructions = "Work.",
+                Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
+                Harness = new HarnessSettings { Loop = loop },
+                Origin = AgentDefinitionOrigin.Code,
+            });
+        });
+
+        var frames = await PostStreamingAsync(host, AgentName);
+
+        // OnCriterionError defaults to ReturnLastResponse: the work is kept, the run completes, and the one
+        // frame says which criterion could not decide.
+        var payload = FramePayloads(frames).ShouldHaveSingleItem();
+
+        payload.FailedCriterion.ShouldBe("explodes");
+        payload.Continued.ShouldBeFalse();
+        frames[^1].Event.ShouldBe("done");
     }
 
     [Fact]

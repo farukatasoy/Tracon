@@ -12,6 +12,9 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     /// <summary>Gets or sets whether closing a run fails.</summary>
     public bool FailCompletes { get; set; }
 
+    /// <summary>Gets or sets whether appending an event fails.</summary>
+    public bool FailEventAppends { get; set; }
+
     public int ReadsRefused { get; private set; }
 
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
@@ -30,7 +33,8 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
             ? throw new InvalidOperationException("the store is unavailable")
             : inner.StartRunAsync(info, cancellationToken);
 
-    public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default) => inner.AppendEventAsync(runEvent, cancellationToken);
+    public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        => FailEventAppends ? throw new InvalidOperationException("the store is unavailable") : inner.AppendEventAsync(runEvent, cancellationToken);
 
     public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default) => inner.GetLastEventSequenceAsync(runId, cancellationToken);
 
