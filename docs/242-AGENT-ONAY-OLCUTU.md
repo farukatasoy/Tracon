@@ -1,6 +1,6 @@
 # Faz 242 — Agent Onay Ölçütü (`agentReview`) ve Loop Denetim İzi
 
-> **Durum:** 📋 Planlandı (2026-10-25)
+> **Durum:** ✅ Tamamlandı (2026-10-25)
 > **Kademe:** tam — güvenlik/kiracı sınırı: ölçüt run'ın içinden yeni bir çocuk run başlatır (kiracı, bütçe, derinlik ve onay reddi kapıları); denetim izi kimin onayladığını kalıcı run olayına yazar
 > **Plan onayı:** Bakımcı, 2026-10-25 (sohbette alınan karar: yerleşik `agentReview` türü; reviewer katalogdaki bir agent'tır ve çocuk run olarak koşar; iz iterasyon olayına yazılır)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-411**
@@ -323,14 +323,14 @@ sağlayıcısı düşerse ölçüt hatası; olay `failed`.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `agentReview` tanımdan kurulur; reviewer çocuk run olarak koşar; `approved: false` döngüyü devam ettirir, `true` durdurur (`AgentReviewLoopTests`)
-- [ ] Bütçe, derinlik, kiracı, süre ve onay reddi kapıları reviewer'a uygulanır (testler yukarıda)
-- [ ] `LoopIterationCompleted` yükü `criteria[]` taşır; `reviewer` ve `judge` alanları doludur; geri bildirim metni yoktur
-- [ ] `FindProblems` ve doğrulayıcı `loop_reviewer_*` kodlarını verir; `docs/sozlesme/dogrulama-kodlari.txt` yeniden üretildi
-- [ ] `GET /api/loop-criteria` `agentReview`'u listeler
-- [ ] Konsol Loop editörü türü düzenler ve kaydeder; `en.ts` + `tr.ts` eksiksiz; bundle payı yazıldı
+- [x] `agentReview` tanımdan kurulur; reviewer çocuk run olarak koşar; `approved: false` döngüyü devam ettirir, `true` durdurur (`AgentReviewLoopTests`)
+- [x] Bütçe, derinlik, kiracı, süre ve onay reddi kapıları reviewer'a uygulanır (testler yukarıda)
+- [x] `LoopIterationCompleted` yükü `criteria[]` taşır; `reviewer` ve `judge` alanları doludur; geri bildirim metni yoktur
+- [x] `FindProblems` ve doğrulayıcı `loop_reviewer_*` kodlarını verir; `docs/sozlesme/dogrulama-kodlari.txt` yeniden üretildi
+- [x] `GET /api/loop-criteria` `agentReview`'u listeler
+- [x] Konsol Loop editörü türü düzenler ve kaydeder; `en.ts` + `tr.ts` eksiksiz; bundle payı yazıldı
   — bundle: 224,1 → 225,4 KB gzip (+1,3 KB; bütçe 250 KB)
-- [ ] `samples/Tracon.Api` `reviewed-writer-builtin` ile gerçek `run` yapıldı (Manuel 1); olay dizisi belgeye yazıldı
+- [x] `samples/Tracon.Api` `reviewed-writer-builtin` ile gerçek `run` yapıldı (Manuel 1); olay dizisi belgeye yazıldı
   — Echo: `iteration 1 continued by 'agentReview' (reviewer 'draft-approver' v1)` → `iteration 2 stopped (approved by reviewer 'draft-approver' v1)`;
   ağaçta iki `draft-approver` çocuk run'ı (`depth: 1`), olaylardaki `runId`'ler onlardır.
   Gerçek sağlayıcı (`gpt-5.4-mini`, 2026-10-25): bir istek ilk taslakta onayladı (`stop`), "ilk taslakta başlık yok" isteği
@@ -338,12 +338,12 @@ sağlayıcısı düşerse ölçüt hatası; olay `failed`.
   Konsol (Playwright, Manuel 2): tür seçimi, reviewer seçimi, kayıt, yenileme, `aiJudge` ↔ `agentReview` değişiminde alanların temizlenmesi,
   `loop_reviewer_version_invalid` ve `loop_reviewer_missing` yollu raporu görüldü. `POST /api/agents/validate` ile `loop_reviewer_verdict_unknown`
   uyarısı, `valid: true` (Manuel 3). Başlangıçta `Npgsql` günlük satırı: 0.
-- [ ] `CHANGELOG.md [Unreleased]` yeni türü ve aynı adlı kod türünün reddini adıyla yazar
-- [ ] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `CHANGELOG.md [Unreleased]` yeni türü ve aynı adlı kod türünün reddini adıyla yazar
+- [x] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `secret` taraması boş döndü
+- [x] `🤖` case'ler `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içinde ve koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 
 ### Doğrulama komutları
 
@@ -405,6 +405,14 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/events | grep loop.iterati
 
 ## Bu Fazda Verilen Kararlar
 
+- **`K-1087`** *(public-api)* — yerleşik `agentReview` türü ve karar şeklinin reviewer'ın kendi tanımında olması; reddedilen:
+  çağrıya yanıt biçimi dayatmak, yalnız kod ölçütü.
+- **`K-1088`** *(public-api, güvenlik)* — iterasyon olayında `criteria[]` ve onaylayan kimliği; reddedilen: `IAuditLog` kaydı,
+  olaya metin yazmak.
+- **Dört kategori dışı (kapanış commit mesajına gider):** geri bildirim üst sınırı 4.000 karakter ve kırpma notu · `agentVersion`
+  çocuk run satırının yazdığı sürümdür (kod agent'ı için 1) · `FindProblems` agent adını alır, doğrulayıcı isteğe bağlı
+  `IAgentDefinitionStore` alır · örnek uygulamada reviewer `draft-approver` · `LoopCriterionTrail` tutucusu kapsam kopyasında gider.
+
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
@@ -423,10 +431,10 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/events | grep loop.iterati
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (dokuman yeniden yazılmadı; dokuz sapma "Plandan Sapmalar"da) |
+| Düzeltme turu sayısı | 4 (Core mimari kapıları · arayüz i18n kapısı · site ekran görüntüsü damgası · denetim 🟡) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -434,3 +442,21 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/events | grep loop.iterati
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Bağımsız denetçi (`faz-denetcisi`, taze bağlam) 59 dosyalık farkı okudu. **🔴 yok.**
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Reviewer için süre (bekleme sınırı) testi yoktu; DoD "süre" diyordu. `callKind` metni yalnız onay yolunda sınanıyordu | 🟡 | **Düzeltildi:** `A_reviewer_that_outlasts_the_wait_limit…` (iki kip: işbirlikçi ve sert kesme); hata metni "The loop reviewer failed" ve `SubAgents.ChildDeadline` adını taşır, olay çocuk run'ı adlandırır |
+| Kota, run iptali ve reviewer sağlayıcı hatası için reviewer düzeyinde fonksiyonel test yok | 🟡 | **Gerekçelendi:** üçü de `ChildAgentInvoker`'ın kapısıdır ve reviewer bu yola yeni kod eklemez; kota `ChildAgentInvokerQuotaTests`, iptal ve sağlayıcı hatası `ChildAgentInvokerTests` ile sabit. Reviewer'a özgü kısım (kendi iptalinin yutulmaması) `AgentReviewLoopEvaluatorTests.Our_own_cancellation_is_not_swallowed_into_a_verdict` ile sınanır |
+| Eşzamanlılık testi composite'in PAYLAŞILAN örneğini sınamıyordu (her görev kendi evaluator'ını kuruyordu) | 🟡 | **Düzeltildi:** `One_composite_instance_serves_two_runs_at_once_without_mixing_their_trails` tek `RecordingLoopEvaluator`'ı iki run'a verir; ilk çağrı ölçütte tutulurken ikincisi biter |
+| `TraconChildRunTimeoutException`, `TraconRunBudgetExceededException`, `ChildRefusalMode.Fail` XML'i yalnız "workflow step" der | 🟢 | F-684 |
+| Run ucunun OpenAPI açıklaması `loop.iteration-completed` yükünü eksik sayar (`criteria`, `hasFeedback`, `failsRun` yok) | 🟢 | F-685 |
+| Derinlik reddi iletisi model için yazılmış; `Fail` kipinde operatöre yanlış yön gösterir (önceden vardı) | 🟢 | F-686 |
+| Üç liste/tavan büyüdü: `ambient-write-baseline.txt` +1, `i18n.test.ts` `identicalOnPurpose` +1, `hafiza/00-INDEKS.md` bütçesi 5.800 → 6.900 B | 🟡 (kullanıcı triyajı için not) | **Gerekçelendi:** (a) `RecordingLoopEvaluator.EvaluateAsync` kapsam kopyasını kendi gövdesinde yazar ve geri koyar, `SideChannel…GetResponseAsync` ile aynı desen. (b) "Reviewer agent" iki terimdir ve ikisi de repo kuralıyla İngilizce kalır. (c) yeni alan dosyası satırı eklendi; ölçülen 5.869 B, emsal 2026-09-07 yeniden kalibrasyonu (`ölçülen / 0,85`) |
+
+**Not (kapı koşumu):** tam çözüm testinde `JobWorkerLeaseContractTests.A_cancelled_job_whose_handler_throws_stays_cancelled`
+iki ayrı tam koşumda düştü (`TimeoutException`, 30 sn; ilki net10.0, ikincisi net9.0 bacağı; 27.465 testin 1'i). Aynı sınıf
+izole 30 koşuda ve Core modülü 18 koşuda yeşildi; ağır fonksiyonel paket arka planda koşarken **temel commit'te de**
+(`1209d5f0`, 20 modül koşusunun 1'i) ve HEAD'de de (16'nın 1'i) düştü. Faz 242'nin koduna bağlı değildir: ölçüm F-687 olarak
+kusur kanalına yazıldı. Fazın kendi testleri her koşumda yeşildi.

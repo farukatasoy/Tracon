@@ -295,6 +295,64 @@ public sealed class AgentReviewLoopTests
         reviewer.Requests.Count.ShouldBe(0);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_reviewer_that_outlasts_the_wait_limit_fails_the_criterion_and_the_event_still_names_its_run(bool ignoresCancellation)
+    {
+        // The reviewer shares the agent's sub-agent wait limits: the cooperative deadline cancels a reviewer that reads the
+        // token, the hard cutoff abandons one that does not. Either way the run it opened is on the record.
+        var hanging = new HangingModelProvider(ReviewerProvider, respectsCancellation: !ignoresCancellation);
+
+        await using var host = await StartAsync(
+            Writer("a draft"),
+            hanging,
+            onCriterionError: LoopOutcome.FailRun,
+            subAgents: new SubAgentSettings
+            {
+                ChildDeadline = TimeSpan.FromMilliseconds(50),
+                WaitTimeout = ignoresCancellation ? TimeSpan.FromMilliseconds(150) : TimeSpan.FromSeconds(5),
+            });
+
+        try
+        {
+            await Should.ThrowAsync<TraconException>(async () => await RunWriterAsync(host, "Write."));
+
+            var root = await RootRunAsync(host);
+            root.Status.ShouldBe(RunStatus.Failed);
+
+            // The failure is the wait limit's own, named for what called it.
+            var message = root.Error.ShouldNotBeNull().Message;
+            message.ShouldContain("did not respond in time", Case.Sensitive);
+            message.ShouldContain("The loop reviewer failed", Case.Sensitive);
+            message.ShouldContain("the agent's own 'SubAgents.ChildDeadline'", Case.Sensitive);
+
+            var runs = host.Services.GetRequiredService<IRunStore>();
+            var events = new List<RunEvent>();
+
+            await foreach (var runEvent in runs.ReadEventsAsync(root.Id))
+            {
+                events.Add(runEvent);
+            }
+
+            var timedOut = events.Single(static runEvent => runEvent.Type == RunEventType.ChildRunTimedOut);
+            using var timeoutPayload = JsonDocument.Parse(timedOut.Payload.ShouldNotBeNull());
+            timeoutPayload.RootElement.GetProperty("hardCutoff").GetBoolean().ShouldBe(ignoresCancellation);
+
+            // The iteration event names the reviewer run that timed out, although it never answered.
+            var iteration = (await IterationEventsAsync(host, root.Id)).ShouldHaveSingleItem();
+            iteration.GetProperty("failedCriterion").GetString().ShouldBe("agentReview");
+            iteration.GetProperty("failsRun").GetBoolean().ShouldBeTrue();
+            Criterion(iteration, 0).GetProperty("reviewer").GetProperty("runId").GetGuid()
+                .ShouldBe(timeoutPayload.RootElement.GetProperty("childRunId").GetGuid());
+        }
+        finally
+        {
+            // Let an abandoned call finish so it does not outlive the host.
+            hanging.Release("late");
+        }
+    }
+
     [Fact]
     public async Task A_loop_ceiling_ends_a_loop_whose_reviewer_never_approves()
     {
@@ -602,9 +660,11 @@ public sealed class AgentReviewLoopTests
     private static AgentDefinition WriterAgent(
         int? reviewerVersion,
         int maxIterations = 3,
-        LoopOutcome onCriterionError = LoopOutcome.ReturnLastResponse)
+        LoopOutcome onCriterionError = LoopOutcome.ReturnLastResponse,
+        SubAgentSettings? subAgents = null)
         => new()
         {
+            SubAgents = subAgents,
             Name = WriterName,
             Description = "Writes a draft until the reviewer approves it.",
             Instructions = "Write the draft.",
@@ -644,12 +704,13 @@ public sealed class AgentReviewLoopTests
 
     private static Task<TraconTestHost> StartAsync(
         FakeModelProvider writer,
-        FakeModelProvider reviewer,
+        IModelProvider reviewer,
         int maxIterations = 3,
         LoopOutcome onCriterionError = LoopOutcome.ReturnLastResponse,
         Action<TraconOptions>? configureOptions = null,
         Action<ITraconBuilder>? configureTracon = null,
-        string[]? reviewerTools = null)
+        string[]? reviewerTools = null,
+        SubAgentSettings? subAgents = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -667,7 +728,7 @@ public sealed class AgentReviewLoopTests
                     Origin = AgentDefinitionOrigin.Code,
                 });
 
-                builder.AddAgent(WriterAgent(reviewerVersion: null, maxIterations, onCriterionError));
+                builder.AddAgent(WriterAgent(reviewerVersion: null, maxIterations, onCriterionError, subAgents));
             },
             configureServices: configureOptions is null
                 ? null
