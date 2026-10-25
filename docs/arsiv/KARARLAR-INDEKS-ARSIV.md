@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1023 kalem)
+## Arşivlenen Kararlar (1024 kalem)
 
 | K | Karar |
 |---|---|
@@ -1004,7 +1004,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1003 | Süre dolunca kapanış: `WorkflowRequestExpirationService` (`SingletonGuard`, `RequestExpirationScanInterval` 1 dk, `MaxRequestExpirationsPerScan` 100) önce `ExpireAsync` ile satırı kapatır, sonra run'ı son açık satırı kapanınca kapatır: cevapsız bir istek varsa `Failed` + `WorkflowRequestExpired` (sınıf `Timeout`), hepsi cevaplıysa hata taşımayan `Completed`; run satırını OKUYUP olay sayısını, kullanımı, maliyeti geri yazar (`CompleteRunAsync` bunları değiştirir) ve yalnız hâlâ `AwaitingInput` olan run'ı kapatır; kapatılamayan run aynı süreçte her turda 10 kez denenir ve süreç satırı kapatıp run'ı kapatmadan dururse lease'i alan sonraki örnek `IWorkflowRequestStore.ListStrandedAsync` ile (kapalı satırı olan, açık satırı kalmamış, hâlâ `AwaitingInput` run) onu bulup kapatır; cevaplanıp bekleyen run K-130'un "durum geriye değişmez" cümlesine istisnadır (onay süresi aynısını `AwaitingApproval` için yapar) (F-319, Faz 209) (kullanıcı kararı) 👤 |
 | K-1004 | `RetentionTargets.WorkflowRequests` (`workflow_requests`): yalnız KAPALI satır yaşına (`closed_at`) göre silinir, açık satır silinmez ve satır sınırına sayılmaz; varsayılan 30 gün (`Tracon:Retention:WorkflowRequests`), kullanıcı verisi değildir; süre dolup run `AwaitingInput` olmaktan çıkınca K-888'in üç muafiyeti (istek olayı, checkpoint, girdi satırı) bırakır ve bir sonraki turda silinir; `RetentionTargetRegistry` yorumu "an expiry for them is F-319's scope" kalktı (F-319, Faz 209) |
 | K-1005 | Kiracı listesi `GET /api/workflows/requests` `Reader` + `RunAccess.Read` ister; run okumayı reddeden `IRunAuthorizationHandler` listeyi `403` ile REDDEDER, süzmez (K-671); `requests` adı `functions` gibi ayrılmış workflow adıdır (rota `/api/workflows/{name}`'den önce eşleşir) (F-319, Faz 209) (kullanıcı kararı) 👤 |
-| K-1006 | Cevabı okuyan akışlı yüzey Loop'lu agent'tan yalnız son iterasyonu alır (`AgentAnswerStream`); native agent SSE'si her iterasyonu akıtır (F-536, K-889 uzantısı) |
+| K-1006 | Cevabı okuyan akışlı yüzey Loop'lu agent'tan yalnız son iterasyonu alır (`AgentAnswerStream`); native agent SSE'si her iterasyonu akıtır (F-536, K-889 uzantısı) 🔁 |
 | K-1007 | Kod grafında düğüm yetenekleri iki public yardımcıyla verilir: `GetWorkflowFunction(ad[, Action<WorkflowFunctionStepOptions>])` kayıtlı fonksiyonun SAKLANAN ZİNCİRLE AYNI sarmalanmış executor'ını, `GetWorkflowAgentStep(workflow, agent[, Action<WorkflowAgentStepOptions>])` agent'ı düz bir `FunctionExecutor` adımı olarak döner; executor kimliği fonksiyon veya agent adıdır (bir grafta bir kez), `ExecutorBinding` sarmalanmaz; bilinmeyen fonksiyon ve okunamayan ayar run'ı ilk düğümden ÖNCE `Failed` bitirir; `AgentVersion` sabiti graf kurulurken değil adım koşarken, model çağrısından önce denetlenir; `GetWorkflowAgent` değişmez (F-537, Faz 211) (kullanıcı kararı) 👤 |
 | K-1008 | Workflow agent adımı (saklanan karma zincir ve `GetWorkflowAgentStep`) agent'tan akışsız cevap ister (`agent.RunAsync`): yapılandırılmış yanıt onarımı adımda çalışır, adımın alt run satırı `IsStreaming = false` yazar ve `message.completed` olayı fazladır (F-537, Faz 211) (kullanıcı kararı) 👤 |
 | K-1009 | `WorkflowFunctionOptions.MaxConcurrency` (`int?`, en az 1) fonksiyon başına, SÜREÇ başına ve kiracılara ortak slot sayısıdır; sarmalayıcı sırası `scope(retry(limit(gate(timeout(handler)))))`: her deneme slotu yeniden alır, retry gecikmesinde slot bırakılır, bütçe kapısı slot alındıktan sonra okunur, bekleme run token'ına bağlıdır (iptal ve `RunTimeout` bekleyeni bırakır) ve düğüm `Timeout`'una sayılmaz; bekleme run olayı yazmaz, `Debug` loglanır (F-538, Faz 211) |
@@ -1032,3 +1032,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1031 | SQL payload'ında sonradan gelen liste alanı null okunabilir; boş liste yazılmaz (F-588) |
 | K-1032 | Sohbet agent'ında `RequirePerServiceCallChatHistoryPersistence` serbesttir; açıksa model istemcisi sınır seam'inden geçer (F-588) 🔁 |
 | K-1033 | Tool oynatan yollar uzantıyı çalıştırmaz: replay `ExtensionNames`'i boşaltır, continuation reddeder (F-588) |
+| K-1034 | Tanınmayan içerik `tracon.content`, workflow olayı `tracon.workflow.event` olarak kaydedilir; yük gövdesizdir (F-589) |
