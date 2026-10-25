@@ -22,6 +22,8 @@ client library (`OpenAIClient.Pipeline`), which only two packages reference.
 | File | Holds |
 |---|---|
 | `OpenAIPipelineImageGenerator.cs` | The `IImageGenerator` both packages register, written over the client's pipeline instead of `ImageClient`, so a host publishes with Native AOT |
+| `OpenAIResponseSchema.cs` | The response schema as the Microsoft.Extensions.AI OpenAI client sends it: a copy of the library's `internal` rewrite, plus the lists that `IResponseSchemaSupport` returns. `StrictResponseSchemaWireTests` compares the copy with the real request body |
+| `OpenAIStrictResponseSchemaChatClient.cs` | The decorator behind `openai.strictJsonSchema` and `azure-openai.strictJsonSchema`: `strict: true` on the response format, `strict: false` on each function declaration |
 
 ## Rules
 

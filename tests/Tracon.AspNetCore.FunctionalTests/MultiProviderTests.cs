@@ -172,8 +172,9 @@ public sealed class MultiProviderTests
         var registry = host.Services.GetRequiredService<IModelProviderRegistry>();
 
         // Because Azure's extra-field-writing path is broken with the OpenAI
-        // SDK version we use, this provider offers no settings at all (K-211).
-        // It states this explicitly instead of silently ignoring the setting.
+        // SDK version we use, this provider offers one setting only: the strict
+        // response schema (K-211, Phase 245). It names the supported key instead
+        // of silently ignoring the setting.
         var exception = Should.Throw<TraconException>(() => registry.CreateChatClient(new ModelBinding
         {
             Provider = AzureOpenAIProviderNames.AzureOpenAI,
@@ -185,7 +186,7 @@ public sealed class MultiProviderTests
         }));
 
         exception.Message.ShouldContain("azure-openai.noSuchSetting");
-        exception.Message.ShouldContain("supports no extra settings");
+        exception.Message.ShouldContain($"Supported keys: {AzureOpenAIProviderNames.StrictJsonSchemaSetting}");
     }
 
     [Theory]
@@ -195,10 +196,11 @@ public sealed class MultiProviderTests
     [InlineData(CompatibleProvider + "-responses")]
     public async Task Validate_endpoint_rejects_a_setting_on_every_OpenAI_registration(string provider)
     {
-        // UseOpenAI() and UseOpenAICompatible() support no provider setting
-        // key. A key there used to be ignored silently: the agent saved, ran,
-        // and never got the behavior the author wrote. Every surface of both
-        // registrations must reject it, as Azure OpenAI already does.
+        // UseOpenAI() and UseOpenAICompatible() support one provider setting
+        // key (the strict response schema). A key of another provider used to be
+        // ignored silently: the agent saved, ran, and never got the behavior the
+        // author wrote. Every surface of both registrations must reject it, as
+        // Azure OpenAI already does.
         await using var host = await TraconTestHost.StartAsync(configureTracon: static builder => builder
             .UseOpenAI(TestKey)
             .UseOpenAICompatible(CompatibleProvider, static options =>

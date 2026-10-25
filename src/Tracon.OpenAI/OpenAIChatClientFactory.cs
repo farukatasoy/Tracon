@@ -85,7 +85,8 @@ internal sealed class OpenAIChatClientFactory
     /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// The model name cannot be resolved, or <see cref="ModelBinding.ProviderSettings"/>
-    /// contains any key.
+    /// contains a key that is not in <see cref="OpenAIProviderNames.SupportedSettings"/>, or a
+    /// supported key with a value of the wrong type.
     /// </exception>
     /// <remarks>
     /// Every provider of this package reaches this method: both surfaces of
@@ -103,8 +104,8 @@ internal sealed class OpenAIChatClientFactory
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field of the agent definition, or " +
                 $"configure '{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.DefaultModel)}'.");
 
-        // This provider supports no extra settings; every incoming key is
-        // rejected here and the error is wrapped by AgentDefinitionCompiler into
+        // Every key that is not in the supported list is rejected here and the
+        // error is wrapped by AgentDefinitionCompiler into
         // TraconCompilationException. Silently ignoring it would leave the
         // user without the behavior they expected (K-208).
         ModelProviderSettings.Validate(
@@ -112,7 +113,11 @@ internal sealed class OpenAIChatClientFactory
             OpenAIProviderNames.SettingsPrefix,
             OpenAIProviderNames.SupportedSettings);
 
-        return CreateInnerChatClient(model, apiSurface);
+        var client = CreateInnerChatClient(model, apiSurface);
+
+        return ModelProviderSettings.ReadBoolean(binding, OpenAIProviderNames.StrictJsonSchemaSetting) is true
+            ? new OpenAIStrictResponseSchemaChatClient(client)
+            : client;
     }
 
     /// <summary>Creates an image generator that shares this factory's OpenAI client.</summary>

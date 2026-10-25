@@ -113,17 +113,25 @@ The token is sent only over **HTTPS**. An Entra credential with a plain `http://
 resource address is refused at the first chat call, and the health check reports
 unhealthy without asking the credential for a token.
 
-## Provider-specific settings — none
+## Provider-specific settings
 
-This provider supports **no keys at all** in `ModelBinding.ProviderSettings`. If a
-defined key is present, the build stops with a clear error.
+This provider supports **one key** in `ModelBinding.ProviderSettings`:
+`azure-openai.strictJsonSchema` (boolean, off by default). With it on, the request
+carries `strict: true` on the response format of an agent whose `ResponseFormat` is a
+JSON schema. It reaches the response format only; the agent's tools stay non-strict.
+Strict mode needs a deployment of a model that supports structured outputs. Any other
+key stops the build with a clear error.
 
-The reason is measured: the Azure-only request fields (`AddDataSource` for
-Azure OpenAI On Your Data, and the like) were written through the Azure SDK's request
-extensions, and **all** of them threw `MissingMethodException` at runtime against the
-OpenAI SDK version in use. The package now talks to the v1 API through the plain
-OpenAI client, which has no counterpart for them. Offering a setting that doesn't
-work is worse than not offering it at all.
+The client rewrites a response schema on every request, strict or not, and
+`POST /api/agents/validate` returns the schema that goes on the wire under
+`responseSchemas`.
+
+No other setting is offered, and the reason is measured: the Azure-only request fields
+(`AddDataSource` for Azure OpenAI On Your Data, and the like) were written through the
+Azure SDK's request extensions, and **all** of them threw `MissingMethodException` at
+runtime against the OpenAI SDK version in use. The package now talks to the v1 API
+through the plain OpenAI client, which has no counterpart for them. Offering a setting
+that doesn't work is worse than not offering it at all.
 
 The `max_completion_tokens` field is already sent correctly — the OpenAI SDK uses
 this name itself (measured).

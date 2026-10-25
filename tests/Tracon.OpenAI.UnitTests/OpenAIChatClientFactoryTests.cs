@@ -130,7 +130,7 @@ public sealed class OpenAIChatClientFactoryTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void No_provider_setting_is_supported(bool responsesSurface)
+    public void Only_the_strict_schema_setting_is_supported(bool responsesSurface)
     {
         var exception = Should.Throw<TraconException>(() => CreateFactory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(("openai.unknown", true))),
@@ -138,7 +138,58 @@ public sealed class OpenAIChatClientFactoryTests
 
         exception.Message.ShouldContain("openai.unknown");
         exception.Message.ShouldContain("are not recognized");
-        exception.Message.ShouldContain("supports no extra settings");
+        exception.Message.ShouldContain($"Supported keys: {OpenAIProviderNames.StrictJsonSchemaSetting}");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void The_strict_schema_setting_is_accepted(bool responsesSurface)
+    {
+        using var client = CreateFactory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((OpenAIProviderNames.StrictJsonSchemaSetting, true))),
+            Surface(responsesSurface));
+
+        client.ShouldNotBeNull();
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void The_strict_schema_setting_wraps_the_client_only_when_it_is_on(bool strict, bool responsesSurface)
+    {
+        using var client = CreateFactory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((OpenAIProviderNames.StrictJsonSchemaSetting, strict))),
+            Surface(responsesSurface));
+
+        (client is OpenAIStrictResponseSchemaChatClient).ShouldBe(strict);
+    }
+
+    [Fact]
+    public void The_strict_schema_setting_is_read_as_text_from_a_flat_configuration_source()
+    {
+        // Environment variables and the command line carry every value as text.
+        using var client = CreateFactory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((OpenAIProviderNames.StrictJsonSchemaSetting, "true"))),
+            Surface(responses: false));
+
+        client.ShouldBeOfType<OpenAIStrictResponseSchemaChatClient>();
+    }
+
+    [Theory]
+    [InlineData("maybe")]
+    [InlineData("1")]
+    public void A_strict_schema_value_that_is_not_a_boolean_is_rejected_without_repeating_the_value(string value)
+    {
+        var exception = Should.Throw<TraconException>(() => CreateFactory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((OpenAIProviderNames.StrictJsonSchemaSetting, value))),
+            Surface(responses: false)));
+
+        exception.Message.ShouldContain(OpenAIProviderNames.StrictJsonSchemaSetting);
+        exception.Message.ShouldContain("boolean");
+        exception.Message.ShouldNotContain($"'{value}'");
     }
 
     [Theory]

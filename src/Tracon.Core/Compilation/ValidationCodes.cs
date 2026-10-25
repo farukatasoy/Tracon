@@ -63,6 +63,15 @@ internal static class ValidationCodes
     /// <summary>Validation finding <c>output_truncation_risk</c>.</summary>
     public const string OutputTruncationRisk = "output_truncation_risk";
 
+    /// <summary>Validation finding <c>response_schema_optional_required</c>.</summary>
+    public const string ResponseSchemaOptionalRequired = "response_schema_optional_required";
+
+    /// <summary>Validation finding <c>response_schema_keyword_not_enforced</c>.</summary>
+    public const string ResponseSchemaKeywordNotEnforced = "response_schema_keyword_not_enforced";
+
+    /// <summary>Validation finding <c>response_schema_strict_unsupported</c>.</summary>
+    public const string ResponseSchemaStrictUnsupported = "response_schema_strict_unsupported";
+
     /// <summary>Validation finding <c>loop_judge_unavailable</c>.</summary>
     public const string LoopJudgeUnavailable = "loop_judge_unavailable";
 

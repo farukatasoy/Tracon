@@ -29,6 +29,9 @@ loop_reviewer_version_invalid
 mcp_unreachable
 missing_parameter
 output_truncation_risk
+response_schema_keyword_not_enforced
+response_schema_optional_required
+response_schema_strict_unsupported
 sampling_field_unsupported
 sampling_unsupported
 skill_settings_without_skills

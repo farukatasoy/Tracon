@@ -137,13 +137,46 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void No_provider_setting_is_supported()
+    public void Only_the_strict_schema_setting_is_supported()
     {
         var exception = Should.Throw<TraconException>(() => Factory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(("azure-openai.noSuchSetting", true)))));
 
         exception.Message.ShouldContain("are not recognized");
-        exception.Message.ShouldContain("supports no extra settings");
+        exception.Message.ShouldContain($"Supported keys: {AzureOpenAIProviderNames.StrictJsonSchemaSetting}");
+    }
+
+    [Fact]
+    public void The_strict_schema_setting_is_accepted()
+    {
+        using var client = Factory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((AzureOpenAIProviderNames.StrictJsonSchemaSetting, true))));
+
+        client.ShouldNotBeNull();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_strict_schema_setting_wraps_the_client_only_when_it_is_on(bool strict)
+    {
+        using var client = Factory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((AzureOpenAIProviderNames.StrictJsonSchemaSetting, strict))));
+
+        (client is OpenAIStrictResponseSchemaChatClient).ShouldBe(strict);
+    }
+
+    [Theory]
+    [InlineData("maybe")]
+    [InlineData("1")]
+    public void A_strict_schema_value_that_is_not_a_boolean_is_rejected_without_repeating_the_value(string value)
+    {
+        var exception = Should.Throw<TraconException>(() => Factory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings((AzureOpenAIProviderNames.StrictJsonSchemaSetting, value)))));
+
+        exception.Message.ShouldContain(AzureOpenAIProviderNames.StrictJsonSchemaSetting);
+        exception.Message.ShouldContain("boolean");
+        exception.Message.ShouldNotContain($"'{value}'");
     }
 
     [Fact]

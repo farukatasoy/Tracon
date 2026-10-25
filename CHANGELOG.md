@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`openai.strictJsonSchema` and `azure-openai.strictJsonSchema` ask OpenAI to enforce the response schema while the
+  model generates.** Set either to `true` in `ModelBinding.ProviderSettings` (`OpenAIProviderNames.StrictJsonSchemaSetting`,
+  `AzureOpenAIProviderNames.StrictJsonSchemaSetting`; `SupportedSettings` is no longer empty). The request then carries
+  `strict: true` on the response format of an agent whose `ResponseFormat` is a JSON schema. It reaches the response
+  format only: the tools of the agent stay non-strict, and a fallback link, which receives no provider settings, is not
+  strict. The setting is off by default. `openai` reads it on both API surfaces and on every `UseOpenAICompatible()`
+  registration; a server that does not know strict mode can refuse the request.
+- **`POST /api/agents/validate` returns the response schema each provider's client sends.** The report has a new field
+  `responseSchemas`, one entry per binding and per fallback link (`provider`, `model`, `strict`, `schema`), for providers
+  that implement the new `IResponseSchemaSupport` (`OpenAI` and `Azure`). Three warnings name what differs from the schema you
+  wrote, each with JSON Pointers into it: `response_schema_optional_required` (an optional property that does not allow
+  `null` is sent as required), `response_schema_keyword_not_enforced` (a bound such as `maxLength` or `pattern` is sent
+  as description text) and `response_schema_strict_unsupported` (strict mode only: the parts OpenAI refuses with HTTP 400,
+  which are `oneOf`, `allOf`, `if`, `then`, `dependentRequired`, `dependentSchemas` and an object without
+  `additionalProperties: false`). The last one is reported for `openai` and `openai-responses` on `api.openai.com`, the
+  only service measured, and it is a warning so that it never stops a definition from being saved. The OpenAPI
+  document and both generated clients carry the new field and the three codes.
+- **`IResponseSchemaSupport` and `ResponseSchemaShape`.** An optional interface of an `IModelProvider`: given a binding and
+  the author's schema, it returns the schema the provider's client sends (`EffectiveSchema`), whether the request is strict,
+  and the three lists above. A provider that does not implement it adds nothing to the report.
+
 - **`UseGoogleSpeech` registers a Gemini text-to-speech model as the named provider `gemini`,** with
   `GoogleSpeechOptions` (`Model`, `Name`, `MaxCharactersPerRequest`, `MaxDialogueCharactersPerRequest`,
   `DialogueSpeakerMode`, `Voices`, `UseAsDefault`). One instance speaks one voice (`POST /api/voice/speak` with
@@ -497,6 +518,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that uses only one of the two, does not change.
 
 ### Fixed
+
+- **OpenAI and Azure OpenAI never received the response schema as written, and nothing showed it.** The Microsoft.Extensions.AI
+  client rewrites the schema on every request, strict or not: it closes every object, lists every property in `required`
+  (an optional property becomes required and its type does not gain `null`), and moves 22 keywords (`maxLength`, `pattern`,
+  `minimum`, `minItems` and others) out of the schema into the property's `description`. An optional `nickname` the model did
+  not know came back as `""`. The behavior is not changed; the validation report now shows it (see above).
 
 - **The A2A and MCP exposure check refuses an agent whose skill tools ask for approval.** The check read only
   the tool registry, and the skill tools are not in it, so an agent with skills was exposed and its first

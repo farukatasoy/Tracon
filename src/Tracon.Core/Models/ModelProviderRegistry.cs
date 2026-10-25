@@ -179,6 +179,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 SupportedHostedTools = provider is IHostedToolSupport hostedTools
                     ? hostedTools.SupportedHostedTools
                     : HostedToolKinds.None,
+                ResponseSchemaSupport = provider as IResponseSchemaSupport,
             });
         }
 

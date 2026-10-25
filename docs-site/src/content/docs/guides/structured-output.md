@@ -307,6 +307,64 @@ empty and the provider sends a lower default (Anthropic sends 4096 unless
 states the model's own `MaxOutputTokens`. See
 [Truncated output](/concepts/runs/#truncated-output).
 
+## The schema the provider receives
+
+OpenAI and Azure OpenAI do not receive your schema as you wrote it. The client rewrites
+it on every request, with strict mode on or off:
+
+- Every object that lists `properties` gets `additionalProperties: false`.
+- Every property goes into `required`. An optional property becomes required, and its
+  type does not gain `null`.
+- The bounds `maxLength`, `minLength`, `pattern`, `format`, `minimum`, `maximum`,
+  `multipleOf`, `minItems`, `maxItems`, `uniqueItems` and twelve more move into the
+  property's `description` as text. They are not bounds any more.
+- `default` moves into `description` too.
+
+`POST /api/agents/validate` shows the result. `responseSchemas` has one entry per
+binding and per fallback link, with `provider`, `model`, `strict` and the `schema` that
+goes on the wire. Two warnings name the differences, with a JSON Pointer into your schema:
+
+| Code | Meaning |
+|---|---|
+| `response_schema_optional_required` | An optional property that does not allow `null` is sent as required. The model must invent a value for it |
+| `response_schema_keyword_not_enforced` | A bound is sent as description text, not as a bound. The model can break it |
+
+Measured with `gpt-5.4-mini`: an optional `nickname` the model did not know came back as
+`""` in both modes. To let a property stay empty, allow `null`:
+`"nickname": { "type": ["string", "null"] }`. Your own `IStructuredResponseValidator`
+receives the schema as you wrote it, so it still enforces the bounds.
+
+### Strict mode
+
+Set `openai.strictJsonSchema` (or `azure-openai.strictJsonSchema`) to `true` in
+`providerSettings`:
+
+```json
+"model": {
+  "provider": "openai",
+  "model": "your-structured-output-model",
+  "responseFormat": { "kind": "JsonSchema", "schema": { "...": "..." } },
+  "providerSettings": { "openai.strictJsonSchema": true }
+}
+```
+
+The request then carries `strict: true` on the response format. The provider enforces
+the schema above while the model writes, so a reply follows it on the first call.
+Strict mode does not change the rewrite: it enforces the schema in `responseSchemas`.
+
+- It applies to the response format only. The agent's tools stay non-strict.
+- It does not reach a fallback link, because a link receives no provider settings.
+- It is off by default. A server behind `UseOpenAICompatible()` reads the same key and
+  can refuse a request when it does not know strict mode.
+
+OpenAI answers HTTP 400 for some schema parts in strict mode: `oneOf`, `allOf`, `if`,
+`then`, `dependentRequired`, `dependentSchemas`, and an object without
+`additionalProperties: false` (a free-form object or a map). For `openai` on
+`api.openai.com` (both API surfaces), validation reports them as the warning
+`response_schema_strict_unsupported`. It is a warning, not an error, so the definition can
+still be saved. Write `anyOf` instead of `oneOf`. Tracon does not make this check for Azure
+OpenAI or a compatible server, because their refusals are not measured.
+
 ## Design schemas for reliable extraction
 
 Keep the schema small and explicit. Mark required fields. Use
@@ -342,6 +400,8 @@ payload against your schema.
 | `IStructuredResponseValidator` | No-op by default (always valid); register your own to enforce a rule |
 | `Tracon:StructuredResponse:MaxRepairAttempts` | `0`; repair is off, an invalid response fails the run immediately |
 | Response stopped at the output limit | Fails the run as `output_truncated`; never repaired |
+| `openai.strictJsonSchema`, `azure-openai.strictJsonSchema` | `false`; no `strict` flag is sent |
+| Schema sent by OpenAI and Azure OpenAI | Rewritten on every request, strict or not; `responseSchemas` in the validation report shows it |
 
 For a streamed run, assemble the complete response before parsing JSON. Individual
 SSE text events are fragments, not standalone JSON documents.
@@ -359,6 +419,14 @@ supports the feature.
 **Validation succeeds, but the provider rejects the run.** The model was absent from
 the catalog, or the provider supports a smaller schema subset. Verify the exact API
 surface and simplify unsupported keywords.
+
+**A strict run fails with HTTP 400 and `'oneOf' is not permitted`.** OpenAI's strict
+mode refuses that keyword. Validation reports `response_schema_strict_unsupported`
+before the run. Use `anyOf`, or turn the setting off.
+
+**A property you left optional comes back empty.** The client sends every property as
+required. Allow `null` in its type, and read the `response_schema_optional_required`
+warning.
 
 **A long response fails with `output_truncated`.** The model stopped at its output
 limit. Raise `ModelBinding.MaxOutputTokens`; at high Anthropic effort, thinking

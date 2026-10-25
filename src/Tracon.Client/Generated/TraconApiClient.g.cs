@@ -18414,6 +18414,14 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("messages")]
         public System.Collections.Generic.ICollection<ValidationMessage> Messages { get; set; } = new System.Collections.Generic.List<ValidationMessage>();
 
+        /// <summary>
+        /// Gets the response schema each model provider's client sends, for a definition whose response
+        /// <br/>format is a JSON schema. It is empty when the definition has no such format, and it lists only
+        /// <br/>the providers that state their schema.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("responseSchemas")]
+        public System.Collections.Generic.ICollection<ResponseSchemaReport> ResponseSchemas { get; set; } = new System.Collections.Generic.List<ResponseSchemaReport>();
+
     }
 
     /// <summary>
@@ -23666,6 +23674,42 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("lifetime")]
         public string Lifetime { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The response schema as one model provider's client sends it to the model.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ResponseSchemaReport
+    {
+
+        /// <summary>
+        /// Gets the provider name, for example `openai`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public string Provider { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the model name of the binding or the fallback link.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public string Model { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a value that is `true` when the client asks the provider to enforce the schema while
+        /// <br/>the model generates. A fallback link is described without the primary binding's provider
+        /// <br/>settings, because the link receives none of them.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("strict")]
+        public bool Strict { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the schema the client sends. It can differ from the one in the definition: the OpenAI
+        /// <br/>clients close every object, make every property required and move bounds into `description`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("schema")]
+        public System.Text.Json.JsonElement Schema { get; set; } = default!;
 
     }
 

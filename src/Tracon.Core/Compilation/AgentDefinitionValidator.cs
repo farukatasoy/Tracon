@@ -92,6 +92,7 @@ internal sealed partial class AgentDefinitionValidator
 
         await CheckModelAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         await CheckOutputLimitsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        var responseSchemas = CheckResponseSchemas(definition, messages, cancellationToken);
 
         await CheckToolsAsync(
             definition,
@@ -123,6 +124,7 @@ internal sealed partial class AgentDefinitionValidator
             Valid = !HasError(messages),
             Inconclusive = inconclusive,
             Messages = messages,
+            ResponseSchemas = responseSchemas,
         };
     }
 

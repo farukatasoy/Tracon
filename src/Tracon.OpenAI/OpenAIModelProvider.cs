@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -22,7 +23,7 @@ namespace Tracon;
 /// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
-internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
+internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport, IResponseSchemaSupport
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
@@ -144,6 +145,28 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             | HostedToolKinds.FileSearch,
         _ => HostedToolKinds.None,
     };
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Both API surfaces and every <c>UseOpenAICompatible()</c> registration send the schema through the same
+    /// Microsoft.Extensions.AI client code, so the answer is the same for all of them. See
+    /// <see cref="OpenAIResponseSchema"/>.
+    /// </remarks>
+    public ResponseSchemaShape DescribeResponseSchema(ModelBinding binding, JsonElement schema)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+
+        return OpenAIResponseSchema.Describe(
+            schema,
+            ModelProviderSettings.ReadBoolean(binding, OpenAIProviderNames.StrictJsonSchemaSetting) is true,
+            measuredService: IsOpenAIService);
+    }
+
+    // The strict-mode refusals were measured against OpenAI itself (Phase 245). A custom address is a
+    // gateway or a compatible server, which can accept what OpenAI refuses.
+    private bool IsOpenAIService
+        => _baseOptions?.Endpoint is not { } endpoint
+            || string.Equals(endpoint.Host, "api.openai.com", StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

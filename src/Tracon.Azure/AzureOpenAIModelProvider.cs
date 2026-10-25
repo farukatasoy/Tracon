@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +21,7 @@ namespace Tracon;
 /// — there is no extra code in this package for it.
 /// </para>
 /// </remarks>
-internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
+internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport, IResponseSchemaSupport
 {
     private readonly AzureOpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<AzureOpenAIModelProvider>? _logger;
@@ -102,6 +103,20 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
     /// <c>OpenAIModelProvider</c>).
     /// </remarks>
     public HostedToolKinds SupportedHostedTools => HostedToolKinds.None;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The provider builds the same Microsoft.Extensions.AI Chat Completions client as <c>OpenAIModelProvider</c>,
+    /// so the schema is rewritten the same way. See <see cref="OpenAIResponseSchema"/>.
+    /// </remarks>
+    public ResponseSchemaShape DescribeResponseSchema(ModelBinding binding, JsonElement schema)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+
+        return OpenAIResponseSchema.Describe(
+            schema,
+            ModelProviderSettings.ReadBoolean(binding, AzureOpenAIProviderNames.StrictJsonSchemaSetting) is true);
+    }
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)
