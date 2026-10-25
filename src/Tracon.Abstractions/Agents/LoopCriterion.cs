@@ -13,7 +13,7 @@ namespace Tracon;
 /// referenced here by its registered <c>Kind</c> name alone.
 /// </para>
 /// <para>
-/// Four kinds are built in. Each reads only the fields listed for it, and
+/// Five kinds are built in. Each reads only the fields listed for it, and
 /// ignores the rest:
 /// </para>
 /// <list type="table">
@@ -45,6 +45,14 @@ namespace Tracon;
 ///     None. The loop stops once no background task is still running.
 ///     </description>
 ///   </item>
+///   <item>
+///     <term><c>agentReview</c></term>
+///     <description>
+///     <c>ReviewerAgent</c> (required) and <c>ReviewerAgentVersion</c>
+///     (optional). Another agent of the catalog reads the draft and approves it
+///     or sends feedback back. It runs as a child run of the run being evaluated.
+///     </description>
+///   </item>
 /// </list>
 /// <para>
 /// An unknown <c>Kind</c> is <strong>rejected</strong> when the agent is
@@ -56,8 +64,8 @@ public sealed record LoopCriterion
 {
     /// <summary>
     /// Gets the criterion kind: <c>completionMarker</c>, <c>todoCompletion</c>,
-    /// <c>aiJudge</c>, <c>backgroundTaskCompletion</c>, or a kind registered in
-    /// code with <c>AddLoopEvaluator</c>.
+    /// <c>aiJudge</c>, <c>backgroundTaskCompletion</c>, <c>agentReview</c>, or a kind
+    /// registered in code with <c>AddLoopEvaluator</c>.
     /// </summary>
     public required string Kind { get; init; }
 
@@ -89,4 +97,24 @@ public sealed record LoopCriterion
     /// unless the agent's own instructions establish the modes.
     /// </remarks>
     public IReadOnlyList<string> Modes { get => field ?? []; init; }
+
+    /// <summary>
+    /// Gets the name of the reviewer agent. Read by <c>agentReview</c> only, where it is required.
+    /// </summary>
+    /// <remarks>
+    /// The reviewer is an agent of the catalog, resolved on every iteration. It answers with a
+    /// JSON object, <c>{"approved": true|false, "feedback": "..."}</c>; give the reviewer that
+    /// answer shape as its own response format.
+    /// </remarks>
+    public string? ReviewerAgent { get; init; }
+
+    /// <summary>
+    /// Gets the version of the reviewer agent. Read by <c>agentReview</c> only;
+    /// <see langword="null"/> runs the reviewer's current version.
+    /// </summary>
+    /// <remarks>
+    /// The same meaning as <c>WorkflowNodeReference.AgentVersion</c>: a number of 1 or more. An agent
+    /// defined in code keeps no version history, so a version for one is refused.
+    /// </remarks>
+    public int? ReviewerAgentVersion { get; init; }
 }

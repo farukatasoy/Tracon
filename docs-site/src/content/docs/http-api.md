@@ -108,6 +108,7 @@ then still says what happened:
 | `failedCriterion` | The kind of a criterion that failed to evaluate, or `null` |
 | `ceilingReached` | `true` when the iteration ceiling ends the loop |
 | `failsRun` | `true` when this evaluation fails the run |
+| `criteria` | Every criterion evaluated in the iteration, in order, each with its `kind` and its `decision` (`stop`, `continue` or `failed`). An `aiJudge` entry adds `judge` (`provider`, `model`); an `agentReview` entry adds `reviewer` (`agentName`, `agentVersion`, `runId`). The list ends at the first criterion that continues or fails |
 
 The answer is the iteration that the last frame closes, when that frame has
 `continued: false`. When the last frame has `ceilingReached: true`, the answer is the

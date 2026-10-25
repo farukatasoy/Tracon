@@ -46,7 +46,6 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     private readonly string? _modelId;
     private readonly string? _modelProvider;
     private readonly TraconAgentGraphOptions _graphOptions;
-    private readonly int? _agentVersion;
     private readonly bool _includeAgentVersionTag;
     private readonly IRunPricingResolver? _pricingResolver;
     private readonly string? _pricingCurrency;
@@ -187,7 +186,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         _modelProvider = modelProvider;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _graphOptions = graphOptions ?? new TraconAgentGraphOptions();
-        _agentVersion = agentVersion;
+        AgentVersion = agentVersion;
         _includeAgentVersionTag = includeAgentVersionTag;
         _pricingResolver = pricingResolver;
         _quotaEnforcer = quotaEnforcer;
@@ -202,6 +201,13 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         _approvalPresenterRunner = approvalPresenterRunner;
         _pricingCurrency = pricingCurrency;
     }
+
+    /// <summary>
+    /// Gets the definition version this wrapper records on the run rows it opens, unless a run's own
+    /// <see cref="TraconRunOptions.AgentVersion"/> overrides it. <see langword="null"/> when unknown.
+    /// </summary>
+    /// <remarks>The loop's reviewer trail reads it, so it names the version the reviewer's run recorded.</remarks>
+    internal int? AgentVersion { get; }
 
     /// <inheritdoc />
     protected override async Task<AgentResponse> RunCoreAsync(

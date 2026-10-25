@@ -103,13 +103,17 @@ background tasks, or one tool for each agent. The version compare shows a change
 With harness features on, the editor shows a **Loop** panel for the agent's
 [run-until-done loop](/concepts/agents/#run-until-the-work-is-done). It adds,
 removes and reorders criteria, and sets the iteration ceiling, the fresh context
-switch and the two outcomes. The kind list comes from the host: the four
+switch and the two outcomes. The kind list comes from the host: the five
 built-in kinds and every kind registered in code, with its description. An
 `aiJudge` criterion shows the host's judge model, or says that none is
-configured. A few things the panel does on purpose:
+configured. An `agentReview` criterion shows a list of the catalog's agents, without
+the agent being edited, and a field for the reviewer's version. A few things the
+panel does on purpose:
 
 - A kind the host does not list stays in the definition, marked **Not
   registered**. It also stays when the list cannot load.
+- A reviewer the agent list does not carry stays selected as written, and the panel
+  says it is not in the catalog. **Validate** reports one that does not exist.
 - Changing a criterion's kind clears the fields the new kind does not read.
   Opening and saving a definition keeps every field as it is.
 - Turning harness features off drops the loop from the request, and the harness

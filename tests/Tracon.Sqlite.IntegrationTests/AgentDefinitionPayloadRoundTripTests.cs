@@ -273,6 +273,60 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         model.GetProperty("toolLoop").GetProperty("allowConcurrentToolCalls").GetBoolean().ShouldBeTrue();
     }
 
+    /// <summary>
+    /// Phase 242: the loop criterion rides in the harness object of the payload, so the two reviewer fields
+    /// have no mapper of their own to forget. A save that dropped either would turn a pinned reviewer into
+    /// the current one, or a review into a criterion that can never be satisfied.
+    /// </summary>
+    [Fact]
+    public async Task An_agentReview_criterion_keeps_its_reviewer_and_its_pin_through_a_save()
+    {
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition
+        {
+            Name = "reviewed-writer",
+            Model = Model(),
+            Harness = new HarnessSettings
+            {
+                Loop = new LoopSettings
+                {
+                    Criteria =
+                    [
+                        new LoopCriterion { Kind = "agentReview", ReviewerAgent = "draft-reviewer", ReviewerAgentVersion = 3 },
+                        new LoopCriterion { Kind = "agentReview", ReviewerAgent = "style-reviewer" },
+                    ],
+                },
+            },
+        });
+
+        var read = await context.AgentDefinitions.GetAsync("reviewed-writer");
+
+        var criteria = read.ShouldNotBeNull().Harness.ShouldNotBeNull().Loop.ShouldNotBeNull().Criteria;
+
+        criteria.Count.ShouldBe(2);
+        criteria[0].ReviewerAgent.ShouldBe("draft-reviewer");
+        criteria[0].ReviewerAgentVersion.ShouldBe(3);
+        criteria[1].ReviewerAgent.ShouldBe("style-reviewer");
+        criteria[1].ReviewerAgentVersion.ShouldBeNull();
+    }
+
+    /// <summary>A loop saved before Phase 242 has no reviewer keys and reads back with both null.</summary>
+    [Fact]
+    public void A_loop_criterion_written_before_the_reviewer_fields_existed_reads_back_with_no_reviewer()
+    {
+        const string legacy = """{"model":{"provider":"echo","model":"echo-1"},"harness":{"loop":{"criteria":[{"kind":"completionMarker","marker":"DONE"}]}}}""";
+
+        var payload = JsonSerializer.Deserialize(legacy, TraconJsonContext.Default.AgentDefinitionPayload);
+
+        var criterion = payload.ShouldNotBeNull()
+            .ToDefinition("legacy", 1, "default", DateTimeOffset.UtcNow)
+            .Harness.ShouldNotBeNull().Loop.ShouldNotBeNull().Criteria.ShouldHaveSingleItem();
+
+        criterion.ReviewerAgent.ShouldBeNull();
+        criterion.ReviewerAgentVersion.ShouldBeNull();
+    }
+
     private static ModelBinding Model() => new() { Provider = "echo", Model = "echo-1" };
 
     /// <summary>

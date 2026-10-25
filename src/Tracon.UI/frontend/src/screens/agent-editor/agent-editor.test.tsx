@@ -820,6 +820,7 @@ describe('AgentEditorScreen', () => {
         { kind: 'todoCompletion', builtIn: true, description: 'x' },
         { kind: 'aiJudge', builtIn: true, description: 'x' },
         { kind: 'backgroundTaskCompletion', builtIn: true, description: 'x' },
+        { kind: 'agentReview', builtIn: true, description: 'x' },
         { kind: 'reviewed', builtIn: false, description: 'The reviewer agent approves the draft.' },
       ],
       judgeModel: null,
@@ -994,6 +995,209 @@ describe('AgentEditorScreen', () => {
 
       expect(screen.queryByText(/This host does not list this kind/)).toBeNull();
       expect(screen.queryByText('Not registered')).toBeNull();
+    });
+
+    // Phase 242 (F-411): the built-in agentReview kind names a reviewer agent of the catalog.
+    describe('agentReview', () => {
+      const agents = [
+        { name: 'support', description: 'Answers support questions.', origin: 'Database' },
+        { name: 'draft-reviewer', description: 'Reviews drafts.', origin: 'Database' },
+        { name: 'style-reviewer', description: null, origin: 'Code' },
+      ];
+
+      function reviewing(extra: Record<string, unknown> = {}) {
+        return withLoop({
+          criteria: [
+            {
+              kind: 'agentReview',
+              marker: null,
+              judgeCriteria: [],
+              judgeInstructions: null,
+              modes: [],
+              reviewerAgent: null,
+              reviewerAgentVersion: null,
+              ...extra,
+            },
+          ],
+        });
+      }
+
+      it('offers the catalog agents except the agent being edited, and describes the one chosen', async () => {
+        const validate = captureValidate();
+
+        restoreFetch = installApiMock([
+          ...baseOverrides().filter((route) => route.pattern !== 'api/agents'),
+          fixture('GET', 'api/agents', agents),
+          fixture('GET', 'api/loop-criteria', catalog),
+          reviewing(),
+          validate.route,
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        const reviewer = (await screen.findByTestId('loop-criterion-reviewer-0')) as HTMLSelectElement;
+
+        await waitFor(() => expect(reviewer.options.length).toBe(3));
+        expect(Array.from(reviewer.options).map((option) => option.value)).toEqual(['', 'draft-reviewer', 'style-reviewer']);
+
+        await user.selectOptions(reviewer, 'draft-reviewer');
+        await user.type(screen.getByTestId('loop-criterion-reviewer-version-0'), '3');
+
+        expect((await screen.findByTestId('loop-criterion-reviewer-description-0')).textContent).toBe('Reviews drafts.');
+
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(validate.sent()).toMatchObject({
+            harness: { loop: { criteria: [{ kind: 'agentReview', reviewerAgent: 'draft-reviewer', reviewerAgentVersion: 3 }] } },
+          });
+        });
+      });
+
+      it('clearing the version sends null, not zero', async () => {
+        const validate = captureValidate();
+
+        restoreFetch = installApiMock([
+          ...baseOverrides().filter((route) => route.pattern !== 'api/agents'),
+          fixture('GET', 'api/agents', agents),
+          fixture('GET', 'api/loop-criteria', catalog),
+          reviewing({ reviewerAgent: 'draft-reviewer', reviewerAgentVersion: 2 }),
+          validate.route,
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        const version = (await screen.findByTestId('loop-criterion-reviewer-version-0')) as HTMLInputElement;
+
+        expect(version.value).toBe('2');
+
+        await user.clear(version);
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(validate.sent()).toMatchObject({
+            harness: { loop: { criteria: [{ kind: 'agentReview', reviewerAgent: 'draft-reviewer', reviewerAgentVersion: null }] } },
+          });
+        });
+      });
+
+      it('keeps a reviewer the list does not carry, and says so once the list has loaded', async () => {
+        const validate = captureValidate();
+
+        restoreFetch = installApiMock([
+          ...baseOverrides().filter((route) => route.pattern !== 'api/agents'),
+          fixture('GET', 'api/agents', agents),
+          fixture('GET', 'api/loop-criteria', catalog),
+          reviewing({ reviewerAgent: 'other-tenant-reviewer' }),
+          validate.route,
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        const reviewer = (await screen.findByTestId('loop-criterion-reviewer-0')) as HTMLSelectElement;
+
+        expect(reviewer.value).toBe('other-tenant-reviewer');
+        expect(await screen.findByTestId('loop-criterion-reviewer-unlisted-0')).toBeTruthy();
+
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(validate.sent()).toMatchObject({
+            harness: { loop: { criteria: [{ kind: 'agentReview', reviewerAgent: 'other-tenant-reviewer' }] } },
+          });
+        });
+      });
+
+      it('keeps the reviewer when the agent list fails to load', async () => {
+        restoreFetch = installApiMock([
+          ...baseOverrides().filter((route) => route.pattern !== 'api/agents'),
+          fixture('GET', 'api/agents', { title: 'Boom', status: 500 }, 500),
+          fixture('GET', 'api/loop-criteria', catalog),
+          reviewing({ reviewerAgent: 'draft-reviewer' }),
+        ]);
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        const reviewer = (await screen.findByTestId('loop-criterion-reviewer-0')) as HTMLSelectElement;
+
+        expect(reviewer.value).toBe('draft-reviewer');
+        // Nothing is said about the agent not existing while the list is unavailable.
+        expect(screen.queryByTestId('loop-criterion-reviewer-unlisted-0')).toBeNull();
+      });
+
+      it('a kind change clears the reviewer fields, and choosing agentReview again starts empty', async () => {
+        const validate = captureValidate();
+
+        restoreFetch = installApiMock([
+          ...baseOverrides().filter((route) => route.pattern !== 'api/agents'),
+          fixture('GET', 'api/agents', agents),
+          fixture('GET', 'api/loop-criteria', catalog),
+          reviewing({ reviewerAgent: 'draft-reviewer', reviewerAgentVersion: 2 }),
+          validate.route,
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        await user.selectOptions(await screen.findByTestId('loop-criterion-kind-0'), 'aiJudge');
+        expect(screen.queryByTestId('loop-criterion-reviewer-0')).toBeNull();
+
+        await user.selectOptions(screen.getByTestId('loop-criterion-kind-0'), 'agentReview');
+        expect((screen.getByTestId('loop-criterion-reviewer-0') as HTMLSelectElement).value).toBe('');
+        expect((screen.getByTestId('loop-criterion-reviewer-version-0') as HTMLInputElement).value).toBe('');
+
+        await user.selectOptions(screen.getByTestId('loop-criterion-kind-0'), 'completionMarker');
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(validate.sent()).toMatchObject({
+            harness: { loop: { criteria: [{ kind: 'completionMarker', reviewerAgent: null, reviewerAgentVersion: null }] } },
+          });
+        });
+      });
+
+      it('loading and saving keep the reviewer fields of a kind that does not read them', async () => {
+        // K-918: only a kind CHANGE clears. A definition written over the API with a reviewer on another kind survives a save.
+        const validate = captureValidate();
+
+        restoreFetch = installApiMock([
+          ...baseOverrides(),
+          fixture('GET', 'api/loop-criteria', catalog),
+          withLoop({
+            criteria: [
+              {
+                kind: 'completionMarker',
+                marker: 'DONE',
+                judgeCriteria: [],
+                judgeInstructions: null,
+                modes: [],
+                reviewerAgent: 'draft-reviewer',
+                reviewerAgentVersion: 4,
+              },
+            ],
+          }),
+          validate.route,
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        await user.click(await screen.findByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(validate.sent()).toMatchObject({
+            harness: { loop: { criteria: [{ kind: 'completionMarker', reviewerAgent: 'draft-reviewer', reviewerAgentVersion: 4 }] } },
+          });
+        });
+      });
     });
 
     it('drops blank judge criteria lines once the field is left', async () => {

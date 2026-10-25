@@ -53,6 +53,7 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly string _deadlineSetting;
     private readonly int? _pinnedVersion;
     private readonly bool _hostsApproval;
+    private readonly string _callKind;
 
     /// <summary>Creates a new sub-agent wrapper.</summary>
     /// <param name="resolver">Resolver that resolves the sub-agent from the catalog.</param>
@@ -101,6 +102,10 @@ public sealed class ChildAgentInvoker : AIAgent
     /// closes <see cref="RunStatus.AwaitingApproval"/>. <see langword="false"/> (the default) refuses the approval: an agent
     /// tree cannot wait in its middle, and neither can a step that is a plain function executor.
     /// </param>
+    /// <param name="callKind">
+    /// What kind of caller a refusal that fails names (<see cref="ChildRefusalMode.Fail"/>): a
+    /// <c>"workflow step"</c> (the default) or the <c>"loop reviewer"</c> of an <c>agentReview</c> criterion.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
@@ -120,7 +125,8 @@ public sealed class ChildAgentInvoker : AIAgent
         ParameterizedAgentFactory? parameterFactory = null,
         string? deadlineSetting = null,
         int? pinnedVersion = null,
-        bool hostsApproval = false)
+        bool hostsApproval = false,
+        string? callKind = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -159,6 +165,7 @@ public sealed class ChildAgentInvoker : AIAgent
         _parameterFactory = parameterFactory;
         _pinnedVersion = pinnedVersion;
         _hostsApproval = hostsApproval;
+        _callKind = callKind ?? "workflow step";
         _deadlineSetting = deadlineSetting ?? "'Tracon:AgentGraph:ChildDeadline'";
     }
 
@@ -218,6 +225,9 @@ public sealed class ChildAgentInvoker : AIAgent
 
         var (agent, stepValues) = await ResolveForRunAsync(scope!, cancellationToken).ConfigureAwait(false);
         var childOptions = CreateChildOptions(scope!, stepValues, options);
+
+        // Before the child starts: a call that times out or fails still names the run it opened.
+        ChildRunReport.Fill(options, childOptions.RunId, agent);
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
@@ -311,6 +321,9 @@ public sealed class ChildAgentInvoker : AIAgent
 
         var (agent, stepValues) = await ResolveForRunAsync(scope!, cancellationToken).ConfigureAwait(false);
         var childOptions = CreateChildOptions(scope!, stepValues, options);
+
+        // Before the child starts: a call that times out or fails still names the run it opened.
+        ChildRunReport.Fill(options, childOptions.RunId, agent);
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
@@ -736,7 +749,7 @@ public sealed class ChildAgentInvoker : AIAgent
         => _refusalMode == ChildRefusalMode.Fail
             ? new(
                 $"Agent '{_childName}' could not complete: tool '{toolNames}' requires user approval. " +
-                "A workflow step cannot wait for a tool approval. Define an auto-approval rule for this " +
+                $"A {_callKind} cannot wait for a tool approval. Define an auto-approval rule for this " +
                 "tool, or restrict the agent to tools that do not require approval.")
             : new(
                 $"Agent '{_childName}' could not complete: tool '{toolNames}' requires user approval. " +
@@ -748,7 +761,7 @@ public sealed class ChildAgentInvoker : AIAgent
         => _refusalMode == ChildRefusalMode.Fail
             ? new(
                 $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}, set by " +
-                $"{_deadlineSetting}). The workflow step failed; its eventual result, if any, is discarded.",
+                $"{_deadlineSetting}). The {_callKind} failed; its eventual result, if any, is discarded.",
                 ChildRefusalCause.Timeout)
             : new(
                 $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}). The tree " +

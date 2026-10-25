@@ -22014,8 +22014,8 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Gets the criterion kind: `completionMarker`, `todoCompletion`,
-        /// <br/>`aiJudge`, `backgroundTaskCompletion`, or a kind registered in
-        /// <br/>code with `AddLoopEvaluator`.
+        /// <br/>`aiJudge`, `backgroundTaskCompletion`, `agentReview`, or a kind
+        /// <br/>registered in code with `AddLoopEvaluator`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
         public string Kind { get; set; } = default!;
@@ -22047,6 +22047,19 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("modes")]
         public System.Collections.Generic.ICollection<string> Modes { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
+        /// Gets the name of the reviewer agent. Read by `agentReview` only, where it is required.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("reviewerAgent")]
+        public string? ReviewerAgent { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the version of the reviewer agent. Read by `agentReview` only;
+        /// <br/>`null` runs the reviewer's current version.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("reviewerAgentVersion")]
+        public int? ReviewerAgentVersion { get; set; } = default!;
 
     }
 

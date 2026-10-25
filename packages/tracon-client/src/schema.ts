@@ -5098,8 +5098,8 @@ export interface components {
         LoopCriterion: {
             /**
              * @description Gets the criterion kind: `completionMarker`, `todoCompletion`,
-             *     `aiJudge`, `backgroundTaskCompletion`, or a kind registered in
-             *     code with `AddLoopEvaluator`.
+             *     `aiJudge`, `backgroundTaskCompletion`, `agentReview`, or a kind
+             *     registered in code with `AddLoopEvaluator`.
              */
             kind: string;
             /**
@@ -5122,6 +5122,14 @@ export interface components {
              *     `todoCompletion` only.
              */
             modes?: string[];
+            /** @description Gets the name of the reviewer agent. Read by `agentReview` only, where it is required. */
+            reviewerAgent?: null | string;
+            /**
+             * Format: int32
+             * @description Gets the version of the reviewer agent. Read by `agentReview` only;
+             *     `null` runs the reviewer's current version.
+             */
+            reviewerAgentVersion?: null | number | string;
         };
         /**
          * @description Response for `GET {prefix}/api/loop-criteria`: the loop criterion kinds a

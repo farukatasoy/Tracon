@@ -21,6 +21,11 @@ loop_judge_unconfigured
 loop_marker_missing
 loop_max_iterations_invalid
 loop_outcome_invalid
+loop_reviewer_missing
+loop_reviewer_not_found
+loop_reviewer_self
+loop_reviewer_verdict_unknown
+loop_reviewer_version_invalid
 mcp_unreachable
 missing_parameter
 output_truncation_risk

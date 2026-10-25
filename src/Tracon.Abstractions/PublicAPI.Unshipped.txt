@@ -1732,6 +1732,10 @@ Tracon.LoopCriterion.Marker.get -> string?
 Tracon.LoopCriterion.Marker.init -> void
 Tracon.LoopCriterion.Modes.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.LoopCriterion.Modes.init -> void
+Tracon.LoopCriterion.ReviewerAgent.get -> string?
+Tracon.LoopCriterion.ReviewerAgent.init -> void
+Tracon.LoopCriterion.ReviewerAgentVersion.get -> int?
+Tracon.LoopCriterion.ReviewerAgentVersion.init -> void
 Tracon.LoopSettings
 Tracon.LoopSettings.<Clone>$() -> Tracon.LoopSettings!
 Tracon.LoopSettings.Criteria.get -> System.Collections.Generic.IReadOnlyList<Tracon.LoopCriterion!>!

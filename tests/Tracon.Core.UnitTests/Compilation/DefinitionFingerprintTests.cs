@@ -42,6 +42,28 @@ public sealed class DefinitionFingerprintTests
     }
 
     [Fact]
+    public void A_changed_loop_reviewer_or_its_version_pin_changes_the_fingerprint()
+    {
+        // The compiled loop holds the reviewer's NAME and pin. An entry compiled for one reviewer must not
+        // serve an agent whose definition now names another, or the same one at another version.
+        static AgentDefinition Reviewed(string reviewer, int? version) => TestData.Definition("a") with
+        {
+            Harness = new HarnessSettings
+            {
+                Loop = new LoopSettings
+                {
+                    Criteria = [new LoopCriterion { Kind = "agentReview", ReviewerAgent = reviewer, ReviewerAgentVersion = version }],
+                },
+            },
+        };
+
+        var before = AgentDefinitionCompiler.CreateDefinitionFingerprint(Reviewed("draft-reviewer", null));
+
+        AgentDefinitionCompiler.CreateDefinitionFingerprint(Reviewed("style-reviewer", null)).ShouldNotBe(before, StringComparer.Ordinal);
+        AgentDefinitionCompiler.CreateDefinitionFingerprint(Reviewed("draft-reviewer", 2)).ShouldNotBe(before, StringComparer.Ordinal);
+    }
+
+    [Fact]
     public void A_changed_sub_agent_call_mode_changes_the_fingerprint()
     {
         // The mode decides which tools the compiled agent carries. A cache entry compiled for

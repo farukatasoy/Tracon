@@ -39,6 +39,11 @@ namespace Tracon;
 /// <c>yield return</c> (TRC0501).
 /// </para>
 /// <para>
+/// The judge call also names the model that answered to the loop criterion being evaluated
+/// (<see cref="AgentRunScope.CriterionTrail"/>), which is how the iteration event reports the model
+/// the call really used.
+/// </para>
+/// <para>
 /// The accumulator is read from <see cref="TraconRunContext"/> once, when the
 /// call starts — the wrapper is part of a compiled agent that is cached across
 /// runs, so nothing run-specific is captured at construction.
@@ -110,6 +115,7 @@ internal sealed class SideChannelUsageTrackingChatClient : DelegatingChatClient
 
         var (provider, model) = AnsweringModel(answeredBy);
         accumulator?.Add(response.Usage, provider, model);
+        RecordJudge(scope, provider, model);
 
         if (activity is not null && response.Usage is { } usage)
         {
@@ -176,6 +182,19 @@ internal sealed class SideChannelUsageTrackingChatClient : DelegatingChatClient
             // reported so far are already spent.
             var (provider, model) = AnsweringModel(answeredBy);
             accumulator?.Add(usage, provider, model);
+            RecordJudge(scope, provider, model);
+        }
+    }
+
+    /// <summary>
+    /// Hands the model that answered a judge call to the criterion being evaluated, so the loop's
+    /// audit trail names the model the call really used and not the binding it was configured with.
+    /// </summary>
+    private void RecordJudge(AgentRunScope? scope, string provider, string model)
+    {
+        if (!_tracesCompaction)
+        {
+            scope?.CriterionTrail?.RecordJudge(provider, model);
         }
     }
 

@@ -90,6 +90,21 @@ internal static class ValidationCodes
     /// <summary>Validation finding <c>loop_judge_unconfigured</c>.</summary>
     public const string LoopJudgeUnconfigured = "loop_judge_unconfigured";
 
+    /// <summary>Validation finding <c>loop_reviewer_missing</c>.</summary>
+    public const string LoopReviewerMissing = "loop_reviewer_missing";
+
+    /// <summary>Validation finding <c>loop_reviewer_self</c>.</summary>
+    public const string LoopReviewerSelf = "loop_reviewer_self";
+
+    /// <summary>Validation finding <c>loop_reviewer_version_invalid</c>.</summary>
+    public const string LoopReviewerVersionInvalid = "loop_reviewer_version_invalid";
+
+    /// <summary>Validation finding <c>loop_reviewer_not_found</c>.</summary>
+    public const string LoopReviewerNotFound = "loop_reviewer_not_found";
+
+    /// <summary>Validation finding <c>loop_reviewer_verdict_unknown</c>.</summary>
+    public const string LoopReviewerVerdictUnknown = "loop_reviewer_verdict_unknown";
+
     /// <summary>Validation finding <c>sub_agent_tool_name_conflict</c>.</summary>
     public const string SubAgentToolNameConflict = "sub_agent_tool_name_conflict";
 

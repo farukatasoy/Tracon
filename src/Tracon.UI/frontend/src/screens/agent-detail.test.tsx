@@ -58,7 +58,10 @@ describe('AgentDetailScreen read-only notice', () => {
       callableAgentNames: [],
       harness: {
         loop: {
-          criteria: [{ kind: 'completionMarker', marker: 'DONE', judgeCriteria: [], judgeInstructions: null, modes: [] }],
+          criteria: [
+            { kind: 'completionMarker', marker: 'DONE', judgeCriteria: [], judgeInstructions: null, modes: [] },
+            { kind: 'agentReview', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [], reviewerAgent: 'draft-reviewer', reviewerAgentVersion: 3 },
+          ],
           maxIterations,
           freshContextPerIteration: false,
           onExhausted: 'FailRun',
@@ -107,6 +110,7 @@ describe('AgentDetailScreen read-only notice', () => {
     const criteria = rows.find((row) => row.textContent?.startsWith('Criteria'));
 
     expect(criteria?.textContent).toContain('1. completionMarker (marker=DONE)');
+    expect(criteria?.textContent).toContain('2. agentReview (reviewerAgent=draft-reviewer, reviewerAgentVersion=3)');
     expect(criteria?.className ?? '').not.toContain('bg-warn-soft');
   });
 

@@ -399,7 +399,9 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IOptions<TraconOptions>>(),
             // When not registered, Tracon.Mcp is not in use; missing tool
             // names are reported directly as an error without attempting a fresh MCP scan.
-            provider.GetService<IMcpToolRefresher>()));
+            provider.GetService<IMcpToolRefresher>(),
+            // A loop reviewer's version pin is looked up here, the way a workflow node's is.
+            provider.GetService<IAgentDefinitionStore>()));
 
         // Audit trail. The actor is read from AuditActorContext (AsyncLocal);
         // Tracon.AspNetCore writes HttpContext.User there at the start of

@@ -142,9 +142,11 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
       // todoCompletion modes it offers no control for, and a kind registered in
       // code all come back exactly as loaded.
       criteria: [
-        { kind: 'aiJudge', marker: 'IGNORED BY AIJUDGE', judgeCriteria: ['Covers the source text'], judgeInstructions: 'Be strict.', modes: [] },
-        { kind: 'todoCompletion', marker: null, judgeCriteria: [], judgeInstructions: null, modes: ['plan', 'execute'] },
-        { kind: 'hasCitations', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] },
+        { kind: 'aiJudge', marker: 'IGNORED BY AIJUDGE', judgeCriteria: ['Covers the source text'], judgeInstructions: 'Be strict.', modes: [], reviewerAgent: null, reviewerAgentVersion: null },
+        { kind: 'todoCompletion', marker: null, judgeCriteria: [], judgeInstructions: null, modes: ['plan', 'execute'], reviewerAgent: null, reviewerAgentVersion: null },
+        { kind: 'hasCitations', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [], reviewerAgent: null, reviewerAgentVersion: null },
+        // Phase 242: the reviewer and its version pin come back exactly as loaded.
+        { kind: 'agentReview', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [], reviewerAgent: 'billing', reviewerAgentVersion: 2 },
       ],
       maxIterations: 3,
       freshContextPerIteration: true,

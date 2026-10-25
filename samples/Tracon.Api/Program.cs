@@ -679,6 +679,8 @@ tracon
 // /api/loop-criteria), and an operator can put it into any agent's loop.
 // "reviewed-writer" below uses it; with no OpenAI key both agents run on the
 // local echo provider, whose reviewer fails round 1 and passes round 2.
+// "reviewed-writer-builtin" does the same job with the built-in agentReview
+// kind (Phase 242): the loop names a reviewer agent and nothing else.
 #pragma warning disable MAAI001 // The loop types are "for evaluation purposes only".
 tracon.AddLoopEvaluator(
     DraftReviewCriterion.Kind,
@@ -737,6 +739,63 @@ tracon
                 },
             }
             : new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoReviewerModel },
+    })
+    .AddAgent(new AgentDefinition
+    {
+        // The reviewer of the built-in agentReview kind (Phase 242). The criterion reads one shape, a JSON object
+        // with a boolean "approved" and a string "feedback", so the reviewer's OWN definition carries it as its
+        // response format. "draft-reviewer" above answers another shape for the criterion written in code; one
+        // agent that served both would have to carry both, so this one stands apart.
+        Name = "draft-approver",
+        DisplayName = "Draft Approver",
+        Description = "Approves or declines a draft and answers with a JSON verdict. The built-in agentReview criterion reads it.",
+        Instructions = "You receive a request and a draft. Approve the draft when it starts with a '# ' heading " +
+                       "and answers the request. Otherwise decline it and say in 'feedback' what to change. " +
+                       "Answer ONLY with a JSON object: {\"approved\": true or false, \"feedback\": string}.",
+        Model = openAiEnabled
+            ? model with
+            {
+                ResponseFormat = new AgentResponseFormat
+                {
+                    Kind = AgentResponseFormatKind.JsonSchema,
+                    SchemaName = "approval_verdict",
+                    Schema = JsonDocument.Parse(
+                        """
+                        {
+                          "type": "object",
+                          "properties": {
+                            "approved": { "type": "boolean" },
+                            "feedback": { "type": "string" }
+                          },
+                          "required": ["approved", "feedback"],
+                          "additionalProperties": false
+                        }
+                        """).RootElement.Clone(),
+                },
+            }
+            : new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoApproverModel },
+    })
+    .AddAgent(new AgentDefinition
+    {
+        Name = "reviewed-writer-builtin",
+        DisplayName = "Reviewed Writer (built-in review demo)",
+        Description = "Writes a short draft and revises it until the draft-approver agent approves it. Its loop uses the built-in agentReview criterion.",
+        Instructions = "Write a short draft that answers the request. Start it with a '# ' heading. " +
+                       "When you receive the reviewer's feedback, revise the draft to fix it.",
+        Model = model,
+        Harness = new HarnessSettings
+        {
+            // No harness tools: the loop needs none, and the echo model calls none.
+            DisableTodoProvider = true,
+            DisableAgentSkillsProvider = true,
+            DisableAgentModeProvider = true,
+            Loop = new LoopSettings
+            {
+                Criteria = [new LoopCriterion { Kind = "agentReview", ReviewerAgent = "draft-approver" }],
+                MaxIterations = 3,
+                OnExhausted = LoopOutcome.FailRun,
+            },
+        },
     })
     .AddAgent(new AgentDefinition
     {

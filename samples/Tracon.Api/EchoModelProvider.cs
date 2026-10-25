@@ -57,6 +57,17 @@ internal sealed class EchoModelProvider : IModelProvider
             SupportsTools = false,
         },
 
+        // Answers as the reviewer of the built-in agentReview criterion: a declining verdict on the first
+        // iteration, an approving one after. A loop that runs on it takes exactly two iterations.
+        new ModelDescriptor
+        {
+            Name = EchoApproverModel,
+            DisplayName = "Echo draft approver (local, no network)",
+            ContextWindowTokens = 8_192,
+            MaxOutputTokens = 1_024,
+            SupportsTools = false,
+        },
+
         // Answers as the writer of the review-and-revise workflow: a JSON script, a revised one when the message asks
         // for a revision, and a script over the length limit when the brief says "#long".
         new ModelDescriptor
@@ -74,6 +85,9 @@ internal sealed class EchoModelProvider : IModelProvider
 
     /// <summary>The model that answers with a review verdict: fail on round 1, pass after.</summary>
     public const string EchoReviewerModel = "echo-reviewer-1";
+
+    /// <summary>The model that answers with an approval verdict: declined on iteration 1, approved after.</summary>
+    public const string EchoApproverModel = "echo-approver-1";
 
     /// <summary>The model that writes the script of the review-and-revise workflow as JSON.</summary>
     public const string EchoWriterModel = "echo-writer-1";
@@ -138,6 +152,13 @@ internal sealed class EchoModelProvider : IModelProvider
                 return text.Contains("Round 1.", StringComparison.Ordinal)
                     ? """{"decision":"fail","findings":[{"issue":"The draft has no heading.","fix":"Start the draft with a '# ' heading."}]}"""
                     : """{"decision":"pass","findings":[]}""";
+            }
+
+            if (string.Equals(_modelId, EchoApproverModel, StringComparison.Ordinal))
+            {
+                return text.Contains("Iteration: 1\n", StringComparison.Ordinal)
+                    ? """{"approved":false,"feedback":"The draft has no heading. Start the draft with a '# ' heading."}"""
+                    : """{"approved":true,"feedback":""}""";
             }
 
             if (string.Equals(_modelId, EchoWriterModel, StringComparison.Ordinal))

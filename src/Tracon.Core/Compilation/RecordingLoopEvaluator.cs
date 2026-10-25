@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -88,6 +89,14 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// the callback receives it as recorded.
 /// </para>
 /// <para>
+/// <strong>The event says who decided.</strong> Besides the criterion that asked for another iteration,
+/// the event lists every criterion that was evaluated, in order, with its decision, and names the
+/// model an <c>aiJudge</c> really called and the agent and run of an <c>agentReview</c>. A criterion
+/// hands that identity back through <see cref="LoopCriterionTrail"/>, because its own ambient writes do
+/// not flow back to this method. Only identities are written, never the judge's reasoning, the
+/// reviewer's answer or the feedback.
+/// </para>
+/// <para>
 /// The evaluator holds no state between calls; every decision is made from the
 /// <see cref="LoopContext"/> it is given, and the usage sum lives in that context's
 /// <see cref="LoopContext.AdditionalProperties"/>, so concurrent runs of one
@@ -156,10 +165,20 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         string? continuedBy = null;
         string? failedCriterion = null;
         ExceptionDispatchInfo? criterionError = null;
+        var verdicts = new List<LoopCriterionVerdictPayload>(Criteria.Count);
+        var runScope = TraconRunContext.Current;
 
         foreach (var criterion in Criteria)
         {
             LoopEvaluation evaluation;
+            var trail = new LoopCriterionTrail();
+
+            // In this method's own body: the write flows down into the criterion's call and is not
+            // handed back to our caller. The criterion hands its identity back through the holder.
+            if (runScope is not null)
+            {
+                TraconRunContext.SetCurrent(runScope with { CriterionTrail = trail });
+            }
 
             try
             {
@@ -174,6 +193,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                 // timeout (TaskCanceledException with our token intact) is one
                 // (K-840).
                 failedCriterion = criterion.Kind;
+                verdicts.Add(Verdict(criterion.Kind, LoopCriterionVerdictPayload.Failed, trail));
 
                 if (_onCriterionError == LoopOutcome.FailRun)
                 {
@@ -203,6 +223,11 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                 break;
             }
 
+            verdicts.Add(Verdict(
+                criterion.Kind,
+                evaluation.ShouldReinvoke ? LoopCriterionVerdictPayload.Continue : LoopCriterionVerdictPayload.Stop,
+                trail));
+
             if (evaluation.ShouldReinvoke)
             {
                 continuation = evaluation;
@@ -210,6 +235,9 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                 break;
             }
         }
+
+        // The copy was for the criteria's calls. What follows reads the run's own scope again.
+        TraconRunContext.SetCurrent(runScope);
 
         // Default mode: the framework evaluates after every turn EXCEPT the one
         // that reaches the ceiling, so this is the last chance to record that the
@@ -223,7 +251,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         var failsRun = exhausted || criterionError is not null;
 
         var recorded = await WriteIterationEventAsync(
-                context, continuedBy, continuation, failedCriterion, ceilingReached, failsRun, cancellationToken)
+                context, continuedBy, continuation, failedCriterion, ceilingReached, failsRun, verdicts, cancellationToken)
             .ConfigureAwait(false);
 
         if (failsRun)
@@ -291,6 +319,33 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         return total;
     }
 
+    /// <summary>The reviewers that approved a stopped iteration, as the event text names them; empty when there was none.</summary>
+    private static string ApprovedNote(List<LoopCriterionVerdictPayload> verdicts)
+    {
+        var reviewers = verdicts
+            .Where(static verdict => verdict.Reviewer is not null)
+            .Select(static verdict => Describe(verdict.Reviewer!))
+            .ToArray();
+
+        return reviewers.Length == 0 ? string.Empty : $" (approved by {string.Join(", ", reviewers)})";
+    }
+
+    private static string Describe(LoopReviewerPayload reviewer)
+        => reviewer.AgentVersion is { } version
+            ? string.Create(CultureInfo.InvariantCulture, $"reviewer '{reviewer.AgentName}' v{version}")
+            : $"reviewer '{reviewer.AgentName}'";
+
+    private static LoopCriterionVerdictPayload Verdict(string kind, string decision, LoopCriterionTrail trail)
+        => new()
+        {
+            Kind = kind,
+            Decision = decision,
+            Judge = trail.Judge is { } judge ? new LoopJudgePayload { Provider = judge.Provider, Model = judge.Model } : null,
+            Reviewer = trail.Reviewer is { } reviewer
+                ? new LoopReviewerPayload { AgentName = reviewer.AgentName, AgentVersion = reviewer.AgentVersion, RunId = reviewer.RunId }
+                : null,
+        };
+
     /// <summary>Writes the iteration's event to the run's record.</summary>
     /// <returns>
     /// The recorded event, or <see langword="null"/> when the run has no event writer or the writer could not store
@@ -303,6 +358,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         string? failedCriterion,
         bool ceilingReached,
         bool failsRun,
+        List<LoopCriterionVerdictPayload> verdicts,
         CancellationToken cancellationToken)
     {
         if (TraconRunContext.Current?.Writer is not { } writer)
@@ -322,30 +378,39 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                 FailedCriterion = failedCriterion,
                 CeilingReached = ceilingReached,
                 FailsRun = failsRun,
+                Criteria = verdicts,
             },
             TraconCoreJsonContext.Default.LoopIterationCompletedEventPayload);
+
+        // The criterion that decided is the last one evaluated: evaluation stops at the first that
+        // continues or fails, and only an all-stop iteration evaluates every criterion.
+        var deciderNote = verdicts.Count > 0 && verdicts[^1].Reviewer is { } decider
+            ? $" ({Describe(decider)})"
+            : string.Empty;
 
         var text = failedCriterion is not null
             ? failsRun
                 ? string.Create(
                     CultureInfo.InvariantCulture,
-                    $"iteration {context.Iteration} stopped: criterion '{failedCriterion}' failed and fails the run")
+                    $"iteration {context.Iteration} stopped: criterion '{failedCriterion}'{deciderNote} failed and fails the run")
                 : string.Create(
                     CultureInfo.InvariantCulture,
-                    $"iteration {context.Iteration} stopped: criterion '{failedCriterion}' failed")
+                    $"iteration {context.Iteration} stopped: criterion '{failedCriterion}'{deciderNote} failed")
             : ceilingReached
                 ? failsRun
                     ? string.Create(
                         CultureInfo.InvariantCulture,
-                        $"iteration {context.Iteration} continued by '{continuedBy}'; the iteration ceiling ends the loop and fails the run")
+                        $"iteration {context.Iteration} continued by '{continuedBy}'{deciderNote}; the iteration ceiling ends the loop and fails the run")
                     : string.Create(
                         CultureInfo.InvariantCulture,
-                        $"iteration {context.Iteration} continued by '{continuedBy}'; the iteration ceiling ends the loop")
+                        $"iteration {context.Iteration} continued by '{continuedBy}'{deciderNote}; the iteration ceiling ends the loop")
                 : continuedBy is not null
                     ? string.Create(
                         CultureInfo.InvariantCulture,
-                        $"iteration {context.Iteration} continued by '{continuedBy}'")
-                    : string.Create(CultureInfo.InvariantCulture, $"iteration {context.Iteration} stopped");
+                        $"iteration {context.Iteration} continued by '{continuedBy}'{deciderNote}")
+                    : string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"iteration {context.Iteration} stopped{ApprovedNote(verdicts)}");
 
         var runEvent = await writer.AppendAsync(
             new RunEventDraft(RunEventType.LoopIterationCompleted)
@@ -403,4 +468,65 @@ internal sealed record LoopIterationCompletedEventPayload
     /// or a criterion threw with <see cref="LoopSettings.OnCriterionError"/> set to it.
     /// </summary>
     public required bool FailsRun { get; init; }
+
+    /// <summary>
+    /// Gets every criterion that was evaluated this iteration, in order, with its decision. Evaluation
+    /// stops at the first criterion that asks for another iteration or fails, so the list ends there.
+    /// </summary>
+    public required IReadOnlyList<LoopCriterionVerdictPayload> Criteria { get; init; }
+}
+
+/// <summary>One evaluated criterion in a <see cref="LoopIterationCompletedEventPayload"/>.</summary>
+internal sealed record LoopCriterionVerdictPayload
+{
+    /// <summary>The <see cref="Decision"/> of a criterion that was satisfied.</summary>
+    internal const string Stop = "stop";
+
+    /// <summary>The <see cref="Decision"/> of a criterion that asked for another iteration.</summary>
+    internal const string Continue = "continue";
+
+    /// <summary>The <see cref="Decision"/> of a criterion that failed to evaluate.</summary>
+    internal const string Failed = "failed";
+
+    /// <summary>Gets the criterion's kind, as the definition names it.</summary>
+    public required string Kind { get; init; }
+
+    /// <summary>Gets what the criterion decided: <c>stop</c>, <c>continue</c> or <c>failed</c>.</summary>
+    public required string Decision { get; init; }
+
+    /// <summary>
+    /// Gets the model an <c>aiJudge</c> criterion called, or <see langword="null"/> for any other kind and
+    /// when the judge call did not answer.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LoopJudgePayload? Judge { get; init; }
+
+    /// <summary>
+    /// Gets the reviewer an <c>agentReview</c> criterion asked, or <see langword="null"/> for any other kind.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LoopReviewerPayload? Reviewer { get; init; }
+}
+
+/// <summary>The model a judge call really used: the fallback link when one stood in for the configured model.</summary>
+internal sealed record LoopJudgePayload
+{
+    /// <summary>Gets the provider that answered.</summary>
+    public required string Provider { get; init; }
+
+    /// <summary>Gets the model that answered.</summary>
+    public required string Model { get; init; }
+}
+
+/// <summary>The agent that reviewed a draft, and the child run it executed in.</summary>
+internal sealed record LoopReviewerPayload
+{
+    /// <summary>Gets the reviewer agent's name.</summary>
+    public required string AgentName { get; init; }
+
+    /// <summary>Gets the definition version the reviewer's run recorded, or <see langword="null"/> when no run started.</summary>
+    public required int? AgentVersion { get; init; }
+
+    /// <summary>Gets the reviewer's child run, or <see langword="null"/> when the call was refused before a run started.</summary>
+    public required Guid? RunId { get; init; }
 }
