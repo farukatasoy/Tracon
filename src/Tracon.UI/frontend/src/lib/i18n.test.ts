@@ -155,6 +155,8 @@ describe('catalogues', () => {
       'triggers.secret',
       'triggers.targetKind.agent',
       'triggers.targetKind.workflow',
+      // `reviewer` and `agent` both stay English by the project's language rule; the label is nothing else.
+      'agentEditor.loop.reviewerAgent',
     ]);
 
     for (const key of keys) {
