@@ -257,6 +257,7 @@
 | 241 | Native Agent Akışında Loop İterasyon Sınırı | hafif | ✅ | 2026-10-25 | F-544 | `1896bc24:docs/241-LOOP-ITERASYON-CERCEVESI.md` |
 | 242 | Agent Onay Ölçütü (`agentReview`) ve Loop Denetim İzi | tam | ✅ | 2026-10-25 | F-411 | `953d6280:docs/242-AGENT-ONAY-OLCUTU.md` |
 | 243 | Bütçe Tükenince Tool Çağrısı Başlamaz | tam | ✅ | 2026-10-25 | F-530 | `7b025084:docs/243-TOOL-BUTCE-KAPISI.md` |
+| 244 | Gemini Konuşma Adaptörü ve Diyalog Yeteneğinin Görünürlüğü | tam | ✅ | 2026-10-25 | F-297 · F-465 | `46888d73:docs/244-GEMINI-KONUSMA-ADAPTORU.md` |
 
 ## Süreç Ölçümü
 
@@ -341,3 +342,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 241 | 0 | 3 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 242 | 0 | 4 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 243 | 0 | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 244 | 9 sapma | 1 | 2 / 0 / 0 | 0 | ölçülmedi |
