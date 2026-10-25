@@ -843,7 +843,9 @@ The loop is off while `Loop` is null, which is the default.
 
 A non-streaming run returns the **final iteration's answer**; its usage and cost
 are the sum of every iteration. The native streaming run
-(`POST /api/agents/{name}/run`) streams every iteration as it happens. Every
+(`POST /api/agents/{name}/run`) streams every iteration as it happens, and sends a
+`loop.iteration-completed` frame after each iteration the loop evaluated — see
+[Streaming](/http-api/#streaming) for how to find the answer. Every
 other surface that hands the answer to a program, or speaks it, gets the
 **final iteration only**: a workflow step and the step after it, the
 OpenAI-compatible streams, the A2A stream and both voice surfaces. On those
@@ -920,6 +922,13 @@ reaches `MaxIterations` is never evaluated — there is nothing left to decide �
 so a loop that ends at its ceiling writes one event fewer than it takes turns.
 Its last event carries `ceilingReached`, which is how the run record tells "the
 criterion was finally satisfied" apart from "we ran out of iterations".
+
+The native streaming run mirrors each of these events as a `loop.iteration-completed`
+frame, with the same data, between the last update of the iteration and the first of the
+next. The answer is the iteration before the last frame when that frame has
+`continued: false`. It is the iteration **after** the last frame when that frame has
+`ceilingReached: true`, because the turn at the ceiling is not evaluated. A run that
+records no events sends no frame.
 
 ### A criterion that needs your services
 
@@ -2752,7 +2761,7 @@ text/event-stream`, so the `event:` name is the only way to tell them apart:
 
 | Stream | Frame names |
 |---|---|
-| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `custom` · `done` · `error` — one per step of that single live call |
+| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `loop.iteration-completed` · `custom` · `done` · `error` — one per step of that single live call |
 | `GET /api/runs/{runId}/events` | `run.started` · `message.delta` · `tool.invoking` · `tool.invoked` · `tool.failed` · `run.completed` · `run.failed` and one more per event type in the diagram above — the recorded, append-only log |
 
 The workflow run stream has a third set (`run` · `event` · `done` · `error`), and the
@@ -2762,7 +2771,10 @@ The live stream's `custom` frames are the one place the two contracts meet. Righ
 before `done`, the stream sends the run's own recorded notices from a fixed list —
 `tracon.output.truncated` always, `tracon.quota.threshold` when it is published to the
 run stream — and each frame's data is the same recorded event `/events` serves, byte
-for byte. The [HTTP API](/http-api/#streaming) page lists the rules.
+for byte. The [HTTP API](/http-api/#streaming) page lists the rules. The
+`loop.iteration-completed` frame of an agent with a loop is the other: it has the name
+and the data of the recorded `LoopIterationCompleted` event, and it arrives between two
+iterations, not before `done`.
 
 A client written against one contract will not decode the other; pick the endpoint
 that matches what you are building — a live turn, or a run's full recorded history.
@@ -10333,7 +10345,11 @@ widget renders its own approval card instead of the built-in console's, register
 [`IToolApprovalPresenter`](/concepts/governance/#approvals) too — it turns a raw
 `{ "orderId": "ORD-1001" }` into a name your widget can show directly, and it reaches
 your widget the same way the built-in one reads it: an `approvals` frame on the
-streaming run endpoint, keyed by the pending request's `requestId`.
+streaming run endpoint, keyed by the pending request's `requestId`. A widget that shows
+the streamed reply of an agent with a [loop](/concepts/agents/#run-until-the-work-is-done)
+needs one more frame: `loop.iteration-completed` marks where an iteration ends, because
+nothing in the `update` frames does. The [embeddable chat widget](/ui/#embeddable-chat-widget)
+does not stream (it sends `Idempotency-Key`), so it gets the final iteration only.
 
 ### 4 — Run event bridge
 
@@ -19073,6 +19089,35 @@ needs no change. If the run store cannot be read at that point, the stream still
 ends with `done`, without the notices, and the server logs a warning; the run's
 events keep them.
 
+An agent with a [loop](/concepts/agents/#run-until-the-work-is-done) streams every
+iteration, so the `update` frames carry the drafts and the feedback as well as the
+answer. After each iteration the loop evaluated, the stream sends a
+`loop.iteration-completed` frame. It comes after the last `update` of that iteration
+and before the first `update` of the next. The frame's data is the recorded
+`LoopIterationCompleted` event, byte for byte the same as `GET /api/runs/{runId}/events`
+serves it. The event's `payload` is a JSON string with these fields:
+
+| Field | Meaning |
+|---|---|
+| `iteration` | The number of the iteration that just ended, counted from 1 |
+| `continued` | `true` when a criterion asked for another iteration |
+| `continuedBy` | The kind of that criterion, or `null` |
+| `hasFeedback` | `true` when that criterion gave the agent feedback; the feedback text is not in the frame |
+| `failedCriterion` | The kind of a criterion that failed to evaluate, or `null` |
+| `ceilingReached` | `true` when the iteration ceiling ends the loop |
+| `failsRun` | `true` when this evaluation fails the run |
+
+The answer is the iteration that the last frame closes, when that frame has
+`continued: false`. When the last frame has `ceilingReached: true`, the answer is the
+iteration **after** it: the turn at the ceiling is not evaluated, so it has no frame of
+its own. With `OnExhausted` set to `FailRun` no turn follows, and the stream ends with
+an `error` frame.
+
+An agent without a loop never sends this frame. A run that does not record its events
+has no event to mirror, so it sends none either. A sub-agent's loop writes to the
+sub-agent's own run and never to this stream. A client that ignores a frame name it does
+not know needs no change.
+
 `GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger
 set of frame names (`run.started`, `tool.invoking`, ...) — see
 [the two-contract table in Runs and recording](/concepts/runs/#two-sse-contracts-not-one).
@@ -25320,6 +25365,12 @@ for it above the message box — one field per parameter, generated from the sch
 The Run button is disabled while a required field is empty; this is the same rule
 the server enforces (a run with a missing required value never starts), surfaced
 before the round trip instead of after it.
+
+When the agent runs a [loop](/concepts/agents/#run-until-the-work-is-done), the reply
+holds every iteration. The playground draws a divider after each iteration the loop
+evaluated. The divider names the iteration and what the loop decided: another iteration
+and the criterion that asked for it, the iteration ceiling, a criterion that failed to
+evaluate, or a stop. The feedback text is not in the divider.
 
 A tool call that needs a human decision stops the stream and renders as an approval
 card instead of a result — the entity name and message from a registered
