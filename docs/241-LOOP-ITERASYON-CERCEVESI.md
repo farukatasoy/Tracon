@@ -143,9 +143,9 @@ ayraçların görsel kontrolü.
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 (plan yeniden yazılmadı; 7 sapma kaydı) |
-| Düzeltme turu sayısı | 2 (ekran görüntüsü kapısı · denetimin üç 🟡'si) |
+| Düzeltme turu sayısı | 3 (ekran görüntüsü kapısı · denetimin üç 🟡'si · kapanışta düşen altı test) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (🟡: 3 gerçek) |
-| Fazın ürettiği regresyon | |
+| Fazın ürettiği regresyon | 0 (kapanışta düşen altı test benim eklediğim koddan ya da elle koştuğum `vite build`'den doğdu; mevcut bir davranış bozulmadı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
