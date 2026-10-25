@@ -22,6 +22,62 @@
 
 ---
 
+## 2026-10-25 — F-297 → Faz 244, F-347 → Faz 245
+
+Taşındığı gün `docs/ADAYLAR.md`'den alınan gövdeler. Güncel plan: Faz 244 ve Faz 245. Aynı gün gövdesiz tablo satırları da plana dönüştü: F-544 → Faz 241, F-411 → Faz 242, F-530 → Faz 243, F-465 → Faz 244 (F-297 ile).
+
+### F-297 · `Tracon.Google` için Gemini konuşma (TTS) adaptörü
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `src/Tracon.Google/` konuşma yüzeyi taşımaz (2026-10-11 taraması); kullanıcı Gemini kullanıyor.
+
+**Kapsam:** `ISpeechSynthesizer` ve Faz 203'ün `ISpeechDialogueSynthesizer` yeteneği; `SpeechConfig`/`MultiSpeakerVoiceConfig` eşlemesi; WAV/PCM çıktı; yetenek `MaxVoices = 2`.
+
+**Değer:** ElevenLabs'in yanında ikinci sağlayıcı; workflow başına seçim gerçek olur.
+
+**Mercek:** 3, 6, 8.
+
+**Hazırlık:** Yeni bağımlılık yok: `Google.GenAI` 1.16.0 referanslı (`Directory.Packages.props:144`); `MultiSpeakerVoiceConfig.SpeakerVoiceConfigs`, `SpeakerVoiceConfig.Speaker`, `PrebuiltVoiceConfig.VoiceName` var (`maf-api-kesfi` dökümü, 2026-10-11).
+
+**Maliyet:** Paket içi kayıt uzantısı; canlı doğrulama için anahtar.
+
+**Risk:** Model adları önizleme; API anahtarı modu sınırları (F-281 deseni).
+
+**Bağımlılık:** Faz 203 (F-296) sözleşmeyi getirdi. Faz 198 (F-298) adlı kaydı getirdi: adaptör `AddSpeechSynthesizer("gemini", …)` ile kaydolur, kiracı kapısından `ISpeechProviderResolver` ile geçer ve kiracı anahtarını `SupportsTenantCredentials` + `SpeechRequest.Credential` ile alır.
+
+**Sözleşme (Faz 203, gerçekleşen):** aynı örnek `ISpeechSynthesizer` ve `ISpeechDialogueSynthesizer` uygular; diyalog DI'a kaydedilmez, çağıran `ISpeechProviderResolver.GetDialogueSynthesizerAsync(string? name = null, CancellationToken ct = default)` ile alır (K-952). Üyeler: `string ProviderName`, `bool SupportsTenantCredentials => false`, `SpeechDialogueCapabilities DialogueCapabilities { MaxVoices; MaxCharactersPerRequest; SupportsSegmentTimestamps }` (Gemini: `MaxVoices = 2`), `ValueTask<SpeechDialogueAudio> SynthesizeDialogueAsync(SpeechDialogueRequest, CancellationToken)`. İstek: `Turns` (`SpeechDialogueTurn { Text, VoiceId }`), `ModelId?`, `OutputFormat?`, `LanguageCode?`, `IncludeTimestamps`, `ProviderSettings` (`IReadOnlyDictionary<string, JsonElement>`), `Credential?`. Sonuç: `SpeechDialogueAudio { SpeechAudio Audio; IReadOnlyList<SpeechDialogueSegment>? Segments }`, segment `{ TurnIndex, VoiceId, Start, End }`; `SpeechAudio.ModelId` ve `ProviderRequestId` doldurulur. Ret kuralları: sınır, boş tur ve ayar ihlali ağdan önce `TraconException` (K-955), ret değeri yankılamaz (K-954); ayarlar `google.*` önekiyle `ModelProviderSettings.Validate(request.ProviderSettings, "google", keys)` (K-953); kimlik desteklenmiyorsa `NotSupportedException` (K-957 deseni). Doğrulama ElevenLabs'te `ElevenLabsSpeechClient.CheckDialogue` içindedir (`internal`, `Tracon.Voice`); Gemini adaptörü `Tracon.Google`'da olursa kural paylaşılmaz — ortak bir yardımcıya taşımak F-297'nin kararıdır.
+
+**Ekosistem (2026-10-11):** Modeller `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-pro-preview-tts`; .NET örneği yok.
+
+**Karşı görüş:** Faz 198 olmadan adaptör ElevenLabs'in yerine geçer, yanına gelmez; tek başına değeri düşük.
+
+### F-347 · OpenAI strict şema modu ve sağlayıcıya giden etkin şemanın görünürlüğü
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** Tracon şemayı `ChatResponseFormat.ForJsonSchema` ile verir (`AgentDefinitionCompiler.ChatOptions.cs:199`). MEAI OpenAI uyarlayıcısı strict'i `AdditionalProperties` içindeki `StrictKey`'den okur (`Microsoft.Extensions.AI.OpenAI.xml:658-673`, 10.9.0); `src/` bu anahtarı hiç yazmaz (grep). Strict olmayan istekte MEAI şema dönüşümü ölçülmedi. Kiracı başka model seçebildiği için sağlayıcıya giden etkin şema görünmez.
+
+**Kapsam:** `openai.strictJsonSchema` sağlayıcı ayarı (Abstractions'a sızmaz); `POST /api/agents/validate` yanıtında etkin şemanın özeti veya hash'i; strict dönüşümünün (alanlar zorunlu + nullable) belgelenmesi.
+
+**Değer:** Büyük ayrık birleşim şemasında şema dışı alan ve eksik ayırıcı ilk denemede engellenir.
+
+**Mercek:** 5, 6, 8.
+
+**Hazırlık:** Ayar anahtarı deseni; `ModelProviderSettingsContract`.
+
+**Maliyet:** Bir ayar anahtarı, OpenAI paketinde dekoratör, validate ucuna alan (public HTTP).
+
+**Risk:** Strict opsiyonel alanları zorunlu kılar; tüketici şemayı nullable alanlara çevirmelidir.
+
+**Bağımlılık:** F-340 önce kapanır.
+
+**Ekosistem:** MEAI.OpenAI 10.9.0 XML (2026-10-11); güncel OpenAI kısıt kümesi plan aşamasında doğrulanır.
+
+**Faz 204 devri:** kesik strict yanıt da `OutputTruncated` olur (sağlayıcıdan bağımsız). OpenAI istemcisi `ModelOutputLimit` bildirmez, bu yüzden `output_truncation_risk` OpenAI'da çıkmaz; isteniyorsa bu kalem ekler. Boolean ayar `InvalidSettingValue`'yu `null` bırakır.
+
+**Karşı görüş:** Host doğrulayıcısı ve onarım turu strict olmadan da şemayı zorlar; değer ilk denemede uyum ve onarım maliyetidir.
+
 ## 2026-10-23 — F-322 → Faz 240
 
 Taşındığı gün `docs/ADAYLAR.md`'den alınan gövde. Güncel plan: Faz 240. Aynı gün gövdesiz tablo satırları da plana dönüştü: F-559 → Faz 237 + Faz 238, F-529 + F-531 → Faz 239.

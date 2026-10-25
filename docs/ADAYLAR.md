@@ -12,12 +12,13 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-23):** sıralanabilir kuyrukta **8** aday var (F-297, F-420
-podcast turu; F-324, F-347 video tüketicisi turu; F-618…F-621 MAF Dalga 4
-turu, [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md)). Aynı
-turun F-614 ve F-615'i aynı gün, F-616 ve F-617'si 2026-10-22'de plana dönüştü
-(Faz 236, Faz 235). 2026-10-23'te F-559, F-529 + F-531 ve F-322 plana dönüştü
-(Faz 237–240). Bugün yapılabilecek iş
+**Durum (2026-10-25):** sıralanabilir kuyrukta **6** aday var (F-420 podcast
+turu; F-324 video tüketicisi turu; F-618…F-621 MAF Dalga 4 turu,
+[`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md)).
+2026-10-25'te § *Faz planlama* tablosunun 🟡 kalemleri plana dönüştü: F-544
+(Faz 241), F-411 (Faz 242), F-530 (Faz 243), F-297 + F-465 (Faz 244), F-347
+(Faz 245). F-545 tabloda kaldı: tek kaynaklıdır ve ikinci kanıtı ölçülmedi.
+Bugün yapılabilecek iş
 § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil,
 üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 
@@ -130,32 +131,6 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast ve video
 tüketicisi turlarından gelir; kanal ve aciliyet
 § *Faz planlama* tablosundadır.
 
-### F-297 · `Tracon.Google` için Gemini konuşma (TTS) adaptörü
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** `src/Tracon.Google/` konuşma yüzeyi taşımaz (2026-10-11 taraması); kullanıcı Gemini kullanıyor.
-
-**Kapsam:** `ISpeechSynthesizer` ve Faz 203'ün `ISpeechDialogueSynthesizer` yeteneği; `SpeechConfig`/`MultiSpeakerVoiceConfig` eşlemesi; WAV/PCM çıktı; yetenek `MaxVoices = 2`.
-
-**Değer:** ElevenLabs'in yanında ikinci sağlayıcı; workflow başına seçim gerçek olur.
-
-**Mercek:** 3, 6, 8.
-
-**Hazırlık:** Yeni bağımlılık yok: `Google.GenAI` 1.16.0 referanslı (`Directory.Packages.props:144`); `MultiSpeakerVoiceConfig.SpeakerVoiceConfigs`, `SpeakerVoiceConfig.Speaker`, `PrebuiltVoiceConfig.VoiceName` var (`maf-api-kesfi` dökümü, 2026-10-11).
-
-**Maliyet:** Paket içi kayıt uzantısı; canlı doğrulama için anahtar.
-
-**Risk:** Model adları önizleme; API anahtarı modu sınırları (F-281 deseni).
-
-**Bağımlılık:** Faz 203 (F-296) sözleşmeyi getirdi. Faz 198 (F-298) adlı kaydı getirdi: adaptör `AddSpeechSynthesizer("gemini", …)` ile kaydolur, kiracı kapısından `ISpeechProviderResolver` ile geçer ve kiracı anahtarını `SupportsTenantCredentials` + `SpeechRequest.Credential` ile alır.
-
-**Sözleşme (Faz 203, gerçekleşen):** aynı örnek `ISpeechSynthesizer` ve `ISpeechDialogueSynthesizer` uygular; diyalog DI'a kaydedilmez, çağıran `ISpeechProviderResolver.GetDialogueSynthesizerAsync(string? name = null, CancellationToken ct = default)` ile alır (K-952). Üyeler: `string ProviderName`, `bool SupportsTenantCredentials => false`, `SpeechDialogueCapabilities DialogueCapabilities { MaxVoices; MaxCharactersPerRequest; SupportsSegmentTimestamps }` (Gemini: `MaxVoices = 2`), `ValueTask<SpeechDialogueAudio> SynthesizeDialogueAsync(SpeechDialogueRequest, CancellationToken)`. İstek: `Turns` (`SpeechDialogueTurn { Text, VoiceId }`), `ModelId?`, `OutputFormat?`, `LanguageCode?`, `IncludeTimestamps`, `ProviderSettings` (`IReadOnlyDictionary<string, JsonElement>`), `Credential?`. Sonuç: `SpeechDialogueAudio { SpeechAudio Audio; IReadOnlyList<SpeechDialogueSegment>? Segments }`, segment `{ TurnIndex, VoiceId, Start, End }`; `SpeechAudio.ModelId` ve `ProviderRequestId` doldurulur. Ret kuralları: sınır, boş tur ve ayar ihlali ağdan önce `TraconException` (K-955), ret değeri yankılamaz (K-954); ayarlar `google.*` önekiyle `ModelProviderSettings.Validate(request.ProviderSettings, "google", keys)` (K-953); kimlik desteklenmiyorsa `NotSupportedException` (K-957 deseni). Doğrulama ElevenLabs'te `ElevenLabsSpeechClient.CheckDialogue` içindedir (`internal`, `Tracon.Voice`); Gemini adaptörü `Tracon.Google`'da olursa kural paylaşılmaz — ortak bir yardımcıya taşımak F-297'nin kararıdır.
-
-**Ekosistem (2026-10-11):** Modeller `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-pro-preview-tts`; .NET örneği yok.
-
-**Karşı görüş:** Faz 198 olmadan adaptör ElevenLabs'in yerine geçer, yanına gelmez; tek başına değeri düşük.
-
 ### F-324 · Karışık zincirde agent adımının iletim modu
 
 **Kanal:** faz planlama · 🟢
@@ -179,32 +154,6 @@ tüketicisi turlarından gelir; kanal ve aciliyet
 **Ekosistem:** —
 
 **Karşı görüş:** Fonksiyon düğümü son asistan mesajını kendisi seçebilir; değer tek tip davranış ve kayıtta erken hatadır.
-
-### F-347 · OpenAI strict şema modu ve sağlayıcıya giden etkin şemanın görünürlüğü
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** Tracon şemayı `ChatResponseFormat.ForJsonSchema` ile verir (`AgentDefinitionCompiler.ChatOptions.cs:199`). MEAI OpenAI uyarlayıcısı strict'i `AdditionalProperties` içindeki `StrictKey`'den okur (`Microsoft.Extensions.AI.OpenAI.xml:658-673`, 10.9.0); `src/` bu anahtarı hiç yazmaz (grep). Strict olmayan istekte MEAI şema dönüşümü ölçülmedi. Kiracı başka model seçebildiği için sağlayıcıya giden etkin şema görünmez.
-
-**Kapsam:** `openai.strictJsonSchema` sağlayıcı ayarı (Abstractions'a sızmaz); `POST /api/agents/validate` yanıtında etkin şemanın özeti veya hash'i; strict dönüşümünün (alanlar zorunlu + nullable) belgelenmesi.
-
-**Değer:** Büyük ayrık birleşim şemasında şema dışı alan ve eksik ayırıcı ilk denemede engellenir.
-
-**Mercek:** 5, 6, 8.
-
-**Hazırlık:** Ayar anahtarı deseni; `ModelProviderSettingsContract`.
-
-**Maliyet:** Bir ayar anahtarı, OpenAI paketinde dekoratör, validate ucuna alan (public HTTP).
-
-**Risk:** Strict opsiyonel alanları zorunlu kılar; tüketici şemayı nullable alanlara çevirmelidir.
-
-**Bağımlılık:** F-340 önce kapanır.
-
-**Ekosistem:** MEAI.OpenAI 10.9.0 XML (2026-10-11); güncel OpenAI kısıt kümesi plan aşamasında doğrulanır.
-
-**Faz 204 devri:** kesik strict yanıt da `OutputTruncated` olur (sağlayıcıdan bağımsız). OpenAI istemcisi `ModelOutputLimit` bildirmez, bu yüzden `output_truncation_risk` OpenAI'da çıkmaz; isteniyorsa bu kalem ekler. Boolean ayar `InvalidSettingValue`'yu `null` bırakır.
-
-**Karşı görüş:** Host doğrulayıcısı ve onarım turu strict olmadan da şemayı zorlar; değer ilk denemede uyum ve onarım maliyetidir.
 
 ---
 
@@ -427,12 +376,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
-| 🟡 | **F-544** · Native agent SSE'si Loop iterasyonlarının sınırını yazmaz | Ölçüldü (2026-10-15, F-536 taraması): `POST /api/agents/{name}/run` her iterasyonu ve geri bildirimi tek metin akıtır; sınır olayı yalnız run olayları ucunda. Gömülebilir sohbet ve TS istemcisi taslağı cevap sanar (K-1006) | Eklemeli `loop.iteration` frame'i; preview.4 dışı (bakımcı kararı) |
 | 🟡 | **F-545** · Kod grafında üretim başına agent sürüm sabiti yok | Kod okuması (2026-10-15, video raporu): `AgentVersion` graf kurulurken verilir, fabrika yalnız `IServiceProvider` alır; sabitsiz adım güncel sürümü çözer, template yayınından sonraki revizyon yeni sürümle koşar | Sürümü run parametresinden okuyan adım seçeneği |
-| 🟡 | **F-530** · Ücretli tool çağrısının başlamadan reddi | Aynı model turunda istenen ikinci tool, ilki tavanı geçirse de koşar; sonraki model çağrısı reddedilir. Tool döngüsü MAF'tadır | Ayrı tasarım. K-999'un tool eşi |
-| 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; Faz 203'ün sözleşmesini uygular | Gövde: § *F-297* |
-| 🟡 | F-347 · OpenAI strict şema modu | Kiracı başka model seçer; strict istenemez | Gövde: § *F-347* |
-| 🟡 | **F-411** · Onay Loop ölçütü ve denetim izi | Bakımcı kararı (2026-10-12): video hattındaki insan onayı ileride agent onayına döner ve Loop ölçütüyle yapılır. Faz 201 Açık Soru 7-A ayırdı: `LoopIterationCompleted` ölçüt kararını, yargıç modelini ve agent sürümünü taşımaz. Ölçüt `AddLoopEvaluator(kind, factory)` ile servis alır; reviewer deseni (çocuk run, derinlik, `TryReserveRun`) `DraftReviewCriterion`'dadır | Tasarım onay ölçütüyle birlikte yapılır |
 | 🟢 | F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı | Bugün tek örnek elle tarandı; sonrakini kimse taramaz | Gövde: § *F-248* |
 | 🟢 | F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı | Elle koşulan case iki turda da kusur buldu | Gövde: § *F-249* |
 | 🟢 | F-324 · Karışık zincirde agent adımının iletim modu | Loop bütün taslakları iletir; tip zinciri F-341 ile kapandı | Gövde: § *F-324* |
@@ -444,7 +388,6 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-410** · Kod Loop ölçütüne tanım başına tipli ayar | Faz 201 kapsam dışı: özel tür veri almaz — tek örnek bütün tanımlara hizmet eder (`LoopEvaluatorRegistry.BuildCriterion`, `default` dalı); konsol kod türü için alan göstermez ve tür değişiminde `marker`/`judgeCriteria`/`modes`'u temizler (`loop-section.tsx` `withKind`). Faz 195'in `Settings` deseni emsal; ayar `FindProblems`'a ve `GET /api/loop-criteria`'ya (şema) birlikte girer | Faz 201'den sonra |
 | 🟢 | **F-417** · Görsel sağlayıcısı kiracının kendi anahtarını kullanabilsin | K-912 (2026-10-13): kiracının görsel sağlayıcısı için bağlaması varsa üretim reddedilir, çünkü sağlayıcı paketleri üreticiyi kurulum anahtarıyla kurar. Canlı ses `SupportsTenantCredentials` ile aynı işi çözdü (K-878) | Faz 198'in konuşma modeliyle birlikte: anahtarlı üretici fabrikası, OpenAI/Azure/Google görsel kaydı |
 | 🟢 | F-420 · Önbellek yazma token'ı ve fiyatı | Faz 204'ten ayrıldı (2026-10-13); önce ölçüm | Gövde: § *F-420* |
-| 🟢 | **F-465** · `GET /api/voice/providers` diyalog yeteneğini bildirmiyor | Faz 203 (2026-10-13): `SpeechProviderDescriptor` ad, tür, `ProviderName` ve `SupportsTenantCredentials` taşır; bir motorun diyalog sesleyip seslendiremediği listede görünmez, çağıran ancak `GetDialogueSynthesizerAsync` çağrısının hatasından öğrenir. Public sözleşme (descriptor alanı, OpenAPI, iki üretilmiş istemci) | Konsol motor seçimi ya da ikinci diyalog sağlayıcısı (F-297) gelince; `SupportsDialogue` ve `DialogueCapabilities` alanı |
 | 🟢 | **F-445** · Konuşma soketi ses sağlayıcısını tur başına yeniden denetlesin | Faz 198 denetimi 🟢1 (2026-10-13, kod okuması): soket STT ve TTS'i bağlantı açılırken bir kez çözer (`VoiceConversationDriver.ResolveProvidersAsync`); açık bağlantı sonradan kaydedilen egress politikasını kapanana kadar görmez. Model tarafı her turda yeniden okur (F-310 emsali). Site ve XML bugün bu sınırı yazar | Karar: tur ortasında ret davranışı (hata çerçevesi, bağlantıyı kapatma) — protokol sözleşmesi; sonra tur başına çözümleme ve fonksiyonel test |
 | 🟢 | **F-503** · OpenAI Responses kesik yanıtı `incomplete` işaretlemez | Ölçüldü (2026-10-14, Faz 207, geçici prob): `Length` ile kesik düz metin iki kolda `completed` döner | Karar: MAF JSON'una yama ile `incomplete` + `response.incomplete` (tel sözleşmesi) |
 | 🟢 | **F-504** · Workflow SSE'si agent adımının kesildiğini söylemez | Faz 207 §207.6, kod okuması: olay alt run'da kalır; workflow `MessageDelta`'sı bitiş sebebi taşımaz | Önce ölçüm; sonra çerçeve kararı (K-991 emsali) |
