@@ -306,7 +306,7 @@ sağlayıcısı düşerse ölçüt hatası; olay `failed`.
 |---|---|---|---|
 | 1 `🤖` | `samples/Tracon.Api`, gerçek sağlayıcı, `reviewed-writer-builtin` | Konsol playground'unda bir istek | En az bir `continue` ve bir `stop` iterasyonu; run ağacında reviewer çocuk run'ları; `/events` yükünde `criteria[].reviewer` |
 | 2 `🤖` | Konsol Loop editörü | `aiJudge` → `agentReview` → `aiJudge` tür değişimi, reviewer seçimi, kayıt | Alanlar K-918 kuralıyla temizlenir; kayıttan sonra tanım reviewer'ı taşır |
-| 3 `🤖` | Reviewer'ın şeması karar alanlarını taşımaz | `POST /api/agents/validate` | `loop_reviewer_verdict_unknown` uyarısı, `valid: true` |
+| 3 | Reviewer'ın şeması karar alanlarını taşımaz | `POST /api/agents/validate` | `loop_reviewer_verdict_unknown` uyarısı, `valid: true` — **kodla tekrarlanır, sete girmedi:** `AgentValidationLoopTests`; ajan yine de örnek uygulamada koştu (aşağıda DoD) |
 
 ---
 
@@ -329,7 +329,15 @@ sağlayıcısı düşerse ölçüt hatası; olay `failed`.
 - [ ] `FindProblems` ve doğrulayıcı `loop_reviewer_*` kodlarını verir; `docs/sozlesme/dogrulama-kodlari.txt` yeniden üretildi
 - [ ] `GET /api/loop-criteria` `agentReview`'u listeler
 - [ ] Konsol Loop editörü türü düzenler ve kaydeder; `en.ts` + `tr.ts` eksiksiz; bundle payı yazıldı
+  — bundle: 224,1 → 225,4 KB gzip (+1,3 KB; bütçe 250 KB)
 - [ ] `samples/Tracon.Api` `reviewed-writer-builtin` ile gerçek `run` yapıldı (Manuel 1); olay dizisi belgeye yazıldı
+  — Echo: `iteration 1 continued by 'agentReview' (reviewer 'draft-approver' v1)` → `iteration 2 stopped (approved by reviewer 'draft-approver' v1)`;
+  ağaçta iki `draft-approver` çocuk run'ı (`depth: 1`), olaylardaki `runId`'ler onlardır.
+  Gerçek sağlayıcı (`gpt-5.4-mini`, 2026-10-25): bir istek ilk taslakta onayladı (`stop`), "ilk taslakta başlık yok" isteği
+  `continue` + `stop` verdi; reviewer'ın geri bildirimi 261 karakter; iterasyon olayı ~300 B (eskisi ~190 B).
+  Konsol (Playwright, Manuel 2): tür seçimi, reviewer seçimi, kayıt, yenileme, `aiJudge` ↔ `agentReview` değişiminde alanların temizlenmesi,
+  `loop_reviewer_version_invalid` ve `loop_reviewer_missing` yollu raporu görüldü. `POST /api/agents/validate` ile `loop_reviewer_verdict_unknown`
+  uyarısı, `valid: true` (Manuel 3). Başlangıçta `Npgsql` günlük satırı: 0.
 - [ ] `CHANGELOG.md [Unreleased]` yeni türü ve aynı adlı kod türünün reddini adıyla yazar
 - [ ] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
