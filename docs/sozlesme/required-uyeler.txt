@@ -254,6 +254,8 @@ Tracon.QuotaUsageRecord.Period
 Tracon.QuotaUsageRecord.PeriodStart
 Tracon.QuotaUsageRecord.TenantId
 Tracon.QuotaUsageRecord.UpdatedAt
+Tracon.ResponseSchemaShape.EffectiveSchema
+Tracon.ResponseSchemaShape.Strict
 Tracon.RetentionPolicy.CreatedAt
 Tracon.RetentionPolicy.Id
 Tracon.RetentionPolicy.Target

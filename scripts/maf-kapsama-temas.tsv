@@ -138,8 +138,8 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.13	❌	✓	`FailoverChatClient` · `OrderedFailoverChatClient` · `RoutingChatClient` · `SemanticRoutingChatClient` (MEAI001, 10.9)	-	-	-
 5.13	❌	✓	`ImageGeneratingChatClient` (MEAI001) · `HostedImageGenerationTool`	-	-	-
 5.13	🟡	✗	Atıf ve hata içerikleri: `CitationAnnotation` · `TextSpanAnnotatedRegion` · `ErrorContent` · `InputRequestContent`/`InputResponseContent`	ErrorContent	ErrorContent	-
-5.13	❌	✗	`ChatClientBuilder` halkaları (`UseLogging`, `UseDistributedCache`, `ConfigureOptions`, `UseChatReducer`) · `GetResponseAsync<T>`	GetResponseAsync	GetResponseAsync	GetResponseAsync
-5.13	❌	~	`AIJsonSchemaCreateOptions` · `AIJsonSchemaTransformOptions`	-	-	-
+5.13	❌	✗	`ChatClientBuilder` halkaları (`UseLogging`, `UseDistributedCache`, `ConfigureOptions`, `UseChatReducer`) · `GetResponseAsync<T>`	GetResponseAsync	ChatClientBuilder GetResponseAsync	GetResponseAsync
+5.13	❌	~	`AIJsonSchemaCreateOptions` · `AIJsonSchemaTransformOptions`	AIJsonSchemaTransformOptions	-	-
 5.14	✅	✓	İstemci: `HttpClientTransport` · OAuth (`ClientOAuthOptions`)	ClientOAuthOptions HttpClientTransport	HttpClientTransport	-
 5.14	✅	✓	İstemci: tools · prompts · resources · kaynak aboneliği	?	?	?
 5.14	✅	✓ Faz 117	Sunucu: `AddMcpServer` · `WithHttpTransport` · `MapMcp` · tool handler'ları · Tasks (`IMcpTaskStore`, `WithTasks`)	AddMcpServer IMcpTaskStore MapMcp WithHttpTransport WithTasks	AddMcpServer MapMcp WithHttpTransport	-

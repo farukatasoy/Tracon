@@ -1181,6 +1181,27 @@ Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollect
 Tracon.IRunStore.UpdateRunCostAsync(System.Guid runId, Tracon.RunCost? cost, string? tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ISamplingSupport
 Tracon.ISamplingSupport.SupportedSamplingFields.get -> Tracon.SamplingFields
+Tracon.IResponseSchemaSupport
+Tracon.IResponseSchemaSupport.DescribeResponseSchema(Tracon.ModelBinding! binding, System.Text.Json.JsonElement schema) -> Tracon.ResponseSchemaShape!
+Tracon.ResponseSchemaShape
+Tracon.ResponseSchemaShape.<Clone>$() -> Tracon.ResponseSchemaShape!
+Tracon.ResponseSchemaShape.EffectiveSchema.get -> System.Text.Json.JsonElement
+Tracon.ResponseSchemaShape.EffectiveSchema.init -> void
+Tracon.ResponseSchemaShape.Equals(Tracon.ResponseSchemaShape? other) -> bool
+Tracon.ResponseSchemaShape.KeywordsNotEnforced.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.ResponseSchemaShape.KeywordsNotEnforced.init -> void
+Tracon.ResponseSchemaShape.OptionalMadeRequired.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.ResponseSchemaShape.OptionalMadeRequired.init -> void
+Tracon.ResponseSchemaShape.ResponseSchemaShape() -> void
+Tracon.ResponseSchemaShape.Strict.get -> bool
+Tracon.ResponseSchemaShape.StrictUnsupported.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.ResponseSchemaShape.StrictUnsupported.init -> void
+Tracon.ResponseSchemaShape.Strict.init -> void
+override Tracon.ResponseSchemaShape.Equals(object? obj) -> bool
+override Tracon.ResponseSchemaShape.GetHashCode() -> int
+override Tracon.ResponseSchemaShape.ToString() -> string!
+static Tracon.ResponseSchemaShape.operator !=(Tracon.ResponseSchemaShape? left, Tracon.ResponseSchemaShape? right) -> bool
+static Tracon.ResponseSchemaShape.operator ==(Tracon.ResponseSchemaShape? left, Tracon.ResponseSchemaShape? right) -> bool
 Tracon.ISessionStore
 Tracon.ISessionStore.DeleteAsync(string! sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.ISessionStore.GetAsync(string! sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SessionRecord?>

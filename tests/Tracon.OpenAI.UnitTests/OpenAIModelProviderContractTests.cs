@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Tracon.Testing.Contracts;
 using Tracon.Testing.Contracts.Providers;
@@ -62,22 +63,33 @@ public sealed class OpenAIModelProviderCredentialContractTests : ModelProviderCr
 }
 
 /// <summary>
-/// The OpenAI adapter supports no provider setting key, so it rejects every
-/// key; it owes the settings contract all the same.
+/// The OpenAI adapter reads one provider setting (the strict response schema), so
+/// it owes the settings contract: that key is accepted, a wrong value is
+/// rejected, and every other key is rejected.
 /// </summary>
 /// <remarks>
-/// <see cref="ModelProviderSettingsContract.SupportedSetting"/> stays
-/// <see langword="null"/>: the scenarios that need an accepted key are
-/// reported as skipped, and the rejection scenario runs.
+/// The setting is a boolean, so it has no closed set of values; a text that is
+/// not a boolean stands for the wrong value (Phase 245). The contract checks that the
+/// message names the key and does not repeat the text.
 /// </remarks>
 public sealed class OpenAIModelProviderSettingsContractTests : ModelProviderSettingsContract
 {
+    private static readonly JsonElement True = JsonDocument.Parse("true").RootElement.Clone();
+
+    private static readonly JsonElement NotABoolean = JsonDocument.Parse("\"sometimes\"").RootElement.Clone();
+
     protected override ValueTask<IModelProvider> CreateProviderAsync()
         => new(new OpenAIModelProvider(
             OpenAIProviderNames.ChatCompletions,
             OpenAIApiSurface.ChatCompletions,
             new OpenAIChatClientFactory(new OpenAIProviderOptions { ApiKey = "setup-time-key" }),
             [new ModelDescriptor { Name = "gpt-4o-mini" }]));
+
+    protected override KeyValuePair<string, JsonElement>? SupportedSetting
+        => new(OpenAIProviderNames.StrictJsonSchemaSetting, True);
+
+    protected override KeyValuePair<string, JsonElement>? InvalidSettingValue
+        => new(OpenAIProviderNames.StrictJsonSchemaSetting, NotABoolean);
 }
 
 /// <summary>

@@ -1691,10 +1691,10 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid` alanı `false`'tur, `code: invalid_setting`.
-- Mesaj `these keys are not recognized: azure-openai.herhangi` ve `the
-  'azure-openai' provider supports no extra settings` metinlerini içerir
-  (K-228 — sevk edilen metin İngilizce'dir; 2026-10-12'de koda göre
-  düzeltildi).
+- Mesaj `these keys are not recognized: azure-openai.herhangi` ve
+  `Supported keys: azure-openai.strictJsonSchema` metinlerini içerir
+  (K-228 — sevk edilen metin İngilizce'dir; Faz 245'te sağlayıcı tek anahtar
+  desteklemeye başladı, önceki metin `supports no extra settings` idi).
 
 ---
 

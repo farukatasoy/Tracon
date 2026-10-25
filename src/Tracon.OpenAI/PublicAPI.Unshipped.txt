@@ -55,6 +55,7 @@ const Tracon.OpenAILiveOptions.SectionName = "Tracon:Providers:OpenAI:Live" -> s
 const Tracon.OpenAIProviderNames.ChatCompletions = "openai" -> string!
 const Tracon.OpenAIProviderNames.Responses = "openai-responses" -> string!
 const Tracon.OpenAIProviderNames.SettingsPrefix = "openai" -> string!
+const Tracon.OpenAIProviderNames.StrictJsonSchemaSetting = "openai.strictJsonSchema" -> string!
 const Tracon.OpenAIProviderOptions.SectionName = "Tracon:Providers:OpenAI" -> string!
 static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, System.Action<Tracon.OpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!

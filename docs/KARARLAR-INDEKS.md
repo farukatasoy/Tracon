@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1031 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1034 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1083 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1086 kalem)
 
 | K | Karar |
 |---|---|
-| K-1042 | Run seçeneği `AllowMultipleToolCalls = false` geçer; `true` ve öteki korunan üyeler reddedilir (K-1039 daraltması) |
-| K-1043 | Alt agent çağrı modu tanımdadır: `SubAgentSettings.CallMode` (`Background`, `Tool`); `Tool`'da ad çakışması reddedilir (F-599) |
-| K-1044 | Hosted tool kodda kaydedilir, tanım adla seçer: `AddHostedTool`; tool zinciri yoktur, tür başına en çok bir tane (F-603) |
 | K-1045 | Hosted tool desteğini sağlayıcı `IHostedToolSupport` ile bildirir; bildirmeyen tür derleme hatasıdır (F-603) |
 | K-1046 | Kayıtlı hosted çağrı `tracon.content` değil `ToolInvoking`/`ToolInvoked` olur; kayıtsız olan K-1034'te kalır (F-603) |
 | K-1047 | Hosted çağrı ücreti iç döngü halkasında, yanıt önbelleğinin içinde raporlanır; fiyatsız tür `null` kalır, `0` olmaz (F-603) |
@@ -62,3 +59,6 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1091 | `SpeechProviderDescriptor.Dialogue` diyalog sınırlarını kayıtlı örnekten okur; ayrı `SupportsDialogue` alanı yoktur (F-465) |
 | K-1092 | Gemini diyalog konuşmacı biçimi model nesline bağlıdır; `GoogleSpeechOptions.DialogueSpeakerMode` iki biçimi açık seçenekle verir (F-297) |
 | K-1093 | Gemini sesi kiracının kendi Google anahtarıyla gider ve sohbetle aynı kimlik önbelleğini paylaşır; `SupportsTenantCredentials` `true` (F-297) |
+| K-1094 | `openai.strictJsonSchema` ve `azure-openai.strictJsonSchema` yalnız yanıt şemasına uygulanır; tool bildirimleri `strict: false` taşır (F-347) |
+| K-1095 | `IResponseSchemaSupport` gönderilen etkin şemayı verir; OpenAI ailesi MEAI dönüşümünü kopyalar, kaymayı tel testi kapatır (F-347) |
+| K-1096 | `response_schema_strict_unsupported` yalnız `api.openai.com`'da (iki yüzey) ve uyarı olarak üretilir; Azure ve uyumlu sunucuda üretilmez (F-347) |

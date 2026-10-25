@@ -1875,8 +1875,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 **Beklenen sonuç**
 - Adım 1: `valid` alanı `false`'tur. Tek mesaj vardır: `code: invalid_setting`,
   `path: model.providerSettings`. Mesaj `these keys do not belong to the
-  'openai' provider: anthropic.promptCaching` ve `the 'openai' provider
-  supports no extra settings` metinlerini içerir.
+  'openai' provider: anthropic.promptCaching` ve `Supported keys:
+  openai.strictJsonSchema` metinlerini içerir (Faz 245: sağlayıcı artık tek
+  anahtar destekler; önceki metin `supports no extra settings` idi).
 - Adım 2: `code` ve `path` Adım 1 ile aynıdır. Mesaj `these keys are not
   recognized: openai.herhangi` metnini içerir.
 - Adım 3: sonuç Adım 2 ile aynıdır. Önek `openai`'dir; sağlayıcının kayıt adı

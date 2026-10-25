@@ -3406,6 +3406,12 @@ export interface components {
             inconclusive: boolean;
             /** @description Gets every message found. Validation does not stop at the first error. */
             messages: components["schemas"]["ValidationMessage"][];
+            /**
+             * @description Gets the response schema each model provider's client sends, for a definition whose response
+             *     format is a JSON schema. It is empty when the definition has no such format, and it lists only
+             *     the providers that state their schema.
+             */
+            responseSchemas: components["schemas"]["ResponseSchemaReport"][];
         };
         /**
          * @description Raw JSON response for comparing two definition versions. The
@@ -5969,6 +5975,24 @@ export interface components {
             enabled?: boolean;
             /** @description Gets how long a cached response stays valid. */
             lifetime?: string;
+        };
+        /** @description The response schema as one model provider's client sends it to the model. */
+        ResponseSchemaReport: {
+            /** @description Gets the provider name, for example `openai`. */
+            provider: string;
+            /** @description Gets the model name of the binding or the fallback link. */
+            model: string;
+            /**
+             * @description Gets a value that is `true` when the client asks the provider to enforce the schema while
+             *     the model generates. A fallback link is described without the primary binding's provider
+             *     settings, because the link receives none of them.
+             */
+            strict: boolean;
+            /**
+             * @description Gets the schema the client sends. It can differ from the one in the definition: the OpenAI
+             *     clients close every object, make every property required and move bounds into `description`.
+             */
+            schema: components["schemas"]["JsonElement"];
         };
         /** @description An age- and volume-based retention rule for a target. */
         RetentionPolicy: {
@@ -9075,6 +9099,7 @@ export type QuotaUsageRecord = components['schemas']['QuotaUsageRecord'];
 export type QuotaUsageResponse = components['schemas']['QuotaUsageResponse'];
 export type ReplayToolMode = components['schemas']['ReplayToolMode'];
 export type ResponseCacheSettings = components['schemas']['ResponseCacheSettings'];
+export type ResponseSchemaReport = components['schemas']['ResponseSchemaReport'];
 export type RetentionPolicy = components['schemas']['RetentionPolicy'];
 export type RetentionPolicySaveRequest = components['schemas']['RetentionPolicySaveRequest'];
 export type RetentionPreview = components['schemas']['RetentionPreview'];

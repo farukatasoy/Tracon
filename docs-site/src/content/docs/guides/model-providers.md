@@ -392,9 +392,19 @@ Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
 failed run with error type `content_filtered`.
 
-OpenAI and Azure OpenAI support no `ProviderSettings` keys, and both reject every
-key. For OpenAI this covers `openai`, `openai-responses`, and every
-`UseOpenAICompatible()` registration, whatever its name. A key written for another
+OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
+other key:
+
+| Key | Values | Sent as |
+|---|---|---|
+| `openai.strictJsonSchema` | `true`, `false` (default) | `strict: true` on the response format |
+| `azure-openai.strictJsonSchema` | `true`, `false` (default) | `strict: true` on the response format |
+
+The OpenAI key covers `openai`, `openai-responses`, and every `UseOpenAICompatible()`
+registration, whatever its name; a server that does not know strict mode can refuse the
+request. The setting reaches the response format of an agent whose `ResponseFormat` is a
+JSON schema, and not its tools. See
+[Strict mode](/guides/structured-output/#strict-mode). A key written for another
 provider, such as `anthropic.promptCaching` left over after a provider switch, is
 rejected too. `POST /api/agents/validate` reports it as `invalid_setting` at
 `model.providerSettings`, saving the definition returns `400`, and an agent defined in

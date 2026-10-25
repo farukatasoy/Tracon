@@ -8853,7 +8853,8 @@
         "required": [
           "valid",
           "inconclusive",
-          "messages"
+          "messages",
+          "responseSchemas"
         ],
         "type": "object",
         "properties": {
@@ -8871,6 +8872,13 @@
               "$ref": "#/components/schemas/ValidationMessage"
             },
             "description": "Gets every message found. Validation does not stop at the first error."
+          },
+          "responseSchemas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseSchemaReport"
+            },
+            "description": "Gets the response schema each model provider\u0027s client sends, for a definition whose response\nformat is a JSON schema. It is empty when the definition has no such format, and it lists only\nthe providers that state their schema."
           }
         },
         "description": "The result of a validation that builds an agent definition without saving it and\nwithout calling any model."
@@ -14536,6 +14544,34 @@
           }
         },
         "description": "Response caching settings for a ModelBinding."
+      },
+      "ResponseSchemaReport": {
+        "required": [
+          "provider",
+          "model",
+          "strict",
+          "schema"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Gets the provider name, for example \u0060openai\u0060."
+          },
+          "model": {
+            "type": "string",
+            "description": "Gets the model name of the binding or the fallback link."
+          },
+          "strict": {
+            "type": "boolean",
+            "description": "Gets a value that is \u0060true\u0060 when the client asks the provider to enforce the schema while\nthe model generates. A fallback link is described without the primary binding\u0027s provider\nsettings, because the link receives none of them."
+          },
+          "schema": {
+            "description": "Gets the schema the client sends. It can differ from the one in the definition: the OpenAI\nclients close every object, make every property required and move bounds into \u0060description\u0060.",
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        },
+        "description": "The response schema as one model provider\u0027s client sends it to the model."
       },
       "RetentionPolicy": {
         "required": [

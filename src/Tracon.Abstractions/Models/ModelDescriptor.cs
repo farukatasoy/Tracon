@@ -111,4 +111,14 @@ public sealed record ModelProviderDescriptor
     /// definition that selects a hosted tool the provider would drop.
     /// </remarks>
     internal HostedToolKinds SupportedHostedTools { get; init; }
+
+    /// <summary>
+    /// Gets the provider's answer to <see cref="IResponseSchemaSupport"/>, or <see langword="null"/> when
+    /// the provider does not implement it.
+    /// </summary>
+    /// <remarks>
+    /// Not part of the wire shape. The validator reads it to report the response schema the provider's
+    /// client sends. The provider is a singleton, so the reference stays valid for the registry's life.
+    /// </remarks>
+    internal IResponseSchemaSupport? ResponseSchemaSupport { get; init; }
 }

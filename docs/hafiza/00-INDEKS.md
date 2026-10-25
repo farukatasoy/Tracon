@@ -52,6 +52,7 @@
 | Arayüz test altyapısı (Vitest, `openapi-fetch` stub) | [frontend-test-altyapisi](frontend-test-altyapisi.md) |
 | Model sağlayıcısı (OpenAI/Anthropic/Google) | [openai-saglayici](openai-saglayici.md) |
 | `IChatClient` dekoratörü, devre kesici | [model-boru-hatti](model-boru-hatti.md) |
+| OpenAI/Azure yanıt şeması, strict mod, `IResponseSchemaSupport` | [openai-yanit-semasi](openai-yanit-semasi.md) |
 | `ContentGuard` fail-closed, DI döngüsü, sağlayıcı kaydı | [icerik-koruma-ve-saglayici-kayit](icerik-koruma-ve-saglayici-kayit.md) |
 | Ses tool'ları, konuşma katmanı | [ses-ve-konusma](ses-ve-konusma.md) |
 | Dışa açık MCP/A2A sunucusu, AG-UI ucu | [mcp-a2a-sunucu](mcp-a2a-sunucu.md), [a2a](a2a-konusma.md) |

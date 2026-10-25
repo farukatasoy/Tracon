@@ -22,4 +22,10 @@ internal sealed record AgentValidationReport
 
     [Description("Gets every message found. Validation does not stop at the first error.")]
     public required IReadOnlyList<ValidationMessage> Messages { get; init; }
+
+    [Description(
+        "Gets the response schema each model provider's client sends, for a definition whose response\n" +
+        "format is a JSON schema. It is empty when the definition has no such format, and it lists only\n" +
+        "the providers that state their schema.")]
+    public required IReadOnlyList<ResponseSchemaReport> ResponseSchemas { get; init; }
 }

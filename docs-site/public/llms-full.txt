@@ -53,7 +53,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
-| Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only; a response cut off at the output limit fails as `OutputTruncated` and is never repaired (plain text completes with a `tracon.output.truncated` event) |
+| Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only; a response cut off at the output limit fails as `OutputTruncated` and is never repaired (plain text completes with a `tracon.output.truncated` event); OpenAI and Azure OpenAI take `strictJsonSchema`, and `POST /api/agents/validate` shows the schema each provider receives |
 | Agent graph | An agent calls other agents as tasks or tools | `CallableAgentNames` | `SubAgents.CallMode` picks background tasks or one tool each. Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns. Each call also has a two-layer wait limit (`SubAgentSettings`, or the installation-wide default): a cooperative deadline, then a hard cutoff that abandons a child that ignores cancellation |
 | Harness mode | Context and iteration limits plus todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types. Its providers are on by default — each has its own `Disable...` flag |
 | Harness loop | The agent is re-invoked until a declared stop criterion says the work is finished | `HarnessSettings.Loop`, plus `AddLoopEvaluator()` for a criterion written in code | Off unless the definition sets it. Five built-in criterion kinds take data only (`agentReview` makes another agent of the catalog the reviewer, as a child run); an unknown kind is refused at compile time. A factory gets the root services on the first compilation that names its kind. `GET /api/loop-criteria` lists the kinds and the judge model; the console edits the loop, and validation reports each loop problem with a path. The iteration ceiling is never open — an unset `MaxIterations` takes Tracon's own default — and every iteration writes a `LoopIterationCompleted` run event that lists each evaluated criterion and names the judge model or the reviewer. `OnExhausted` / `OnCriterionError` set to `LoopOutcome.FailRun` fail the run instead of returning the last response (`LoopUnsatisfied`) |
@@ -12398,9 +12398,19 @@ Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
 failed run with error type `content_filtered`.
 
-OpenAI and Azure OpenAI support no `ProviderSettings` keys, and both reject every
-key. For OpenAI this covers `openai`, `openai-responses`, and every
-`UseOpenAICompatible()` registration, whatever its name. A key written for another
+OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
+other key:
+
+| Key | Values | Sent as |
+|---|---|---|
+| `openai.strictJsonSchema` | `true`, `false` (default) | `strict: true` on the response format |
+| `azure-openai.strictJsonSchema` | `true`, `false` (default) | `strict: true` on the response format |
+
+The OpenAI key covers `openai`, `openai-responses`, and every `UseOpenAICompatible()`
+registration, whatever its name; a server that does not know strict mode can refuse the
+request. The setting reaches the response format of an agent whose `ResponseFormat` is a
+JSON schema, and not its tools. See
+[Strict mode](/guides/structured-output/#strict-mode). A key written for another
 provider, such as `anthropic.promptCaching` left over after a provider switch, is
 rejected too. `POST /api/agents/validate` reports it as `invalid_setting` at
 `model.providerSettings`, saving the definition returns `400`, and an agent defined in
@@ -16169,6 +16179,64 @@ empty and the provider sends a lower default (Anthropic sends 4096 unless
 states the model's own `MaxOutputTokens`. See
 [Truncated output](/concepts/runs/#truncated-output).
 
+## The schema the provider receives
+
+OpenAI and Azure OpenAI do not receive your schema as you wrote it. The client rewrites
+it on every request, with strict mode on or off:
+
+- Every object that lists `properties` gets `additionalProperties: false`.
+- Every property goes into `required`. An optional property becomes required, and its
+  type does not gain `null`.
+- The bounds `maxLength`, `minLength`, `pattern`, `format`, `minimum`, `maximum`,
+  `multipleOf`, `minItems`, `maxItems`, `uniqueItems` and twelve more move into the
+  property's `description` as text. They are not bounds any more.
+- `default` moves into `description` too.
+
+`POST /api/agents/validate` shows the result. `responseSchemas` has one entry per
+binding and per fallback link, with `provider`, `model`, `strict` and the `schema` that
+goes on the wire. Two warnings name the differences, with a JSON Pointer into your schema:
+
+| Code | Meaning |
+|---|---|
+| `response_schema_optional_required` | An optional property that does not allow `null` is sent as required. The model must invent a value for it |
+| `response_schema_keyword_not_enforced` | A bound is sent as description text, not as a bound. The model can break it |
+
+Measured with `gpt-5.4-mini`: an optional `nickname` the model did not know came back as
+`""` in both modes. To let a property stay empty, allow `null`:
+`"nickname": { "type": ["string", "null"] }`. Your own `IStructuredResponseValidator`
+receives the schema as you wrote it, so it still enforces the bounds.
+
+### Strict mode
+
+Set `openai.strictJsonSchema` (or `azure-openai.strictJsonSchema`) to `true` in
+`providerSettings`:
+
+```json
+"model": {
+  "provider": "openai",
+  "model": "your-structured-output-model",
+  "responseFormat": { "kind": "JsonSchema", "schema": { "...": "..." } },
+  "providerSettings": { "openai.strictJsonSchema": true }
+}
+```
+
+The request then carries `strict: true` on the response format. The provider enforces
+the schema above while the model writes, so a reply follows it on the first call.
+Strict mode does not change the rewrite: it enforces the schema in `responseSchemas`.
+
+- It applies to the response format only. The agent's tools stay non-strict.
+- It does not reach a fallback link, because a link receives no provider settings.
+- It is off by default. A server behind `UseOpenAICompatible()` reads the same key and
+  can refuse a request when it does not know strict mode.
+
+OpenAI answers HTTP 400 for some schema parts in strict mode: `oneOf`, `allOf`, `if`,
+`then`, `dependentRequired`, `dependentSchemas`, and an object without
+`additionalProperties: false` (a free-form object or a map). For `openai` on
+`api.openai.com` (both API surfaces), validation reports them as the warning
+`response_schema_strict_unsupported`. It is a warning, not an error, so the definition can
+still be saved. Write `anyOf` instead of `oneOf`. Tracon does not make this check for Azure
+OpenAI or a compatible server, because their refusals are not measured.
+
 ## Design schemas for reliable extraction
 
 Keep the schema small and explicit. Mark required fields. Use
@@ -16204,6 +16272,8 @@ payload against your schema.
 | `IStructuredResponseValidator` | No-op by default (always valid); register your own to enforce a rule |
 | `Tracon:StructuredResponse:MaxRepairAttempts` | `0`; repair is off, an invalid response fails the run immediately |
 | Response stopped at the output limit | Fails the run as `output_truncated`; never repaired |
+| `openai.strictJsonSchema`, `azure-openai.strictJsonSchema` | `false`; no `strict` flag is sent |
+| Schema sent by OpenAI and Azure OpenAI | Rewritten on every request, strict or not; `responseSchemas` in the validation report shows it |
 
 For a streamed run, assemble the complete response before parsing JSON. Individual
 SSE text events are fragments, not standalone JSON documents.
@@ -16221,6 +16291,14 @@ supports the feature.
 **Validation succeeds, but the provider rejects the run.** The model was absent from
 the catalog, or the provider supports a smaller schema subset. Verify the exact API
 surface and simplify unsupported keywords.
+
+**A strict run fails with HTTP 400 and `'oneOf' is not permitted`.** OpenAI's strict
+mode refuses that keyword. Validation reports `response_schema_strict_unsupported`
+before the run. Use `anyOf`, or turn the setting off.
+
+**A property you left optional comes back empty.** The client sends every property as
+required. Allow `null` in its type, and read the `response_schema_optional_required`
+warning.
 
 **A long response fails with `output_truncated`.** The model stopped at its output
 limit. Raise `ModelBinding.MaxOutputTokens`; at high Anthropic effort, thinking

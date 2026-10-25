@@ -34,10 +34,11 @@ namespace Tracon;
 /// up the resource chooses the name.
 /// </para>
 /// <para>
-/// The provider supports <strong>no keys at all</strong> inside
-/// <see cref="ModelBinding.ProviderSettings"/>. The Azure-only request fields
+/// The provider supports <strong>one key</strong> inside
+/// <see cref="ModelBinding.ProviderSettings"/>:
+/// <see cref="AzureOpenAIProviderNames.StrictJsonSchemaSetting"/>. The Azure-only request fields
 /// (data sources and the like) have no counterpart on the plain OpenAI client
-/// this provider uses. When a defined key arrives, the build stops with
+/// this provider uses. When any other key arrives, the build stops with
 /// an explicit error.
 /// </para>
 /// </remarks>
@@ -105,7 +106,8 @@ internal sealed class AzureOpenAIChatClientFactory
     /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// The deployment name cannot be resolved, or <see cref="ModelBinding.ProviderSettings"/>
-    /// contains any key.
+    /// contains a key that is not in <see cref="AzureOpenAIProviderNames.SupportedSettings"/>, or a
+    /// supported key with a value of the wrong type.
     /// </exception>
     public IChatClient CreateChatClient(ModelBinding binding)
     {
@@ -119,8 +121,8 @@ internal sealed class AzureOpenAIChatClientFactory
                 $"set the '{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.DefaultDeployment)}' " +
                 "option.");
 
-        // This provider supports no extra settings; every incoming key is
-        // rejected here and the error is wrapped by AgentDefinitionCompiler into
+        // Every key that is not in the supported list is rejected here and the
+        // error is wrapped by AgentDefinitionCompiler into
         // TraconCompilationException. Silently ignoring it would leave the
         // user without the behavior they expected (K-208).
         ModelProviderSettings.Validate(
@@ -128,7 +130,11 @@ internal sealed class AzureOpenAIChatClientFactory
             AzureOpenAIProviderNames.SettingsPrefix,
             AzureOpenAIProviderNames.SupportedSettings);
 
-        return _client.GetChatClient(deployment).AsIChatClient();
+        var client = _client.GetChatClient(deployment).AsIChatClient();
+
+        return ModelProviderSettings.ReadBoolean(binding, AzureOpenAIProviderNames.StrictJsonSchemaSetting) is true
+            ? new OpenAIStrictResponseSchemaChatClient(client)
+            : client;
     }
 
     /// <summary>Builds a client for an Azure OpenAI resource's v1 endpoint from options.</summary>

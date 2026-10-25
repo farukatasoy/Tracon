@@ -1,6 +1,6 @@
 # 22 — Guardrail ve Yapılandırılmış Çıktı (`GUARD`)
 
-> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134, 140, 207
+> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134, 140, 207, 245
 > **Kaynak:** `src/Tracon.Abstractions/Agents/ResponseFormat.cs` ·
 > `Agents/ModelBinding.cs` (`ResponseFormat` alanı) ·
 > `Models/ModelDescriptor.cs` (`SupportsStructuredOutput` alanı) ·
@@ -2661,3 +2661,105 @@ curl -s -N -X POST "$APU/api/agents/manuel-kisa-yanit/run" -H "$APB" -H "content
 - Çerçeveler yalnız `run`, `update` ve `done`'dur; `custom` yoktur.
 
 > **Koşum (2026-10-14, Faz 207 kapanışı):** ✅ — `run` · 8 `update` · `done`.
+
+---
+
+### MT-GUARD-116 — OpenAI yanıt şemasını strict açıkken de kapalıyken de yeniden yazar; rapor yazılanı gösterir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 245 |
+| **İlgili karar** | — |
+| **Devir** | 🤖 ajan koşar — örnek uygulama + gerçek OpenAI anahtarı (`curl`) |
+
+**Ön koşul**
+- Örnek uygulama Development'ta, **izole şeritte** ayakta (dört boş ortam değişkeni +
+  geçici Sqlite dosyası; `docs/hafiza/elle-kosum-ortami.md`), `Tracon:Providers:OpenAI:ApiKey` user-secrets'ta.
+- Katalogda `gpt-5.4-mini` `SupportsStructuredOutput: true`.
+
+**Adımlar**
+1. İki agent kaydet: biri `openai.strictJsonSchema: true`, biri ayarsız. İkisinde de şema
+   `name` (`maxLength: 20`) zorunlu, `nickname` isteğe bağlı `string`, `age` `["integer","null"]` (`minimum: 0`).
+2. İlkini `validate` et: `responseSchemas` ve iki uyarıyı oku.
+3. İkisini de "Ada adında bir matematikçiyi tarif et; nickname'i bilmiyorsan söyleme" diyerek çalıştır.
+4. `nickname`'i `["string","null"]` yapıp strict açık agent'ı yeniden `validate` et ve çalıştır.
+
+**Girilecek veri**
+```bash
+SEMA='{"type":"object","properties":{"name":{"type":"string","maxLength":20},"nickname":{"type":"string"},"age":{"type":["integer","null"],"minimum":0}},"required":["name"]}'
+for K in on off; do
+  AYAR=$([ $K = on ] && echo ',"providerSettings":{"openai.strictJsonSchema":true}' || echo '')
+  curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
+    -d "{\"name\":\"manuel-strict-$K\",\"instructions\":\"Describe the person. Leave out nothing you are not sure about.\",\"model\":{\"provider\":\"openai\",\"model\":\"gpt-5.4-mini\",\"responseFormat\":{\"kind\":\"JsonSchema\",\"schemaName\":\"person\",\"schema\":$SEMA}$AYAR}}" > /dev/null
+done
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" \
+  -d "{\"name\":\"manuel-strict-on\",\"instructions\":\"x\",\"model\":{\"provider\":\"openai\",\"model\":\"gpt-5.4-mini\",\"responseFormat\":{\"kind\":\"JsonSchema\",\"schema\":$SEMA},\"providerSettings\":{\"openai.strictJsonSchema\":true}}}" \
+  | jq '{valid, kodlar: [.messages[].code], sema: .responseSchemas[0]}'
+for K in on off; do
+  curl -s -X POST "$APU/api/agents/manuel-strict-$K/run" -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+    -d '{"message":"Describe Ada, a mathematician. Give only her name and nickname if you know them."}' | jq -r '.response.messages[0].contents[0].text'
+done
+```
+
+**Beklenen sonuç**
+- `valid: true`; kodlar `response_schema_optional_required` (yalnız `#/properties/nickname`;
+  `age` null kabul ettiği için yok) ve `response_schema_keyword_not_enforced`
+  (`#/properties/age: minimum`, `#/properties/name: maxLength`).
+- `responseSchemas[0]`: `provider: openai`, `strict: true`; `additionalProperties: false`,
+  `required` üç alanın hepsi, `name.description` `maxLength: 20`, `maxLength` anahtarı yok.
+- İki çalıştırmada da `nickname` **dolu bir değer ya da boş dizgi** döner (alan zorunlu gider);
+  yani strict kapalıyken de şema yeniden yazılmıştır. Alan değerleri iddia edilmez.
+- Adım 4: uyarı `response_schema_optional_required` kalkar; `nickname` bilinmiyorsa `null` döner.
+
+> **Koşum (2026-10-25, Faz 245):** ✅ — iki agent de `{"name":"Ada","nickname":"","age":null}` döndürdü
+> (`nickname` boş dizgi; strict açık ve kapalı **aynı** sonuç). Adım 4: uyarı yok,
+> `{"name":"Ada","nickname":null,...}`. Responses yüzeyi (`openai-responses`) strict açıkken aynı biçimde çalıştı.
+
+---
+
+### MT-GUARD-117 — Strict açıkken OpenAI'nin reddettiği yapı çalışmadan raporda uyarı olur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 245 |
+| **İlgili karar** | — |
+| **Devir** | 🤖 ajan koşar — örnek uygulama + gerçek OpenAI anahtarı (`curl`) |
+
+**Ön koşul**
+- MT-GUARD-116'nın ön koşulu.
+
+**Adımlar**
+1. Şemada `answer` için `oneOf` olan, strict açık ve kapalı iki agent kaydet.
+2. Strict açık tanımı `validate` et.
+3. Strict açık agent'ı çalıştır; kapalı olanı çalıştır.
+4. `oneOf`'u `anyOf` yap ve strict açık agent'ı yeniden `validate` et ve çalıştır.
+
+**Girilecek veri**
+```bash
+SEMA='{"type":"object","properties":{"answer":{"oneOf":[{"type":"string"},{"type":"integer"}]}},"required":["answer"]}'
+# strict açık ve kapalı iki agent kaydet (MT-GUARD-116'daki döngü, $SEMA ile; uyarı kaydı engellemez); sonra:
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d "$TANIM_ACIK" \
+  | jq '{valid, mesajlar: [.messages[] | {severity, code, path}]}'
+curl -s -i -X POST "$APU/api/agents/manuel-oneof-on/run"  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" -d '{"message":"What is 6 times 7?"}' | head -1
+curl -s    -X POST "$APU/api/agents/manuel-oneof-off/run" -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" -d '{"message":"What is 6 times 7?"}' | jq -r '.response.messages[0].contents[0].text'
+```
+
+**Beklenen sonuç**
+- `validate`: `valid: true`; tek mesaj `Warning`, `code: response_schema_strict_unsupported`,
+  `path: model.responseFormat.schema`; metin `#/properties/answer: oneOf` ve `anyOf` önerisini içerir.
+  Uyarı kaydı engellemez: `POST /api/agents` `201` döner.
+- Strict açık agent `502` döner; uygulama günlüğü `Invalid schema for response_format ... 'oneOf' is not permitted`
+  satırını taşır (sağlayıcı ayrıntısı yanıtta değil günlüktedir).
+- Strict kapalı agent aynı şemayla `200` döner (`{"answer":42}` gibi).
+- Adım 4: `valid: true`, mesaj yok; çalıştırma `200`.
+
+> **Koşum (2026-10-25, Faz 245):** ✅ — `validate` `valid: true` + `Warning` (ilk koşumda kural hataydı ve kayıt
+> `400` ile engelleniyordu; denetim 🔴 buldu, uyarıya indirildi); strict açık `HTTP 502`, günlükte
+> `'oneOf' is not permitted`; strict kapalı `{"answer":42}`; `anyOf` ile strict açık `200`.
+> Canlı OpenAI sondajı (gpt-5.4-mini, `strict: true`): `oneOf` · `allOf` · `if` · `then` · `dependentRequired` ·
+> `dependentSchemas` `is not permitted` (Responses yüzeyinde `oneOf` de aynı mesajla reddedildi); `additionalProperties` yok/`true`/şema ve `$defs` içindeki açık nesne
+> `additionalProperties ... to be false`; `anyOf` · `enum` · `["string","null"]` · `$ref` ile `$defs` kabul.

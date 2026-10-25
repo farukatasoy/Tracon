@@ -1241,6 +1241,10 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     "src/Tracon.AspNetCore/A2A/TraconA2AOptions.cs": "Microsoft.Agents.AI.Hosting.A2A",
     "src/Tracon.Core/Recording/UsageBreakdown.cs": "Microsoft.Extensions.AI",
     "src/Tracon.OpenAI/OpenAIChatClientFactory.cs": "Microsoft.Extensions.AI",
+    # Faz 245: yanit semasinin yeniden yazimi (22 anahtar, dort secenek) ve strict bayragini okuyan
+    # HasStrict kurali kutuphanenin decompile okumasina dayanir; kopya yukseltmede yeniden olculur
+    # (StrictResponseSchemaWireTests kayma kapisidir).
+    "src/Tracon.OpenAI.Shared/OpenAIResponseSchema.cs": "Microsoft.Extensions.AI.OpenAI",
     # F-341: dugum tip zinciri kurali MAF'in mesaji sessizce dusurmesine ve
     # atanabilirlikle teslim etmesine dayanir; yukseltmede yeniden olculur.
     "src/Tracon.Core/Workflows/WorkflowDefinitionValidator.cs": "Microsoft.Agents.AI.Workflows",

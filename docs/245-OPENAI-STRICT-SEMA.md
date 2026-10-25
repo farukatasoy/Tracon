@@ -1,6 +1,6 @@
 # Faz 245 — OpenAI Strict Şema Modu ve Sağlayıcıya Giden Etkin Şema
 
-> **Durum:** 📋 Planlandı (2026-10-25)
+> **Durum:** ✅ Tamamlandı (2026-10-25)
 > **Kademe:** hafif — migration yok · public API'den satır silinmez (yalnız ekleme: bir sağlayıcı yetenek arayüzü, iki ayar anahtarı, doğrulama yanıtına bir alan) · hedef framework değişmez · güvenlik/kiracı sınırı yok · geri dönüşü pahalı karar yok
 > **Plan onayı:** Bakımcı, 2026-10-25 (sohbette alınan kararlar: strict yalnız yanıt şemasına uygulanır, tool'lar strict dışı kalır; `openai.*` ve `azure-openai.*` önekleri; `/validate` uyarı + etkin şema verir)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-347**
@@ -140,14 +140,18 @@ sonra da ekleyicidir. `SupportedSettings` listesinin boş olmaktan çıkması, X
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `openai.strictJsonSchema: true` ile gerçek OpenAI isteğinde `response_format.json_schema.strict = true` gider; tool'ların `strict` alanı `false`tur (tel testi)
-- [ ] Aynısı `azure-openai.strictJsonSchema` için (tel testi)
-- [ ] Kopyalanan dönüşüm MEAI'nin gerçek isteğiyle iki yüzeyde ve iki modda bayt bayt aynıdır (tel testi)
-- [ ] `/validate` raporu `responseSchemas` ve iki uyarı kodunu verir; `dogrulama-kodlari.txt` yeniden üretildi; OpenAPI ve iki istemci yeniden üretildi
-- [ ] Strict + `oneOf` gerçek OpenAI ile ölçüldü; sonuç ve (gerekirse) hata kodu belgeye yazıldı
-- [ ] `samples/Tracon.Api` yapılandırılmış yanıtlı bir agent ile strict açık ve kapalı koşuldu; iki çıktı belgeye yazıldı
-- [ ] Site sayfaları, iki sağlayıcının XML'i ve `CHANGELOG.md [Unreleased]` güncel
-- [ ] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
+- [x] `openai.strictJsonSchema: true` ile gerçek OpenAI isteğinde `response_format.json_schema.strict = true` gider; tool'ların `strict` alanı `false`tur (tel testi) — `StrictResponseSchemaWireTests.The_strict_setting_puts_strict_true_on_the_response_format_and_false_on_every_tool` (Chat Completions + Responses, `tools[].function.strict` / `tools[].strict`)
+- [x] Aynısı `azure-openai.strictJsonSchema` için (tel testi) — aynı sınıf `Tracon.Azure.UnitTests`'te (`Surfaces` yalnız Chat Completions)
+- [x] Kopyalanan dönüşüm MEAI'nin gerçek isteğiyle iki yüzeyde ve iki modda bayt bayt aynıdır (tel testi) — `The_schema_on_the_wire_is_the_schema_the_copy_computes` ve 22 anahtarın hepsini taşıyan `Every_keyword_the_library_moves_is_moved_by_the_copy_too`; mutasyonla ölçüldü (anahtar silme, `RequireAllProperties` kapatma, tool sarmayı atlama, `options` yerinde yazma: hepsi kırmızı)
+- [x] `/validate` raporu `responseSchemas` ve iki uyarı kodunu verir; `dogrulama-kodlari.txt` yeniden üretildi; OpenAPI ve iki istemci yeniden üretildi — `ResponseSchemaValidationTests` (HTTP), `ResponseSchemaReportTests` (birim); `docs/sozlesme/dogrulama-kodlari.txt` (+3 kod), `docs/openapi/tracon.json`, `packages/tracon-client/src/schema.ts`, `TraconApiClient.g.cs`
+- [x] Strict + `oneOf` gerçek OpenAI ile ölçüldü; sonuç ve hata kodu belgeye yazıldı — `HTTP 400 … In context=('properties', 'answer'), 'oneOf' is not permitted.`; strict kapalıyken aynı şema `200`. Hata kodu `response_schema_strict_unsupported` eklendi (K-1096); `MT-GUARD-117`, `docs/hafiza/openai-yanit-semasi.md`
+- [x] `samples/Tracon.Api` yapılandırılmış yanıtlı bir agent ile strict açık ve kapalı koşuldu; iki çıktı belgeye yazıldı — gerçek `gpt-5.4-mini`, izole şerit:
+  - strict açık: `{"name":"Ada","nickname":"","age":null}` (106 girdi / 17 çıktı token)
+  - strict kapalı: `{"name":"Ada","nickname":"","age":null}` (106 / 17) — aynı sonuç: dönüşüm strict kapalıyken de koşar
+  - `nickname` → `["string","null"]`, strict açık: uyarı yok, `{"name":"Ada","nickname":null,"answer":"Ada Lovelace was born in 1815."}`; `openai-responses` yüzeyinde aynı biçim
+  - `oneOf` + strict açık: `validate` `valid: true` + uyarı `response_schema_strict_unsupported`, çalıştırma `502` (günlükte `'oneOf' is not permitted`); strict kapalı `{"answer":42}`
+- [x] Site sayfaları, iki sağlayıcının XML'i ve `CHANGELOG.md [Unreleased]` güncel — `guides/structured-output.md`, `guides/model-providers.md`, `capabilities.md`; `OpenAIProviderNames`/`AzureOpenAIProviderNames`/`IResponseSchemaSupport` XML; iki paket README'si; `npm run check` yeşil (ağırlık tavanı değişmedi)
+- [x] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban 3697d93c` — üretim, tarama, doküman denetimi, build, pack, site (`npm run check`), format yeşil; tam test 28.344 / 0 düşen / 1 atlanan. İlk tam koşumda tek test (`JobWorkerLeaseContractTests.A_cancelled_job_whose_handler_throws_stays_cancelled`, zamanlama) düştü ve izole geçti; tam paket yeniden koşuldu, yeşil
 
 ## Testler
 
@@ -181,24 +185,53 @@ gerçek OpenAI ile strict açık/kapalı ve `oneOf` ölçümü.
 
 > Çalışırken dolar; kapanışta commit mesajına taşınır.
 
+1. **"Host doğrulaması özgün şemayı uygular" yanlıştı.** Tracon yerleşik bir şema doğrulayıcı taşımaz; yalnız tüketicinin `IStructuredResponseValidator`'ı şemayı özgün hâliyle alır (`Enabled` açıkken). Uyarı metni ve site bunu söyler: "A registered `IStructuredResponseValidator` still receives the schema as written."
+2. **`ResponseSchemaShape.StrictUnsupported` planda yoktu.** Ölçülen red (`oneOf` → `400`) bir taşıyıcı ister; ayrı bir yetenek arayüzü yerine şekle üçüncü liste eklendi. Liste yalnız ölçülen hizmette (`api.openai.com` ya da adres verilmemiş) dolar; Azure ve uyumlu sunucu için boş kalır (K-1096). Canlı sondaj (Chat Completions): `oneOf`, `allOf`, `if`, `then`, `dependentRequired`, `dependentSchemas` ve `additionalProperties`'i `false` olmayan nesne (serbest nesne, harita, `$defs` içindekiler) `400` verdi; `prefixItems` ve `else` ayrı ölçülmedi, listede yok. Responses yüzeyi (denetim 🟡): `oneOf` aynı mesajla reddedildi, bu yüzden liste iki yüzeye uygulanır; Responses'ta tool için `strict` yazılmayınca açık (strict'e uymayan) bir şemayla `200` döndü, yani ayarı açmak tool'u 'strict'ten non-strict'e çevirmez.
+3. **`response_schema_strict_unsupported` UYARI** (kullanıcı kararı, denetim 🔴). Plan "hata kodu" dedi, önem yazmadı; ilk uygulama ERROR yaptı ve bu, kayıt yolunun da `ValidateEntitiesAsync` ile doğrulayıp `400` dönmesi yüzünden strict + `oneOf` tanımı **kaydedilemez** kıldı (`MT-GUARD-117`'nin kayıt adımı kırıldı). Cevap kiracıdan bağımsız olduğu için kiracının kendi uyumlu sunucusunu bağlayan BYOK'u yanlışlıkla engellerdi. Uyarı olarak kaldı: çalışmayacak tanım `valid: true` döner (K-1096'daki alternatif: hata). Yeni davranış `ResponseSchemaValidationTests` ile sabit (uyarı + `POST /api/agents` `201`).
+4. **Uyarıdan null kabul eden alan çıkarıldı.** Plan "bu isteğe bağlı alanlar zorunlu gider" dedi. Tipi `null` kabul eden (`type` dizisi, `enum`/`const` null, `anyOf`/`oneOf` kolu, boş şema) alan zorunlu gitse de model onu boş bırakabilir; uyarı gürültü olurdu. `$ref` izlenmez, uyarıya girer.
+5. **Konum biçimi JSON Pointer** (`#/properties/address/properties/zip`), plan "JSON yolları" dedi.
+6. **`IResponseSchemaSupport` `ModelProviderDescriptor.ResponseSchemaSupport` (internal) üzerinden okunur;** `IModelProviderRegistry`'ye üye eklenmedi (`ISamplingSupport` emsali). Public yüzey: `IResponseSchemaSupport`, `ResponseSchemaShape`, iki `StrictJsonSchemaSetting` sabiti.
+7. **Tel testleri `StubHttpServer` ile** ve `tests/Shared/OpenAI/` altında (iki sağlayıcı test projesine bağlı), `ScriptedChatCompletionsServer` ile değil: ortak kaynağın her derleme kopyasını sınamak gerekir (`Providers.Shared` testleri emsali) ve Azure test projesi `AspNetCore.FunctionalTests`'e bağlı değil. Tek istekli gerçek loopback soketi aynı kanıtı verir; Responses yüzeyi de aynı sunucuyla.
+8. **`InvalidSettingValue` `null` kalmadı.** Faz 204 notu boolean ayar için `null` demişti; sözleşme senaryosu boolean olmayan bir metinle de çalışır ve değeri yankılamadığını sınar. İki sözleşme türevinde `"sometimes"` kullanıldı.
+9. **Dekoratörün yeri ölçüldü, plan doğru çıktı:** `AITool.AdditionalProperties` sarmalayıcıda geçersiz kılınabilir (`AIFunctionDeclaration` alt sınıfı; MEAI'nin `DelegatingAIFunctionDeclaration`'ı `internal`), tel düzeyinde `strict: false`. Tool kendi `strict` anahtarını yazdıysa dokunulmaz.
+10. **`SupportedSettings` mesajı değişti:** boş liste "supports no extra settings" diyordu; artık "Supported keys: …". Üç testin ve iki manuel case'in metni güncellendi (`MT-OAI-*`, `MT-PROV-*` beklenen metni).
+11. **Yeni kapılar:** `dokuman-bakim.py` `SURUM_DAMGASI_KAYDI` yeni satır (`OpenAIResponseSchema.cs` → `Microsoft.Extensions.AI.OpenAI`); `README.md` public tip sayısı 622 → 624; `public-surface-baseline.txt` `Tracon.Abstractions` 405 → 407 (planlı iki tip: `IResponseSchemaSupport`, `ResponseSchemaShape`; yüzey gerekçeli ve planlı büyüdü).
+12. **Python `urllib` bu makinede sertifika hatası verdi;** canlı sondaj `curl` ile koşuldu (`docs/hafiza/openai-yanit-semasi.md`).
+
 ## Bu Fazda Verilen Kararlar
 
 > Dört kategoriden biri `docs/KARARLAR.md`'ye; gerisi kapanış commit mesajına.
-> Beklenen kayıtlar: strict yalnız yanıt şemasına, tool'lar `strict = false`
-> *(public-api; alternatif: MEAI'nin yerel anlamı — tool'lar da strict)* ·
-> `IResponseSchemaSupport` ve kopya + tel kapısı *(public-api; alternatif: yalnız
-> özet/hash — yazar farkı görmez)*.
+
+- **K-1094** — strict yalnız yanıt şemasına, tool'lar `strict = false` *(public-api; alternatif: MEAI'nin yerel anlamı)*
+- **K-1095** — `IResponseSchemaSupport` + kopya + tel kapısı *(public-api; alternatif: yalnız özet/hash)*
+- **K-1096** — `response_schema_strict_unsupported` yalnız ölçülen hizmette ve uyarı *(public-api, kullanıcı kararı; alternatif: hata seviyesi, tüm OpenAI ailesi)*
+
+Kategori dışı (kapanış commit mesajı): null kabul eden alanın uyarıdan çıkarılması, JSON Pointer biçimi, `StubHttpServer` ile tel testleri, `SupportedSettings` mesaj metni, `SURUM_DAMGASI_KAYDI` satırı.
+
+## Tüketici Yüzeyi Envanteri
+
+1. **`docs-site/`** (elle): `guides/structured-output.md` (yeni bölüm "The schema the provider receives" + "Strict mode", tablo ve sorun giderme), `guides/model-providers.md` (OpenAI/Azure ayar anahtarı tablosu), `capabilities.md`. Üretilen: `http-api/` (OpenAPI), `llms-full.txt`. Ağırlık: tavan değişmedi (en ağır `guides/voice` 58.964 B).
+2. **Sevk edilen metin**: `OpenAIProviderNames`/`AzureOpenAIProviderNames` XML (`StrictJsonSchemaSetting`, `SupportedSettings`), `IResponseSchemaSupport`/`ResponseSchemaShape` XML, `src/Tracon.OpenAI/README.md`, `src/Tracon.Azure/README.md`, `CHANGELOG.md [Unreleased]`, `docs/openapi/tracon.json`, `packages/tracon-client/src/schema.ts`, `TraconApiClient.g.cs`, `docs/sozlesme/dogrulama-kodlari.txt`.
+3. **Yerel referans / agent haritası**: `capabilities.md` yapılandırılmış çıktı satırı; harita bütçesi içinde.
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 12 sapma; biri kullanıcı kararı (hata → uyarı, denetim 🔴) |
+| Düzeltme turu sayısı | 1 (denetim sonrası) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (kapanış kapısı yeşil; 🔴 fazın kendi ilk uygulamasındaydı, kapanmadan düzeltildi) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı; 🟢 kapanışta `ADAYLAR.md`'ye gider.
+> `faz-denetim` çıktısı (2026-10-25, taze bağlamlı `faz-denetcisi`); 🟢 `docs/ADAYLAR.md`'ye gitti.
+
+- 🔴 **`response_schema_strict_unsupported` ERROR olduğu için strict + `oneOf` tanımı kaydedilemiyordu.** Gerçek (kullanıcı kararı: uyarıya indir). Kayıt yolu (`ValidateEntitiesAsync`) hatayı `400` yapar; faz dokümanı "kayıt engellenmez" diyordu. Düzeltme: uyarı; `POST /api/agents` `201` döner (`ResponseSchemaValidationTests`); sapma 3, K-1096, site, CHANGELOG, `MT-GUARD-117` düzeltildi.
+- 🟡 Public XML yanlış iddia taşıyordu ("host reply'i doğrular"). Kapandı: `IResponseSchemaSupport` ve `ResponseSchemaShape` XML'i "a registered `IStructuredResponseValidator` receives the schema as written" der.
+- 🟡 `StrictUnsupported` ölçüm kapsamı testsizdi ve Responses ölçülmemişti. Kapandı: `OpenAIResponseSchemaSupportTests` (varsayılan/`api.openai.com`/özel adres/Responses/yanlış tipli ayar) ve `AzureOpenAIResponseSchemaSupportTests`; Responses yüzeyinde `oneOf` canlı ölçüldü (aynı `400`); kiracı uç adresi (BYOK) cevabın dışında kalır, bu yüzden kod uyarıdır (sapma 3).
+- 🟡 Doğrulayıcı yalnız `TraconException`/`ArgumentException` yakalıyordu; istemci `default` yanında metin olmayan `description`'da `InvalidOperationException` atar (denetçinin okuması, karakterizasyon testiyle doğrulandı). Kapandı: `OperationCanceledException` dışı her istisna yakalanır; birim (`ResponseSchemaReportTests`) ve HTTP (`A_schema_the_client_cannot_rewrite…`) testi.
+- 🟡 Kayma kapısı yalnız bugünkü 22 anahtarı taşıyordu. Kapandı: "kalan anahtarlar" sondası (`enum`, `const`, `exclusiveMinimum`, `prefixItems`, `dependentRequired`, `$defs`+`$ref`, `anyOf`, `additionalProperties` şeması); `OpenAIResponseSchema`'ya sahte bir 23. anahtar eklemek (`exclusiveMinimum`) iki yüzeyde kırmızı oldu. İddia "sondada bulunan her şey" diye daraltıldı.
+- 🟡 Dekoratör gerçek `FunctionInvokingChatClient` altında sınanmamıştı. Kapandı: `Under_the_function_loop_the_tool_runs_and_both_turns_carry…` (iki tur, fonksiyon bir kez çalışır, her iki turda `strict: true` biçim ve `strict: false` tool).
+- 🟢 F-694 (sağlayıcı kılavuzunda `IResponseSchemaSupport` yok), F-695 (kayıtta durmaz; K-1096), F-696 (Azure/uyumlu sunucu ölçümü), F-697 (yeniden yazılamayan şema raporda iz bırakmaz). Denetçinin ikinci 🟢'si (Responses'ta tool `strict` varsayılanı) ölçüldü ve kapandı: ayar açıkken `strict: false` yazmak sağlayıcı varsayılanını değiştirmez.

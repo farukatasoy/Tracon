@@ -83,14 +83,25 @@ Every produced `IChatClient` goes through the same pipeline: `UseFunctionInvocat
 leaves the tool call loop to the Microsoft Agent Framework, and `UseOpenTelemetry()`
 produces spans under the `Tracon` source.
 
-## Provider-specific settings — none
+## Provider-specific settings
 
-This provider supports **no keys at all** in `ModelBinding.ProviderSettings`. The rule
-covers both surfaces and every `UseOpenAICompatible(...)` registration. If any key is
-present, including one written for another provider such as `anthropic.promptCaching`,
-the build stops with an error that names the key. A key is never ignored silently.
-Temperature, output limit, reasoning effort and response format are fixed fields of
-`ModelBinding`.
+This provider supports **one key** in `ModelBinding.ProviderSettings`:
+`openai.strictJsonSchema` (boolean, off by default). With it on, the request carries
+`strict: true` on the response format of an agent whose `ResponseFormat` is a JSON
+schema, and OpenAI enforces the schema while the model generates. It reaches the response
+format only; the agent's tools stay non-strict. The rule covers both surfaces and every
+`UseOpenAICompatible(...)` registration; a server that does not know strict mode can
+refuse the request.
+
+Every other key is rejected, including one written for another provider such as
+`anthropic.promptCaching`: the build stops with an error that names the key. A key is
+never ignored silently. Temperature, output limit, reasoning effort and response format
+are fixed fields of `ModelBinding`.
+
+The client rewrites a response schema on every request, strict or not (every object is
+closed, every property becomes required, and bounds such as `maxLength` move into the
+`description` text). `POST /api/agents/validate` returns the schema that goes on the wire
+under `responseSchemas` and warns about the difference.
 
 ## Any OpenAI compatible endpoint (OpenRouter, Groq, vLLM, local servers)
 

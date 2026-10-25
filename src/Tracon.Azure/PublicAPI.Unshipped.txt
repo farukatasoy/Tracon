@@ -19,6 +19,7 @@ Tracon.AzureOpenAIProviderOptions.Timeout.get -> System.TimeSpan?
 Tracon.AzureOpenAIProviderOptions.Timeout.set -> void
 const Tracon.AzureOpenAIProviderNames.AzureOpenAI = "azure-openai" -> string!
 const Tracon.AzureOpenAIProviderNames.SettingsPrefix = "azure-openai" -> string!
+const Tracon.AzureOpenAIProviderNames.StrictJsonSchemaSetting = "azure-openai.strictJsonSchema" -> string!
 const Tracon.AzureOpenAIProviderOptions.SectionName = "Tracon:Providers:AzureOpenAI" -> string!
 static Tracon.AzureOpenAIImageBuilderExtensions.UseAzureOpenAIImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.AzureOpenAIProviderExtensions.UseAzureOpenAI(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
