@@ -17,10 +17,121 @@ public sealed record SpeechDialogueCapabilities
     public required int MaxCharactersPerRequest { get; init; }
 
     /// <summary>
-    /// Gets whether the provider reports each turn's time range when
-    /// <see cref="SpeechDialogueRequest.IncludeTimestamps"/> is set.
+    /// Gets whether the provider reports each turn's time range when the request sets
+    /// <c>IncludeTimestamps</c>.
     /// </summary>
     public bool SupportsSegmentTimestamps { get; init; }
+
+    /// <summary>Checks a dialogue request against these limits.</summary>
+    /// <param name="request">The request.</param>
+    /// <param name="providerName">The provider name; the messages name it.</param>
+    /// <param name="characterLimitSetting">
+    /// The name of the setting that sets <see cref="MaxCharactersPerRequest"/>, or
+    /// <see langword="null"/> when no setting does. The message names it when it is given.
+    /// </param>
+    /// <returns>The characters of all turns: the estimate when the provider reports no count.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="providerName"/> is empty.</exception>
+    /// <exception cref="TraconException">
+    /// The request has no turn, a turn is missing or has no text or no voice, the turns use more
+    /// than <see cref="MaxVoices"/> voices, or they carry more than <see cref="MaxCharactersPerRequest"/>
+    /// characters. The message never carries a turn's text.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The rule every dialogue implementation applies before it calls its service: a
+    /// request over a limit is the caller's to split, never the implementation's to cut. An
+    /// implementation that calls this method refuses the same requests the built-in
+    /// ElevenLabs client refuses, in the same words.
+    /// </para>
+    /// <para>
+    /// A voice counts once however many turns use it, and the comparison is ordinal.
+    /// </para>
+    /// <example>
+    /// A dialogue implementation of your own refuses a request over its limits before it calls its service:
+    /// <code>
+    /// internal sealed class ContosoDialogueSynthesizer : ISpeechDialogueSynthesizer
+    /// {
+    ///     public string ProviderName => "contoso";
+    ///
+    ///     public SpeechDialogueCapabilities DialogueCapabilities { get; } = new()
+    ///     {
+    ///         MaxVoices = 2,
+    ///         MaxCharactersPerRequest = 1000,
+    ///     };
+    ///
+    ///     public ValueTask&lt;SpeechDialogueAudio&gt; SynthesizeDialogueAsync(
+    ///         SpeechDialogueRequest request,
+    ///         CancellationToken cancellationToken = default)
+    ///     {
+    ///         // Throws a TraconException that names the limit; the service is not called.
+    ///         var characters = DialogueCapabilities.Check(request, ProviderName);
+    ///
+    ///         // ... send the turns to the service and read the audio it answers ...
+    ///         var audio = new SpeechAudio
+    ///         {
+    ///             Data = Array.Empty&lt;byte&gt;(),
+    ///             MediaType = "audio/wav",
+    ///             CharactersBilled = characters,
+    ///             UsageSource = SpeechUsageSource.Estimated,
+    ///         };
+    ///
+    ///         return ValueTask.FromResult(new SpeechDialogueAudio { Audio = audio });
+    ///     }
+    /// }
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public int Check(SpeechDialogueRequest request, string providerName, string? characterLimitSetting = null)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
+
+        if (request.Turns is not { Count: > 0 } turns)
+        {
+            throw new TraconException("A dialogue request needs at least one turn.");
+        }
+
+        var characters = 0;
+        var voices = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var index = 0; index < turns.Count; index++)
+        {
+            var turn = turns[index] ?? throw new TraconException($"Dialogue turn {index} is missing.");
+
+            if (string.IsNullOrWhiteSpace(turn.Text))
+            {
+                throw new TraconException($"Dialogue turn {index} has no text.");
+            }
+
+            if (string.IsNullOrWhiteSpace(turn.VoiceId))
+            {
+                throw new TraconException($"Dialogue turn {index} has no voice id. A dialogue turn has no default voice.");
+            }
+
+            characters += turn.Text.Length;
+            voices.Add(turn.VoiceId);
+        }
+
+        if (voices.Count > MaxVoices)
+        {
+            throw new TraconException(
+                $"The dialogue uses {voices.Count} voices; one '{providerName}' dialogue request takes at most " +
+                $"{MaxVoices}. Split it into requests of at most {MaxVoices} voices.");
+        }
+
+        if (characters > MaxCharactersPerRequest)
+        {
+            var setting = string.IsNullOrWhiteSpace(characterLimitSetting) ? string.Empty : $" ({characterLimitSetting})";
+
+            throw new TraconException(
+                $"The dialogue has {characters} characters; one '{providerName}' dialogue request takes at most " +
+                $"{MaxCharactersPerRequest}{setting}. " +
+                "Split it into smaller requests: Tracon does not split or cut a dialogue.");
+        }
+
+        return characters;
+    }
 }
 
 /// <summary>One turn of a dialogue: a text and the voice that speaks it.</summary>

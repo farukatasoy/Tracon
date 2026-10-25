@@ -239,8 +239,9 @@ A caller selects an engine by name:
 | The `speak`, `transcribe` and `list_voices` tools, the conversation socket | Always the default provider |
 
 `GET /api/voice/providers` lists every registration — its name (`null` for the
-default), its kind, the provider name it reports, and whether it accepts a tenant's own
-key. An unknown name answers `400` and names the registered ones; a request without a
+default), its kind, the provider name it reports, whether it accepts a tenant's own
+key, and `dialogue`: the limits of one dialogue request, or `null` when the provider cannot voice
+a dialogue. An unknown name answers `400` and names the registered ones; a request without a
 name when no default is registered answers `501`. A provider failure the speech
 adapter reports as a `TraconException` (the built-in adapters do) answers `502`, while
 it speaks or lists its voices; any other exception is a server error.
@@ -395,6 +396,8 @@ Rules that follow from the OpenAI service:
   `OpenAI speech request failed with HTTP 403 (model_not_found)`: status and error code, never the
   service's text.
 - **Native AOT.** The package publishes with Native AOT, including this path.
+
+Gemini speech has [its own page](/guides/gemini-speech/).
 
 ### Voice a dialogue with several speakers
 

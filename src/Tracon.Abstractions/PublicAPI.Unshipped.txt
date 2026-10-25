@@ -3094,6 +3094,7 @@ Tracon.SpeechDialogueAudio.Segments.init -> void
 Tracon.SpeechDialogueAudio.SpeechDialogueAudio() -> void
 Tracon.SpeechDialogueCapabilities
 Tracon.SpeechDialogueCapabilities.<Clone>$() -> Tracon.SpeechDialogueCapabilities!
+Tracon.SpeechDialogueCapabilities.Check(Tracon.SpeechDialogueRequest! request, string! providerName, string? characterLimitSetting = null) -> int
 Tracon.SpeechDialogueCapabilities.Equals(Tracon.SpeechDialogueCapabilities? other) -> bool
 Tracon.SpeechDialogueCapabilities.MaxCharactersPerRequest.get -> int
 Tracon.SpeechDialogueCapabilities.MaxCharactersPerRequest.init -> void
@@ -3142,6 +3143,8 @@ Tracon.SpeechDialogueTurn.VoiceId.get -> string!
 Tracon.SpeechDialogueTurn.VoiceId.init -> void
 Tracon.SpeechProviderDescriptor
 Tracon.SpeechProviderDescriptor.<Clone>$() -> Tracon.SpeechProviderDescriptor!
+Tracon.SpeechProviderDescriptor.Dialogue.get -> Tracon.SpeechDialogueCapabilities?
+Tracon.SpeechProviderDescriptor.Dialogue.init -> void
 Tracon.SpeechProviderDescriptor.Equals(Tracon.SpeechProviderDescriptor? other) -> bool
 Tracon.SpeechProviderDescriptor.Kind.get -> Tracon.SpeechProviderKind
 Tracon.SpeechProviderDescriptor.Kind.init -> void

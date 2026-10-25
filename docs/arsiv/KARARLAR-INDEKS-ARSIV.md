@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1027 kalem)
+## Arşivlenen Kararlar (1031 kalem)
 
 | K | Karar |
 |---|---|
@@ -1036,3 +1036,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1035 | `UseProvidedChatClientAsIs` ve `AllowConcurrentInvocation` korunur: ikisi korunan bir ayarı dolaylı değiştirir |
 | K-1036 | Deneysel upstream tip yalnız ön sürüm hattındaki uydu paketin public imzasına girer; çekirdek aile kararlı kalır (D-01) |
 | K-1037 | Ön sürüm upstream'e bağlı yeni uydu paket ayrı ön sürüm hattında çıkar; mevcut aile tek hatta kalır (D-19) |
+| K-1038 | `EnableMessageInjection`, `RequirePerServiceCallChatHistoryPersistence`, `RawRepresentationFactory` korunur: Tracon'da işlemez ya da tanımı ezer 👤 |
+| K-1039 | Run başına `ChatOptions` HTTP'de yoktur; kod ve MAF yolu tek kuraldan geçer: tanımın üyesi reddedilir, ek talimat ve tool beyanı geçer 👤🔁 |
+| K-1040 | Model istek alanları tanımdadır; sağlayıcı yüzeyi gönderdiğini `ISamplingSupport` ile bildirir, bildirmeyen alan derleme hatasıdır (F-598) |
+| K-1041 | `AllowConcurrentToolCalls` `ModelBinding.ToolLoop` altına taşındı; eski yük okumada çevrilir, eski HTTP anahtarı `400` alır (F-598) 👤 |

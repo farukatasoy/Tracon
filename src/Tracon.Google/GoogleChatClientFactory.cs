@@ -26,7 +26,6 @@ namespace Tracon;
 /// </remarks>
 internal sealed class GoogleChatClientFactory : IDisposable
 {
-    private readonly Client _client;
     private readonly bool _ownsClient;
     private readonly string? _defaultModel;
     private readonly ILoggerFactory? _loggerFactory;
@@ -60,11 +59,19 @@ internal sealed class GoogleChatClientFactory : IDisposable
     {
         ArgumentNullException.ThrowIfNull(client);
 
-        _client = client;
+        Client = client;
         _ownsClient = ownsClient;
         _defaultModel = Trim(defaultModel);
         _loggerFactory = loggerFactory;
     }
+
+    /// <summary>Gets the Google GenAI client this factory shares with every capability built from it.</summary>
+    /// <remarks>
+    /// The speech synthesizer calls the client's <c>Models</c> directly: Google.GenAI has no
+    /// Microsoft.Extensions.AI text-to-speech adapter, and the client is built once with the
+    /// key, the endpoint and the timeout the factory was given.
+    /// </remarks>
+    internal Client Client { get; }
 
     /// <summary>Produces a chat client for the given binding.</summary>
     /// <param name="binding">Model binding.</param>
@@ -111,7 +118,7 @@ internal sealed class GoogleChatClientFactory : IDisposable
                 "(-1 leaves it to the model, 0 turns thinking off).");
         }
 
-        IChatClient inner = _client.AsIChatClient(model);
+        IChatClient inner = Client.AsIChatClient(model);
 
         // The decorator is skipped entirely when there is no setting: the plain path
         // must not produce a ChatOptions copy and a settings object on every request.
@@ -126,7 +133,7 @@ internal sealed class GoogleChatClientFactory : IDisposable
     /// <summary>Creates an image generator that shares this factory's Google client.</summary>
     /// <returns>The native Microsoft.Extensions.AI image generator.</returns>
 #pragma warning disable MEAI001
-    internal IImageGenerator CreateImageGenerator() => new GoogleImageGenerator(_client);
+    internal IImageGenerator CreateImageGenerator() => new GoogleImageGenerator(Client);
 #pragma warning restore MEAI001
 
     /// <summary>Builds a Google GenAI client from settings.</summary>
@@ -189,7 +196,7 @@ internal sealed class GoogleChatClientFactory : IDisposable
     {
         if (_ownsClient)
         {
-            _client.Dispose();
+            Client.Dispose();
         }
     }
 

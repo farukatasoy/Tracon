@@ -266,7 +266,10 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
 
         // Every refusal comes before the semaphore and the network: a dialogue over a
         // limit is the caller's to split, never this client's to cut (K1).
-        var characters = CheckDialogue(request);
+        var characters = DialogueCapabilities.Check(
+            request,
+            ProviderName,
+            $"{nameof(VoiceOptions)}.{nameof(VoiceOptions.MaxDialogueCharactersPerRequest)}");
         var settings = ElevenLabsRequestSettings.ReadDialogue(request.ProviderSettings);
         var format = request.OutputFormat ?? _options.OutputFormat;
 
@@ -588,58 +591,6 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         AddApiKey(message);
 
         return message;
-    }
-
-    /// <summary>Checks a dialogue against this client's limits.</summary>
-    /// <returns>The characters of all turns: the estimate when the provider reports no count.</returns>
-    /// <exception cref="TraconException">The request breaks a limit. The message never carries a turn's text.</exception>
-    /// <remarks><c>internal</c>: unit tests verify each refusal without a network call.</remarks>
-    internal int CheckDialogue(SpeechDialogueRequest request)
-    {
-        if (request.Turns is not { Count: > 0 } turns)
-        {
-            throw new TraconException("A dialogue request needs at least one turn.");
-        }
-
-        var characters = 0;
-        var voices = new HashSet<string>(StringComparer.Ordinal);
-
-        for (var index = 0; index < turns.Count; index++)
-        {
-            var turn = turns[index] ?? throw new TraconException($"Dialogue turn {index} is missing.");
-
-            if (string.IsNullOrWhiteSpace(turn.Text))
-            {
-                throw new TraconException($"Dialogue turn {index} has no text.");
-            }
-
-            if (string.IsNullOrWhiteSpace(turn.VoiceId))
-            {
-                throw new TraconException($"Dialogue turn {index} has no voice id. A dialogue turn has no default voice.");
-            }
-
-            characters += turn.Text.Length;
-            voices.Add(turn.VoiceId);
-        }
-
-        if (voices.Count > MaxDialogueVoices)
-        {
-            throw new TraconException(
-                $"The dialogue uses {voices.Count} voices; one '{ProviderName}' dialogue request takes at most " +
-                $"{MaxDialogueVoices}. Split it into requests of at most {MaxDialogueVoices} voices.");
-        }
-
-        var limit = _options.MaxDialogueCharactersPerRequest;
-
-        if (characters > limit)
-        {
-            throw new TraconException(
-                $"The dialogue has {characters} characters; one '{ProviderName}' dialogue request takes at most " +
-                $"{limit} ({nameof(VoiceOptions)}.{nameof(VoiceOptions.MaxDialogueCharactersPerRequest)}). " +
-                "Split it into smaller requests: Tracon does not split or cut a dialogue.");
-        }
-
-        return characters;
     }
 
     /// <summary>Refuses a tenant credential: the built-in client calls with its configured key only.</summary>

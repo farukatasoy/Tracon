@@ -17154,6 +17154,38 @@
         },
         "description": "One character\u0027s position in the generated audio."
       },
+      "SpeechDialogueCapabilities": {
+        "required": [
+          "maxVoices",
+          "maxCharactersPerRequest"
+        ],
+        "type": "object",
+        "properties": {
+          "maxVoices": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the most distinct voices one request can use.",
+            "format": "int32"
+          },
+          "maxCharactersPerRequest": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the most characters one request can carry, summed over its turns.",
+            "format": "int32"
+          },
+          "supportsSegmentTimestamps": {
+            "type": "boolean",
+            "description": "Gets whether the provider reports each turn\u0027s time range when the request sets\n\u0060IncludeTimestamps\u0060."
+          }
+        },
+        "description": "The limits of one dialogue request, as the provider states them."
+      },
       "SpeechProviderDescriptor": {
         "required": [
           "kind",
@@ -17180,6 +17212,17 @@
           "supportsTenantCredentials": {
             "type": "boolean",
             "description": "Gets whether the provider can call the service with a tenant\u0027s own credential."
+          },
+          "dialogue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the limits of one dialogue request, or \u0060null\u0060 when the provider\ncannot voice a dialogue.",
+                "$ref": "#/components/schemas/SpeechDialogueCapabilities"
+              }
+            ]
           }
         },
         "description": "A registered speech provider, as the speech provider list reports it."

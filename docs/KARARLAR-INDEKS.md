@@ -2,18 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1027 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1031 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1079 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1083 kalem)
 
 | K | Karar |
 |---|---|
-| K-1038 | `EnableMessageInjection`, `RequirePerServiceCallChatHistoryPersistence`, `RawRepresentationFactory` korunur: Tracon'da işlemez ya da tanımı ezer 👤 |
-| K-1039 | Run başına `ChatOptions` HTTP'de yoktur; kod ve MAF yolu tek kuraldan geçer: tanımın üyesi reddedilir, ek talimat ve tool beyanı geçer 👤🔁 |
-| K-1040 | Model istek alanları tanımdadır; sağlayıcı yüzeyi gönderdiğini `ISamplingSupport` ile bildirir, bildirmeyen alan derleme hatasıdır (F-598) |
-| K-1041 | `AllowConcurrentToolCalls` `ModelBinding.ToolLoop` altına taşındı; eski yük okumada çevrilir, eski HTTP anahtarı `400` alır (F-598) 👤 |
 | K-1042 | Run seçeneği `AllowMultipleToolCalls = false` geçer; `true` ve öteki korunan üyeler reddedilir (K-1039 daraltması) |
 | K-1043 | Alt agent çağrı modu tanımdadır: `SubAgentSettings.CallMode` (`Background`, `Tool`); `Tool`'da ad çakışması reddedilir (F-599) |
 | K-1044 | Hosted tool kodda kaydedilir, tanım adla seçer: `AddHostedTool`; tool zinciri yoktur, tür başına en çok bir tane (F-603) |
@@ -62,3 +58,7 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1087 | Yerleşik `agentReview` ölçütü katalog agent'ını ad (+sürüm) ile anar, çocuk run koşar; karar şekli reviewer'ın tanımındadır (F-411) |
 | K-1088 | Loop iterasyon olayı `criteria[]` ile ölçüt kararını ve onaylayanın kimliğini yazar (yargıç, reviewer, çocuk run); metin yazmaz (F-411) |
 | K-1089 | Tükenmiş ağaç bütçesinde tool çağrısı başlamaz: token, maliyet ve süre; ret `run_budget_exceeded` kimliğini korur (F-530) |
+| K-1090 | Çok konuşmacılı diyalog kuralı public bir yardımcıdır: `SpeechDialogueCapabilities.Check`; ElevenLabs ve Gemini aynı kuralı koşar (F-297) |
+| K-1091 | `SpeechProviderDescriptor.Dialogue` diyalog sınırlarını kayıtlı örnekten okur; ayrı `SupportsDialogue` alanı yoktur (F-465) |
+| K-1092 | Gemini diyalog konuşmacı biçimi model nesline bağlıdır; `GoogleSpeechOptions.DialogueSpeakerMode` iki biçimi açık seçenekle verir (F-297) |
+| K-1093 | Gemini sesi kiracının kendi Google anahtarıyla gider ve sohbetle aynı kimlik önbelleğini paylaşır; `SupportsTenantCredentials` `true` (F-297) |

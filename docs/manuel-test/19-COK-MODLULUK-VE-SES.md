@@ -1,6 +1,6 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
-> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198, 203, 213, 220
+> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198, 203, 213, 220, 244
 > **Kaynak:** `src/Tracon.Abstractions/Attachments/` (tümü) ·
 > `src/Tracon.Core/Attachments/` (tümü) ·
 > `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
@@ -3195,4 +3195,68 @@ sahte sunucuyla kanıtlıdır, gerçek servisle değil. Gerçek serviste yalnız
 - (2) `200`; ek `audio/mpeg`; `isEstimated` `true`; `cost` `null` (`Tracon:Pricing:Voice:openai:<model>` yoksa).
 - (3) Çözüm metni girdi cümlesini taşır; `ModelId` çözme modelidir. Süre yoktur, bu yüzden maliyet `null`.
 - (4) `403`; mesaj `openai`yı adlandırır; OpenAI'ye istek **gitmez**.
+- `secret` taraması boş.
+
+---
+
+### MT-MM-143 — Gemini adlı sağlayıcıyla tek ses WAV döner; sağlayıcı listesi diyalog sınırını verir (Faz 244, F-297, F-465)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 244 |
+| **İlgili karar** | K-930, K-1091, K-1093 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama + `curl`, gerçek `Tracon:Providers:Google:ApiKey`. Kodla tekrarlanan her şey ➜ CI: `GoogleSpeechSynthesizerTests` · `GeminiSpeechTests` · `NamedSpeechProviderTests` |
+
+**Ön koşul**
+- `samples/Tracon.Api` ayakta (dört boş ortam değişkeniyle, `elle-kosum-ortami.md`). Anahtar yalnız
+  user-secrets'tadır (K-059). Örnek uygulama `UseGoogleSpeech` ile `gemini-3.8-flash-tts` kaydeder.
+
+**Adımlar**
+1. `GET /tracon/api/voice/providers`.
+2. `POST /tracon/api/voice/speak` `{"text":"Merhaba, bu Tracon üzerinden Gemini ile üretilmiş kısa bir deneme.","provider":"gemini","voiceId":"Kore"}`.
+3. Çıkan eki `GET /tracon/api/attachments/{id}` ile indir; `RIFF` parçalarını ve süreyi oku (python `wave`).
+4. `PUT /tracon/api/tenants/default/egress` ile yalnız `echo` ve `gemini` izinli yap; 2. adımı tekrarla. Sonra `google` ekle; yine tekrarla.
+
+**Beklenen sonuç**
+- (1) `gemini` `Synthesizer` olarak, `providerName` `"google"`, `supportsTenantCredentials` `true` ve
+  `dialogue` `{maxVoices: 2, maxCharactersPerRequest: 2000, supportsSegmentTimestamps: false}` ile listelenir;
+  ElevenLabs varsayılan satırının `dialogue` değeri `maxVoices: 10`, `tone` satırınınki `null`.
+- (2) `200`; ek `audio/wav`; `isEstimated` `true`; `characters` metnin uzunluğu; `cost` `null`
+  (`Tracon:Pricing:Voice:google:<model>` yoksa).
+- (3) `RIFF`/`WAVE`, 24 kHz, tek kanal, 16 bit; süre sıfırdan büyük; `data` parçasından sonra `C2PA` parçası.
+- (4) Yalnız `gemini` izinliyken `403` ve mesaj `speech provider 'google'` der, Google'a istek **gitmez**
+  (kayıt adı politikayı geçmez); `google` eklenince `200`.
+- `secret` taraması boş; günlükte `Npgsql` satırı yok.
+
+---
+
+### MT-MM-144 — Gemini diyaloğu iki sesle seslendirir; model nesline uymayan konuşmacı biçimi adıyla reddedilir (Faz 244, F-297)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 244 |
+| **İlgili karar** | K-952, K-1092 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama + `curl`, gerçek Google anahtarı; ses süresi ve boyutla ölçülür, dinleme gerekmez. Kodla tekrarlanan her şey ➜ CI: `GoogleSpeechDialogueTests` · `GeminiSpeechTests` |
+
+**Ön koşul** — MT-MM-143'ün ön koşulu.
+
+**Adımlar**
+1. `PUT /tracon/api/workflows/gemini-duo`
+   `{"kind":"Sequential","nodes":[{"name":"dialogue","kind":"Function","settings":{"provider":"gemini","voices":["Kore","Puck"]}}]}`.
+2. `POST /tracon/api/workflows/gemini-duo/run` `{"message":"<dört satır, satır başına bir replik>"}`.
+3. Çıktıdaki eki indir; sürenin ve boyutun repliklerle orantılı olduğunu ve konuşma duraklarını ölç.
+4. `PUT /tracon/api/workflows/gemini-duo-old` aynı düğümle, ayarlara `"modelId":"gemini-2.5-flash-preview-tts"` ekleyerek; çalıştır.
+5. Düğüme `"voices":["Kore"]` ver ve `"includeTimestamps":true` iste; çalıştır (iki ayrı koşum).
+
+**Beklenen sonuç**
+- (2) `Completed`; çıktı `dialogue by google`, ek kimliği, `… characters (Estimated)`, `model gemini-3.8-flash-tts`
+  ve `request <id>` yazar; zaman aralığı satırı **yoktur**.
+- (3) `audio/wav`, 24 kHz tek kanal; süre dört repliğe yetecek kadar uzun (≥ 8 sn) ve en az üç ayrı duraklama var.
+- (4) `Failed`; hata `HTTP 400 (INVALID_ARGUMENT)` der ve `DialogueSpeakerMode` ile `TextLabels` adını önerir;
+  Google'ın kendi metni yanıtta **yoktur**.
+- (5) Tek ses: `takes exactly 2 voices`; zaman damgası: `IncludeTimestamps is not supported`; ikisinde de Google'a istek **gitmez**.
 - `secret` taraması boş.

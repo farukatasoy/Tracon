@@ -98,32 +98,11 @@
 
 ### Olculen GPT-Live protokolu (2026-09-11, gercek oturum)
 
-🚨 **Bu satirlar dokumantasyondan degil, gercek bir oturumun ham dokumunden
-alindi.** Saglayicinin kendi hata mesaji kabul ettigi olay listesini veriyor —
-yeni bir olay eklemeden once bilerek gecersiz bir `type` gonderip listeyi
-tazele.
-
-- **Yalniz `webrtc` transport'u var.** `websocket`/`ws` → `400 "Only the webrtc
-  transport is supported."` Sunucu tarafli bir medya koprusu **yapilamaz**;
-  Tracon SDP araciligi yapar.
-- **`/v1/live/client_secrets` → 404.** Ephemeral token ucu YOK ve gerekmiyor:
-  oturumu Tracon kendi anahtariyla yaratir.
-- **Append alani `content`, `text` DEGIL** ve `delegation_id` **uc kanalda da
-  zorunlu** (`session.thinking|commentary|instructions.append`).
-- **Transcript'te `is_final` YOK** — yalniz `start_ms`/`end_ms` tasiyan delta.
-  🚨 Defter bu yuzden `TimeProvider` KULLANMAZ: zamani saglayici veriyor ve
-  delegation kesimi (`offset_ms`) o zamana gore yapiliyor; yerel saat kayar.
-- **`session.delegation.created`**: `offset_ms` + `delegation:{id, type, target}`.
-  Kimlik `delegation.id`'dedir ve `item_` onekini tasir — `deleg_` DEGIL.
-  `offset_ms`, delegation'dan onceki SON transcript segmentinin **baslangicidir**;
-  kesim `StartMs <= offsetMs` ile o segmenti dahil eder.
-- **`session.usage.updated` VAR** ve `usage.seconds` tasir; `session.closed` de
-  ayni alani tasir. Faturalanan sure budur (K-745).
-- **Append tavani 500 TOKEN**: `"Context append text must not exceed 500 tokens."`
-  Karakter donusumu tek yerde (`OpenAILiveOptions.ConservativeCharactersPerToken`).
-- **`session.interrupt` YOK.** Sideband konusmayi kesemez.
-- 🚨 **Sideband sesi AYNALIYOR** (`session.input_audio.append` ve
-  `session.output_audio.delta`, base64). Faz 161 bu frame'leri yok sayar.
+- Yalniz `webrtc` var (sunucu tarafli medya koprusu yapilamaz); ephemeral token ucu YOK; append alani `content` ve
+  `delegation_id` uc kanalda zorunlu; transcript'te `is_final` YOK (defter `TimeProvider` kullanmaz); append tavani
+  500 TOKEN; `session.interrupt` YOK; sideband sesi AYNALAR. Sagliyicinin hata mesaji kabul ettigi olay listesini
+  verir — yeni olay eklemeden once gecersiz bir `type` gonderip listeyi tazele. Tam olcum:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) — "Faz 244 (Gemini konusma notuna yer acmak icin)".
 
 ### Tuzaklar
 
@@ -151,6 +130,20 @@ tazele.
 - **🚨 Dış `CloseAsync` `_lifetime`'i pump bitmeden iptal edemez** (2026-09-19; F-257'nin transkript vakasının kök nedeni) — kapanış sırası `CloseCoreAsync`'tedir; tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 - **🚨 Sentetik ses WebRTC'de çalışır, `MediaRecorder`'da ÇALIŞMAZ** (2026-09-19): konuşma paneli (`UseVoiceConversation`) içerik isteyen case'lerde gerçek mikrofon ister; canlı ses (`live-test.html`) sentetikle sürülür — `replaceTrack` kullanma (`Abandoned`), parçanın İÇİNE çal. Canlı ses ucu token'ı `Authorization` ile değil subprotocol ile alır (`401` ≠ yetki reddi); kuyruklu onay `sessionId` ister. Tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## Gemini konuşması (Faz 244)
+
+- **🚨 Çok konuşmacılı istek biçimi MODEL NESLİNE göre ters** (2026-10-25, canlı): `gemini-3.8-*` her parçada
+  `speechMetadata.speaker` ister ve `Speaker1: …` satırını `400` reddeder; `gemini-2.5-flash-preview-tts` ve
+  `gemini-3.1-flash-tts-preview` satırı kabul eder, metadata'yı reddeder (K-1092, `DialogueSpeakerMode`). Tam iki
+  konuşmacı ister; birden çok `contents` girdisi "Multiturn chat" reddidir.
+- **Ses kabı da modele göre**: 3.8 `audio/wav` verir ve sample'dan SONRA `C2PA` parçası ekler (`data` boyutu
+  dosya boyutundan küçüktür); 2.5 `audio/L16;codec=pcm;rate=24000`, 3.1 `audio/l16; rate=24000; channels=1`. Örnekler
+  16 bit **little-endian**. `wav` istenince model dosyası olduğu gibi döner (`C2PA` korunur).
+- **Akış modele bağlı**: 3.8 ~190 parça (ilk ~1 sn); 2.5 tek parça (~7 sn). Akış hep ham PCM.
+- Dil `tr` ve `tr-TR` kabul. Sessiz istek 3.8'de çalışır, 2.5'te `400`. Hata: `ApiException` `StatusCode` + `Status`.
+  Karakter sayısı yok (token, ~25 ses token/sn) → tahmin. Kiracı istemcisi `GoogleModelProvider.GetTenantFactory`'de (K-1093).
+- Dosyalar: `Tracon.Google/GoogleSpeech*.cs`, `Internal/GoogleSpeech{Synthesizer,Audio}.cs`; test ucu `ScriptedGeminiSpeechServer`.
 
 ## Adlı konuşma sağlayıcısı ve kiracı kapısı (Faz 198)
 

@@ -181,7 +181,7 @@ same one the run judge calls, and keeps the shared setup-time key.
 Speech calls obey the same policy and the same bindings: text-to-speech,
 speech-to-text and the voice list check the provider name the engine reports, before
 any text or audio leaves the process. A tenant's own key reaches only an engine that
-accepts one; for any other engine the call is refused rather than billed to the host.
+accepts one (the [Gemini speech](/guides/gemini-speech/) provider does, on the `google` name); for any other engine the call is refused rather than billed to the host.
 See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
 
 Knowledge base embedding calls obey the policy too: an upload, a knowledge search and

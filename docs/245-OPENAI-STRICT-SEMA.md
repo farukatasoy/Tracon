@@ -10,6 +10,15 @@
 > **Tüketici yüzeyi:** site `guides/structured-output.md` (strict modu, etkin şema, "Defaults and caveats"), `guides/model-providers.md` (OpenAI ve Azure ayar anahtarları — bugün "anahtar yok" diyor), `capabilities.md` satırı · sevk edilen: `OpenAIProviderNames`/`AzureOpenAIProviderNames` XML, `docs/sozlesme/dogrulama-kodlari.txt` (üretilir), OpenAPI → iki istemci (üretilir), `CHANGELOG.md` `[Unreleased]`
 > **Manuel test alanı:** `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`
 
+## Önceki Fazdan Devir
+
+> Faz 244 (Gemini konuşma adaptörü) devri; yalnız bu fazı etkileyenler.
+
+- **Site ağırlığı sıfır boşlukta.** `check-weight.mjs` tavanı 59.000 B ve en ağır sayfa `guides/voice` 58.963 B; `concepts/workflows` da tavana yakın. Faz 244 yeni bir sayfa (`guides/gemini-speech`) ekledi ve kenar çubuğu girişi **her sayfaya 21–27 B gzip** ekler. Bu faz `guides/model-providers.md` (57,1 KB) ve `guides/structured-output.md` sayfalarını büyütür; ağır bir sayfaya yeni içerik girecekse önce `npm run check` ağırlığını ölç, tavanı yükseltme: sayfayı böl ya da kes (kalite sözleşmesi F: "yalnız düşer").
+- **`llms.txt` bütçesi 24 → 25 KiB** oldu (`build-agent-map.mjs`, ölçüm başında); 24.777 / 25.600 B, yaklaşık üç yeni sayfalık boşluk. Yeni sayfa eklemeden önce `kapi.py uret` ile sayıyı gör.
+- **`guides/model-providers.md` tablosunda `Tracon.Google` satırı** artık Gemini konuşmasına bağlanır; bu faz aynı tabloya OpenAI/Azure ayar anahtarlarını yazarken o satırı bozma.
+- **`ModelProviderCore<T>`'ye `GetTenantFactory` eklendi** (paylaşılan kaynak, dört pakete derlenir; yalnız Google kullanır). `Tracon.OpenAI.Shared` ile karıştırma: o ayrı bir ortak kaynaktır.
+
 ## Amaç
 
 Tracon yanıt şemasını `ChatResponseFormat.ForJsonSchema` ile verir. OpenAI'nin

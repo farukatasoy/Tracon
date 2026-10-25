@@ -49,7 +49,7 @@ Add these when you need them.
 | `Tracon.SqlServer` | You run SQL Server instead of PostgreSQL |
 | `Tracon.Sqlite` | One node, or durable local development |
 | `Tracon.Anthropic` | You call Claude models — with effort, adaptive thinking and prompt-cache TTL and placement settings |
-| `Tracon.Google` | You call Gemini models |
+| `Tracon.Google` | You call Gemini models, or speak and voice a two-voice dialogue with a Gemini text-to-speech model |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
 | `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents. It takes the AG-UI SDK, which the other packages never see |

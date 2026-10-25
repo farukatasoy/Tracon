@@ -1644,3 +1644,36 @@ Hız sınırı paragrafının önceki hâli: "**Hız sınırı bir yalıtım sı
   implementasyonda KIRMIZI olmalı" kanıtını (`ContractSelfProofTests` deseni) NORMAL yeşil
   koşumu bozmadan yazmanın yoludur: kırık fixture'ı `private sealed class` yap, `[Fact]`
   metodunu doğrudan çağır (`await instance.SomeFact()`), `try/catch` ile "attı mı" sına.
+
+## `docs/hafiza/ses-ve-konusma.md`'den — Faz 244 (Gemini konusma notuna yer acmak icin)
+
+> Olculen GPT-Live protokolu, oldugu gibi. Ozet bir satirla alan dosyasinda kalir.
+
+#### Olculen GPT-Live protokolu (2026-09-11, gercek oturum)
+
+🚨 **Bu satirlar dokumantasyondan degil, gercek bir oturumun ham dokumunden
+alindi.** Saglayicinin kendi hata mesaji kabul ettigi olay listesini veriyor —
+yeni bir olay eklemeden once bilerek gecersiz bir `type` gonderip listeyi
+tazele.
+
+- **Yalniz `webrtc` transport'u var.** `websocket`/`ws` → `400 "Only the webrtc
+  transport is supported."` Sunucu tarafli bir medya koprusu **yapilamaz**;
+  Tracon SDP araciligi yapar.
+- **`/v1/live/client_secrets` → 404.** Ephemeral token ucu YOK ve gerekmiyor:
+  oturumu Tracon kendi anahtariyla yaratir.
+- **Append alani `content`, `text` DEGIL** ve `delegation_id` **uc kanalda da
+  zorunlu** (`session.thinking|commentary|instructions.append`).
+- **Transcript'te `is_final` YOK** — yalniz `start_ms`/`end_ms` tasiyan delta.
+  🚨 Defter bu yuzden `TimeProvider` KULLANMAZ: zamani saglayici veriyor ve
+  delegation kesimi (`offset_ms`) o zamana gore yapiliyor; yerel saat kayar.
+- **`session.delegation.created`**: `offset_ms` + `delegation:{id, type, target}`.
+  Kimlik `delegation.id`'dedir ve `item_` onekini tasir — `deleg_` DEGIL.
+  `offset_ms`, delegation'dan onceki SON transcript segmentinin **baslangicidir**;
+  kesim `StartMs <= offsetMs` ile o segmenti dahil eder.
+- **`session.usage.updated` VAR** ve `usage.seconds` tasir; `session.closed` de
+  ayni alani tasir. Faturalanan sure budur (K-745).
+- **Append tavani 500 TOKEN**: `"Context append text must not exceed 500 tokens."`
+  Karakter donusumu tek yerde (`OpenAILiveOptions.ConservativeCharactersPerToken`).
+- **`session.interrupt` YOK.** Sideband konusmayi kesemez.
+- 🚨 **Sideband sesi AYNALIYOR** (`session.input_audio.append` ve
+  `session.output_audio.delta`, base64). Faz 161 bu frame'leri yok sayar.

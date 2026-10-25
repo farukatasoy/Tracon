@@ -73,6 +73,27 @@ internal sealed class ModelProviderCore<TFactory>
             && !_knownModels.Contains(model);
 
     /// <summary>
+    /// Returns the provider factory for a tenant credential (BYOK): one factory per
+    /// distinct credential, the same one <see cref="GetTenantChatClient"/> builds from.
+    /// </summary>
+    /// <param name="credential">The tenant's resolved credential.</param>
+    /// <param name="buildFactory">Builds the provider factory for a credential not seen before.</param>
+    /// <returns>The same factory instance for the same credential.</returns>
+    /// <remarks>
+    /// A capability next to chat (Google speech) takes its SDK client from this factory, so the
+    /// tenant gets one client for chat and speech and the credential cache is written once.
+    /// </remarks>
+    internal TFactory GetTenantFactory(
+        ModelProviderCredential credential,
+        Func<ModelProviderCredential, TFactory> buildFactory)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+        ArgumentNullException.ThrowIfNull(buildFactory);
+
+        return _credentialFactories.GetOrAdd(credential, buildFactory);
+    }
+
+    /// <summary>
     /// Returns the stable chat client for a tenant credential (BYOK): one factory
     /// per credential, one client per credential, model and settings.
     /// </summary>

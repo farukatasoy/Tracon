@@ -7306,6 +7306,24 @@ export interface components {
             /** @description When the character ends, relative to the start of the audio. */
             end: string;
         };
+        /** @description The limits of one dialogue request, as the provider states them. */
+        SpeechDialogueCapabilities: {
+            /**
+             * Format: int32
+             * @description Gets the most distinct voices one request can use.
+             */
+            maxVoices: number | string;
+            /**
+             * Format: int32
+             * @description Gets the most characters one request can carry, summed over its turns.
+             */
+            maxCharactersPerRequest: number | string;
+            /**
+             * @description Gets whether the provider reports each turn's time range when the request sets
+             *     `IncludeTimestamps`.
+             */
+            supportsSegmentTimestamps?: boolean;
+        };
         /** @description A registered speech provider, as the speech provider list reports it. */
         SpeechProviderDescriptor: {
             /** @description Gets the registration name, or `null` for the unnamed default. */
@@ -7319,6 +7337,7 @@ export interface components {
             providerName: string;
             /** @description Gets whether the provider can call the service with a tenant's own credential. */
             supportsTenantCredentials: boolean;
+            dialogue?: null | components["schemas"]["SpeechDialogueCapabilities"];
         };
         /**
          * @description The kind of a registered speech provider.
@@ -9106,6 +9125,7 @@ export type SkillSettings = components['schemas']['SkillSettings'];
 export type SpeakRequest = components['schemas']['SpeakRequest'];
 export type SpeakResponse = components['schemas']['SpeakResponse'];
 export type SpeechAlignment = components['schemas']['SpeechAlignment'];
+export type SpeechDialogueCapabilities = components['schemas']['SpeechDialogueCapabilities'];
 export type SpeechProviderDescriptor = components['schemas']['SpeechProviderDescriptor'];
 export type SpeechProviderKind = components['schemas']['SpeechProviderKind'];
 export type Stream = components['schemas']['Stream'];

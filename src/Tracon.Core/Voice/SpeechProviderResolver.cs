@@ -66,14 +66,14 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
 
             if (_services.GetService<ISpeechSynthesizer>() is { } defaultSynthesizer)
             {
-                providers.Add(Describe(null, SpeechProviderKind.Synthesizer, defaultSynthesizer.ProviderName, defaultSynthesizer.SupportsTenantCredentials));
+                providers.Add(Describe(null, SpeechProviderKind.Synthesizer, defaultSynthesizer.ProviderName, defaultSynthesizer.SupportsTenantCredentials, DialogueOf(defaultSynthesizer)));
             }
 
             foreach (var registration in _registrations.Where(static r => r.Kind == SpeechProviderKind.Synthesizer))
             {
                 var synthesizer = _services.GetRequiredKeyedService<ISpeechSynthesizer>(registration);
 
-                providers.Add(Describe(registration.Name, registration.Kind, synthesizer.ProviderName, synthesizer.SupportsTenantCredentials));
+                providers.Add(Describe(registration.Name, registration.Kind, synthesizer.ProviderName, synthesizer.SupportsTenantCredentials, DialogueOf(synthesizer)));
             }
 
             if (_services.GetService<ISpeechTranscriber>() is { } defaultTranscriber)
@@ -183,14 +183,20 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
         string? name,
         SpeechProviderKind kind,
         string providerName,
-        bool supportsTenantCredentials)
+        bool supportsTenantCredentials,
+        SpeechDialogueCapabilities? dialogue = null)
         => new()
         {
             Name = name,
             Kind = kind,
             ProviderName = providerName,
             SupportsTenantCredentials = supportsTenantCredentials,
+            Dialogue = dialogue,
         };
+
+    /// <summary>Reads the dialogue limits from the registered instance, as <see cref="GetDialogueSynthesizerAsync"/> does.</summary>
+    private static SpeechDialogueCapabilities? DialogueOf(ISpeechSynthesizer synthesizer)
+        => (synthesizer as ISpeechDialogueSynthesizer)?.DialogueCapabilities;
 
     private T Find<T>(SpeechProviderKind kind, string? name)
         where T : class

@@ -427,6 +427,27 @@ if (googleEnabled)
 {
     tracon.UseGoogle(google);
     tracon.UseGoogleImages();
+
+    // Gemini speech as a NAMED speech provider (F-297), next to the default UseVoice() binds. One voice:
+    //
+    //   POST /tracon/api/voice/speak  {"text":"Merhaba","provider":"gemini","voiceId":"Kore"}
+    //
+    // answers a WAV file. The same synthesizer voices a dialogue of two voices, through
+    // ISpeechProviderResolver.GetDialogueSynthesizerAsync("gemini") (the `dialogue` workflow node below
+    // can name it). GET /tracon/api/voice/providers reports its dialogue limits. Every call passes the
+    // tenant's provider checks against the provider name "google" the chat provider uses, and a tenant
+    // with its own Google key is served with that key.
+    //
+    // The model decides how a dialogue names its speakers: the gemini-3.8 models take PartMetadata (the
+    // default); gemini-2.5-flash-preview-tts and gemini-3.1-flash-tts-preview take TextLabels.
+    tracon.UseGoogleSpeech(options =>
+    {
+        options.Model = "gemini-3.8-flash-tts";
+        options.Voices.Add(new VoiceDescriptor { VoiceId = "Kore", Name = "Kore" });
+        options.Voices.Add(new VoiceDescriptor { VoiceId = "Puck", Name = "Puck" });
+        options.Voices.Add(new VoiceDescriptor { VoiceId = "Charon", Name = "Charon" });
+        options.Voices.Add(new VoiceDescriptor { VoiceId = "Aoede", Name = "Aoede" });
+    });
 }
 
 // Azure OpenAI — the default path in the enterprise .NET world. Opening the
@@ -1214,6 +1235,11 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSetti
 //        "providerSettings":{"elevenlabs.stability":0.3}}}]}
 //
 //   POST /tracon/api/workflows/two-voices/run   {"message":"Merhaba.\nSelam."}
+//
+// With the Google key configured, the Gemini engine voices it (F-297): exactly two voices, no timestamps,
+// and the audio is a WAV file already:
+//
+//   {"name":"dialogue","kind":"Function","settings":{"provider":"gemini","voices":["Kore","Puck"]}}
 //
 // The capability comes from the resolver, after the run tenant's checks: there is no
 // container registration to call it past them. A request over the engine's limits, an

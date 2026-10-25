@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`UseGoogleSpeech` registers a Gemini text-to-speech model as the named provider `gemini`,** with
+  `GoogleSpeechOptions` (`Model`, `Name`, `MaxCharactersPerRequest`, `MaxDialogueCharactersPerRequest`,
+  `DialogueSpeakerMode`, `Voices`, `UseAsDefault`). One instance speaks one voice (`POST /api/voice/speak` with
+  `"provider": "gemini"` answers a WAV file) and voices a dialogue of exactly two voices through
+  `GetDialogueSynthesizerAsync`. It shares the client of `UseGoogle` and the provider name `google`, so one egress rule
+  covers chat, images and speech, and a tenant with its own Google key is served with that key on the client its chat
+  requests use. The speaker format of a dialogue depends on the model generation, and the wrong one answers `400`: set
+  `DialogueSpeakerMode` to `PartMetadata` (the `gemini-3.8` models, the default) or `TextLabels` (`gemini-2.5-flash-preview-tts`,
+  `gemini-3.1-flash-tts-preview`). The audio is a WAV file or raw 16-bit PCM (`OutputFormat` `wav` or `pcm`); a stream
+  is raw PCM. Character timing is refused, and billing is an estimate.
+- **`SpeechProviderDescriptor.Dialogue` and `GET /api/voice/providers` report whether a speech provider can voice a
+  dialogue.** The value is the provider's `SpeechDialogueCapabilities` (most voices, most characters, whether it reports
+  timing) or `null`. A caller no longer learns it from the failure of `GetDialogueSynthesizerAsync`. The OpenAPI document
+  and both generated clients carry the new field.
+- **`SpeechDialogueCapabilities.Check(request, providerName)` is the rule a dialogue implementation applies before it calls
+  its service.** The built-in ElevenLabs client and the Gemini synthesizer use it, with the same messages; a
+  synthesizer of your own calls it to refuse an empty turn, a turn without a voice, too many voices or too many
+  characters, and never to split or cut the dialogue.
+
 - **A front end that speaks the AG-UI protocol can run a Tracon agent.** The new package `Tracon.AGUI` adds
   `MapTraconAGUI()` (`POST /tracon/agui/{agentName}`, after `MapTracon()`): the body is an AG-UI `RunAgentInput`, the
   answer is the AG-UI event stream. It is a Tracon run: recorded, tenant-scoped, role-, key-scope- and

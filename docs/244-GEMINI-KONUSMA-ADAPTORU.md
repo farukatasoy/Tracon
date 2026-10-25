@@ -1,7 +1,7 @@
 # Faz 244 — Gemini Konuşma Adaptörü ve Diyalog Yeteneğinin Görünürlüğü
 
-> **Durum:** 📋 Planlandı (2026-10-25)
-> **Kademe:** hafif — migration yok · public API'den satır silinmez (yalnız ekleme) · hedef framework değişmez · güvenlik/kiracı sınırı değişmez: kapı `SpeechProviderResolver`'dadır (K-878 kuralı); adaptör yalnız kapının verdiği kimliği kullanır ve Google sohbet sağlayıcısının kimlik önbelleği desenini izler · geri dönüşü pahalı karar yok
+> **Durum:** ✅ Tamamlandı (2026-10-25)
+> **Kademe:** tam — plan *hafif* yazılmıştı (kapı `SpeechProviderResolver`'dadır, K-878 kuralı değişmez); denetim (🔴) kiracı secret'ını alan kod kümesi büyüdüğü için kademeyi düzeltti: `ModelProviderCore<T>.GetTenantFactory`, `GoogleModelProvider.GetTenantFactory` ve `SupportsTenantCredentials = true` yeni yetenek için kiracı anahtarı yolunu genişletir (K-1093, `kategori: güvenlik`). Tam zincirin gereği zaten karşılandı: planın kapsamı ayrıntılıydı, tel düzeyi kiracı testleri ve örnek uygulama koşumu var. Migration yok · public API'den satır silinmez (yalnız ekleme) · hedef framework değişmez
 > **Plan onayı:** Bakımcı, 2026-10-25 (sohbette alınan karar: adaptör kiracının kendi Google anahtarını kullanabilir — `SupportsTenantCredentials = true`)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-297**, **F-465**
 > **Genellik:** Konuşma sözleşmesini (Faz 198, Faz 203) kullanan ve Gemini sağlayıcısı olan her kurulum. Tek tüketici turundan geldi (2026-10-11 podcast). İkinci kanıt ilk ilkedir: diyalog sözleşmesinin (K-952) bugün tek uygulaması vardır (ElevenLabs). Tek uygulamalı bir sözleşmenin sağlayıcıdan bağımsız olduğu kanıtlanmamıştır. Ekosistem kanıtı: Gemini çok konuşmacılı sentezi (`MultiSpeakerVoiceConfig`) resmî SDK'da hazırdır. F-465'in plan notu tetiği adıyla yazar: "ikinci diyalog sağlayıcısı (F-297) gelince"
@@ -94,15 +94,26 @@ söylemez. Çağıran bunu ancak `GetDialogueSynthesizerAsync` hatasından öğr
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `UseGoogleSpeech` adlı bir synthesizer kaydeder; `POST /api/voice/speak` `provider: "gemini"` ile WAV döner
-- [ ] Diyalog iki sesle seslendirilir; üç ses, boş tur, ses kimliği yok, aşırı karakter, zaman damgası ve bilinmeyen `google.*` ayarı ağdan önce `TraconException` alır
-- [ ] Kiracı anahtarı olan kiracının isteği o anahtarla gider; anahtarsız kiracı kurulum anahtarıyla; iki kiracı birbirinin istemcisini kullanmaz (tel düzeyinde test)
-- [ ] `GET /api/voice/providers` her synthesizer için `dialogue` alanını verir (ElevenLabs ve Gemini dolu, OpenAI `null`); OpenAPI ve iki istemci yeniden üretildi
-- [ ] ElevenLabs ortak kurala geçti; diyalog testleri değişmeden yeşil
-- [ ] Akışlı yol ölçümü ve `MimeType` ölçümü belgeye yazıldı
-- [ ] `samples/Tracon.Api` Google anahtarıyla `UseGoogleSpeech` kaydeder; gerçek tek ses ve diyalog çıktısı alındı (komut + boyut + süre belgeye yazıldı)
-- [ ] Site sayfaları, `src/Tracon.Google/README.md` ve `CHANGELOG.md [Unreleased]` güncel
-- [ ] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
+- [x] `UseGoogleSpeech` adlı bir synthesizer kaydeder; `POST /api/voice/speak` `provider: "gemini"` ile WAV döner — örnek uygulama, gerçek Gemini (`gemini-3.8-flash-tts`, ses `Kore`, 66 karakter): `200`, `audio/wav`, **230.756 bayt**, `RIFF`/`WAVE` 24 kHz tek kanal 16 bit, **4,68 sn**, istek 4,4 sn; `data` parçasından sonra `C2PA` parçası. Fonksiyonel: `GeminiSpeechTests`
+- [x] Diyalog iki sesle seslendirilir; üç ses, boş tur, ses kimliği yok, aşırı karakter, zaman damgası ve bilinmeyen `google.*` ayarı ağdan önce `TraconException` alır — gerçek: `gemini-duo` iş akışı (`Kore`+`Puck`, 4 satır, 191 karakter): `Completed`, **658.916 bayt**, **13,6 sn**, 4 duraklama; `dialogue by google … (Estimated), model gemini-3.8-flash-tts`. Ret: `GoogleSpeechDialogueTests` (tel-öncesi, `handler.Requests` boş), mutasyonla ölçüldü
+- [x] Kiracı anahtarı olan kiracının isteği o anahtarla gider; anahtarsız kiracı kurulum anahtarıyla; iki kiracı birbirinin istemcisini kullanmaz (tel düzeyinde test) — `GeminiSpeechTests` (`ScriptedGeminiSpeechServer`, `x-goog-api-key` okunur): bağlı kiracı tek ses, diyalog, akış ve `speak` ucunda kendi anahtarıyla; 30 paralel çağrıda `acme`/`globex`/anahtarsız kiracı her biri kendi anahtarıyla
+- [x] `GET /api/voice/providers` her synthesizer için `dialogue` alanını verir (ElevenLabs ve Gemini dolu, OpenAI `null`); OpenAPI ve iki istemci yeniden üretildi — canlı: ElevenLabs `maxVoices 10`, Gemini `2/2000/false`, `tone` `null`. OpenAI satırı örnek uygulamada anahtarsız kayıtlı değil; `null` değeri `NamedSpeechProviderTests` ile kanıtlı (köprülenmiş sağlayıcı diyalog arayüzünü uygulamaz). `docs/openapi/tracon.json`, `packages/tracon-client/src/schema.ts`, `TraconApiClient.g.cs` yenilendi
+- [x] ElevenLabs ortak kurala geçti; diyalog testleri değişmeden yeşil — `SpeechDialogueCapabilities.Check`; `Tracon.Voice.UnitTests` 211/211 (mevcut diyalog testlerine dokunulmadı); kuralın kendi testi `SpeechDialogueCapabilitiesTests`
+- [x] Akışlı yol ölçümü ve `MimeType` ölçümü belgeye yazıldı — aşağıda "Ölçümler"
+- [x] `samples/Tracon.Api` Google anahtarıyla `UseGoogleSpeech` kaydeder; gerçek tek ses ve diyalog çıktısı alındı (komut + boyut + süre belgeye yazıldı) — ilk iki madde; ayrıca fiyat (`Tracon:Pricing:Voice:google:gemini-3.8-flash-tts:PerMillionCharacters=100` → 66 karakter `cost 0,0066`), politika (`gemini` takma adı `403`, `google` `200`) ve yanlış konuşmacı biçimi (`gemini-2.5-flash-preview-tts` + `PartMetadata` → `HTTP 400 (INVALID_ARGUMENT)`, ret metni `TextLabels` önerir) canlı koşuldu; günlükte `Npgsql` satırı 0
+- [x] Site sayfaları, `src/Tracon.Google/README.md` ve `CHANGELOG.md [Unreleased]` güncel — yeni sayfa `guides/gemini-speech`; `voice`, `model-providers`, `governance`, `packages`, `capabilities`; `npm run check` yeşil
+- [x] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban efe9d389` — 27.820 test, 39 modül, `dotnet format` temiz, site `npm run check` yeşil (tavan 59.000 B, en ağır sayfa `guides/voice` 58.963 B)
+
+## Ölçümler (2026-10-25, gerçek Gemini, `Google.GenAI` 1.26.1)
+
+| Ölçüm | Sonuç |
+|---|---|
+| `MimeType` | `gemini-3.8-flash-tts`, `-flash-lite-tts`: `audio/wav` (RIFF; sample'dan sonra `C2PA` parçası, `data` boyutu dosyadan küçük). `gemini-2.5-flash-preview-tts`: `audio/L16;codec=pcm;rate=24000`. `gemini-3.1-flash-tts-preview`: `audio/l16; rate=24000; channels=1`. Akışta üç modelde de ham PCM. Örnekler 16 bit little-endian |
+| Akış (`streamGenerateContent?alt=sse`) | `gemini-3.8-flash-tts`: 196 olay, 1.920–5.760 bayt, ilk parça ~1,2 sn. `3.8-flash-lite-tts`: 133 parça, ilk 0,4 sn. `3.1-flash-tts-preview`: 235 parça, ilk 0,8 sn. `2.5-flash-preview-tts`: **tek parça**, ilk (ve tek) 6,8 sn. `SynthesizeStreamingAsync` modelin verdiğini parça parça iletir, ham PCM |
+| Yanıt alanları | `modelVersion` (örn. `gemini-3.8-flash-tts`) → `SpeechAudio.ModelId`; `responseId` → `ProviderRequestId`. SDK: `GenerateContentResponse.ModelVersion`, `.ResponseId`, `.UsageMetadata` |
+| `UsageMetadata` | Token verir: 9 metin → 65 ses token'ı (~2,6 sn; yaklaşık 25 ses token'ı/sn). Karakter yok → `CharactersBilled` tahmin (Açık Soru 2 kapalı kaldı) |
+| Konuşmacı biçimi | `3.8-*`: `Part.speechMetadata.speaker` zorunlu, satır biçimi `400`. `2.5`, `3.1`: satır biçimi çalışır, `speechMetadata` `400` ("Speech metadata is not supported for this model"). İkisi de tam 2 `speakerVoiceConfig` ister |
+| Diğer | Dil `tr` ve `tr-TR` kabul, `xx` `400`. Ses vermeden `3.8` çalışır, `2.5` `400`. `Kore`, `Puck`, `Charon`, `Aoede`, `Fenrir`, `Zephyr` `3.8`de geçerli |
 
 ## Testler
 
@@ -112,11 +123,11 @@ söylemez. Çağıran bunu ancak `GetDialogueSynthesizerAsync` hatasından öğr
 | PCM → WAV başlığı ve örnekleme hızı | Birim | `GoogleSpeechSynthesizerTests` |
 | Ağdan önceki retler (K-955) ve ret metninin değeri yankılamaması (K-954) | Birim | `GoogleSpeechSynthesizerTests` |
 | Takma ad enjeksiyonu reddedilir | Birim | `GoogleSpeechSynthesizerTests` |
-| Adlı kayıt, egress politikası (`google`) ve çözümleyici | Fonksiyonel (gerçek host) | `NamedSpeechProviderTests` (Gemini satırı) |
-| Kiracı anahtarı yolu, iki kiracı | Fonksiyonel (tel düzeyi, sahte Gemini ucu) | `SpeechDialogueTenantTests` (Gemini satırı) |
-| Descriptor'da `dialogue` alanı | Fonksiyonel (HTTP) | `NamedSpeechProviderTests` |
+| Adlı kayıt, egress politikası (`google`) ve çözümleyici | Fonksiyonel (gerçek host) | `GeminiSpeechTests` · `GoogleSpeechBuilderExtensionsTests` |
+| Kiracı anahtarı yolu, iki kiracı | Fonksiyonel (tel düzeyi, sahte Gemini ucu) | `GeminiSpeechTests` (`ScriptedGeminiSpeechServer`) |
+| Descriptor'da `dialogue` alanı | Fonksiyonel (HTTP) | `NamedSpeechProviderTests` · `GeminiSpeechTests` |
 | ElevenLabs ortak kurala geçince davranışı değişmez | Birim (mevcut) | `ElevenLabsSpeechClientTests` |
-| Sağlayıcı hatası normalleşir, anahtar sızmaz | Fonksiyonel | `SecretLeakTests` (Gemini satırı) |
+| Sağlayıcı hatası normalleşir, anahtar sızmaz | Birim + fonksiyonel | `GoogleSpeechSynthesizerTests` · `GeminiSpeechTests` (anahtar yanıtta ve günlükte yok) |
 
 Beş soru: iptal — token `GenerateContentAsync`'e geçer; akış iptalde durur ·
 eşzamanlılık — tek örnek, durum tutmaz; istemci paylaşılır (Google SDK iş
@@ -138,23 +149,52 @@ bugünkü normalleştiriciden geçer. `🤖` case: gerçek Gemini ile tek ses ve
 
 > Çalışırken dolar; kapanışta commit mesajına taşınır.
 
+1. **Diyalog konuşmacı biçimi iki** (kullanıcı kararı, K-1092). Plan tek biçim yazmıştı (`Speaker1: …` satırları). Canlı ölçüm: `gemini-3.8-*` bu biçimi `400` ile reddeder ve her parçada `speechMetadata.speaker` ister; `2.5`/`3.1` tersini yapar. `GoogleSpeechOptions.DialogueSpeakerMode` (`PartMetadata` varsayılan, `TextLabels`) eklendi; yanlış seçimde ret metni diğer modu adlandırır. Takma ad enjeksiyonu yalnız `TextLabels`'ta anlamlıdır (metadata biçiminde konuşmacı metinde değil).
+2. **Diyalog tam iki ses ister** (plan yalnız `MaxVoices = 2` demişti): Gemini bir ya da üç `speakerVoiceConfig`'i `400` reddeder; tek sesli diyalog ağdan önce reddedilir ve `SynthesizeAsync` önerilir.
+3. **WAV, modelin dosyası olarak döner.** Plan "RIFF başlığı kodda" demişti; `3.8` zaten WAV verir ve `C2PA` içerik kimliği parçası ekler. `wav` isteğinde bu dosya olduğu gibi döner (yeniden sarmak sağlayıcının imzasını düşürürdü); ham PCM veren modellerde başlık kodda yazılır. `pcm` isteği örnekleri verir, medya türü `audio/L16;rate=…;channels=…`.
+4. **Akış hep ham PCM**; `wav` isteği akışta reddedilir (başlık uzunluk ister). Akışta `OutputFormat` boşsa `pcm`, tek seste `wav`.
+5. **`GoogleModelProvider` somut tip olarak da kayıtlı** (`UseGoogle`) ve kimlik önbelleği `ModelProviderCore<T>.GetTenantFactory` ile paylaşıldı (paylaşılan kaynak; dört pakette derlenir). `GoogleChatClientFactory.Client` `internal` açıldı. Plan "ikinci önbellek yazılmaz" demişti: yazılmadı.
+6. **`SpeechDialogueCapabilities.Check`'e üçüncü, isteğe bağlı parametre** (`characterLimitSetting`): ElevenLabs'in ret metni ayar adını (`VoiceOptions.MaxDialogueCharactersPerRequest`) taşıyordu ve testler onu sabitler; ortak kural adı parametre olarak alır.
+7. **Public yüzey**: `Tracon.Google` üç yeni public tip (`GoogleSpeechOptions`, `GoogleDialogueSpeakerMode`, `GoogleSpeechBuilderExtensions`); `public-surface-baseline.txt` Google 4 → 7. `SpeechDialogueCapabilities.SupportsSegmentTimestamps` XML metni `cref` yerine `<c>` kullandı (OpenAPI açıklaması `bool …` yazıyordu).
+8. **Varsayılan sınırlar** planda yoktu: `MaxCharactersPerRequest` 5.000, `MaxDialogueCharactersPerRequest` 2.000 (ElevenLabs ile aynı); Google karakter değil token sınırlar, bu yüzden Tracon'un kendi koruması.
+9. **Site**: ses kılavuzu ağırlık tavanında (58,9 KB / 59 KB) olduğundan Gemini bölümü yeni sayfaya çıktı (`guides/gemini-speech`). Yan etki: yeni kenar çubuğu girişi her sayfaya 21–27 B gzip ekler; `concepts/workflows` 3 B altındaydı ve 23 B aştı. Tavan **yükseltilmedi** (denetim 🔴): `concepts/workflows.md` 191 bayt sıkılaştırıldı. `llms.txt` 24.575 / 24.576 B idi (1 bayt boşluk): yeni sayfa satırı için bütçe 24 → 25 KiB (`build-agent-map.mjs`, ölçüm dosyada). Kök `README.md` public tip sayısı 619 → 622.
+10. **Kademe `hafif` → `tam`** (denetim 🔴): kiracı secret'ını alan kod kümesi büyüdü; başlıkta gerekçesi.
+
 ## Bu Fazda Verilen Kararlar
 
 > Dört kategoriden biri `docs/KARARLAR.md`'ye; gerisi kapanış commit mesajına.
-> Beklenen kayıtlar: ortak diyalog kuralının public yardımcı olması *(public-api;
-> alternatif: internal + InternalsVisibleTo)* · `SpeechProviderDescriptor.Dialogue`
-> *(public-api; alternatif: ayrı `SupportsDialogue` bool)*.
+
+- **K-1090** — ortak diyalog kuralı public yardımcı *(public-api; alternatif: `internal` + `InternalsVisibleTo`)*
+- **K-1091** — `SpeechProviderDescriptor.Dialogue` *(public-api; alternatif: ayrı `SupportsDialogue` bool)*
+- **K-1092** — `DialogueSpeakerMode`, iki konuşmacı biçimi *(public-api, kullanıcı kararı; alternatif: model adı önekinden seçim, yalnız `3.8` biçimi)*
+- **K-1093** — Gemini sesi kiracının kendi anahtarıyla *(güvenlik, bakımcı kararı; alternatif: `SupportsTenantCredentials = false`, ikinci önbellek)*
+
+Kategori dışı (kapanış commit mesajı): `llms.txt` bütçesi 24 → 25 KiB (ölçüm `build-agent-map.mjs` başında), WAV'ın modelin dosyası olarak dönmesi, akışın ham PCM olması, `UseAsDefault` ile `speak` tool'unun `wav` ayarı.
+
+## Tüketici Yüzeyi Envanteri
+
+1. **`docs-site/`** (elle): yeni `guides/gemini-speech.md` + `sidebar.mjs`; `guides/voice.md` (sağlayıcı listesi `dialogue`, bir bağlantı), `guides/model-providers.md`, `concepts/governance.md`, `packages.md`, `capabilities.md`. Üretilen: `http-api/` (OpenAPI), `api/` (DocFX), `llms*.txt`, `Tracon.AgentMap.md`.
+2. **Sevk edilen metin**: `src/Tracon.Google/README.md`; `UseGoogleSpeech` ve `SpeechDialogueCapabilities.Check` `<example>`; `CHANGELOG.md [Unreleased]`; `docs/openapi/tracon.json`, `packages/tracon-client/src/schema.ts`, `TraconApiClient.g.cs`.
+3. **Yerel referans / agent haritası**: `capabilities.md` iki satırı (adlı konuşma sağlayıcıları, diyalog); harita bütçesi içinde (`11260 / 11264` B).
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 9 sapma (biri kullanıcı kararı: iki konuşmacı biçimi); kademe `hafif` → `tam` düzeltmesi denetimden |
+| Düzeltme turu sayısı | 1 (denetim sonrası) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (kapanış kapısı ve tam fonksiyonel koşum yeşil) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı; 🟢 kapanışta `ADAYLAR.md`'ye gider.
+> `faz-denetim` çıktısı (2026-10-25, taze bağlamlı `faz-denetcisi`); 🟢 `docs/ADAYLAR.md`'ye gitti.
+
+- 🔴 **Ağırlık tavanı yükseltilmişti** (59.000 → 59.500). Gerçek: tavan "yalnız düşer" cırcırıdır. Düzeltme: tavan 59.000'de kaldı, `concepts/workflows.md` 191 bayt sıkılaştırıldı (yeni kenar çubuğu girişi sayfayı 23 bayt aşırmıştı). `llms.txt` bütçesi (24 → 25 KiB) denetçice ölçümle ve emsalle kabul edildi.
+- 🔴 **Kademe `hafif` yazılmıştı**, aynı faz `kategori: güvenlik` karar (K-1093) kaydediyordu. Gerçek (etiket): kademe `tam` yapıldı, gerekçesi başlıkta.
+- 🟡 `UseAsDefault` + `speak` tool'u: tool `Tracon:Voice:OutputFormat` (varsayılan `mp3_44100_128`) gönderir, Gemini reddeder. Kapandı: ret metni ayarı adlandırır; XML, site ve README `wav` ayarını ve konuşma soketi sınırını yazar; iki fonksiyonel test (`speak` tool'u `wav` ile çalışır, varsayılanla ağdan önce reddedilir).
+- 🟡 Örnek koşumundan kalan SQLite dosyaları silindi (izlenmiyorlardı, commit'e girmedi).
+- 🟡 Akış iptali test edilmemişti. Kapandı: iki birim test (akışın ortasında iptal `OperationCanceledException`, bağlantı kopması `TraconException`; ilk parça iletilmiş); iptal sınıflandırması mutasyonla ölçüldü.
+- 🟡 `capabilities.md` diyalog satırı Gemini için zaman aralığı vaat ediyordu. Kapandı: "where the provider reports it".
+- 🟢 F-691 (`MinVoices`), F-692 (`UseGoogleSpeech` erken doğrulama), F-693 (konuşma soketi ham PCM). README'deki sıra kayması bu fazda düzeltildi.

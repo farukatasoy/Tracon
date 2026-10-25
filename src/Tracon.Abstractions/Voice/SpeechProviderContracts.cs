@@ -174,6 +174,19 @@ public sealed record SpeechProviderDescriptor
 
     /// <summary>Gets whether the provider can call the service with a tenant's own credential.</summary>
     public required bool SupportsTenantCredentials { get; init; }
+
+    /// <summary>
+    /// Gets the limits of one dialogue request, or <see langword="null"/> when the provider
+    /// cannot voice a dialogue.
+    /// </summary>
+    /// <remarks>
+    /// Read from the registered instance (<see cref="ISpeechDialogueSynthesizer.DialogueCapabilities"/>),
+    /// never from a tenant's wrapper, so every tenant sees the same value. Always
+    /// <see langword="null"/> for a transcriber. A caller reads it to plan its requests, and to
+    /// choose a provider before <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
+    /// fails for one that has none.
+    /// </remarks>
+    public SpeechDialogueCapabilities? Dialogue { get; init; }
 }
 
 /// <summary>The kind of a registered speech provider.</summary>

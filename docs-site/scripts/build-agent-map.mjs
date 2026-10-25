@@ -65,8 +65,16 @@ export const agentMapBudgetBytes = 11264;
  * descriptions are also the site's search snippets, so shrinking them to make
  * an accounting figure work would have paid for the page with the reader's
  * text.
+ *
+ * Raised a second time, from 24 KiB to 25 KiB, measured: the index stood at
+ * 24,575 B, one byte under the ceiling, so the Gemini speech guide (a page the
+ * voice guide had to give up, because it crossed its own weight ceiling) did not
+ * fit. With that page and its two capability words the index measures 24,777 B;
+ * 25 KiB leaves about 800 B, a little over three more pages. The alternative is
+ * the one the first raise rejected: trimming other pages' descriptions, which are
+ * also the site's search snippets, to pay for one new page.
  */
-export const llmsBudgetBytes = 24576;
+export const llmsBudgetBytes = 25600;
 
 /** The byte ceiling of each budgeted artifact. */
 export const budgets = { agentMap: agentMapBudgetBytes, llms: llmsBudgetBytes };
