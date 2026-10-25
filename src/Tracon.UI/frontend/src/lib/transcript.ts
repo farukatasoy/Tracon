@@ -93,7 +93,29 @@ export type TranscriptItem =
       result: string | null;
       error: string | null;
       state: 'running' | 'ok' | 'failed';
+    }
+  | {
+      /**
+       * A harness loop iteration ended (server phase 241). A divider, not content: the
+       * streaming reply carries every iteration, and nothing in the `update` frames
+       * says where one ends.
+       *
+       * It exists only on a live turn, where the `loop.iteration-completed` frame
+       * arrives between the last update of this iteration and the first of the next.
+       */
+      kind: 'iteration';
+      id: string;
+      iteration: number;
+      outcome: LoopIterationOutcome;
+      /** The criterion that asked for another iteration, or the one that failed to evaluate. */
+      criterion: string | null;
     };
+
+/**
+ * What the loop decided after an iteration. A criterion that failed to evaluate wins over the
+ * ceiling, and the ceiling over a plain continuation — the order the server words its own text.
+ */
+export type LoopIterationOutcome = 'continued' | 'ceiling' | 'failed' | 'stopped';
 
 /**
  * One field of a tool input request, read from the flat JSON schema the MCP
@@ -365,6 +387,53 @@ export function applyApprovalPresentations(
             message: announcement.message,
           };
     }),
+  };
+}
+
+/**
+ * Appends the divider for a `loop.iteration-completed` SSE frame.
+ *
+ * The frame is the recorded `LoopIterationCompleted` event, the one `GET /api/runs/{id}/events`
+ * serves; its `payload` is a JSON string. A frame whose payload cannot be read leaves the
+ * transcript as it was: a divider is a note, and a broken note must not break the reply.
+ */
+export function applyLoopIteration(state: TranscriptState, event: Pick<RunEvent, 'payload'>): TranscriptState {
+  let payload: {
+    iteration?: unknown;
+    continued?: unknown;
+    continuedBy?: unknown;
+    failedCriterion?: unknown;
+    ceilingReached?: unknown;
+  };
+
+  try {
+    payload = JSON.parse(event.payload ?? '') as typeof payload;
+  } catch {
+    return state;
+  }
+
+  if (typeof payload !== 'object' || payload === null || typeof payload.iteration !== 'number') {
+    return state;
+  }
+
+  const failedCriterion = typeof payload.failedCriterion === 'string' ? payload.failedCriterion : null;
+  const continuedBy = typeof payload.continuedBy === 'string' ? payload.continuedBy : null;
+
+  const [outcome, criterion]: [LoopIterationOutcome, string | null] =
+    failedCriterion !== null
+      ? ['failed', failedCriterion]
+      : payload.ceilingReached === true
+        ? ['ceiling', continuedBy]
+        : payload.continued === true
+          ? ['continued', continuedBy]
+          : ['stopped', null];
+
+  return {
+    ...state,
+    items: [
+      ...state.items,
+      { kind: 'iteration', id: `iteration-${payload.iteration}`, iteration: payload.iteration, outcome, criterion },
+    ],
   };
 }
 

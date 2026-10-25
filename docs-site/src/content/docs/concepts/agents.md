@@ -485,7 +485,9 @@ The loop is off while `Loop` is null, which is the default.
 
 A non-streaming run returns the **final iteration's answer**; its usage and cost
 are the sum of every iteration. The native streaming run
-(`POST /api/agents/{name}/run`) streams every iteration as it happens. Every
+(`POST /api/agents/{name}/run`) streams every iteration as it happens, and sends a
+`loop.iteration-completed` frame after each iteration the loop evaluated — see
+[Streaming](/http-api/#streaming) for how to find the answer. Every
 other surface that hands the answer to a program, or speaks it, gets the
 **final iteration only**: a workflow step and the step after it, the
 OpenAI-compatible streams, the A2A stream and both voice surfaces. On those
@@ -562,6 +564,13 @@ reaches `MaxIterations` is never evaluated — there is nothing left to decide �
 so a loop that ends at its ceiling writes one event fewer than it takes turns.
 Its last event carries `ceilingReached`, which is how the run record tells "the
 criterion was finally satisfied" apart from "we ran out of iterations".
+
+The native streaming run mirrors each of these events as a `loop.iteration-completed`
+frame, with the same data, between the last update of the iteration and the first of the
+next. The answer is the iteration before the last frame when that frame has
+`continued: false`. It is the iteration **after** the last frame when that frame has
+`ceilingReached: true`, because the turn at the ceiling is not evaluated. A run that
+records no events sends no frame.
 
 ### A criterion that needs your services
 

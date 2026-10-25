@@ -48,6 +48,65 @@ describe('PlaygroundScreen', () => {
     expect(await screen.findByText(/run run-1/)).toBeTruthy();
   });
 
+  it('puts a divider between the iterations of a looping agent', async () => {
+    const iteration = (payload: Record<string, unknown>) =>
+      sseFrame('loop.iteration-completed', {
+        runId: 'run-1',
+        sequence: 5,
+        type: 'LoopIterationCompleted',
+        timestamp: '2026-10-25T10:00:00Z',
+        payload: JSON.stringify({
+          iteration: 1,
+          continued: false,
+          continuedBy: null,
+          hasFeedback: false,
+          failedCriterion: null,
+          ceilingReached: false,
+          failsRun: false,
+          ...payload,
+        }),
+      });
+
+    restoreFetch = installApiMock([
+      ...baseOverrides(),
+      sseFixture(
+        'POST',
+        'api/agents/:name/run',
+        sseFrame('run', { runId: 'run-1' }) +
+          sseFrame('update', { contents: [{ $type: 'text', text: 'first draft' }] }) +
+          iteration({ continued: true, continuedBy: 'completionMarker', hasFeedback: true }) +
+          sseFrame('update', { contents: [{ $type: 'text', text: 'final answer' }] }) +
+          iteration({ iteration: 2 }) +
+          sseFrame('done', {}),
+      ),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<PlaygroundScreen />);
+
+    await user.type(await screen.findByTestId('playground-input'), 'Hi');
+    await user.click(screen.getByTestId('playground-send'));
+
+    expect(await screen.findByText('final answer')).toBeTruthy();
+
+    const dividers = screen.getAllByTestId('transcript-iteration');
+
+    expect(dividers.map((divider) => divider.textContent)).toEqual([
+      'Iteration 1 · completionMarker asked for another iteration',
+      'Iteration 2 · the loop stopped',
+    ]);
+    expect(dividers.map((divider) => divider.getAttribute('data-outcome'))).toEqual(['continued', 'stopped']);
+
+    // The divider sits between the two texts, in the order the frames arrived.
+    expect(screen.getAllByText(/^(first draft|final answer|Iteration \d.*)$/).map((element) => element.textContent)).toEqual([
+      'first draft',
+      'Iteration 1 · completionMarker asked for another iteration',
+      'final answer',
+      'Iteration 2 · the loop stopped',
+    ]);
+  });
+
   it('shows the failure a stream error frame carries', async () => {
     restoreFetch = installApiMock([
       ...baseOverrides(),

@@ -135,6 +135,53 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Playground_separates_the_iterations_of_a_looping_agent_with_a_divider()
+    {
+        // Phase 241: the native stream carries every iteration of a harness loop as one run of updates. The
+        // loop.iteration-completed frame between them is what lets the screen draw where one iteration ends.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        using (var agent = await api.PostAsJsonAsync(
+                   "api/agents",
+                   new
+                   {
+                       name = "loop-agent",
+                       instructions = "Write until the draft is done.",
+                       model = new { provider = ScriptedModels.ProviderName, model = ScriptedModels.Looping },
+                       harness = new
+                       {
+                           loop = new
+                           {
+                               criteria = new[] { new { kind = "completionMarker", marker = "ALL DONE" } },
+                               maxIterations = 4,
+                           },
+                       },
+                   }))
+        {
+            agent.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/loop-agent");
+
+        await session.Page.GetByTestId("playground-input").FillAsync("write the episode");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        var dividers = session.Page.GetByTestId("transcript-iteration");
+
+        await Expect(dividers).ToHaveCountAsync(2);
+        await Expect(dividers.First).ToHaveTextAsync("Iteration 1 · completionMarker asked for another iteration");
+        await Expect(dividers.Last).ToHaveTextAsync("Iteration 2 · the loop stopped");
+
+
+        // Not an exact match: the update the loop sends between two iterations carries the feedback it gives the
+        // model back, and the transcript folds it into the paragraph of the next iteration.
+        await Expect(session.Page.GetByText(ScriptedModels.LoopingAnswer)).ToBeVisibleAsync();
+    }
+
+    [Fact]
     public async Task Playground_voice_mode_opens_microphone_and_shows_transcript()
     {
         // 🚨 Runs with a fake media device (BrowserFixture flags). There is no

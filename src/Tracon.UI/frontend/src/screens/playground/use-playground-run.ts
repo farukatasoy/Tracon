@@ -5,6 +5,7 @@ import { hasMissingRequiredParameter } from '../../components/parameter-inputs';
 import { readSse } from '@tracon/client';
 import {
   applyApprovalPresentations,
+  applyLoopIteration,
   applyToolInputs,
   emptyTranscript,
   foldMessages,
@@ -15,6 +16,7 @@ import {
 } from '../../lib/transcript';
 import type { InputAction } from '../../components/transcript';
 import { useNavigate, useSearchParams } from '../../lib/router';
+import type { RunEvent } from '../../lib/run-event';
 import type { ChatMessage, SessionDetailResponse } from '@tracon/client';
 import type { AgentDescriptor, AgentDetailResponse, AttachmentDescriptor, ConversationResource } from '../../lib/server-types';
 
@@ -269,6 +271,14 @@ export function usePlaygroundRun(
             const payload = JSON.parse(frame.data) as { contents?: [] };
 
             update((turn) => ({ ...turn, transcript: foldUpdate(turn.transcript, payload) }));
+
+            continue;
+          }
+
+          if (frame.event === 'loop.iteration-completed') {
+            const payload = JSON.parse(frame.data) as RunEvent;
+
+            update((turn) => ({ ...turn, transcript: applyLoopIteration(turn.transcript, payload) }));
 
             continue;
           }

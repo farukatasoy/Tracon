@@ -39,6 +39,12 @@ internal static class ScriptedModels
 
     /// <summary>Model of the agent a test saves for an MCP server that asks the user for input: calls the server's tool, then echoes its result (Phase 235).</summary>
     public const string Elicit = "scripted-elicit";
+
+    /// <summary>Model of the agent a test saves with a harness loop: a first draft, then an answer that carries the stop marker (Phase 241).</summary>
+    public const string Looping = "scripted-looping";
+
+    /// <summary>The text of the second answer of <see cref="Looping"/>.</summary>
+    public const string LoopingAnswer = "final answer ALL DONE";
 }
 
 /// <summary>
@@ -137,7 +143,8 @@ internal sealed class UiHost : IAsyncDisposable
                 .EchoesLastToolResult())
             .ForModel(ScriptedModels.Elicit, cfg => cfg
                 .CallsTool("elicit_ask_name")
-                .EchoesLastToolResult());
+                .EchoesLastToolResult())
+            .ForModel(ScriptedModels.Looping, cfg => cfg.RespondsWith("first draft", ScriptedModels.LoopingAnswer));
 
         // Voice endpoints need only these abstractions; there is NO reference
         // to the Tracon.Voice package. A single instance backs both.

@@ -165,7 +165,7 @@ text/event-stream`, so the `event:` name is the only way to tell them apart:
 
 | Stream | Frame names |
 |---|---|
-| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `custom` · `done` · `error` — one per step of that single live call |
+| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `loop.iteration-completed` · `custom` · `done` · `error` — one per step of that single live call |
 | `GET /api/runs/{runId}/events` | `run.started` · `message.delta` · `tool.invoking` · `tool.invoked` · `tool.failed` · `run.completed` · `run.failed` and one more per event type in the diagram above — the recorded, append-only log |
 
 The workflow run stream has a third set (`run` · `event` · `done` · `error`), and the
@@ -175,7 +175,10 @@ The live stream's `custom` frames are the one place the two contracts meet. Righ
 before `done`, the stream sends the run's own recorded notices from a fixed list —
 `tracon.output.truncated` always, `tracon.quota.threshold` when it is published to the
 run stream — and each frame's data is the same recorded event `/events` serves, byte
-for byte. The [HTTP API](/http-api/#streaming) page lists the rules.
+for byte. The [HTTP API](/http-api/#streaming) page lists the rules. The
+`loop.iteration-completed` frame of an agent with a loop is the other: it has the name
+and the data of the recorded `LoopIterationCompleted` event, and it arrives between two
+iterations, not before `done`.
 
 A client written against one contract will not decode the other; pick the endpoint
 that matches what you are building — a live turn, or a run's full recorded history.

@@ -71,7 +71,7 @@ public sealed class SseEventNameSnapshotTests
     public void The_scan_finds_the_direct_stream_names_it_is_known_to_find()
     {
         // A scan that finds nothing would keep the snapshot test green by leaving the group out.
-        ReadDirectStreamNames().ShouldBe(["approvals", "custom", "done", "error", "event", "inputs", "run", "update"]);
+        ReadDirectStreamNames().ShouldBe(["approvals", "custom", "done", "error", "event", "inputs", "loop.iteration-completed", "run", "update"]);
     }
 
     [Theory]

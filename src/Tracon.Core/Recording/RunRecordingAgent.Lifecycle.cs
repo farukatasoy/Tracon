@@ -198,6 +198,7 @@ public sealed partial class RunRecordingAgent
             AcceptsToolInput = depth == 0 && (runOptions?.AcceptsToolInput ?? false),
             ToolInputAnswers = runOptions?.ToolInputAnswers,
             ToolInputs = new ToolInputLedger(),
+            AfterLoopIterationRecorded = depth == 0 ? runOptions?.AfterLoopIterationRecorded : null,
         };
 
         return new RunStart(

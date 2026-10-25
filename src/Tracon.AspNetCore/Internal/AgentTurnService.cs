@@ -757,12 +757,17 @@ internal sealed class PreparedTurn(
     /// not announce them. A run without a session has nothing to announce: nobody can answer it.
     /// </param>
     /// <param name="onPendingInputs">Called right before the run publishes the tool inputs it waits for.</param>
+    /// <param name="onLoopIteration">
+    /// Called with each loop iteration event right after the run recorded it; <see langword="null"/> when the surface does
+    /// not mirror them.
+    /// </param>
     /// <returns>The run options.</returns>
     internal TraconRunOptions CreateRunOptions(
         Microsoft.Agents.AI.AgentSession? session,
         IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? inputAnswers,
         Func<IReadOnlyList<PendingApprovalAnnouncement>, CancellationToken, ValueTask>? onPendingApprovals,
-        Func<IReadOnlyList<PendingToolInputAnnouncement>, CancellationToken, ValueTask>? onPendingInputs)
+        Func<IReadOnlyList<PendingToolInputAnnouncement>, CancellationToken, ValueTask>? onPendingInputs,
+        Func<RunEvent, CancellationToken, ValueTask>? onLoopIteration)
         => new()
         {
             RunId = runId,
@@ -818,6 +823,9 @@ internal sealed class PreparedTurn(
                     await onPendingInputs(PendingToolInputAnnouncement.From(pendingInputs), hookCancellation)
                         .ConfigureAwait(false);
                 },
+
+            // Phase 241: the loop's iteration events go to the surface that streams the run, between two iterations.
+            AfterLoopIterationRecorded = onLoopIteration,
         };
     /// <summary>
     /// Builds the messages to send: approval responses, then client-side
@@ -1006,16 +1014,18 @@ internal sealed class OpenedTurn
     /// <summary>Runs the turn and streams the agent's updates.</summary>
     /// <param name="onPendingApprovals">Called right before the run publishes the tool approvals it waits for; <see langword="null"/> when the surface does not announce them.</param>
     /// <param name="onPendingInputs">Called right before the run publishes the tool inputs it waits for.</param>
+    /// <param name="onLoopIteration">Called with each loop iteration event right after the run recorded it; <see langword="null"/> when the surface does not mirror them.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The updates.</returns>
     public IAsyncEnumerable<Microsoft.Agents.AI.AgentResponseUpdate> RunStreamingAsync(
         Func<IReadOnlyList<PendingApprovalAnnouncement>, CancellationToken, ValueTask>? onPendingApprovals,
         Func<IReadOnlyList<PendingToolInputAnnouncement>, CancellationToken, ValueTask>? onPendingInputs,
+        Func<RunEvent, CancellationToken, ValueTask>? onLoopIteration,
         CancellationToken cancellationToken)
         => _turn.Agent.RunStreamingAsync(
             _messages,
             _session,
-            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals, onPendingInputs),
+            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals, onPendingInputs, onLoopIteration),
             cancellationToken);
 
     /// <summary>Runs the turn to its end.</summary>
@@ -1028,7 +1038,7 @@ internal sealed class OpenedTurn
         => _turn.Agent.RunAsync(
             _messages,
             _session,
-            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals: null, onPendingInputs),
+            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals: null, onPendingInputs, onLoopIteration: null),
             cancellationToken);
 
     /// <summary>Saves the session after the run, recording a lost write race on the run before the exception goes on.</summary>

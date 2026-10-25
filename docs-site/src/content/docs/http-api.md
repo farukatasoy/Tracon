@@ -89,6 +89,35 @@ needs no change. If the run store cannot be read at that point, the stream still
 ends with `done`, without the notices, and the server logs a warning; the run's
 events keep them.
 
+An agent with a [loop](/concepts/agents/#run-until-the-work-is-done) streams every
+iteration, so the `update` frames carry the drafts and the feedback as well as the
+answer. After each iteration the loop evaluated, the stream sends a
+`loop.iteration-completed` frame. It comes after the last `update` of that iteration
+and before the first `update` of the next. The frame's data is the recorded
+`LoopIterationCompleted` event, byte for byte the same as `GET /api/runs/{runId}/events`
+serves it. The event's `payload` is a JSON string with these fields:
+
+| Field | Meaning |
+|---|---|
+| `iteration` | The number of the iteration that just ended, counted from 1 |
+| `continued` | `true` when a criterion asked for another iteration |
+| `continuedBy` | The kind of that criterion, or `null` |
+| `hasFeedback` | `true` when that criterion gave the agent feedback; the feedback text is not in the frame |
+| `failedCriterion` | The kind of a criterion that failed to evaluate, or `null` |
+| `ceilingReached` | `true` when the iteration ceiling ends the loop |
+| `failsRun` | `true` when this evaluation fails the run |
+
+The answer is the iteration that the last frame closes, when that frame has
+`continued: false`. When the last frame has `ceilingReached: true`, the answer is the
+iteration **after** it: the turn at the ceiling is not evaluated, so it has no frame of
+its own. With `OnExhausted` set to `FailRun` no turn follows, and the stream ends with
+an `error` frame.
+
+An agent without a loop never sends this frame. A run that does not record its events
+has no event to mirror, so it sends none either. A sub-agent's loop writes to the
+sub-agent's own run and never to this stream. A client that ignores a frame name it does
+not know needs no change.
+
 `GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger
 set of frame names (`run.started`, `tool.invoking`, ...) — see
 [the two-contract table in Runs and recording](/concepts/runs/#two-sse-contracts-not-one).

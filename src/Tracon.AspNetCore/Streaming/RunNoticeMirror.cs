@@ -65,6 +65,14 @@ internal static class RunNoticeMirror
     private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
 
     /// <summary>
+    /// Serializes a recorded event the way <c>GET /api/runs/{id}/events</c> does, for every frame of the run
+    /// stream that mirrors one.
+    /// </summary>
+    /// <param name="runEvent">The recorded event.</param>
+    /// <returns>The JSON of the frame's <c>data</c> field.</returns>
+    internal static string Serialize(RunEvent runEvent) => JsonSerializer.Serialize(runEvent, JsonOptions);
+
+    /// <summary>
     /// Reads the run's notices back and writes each one as a <c>custom</c> frame, in
     /// record order.
     /// </summary>
@@ -100,7 +108,7 @@ internal static class RunNoticeMirror
             await writer.WriteEventAsync(
                 sequence++,
                 FrameName,
-                JsonSerializer.Serialize(notice, JsonOptions),
+                Serialize(notice),
                 cancellationToken).ConfigureAwait(false);
         }
 

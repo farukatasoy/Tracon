@@ -178,6 +178,16 @@ public sealed record AgentRunScope
     internal ToolInputLedger? ToolInputs { get; init; }
 
     /// <summary>
+    /// Gets the callback the loop evaluator hands each recorded <see cref="RunEventType.LoopIterationCompleted"/>
+    /// event to (<see cref="TraconRunOptions.AfterLoopIterationRecorded"/>).
+    /// </summary>
+    /// <remarks>
+    /// Set on the root run only. A sub-run reads its own scope, which has none, so its loop never reaches the
+    /// stream of the run above it.
+    /// </remarks>
+    internal Func<RunEvent, CancellationToken, ValueTask>? AfterLoopIterationRecorded { get; init; }
+
+    /// <summary>
     /// Gets the event writer for this run. A sub-run writes its summary events here.
     /// </summary>
     /// <remarks>
