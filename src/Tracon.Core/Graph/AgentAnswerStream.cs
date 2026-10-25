@@ -21,7 +21,8 @@ namespace Tracon;
 /// <para>
 /// The native agent stream (<c>POST /api/agents/{name}/run</c>) does not use
 /// this: it is documented to stream every iteration as it happens. The run's
-/// <c>loop.iteration-completed</c> events tell the iterations apart.
+/// <c>loop.iteration-completed</c> events tell the iterations apart, and that
+/// stream sends each of them as a frame of the same name between two iterations.
 /// </para>
 /// </remarks>
 internal static class AgentAnswerStream

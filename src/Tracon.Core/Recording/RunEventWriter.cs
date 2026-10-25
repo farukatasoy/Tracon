@@ -337,7 +337,10 @@ public sealed class RunEventWriter
             RunId = RunId,
             Sequence = Interlocked.Increment(ref _sequence) - 1,
             Type = draft.Type,
-            Timestamp = DateTimeOffset.UtcNow,
+            // Whole microseconds, the finest precision every store keeps (PostgreSQL's timestamptz stops
+            // there): the event handed back here and the one the store serves later must serialize alike
+            // (the loop iteration frame of the native stream is this very event).
+            Timestamp = AuditChainHasher.TruncateToMicroseconds(DateTimeOffset.UtcNow),
             Text = Truncate(draft.Text),
             ToolName = draft.ToolName,
             ToolCallId = draft.ToolCallId,

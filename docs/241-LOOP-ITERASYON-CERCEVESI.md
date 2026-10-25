@@ -1,6 +1,6 @@
 # Faz 241 — Native Agent Akışında Loop İterasyon Sınırı
 
-> **Durum:** 📋 Planlandı (2026-10-25)
+> **Durum:** ✅ Tamamlandı (2026-10-25)
 > **Kademe:** hafif — migration yok · public API'den satır silinmez (.NET public yüzeyi değişmez; SSE'ye yalnız bir olay adı eklenir) · hedef framework değişmez · güvenlik/kiracı sınırı yok · geri dönüşü pahalı karar yok
 > **Plan onayı:** Bakımcı, 2026-10-25 (sohbette alınan kararlar: çerçeve adı `loop.iteration-completed`; veri `/events` ile bayt bayt aynı; konsol playground'u iterasyon ayracını gösterir)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-544**
@@ -89,7 +89,7 @@ Playground her iterasyonun sonunda bir ayraç gösterir.
 - [x] Playground ayracı gösterir; `en.ts` + `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı: 224,5 KB gzip / 250 KB (öncesi 224,1; +0,4 KB)
 - [x] `samples/Tracon.Api` `reviewed-writer` agent'ı (`Program.cs:741-762`, `MaxIterations = 3`) native akışla koşuldu; çerçeve dizisi belgeye yazıldı — `MT-UIAG-066` Koşum satırı: `run` · 7 `update` · `loop.iteration-completed` (#1, `draft-reviewed`) · `role: "user"` geri bildirimi + 19 `update` · `loop.iteration-completed` (#2, durdu) · `done`
 - [x] Site sayfaları (Tüketici yüzeyi satırı) ve `CHANGELOG.md [Unreleased]` güncel
-- [ ] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
+- [x] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban 77eb1ea6` — 27.233 test, 39 modül, 0 kırmızı (619 sn). İlk iki koşum kırmızıydı: ekran görüntüsü damgası (UI kaynağı değişti; görüntüler yeniden alındı, dört anasayfa kırpımı açılıp doğrulandı, pin'ler yenilendi) ve altı test (benim riskli `GetByText` locator'ım, bir test yorumundaki Türkçe sözcük, elle koştuğum `vite build`'in sildiği `wwwroot/embed`). Tüketici senkronu: `npm run check` yeşil, `dokuman-bakim.py --site-denetle` üç kural karşılandı
 
 ## Testler
 
@@ -127,6 +127,8 @@ ayraçların görsel kontrolü.
 - **"Kancanın hatası ölçüt hatası sayılmaz" testi birim değil fonksiyoneldir.** Plan `LoopEvaluatorRegistryTests`'te birim test diyordu; o dosya yalnız kaydı sınar, `LoopContext` hiçbir testte doğrudan kurulmaz. Test `LoopIterationFrameTests` içinde: kanca atar, varsayılan `OnCriterionError = Stop` altında run `Failed` olur ve olayın `failedCriterion` alanı boş kalır. Kanca ölçütlerin `try/catch`'i içinde olsaydı `Stop` onu yutardı ve run `Completed` kalırdı.
 - **Plana girmeyen eklemeler.** `RunNoticeMirror.Serialize` (iki akışın tek serileştiricisi); `concepts/runs.md` çerçeve tablosu (iki sözleşme tablosunda yeni ad eksik kalırdı); `FailRun` tavanı testi (son çerçeve `error` çerçevesinden hemen önce gelir, `failsRun: true`); `OpenedTurn.RunStreamingAsync` yeni zorunlu parametre alır, AG-UI `null` geçer.
 - **Geri bildirim metni akışta VAR.** Plan "geri bildirim metni gösterilmez, çünkü olay onu taşımaz" diyordu. Olay taşımaz, ama iki çerçevenin arasındaki `update` bir `role: "user"` mesajıdır ve Loop'un modele verdiği geri bildirimi taşır (`Continue working on the request…`, `Reviewer findings (round 1): …`). Transcript `update`'in rolünü okumaz; metin ayraçtan sonraki iterasyonun paragrafına katılır. Ayraç yine de iki metni ayırır, yani eski görünümden kötü değildir; geri bildirimi gizleme ya da ayrı gösterme kararı bu fazın dışında kaldı (🟢, `ADAYLAR.md`).
+- **Denetim üç 🟡 buldu; ortak kök: çerçeve store'un sunduğu olaydan değil, `AppendAsync`'in bellekte döndürdüğü olaydan üretilir.** (1) Zaman damgası: PostgreSQL `timestamptz` mikrosaniye tutar, olay 100 ns'lik; `/events` ile canlı çerçeve 7. hanede ayrılırdı ("bayt bayt aynı" yalnız kayıpsız store'da doğruydu). `RunEventWriter` artık damgayı tam mikrosaniyeye keser (`AuditChainHasher.TruncateToMicroseconds`, `SqlAuditLog` emsali); kayıtlı `Timestamp` her store'da mikrosaniyedir. PostgreSQL'de koşulmadı: kanıt SQLite'lı bayt eşitliği testi, mikrosaniye birim testi ve emsal. (2) Store olayı reddederse yazıcı kapanır ama olay yine döner; kanca artık `writer.IsDisabled` iken çağrılmaz, yani `/events`'te olmayan çerçeve yoktur (`A_store_that_refuses_the_event…`; kapı kaldırılınca düşer, ölçüldü). (3) `RecordToolPayloads` kapalıyken olayın `payload`'ı `null`'dır; veri değiştirilmedi, üç yüzeye yazıldı, muafiyet kararı F-682.
+- **Birim test ilk sürümde yanlış sebeple yeşildi.** `Rig.StartAsync` scope'u kendi gövdesinde `SetCurrent` ile kurunca atama çağırana akmadı; kanca hiç çalışmadı ve "hiçbir şey vermez" iki test geçti. Pozitif kontrol (olay verilen test) dördünü düşürerek gösterdi. Scope artık evaluator'ı bekleyen metodun kendi gövdesinde kurulur.
 - **Yerel PostgreSQL'e kısa bağlantı.** Örnek uygulamanın ilk açılışı `faz-tamamlama` Adım 2'nin dört boş ortam değişkeni olmadan koştu; `user-secrets` içindeki bağlantı dizesi (`localhost:55432`, `agentprism` şeması) devreye girdi ve uygulama ~12 sn sonra durdurulana kadar migration kaydı okudu, kuyruk sorgusu çalıştırdı. Run koşulmadı. Sonraki tüm koşumlar boş değişkenlerle ve geçici SQLite dosyasıyla koştu (günlükte `Npgsql` satırı 0). Bekleyen bir migration varsa o veritabanına uygulanmış olabilir.
 
 ## Bu Fazda Verilen Kararlar
@@ -140,12 +142,16 @@ ayraçların görsel kontrolü.
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
+| Plan revizyonu sayısı | 0 (plan yeniden yazılmadı; 7 sapma kaydı) |
+| Düzeltme turu sayısı | 2 (ekran görüntüsü kapısı · denetimin üç 🟡'si) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (🟡: 3 gerçek) |
 | Fazın ürettiği regresyon | |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı; 🟢 kapanışta `ADAYLAR.md`'ye gider.
+> `faz-denetim` çıktısı (2026-10-25, taze bağlamlı `faz-denetcisi`); 🟢 kapanışta `ADAYLAR.md`'ye gitti.
+
+- 🔴: yok. Kanca kök scope'a hapsolur; konumu ve hata yolları (`FailRun`, ölçüt hatası, iptal) doğru; `sequence++` kapılıdır; testler düşebilir.
+- 🟡 ×3 (ortak kök, bkz. Plandan Sapmalar): zaman damgası PostgreSQL'de ayrışır · store yazamayınca `/events`'te olmayan çerçeve · `RecordToolPayloads` kapalıyken `payload: null`. İlk ikisi kodla kapandı (testle), üçüncüsü belgelendi ve F-682'ye gitti.
+- 🟢 → `ADAYLAR.md`: F-681 (geri bildirim `update`'i playground'da cevaba yapışır; site cümlesi eklendi) · F-682 (`LoopIterationCompleted` payload muafiyeti) · F-683 (`depth == 0` koruması ve istemci kopması testsiz). Ölçüt hatası çerçevesi testi ve `AgentAnswerStream` yorumu aynı turda kapandı.

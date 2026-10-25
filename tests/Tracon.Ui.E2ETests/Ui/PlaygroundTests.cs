@@ -178,7 +178,7 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
 
         // Not an exact match: the update the loop sends between two iterations carries the feedback it gives the
         // model back, and the transcript folds it into the paragraph of the next iteration.
-        await Expect(session.Page.GetByText(ScriptedModels.LoopingAnswer)).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText(ScriptedModels.LoopingAnswer).First).ToBeVisibleAsync();
     }
 
     [Fact]
