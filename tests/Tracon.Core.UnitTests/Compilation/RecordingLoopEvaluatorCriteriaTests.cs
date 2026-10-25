@@ -224,32 +224,48 @@ public sealed class RecordingLoopEvaluatorCriteriaTests
     }
 
     [Fact]
-    public async Task Two_runs_at_once_keep_their_own_trails()
+    public async Task One_composite_instance_serves_two_runs_at_once_without_mixing_their_trails()
     {
-        // One composite instance serves both runs; each run's scope carries its own holder.
-        var runs = Enumerable.Range(0, 8).Select(index => Task.Run(async () =>
-        {
-            var runId = Guid.NewGuid();
+        // ONE evaluator, as a compiled agent holds it for every run. The first run is held inside its criterion while
+        // the second runs to its end; a trail kept in a field of the evaluator would show in the wrong event.
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var calls = 0;
 
-            await using var rig = await Rig.StartAsync(
-                new LoopCriterionBinding("agentReview", new DelegateLoopEvaluator(async (_, token) =>
+        var shared = Rig.NewEvaluator(
+            new LoopCriterionBinding("agentReview", new DelegateLoopEvaluator(async (_, token) =>
+            {
+                var mine = Interlocked.Increment(ref calls) - 1;
+
+                if (mine == 0)
                 {
-                    await Task.Yield();
-                    TraconRunContext.Current!.CriterionTrail!.RecordReviewer(new LoopReviewerTrail($"reviewer-{index}", index + 1, runId));
-                    await Task.Delay(5, token); // delay: simulated
+                    started.SetResult();
+                    await release.Task.WaitAsync(token);
+                }
 
-                    return LoopEvaluation.Continue("again");
-                })));
+                TraconRunContext.Current!.CriterionTrail!.RecordReviewer(new LoopReviewerTrail($"reviewer-{mine}", mine + 1, runIds[mine]));
 
-            await rig.EvaluateAsync();
+                return LoopEvaluation.Continue("again");
+            })));
 
-            var reviewer = (await rig.PayloadAsync()).GetProperty("criteria")[0].GetProperty("reviewer");
+        await using var first = await Rig.StartAsync(shared);
+        await using var second = await Rig.StartAsync(shared);
 
-            reviewer.GetProperty("agentName").GetString().ShouldBe($"reviewer-{index}");
-            reviewer.GetProperty("runId").GetGuid().ShouldBe(runId);
-        })).ToList();
+        var firstEvaluation = Task.Run(() => first.EvaluateAsync().AsTask());
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await Task.Run(() => second.EvaluateAsync().AsTask());
 
-        await Task.WhenAll(runs);
+        release.SetResult();
+        await firstEvaluation;
+
+        var secondReviewer = (await second.PayloadAsync()).GetProperty("criteria")[0].GetProperty("reviewer");
+        secondReviewer.GetProperty("agentName").GetString().ShouldBe("reviewer-1");
+        secondReviewer.GetProperty("runId").GetGuid().ShouldBe(runIds[1]);
+
+        var firstReviewer = (await first.PayloadAsync()).GetProperty("criteria")[0].GetProperty("reviewer");
+        firstReviewer.GetProperty("agentName").GetString().ShouldBe("reviewer-0");
+        firstReviewer.GetProperty("runId").GetGuid().ShouldBe(runIds[0]);
     }
 
     private static LoopCriterionBinding Stop(string kind)
@@ -290,7 +306,18 @@ public sealed class RecordingLoopEvaluatorCriteriaTests
 
         public AgentRunScope? ScopeAfterCriteria { get; set; }
 
-        public static async Task<Rig> StartAsync(params LoopCriterionBinding[] criteria)
+        public static RecordingLoopEvaluator NewEvaluator(params LoopCriterionBinding[] criteria)
+            => new(
+                "looper",
+                criteria,
+                maxIterations: 50,
+                LoopOutcome.ReturnLastResponse,
+                LoopOutcome.ReturnLastResponse,
+                NullLogger.Instance);
+
+        public static Task<Rig> StartAsync(params LoopCriterionBinding[] criteria) => StartAsync(NewEvaluator(criteria));
+
+        public static async Task<Rig> StartAsync(RecordingLoopEvaluator evaluator)
         {
             var store = new InMemoryRunStore();
             var writer = new RunEventWriter(
@@ -321,14 +348,6 @@ public sealed class RecordingLoopEvaluatorCriteriaTests
                     return ValueTask.CompletedTask;
                 },
             };
-
-            var evaluator = new RecordingLoopEvaluator(
-                "looper",
-                criteria,
-                maxIterations: 50,
-                LoopOutcome.ReturnLastResponse,
-                LoopOutcome.ReturnLastResponse,
-                NullLogger.Instance);
 
             var rig = new Rig(store, writer, evaluator, scope);
             created = rig;
