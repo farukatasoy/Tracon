@@ -45,6 +45,15 @@ namespace Tracon;
 /// pass a ceiling by as much as its last node spends; the ceiling is not absolute.
 /// </para>
 /// <para>
+/// A tool call is gated at its <strong>start</strong> on all three: once <see cref="IsExhausted"/>
+/// is <see langword="true"/> it does not begin. The model's next call is refused for the same
+/// condition, so no model reads the result of a tool call that starts now. The result of
+/// a refused call is a sentence that says the call did not start; a streaming run records
+/// the call as failed, and the run ends at its next model call as it always did. A tool that
+/// has started is never stopped, and tool calls that start together (concurrent tool calls)
+/// all start before any of them reports.
+/// </para>
+/// <para>
 /// The budget of a workflow run that continues earlier runs starts from what they spent
 /// (<see cref="ConsumedTokens"/>, <see cref="ConsumedCost"/>, <see cref="StartedRuns"/>) and has
 /// a <see cref="Deadline"/> that is as far behind a fresh one as the earlier runs were executing:
@@ -403,6 +412,22 @@ public sealed class AgentRunBudget
         => IsCostBudgetExhausted ? $"{DescribeCostLimit()} {NodeKeepsRunning}"
             : IsDurationBudgetExhausted ? $"{DescribeTimeLimit()} {NodeKeepsRunning}"
             : DescribeExceededLimit();
+
+    /// <summary>
+    /// Produces the text for a tool call that was not started, naming the limit that stopped
+    /// it: token first, then cost, then time, the order <see cref="DescribeModelCallExhaustion"/>
+    /// uses.
+    /// </summary>
+    /// <returns>Text stating which limit was exceeded and that the tool call did not start.</returns>
+    /// <remarks>Only called once <see cref="IsExhausted"/> is <see langword="true"/>.</remarks>
+    internal string DescribeToolStartExhaustion()
+    {
+        // The sentence DescribeExceededLimit adds to a time limit is about the cutoff between
+        // model turns; a tool call that did not start needs only the limit.
+        var limit = IsTokenBudgetExhausted || IsCostBudgetExhausted ? DescribeExceededLimit() : DescribeTimeLimit();
+
+        return $"{limit} The tool call did not start.";
+    }
 
     private string DescribeExceededLimit()
     {

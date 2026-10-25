@@ -1624,3 +1624,23 @@ Hız sınırı paragrafının önceki hâli: "**Hız sınırı bir yalıtım sı
 - **🚨 Handoff adımı agent'a tool'u ve talimatı RUN SEÇENEĞİYLE verir; handoff çağrısını yalnız KENDİ agent kimliğinden okur** (2026-10-20, K-1039): `ChildAgentInvoker` gelen seçeneği düşürüyordu (model handoff tool'unu hiç görmedi) ve çocuğun güncellemesi çocuğun kimliğini taşıyordu (çağrı dış tool sanıldı, run `AwaitingInput`). Sarmalayıcı `ChatOptions`'ı `RunChatOptionsRule`'dan geçirip iletir, güncellemeye kendi `Id`'sini yazar. Kapı: `WorkflowHandoffTests`. Eski testler yalnız derlemeyi ve süreyi sınıyordu.
 - **🚨 Bekleyen istek üç yoldan kayboluyordu** (2026-10-12, F-327, K-888): (1) 8 KB'ta kesilen yük parse edilemedi — kimlik artık olay `Text`'inden, yük kesildiği yere kadar okunur, `form` `prompt`'tan önce yazılır; (2) retention `AwaitingInput` run'ın olayını ve checkpoint'ini sildi — iki hedef artık süzer; (3) checkpoint deposu OTURUM başına siler ve cevap run'ı kaynağın oturumunu paylaşır — temizlik oturumda bekleyen/koşan run varken atlanır.
 - **🚨 Zarif kapanışta `Canceled` kapanan run, `KeepCheckpointsAfterCompletion=false` iken checkpoint'ini silip devamı baştan koşturuyordu** (2026-10-14, F-433, K-978): temizlik `Canceled`'ı "bitti" sayıyordu. Ayrım `AmbientJobAttempt.Current.Reason == WorkerStopping` ve `ResumeInterruptedRuns` ile yapılır; devam aynı oturumda koşar ve bitince temizler. Kanıt iki host + tek SQLite ister (`WorkflowRecoveryTests`).
+
+## `docs/hafiza/tool-onay-ve-yetkilendirme.md`'den — Faz 243 (tool bütçe kapısı notuna yer açmak için)
+
+- **🚨 `AIFunction.JsonSchema`'da `"type"` bir dize DEĞİL bir DİZİ olabilir** (Faz 143,
+  Microsoft.Extensions.AI 10.9.0'da ölçüldü): `string?` gibi nullable bir C# parametresi
+  `"type":["string","null"]` üretir, `"type":"string"` değil — 9.9.1'de bu davranış yoktu
+  (probe önce eski sürümle yazıldı, gerçek pakette skip'e düştü). `TryGetProperty("type",
+  out var t) && t.ValueKind == JsonValueKind.String` deseni sessizce hiç eşleşmez ve
+  nullable her parametre "desteklenmiyor" sanılır. Çözüm: `type` okuyan her yerde önce
+  `ValueKind == Array` dalını da kontrol et, ilk `"null"` olmayan girdiyi kullan
+  (`SchemaArgumentGenerator.PrimaryType`). Bir tool şemasını TÜKETEN (üreten değil) her
+  kod, MEAI'nin GERÇEK kurulu sürümüyle ölçülmeli — `maf-api-kesfi` dump'ı tip imzasını
+  gösterir ama ÜRETİLEN JSON şeklini göstermez, küçük bir probe projesi gerekir.
+- **xunit.v3, yalnız `public` sınıfları test olarak keşfeder — `private`/`internal` bir
+  sınıf, bir sözleşme temel sınıfından (`[Fact]` miras alarak) türese bile `dotnet test`'in
+  normal koşumuna karışmaz** (Faz 143, ampirik ölçüldü: `internal sealed class` + kasten
+  kırık `ExpectedResultText` → "Zero tests ran"). Bu, "sözleşme suite'i kasten kırık bir
+  implementasyonda KIRMIZI olmalı" kanıtını (`ContractSelfProofTests` deseni) NORMAL yeşil
+  koşumu bozmadan yazmanın yoludur: kırık fixture'ı `private sealed class` yap, `[Fact]`
+  metodunu doğrudan çağır (`await instance.SomeFact()`), `try/catch` ile "attı mı" sına.

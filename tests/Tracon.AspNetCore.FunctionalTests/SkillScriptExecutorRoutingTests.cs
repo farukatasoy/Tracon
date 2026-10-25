@@ -108,6 +108,74 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
+    /// F-530: a script is a paid start like any tool call. Once the tree's budget is spent the
+    /// runner refuses it before a grant is read or the executor is asked; a budget that is not
+    /// spent leaves the same call as it was.
+    /// </summary>
+    /// <remarks>
+    /// The script tool is built by Microsoft Agent Framework and is not a wrapper of Tracon's
+    /// tool chain, so the gate is the runner's own check, proven here on the same path
+    /// <see cref="An_approved_file_script_goes_to_the_registered_executor_with_its_text"/> uses.
+    /// The scope is set in the test body: an ambient value assigned in a helper does not flow
+    /// back to its caller.
+    /// </remarks>
+    [Fact]
+    public async Task A_spent_budget_stops_a_file_script_before_the_executor_is_asked()
+    {
+        var content = "echo budget\n";
+        var root = WriteDiskSkill(content);
+        var executor = new RecordingScriptExecutor();
+
+        await using var host = await StartAsync(executor, runs: [], skillRoot: root);
+        await GrantAsync(host, "default", DiskSkillName, contentHash: null);
+
+        using var source = host.Services.GetRequiredService<SkillScriptSupport>().CreateFileSource().ShouldNotBeNull();
+        var skill = (await source.GetSkillsAsync(null!, CancellationToken.None))
+            .ShouldHaveSingleItem()
+            .ShouldBeOfType<Microsoft.Agents.AI.AgentFileSkill>();
+        var script = (await skill.GetScriptAsync(DiskScriptName, CancellationToken.None)).ShouldNotBeNull();
+
+        var spent = new AgentRunBudget { MaxTotalCost = 1m };
+        spent.RecordUsage(0, 5m);
+
+        TraconRunContext.SetCurrent(new AgentRunScope { RunId = Guid.NewGuid(), RootRunId = Guid.NewGuid(), Budget = spent });
+
+        try
+        {
+            var refused = await Should.ThrowAsync<TraconRunBudgetExceededException>(
+                () => script.RunAsync(skill, arguments: null, host.Services, CancellationToken.None));
+
+            refused.Message.ShouldContain("cost budget is exhausted", Case.Sensitive);
+            refused.Message.ShouldEndWith("The tool call did not start.", Case.Sensitive);
+            executor.Requests.ShouldBeEmpty("the executor was asked to run a script of a spent tree");
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        // The control: the same call with room left in the budget runs.
+        TraconRunContext.SetCurrent(new AgentRunScope
+        {
+            RunId = Guid.NewGuid(),
+            RootRunId = Guid.NewGuid(),
+            Budget = new AgentRunBudget { MaxTotalCost = 1m },
+        });
+
+        try
+        {
+            var output = await script.RunAsync(skill, arguments: null, host.Services, CancellationToken.None);
+
+            output.ShouldBeOfType<string>().ShouldContain($"routed-to-executor:{DiskScriptName}");
+            executor.Requests.ShouldHaveSingleItem();
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+    }
+
+    /// <summary>
     /// F-481: an agent names a skill that exists only under a skill root, and an HTTP
     /// run reaches its file script: compilation, Microsoft Agent Framework's file
     /// source, the runner and the registered executor.

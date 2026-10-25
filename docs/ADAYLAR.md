@@ -399,6 +399,9 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-517** · Tek cevaplı istek için yönetici çıkışı | Faz 208 denetimi 🟢1 + kapsam dışı: teslimden sonra düşen devamda zıt cevap hep `409`; motorun teslimde reddettiği cevap isteği kilitler; kaydı `Abandoned` yapan uç yok | Admin ucu, denetim kaydı, konsol düğmesi |
 | 🟢 | **F-518** · `workflow_responses` sınırsız büyür | Faz 208 🟡5: kayıt yalnız veri sahibi silmesiyle gider; hiçbir saklama hedefi `runs` silmez | `workflow_requests` hedefi var (K-1004); aynı kalıp `workflow_responses` için ayrı karar |
 | 🟢 | **F-519** · Yalnız devam run'ı silinince cevap kaydı kalır | Faz 208 denetimi 🟢2: FK yalnız `source_run_id`'de; zincir boş görünür, aynı cevap `Gone` → `409` alır | Karar: `response_run_id` FK'sı ya da `Gone`'da yeniden sürme |
+| 🟢 | **F-688** · İki arama tool'u tool zincirinin dışındadır: `search_knowledge` ve `search_conversation_memory` | Faz 243 §243.2 ölçümü ve denetimi: `AgentDefinitionCompiler.Memory.cs` `search_knowledge`'ı, MAF'ın `ChatHistoryMemoryProvider`'ı (`OnDemand`) ikincisini `ToolRegistry` ve `ToolWrapperChain` olmadan `tools` listesine ekler; yetki işleyicisi, zaman aşımı, argüman doğrulama ve bütçe kapısı uygulanmaz. Her çağrı bir embedding sağlayıcısını ve bir depoyu çağırır, ücret raporlanmaz | Karar: zincire alınır mı; ücret `TraconToolUsage` ile raporlanır mı. Önce ölç: yetki işleyicisi bugün bu tool'ları görüyor mu |
+| 🟢 | **F-689** · Akışsız run başarısız bitince araç satırı yazılmaz | Faz 243 denetimi 🟡2: `RunAsync` (akışsız) bütçe reddiyle biterse hem reddedilen hem başarılı çağrının satırı yoktur; kuyruk (`AgentRunJobHandler`), devam (`RunContinuationJobHandler`) ve workflow agent adımı (`WorkflowAgentStepExecutor`) akışsız yolu kullanır. İzleyici mesajları yanıtla birlikte okur | Karar: başarısız run'ın mesajları kurtarılır mı; `/runs/{id}/tools` boş döner |
+| 🟢 | **F-690** · Betik yolu ve gerçek token yolu uçtan uca sınanmıyor | Faz 243 denetimi 🟢1+🟢2: betik kapısı `script.RunAsync` ile sınanır, model → onay → devam hattı yok (`run_skill_script` her zaman onay ister; onaylı çağrı devam run'ında yeni bütçeyle koşar). Bütçe reddi `script.denied` denetim kaydı yazmaz. Token testi yan kanal kullanır, çünkü `FakeModelProvider.CallsTools` kullanım yazamaz | `Tracon.Testing` genel yüzeyi büyür (tool çağrı turuna kullanım); betik reddi denetim kaydı ister mi — karar |
 | 🟢 | **F-532** · Süre kapanışı normal kapanışın temizliğini atlar | Faz 209 denetimi 🟢2: süre ile kapanan run `KeepCheckpointsAfterCompletion = false` temizliğini ve `RecordRun` metriğini çalıştırmaz (onay emsali aynı); retention yine bırakır | Ortak kapanış yardımcısı ya da karar: emsal gibi kalsın |
 | 🟢 | **F-533** · Kısmen dolmuş run'da kapanmış isteğe cevap alınır | Faz 209 denetimi 🟢5: bir istek kapanmış, öbürü açıkken kapalı isteğe cevap `WorkflowRunner` denetiminden geçer (satır durumuna bakılmaz); işaret kapalı satıra yazılmaz | Karar: kapı kapalı satırı `400` ile reddetsin mi |
 | 🟢 | **F-534** · Kiracı listesi sayfa başına olay okur | Faz 209 §209.1: satır olayı `event_seq` ile adlandırır ama istem her satır için `ReadEventsAsync`'le okunur (sayfa en çok 200) | Tek olay okuyan `IRunStore` üyesi; önce ölç |
@@ -615,7 +618,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-688**.
+numara: **F-691**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -585,7 +585,9 @@ This is a *different* budget from the one every root run's call tree carries
 runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
 or agent over a day or month and never interrupts a run in progress; the call-tree
 budget is scoped to one run's tree (for a workflow, the whole chain of runs that continue one
-another) and is checked between model turns, so it *does* cut a long tool loop off mid-run.
+another) and is checked between model turns, so it *does* cut a long tool loop off mid-run. It also
+keeps a tool call from starting once it is spent (see [A spent budget stops a tool call from
+starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting)).
 
 ## Retention
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1026 kalem)
+## Arşivlenen Kararlar (1027 kalem)
 
 | K | Karar |
 |---|---|
@@ -1035,3 +1035,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1034 | Tanınmayan içerik `tracon.content`, workflow olayı `tracon.workflow.event` olarak kaydedilir; yük gövdesizdir (F-589) |
 | K-1035 | `UseProvidedChatClientAsIs` ve `AllowConcurrentInvocation` korunur: ikisi korunan bir ayarı dolaylı değiştirir |
 | K-1036 | Deneysel upstream tip yalnız ön sürüm hattındaki uydu paketin public imzasına girer; çekirdek aile kararlı kalır (D-01) |
+| K-1037 | Ön sürüm upstream'e bağlı yeni uydu paket ayrı ön sürüm hattında çıkar; mevcut aile tek hatta kalır (D-19) |

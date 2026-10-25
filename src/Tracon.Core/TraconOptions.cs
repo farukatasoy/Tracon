@@ -186,8 +186,18 @@ public sealed class TraconAgentGraphOptions
     /// negative value removes the limit.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The default intentionally <em>exists</em>. An unlimited installation learns
     /// about its first invalid definition from the bill.
+    /// </para>
+    /// <para>
+    /// Once the tree has spent this many tokens, the next model call is refused, and so is
+    /// every tool call that has not started: the tool's result would be read only by a model
+    /// call that is refused. The result of a refused call is a sentence that says the call
+    /// did not start, and the run ends <c>Failed</c> with <c>run_budget_exceeded</c> at its
+    /// next model call. A workflow
+    /// function node is not stopped by this limit, since it spends no tokens.
+    /// </para>
     /// </remarks>
     public long MaxTotalTokens { get; set; } = 200_000;
 
@@ -208,6 +218,18 @@ public sealed class TraconAgentGraphOptions
     /// tree can pass the ceiling by as much as its last node spends. What a node reported
     /// beyond tokens counts. A node that must still run after the ceiling is passed sets
     /// <c>WorkflowFunctionOptions.StartsWhenBudgetIsSpent</c>.
+    /// </para>
+    /// <para>
+    /// A tool call does not start either. When one model turn asks for two paid tools and
+    /// the first passes the ceiling, the second is not run: its result would be read only by
+    /// a model call that is refused. The result of a refused call is a sentence that says the
+    /// call did not start, and a streaming run records the call as failed. A tool that has
+    /// started is never stopped, and what it
+    /// reported through <see cref="TraconToolUsage"/> counts the moment it is reported, so
+    /// the call that crosses the ceiling is the last one that starts. Tool calls that start
+    /// together (<see cref="ToolLoopSettings.AllowConcurrentToolCalls"/>) all start before
+    /// any of them reports; an installation that needs the ceiling to hold turns concurrent
+    /// calls off.
     /// </para>
     /// </remarks>
     public decimal MaxTotalCost { get; set; }
@@ -233,7 +255,8 @@ public sealed class TraconAgentGraphOptions
     /// progress when the deadline passes is <strong>not</strong> interrupted
     /// and runs to completion. The same holds for a workflow function node: once the
     /// deadline has passed, the next node does not start, and one that is already
-    /// running is not stopped. See <see cref="AgentRunBudget"/>.
+    /// running is not stopped. A tool call that has not started when the deadline has
+    /// passed does not start either. See <see cref="AgentRunBudget"/>.
     /// </para>
     /// </remarks>
     public TimeSpan MaxDuration { get; set; }

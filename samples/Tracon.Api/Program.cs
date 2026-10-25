@@ -489,6 +489,20 @@ if (voiceEnabled)
 // engine is not exempt (PUT /tracon/api/tenants/default/egress).
 tracon.AddSpeechSynthesizer(ToneSpeechSynthesizer.Name, static _ => new ToneSpeechSynthesizer());
 
+// A priced TOOL (phase 243). `narrate` bills what the local "tone" engine would charge for the text, the way
+// the `speak` workflow node below does, and reports it from its own body. Once the call tree's budget is spent,
+// the next tool call does not start. Try it with the `double-narrator` agent, whose model asks for two narrate
+// calls in one turn, and a small ceiling:
+//
+//   Tracon__AgentGraph__MaxTotalCost=0.005
+//   POST /tracon/api/agents/double-narrator/run  {"message":"<a text of about a hundred characters>"}
+//
+// The first call runs and passes the ceiling; the second is refused, the run ends Failed with
+// run_budget_exceeded, and GET /tracon/api/runs/{id}/tools lists both calls, the second as failed.
+// The tool is registered with a factory: it reads the price table at setup, because Microsoft Agent
+// Framework hands a tool an empty service provider at call time (K-218).
+tracon.Services.AddSingleton(provider => new TraconToolRegistration(NarrateTool.Create(TonePricing.From(provider))));
+
 // A local model server example (Ollama/LM Studio). Setup is the SAME call as
 // any OpenAI-compatible endpoint; the only difference is omitting ApiKey (the
 // local server does not require one) and pointing at the local address. This
@@ -591,6 +605,18 @@ tracon
             DisableWebSearch = true,
             DisableFileMemory = true,
         },
+    })
+
+    // Asks for two priced `narrate` calls in one turn (phase 243). With a small
+    // Tracon:AgentGraph:MaxTotalCost the second call does not start.
+    .AddAgent(new AgentDefinition
+    {
+        Name = "double-narrator",
+        DisplayName = "Double Narrator (budget gate demo)",
+        Description = "Asks for two narrate calls in one turn; a spent budget refuses the second.",
+        Instructions = "Narrate the text twice.",
+        Model = new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoNarratorModel },
+        ToolNames = [NarrateTool.Name],
     })
 
     // Agent-calls-agent. The router itself does not use a tool; it hands the

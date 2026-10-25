@@ -15,9 +15,13 @@ namespace Tracon;
 /// miss the other.
 /// </summary>
 /// <remarks>
-/// Composition order (outermost first): ExplainedFailure -&gt; Authorizing -&gt; Validating -&gt;
-/// Timeout -&gt; ApprovalRequired -&gt; Truncating -&gt; the real function.
-/// Authorization runs before everything else: asking for approval, waiting
+/// Composition order (outermost first): ExplainedFailure -&gt; BudgetGating -&gt; Authorizing -&gt;
+/// Validating -&gt; Timeout -&gt; ApprovalRequired -&gt; Truncating -&gt; the real function.
+/// Budget gating runs first among the layers that decide: a tree whose budget is spent
+/// starts no tool, so there is no handler to ask, no argument to validate and no
+/// approval to wait for. Its refusal is an exception that ExplainedFailure, just
+/// outside it, turns into the tool's result.
+/// Authorization runs before everything else that follows: asking for approval, waiting
 /// out a timeout, or validating arguments for a call the caller could never
 /// make is backwards. Validation runs before the timeout and the approval
 /// wait: a malformed call should not consume a timeout budget or wait on a
@@ -121,6 +125,11 @@ internal static class ToolWrapperChain
             registration.RequiredPermission,
             attribution,
             authorizingLogger);
+
+        // Before the authorization handler: the budget read is in memory and the
+        // handler is the consumer's code, perhaps a network call. A spent run does not
+        // ask it. Inside ExplainedFailure, which carries the refusal to the model.
+        wrapped = new BudgetGatingAIFunction(wrapped);
 
         // Outermost, so it covers every layer beneath it: a rejected argument,
         // a denied call, a timeout and the tool's own body all reach the model

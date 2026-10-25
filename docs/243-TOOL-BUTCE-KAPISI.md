@@ -1,6 +1,6 @@
 # Faz 243 — Bütçe Tükenince Tool Çağrısı Başlamaz
 
-> **Durum:** 📋 Planlandı (2026-10-25)
+> **Durum:** ✅ Tamamlandı (2026-10-25)
 > **Kademe:** tam — geri dönüşü pahalı karar ve maliyet sınırı: ağaç bütçesi tüketicinin harcama tavanıdır (K-999 ailesi). Kapı her tool kaynağının zincirine girer; yanlış konum tavanı sessizce delikli bırakır (MEMORY: yapısal iddia, K-320). GA'dan sonra bu davranışı değiştirmek major sürüm ister
 > **Plan onayı:** Bakımcı, 2026-10-25 (sohbette alınan karar: koşul `IsExhausted` — token, maliyet ya da süre; ret biçimi: tool koşmaz, model açıklayıcı sonuç alır, sonraki model çağrısı bugünkü kapıda durur)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-530**
@@ -229,17 +229,17 @@ değiştirmez · **başka kiracı** — bütçe ağaca aittir, kiracı ayrımı 
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `ToolBudgetGateTests` aynı turdaki ikinci tool'un başlamadığını üç sınır için (maliyet, token, süre) kanıtlar; test taban sürümde kırmızıdır (kayıt: komut + çıktı)
-- [ ] Kod, çalışma alanı, MCP ve skill script'i yolları kapıdan geçer (§243.2 ölçümü *Plandan Sapmalar*'da)
-- [ ] Reddedilen çağrı kayıtta başarısız ve ret metnini taşır; run `run_budget_exceeded` ile kapanır
-- [ ] Eşzamanlı çağrı sınırı testle sabitlendi ve sitede yazılı
-- [ ] `CHANGELOG.md [Unreleased]` davranış değişikliğini adıyla yazar
-- [ ] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (Manuel 1), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `ToolBudgetGateTests` aynı turdaki ikinci tool'un başlamadığını üç sınır için (maliyet, token, süre) kanıtlar; test taban sürümde kırmızıdır (kayıt: komut + çıktı → *Plandan Sapmalar*; token satırının yan kanal modeli sapma 1)
+- [x] Kod, çalışma alanı, MCP ve skill script'i yolları kapıdan geçer (§243.2 ölçümü *Plandan Sapmalar*'da; MCP ve çalışma alanı için kontrol testleriyle)
+- [x] Reddedilen çağrı kayıtta başarısız ve ret metnini taşır; run `run_budget_exceeded` ile kapanır (akışlı run'da; akışsız run başarısız bitince hiç araç satırı yazmaz — sapma 3, aday F-689)
+- [x] Eşzamanlı çağrı sınırı testle sabitlendi ve sitede yazılı
+- [x] `CHANGELOG.md [Unreleased]` davranış değişikliğini adıyla yazar
+- [x] Site sayfaları (Tüketici yüzeyi satırı) güncel; `npm run build` + `check-links.mjs` temiz (`npm run check` dördü birden: `kapi.py kapanis` içinde ✅)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis --taban 98702e42`: 27511 test, 39 modül, çıkış 0; ilk koşumda bir zamanlayıcı testi 30 sn'de düştü, izole geçti, tam koşum tekrarında yeşil)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (Manuel 1), çıktı belgeye yazıldı (*Plandan Sapmalar* sonu)
+- [x] `secret` taraması boş döndü (`kapi.py tarama` ✅, `kapanis` içinde)
+- [x] `🤖` case `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md` içinde (`MT-OBS-085`) ve koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (🔴 yok; 🟡 dördü kapandı, 🟢 üçü aday)
 
 ### Doğrulama komutları
 
@@ -271,15 +271,58 @@ grep -rn "ToolWrapperChain.Compose" src --include='*.cs'      # §243.2 kaynak l
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır. §243.2 kaynak listesi ve kararları buraya yazılır.
 
+**Taban sürümde kırmızı kanıt** (DoD 1). Kapı kapalıyken (`ToolWrapperChain` içindeki satır devre dışı):
+
+```bash
+python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "*ToolBudgetGateTests*"
+# total: 12, failed: 6 — maliyet / token / süre satırları, kayıt+kimlik satırı, MCP satırı, çalışma alanı satırı
+#   "tools.Count(Second) should be 0 but was 1 — the refused tool's body was called"
+```
+
+Kapı açıkken aynı komut yeşildir (denetimden sonra 13 test). Betik satırı için runner kapısı devre dışıyken
+`SkillScriptExecutorRoutingTests.A_spent_budget_stops_a_file_script_before_the_executor_is_asked` kırmızıdır.
+
+**§243.2 kaynak ölçümü** (`grep -rn "ToolWrapperChain.Compose\|: AIFunction\b\|: DelegatingAIFunction" src`):
+
+| Kaynak | Karar | Kanıt |
+|---|---|---|
+| Kod tool'ları (`ToolRegistry`) — `GenerateImageTool`, ses tool'ları (`SpeakTool`, `TranscribeTool`, `ListVoicesTool`), `AddScopedTool` | kapı (`Compose`) | `ToolBudgetGateTests` kod tool'u satırları |
+| Çalışma alanı tool'ları (`WorkspaceToolGovernance`) | kapı (`Compose`) | `A_workspace_tool_does_not_start_once_the_cost_budget_is_spent` + kontrol |
+| MCP tool'ları (`McpTenantTools`; `McpElicitingTool` `Compose` öncesi sarar) | kapı (`Compose`) | `An_mcp_tool_does_not_start_once_the_cost_budget_is_spent` (gerçek MCP sunucusu, `Calls == 0`) + kontrol |
+| `run_skill_script` (MAF'ın tool'u) | koşucu girişi (`ExecuteAsync`) | `A_spent_budget_stops_a_file_script_before_the_executor_is_asked` |
+| Alt agent (`SubAgentToolFunction`) | değişmez — `ChildAgentInvoker` kapısı | mevcut alt agent bütçe testleri yeşil |
+| `RecordedToolPlayback` | değişmez — replay gerçek tool koşturmaz | — |
+| **`search_knowledge` (`VectorSearchToolFactory`) — planda yoktu** | **değişmez** — `AgentDefinitionCompiler.Memory.cs:199` onu zincire sokmadan `tools` listesine ekler; ücret raporlamaz | ölçüldü: `tools.Add(...)` doğrudan; aday F-688 |
+| **`search_conversation_memory` (`OnDemand` konuşma belleği, MAF `ChatHistoryMemoryProvider`) — planda yoktu; denetim buldu** | **değişmez** — MAF'ın aracıdır, zincire girmez; tüketicinin `VectorStore`'unu ve embedding üreticisini çağırır; ücret raporlamaz | `ConversationMemoryScopeProvider.cs:66-72`; aday F-688'e eklendi; sitede sınır olarak adıyla yazılı |
+| Skill okuma, dosya belleği, todo (MAF provider'ları) | değişmez (plana göre) | ücret raporlamaz, yan etkisi Tracon'un deposundadır |
+| Hosted tool | değişmez (plana göre) | sağlayıcı bulutunda koşar |
+
+Sapmalar:
+
+1. **Token satırı "ikinci tool" değildir.** `FakeModelProvider` bir tool çağrı turuna kullanım yazamaz; ayrıca token'ı yalnız model harcar. Test, birinci tool'un ağaca `RecordUsage(1000)` yazdığı bir yan kanal modeli (K-893 emsali) kurar: tavan 500, ikinci tool başlamaz. Mekanizma aynıdır, kaynak yapaydır (denetim 🟢2: gerçek yol uçtan uca sınanmıyor).
+2. **Betik testi `ToolBudgetGateTests`'te değil `SkillScriptExecutorRoutingTests`'tedir.** Betik düzeneği (yürütücü, yetki kaydı, disk becerisi) o sınıfta `private`'tır; kopyalamak yerine testi düzeneğin yanına koydum. Test `script.RunAsync` çağrısını sınar, model → onay → devam hattını değil (denetim 🟢1).
+3. **Kayıt testleri akışlıdır.** Akışsız `RunAsync` run'ı bütçe reddiyle başarısız biterse hiç araç satırı yazmaz (izleyici akışsız yolda mesajları yanıtla birlikte okur). Bu mevcut bir davranıştır, bu fazın değil; kuyruk, devam ve workflow agent adımı akışsız yolu kullanır (denetim 🟡2). Sevk edilen metne "akışlı run'da" koşulu eklendi, boşluk aday F-689. `docs/hafiza/tool-onay-ve-yetkilendirme.md`'ye yazıldı.
+4. **Onay satırı beklenenden farklı sonuç verdi** (Riskler, 4. satır). Ölçüm: onay isteği zincir çağrılmadan üretilir ve aynı turdaki onaysız kardeş tool'lar onayla birlikte bekler (`first == 0`). Kapı o yolda hiç koşmaz; onaylanan çağrı onay devamının yeni run'ında, o run'ın bütçesiyle koşar. `A_turn_with_a_tool_that_needs_approval_...` bunu sabitler. Mevcut onay testleri değişmeden yeşil.
+5. **Örnek uygulamaya iki ek** (Manuel 1 için gerekli): `narrate` tool'u (yerel `tone` motorunun ücretini bildirir) ve aynı turda iki `narrate` isteyen `echo-narrator-1` modeli + `double-narrator` agent'ı. Örnek uygulamada ücret bildiren bir tool ve tool çağıran bir model yoktu.
+6. **Zincirin XML açıklaması "Authorizing dışta" diyordu**; `ToolWrapperChain` sıra yorumu yeni sırayla düzeltildi. `TraconRunBudgetExceededException` XML'i tool eşini anlatır.
+7. **"Model ret cümlesini okur" yanlıştı** (denetim 🟡1). Aynı koşul sonraki model çağrısını da reddeder; koşul yalnız büyür (token, maliyet, süre), yani cümleyi hiçbir model okumaz. Plan ve ilk metin bunu yanlış söylüyordu. Cümle olay akışına ve run kaydına gider. Sevk edilen metin düzeltildi.
+8. **İptal ile harcanmış bütçe birlikteyken kapı ret verir** (denetim 🟡4). Kapı token'ı okumaz (plan); iptal edilmiş token ile harcanmış bütçe birlikte gelirse ret cümlesi döner, iptal kaybolmaz: bir sonraki model çağrısı onu görür. `A_spent_budget_answers_before_anything_reads_the_token` sırayı sabitler; harcanmamış bütçede iptal `OperationCanceledException` kalır (`A_cancellation_stays_a_cancellation_while_the_budget_is_not_spent`).
+9. **Süre reddinin metni** (denetim 🟢3): `DescribeToolStartExhaustion` süre için "model turları arası kesim" cümlesini kullanmaz, yalnız sınırı adlandırır.
+
+**Örnek uygulama koşumu** (Manuel 1; `ASPNETCORE_ENVIRONMENT=Production`, dört boş ortam değişkeni, `Tracon__AgentGraph__MaxTotalCost=0.005`):
+`POST /tracon/api/agents/double-narrator/run` (96 karakter) → akışta `narrate-1` = `"Narrated 96 characters."`, `narrate-2` = `The run tree's cost budget is exhausted (0.009600/0.005000). Raise Tracon:AgentGraph:MaxTotalCost to allow more. The tool call did not start.`;
+run `Failed`, `run_budget_exceeded`, `QuotaExceeded`, `nonTokenCost 0.0096`; `/tools` iki satır (ilki `succeeded=True` + `usage`, ikincisi `succeeded=False`, `error` ret cümlesi, `usage` yok); `Npgsql` satırı 0.
+Karşı kontrol (tavan yok): `Completed`, iki satır da `succeeded=True` (96 ve 103 karakter), `nonTokenCost 0.0199`.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
-> etmez. Beklenen kayıt: tükenmiş bütçede tool başlamaz *(public-api,
-> geri-dönüşü-pahalı; alternatifler: yalnız maliyet ve süre (K-999 kuralı), muafiyet
-> bayrağı, tool döngüsünü `Terminate` ile kesmek)*. K-999'un yeniden açılma notu
-> bu kayıtla kapanır.
+> etmez.
+
+- **K-1089** *(public-api, geri-dönüşü-pahalı)*: tükenmiş ağaç bütçesinde tool çağrısı başlamaz (token, maliyet, süre). K-999'un tool yarısı bu kayıtla kapandı.
+- Kategori dışı: kapı `ExplainedFailure` içinde, `Authorizing` önünde (plan §243.1). `search_knowledge` ve `search_conversation_memory` kapı dışında kalır (aday F-688). Skill betik kapısı koşucu girişindedir ve `BudgetGatingAIFunction.Refusal()` ile koşulu tek yerden alır. Kapı token'ı okumaz (sapma 8).
 
 ## Süreç Ölçümü
 
@@ -291,10 +334,10 @@ grep -rn "ToolWrapperChain.Compose" src --include='*.cs'      # §243.2 kaynak l
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (planın metni değişmedi; 9 sapma kaydı) |
+| Düzeltme turu sayısı | 1 (denetim sonrası: sevk edilen metin, iptal testi, süre cümlesi) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (mevcut onay, alt agent ve zincir testleri değişmeden yeşil) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -302,3 +345,14 @@ grep -rn "ToolWrapperChain.Compose" src --include='*.cs'      # §243.2 kaynak l
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetçi: `faz-denetcisi` (taze bağlam). **🔴 yok.**
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | Sevk edilen metin "model ret cümlesini okur" diyordu; aynı koşul sonraki model çağrısını da reddeder, cümleyi hiçbir model okumaz (dokuz yer) | 🟡 | düzeltildi — metin "sonuç cümlesi akışa ve kayda gider" der; sapma 7 |
+| 2 | "Kayıt çağrıyı başarısız gösterir" koşulsuz yazılmıştı; akışsız run başarısız bitince hiç araç satırı yazmaz | 🟡 | düzeltildi — metne "akışlı run'da" koşulu, sitede açık cümle; boşluk F-689 olarak devredildi; sapma 3 |
+| 3 | `search_conversation_memory` (MAF `OnDemand` bellek aracı) §243.2 tablosunda yoktu ve zincir dışıdır | 🟡 | düzeltildi — tabloya ve sitedeki sınır paragrafına adıyla yazıldı; F-688'e eklendi |
+| 4 | `A_cancellation_stays_a_cancellation` bütçeyi harcamıyordu: kapı silinse de geçerdi; harcanmış bütçe + iptal birleşimi sabit değildi | 🟡 | düzeltildi — test harcanmamış bütçeyle yeniden adlandırıldı, harcanmış bütçeli eşi eklendi; sapma 8 |
+| 5 | Betik yolu `script.RunAsync` ile sınanır; model → onay → devam hattı ve `script.denied` denetim kaydı yok; token testi yan kanal kullanır | 🟢 | F-690 olarak devredildi |
+| 6 | Süre reddinin metni "model turları arası kesim" cümlesini taşıyordu | 🟢 | düzeltildi (küçük) — sapma 9 |

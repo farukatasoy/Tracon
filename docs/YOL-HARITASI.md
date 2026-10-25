@@ -15,7 +15,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [243](243-TOOL-BUTCE-KAPISI.md) | Bütçe Tükenince Tool Çağrısı Başlamaz | 📋 Planlandı |
+| [243](243-TOOL-BUTCE-KAPISI.md) | Bütçe Tükenince Tool Çağrısı Başlamaz | ✅ Tamamlandı |
 | [244](244-GEMINI-KONUSMA-ADAPTORU.md) | Gemini Konuşma Adaptörü ve Diyalog Yeteneğinin Görünürlüğü | 📋 Planlandı |
 | [245](245-OPENAI-STRICT-SEMA.md) | OpenAI Strict Şema Modu ve Sağlayıcıya Giden Etkin Şema | 📋 Planlandı |
 

@@ -345,6 +345,16 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
         Activity? activity,
         CancellationToken cancellationToken)
     {
+        // The tree's budget comes first, before any store is read: a spent run starts no
+        // script, and a sandbox can be paid (F-530). The same sentence as any tool call.
+        if (BudgetGatingAIFunction.Refusal() is { } budgetRefusal)
+        {
+            activity?.SetTag(TraconDiagnostics.Tags.ScriptDenialReason, budgetRefusal);
+            activity?.SetStatus(ActivityStatusCode.Error, budgetRefusal);
+
+            throw new TraconRunBudgetExceededException(budgetRefusal);
+        }
+
         var options = Options;
         var tenantId = _tenantContext.TenantId;
 

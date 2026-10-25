@@ -12,6 +12,7 @@
 
 - **🚨 MAF tool'a BOS bir servis saglayici gecirir; `AIFunctionArguments.Services` bu repoda KULLANILAMAZ** (Faz 28, K-218): tool bagimliliklarini KURULUM aninda alin, `arguments.Services`'e guvenme. İstisna (Faz 127): `AddScopedTool` bunu ezer, gerçek kapsam açar. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Tool sarmalama sirasi Authorizing → Timeout → ApprovalRequired → gercek fonksiyon; ret istisna firlatmaz, fail-closed** (2026-08-19, K-487/K-488): `ToolAuthorizationAccumulator` (`ToolUsageAccumulator` deseni) `ToolInvocationRecord.AuthorizationDenied`'i isaretler — K-490.
+- **🚨 Tool bütçe kapısı zincirdedir; zincir dışı iki kaynak vardır ve ayrı ele alınır** (2026-10-25, Faz 243, K-1089): `BudgetGatingAIFunction` `ExplainedFailure` içinde, `Authorizing` önündedir; kod, çalışma alanı ve MCP tool'u `Compose`'dan geçer. `run_skill_script` MAF'ın kendi tool'udur ve zincire girmez: koşulu `SandboxedSkillScriptRunner.ExecuteAsync` girişinde `BudgetGatingAIFunction.Refusal()` sorar (koşul tek yerde). `search_knowledge` (`VectorSearchToolFactory`) ve `search_conversation_memory` (MAF `ChatHistoryMemoryProvider`, `OnDemand`) da zincir dışıdır; ücret raporlamadıkları için kapıya alınmadı (aday F-688). Koşul modelin kapısıyla aynıdır (`IsExhausted`): fonksiyon düğümünün kuralı (maliyet+süre) burada geçmez. Ölçüldü: onay isteği zinciri çağırmadan üretilir ve aynı turdaki onaysız kardeş tool'lar onayla birlikte bekler. Kayıt tuzağı: akışsız `RunAsync` bütçe reddiyle biterse hiç araç satırı yazmaz; araç satırını sınayan test `RunStreamingAsync` kullanır.
 - **🚨 `AgentDefinitionCompiler`'i katalog ATLANARAK dogrudan cagiran yol, `IAgentDecorator` zincirini (kayit, telemetri, tool onayi) ELLE uygulamalidir** (Faz 86, K-581): `CompiledAgentCache`'i atlayan bir yol katalog metoduna hic girmezse dekorasyon calismaz — run KAYITSIZ gecer. `AgentDecoratorPipeline.Apply` bunu tek yerde toplar. BYOK'un onbellek atlamasi bu tuzagi TASIMAZ.
 - **🚨 `RunReplayService.PrepareAsync`'in İKİ hazırlık kolu var; birini kapatıp diğerini unutmak tekrar eden bir kusur sınıfıdır** (Faz 47 → HATA-S4-014, Faz 112 → K-628): kalıcı tanım kolu `definition.ToolNames` okur, katalog/kod-agent kolu (`PrepareFromCatalogAsync`) `descriptor.ToolNames` okur — AYRI kod yollarıdır, biri diğerinin gövdesini paylaşmaz. Faz 47'nin onay-tool guard'ı (`FindApprovalTool`) ilk yazımda yalnız birinci kola girdi; Faz 112'nin istemci-tool guard'ı (`FindClientTool`) bunu bilerek İKİ kola birden ekledi. Replay'e yeni bir "bu agent şu durumda reddedilir" kuralı eklerken: `grep -n "FindApprovalTool\|FindClientTool" src/Tracon.Core/Replay/RunReplayService.cs` her ikisinin de tam olarak İKİ çağrı yeri olduğunu göstermeli — biri eksikse kod tanımlı agent delikte kalır.
 - **🚨 Onay isteğine ek bilgi (sunum, log, metrik) eklemek isteyen bir
@@ -24,23 +25,8 @@
   `RunRecordingAgent`'ta zaten okunduğu tek nokta (`ChildRunApproval` ailesi).
   Faz 142'nin planı `ApprovingAIFunction` adlı bir sarmalayıcı öngörüyordu;
   bu ölçüm nedeniyle o dosya hiç yazılmadı — bkz. fazın "Plandan Sapmalar"ı.
-- **🚨 `AIFunction.JsonSchema`'da `"type"` bir dize DEĞİL bir DİZİ olabilir** (Faz 143,
-  Microsoft.Extensions.AI 10.9.0'da ölçüldü): `string?` gibi nullable bir C# parametresi
-  `"type":["string","null"]` üretir, `"type":"string"` değil — 9.9.1'de bu davranış yoktu
-  (probe önce eski sürümle yazıldı, gerçek pakette skip'e düştü). `TryGetProperty("type",
-  out var t) && t.ValueKind == JsonValueKind.String` deseni sessizce hiç eşleşmez ve
-  nullable her parametre "desteklenmiyor" sanılır. Çözüm: `type` okuyan her yerde önce
-  `ValueKind == Array` dalını da kontrol et, ilk `"null"` olmayan girdiyi kullan
-  (`SchemaArgumentGenerator.PrimaryType`). Bir tool şemasını TÜKETEN (üreten değil) her
-  kod, MEAI'nin GERÇEK kurulu sürümüyle ölçülmeli — `maf-api-kesfi` dump'ı tip imzasını
-  gösterir ama ÜRETİLEN JSON şeklini göstermez, küçük bir probe projesi gerekir.
-- **xunit.v3, yalnız `public` sınıfları test olarak keşfeder — `private`/`internal` bir
-  sınıf, bir sözleşme temel sınıfından (`[Fact]` miras alarak) türese bile `dotnet test`'in
-  normal koşumuna karışmaz** (Faz 143, ampirik ölçüldü: `internal sealed class` + kasten
-  kırık `ExpectedResultText` → "Zero tests ran"). Bu, "sözleşme suite'i kasten kırık bir
-  implementasyonda KIRMIZI olmalı" kanıtını (`ContractSelfProofTests` deseni) NORMAL yeşil
-  koşumu bozmadan yazmanın yoludur: kırık fixture'ı `private sealed class` yap, `[Fact]`
-  metodunu doğrudan çağır (`await instance.SomeFact()`), `try/catch` ile "attı mı" sına.
+- **🚨 `AIFunction.JsonSchema`'da `"type"` bir dize DEĞİL bir DİZİ olabilir** (Faz 143, MEAI 10.9.0): `type` okuyan her yer önce `ValueKind == Array` dalını kontrol eder (`SchemaArgumentGenerator.PrimaryType`). Tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (Faz 243 yer açma).
+- **xunit.v3 yalnız `public` sınıfları keşfeder** (Faz 143): kasten kırık sözleşme fixture'ı `private sealed class` olur, `[Fact]` doğrudan çağrılır. Tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (Faz 243 yer açma).
 - **🚨 Bir yetkilendirme kapısı, ret YANITINI kendisi üretemez — çağırandan
   almalıdır** (Faz 147, K-684): `RunAuthorizationGate.CheckRunResourceAsync`
   reddi `denied` parametresiyle alır. Sebep ölçüldü: reddedilen tekil kaynağın

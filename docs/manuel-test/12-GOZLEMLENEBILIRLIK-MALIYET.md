@@ -10,7 +10,8 @@
 > yeniden hesaplamanın `Unknown`'a daralması),
 > 199 (§ fonksiyon düğümünün token dışı harcaması — kalemler, toplam, kota, bütçe, webhook),
 > 210 (§ bütçe tükenince fonksiyon düğümü başlamaz — maliyet ve süre kapısı, muafiyet),
-> 238 (§ kiracı metrik etiketi — `IncludeTenantTag`, varsayılan kapalı)
+> 238 (§ kiracı metrik etiketi — `IncludeTenantTag`, varsayılan kapalı),
+> 243 (§ bütçe tükenince tool çağrısı başlamaz — token, maliyet ve süre kapısı)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -2466,3 +2467,41 @@ tracon.agent.version=1;tracon.run.status=Completed]`, ikincide aynı seri `;trac
 `OptionsValidationException: TraconObservabilityOptions.IncludeTenantTag is 'evet', which is not true or false. Write true or
 false, or remove the key to keep the tenant tag off the metrics.` Aynı davranışı `A_value_that_is_not_true_or_false_stops_the_application_at_startup`
 testi `evet`, `1` ve `on` için sabitler.
+
+---
+
+### MT-OBS-085 — Bütçe: tavan aynı turdaki ilk tool'la geçilmişse ikinci tool çağrısı başlamaz (Faz 243, F-530)
+
+Otomatik karşılığı: `ToolBudgetGateTests` (maliyet, token, süre; kayıt ve run kimliği; MCP, çalışma alanı; eşzamanlı çağrı sınırı; onay) ·
+`SkillScriptExecutorRoutingTests.A_spent_budget_stops_a_file_script_before_the_executor_is_asked` · `BudgetGatingAIFunctionTests` (zincir sırası).
+Bu case aynı davranışı **gerçek örnek uygulamada**, ücretli bir tool ile okur.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 243 |
+| **İlgili karar** | K-1089 |
+| **Devir** | koşuldu (2026-10-25, bellek içi depo) |
+
+**Ön koşul** — Örnek uygulama dört boş ortam değişkeniyle (`Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=`
+`Tracon__Ui__AuthToken=` `Tracon__Providers__OpenAI__ApiKey=`), `ASPNETCORE_ENVIRONMENT=Production` ve
+`Tracon__AgentGraph__MaxTotalCost=0.005` ile. `double-narrator` agent'ı yerel `echo-narrator-1` modelinde koşar: aynı turda iki
+`narrate` çağrısı ister. `narrate`, yerel `tone` motorunun ücretini bildirir (karakter başına, `Tracon:Pricing:Voice:tone:tone-1`).
+
+**Adımlar**
+1. `POST $APU/api/agents/double-narrator/run` ile 96 karakterlik bir mesaj gönder (`{"message":"<96 karakter>","sessionId":"gate-1"}`).
+2. `GET $APU/api/runs?sessionId=gate-1`, sonra `GET $APU/api/runs/{id}` ve `GET $APU/api/runs/{id}/tools`.
+3. Karşı kontrol: uygulamayı `MaxTotalCost` olmadan yeniden başlat, aynı isteği yeni bir oturumla gönder.
+
+**Beklenen sonuç**
+- (1) Akışta iki `functionResult`: `narrate-1` → `"Narrated 96 characters."`; `narrate-2` → `The run tree's cost budget is exhausted (0.009600/0.005000). Raise Tracon:AgentGraph:MaxTotalCost to allow more. The tool call did not start.` Akış `error` olayıyla biter.
+- (2) Run `Failed`, `error.type=run_budget_exceeded`, `error.class=QuotaExceeded`; mesaj `… No further model calls can be made in this run tree.` (bugünkü model çağrısı kapısı).
+  `nonTokenCost.amount=0.0096`. `tools` iki satır döner: ilki `succeeded=true` ve `usage` (96 karakter, 0.0096 USD); ikincisi `succeeded=false`, `error` ret cümlesi, `usage` yok.
+- (3) Run `Completed`; iki `narrate` satırı da `succeeded=true` (96 ve 103 karakter), `nonTokenCost.amount=0.0199`.
+- Koşum günlüğünde `Npgsql` satırı **0**.
+- 🚨 Eski kusur: ikinci `narrate` yine koşar, ücretini bildirir ve run ancak sonraki model çağrısında `Failed` biterdi.
+
+2026-10-25 koşumu (örnek uygulama, bellek içi depo, echo modeli): (1) iki `functionResult` yukarıdaki metinlerle; (2) run `Failed`, `run_budget_exceeded`,
+`nonTokenCost.amount 0.0096`, iki araç satırı (`succeeded` True ve False; ikincide `error` ret cümlesi, `usage` yok); (3) `Completed`, `0.0199`, iki satır da `succeeded`;
+`Npgsql` satırı 0.
