@@ -20,10 +20,16 @@ namespace Tracon;
 /// <strong>Limits:</strong> data is limited to the process lifetime and is not shared
 /// across nodes. Use <c>Tracon.PostgreSql</c> in production.
 /// </para>
+/// <para>
+/// <strong>Numbering.</strong> A version number is an identity, so it is never given twice
+/// for one name: a delete removes the versions but keeps the highest number the name has
+/// ever had, and the next save continues from it. The SQL stores keep the same number in
+/// <c>agent_definition_version_counters</c>.
+/// </para>
 /// </remarks>
 internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 {
-    private readonly ConcurrentDictionary<(string TenantId, string Name), List<AgentDefinition>> _versions = new();
+    private readonly ConcurrentDictionary<(string TenantId, string Name), AgentHistory> _versions = new();
     private readonly ITenantContext _tenantContext;
 
     /// <summary>Initializes a new in-memory definition store.</summary>
@@ -46,7 +52,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 
         lock (history)
         {
-            return new ValueTask<AgentDefinition?>(history.Count == 0 ? null : history[^1]);
+            return new ValueTask<AgentDefinition?>(history.Versions.Count == 0 ? null : history.Versions[^1]);
         }
     }
 
@@ -63,7 +69,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 
         lock (history)
         {
-            foreach (var candidate in history)
+            foreach (var candidate in history.Versions)
             {
                 if (candidate.Version == version)
                 {
@@ -92,9 +98,9 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 
             lock (pair.Value)
             {
-                if (pair.Value.Count > 0)
+                if (pair.Value.Versions.Count > 0)
                 {
-                    current.Add(pair.Value[^1]);
+                    current.Add(pair.Value.Versions[^1]);
                 }
             }
         }
@@ -110,7 +116,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
         cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = _tenantContext.TenantId;
-        var history = _versions.GetOrAdd((tenantId, definition.Name), static _ => []);
+        var history = _versions.GetOrAdd((tenantId, definition.Name), static _ => new AgentHistory());
 
         lock (history)
         {
@@ -118,11 +124,12 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
             {
                 TenantId = tenantId,
                 Origin = AgentDefinitionOrigin.Database,
-                Version = history.Count == 0 ? 1 : history[^1].Version + 1,
+                Version = history.LastVersion + 1,
                 UpdatedAt = DateTimeOffset.UtcNow,
             };
 
-            history.Add(saved);
+            history.LastVersion = saved.Version;
+            history.Versions.Add(saved);
             return new ValueTask<AgentDefinition>(saved);
         }
     }
@@ -133,7 +140,20 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return new ValueTask<bool>(_versions.TryRemove(Key(name), out _));
+        if (!_versions.TryGetValue(Key(name), out var history))
+        {
+            return new ValueTask<bool>(false);
+        }
+
+        // The entry stays: it carries the highest number the name has had, and the next save
+        // continues from it. Only the versions go.
+        lock (history)
+        {
+            var deleted = history.Versions.Count > 0;
+
+            history.Versions.Clear();
+            return new ValueTask<bool>(deleted);
+        }
     }
 
     /// <inheritdoc />
@@ -149,7 +169,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 
         lock (history)
         {
-            var snapshot = new List<AgentDefinition>(history);
+            var snapshot = new List<AgentDefinition>(history.Versions);
             snapshot.Reverse();
             return new ValueTask<IReadOnlyList<AgentDefinition>>(snapshot);
         }
@@ -168,9 +188,14 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 
         lock (history)
         {
+            if (history.Versions.Count == 0)
+            {
+                throw new TraconException($"Agent definition named '{name}' was not found.");
+            }
+
             AgentDefinition? target = null;
 
-            foreach (var candidate in history)
+            foreach (var candidate in history.Versions)
             {
                 if (candidate.Version == version)
                 {
@@ -187,14 +212,25 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
             // Rollback does not remove the old version. It saves its content as a new version.
             var restored = target with
             {
-                Version = history[^1].Version + 1,
+                Version = history.LastVersion + 1,
                 UpdatedAt = DateTimeOffset.UtcNow,
             };
 
-            history.Add(restored);
+            history.LastVersion = restored.Version;
+            history.Versions.Add(restored);
             return new ValueTask<AgentDefinition>(restored);
         }
     }
 
     private (string TenantId, string Name) Key(string name) => (_tenantContext.TenantId, name);
+
+    /// <summary>The versions of one name and the highest number the name has ever had; guarded by its own lock.</summary>
+    private sealed class AgentHistory
+    {
+        /// <summary>The versions that exist now, oldest first. A delete empties it.</summary>
+        public List<AgentDefinition> Versions { get; } = [];
+
+        /// <summary>The highest version number ever given to the name. A delete does not lower it.</summary>
+        public int LastVersion { get; set; }
+    }
 }

@@ -49,14 +49,20 @@ public interface IAgentDefinitionStore
     /// <summary>
     /// Saves the definition and produces a new version. The
     /// <c>AgentDefinition.Version</c> value of the incoming definition is ignored;
-    /// the store decides the version number.
+    /// the store decides the version number. The version is one more than the highest
+    /// version this name ever had, including the versions of a definition that was
+    /// deleted: a version number is never reused for a name.
     /// </summary>
     /// <param name="definition">The definition to save.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The definition with the new version number assigned.</returns>
     ValueTask<AgentDefinition> SaveAsync(AgentDefinition definition, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes the definition and every one of its versions.</summary>
+    /// <summary>
+    /// Deletes the definition and every one of its versions. The numbering is kept: the
+    /// next save under this name continues it, so a version number a run, a workflow
+    /// node or an approval recorded before the delete never names another content.
+    /// </summary>
     /// <param name="name">The agent name.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when the delete happened.</returns>
@@ -70,7 +76,7 @@ public interface IAgentDefinitionStore
 
     /// <summary>
     /// Makes the given version current. A rollback does not delete the old version; it
-    /// saves its content as a new version.
+    /// saves its content as a new version, numbered the same way a save is.
     /// </summary>
     /// <param name="name">The agent name.</param>
     /// <param name="version">The version number to roll back to.</param>
