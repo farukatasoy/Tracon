@@ -706,7 +706,13 @@ waits for input: retention keeps such a run's checkpoints so the request stays
 answerable, but an erasure deletes the run itself, together with its checkpoints. It never touches the audit trail: an audit record
 is "who did what", not the subject's own data, and stays intact and verifiable after
 an erasure. The erasure itself **is** written there, with the row count per target; if
-that write fails, the whole erasure rolls back.
+that write fails, the whole erasure rolls back. On SQLite the entry is written in the
+erasure's own transaction, so the entry and the erasure commit or roll back together:
+SQLite lets one connection write at a time, and a write from a second connection would
+wait for the erasure's lock. On PostgreSQL and SQL Server the entry is written on its own
+connection, just before the erasure commits. An `IAuditLog` you register in place of
+Tracon's own writes on its own connection, so on SQLite it must not write to the same
+database file.
 
 If [conversation memory](/guides/context-and-memory/#remember-a-user-across-sessions)
 is set up, the copy of the subject's sessions that your vector store keeps goes too, and so do the files of

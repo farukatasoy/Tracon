@@ -121,6 +121,74 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
     }
 
     [Fact]
+    public async Task Erase_whose_callback_writes_the_audit_log_commits_both()
+    {
+        // 🚨 F-644: the endpoint's callback writes the audit trail through IAuditLog
+        // while the erasure transaction holds SQLite's single write lock. A write from a
+        // second connection waited for that lock until the call timed out, and the
+        // audit log's own lock retry multiplied the wait, so the request never returned.
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+        const string SessionId = "audited-session";
+        await SeedSessionAsync(context, SessionId, "tenant-a");
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        bound.CancelAfter(TimeSpan.FromSeconds(25));
+
+        await context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(sessionIds: [SessionId]),
+            (_, ct) => context.AuditLog.WriteAsync(
+                new AuditEntry
+                {
+                    Id = Guid.Empty,
+                    TenantId = "tenant-a",
+                    Action = "data-subject.erase",
+                    Entity = "data-subject:subject-1",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                },
+                ct),
+            bound.Token);
+
+        (await SessionExistsAsync(context, SessionId, "tenant-a")).ShouldBeFalse();
+        var audit = await context.AuditLog.QueryAsync(new AuditQuery { TenantId = "tenant-a" });
+        audit.ShouldHaveSingleItem().Action.ShouldBe("data-subject.erase");
+    }
+
+    [Fact]
+    public async Task Erase_leaves_no_audit_entry_when_the_commit_rolls_back_after_the_audit_write()
+    {
+        // The audit entry is written inside the erasure: an erasure that rolls back must
+        // not leave an audit record of an erasure that never happened.
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+        const string SessionId = "rolled-back-session";
+        await SeedSessionAsync(context, SessionId, "tenant-a");
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        bound.CancelAfter(TimeSpan.FromSeconds(25));
+
+        await Should.ThrowAsync<InvalidOperationException>(async () => await context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(sessionIds: [SessionId]),
+            async (_, ct) =>
+            {
+                await context.AuditLog.WriteAsync(
+                    new AuditEntry
+                    {
+                        Id = Guid.Empty,
+                        TenantId = "tenant-a",
+                        Action = "data-subject.erase",
+                        Entity = "data-subject:subject-1",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                    },
+                    ct);
+
+                throw new InvalidOperationException("a later step failed");
+            },
+            bound.Token));
+
+        (await SessionExistsAsync(context, SessionId, "tenant-a")).ShouldBeTrue();
+        (await context.AuditLog.QueryAsync(new AuditQuery { TenantId = "tenant-a" })).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Export_does_not_include_another_tenants_data()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);

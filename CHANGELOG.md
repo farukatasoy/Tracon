@@ -519,6 +519,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A data subject erasure (`DELETE /api/data-subjects/{id}?dryRun=false`) did not return on SQLite.** The audit
+  entry is written before the erasure commits, from inside its transaction. On SQLite that transaction holds the
+  database's single write lock, so the audit write from a second connection waited until its command timed out,
+  and the audit log retried the wait up to 50 times. On SQLite the audit entry is now written on the erasure's own
+  transaction, and the two commit or roll back together. PostgreSQL and SQL Server are not changed. An `IAuditLog`
+  you register in place of Tracon's own still writes on its own connection.
+
 - **OpenAI and Azure OpenAI never received the response schema as written, and nothing showed it.** The Microsoft.Extensions.AI
   client rewrites the schema on every request, strict or not: it closes every object, lists every property in `required`
   (an optional property becomes required and its type does not gain `null`), and moves 22 keywords (`maxLength`, `pattern`,

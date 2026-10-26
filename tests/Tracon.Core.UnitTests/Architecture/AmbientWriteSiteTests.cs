@@ -47,6 +47,7 @@ public sealed class AmbientWriteSiteTests
         "AmbientRunAttributionScope.Begin(",
         "AmbientJobAttempt.Begin(",
         "StartActivity(",
+        "LendTransaction(",
     ];
 
     private static readonly Regex AccessModifierLine = new(

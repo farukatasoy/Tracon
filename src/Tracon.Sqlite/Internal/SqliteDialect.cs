@@ -306,6 +306,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             && Array.IndexOf(WriteLockConflicts, sql.SqliteErrorCode) >= 0;
 
     /// <inheritdoc />
+    public override bool SerializesWriters => true;
+
+    /// <inheritdoc />
     /// <remarks>SQLite never sends the regular expression to a server; this path is never hit.</remarks>
     public override bool IsInvalidRegexError(Exception exception) => false;
 

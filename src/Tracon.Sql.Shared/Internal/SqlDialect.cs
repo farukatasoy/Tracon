@@ -220,6 +220,24 @@ internal abstract class SqlDialect
     public virtual bool UpsertRequiresTransaction => false;
 
     /// <summary>
+    /// Gets a value indicating whether the database lets only one connection write at a time.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// SQLite holds one write lock for the whole database. While a transaction holds it, a
+    /// write from a second connection waits for the lock until its command times out, also
+    /// when both connections belong to the same process. PostgreSQL and SQL Server lock rows,
+    /// so a second connection waits only for the rows the transaction touched.
+    /// </para>
+    /// <para>
+    /// <see cref="SqlDataSubjectStore"/> reads this value to lend its erasure transaction to
+    /// the audit write (<see cref="SqlStoreContext.LentTransaction"/>); a store never
+    /// branches on the provider itself.
+    /// </para>
+    /// </remarks>
+    public virtual bool SerializesWriters => false;
+
+    /// <summary>
     /// Determines whether the exception comes from this provider treating a regular
     /// expression pushed down to the server as invalid.
     /// </summary>
