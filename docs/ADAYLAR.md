@@ -591,6 +591,26 @@ tarayıcısızdır.
 
 ---
 
+### F-705 · `DELETE /api/agents/{name}` açıklaması sürüm numarasının kaldığını söylemez
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** `AgentEndpoints.cs` silme ucunun özeti "…and its version history" der ve
+açıklaması numaralamadan söz etmez. Faz 248'den beri numara silmede kalır: silinen
+agent aynı adla yeniden oluşturulunca eski numaranın devamını alır. Davranış
+`concepts/agents.md` ve `IAgentDefinitionStore` XML'inde yazılıdır; ucu okuyan
+tüketici (üretilen `http-api/agents.md`, iki istemci) bunu görmez.
+
+**Kapsam:** `WithDescription` metnine bir cümle. Metin `docs/openapi/tracon.json`,
+`packages/tracon-client/src/schema.ts` ve `Tracon.Client/Generated/TraconApiClient.g.cs`
+içinde de geçtiği için üç üretilen dosya yeniden üretilir.
+
+**Maliyet:** Ölçülmedi. Bir cümle ve üç üretilmiş dosyanın yenilenmesi.
+
+**Risk:** Yok; yalnız üretim hattının sürüm sıçraması yaratmaması denetlenir.
+
+---
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına **girmez**. Tam kanıt ve sonraki adım keşif
@@ -626,7 +646,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-705**.
+numara: **F-706**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

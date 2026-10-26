@@ -91,6 +91,7 @@ Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.The_exit_code_and_s
 Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.The_script_sees_its_two_variables_and_not_the_host_environment() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.AgentDefinitionStoreContract() -> void
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Concurrent_first_saves_of_a_new_name_get_distinct_versions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Concurrent_saves_of_one_name_get_distinct_versions_across_a_delete() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.DeleteAsync_of_a_name_that_never_existed_does_not_start_a_numbering() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.DeleteAsync_removes_all_versions() -> System.Threading.Tasks.Task!

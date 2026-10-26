@@ -29,9 +29,10 @@ public sealed partial class AgentDefinitionCompiler
     /// </para>
     /// <para>
     /// This replaces <see cref="AgentDefinition.Version"/>, which was a proxy for
-    /// content and stopped being one after a delete: the store restarts numbering,
-    /// so a recreated name is version <c>1</c> again. Content is the thing that was
-    /// always meant; the version only stood in for it.
+    /// content and stopped being one after a delete when the store restarted
+    /// numbering, so a recreated name was version <c>1</c> again. The built-in stores
+    /// keep the numbering now, but a custom store may not. Content is the thing that
+    /// was always meant; the version only stood in for it.
     /// </para>
     /// </remarks>
     public static string CreateDefinitionFingerprint(AgentDefinition definition)
@@ -283,8 +284,8 @@ public sealed partial class AgentDefinitionCompiler
     /// </para>
     /// <para>
     /// The version alone was not enough. A sub-agent deleted and recreated under the
-    /// same name is version <c>1</c> again, and the caller stayed in the cache
-    /// describing the deleted sub-agent to the model.
+    /// same name was version <c>1</c> again in a store that restarts numbering, and the
+    /// caller stayed in the cache describing the deleted sub-agent to the model.
     /// </para>
     /// </remarks>
     private static string CreateCallableFingerprint(IReadOnlyList<CallableAgentInfo> infos)

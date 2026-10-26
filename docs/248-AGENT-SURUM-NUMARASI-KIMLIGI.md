@@ -287,10 +287,14 @@ curl -s -X DELETE http://localhost:5081/tracon/api/agents/x && curl -s -X POST h
   kiracı verisini silen yol yok; sayaç, kiracının öteki satırlarıyla kalır. Öneri A'nın gerekçesi ("kiracı yoksa ad
   alanı da yoktur") bu yüzden geçersizdi.
 - **Açık Soru 2 (sürüm notu):** A — `CHANGELOG` *Changed* ve site `persistence.md` bir cümle taşır.
-- **Bilinen sınır (çözülmedi, ölçülmedi):** göç sonrası hâlâ ayakta kalan **eski** bir düğüm `agent_definitions`'a
-  sayaca dokunmadan yazarsa sayaç geride kalır. Sonraki kayıt geçmiş tablosunun benzersiz anahtarına çarpar ve düşer
-  (sessiz yanlış içerik değil, yüksek sesli hata). Göç kilidi ve "tek sürüm" dağıtımı bunu dışlar; çok düğümlü
-  kademeli dağıtımda önce eski düğümler durdurulmalıdır.
+- **Sayaç sorgusu agent satırının sürümünü de okur (plan: yalnız `sayaç + 1`).** İlk uygulama planı izledi ve
+  denetim 🔴 buldu: göçten sonra ayakta kalan **eski** bir düğüm agent satırını ve geçmiş satırını yazar, sayaca
+  dokunmaz; sonraki kayıt sayaçtan eski numarayı alır, geçmişin `UNIQUE (agent_id, version)` anahtarına çarpar ve o
+  adın **her** kaydı kalıcı olarak düşerdi. İki sürümün aynı anda ayakta kaldığı pencere desteklenen biçimdir
+  (`guides/production.md` § *Two versions are up during a rolling upgrade*); "göç kilidi bunu dışlar" yanlıştı,
+  kilit yalnız göç koşucularını sıralar. Yeni kural: numara = `max(sayaç, agent satırının sürümü) + 1` (PostgreSQL
+  `GREATEST`, SQLite `MAX`, SQL Server `IIF`; sayaç satırı yoksa yalnız satırın sürümü + 1). SQLite'ta eski sorguya
+  karşı kırmızı görüldü.
 
 ## Bu Fazda Verilen Kararlar
 
@@ -298,6 +302,10 @@ curl -s -X DELETE http://localhost:5081/tracon/api/agents/x && curl -s -X POST h
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **K-1100** (`kalıcı-veri, public-api`): numara ad başına bir kez verilir; sayaç tablosu silmede kalır, geçmiş silinir.
+- Kategori dışı (kapanış commit mesajına): numara `max(sayaç, satır) + 1` hesaplanır (rolling upgrade toleransı);
+  bellek içi depo girdisini silmez, sürümlerini boşaltır; sayaç tablosu için `DataSubjectCoverageTests` muafiyeti yazılmaz.
 
 ## Süreç Ölçümü
 
@@ -316,3 +324,17 @@ curl -s -X DELETE http://localhost:5081/tracon/api/agents/x && curl -s -X POST h
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Eski düğümün agent satırını sayaca dokunmadan yazması o adın her kaydını kalıcı düşürür | 🔴 | düzeltildi — sayaç sorgusu satırın sürümünü okur; üç sağlayıcıda `A_save_continues_from_the_agent_row_…` (SQLite'ta eski sorguya karşı kırmızı) |
+| Sapmalardaki "bilinen sınır" anlatımı yanlıştı ve kalıcılığı gizliyordu | 🔴 | düzeltildi — madde yeniden yazıldı |
+| Public XML ve yorumlar "numaralama yeniden başlar" diyordu (`IWorkflowDefinitionStore`, `AgentDefinitionCompiler`, `CompiledAgentCache`, üç test yorumu) | 🟡 | düzeltildi |
+| Eşzamanlı kayıt case'i sayacın INSERT dalını sınamıyordu | 🟡 | düzeltildi — `Concurrent_first_saves_of_a_new_name_get_distinct_versions` |
+| "Sayaç + satır + geçmiş tek işlemde" iddiasını kanıtlayan test yoktu | 🟡 | düzeltildi — üç sağlayıcıda `A_save_whose_history_write_fails_leaves_the_counter_where_it_was` |
+| "Backfill yeniden koşulur ve sayacı düşürmez" testi düşürmeyi sınamıyordu | 🟢 | düzeltildi — sayaç 9'a çekilir, yeniden koşuda 9 kalır |
+| Aynı adlı iki kiracı tohumlanmıyordu | 🟢 | düzeltildi — `alpha` iki kiracıda |
+| Onay devamı case'i nedeni doğrulamıyordu | 🟢 | düzeltildi — iletisi sabitlendi |
+| `MT-API-016` adımlarında `psql` komutu yoktu | 🟢 | düzeltildi |
+| `DeleteAsync_of_a_name_that_never_existed_…` ayırt edici değil | 🟢 | gerekçelendi — "etkisizlik" doğası gereği ayırt edilemez; yalnız kırılmayı ve `1` ile başlamayı sabitler |
+| `DELETE` ucunun OpenAPI açıklaması numaralamadan söz etmez | 🟢 | F-705 olarak devredildi (üç üretilmiş dosya yenilenir) |

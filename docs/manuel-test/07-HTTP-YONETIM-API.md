@@ -609,7 +609,7 @@ kalır. Otomatik testler aynı kuralı sözleşme düzeyinde kanıtlar; bu case 
 HTTP üzerinden bir kez de gösterir.
 
 **Ön koşul**
-- Örnek uygulama PostgreSQL ile çalışıyor (`autoApplyMigrations` açık).
+- Örnek uygulama PostgreSQL ile çalışıyor (`autoApplyMigrations` açık); `$APPG` aynı veritabanının `psql` bağlantı dizesidir.
 - `manuel-crud-16` adlı agent yok.
 
 **Adımlar**
@@ -627,6 +627,7 @@ curl -s -o /dev/null -w "HTTP: %{http_code}\n" -X DELETE "$APU/api/agents/manuel
 curl -s -X POST "$APU/api/agents" -H "$APB" -H "Content-Type: application/json" -d "${BODY/bir/uc}" | jq .version
 curl -s "$APU/api/agents/manuel-crud-16/versions" -H "$APB" | jq -c '[.[].version]'
 curl -s -o /dev/null -w "HTTP: %{http_code}\n" "$APU/api/agents/manuel-crud-16/versions/1" -H "$APB"
+psql "$APPG" -c "SELECT tenant_id, name, last_version FROM tracon.agent_definition_version_counters WHERE name = 'manuel-crud-16';"
 ```
 
 **Beklenen sonuç**

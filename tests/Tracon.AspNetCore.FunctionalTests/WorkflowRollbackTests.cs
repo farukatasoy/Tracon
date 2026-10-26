@@ -116,7 +116,7 @@ public sealed class WorkflowRollbackTests
             plain.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        // The agent is deleted and created again: its numbering restarted, so version 3 names nothing.
+        // The agent is deleted and created again: its history went with the delete, so version 3 names nothing.
         using (var deleted = await host.Client.DeleteAsync("/tracon/api/agents/alpha"))
         {
             deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);

@@ -15,8 +15,9 @@ namespace Tracon;
 /// the two implementations is a defect and is guarded by the shared contract tests.
 /// </para>
 /// <para>
-/// The version comes from <c>agent_definition_version_counters</c>, not from the
-/// definition's row. A delete removes the definition and its versions but keeps the
+/// The version comes from <c>agent_definition_version_counters</c> (or from the definition's own
+/// row when a process of the older release wrote that row last and left the counter behind,
+/// whichever is larger). A delete removes the definition and its versions but keeps the
 /// counter, so the next save under the same name continues the numbering and a
 /// version number is never given twice.
 /// </para>
