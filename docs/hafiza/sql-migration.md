@@ -19,6 +19,8 @@
 
 - **Tabloyu açan migration aynı dosyada mevcut satırları kopyalayabilir; kopya YENİDEN KOŞULABİLİR olmalıdır** (2026-10-14, Faz 200, `workflow_definition_versions`): PostgreSQL `INSERT … ON CONFLICT (…) DO NOTHING` · SQL Server `INSERT … SELECT … WHERE NOT EXISTS (…)` · SQLite `INSERT OR IGNORE`. SQL Server tek toplu komut olarak koşar ve ledger'a yazılmadan düşerse dosya baştan koşar; aynı toplu iş içinde az önce `CREATE TABLE` edilen tabloya `INSERT` edebilir (tablo adları ertelenmiş çözümlenir — K-475'in yasağı yalnız VAR OLAN tabloya eklenen SÜTUN içindir). Yeni migration'ı `scripts/applied-migrations.json`'a, onu ekleyen commit'le ANKRAJLA: migration'ı ayrı bir commit'te bitirip sha'yı sonraki commit'te yaz.
 
+- **Silmeden sonra yaşaması gereken satır FK'sız ayrı tabloya gider** (2026-10-26, Faz 248, `agent_definition_version_counters`): `ON DELETE CASCADE` geçmişle birlikte numarayı da silerdi. Sayaç kaydı, agent satırı ve geçmiş satırı tek işlemde yazılır; numarayı satırdan değil sayaçtan al. Yeni tablo üç `MigrationRunnerTests`/`MigrationTests` tablo sayısı sabitini artırır (bilerek elle yazılıdır); `ResetDataAsync` tabloyu katalogdan bulur, ek iş istemez.
+
 ## 🚨 Geçici çakışma: iki şekli var, yeniden deneme YOLUN TAMAMINI kapsar (K-540, K-545)
 
 Migration kilidi **şemaya** kapsamlıdır (K-389); farklı şemaların ilk göçü

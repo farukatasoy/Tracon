@@ -24,7 +24,7 @@
   çalıştırma yanlıştır. **Kural:** bir önbellek anahtarındaki her bileşen için
   "bu değer bir kaydın ömrü boyunca tekil mi, yoksa bir vekil mi?" sorusunu
   sor. Vekilse ölçüyü vekille değil **gömülen içeriğin kendisiyle** yap.
-  K-811.
+  K-811. Faz 248 (K-1100): DB store'lar numarayı artık yeniden vermez; anahtar yine içeriğe dayanır.
 - **🚨 Aynı vekil hatası BAĞIMLILIK parmak izlerinde de vardı ve tek vaka
   aramak onu gizliyordu** (2026-09-18, aynı kapanışın sınıf taraması). Kusur
   kaydı tek yüzey biliyordu; ölçüm **üç** buldu: agent'ın kendisi, shared

@@ -202,6 +202,15 @@ were never kept, so its history starts at the version it has today. The table ha
 foreign key to `workflows`: deleting a workflow keeps its versions, and saving the name
 again continues the numbering
 ([Workflows](/concepts/workflows/#versions-rollback-and-pinning-an-agent-step)).
+
+The `agent_definition_version_counters` migration only adds: `0065` on PostgreSQL, `0053` on
+SQL Server and `0052` on SQLite. It creates the table that holds the highest version number
+each stored agent has had, and starts the counter of every existing agent at the version it
+holds today. An agent that was deleted and created again before the upgrade cannot be
+recovered: its earlier numbers were never kept, so its counter starts at the highest number it
+holds now. The table has no foreign key to `agent_definitions` and no agent content: deleting
+an agent keeps the number, and saving the name again continues the numbering
+([Versions](/concepts/agents/#versions)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds

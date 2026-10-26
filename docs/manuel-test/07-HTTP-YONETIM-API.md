@@ -1,6 +1,6 @@
 # 07 — HTTP Yönetim API'si (`API`)
 
-> **Alan kodu:** `API` · **Faz:** 4, 34, 43, 44
+> **Alan kodu:** `API` · **Faz:** 4, 34, 43, 44, 248
 > **Kaynak:** `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` (CRUD, `validate`,
 > `run`'ın idempotency dalı) · `RunEndpoints.cs` (yalnız `list`/`get`/`tree`/`events`/`input`
 > — `cancel`/`feedback`/`compare`/`replay` **hariç**, bkz. Sınır tablosu) ·
@@ -592,6 +592,50 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-versiyon-tes
   düzeltildi) — `AgentDefinitionStore.RollbackAsync`
   bir `TraconException` fırlatır, uç bunu `404`'e çevirir
   (`AgentEndpoints.cs:387-398`).
+
+### MT-API-016 — Silinip aynı adla yeniden oluşturulan agent numaralamayı sürdürür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 248 |
+| **İlgili karar** | K-1100 |
+| **Devir** | 🤖 ajan koşar — `curl` + örnek uygulama + gerçek PostgreSQL (sayaç satırı `psql` ile okunur) |
+
+Bir sürüm numarası kimliktir: silmeden önce kaydedilen numara (workflow düğüm sabiti, onay devamı,
+deney kolu) silmeden sonra başka bir içeriğe işaret edemez. Silme tanımı ve geçmişi siler; numara sayacı
+kalır. Otomatik testler aynı kuralı sözleşme düzeyinde kanıtlar; bu case gerçek veritabanında ve gerçek
+HTTP üzerinden bir kez de gösterir.
+
+**Ön koşul**
+- Örnek uygulama PostgreSQL ile çalışıyor (`autoApplyMigrations` açık).
+- `manuel-crud-16` adlı agent yok.
+
+**Adımlar**
+1. `manuel-crud-16` oluştur, bir kez güncelle (sürüm `2`).
+2. Sil.
+3. Aynı adla yeniden oluştur.
+4. Sürüm listesini ve eski numaraları oku.
+
+**Girilecek veri**
+```bash
+BODY='{"name":"manuel-crud-16","instructions":"bir","model":{"provider":"echo","model":"echo-1"}}'
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "Content-Type: application/json" -d "$BODY" | jq .version
+curl -s -X PUT  "$APU/api/agents/manuel-crud-16" -H "$APB" -H "Content-Type: application/json" -d "${BODY/bir/iki}" | jq .version
+curl -s -o /dev/null -w "HTTP: %{http_code}\n" -X DELETE "$APU/api/agents/manuel-crud-16" -H "$APB"
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "Content-Type: application/json" -d "${BODY/bir/uc}" | jq .version
+curl -s "$APU/api/agents/manuel-crud-16/versions" -H "$APB" | jq -c '[.[].version]'
+curl -s -o /dev/null -w "HTTP: %{http_code}\n" "$APU/api/agents/manuel-crud-16/versions/1" -H "$APB"
+```
+
+**Beklenen sonuç**
+- Sürümler sırayla `1`, `2`; silme `HTTP: 204`.
+- Yeniden oluşturma `3` döner (`1` değil).
+- `versions` listesi yalnız `[3]`; `versions/1` `HTTP: 404`.
+- Veritabanında `agent_definition_version_counters` bu ad için `last_version = 3` tutar.
+
+---
 
 ### MT-API-020 — Geçerli VE geçersiz tanımda da yanıt `200`'dür; `severity` ad olarak yazılır
 

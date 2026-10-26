@@ -266,6 +266,32 @@ curl -s -X DELETE http://localhost:5081/tracon/api/agents/x && curl -s -X POST h
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+- **Public API büyüdü (plan: "Büyümüyor").** Sözleşme sınıfındaki her `[Fact]` public bir yöntemdir:
+  `Tracon.Testing.Contracts.Xunit/PublicAPI.Unshipped.txt` yedi satır aldı (`RS0016` ilk derlemede kırdı).
+  Tip yüzeyi gerçekten değişmedi; sevk edilen sözleşme yedi case büyüdü.
+- **`DataSubjectCoverageTests` muafiyeti yazılmadı (plan: tabloyu muaf adlandırır).** Kapı yalnız
+  `session_id`/`run_id`/`conversation_id` sütunlu tabloyu ister; sayaç tablosunda öyle sütun yok, kapı onu
+  zaten görmez. Gereksiz muafiyet kapıyı kirletirdi.
+- **`TenantCoverageTests`'e dokunulmadı.** Hiçbir yeni `Sql*Store` public metodu yok; kiracı yalıtımı
+  `One_tenants_delete_does_not_move_another_tenants_numbering` sözleşme case'iyle kanıtlandı.
+- **Eşzamanlı kayıt case'i sil → kaydet sınırını da geçer** (plan: yalnız eşzamanlı kayıt). İlk kayıt INSERT dalına,
+  gerisi UPDATE dalına gider; silmeden sonraki dalın da sınanması için case silmeden sonra koşar.
+- **248.6 yeni pin case'i** `v2`'ye sabitle → sil → yeniden oluştur + güncelle: yeni dönem `v3`/`v4` alır, `v2`
+  hiçbir şeye işaret etmez (plan "yeni `v4`" dedi). Fark ölçülebilir olan şudur: eski davranışta yeni dönemin
+  ikinci kaydı `v2` olurdu ve sabit onun metnini koşardı. Onay devamı case'i de eklendi (planın tablosu istiyordu):
+  eski depoda koşu `Completed` olup yeni talimatı çalıştırıyordu.
+- **Bellek içi depo:** `DeleteAsync` sözlük girdisini silmez, girdinin sürümlerini boşaltır; sayaç aynı nesnede
+  durur. Bu aynı zamanda eski bir yarışı kapatır (silinen listeye yazan eşzamanlı kayıt kaybolurdu). `RollbackAsync`
+  boş girdide "agent bulunamadı" der.
+- **Açık Soru 1 (kiracı silinince sayaç gider mi):** `ITenantStore.DeleteAsync` "kiracının verisi silinmez" der ve
+  kiracı verisini silen yol yok; sayaç, kiracının öteki satırlarıyla kalır. Öneri A'nın gerekçesi ("kiracı yoksa ad
+  alanı da yoktur") bu yüzden geçersizdi.
+- **Açık Soru 2 (sürüm notu):** A — `CHANGELOG` *Changed* ve site `persistence.md` bir cümle taşır.
+- **Bilinen sınır (çözülmedi, ölçülmedi):** göç sonrası hâlâ ayakta kalan **eski** bir düğüm `agent_definitions`'a
+  sayaca dokunmadan yazarsa sayaç geride kalır. Sonraki kayıt geçmiş tablosunun benzersiz anahtarına çarpar ve düşer
+  (sessiz yanlış içerik değil, yüksek sesli hata). Göç kilidi ve "tek sürüm" dağıtımı bunu dışlar; çok düğümlü
+  kademeli dağıtımda önce eski düğümler durdurulmalıdır.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)

@@ -322,6 +322,13 @@ Every save appends a version rather than overwriting. Nothing rewrites history:
 Rollback moving forward is the point: the rollback is itself auditable and can be
 rolled back in turn.
 
+A version number is an identity, and a name never gets one twice. `DELETE /api/agents/{name}`
+removes the definition and every version, but the numbering stays: create the agent again and
+its first version is one more than the highest the name ever had. An agent that had versions 1
+to 3 and was deleted comes back as version 4, and versions 1 to 3 name nothing. A pin to one of
+those numbers (a workflow step, a loop reviewer, an experiment arm) or an approval that waited
+on it therefore stops with "no such version" instead of running the text of the new agent.
+
 Versions are also what make [experiments](/concepts/evaluation/) possible —
 an A/B test splits traffic between two versions of the same agent, which is why a
 code-defined agent cannot be experimented on. A [workflow step](/concepts/workflows/#pin-an-agent-step-to-a-version)

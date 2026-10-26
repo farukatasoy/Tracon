@@ -28,6 +28,7 @@
 
 ## PublicApiAnalyzers (RS00xx, Faz 60)
 
+- **Sözleşme sınıfındaki her yeni `[Fact]` public yüzeydir** (Faz 248): `Tracon.Testing.Contracts.Xunit/PublicAPI.Unshipped.txt`'e sıralı girer, yoksa `RS0016` kırar. Plan "API büyümüyor" dese de say.
 - **🚨 `dotnet format analyzers --diagnostics RS0016` tek koşumda bitmez —
   çözüm boyunca iteratif çalıştır** (2026-08-16): her koşum yalnız bir sonraki
   projenin (bağımlılık sırasına yakın) diagnostiklerini çözer. 17 paketlik bir

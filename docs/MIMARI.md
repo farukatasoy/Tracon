@@ -197,6 +197,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `tenants` | Kiracı kaydı; tek kiracıda tek varsayılan satır |
 | `agent_definitions` | Agent tanımının güncel hali |
 | `agent_definition_versions` | Değişmez versiyon geçmişi, geri alma için |
+| `agent_definition_version_counters` | Ad başına gelmiş en büyük sürüm numarası, anahtar `(tenant_id, name)`, **`agent_definitions`'a yabancı anahtarı YOK**: silme tanımı ve geçmişi siler, sayaç kalır; numara ad başına bir kez verilir (K-1100). Kayıt sayacı, agent satırını ve geçmiş satırını tek işlemde yazar |
 | `agent_skills` | Tenant-yalıtımlı markdown skill tanımı ve frontmatter |
 | `agent_skill_resources` | Skill kaynağı; skill silinince cascade ile silinir |
 | `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + `state_schema_version` (hep dolu) + `state_maf_version` (NULL = Faz 126 öncesi satır, K-649). Anahtar **`(tenant_id, id)`** — kimlik çağırandan gelir ve yalnız kiracı içinde benzersizdir (K-278) |
