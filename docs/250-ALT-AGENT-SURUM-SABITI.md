@@ -43,6 +43,31 @@
 
 ---
 
+## Önceki Fazdan Devir
+
+Faz 248 kapandı (satırı `FAZ-DEFTERI.md`'de, karar K-1100). Bu faz ondan şunları devralır:
+
+- **Kural:** bir agent adı için sürüm numarası bir kez verilir. `SaveAsync`/`RollbackAsync` numarayı
+  `agent_definition_version_counters`'tan alır (`tenant_id`, `name`, `last_version`; `agent_definitions`'a yabancı
+  anahtarı yok). `DeleteAsync` tanımı ve geçmişi siler, sayacı bırakır. Numara = `max(sayaç, agent satırının sürümü) + 1`
+  (eski sürümden kalan bir düğüm satırı sayaca dokunmadan yazabilir; sorgu bunu tolere eder).
+- **Sonuç bu fazın sabiti için:** silinip yeniden oluşturulan çocuğun eski dönem numarası hiçbir şeye işaret etmez;
+  `GetVersionAsync` `null` döner. Kayıtta ve derlemede "çocuk agent'ın böyle bir sürümü yok" kapalı düşmelidir. Emsaller:
+  workflow düğümü `pins agent 'x' to version N, but the agent has no version N`, onay devamı
+  `Version N of agent 'x' was not found.`
+- **Sözleşme:** `AgentDefinitionStoreContract` sekiz case aldı (silme sonrası numaralama, tekrar silme, bilinmeyen adı silme,
+  recreate sonrası rollback, silinmiş agent'ı rollback, kiracı yalıtımı, eşzamanlı kayıt ×2). Özel bir `IAgentDefinitionStore`
+  hepsini geçmelidir; bellek içi depo silmede girdiyi tutar, yalnız sürümleri boşaltır.
+- 🚨 **Sözleşme sınıfındaki her `[Fact]` public yüzeydir:** yeni case `Tracon.Testing.Contracts.Xunit/PublicAPI.Unshipped.txt`'e
+  sıralı girer (`RS0016`). Plan "API büyümüyor" dese de say.
+- 🚨 **`DbHelpers.ReadSingleAsync<T>` `T : class` ister;** tek bir `int` (sayaç, sürüm) için `ExecuteScalarAsync` ve
+  `Convert.ToInt32(…, CultureInfo.InvariantCulture)`.
+- 🚨 **Yayın provası bu makinede koşmadı:** `python3 scripts/kapi.py yayin --kuru` taban paketleri
+  (`v1.0.0-preview.5`) nuget.org'dan alamadığı için taban restore'unda durdu (en yakın sürüm `preview.4`). Bu faz
+  `AgentDefinition.CallableAgentNames`'i değiştirdiği için (public API'den satır silinir) prova burada **gerekir**; önce
+  tabanın alınabilir olduğunu doğrula. Sebebi araştırılmadı.
+- Hazırlanmış ama kullanılmayan altyapı: yok.
+
 ## Amaç
 
 Bir agent başka agent'ları adıyla çağırır (`AgentDefinition.CallableAgentNames`,

@@ -10,6 +10,15 @@
 > **Paketler:** `Tracon.Workflows` (`WorkflowAgentStepOptions`, `WorkflowAgentBinding`, `WorkflowAgentCache`), `Tracon.Core` (`ChildAgentInvoker`)
 > **Tüketici yüzeyi:** site `concepts/workflows.md` (kod grafında agent adımı), `concepts/agents.md:452-460` (sabitsiz adım güncel sürümü çözer), `guides/review-and-revise-workflow.md` (varsa adım seçenekleri) · sevk edilen: `WorkflowAgentStepOptions` XML + `<example>`, `src/Tracon.Workflows/PublicAPI.Unshipped.txt`, `CHANGELOG.md` `[Unreleased]` → *Added*
 
+## Önceki Fazdan Devir
+
+Faz 248 kapandı (satırı `FAZ-DEFTERI.md`'de). Bu fazın dayandığı kural: bir agent adı için sürüm numarası
+**hiç yeniden verilmez**. Silinen ve aynı adla yeniden oluşturulan agent eski dönemin numaralarını geri almaz;
+`IAgentDefinitionStore.GetVersionAsync(ad, eskiNumara)` `null` döner. Run parametresinden gelen sürüm bu yüzden
+"yok" olabilir ve kapalı düşmelidir (workflow sabitiyle aynı: çalıştırmadan önce, adıyla, hiçbir model çağrısı
+yapılmadan). Emsal ileti: workflow düğümü `pins agent 'x' to version N, but the agent has no version N`; onay devamı
+`Version N of agent 'x' was not found.` K-1100.
+
 ## Amaç
 
 Kod grafındaki bir agent adımı bugün ya güncel sürümü ya da kodda sabit yazılmış

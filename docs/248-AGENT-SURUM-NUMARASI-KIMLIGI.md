@@ -1,6 +1,6 @@
 # Faz 248 — Agent Sürüm Numarası Silmede Yeniden Kullanılmaz
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** ✅ Tamamlandı (2026-10-26)
 > **Kademe:** tam — migration (üç sağlayıcı, yeni tablo) ve kalıcı veri; `IAgentDefinitionStore` numaralama kuralı yayınlanan sözleşme testine girer (tüketicinin kendi deposu yeni case'i geçmelidir); güvenlik: eski bir sürüm sabiti bugün silip yeniden oluşturulan agent'ın başka içeriğini sessizce koşturabilir
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan karar: sayaç tablosu — geçmiş silmede bugünkü gibi silinir, sayaç kalır; eski döneme işaret eden sabit kapalı düşer)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-409**
@@ -225,16 +225,21 @@ Case `docs/manuel-test/07-HTTP-YONETIM-API.md`'ye eklenir.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Sil + yeniden oluştur numaralamayı sürdürür; sözleşme case'i bellek içi depoda ve üç SQL sağlayıcısında yeşil
-- [ ] Eski döneme işaret eden sabit run'ı adıyla düşürür (fonksiyonel)
-- [ ] Migration üç sağlayıcıda mevcut numarayı korur (entegrasyon)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1 + sabitli bir run), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case `docs/manuel-test/07-HTTP-YONETIM-API.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz; `CHANGELOG.md` *Changed* + *Fixed* satırları yazıldı
-- [ ] Karar `docs/KARARLAR.md`'ye yazıldı (`kalıcı-veri`; reddedilen alternatif: geçmişi silmede saklamak)
+- [x] Sil + yeniden oluştur numaralamayı sürdürür; sözleşme case'i bellek içi depoda ve üç SQL sağlayıcısında yeşil (`SaveAsync_after_DeleteAsync_continues_the_numbering` ve yedi komşusu)
+- [x] Eski döneme işaret eden sabit run'ı adıyla düşürür (fonksiyonel): `WorkflowAgentVersionPinTests` ve `ApprovalResumeVersionTests` yeni case'leri eski bellek içi depoyla kırmızı, düzeltmeyle yeşil
+- [x] Migration üç sağlayıcıda mevcut numarayı korur (entegrasyon): `AgentVersionCounterMigrationTests`, v5 olan agent → migration → kayıt v6
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban 2198af29` yeşil (29.121 test, 39 modül; ilk koşum site kapısında düştü: public XML'de "phase 248" geçemez, düzeltildi, baştan koşuldu)
+- [x] `samples/Tracon.Api` + geçici PostgreSQL ile gerçek `run` yapıldı. `POST` → `PUT` → `DELETE` (204) → `POST` yanıtı `version: 3`; `GET …/versions` yalnız `[3]`; `versions/1` ve `versions/2` `404`; `psql`: `agent_definition_version_counters` `default | f248x | 3`. Sabitli workflow: sabit v4 iken `RunCompleted`; agent silinip yeniden oluşturulunca (v5) aynı workflow `Failed`: `pins agent 'f248x' to version 4, but the agent has no version 4`. `Npgsql` günlüğünde başka bir sunucuya (`55432`) giden satır 0. Varsayılan dışı yapılandırma (`SuccessSampleRatio=1`) koşulmadı: faz gözlemlenebilirliğe dokunmuyor
+- [x] `secret` taraması boş döndü (`kapi.py tarama`: temiz, 15 işaretli sentetik credential atlandı)
+- [x] `🤖` case `docs/manuel-test/07-HTTP-YONETIM-API.md` içinde (`MT-API-016`) ve koşuldu; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (bir 🔴 bulundu ve kapandı, bkz. Denetim Bulguları)
+- [x] `docs-site/` güncellendi; `npm run check` (içerik + derleme + `check-links.mjs` + ağırlık) temiz; `CHANGELOG.md` *Changed* + *Fixed* satırları yazıldı
+- [x] Karar `docs/KARARLAR.md`'ye yazıldı (K-1100, `kalıcı-veri, public-api`; reddedilen alternatif: geçmişi silmede saklamak)
+
+> Yapılamayan: `python3 scripts/kapi.py yayin --kuru` (sevk edilen sözleşme değiştiği için `faz-tamamlama` Adım 1 ister) taban
+> restore'unda durdu: `v1.0.0-preview.5` paketleri nuget.org'da yok (en yakın `preview.4`). Sebebi araştırılmadı. Hiçbir
+> `samples/` projesi `IAgentDefinitionStore` ya da `AgentDefinitionStoreContract` kullanmıyor (`grep`), bu yüzden prova
+> bu fazın değişikliğinden etkilenen bir sample bulamazdı; yine de koşmadı.
 
 ### Doğrulama komutları
 
@@ -267,8 +272,8 @@ curl -s -X DELETE http://localhost:5081/tracon/api/agents/x && curl -s -X POST h
 > kapanış commit mesajına taşınır.
 
 - **Public API büyüdü (plan: "Büyümüyor").** Sözleşme sınıfındaki her `[Fact]` public bir yöntemdir:
-  `Tracon.Testing.Contracts.Xunit/PublicAPI.Unshipped.txt` yedi satır aldı (`RS0016` ilk derlemede kırdı).
-  Tip yüzeyi gerçekten değişmedi; sevk edilen sözleşme yedi case büyüdü.
+  `Tracon.Testing.Contracts.Xunit/PublicAPI.Unshipped.txt` sekiz satır aldı (`RS0016` ilk derlemede kırdı; yedisi ilk
+  uygulamada, biri denetim bulgusuyla). Tip yüzeyi gerçekten değişmedi; sevk edilen sözleşme sekiz case büyüdü.
 - **`DataSubjectCoverageTests` muafiyeti yazılmadı (plan: tabloyu muaf adlandırır).** Kapı yalnız
   `session_id`/`run_id`/`conversation_id` sütunlu tabloyu ister; sayaç tablosunda öyle sütun yok, kapı onu
   zaten görmez. Gereksiz muafiyet kapıyı kirletirdi.
@@ -313,10 +318,10 @@ curl -s -X DELETE http://localhost:5081/tracon/api/agents/x && curl -s -X POST h
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 9 sapma (planın kendisi yeniden yazılmadı; her sapma `Plandan Sapmalar`da gerekçeli) |
+| Düzeltme turu sayısı | 2 (denetimin 🔴 + 🟡 + 🟢 bulguları · site kapısının public XML'deki faz numarası bulgusu) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 (eski düğümün satır yazması; ikinci 🔴, sapma anlatımı, aynı kökün belge yüzü) |
+| Fazın ürettiği regresyon | 0 (eski düğüm çakışması ilk uygulamanın kendi kusuruydu; aynı fazda denetimle bulundu, hiçbir yayında yoktu) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları

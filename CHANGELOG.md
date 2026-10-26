@@ -362,9 +362,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`IAgentDefinitionStore` never gives a version number twice for one name.** `SaveAsync` returns one more than the highest
   version the name ever had, including the versions of a definition that was deleted; `DeleteAsync` still removes the
   definition and every one of its versions and keeps only the number. A custom `IAgentDefinitionStore` must keep that number
-  too: `AgentDefinitionStoreContract` has seven more cases (`SaveAsync_after_DeleteAsync_continues_the_numbering` and six
+  too: `AgentDefinitionStoreContract` has eight more cases (`SaveAsync_after_DeleteAsync_continues_the_numbering` and seven
   around it: a second delete, a delete of a name that never existed, a rollback after a recreate, a rollback of a deleted
-  agent, two tenants, and concurrent saves) that a store which restarts at 1 now fails. The PostgreSQL, SQL Server and SQLite
+  agent, two tenants, and concurrent saves, with and without a delete before them) that a store which restarts at 1 now fails. The PostgreSQL, SQL Server and SQLite
   migrations add the `agent_definition_version_counters` table (`0065`, `0053` and `0052`), one row of name and number per
   agent and no agent content, and start each existing agent's counter at the version it holds today. **Upgrade note:** an
   agent that was deleted and created again before the upgrade cannot be recovered; its earlier numbers were never kept, so its
