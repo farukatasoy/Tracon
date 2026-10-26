@@ -240,7 +240,7 @@ public sealed class SessionWorkspaceProviderTests : IDisposable
             options.Tools.DefaultTimeout = value;
         }
 
-        var governance = new WorkspaceToolGovernance(
+        var governance = new BuiltInToolGovernance(
             handler ?? new RecordingHandler(),
             NoOpToolArgumentsValidator.Instance,
             new StaticOptionsMonitor<TraconOptions>(options),

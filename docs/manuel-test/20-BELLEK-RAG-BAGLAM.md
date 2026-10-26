@@ -1,6 +1,6 @@
 # 20 — Bağlam Sıkıştırma, Bellek Sağlayıcıları ve Anlamsal Arama (`MEM`)
 
-> **Alan kodu:** `MEM` · **Faz:** 13, 51
+> **Alan kodu:** `MEM` · **Faz:** 13, 51, 246
 > **Kaynak:** `src/Tracon.Abstractions/Agents/CompactionSettings.cs`,
 > `CompactionStrategyKind.cs`, `MemorySettings.cs` ·
 > `src/Tracon.Abstractions/Knowledge/` (tümü: `IVectorSearchStore.cs`,
@@ -1469,3 +1469,78 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   UYGULANIYOR.
 - Adım 4: `HTTP: 403`, `detail`: `"...requires the 'AgentsAdmin' scope..."`
   — kontrol grubu da aynı şekilde reddediyor, tutarlı.
+
+---
+
+### MT-MEM-032 — `search_knowledge` çağrı satırı embedding token sayısını taşır, `cost` boştur (Faz 246, F-688)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 246 |
+| **İlgili karar** | F-363 (fiyat kimliği açık), K-1089 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama, `curl`, gerçek `openai` embedding'i ve gerçek PostgreSQL + pgvector |
+
+**Ön koşul**
+- `MT-MEM-026` ortamı: örnek uygulama Development'ta, `Tracon:PostgreSql` ve
+  `Tracon:Providers:OpenAI` ayarlı, `knowledge-assistant` katalogda.
+- `knowledge-base` koleksiyonunda en az bir belge var (`MT-MEM-026` adım 1).
+
+**Adımlar**
+1. `knowledge-assistant`'a kelime eşleşmesi olmayan bir soru sor.
+2. `GET /api/runs/{runId}/tools` çıktısını oku.
+3. `GET /api/runs/{runId}` çıktısında `nonTokenCost` alanını oku.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/knowledge-assistant/run" -H "$APB" \
+     -H "Idempotency-Key: manuel-mem-032-$(date +%s%N)" -H "content-type: application/json" \
+     -d '{"message":"Kac gun tatilim var?","sessionId":"mem-usage-01"}'
+curl -s "$APU/api/runs/<runId>/tools" -H "$APB" | python3 -c "import json,sys; [print(t['toolName'], t.get('usage')) for t in json.load(sys.stdin)]"
+```
+
+**Beklenen sonuç**
+- `search_knowledge` satırı `usage.unit = "tokens"`, `usage.quantity > 0` ve
+  `usage.cost = null` taşır. `usage.provider` `Tracon:Knowledge:EmbeddingProvider`
+  değeridir.
+- `nonTokenCost.amount` boştur; `nonTokenCost.unsummedItemCount` `1`'dir.
+- Run'ın token ve maliyet toplamı değişmez.
+- ➜ CI: `KnowledgeToolGovernanceTests.The_query_embedding_is_reported_as_tokens_with_no_cost_and_the_run_totals_do_not_move`.
+
+---
+
+### MT-MEM-033 — Ağaç bütçesi tükenince `search_knowledge` başlamaz ve sorgu gömülmez (Faz 246, F-688)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 246 |
+| **İlgili karar** | K-1089 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama, `curl`, gerçek `openai` modeli ve gerçek PostgreSQL + pgvector |
+
+**Ön koşul**
+- `MT-MEM-032` ortamı. Uygulama `--Tracon:AgentGraph:MaxTotalTokens=50` ile
+  başlar. İlk model çağrısı 50 token'ı aşar, bu yüzden model çağrısından sonra
+  bütçe tükenmiştir.
+
+**Adımlar**
+1. `knowledge-assistant`'a `MT-MEM-032`'deki soruyu **akışlı** sor: `Idempotency-Key`
+   başlığı YOK. 🚨 Başlık varsa run akışsız koşar ve bütçe reddiyle biten akışsız run
+   hiç araç satırı yazmaz.
+2. `GET /api/runs?sessionId=…` ile run'ı bul; `GET /api/runs/{runId}/tools` çıktısını oku.
+3. Akışta `search_knowledge` için `functionResult` çerçevesini oku.
+
+**Girilecek veri**
+```bash
+curl -s -N -X POST "$APU/api/agents/knowledge-assistant/run" -H "content-type: application/json" \
+     -d '{"message":"Kac gun tatilim var?","sessionId":"mem-budget-01"}'
+```
+
+**Beklenen sonuç**
+- Run `Failed` kapanır; `error.type` `run_budget_exceeded`'dır.
+- `search_knowledge` satırı `Succeeded = false` ve `error` içinde "The tool call
+  did not start." metnini taşır; `usage` yoktur (embedding çağrısı olsaydı
+  `usage.quantity` dolu olurdu). Akıştaki `functionResult` aynı cümleyi taşır.
+- ➜ CI: `ToolBudgetGateTests.A_knowledge_search_does_not_start_once_the_cost_budget_is_spent`.

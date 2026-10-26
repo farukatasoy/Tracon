@@ -143,7 +143,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IToolArgumentsValidator | Singleton | Instance:Tracon.NoOpToolArgumentsValidator",
         "Tracon.IStructuredResponseValidator | Singleton | Instance:Tracon.NoOpStructuredResponseValidator",
         "Tracon.IToolRegistry | Singleton | Factory",
-        "Tracon.WorkspaceToolGovernance | Singleton | Factory",
+        "Tracon.BuiltInToolGovernance | Singleton | Factory",
         "Tracon.ISubjectContentEraser | Singleton | Tracon.SessionWorkspaceEraser",
         "Tracon.HostedToolRegistry | Singleton | Factory",
         "Tracon.ModelProviderCircuitBreaker | Singleton | Factory",

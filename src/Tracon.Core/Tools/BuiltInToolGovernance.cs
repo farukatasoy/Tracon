@@ -6,15 +6,20 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>
-/// Runs a tool that a framework context provider supplies through the same tool chain as a tool
+/// Runs a tool that Tracon or the framework adds to a run itself through the same tool chain as a tool
 /// registered in code.
 /// </summary>
 /// <remarks>
 /// <para>
-/// A tool the framework adds when it builds a run (the file tools of the session workspace) is not in the
-/// tool registry, so it would run with none of the layers of <see cref="ToolWrapperChain"/>: no authorization
-/// handler, no argument validation, no timeout, no explained failure. This type applies the chain to such a
-/// tool with the same dependencies the registry uses, so a layer added to the chain reaches the workspace tools as well.
+/// A tool added while a run is built (the file tools of the session workspace, the knowledge search, the search of
+/// the conversation memory) is not in the tool registry, so it would run with none of the layers of
+/// <see cref="ToolWrapperChain"/>: no authorization handler, no argument validation, no budget gate, no timeout, no
+/// explained failure. This type applies the chain to such a tool with the same dependencies the registry uses, so a
+/// layer added to the chain reaches these tools as well.
+/// </para>
+/// <para>
+/// The tool stays out of <see cref="IToolRegistry"/>: it is bound while the agent is compiled and is not a catalog
+/// tool. The authorization handler and the argument validator are still given a descriptor for it.
 /// </para>
 /// <para>
 /// Approval is set here and not by the framework: the framework's own approval wrapper is turned off for the
@@ -22,7 +27,7 @@ namespace Tracon;
 /// next to the tool).
 /// </para>
 /// </remarks>
-internal sealed class WorkspaceToolGovernance
+internal sealed class BuiltInToolGovernance
 {
     private readonly IToolAuthorizationHandler _authorizationHandler;
     private readonly IToolArgumentsValidator _validator;
@@ -40,7 +45,7 @@ internal sealed class WorkspaceToolGovernance
     /// <param name="authorizingLogger">The logger passed to every authorizing layer.</param>
     /// <param name="timeoutLogger">The logger passed to every timeout layer.</param>
     /// <param name="validatingLogger">The logger passed to every validating layer.</param>
-    public WorkspaceToolGovernance(
+    public BuiltInToolGovernance(
         IToolAuthorizationHandler authorizationHandler,
         IToolArgumentsValidator validator,
         IOptionsMonitor<TraconOptions> options,
@@ -68,11 +73,11 @@ internal sealed class WorkspaceToolGovernance
     /// <summary>Builds the governance from the final service-provider state.</summary>
     /// <param name="provider">The root service provider.</param>
     /// <returns>The governance.</returns>
-    internal static WorkspaceToolGovernance Create(IServiceProvider provider)
+    internal static BuiltInToolGovernance Create(IServiceProvider provider)
     {
         ArgumentNullException.ThrowIfNull(provider);
 
-        return new WorkspaceToolGovernance(
+        return new BuiltInToolGovernance(
             provider.GetRequiredService<IToolAuthorizationHandler>(),
             provider.GetRequiredService<IToolArgumentsValidator>(),
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
@@ -83,7 +88,7 @@ internal sealed class WorkspaceToolGovernance
     }
 
     /// <summary>Wraps a tool in the tool chain.</summary>
-    /// <param name="function">The tool the framework supplied, with no approval layer of its own.</param>
+    /// <param name="function">The tool to wrap, with no approval layer of its own.</param>
     /// <param name="effect">The effect class the authorization handler and the run record see.</param>
     /// <param name="requiresApproval">Whether the call waits for a person's approval.</param>
     /// <returns>The wrapped tool.</returns>

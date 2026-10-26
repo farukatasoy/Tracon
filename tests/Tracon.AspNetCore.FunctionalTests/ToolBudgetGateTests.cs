@@ -283,6 +283,49 @@ public sealed class ToolBudgetGateTests
     }
 
     [Fact]
+    public async Task A_knowledge_search_does_not_start_once_the_cost_budget_is_spent()
+    {
+        // Phase 246 (F-688): the knowledge search sends the query to the embedding provider, so a refusal that
+        // comes after the embedding is a charge the tree had no budget for.
+        var tools = new ToolBodies();
+        var embeddings = new CountingEmbeddings();
+        var store = new CountingKnowledgeStore();
+
+        await using var host = await StartKnowledgeAsync(
+            tools.Speaks(First, amount: 5m),
+            embeddings,
+            store,
+            options => options.AgentGraph.MaxTotalCost = 1m);
+
+        var outcome = await RunOverHttpAsync(host, KnowledgeAgent, "knowledge-refused");
+
+        outcome.Status.ShouldBe("Failed", outcome.Stream);
+        tools.Count(First).ShouldBe(1);
+        embeddings.Calls.ShouldBe(0, "the refused search embedded its query");
+        store.Searches.ShouldBe(0, "the refused search read the store");
+    }
+
+    [Fact]
+    public async Task A_knowledge_search_starts_while_the_budget_is_not_spent()
+    {
+        var tools = new ToolBodies();
+        var embeddings = new CountingEmbeddings();
+        var store = new CountingKnowledgeStore();
+
+        await using var host = await StartKnowledgeAsync(
+            tools.Speaks(First, amount: 0.25m),
+            embeddings,
+            store,
+            options => options.AgentGraph.MaxTotalCost = 1m);
+
+        var outcome = await RunOverHttpAsync(host, KnowledgeAgent, "knowledge-allowed");
+
+        outcome.Status.ShouldBe("Completed", outcome.Stream);
+        embeddings.Calls.ShouldBe(1);
+        store.Searches.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task A_turn_with_a_tool_that_needs_approval_still_stops_at_the_approval_and_the_gate_does_not_touch_it()
     {
         // Measured: Microsoft Agent Framework's loop asks for approval BEFORE it invokes any
@@ -395,6 +438,8 @@ public sealed class ToolBudgetGateTests
     private const string McpTool = McpServerName + "_lookup";
     private const string McpAgent = "mcp-narrator";
     private const string WorkspaceTool = "file_access_read";
+    private const string KnowledgeTool = "search_knowledge";
+    private const string KnowledgeAgent = "knowledge-narrator";
 
     private static FakeModelProvider ScriptCalling(string secondTool, object? secondArguments)
         => new FakeModelProvider(Provider)
@@ -486,6 +531,39 @@ public sealed class ToolBudgetGateTests
             {
                 services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.AddSingleton(store);
+                services.Configure<TraconOptions>(options =>
+                {
+                    options.Pricing.Currency = "USD";
+                    configureOptions(options);
+                });
+            });
+
+    /// <summary>A host with a code agent that searches the knowledge base; its search is the second call of the turn.</summary>
+    private static Task<TraconTestHost> StartKnowledgeAsync(
+        Func<ITraconBuilder, ITraconBuilder> first,
+        CountingEmbeddings embeddings,
+        CountingKnowledgeStore store,
+        Action<TraconOptions> configureOptions)
+        => TraconTestHost.StartAsync(
+            builder =>
+            {
+                builder.AddModelProvider(ScriptCalling(KnowledgeTool, new { query = "refund policy" }));
+                first(builder)
+                    .AddAgent(new AgentDefinition
+                    {
+                        Name = KnowledgeAgent,
+                        Instructions = "Answer from the knowledge base.",
+                        Model = new ModelBinding { Provider = Provider, Model = Model },
+                        Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "docs" },
+                        ToolNames = [First],
+                        Origin = AgentDefinitionOrigin.Code,
+                    });
+            },
+            configureServices: services =>
+            {
+                services.Configure<TraconKnowledgeOptions>(static options => options.Dimensions = 3);
+                services.AddSingleton<IVectorSearchStore>(store);
+                services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(embeddings);
                 services.Configure<TraconOptions>(options =>
                 {
                     options.Pricing.Currency = "USD";

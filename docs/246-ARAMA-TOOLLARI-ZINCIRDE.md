@@ -1,6 +1,6 @@
 # Faz 246 — Bilgi ve Konuşma Hafızası Aramaları Tool Zincirinden Geçer
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** ✅ Tamamlandı (2026-10-26)
 > **Kademe:** tam — güvenlik sınırı: `IToolAuthorizationHandler` kararı iki tool'a ilk kez uygulanır; reddeden bir işleyici bilgi aramasını durdurur (davranış değişikliği). GA'dan sonra bu sınırı değiştirmek major sürüm ister
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan kararlar: iki tool `ToolEffect.External` taşır; zincire giriş kaynak başına `ToolWrapperChain.Compose` ile olur, K-1069 emsali)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-688**
@@ -70,7 +70,7 @@ genel bir "Function failed" metniyle ulaşır.
 | [`ToolRegistry.cs:113-130`](../src/Tracon.Core/Tools/ToolRegistry.cs) | Kayıt, açılışta `ToolDescriptor` kurar ve `ToolWrapperChain.Compose` çağırır |
 | [`ToolWrapperChain.cs:121`](../src/Tracon.Core/Tools/ToolWrapperChain.cs) | `AuthorizingAIFunction`'ı kuran tek yer. `Compose`'un üç çağıranı var: `ToolRegistry.cs:130`, `WorkspaceToolGovernance.cs:112`, `McpTenantTools.cs:219` |
 | [`ConversationMemoryScopeProvider.cs:95-105`](../src/Tracon.Core/Memory/ConversationMemoryScopeProvider.cs) | `InvokingCoreAsync` iç MAF sağlayıcısının `AIContext`'ini değiştirmeden döner; `search_conversation_memory` (`:89`) `AIContext.Tools` ile gelir |
-| [`WorkspaceToolGovernance.cs:90-122`](../src/Tracon.Core/Workspace/WorkspaceToolGovernance.cs) | Kayıt dışı bir fonksiyon için tek seferlik `TraconToolRegistration` + `ToolDescriptor` kurup `Compose` çağıran emsal (K-1069) |
+| [`WorkspaceToolGovernance.cs:90-122`](../src/Tracon.Core/Tools/BuiltInToolGovernance.cs) | Kayıt dışı bir fonksiyon için tek seferlik `TraconToolRegistration` + `ToolDescriptor` kurup `Compose` çağıran emsal (K-1069) |
 | [`ToolAuthorizationTypes.cs:4`](../src/Tracon.Abstractions/Tools/ToolAuthorizationTypes.cs) | Sözleşme: "Decides whether a tenant/user may call a specific tool" |
 | [`VectorSearchToolFactory.cs:68-69`](../src/Tracon.Core/Knowledge/VectorSearchToolFactory.cs) | `generated.Usage` atılır; embedding token sayısı hiçbir yere yazılmaz |
 | [`EmbeddingProviderAccess.cs:90-113`](../src/Tracon.Core/Knowledge/EmbeddingProviderAccess.cs) | Egress reddi `TraconTenantProviderRefusedException` atar; `ExplainedFailure` katmanı olmadığı için model MEAI'nin genel "Error: Function failed." metnini alır |
@@ -279,18 +279,18 @@ Case'ler `docs/manuel-test/20-BELLEK-RAG-BAGLAM.md`'ye eklenir.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Reddeden bir `IToolAuthorizationHandler` ile `search_knowledge` ve `search_conversation_memory` koşmaz; model açıklayıcı sonuç alır; tool satırı reddi taşır; işleyici `Effect = External` görür
-- [ ] Tükenmiş bütçede iki arama da başlamaz (`CountingEmbeddingGenerator` sayacı `0`)
-- [ ] Egress reddi modele açıklayıcı sonuç olarak ulaşır
-- [ ] `search_knowledge` satırı embedding token sayısını taşır; `Cost = null`; ağaç maliyeti değişmez
-- [ ] `ToolSourceGovernanceTests` zincir dışı her kaynağı gerekçesiyle listeler; listede olmayan yeni kaynak testi düşürür
-- [ ] Workspace testleri aynen yeşil
-- [ ] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/20-BELLEK-RAG-BAGLAM.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (246.6); `npm run build` + `check-links.mjs` temiz; `CHANGELOG.md` *Changed* satırı yazıldı
+- [x] Reddeden bir `IToolAuthorizationHandler` ile `search_knowledge` ve `search_conversation_memory` koşmaz; model açıklayıcı sonuç alır; tool satırı reddi taşır; işleyici `Effect = External` görür
+- [x] Tükenmiş bütçede iki arama da başlamaz (`CountingEmbeddingGenerator` sayacı `0`)
+- [x] Egress reddi modele açıklayıcı sonuç olarak ulaşır
+- [x] `search_knowledge` satırı embedding token sayısını taşır; `Cost = null`; ağaç maliyeti değişmez
+- [x] `ToolSourceGovernanceTests` zincir dışı her kaynağı gerekçesiyle listeler; listede olmayan yeni kaynak testi düşürür
+- [x] Workspace testleri aynen yeşil
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1), çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü
+- [x] `🤖` case'ler `docs/manuel-test/20-BELLEK-RAG-BAGLAM.md` içinde ve koşuldu; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `docs-site/` güncellendi (246.6); `npm run build` + `check-links.mjs` temiz; `CHANGELOG.md` *Changed* satırı yazıldı
 
 ### Doğrulama komutları
 
@@ -325,6 +325,43 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/tools | jq '.[] | {toolNam
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **`Govern` imzası genişlemedi.** Plan "isteğe bağlı zaman aşımı/çıktı sınırı" diyordu. İki yeni çağıranın ikisi de
+   `TraconOptions.Tools` varsayılanını ister; opsiyonel parametre kullanılmaz (YAGNI). `Govern(function, effect, requiresApproval)`.
+2. **Konuşma hafızası sarmalayıcısı önbelleğe alınmaz (Açık Soru 2 → A).** Ölçüldü: MAF `ChatHistoryMemoryProvider`
+   `OnDemand`'da her çağrıda **yeni** fonksiyon üretir (`sameSearch=False`); önceki araçlar referansla korunur. Sarmalayıcı her
+   çağrıda kurulur. Fail-closed kuralı referans farkıyla işler: girişte olmayan ve `search_conversation_memory` olmayan tool
+   `InvalidOperationException` fırlatır.
+3. **Yönetişim servisi yoksa derleme düşer.** Plan bunu yazmıyordu. `search_knowledge` için her zaman, konuşma hafızası için
+   yalnız `OnDemand`'da `TraconCompilationException` ("AddTracon"). `BeforeEachTurn` tool taşımaz, servis istemez.
+4. **`NonTokenCost` boş kalmaz.** Plan "toplam değişmez" diyordu. Tutar toplamı değişmez, ama `TraconToolUsage.Report` maliyetsiz
+   satırı `UnsummedItemCount`'a sayar: `search_knowledge` çağıran her run `nonTokenCost { amount: null, unsummedItemCount: 1 }`
+   taşır. Belgelenmiş davranıştır (`ToolCallUsage` XML); `CHANGELOG`, site ve testte yazıldı.
+5. **`ToolUsageUnits.Tokens` XML metni değişti.** Eski metin yalnız görüntü çıktı token'ını söylüyordu. Public API satırı yok.
+6. **Replay ve konuşma hafızası bütçe testlerinin yeri.** Replay testi birim `RecordedToolPlaybackTests`'te değil
+   `KnowledgeToolGovernanceTests`'tedir: replay kayıtlı (DB) tanım ister ve kod agent'ı reddedilir. Konuşma hafızası bütçe
+   case'i `ToolBudgetGateTests`'te değil `ConversationMemoryTests`'tedir: kullanıcı ve oturum düzeneği orada.
+7. **Kaynak envanteri üç listedir.** Plan iki liste (zincirde · zincir dışı) dedi. Desenin gördüğü iki kaynak tool eklemez
+   (`TextSearchProvider` varsayılan kipte, `McpResourceContextProvider`); `NoTools` listesi bunları gerekçesiyle taşır.
+   Anahtar `dosya :: tür[:ad]`; zincire giriş dosyaları ayrıca sabitlenir (`ChainEntries`), elle kurulan zincir testi düşürür.
+   Zincir dışı tabloya `AsHarnessAgent` ve eklenti sağlayıcı (`AgentOptionsGuard`) satırları girdi.
+8. **Kaynak kapısı denetimden sonra sıkılaştı.** Denetim (🟡1) anahtarın `dosya :: tür` düzeyinde kaldığını buldu: aynı dosyada
+   ikinci bir `AIFunctionFactory.Create(` görünmezdi. Anahtar artık sayı taşır (`×N`); `: AIFunction` alt sınıfı, `.AsAIFunction(`
+   ve genel sağlayıcı sınıfı (`class W<T> : AIContextProvider`) desenleri eklendi; yerleşik `generate_image`, `speak`,
+   `transcribe`, `list_voices` ve alt agent fonksiyonu listelere girdi. Kapının göremediği iki şey test yorumunda yazılıdır.
+9. **Dil kapısı.** `SourceLanguageTests` yeni test dosyasında `Faz` sözcüğünü Türkçe saydı; karar kaydı deseni yalnız
+   `K-`, `Phase` ve `F-` ister.
+
+### Gerçek `run` çıktısı (2026-10-26)
+
+`samples/Tracon.Api` (Development, izole şema `tracon_f246`, sonra silindi), gerçek `openai` (`gpt-5.4-mini`,
+`text-embedding-3-small`), gerçek PostgreSQL + pgvector, `knowledge-assistant`.
+
+| Case | Girdi | Çıktı |
+|---|---|---|
+| MT-MEM-032 | "Kac gun tatilim var?" (akışsız) | `GET /api/runs/{id}/tools`: `search_knowledge` · `usage {unit: "tokens", quantity: 18, cost: null, isEstimated: false, provider: "openai"}`. Run `Completed`; `nonTokenCost {amount: null, unsummedItemCount: 1}`; chat token'ı 489 + 59 (embedding toplamda yok). Model hit'i JSON metni olarak okudu ve "14 gün" dedi. |
+| MT-MEM-033 | `--Tracon:AgentGraph:MaxTotalTokens=50`, akışlı | Run `Failed` · `run_budget_exceeded` (218/50). `search_knowledge` satırı: `error` "…The tool call did not start.", `usage: null`. Akışta `functionResult` aynı cümle. Akışsız (`Idempotency-Key`) yolda araç satırı **yazılmaz** (bilinen kayıt tuzağı); case akışlı koşar. |
+| Ek (spec dışı) | `--Tracon:Demo:ToolAuthorization:Mode=deny-all` | `search_knowledge` satırı `authorizationDenied: true`, `usage: null`; model "The demonstration handler refuses every tool call, including 'search_knowledge'." sonucunu aldı. |
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -332,16 +369,21 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/tools | jq '.[] | {toolNam
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
 
+- **K-1098** (`güvenlik`): iki arama tool'u zincirden `External` ile geçer; giriş `BuiltInToolGovernance`. Alternatif:
+  kaynak başına `FunctionInvoker` (reddedildi, gerekçe karar satırında).
+- Kategori dışı (commit mesajına): `Govern` imzası genişlemedi · konuşma hafızası sarmalayıcısı önbelleksiz · yönetişim yoksa
+  derleme düşer · kaynak envanteri üç liste.
+
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan metni değişmedi; 9 sapma kaydı) |
+| Düzeltme turu sayısı | 1 (denetim: 🟡 2, KR-05 1, 🟢 küçükler) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 1 (KR-05, repro yok; sağlamlaştırıldı) |
+| Fazın ürettiği regresyon | 0 (tam fonksiyonel koşum 2824/2824; kapanışta tek zamanlama düşüşü, izole geçti) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -349,3 +391,16 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/tools | jq '.[] | {toolNam
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetçi: taze bağlamlı `faz-denetcisi`, 2026-10-26. 🔴 yok.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| `ToolSourceGovernanceTests` anahtarı `dosya :: tür` düzeyinde: aynı dosyada ikinci `AIFunctionFactory.Create(`, `: AIFunction` alt sınıfı, `.AsAIFunction(` ve genel sağlayıcı sınıfı görünmez; yorum kapsamı fazla iddia ediyordu | 🟡 | düzeltildi: sayılı anahtar, üç yeni desen, yerleşik tool'lar ve alt agent fonksiyonu listede, yorum kapsamı doğru söylüyor |
+| `kod-haritasi.md:33` "defter tek kapıdır" artık yanlış; `BuiltInToolGovernance` haritada yok | 🟡 | düzeltildi (satır aynı uzunlukta yeniden yazıldı: bütçe sınırında) |
+| `GovernAddedTools` önceki araç kümesini iç sağlayıcıdan sonra okur; yerinde değiştiren bir MAF sürümü eklenen tool'u "bilinen" sayar (KR-05, repro yok) | araştırılacak | düzeltildi: araçlar iç çağrıdan önce kopyalanır |
+| Bayat yorumlar (`Registration.Core.cs`, `AgentDefinitionCompiler.Memory.cs`) | 🟢 | düzeltildi |
+| `CHANGELOG` zaman aşımı cümlesi embedding çağrısını da bağladığını söylemiyordu | 🟢 | düzeltildi |
+| `CHANGELOG`: elle kurulan `AgentDefinitionCompiler` artık servissiz düşer | 🟢 | gerekçelendi: yapıcı `internal`, tüketici kuramaz |
+| Site: `embedding.md` listesi yerleşik tool'ları saymıyor; `reliability.md` istisna cümlesi eksik | 🟢 | düzeltildi |
+| Test boşlukları: replay `OnDemand` aracını oynatmaz; `search_knowledge` kiracısı ↔ `VectorSearchRequest.TenantId`; `OnDemand`'da depo hatası; hafıza aracında doğrulayıcı ve zaman aşımı | 🟢 | F-701 olarak devredildi |

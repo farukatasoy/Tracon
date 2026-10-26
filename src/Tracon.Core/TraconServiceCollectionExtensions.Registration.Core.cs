@@ -107,10 +107,10 @@ public static partial class TraconServiceCollectionExtensions
         // and IImageGenerator registrations only when the registry is first built.
         services.TryAddSingleton<IToolRegistry>(ToolRegistry.Create);
 
-        // Phase 234: runs the file tools of the session workspace (supplied by Microsoft Agent Framework, not in
-        // the registry) through the same tool chain. Built on first use, so a host that never turns a workspace
-        // on never builds it.
-        services.TryAddSingleton(static provider => WorkspaceToolGovernance.Create(provider));
+        // Phases 234 and 246: runs the tools Tracon adds to a run itself (the file tools of the session workspace,
+        // the knowledge search, the conversation memory search; none is in the registry) through the same tool
+        // chain. Built on first use, so a host that uses none of them never builds it.
+        services.TryAddSingleton(static provider => BuiltInToolGovernance.Create(provider));
 
         // Phase 234: erases, counts and exports the files of a session with the session. Always registered:
         // a definition stored in the database can turn a workspace on at any time, and a host with no

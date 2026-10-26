@@ -51,7 +51,7 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
-        if (_services?.GetService(typeof(WorkspaceToolGovernance)) is not WorkspaceToolGovernance governance
+        if (_services?.GetService(typeof(BuiltInToolGovernance)) is not BuiltInToolGovernance governance
             || _services.GetService(typeof(IOptionsMonitor<TraconWorkspaceOptions>)) is not IOptionsMonitor<TraconWorkspaceOptions> limits)
         {
             throw new TraconCompilationException(

@@ -425,6 +425,104 @@ public sealed class ConversationMemoryTests
     }
 
     [Fact]
+    public async Task A_denying_handler_stops_the_on_demand_search_before_the_store_is_read_and_sees_the_effect_and_the_tenant()
+    {
+        // Phase 246 (F-688): the search tool is supplied by the framework, so it is not in the tool registry, and until
+        // this phase it ran with none of the layers of the tool chain.
+        var provider = OnDemandProvider();
+        var store = new InMemoryVectorStore();
+        await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");
+        var searches = CountSearches(store);
+        var handler = new DenyingMemoryHandler("Memory is closed for you.");
+
+        await using var host = await StartHostAsync(
+            store,
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.AddAgent(MemoryAgent("memory-agent", OnDemand));
+            },
+            services => services.AddSingleton<IToolAuthorizationHandler>(handler));
+
+        var stream = await RunAsync(host, "ada", "new-session", ColourQuestion, tenant: "tenant-a");
+
+        searches().ShouldBe(0, "the store was read after the handler denied the call");
+        handler.Seen.ShouldHaveSingleItem().ShouldBe(("search_conversation_memory", ToolEffect.External, "tenant-a"));
+        stream.ShouldContain("Memory is closed for you.");
+        stream.ShouldNotContain("teal");
+
+        // The run was made under the header's tenant, and the run store reads under the ambient one.
+        using (AmbientTenantScope.Begin("tenant-a"))
+        {
+            var run = (await host.Services.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { AgentName = "memory-agent" }, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+            var call = (await host.Services.GetRequiredService<IRunStore>()
+                .ListToolInvocationsAsync(run.Id, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+            call.ToolName.ShouldBe("search_conversation_memory");
+            call.AuthorizationDenied.ShouldBeTrue();
+        }
+
+        store.Dispose();
+    }
+
+    [Fact]
+    public async Task An_on_demand_search_does_not_start_once_the_cost_budget_is_spent()
+    {
+        // The first tool of the turn spends the ceiling; the search is the second call of the same turn.
+        var provider = new FakeModelProvider(ProviderName)
+            .ForModel("memory-1", static cfg => cfg
+                .CallsTools(("speak_first", null), ("search_conversation_memory", new { userQuestion = "favourite colour" }))
+                .EchoesLastToolResult("Found: "));
+        var store = new InMemoryVectorStore();
+        await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");
+        var searches = CountSearches(store);
+
+        await using var host = await StartHostAsync(
+            store,
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.AddTool(
+                    (Func<string>)(static () =>
+                    {
+                        TraconToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 100m, Cost = 5m, Currency = "USD" }).ShouldBeTrue();
+
+                        return "spoken";
+                    }),
+                    name: "speak_first");
+                builder.AddAgent(MemoryAgent("memory-agent", OnDemand) with { ToolNames = ["speak_first"] });
+            },
+            services => services.Configure<TraconOptions>(static options =>
+            {
+                options.Pricing.Currency = "USD";
+                options.AgentGraph.MaxTotalCost = 1m;
+            }));
+
+        using var response = await PostRunAsync(host, "ada", "new-session", ColourQuestion, tenant: "tenant-a");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        searches().ShouldBe(0, "the refused search read the store");
+
+        using (AmbientTenantScope.Begin("tenant-a"))
+        {
+            var run = (await host.Services.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { AgentName = "memory-agent" }, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+            run.Status.ShouldBe(RunStatus.Failed);
+
+            var refused = (await host.Services.GetRequiredService<IRunStore>()
+                    .ListToolInvocationsAsync(run.Id, TestContext.Current.CancellationToken))
+                .Single(static call => string.Equals(call.ToolName, "search_conversation_memory", StringComparison.Ordinal));
+
+            refused.Succeeded.ShouldBeFalse();
+            refused.Error.ShouldNotBeNull().ShouldContain("The tool call did not start.", Case.Sensitive);
+        }
+
+        store.Dispose();
+    }
+
+    [Fact]
     public async Task The_before_each_turn_agent_does_not_offer_a_search_tool()
     {
         var (host, provider, _) = await StartAsync();
@@ -530,6 +628,37 @@ public sealed class ConversationMemoryTests
         });
     }
 
+    private static readonly MemorySettings OnDemand = new()
+    {
+        EnableConversationMemory = true,
+        ConversationMemorySearch = ConversationMemorySearch.OnDemand,
+    };
+
+    /// <summary>A model that calls the search tool of the on-demand mode once and echoes what it returned.</summary>
+    private static FakeModelProvider OnDemandProvider()
+        => new FakeModelProvider(ProviderName)
+            .ForModel("memory-1", static cfg => cfg
+                .CallsTool("search_conversation_memory", new { userQuestion = "favourite colour" })
+                .EchoesLastToolResult("Found: "));
+
+    /// <summary>Counts the searches the store receives; the store keeps working.</summary>
+    private static Func<int> CountSearches(InMemoryVectorStore store)
+    {
+        var searches = 0;
+
+        store.FailOn = operation =>
+        {
+            if (string.Equals(operation, "search", StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref searches);
+            }
+
+            return null;
+        };
+
+        return () => Volatile.Read(ref searches);
+    }
+
     private static AgentDefinition MemoryAgent(string name, MemorySettings? memory)
         => new()
         {
@@ -562,7 +691,10 @@ public sealed class ConversationMemoryTests
         return (host, provider, store);
     }
 
-    private static Task<TraconTestHost> StartHostAsync(InMemoryVectorStore store, Action<ITraconBuilder> configure)
+    private static Task<TraconTestHost> StartHostAsync(
+        InMemoryVectorStore store,
+        Action<ITraconBuilder> configure,
+        Action<IServiceCollection>? configureServices = null)
         => TraconTestHost.StartAsync(
             builder =>
             {
@@ -586,9 +718,25 @@ public sealed class ConversationMemoryTests
                     new HeaderAttribution(provider.GetRequiredService<IHttpContextAccessor>()));
                 services.AddSingleton<IDataSubjectResolver>(new SessionPrefixResolver());
                 services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+                configureServices?.Invoke(services);
             });
 
     private static async Task<string> RunAsync(
+        TraconTestHost host,
+        string? user,
+        string sessionId,
+        string message,
+        string agent = "memory-agent",
+        string? tenant = null)
+    {
+        using var response = await PostRunAsync(host, user, sessionId, message, agent, tenant);
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, body);
+
+        return body;
+    }
+
+    private static async Task<HttpResponseMessage> PostRunAsync(
         TraconTestHost host,
         string? user,
         string sessionId,
@@ -611,11 +759,7 @@ public sealed class ConversationMemoryTests
             request.Headers.Add(TenantHeader, tenant);
         }
 
-        using var response = await host.Client.SendAsync(request);
-        var body = await response.Content.ReadAsStringAsync();
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, body);
-
-        return body;
+        return await host.Client.SendAsync(request);
     }
 
     private static async Task QueueAsync(TraconTestHost host, string user, string sessionId, string message)
@@ -637,6 +781,33 @@ public sealed class ConversationMemoryTests
     /// <summary>Everything the model was sent on its last call, as one text.</summary>
     private static string ModelSaw(FakeModelProvider provider)
         => string.Join("\n", provider.Requests[^1].Messages.Select(static message => message.Text));
+
+    /// <summary>Denies every call and remembers what it was asked.</summary>
+    private sealed class DenyingMemoryHandler(string reason) : IToolAuthorizationHandler
+    {
+        private readonly List<(string Tool, ToolEffect Effect, string Tenant)> _seen = [];
+
+        public IReadOnlyList<(string Tool, ToolEffect Effect, string Tenant)> Seen
+        {
+            get
+            {
+                lock (_seen)
+                {
+                    return [.. _seen];
+                }
+            }
+        }
+
+        public ValueTask<ToolAuthorizationResult> AuthorizeAsync(ToolAuthorizationRequest request, CancellationToken cancellationToken = default)
+        {
+            lock (_seen)
+            {
+                _seen.Add((request.ToolName, request.Effect, request.TenantId));
+            }
+
+            return new(ToolAuthorizationResult.Deny(reason));
+        }
+    }
 
     /// <summary>Answers from the request; outside a request (the worker) it reports the ambient scope Tracon opens from the job.</summary>
     private sealed class HeaderAttribution(IHttpContextAccessor accessor) : IRunAttributionContext

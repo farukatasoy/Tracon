@@ -558,7 +558,8 @@ with that sentence as its error. A run that does not stream records no call rows
 call's included. The run itself ends as it always did: the next model call is refused, and the run is
 `Failed` with error type `run_budget_exceeded`. The refusal needs no setting, and a host whose run
 never passes a ceiling sees no change. The check happens before the authorization handler, so a spent
-run does not ask it. Code tools, workspace tools and MCP tools pass the check in the tool chain. A skill
+run does not ask it. Code tools, workspace tools, MCP tools, the knowledge search and the conversation memory search pass the check in the
+tool chain. A skill
 script is checked by the script runner when its run would start, with the same condition and the same
 sentence in the refusal.
 
@@ -571,10 +572,9 @@ sentence in the refusal.
   one turn start at the same time, so all of them start before any of them reports. An installation
   that needs the ceiling to hold turns concurrent calls off.
 
-Three kinds of tool are outside the check. A hosted tool (a provider's web search or code interpreter)
-runs inside the model call, so Tracon cannot see it start. The search tool of a knowledge base
-(`search_knowledge`) and the on-demand search of conversation memory (`search_conversation_memory`) are
-not in the tool chain. The next model call is still refused in all three cases.
+A hosted tool (a provider's web search or code interpreter) is not checked: it runs inside the model call, so
+Tracon cannot see it start. The file memory, todo and harness tools, an agent called as a tool and a tool that an
+agent extension adds are not checked either. The next model call is still refused.
 
 ## Wait for in-flight runs before the process stops
 

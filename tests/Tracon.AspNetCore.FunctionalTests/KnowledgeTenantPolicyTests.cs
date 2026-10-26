@@ -168,13 +168,14 @@ public sealed class KnowledgeTenantPolicyTests
     public async Task The_agent_tool_refuses_an_embedding_provider_the_tenant_policy_forbids()
     {
         var embeddings = new CountingEmbeddingGenerator();
+        var model = new FakeModelProvider("knowledge-model")
+            .CallsTool("search_knowledge", new { query = "refund policy" })
+            .EchoesLastToolResult();
         await using var host = await StartAsync(
             embeddings,
             EmbeddingProvider,
-            configureTracon: static builder => builder
-                .AddModelProvider(new FakeModelProvider("knowledge-model")
-                    .CallsTool("search_knowledge", new { query = "refund policy" })
-                    .EchoesLastToolResult())
+            configureTracon: builder => builder
+                .AddModelProvider(model)
                 .AddAgent(new AgentDefinition
                 {
                     Name = "knowledge-agent",
@@ -203,6 +204,16 @@ public sealed class KnowledgeTenantPolicyTests
         invocation.Succeeded.ShouldBeFalse();
         invocation.Error.ShouldNotBeNull().ShouldContain($"'{EmbeddingProvider}'");
         embeddings.Calls.ShouldBe(0);
+
+        // Phase 246 (F-688): the refusal is a sentence Tracon wrote for the model, so it reaches the model as the result of
+        // the call (the explained-failure layer of the tool chain), not as the framework's "Error: Function failed.".
+        var told = string.Join(
+            "\n",
+            model.Requests[^1].Messages.SelectMany(static message => message.Contents).OfType<FunctionResultContent>()
+                .Select(static result => result.Result?.ToString()));
+
+        told.ShouldContain($"'{EmbeddingProvider}'");
+        told.ShouldNotContain("Function failed");
     }
 
     private static async Task SavePolicyAsync(TraconTestHost host, params string[] allowed)

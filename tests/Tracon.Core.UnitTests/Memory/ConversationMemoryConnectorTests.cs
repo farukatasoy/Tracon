@@ -112,6 +112,7 @@ public sealed class ConversationMemoryConnectorTests : IDisposable
             agent,
             ConversationMemorySearch.BeforeEachTurn,
             maxResults: 5,
+            governance: null,
             loggerFactory: null);
 
     private static AgentRunScope Run(string tenant, string agent, string user, string session)

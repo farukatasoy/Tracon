@@ -359,6 +359,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The knowledge search and the on-demand conversation memory search run through the tool chain.** `search_knowledge`
+  (`MemorySettings.EnableVectorSearch`) and `search_conversation_memory` (`ConversationMemorySearch.OnDemand`) were added
+  to a run as bare functions, so your `IToolAuthorizationHandler`, your `IToolArgumentsValidator`, the tool timeout and
+  output limit, and the tree budget never saw them, and the refusal of a tenant's egress policy reached the model as "Error:
+  Function failed." Now both pass the chain a tool registered in code passes. **An authorization handler that denies
+  `ToolEffect.External` calls now also closes both searches:** it is asked with the tool name and `Effect = External`,
+  because the text of the query leaves the process, and the model reads your reason as the result. A validator that
+  rejects a tool it does not know rejects them too. Neither tool is in `IToolRegistry`, so `GET /api/tools` does not list
+  them; write their names in your policy as fixed text. A spent budget stops the search before the query is embedded; the
+  whole call, the embedding included, ends at `Tracon:Tools:DefaultTimeout` (30 seconds by default); and a hit reaches the model as text, trimmed at
+  `Tracon:Tools:DefaultMaxOutputBytes` like any tool result. The call line of `search_knowledge` in
+  `GET /api/runs/{id}/tools` now has a `usage`: unit `tokens`, the input token count of the embedded query as the provider
+  reported it, and no `cost`, so it adds to no budget, quota or webhook total; the run's `nonTokenCost` counts it under
+  `unsummedItemCount`. An embedding has no price in Tracon yet. See
+  [Embedding Tracon](https://tracon.dev/guides/embedding/#which-tools-reach-the-tool-authorization-handler).
 - **A tool call does not start once the call tree's budget is spent.** The budget (`Tracon:AgentGraph:MaxTotalTokens`,
   `MaxTotalCost`, `MaxDuration`) already refused the next model call, a new agent step and a workflow function node. A tool
   call was the one start it did not read, so when one model turn asked for two paid tools and the first passed the ceiling,
@@ -367,10 +382,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   start."; a streaming run (the HTTP run is one) records the call as failed; and the run ends at its next model call as
   before (`Failed`, `run_budget_exceeded`). All three limits stop a tool call, `MaxTotalTokens` included, since a model reads its
   result; a function node is still stopped by cost and time only. The check covers tools registered in code, session
-  workspace tools, MCP tools and skill scripts, and it runs before your `IToolAuthorizationHandler`. A tool that has started
+  workspace tools, MCP tools, the knowledge and conversation memory searches and skill scripts, and it runs before
+  your `IToolAuthorizationHandler`. A tool that has started
   is never stopped, so the call that crosses the ceiling is the last one that starts; with
   `ToolLoop.AllowConcurrentToolCalls` on, the tools of one turn start together and all of them start. A hosted tool runs
-  inside the model call and is not checked, and neither are the two search tools that read a knowledge base or a conversation memory. A host that sets no ceiling still has the default `MaxTotalTokens` of 200,000:
+  inside the model call and is not checked. A host that sets no ceiling still has the default `MaxTotalTokens` of 200,000:
   a tool that a turn asks for after the tree has passed it no longer runs. See
   [Bound multi-agent trees](https://tracon.dev/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
 - **`agentReview` is now a built-in loop criterion kind, so a criterion registered in code under that name is refused.**

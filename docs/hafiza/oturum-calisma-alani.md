@@ -1,7 +1,7 @@
 # Oturum Çalışma Alanı Tuzakları
 
 > `WorkspaceSettings`, `SessionWorkspaceProvider` (MAF `FileAccessProvider` sarmalayıcısı),
-> `SessionWorkspaceFileStore`, `IAgentFileTree`, `SessionWorkspaceEraser`, `WorkspaceToolGovernance`.
+> `SessionWorkspaceFileStore`, `IAgentFileTree`, `SessionWorkspaceEraser`, `BuiltInToolGovernance` (Faz 246 öncesi `WorkspaceToolGovernance`; arama tool'ları da kullanır, [`tool-onay-ve-yetkilendirme.md`](tool-onay-ve-yetkilendirme.md)).
 > Faz 234 (F-628). Konuşma hafızası ayrı dosyadadır: [`konusma-hafizasi.md`](konusma-hafizasi.md).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasıdır. Yalnızca bu alana dokunurken
@@ -19,7 +19,7 @@
 ## Tool zinciri ve onay
 
 - **MAF `FileAccessProvider` sealed'dır; sarmalayıcı `ProvideAIContextAsync`'i geçersiz kılar** ve içe BOŞ bir `AIContext` verir (taban sınıf birleştirmeyi yapar). Yalnız oturumlu run'da çağırır. Sarılmış tool dizisi bir kez kurulur ve her run paylaşır; depo oturumu her çağrıda `TraconRunContext`'ten okur.
-- **MAF'ın kendi onay sarmalayıcısı KAPALIDIR** (`DisableReadOnlyToolApproval = DisableWriteToolApproval = true`). Onayı `WorkspaceToolGovernance.Govern` kurar: yazma, değiştirme, satır değiştirme ve silme **her zaman** onay ister; okuma onayı `WorkspaceSettings.DisableReadApproval` ile kapanır. Bu yüzden sıra her tool'unki gibidir (Authorizing → Validating → Timeout → ApprovalRequired → Truncating → gövde) ve `ToolRegistry.RequiresApproval`'ın MAF sarmalı okuma yolu (MAF-KAPSAMA §0 #45) bu tool'lara gerekmez. Etki: okuma `Read`, yazma/değiştirme `Write`, silme `Destructive`.
+- **MAF'ın kendi onay sarmalayıcısı KAPALIDIR** (`DisableReadOnlyToolApproval = DisableWriteToolApproval = true`). Onayı `BuiltInToolGovernance.Govern` kurar: yazma, değiştirme, satır değiştirme ve silme **her zaman** onay ister; okuma onayı `WorkspaceSettings.DisableReadApproval` ile kapanır. Bu yüzden sıra her tool'unki gibidir (Authorizing → Validating → Timeout → ApprovalRequired → Truncating → gövde) ve `ToolRegistry.RequiresApproval`'ın MAF sarmalı okuma yolu (MAF-KAPSAMA §0 #45) bu tool'lara gerekmez. Etki: okuma `Read`, yazma/değiştirme `Write`, silme `Destructive`.
 - **Tool adı çakışması:** agent'ın kendi tool'u `file_access_*` adlarından birini taşıyamaz (MAF'ın "ad eşleşen tool otomatik onaylanır" notu: kullanıcının tool başına "hatırla" kuralı adla çalışır). Derleme reddeder; alt agent tool adları da aynı kümeyle çakışmaya bakar.
 - **🚨 Harness `FileAccessProvider`'ı YALNIZ `HarnessAgentOptions.FileAccessStore` atanınca kurar** (MAF 1.25 decompile, ölçüldü). Tracon atamaz (K-062/K-1029) ve sarmalı sağlayıcıyı `AIContextProviders`'a koyar, skill zinciri gibi. Çift tool yok: `A_harness_agent_gets_the_workspace_once…`.
 - **Yol temizliği iki katmanlıdır:** MAF tool'u `StorePaths.NormalizeRelativePath` ile `\`→`/`, `..` ve `.`, kök yol ve sürücü harfini reddeder; depo `SessionWorkspacePaths.Relative` ile yine reddeder (savunma). Toplam yol 400 karakteri aşamaz (`agent_files.path` SQL Server `nvarchar(400)`): tool modele kalan karakter sayısını söyler.

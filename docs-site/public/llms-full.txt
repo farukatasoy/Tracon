@@ -3797,6 +3797,13 @@ A denied call does not fail the run: the model receives the reason text as an or
 tool result and continues its turn — the same way a search that finds nothing is not an
 error. If your handler throws, the call is denied (fail-closed), never allowed.
 
+The chain does not stop at tools you register. The `file_access_*` tools of a session workspace
+and the two search tools Tracon adds itself, `search_knowledge` and the on-demand
+`search_conversation_memory`, run through it too, so the handler, the validator, the timeout and
+the budget check apply to them. The searches have the effect `External`, because the text of the
+query leaves the process. [Which tools reach the handler](/guides/embedding/#which-tools-reach-the-tool-authorization-handler)
+lists what is covered and what is not.
+
 Validation asks a narrower question, right after authorization: "are these specific
 arguments acceptable". Binding already rejects a type mismatch or a missing `required`
 field — including a required member of a generated tool's **object** parameter
@@ -4008,7 +4015,9 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   budget stops a tool call from starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
 - **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
   fill `Provider` and `Model` as well as the measurement. Prices come from
-  `Tracon:Pricing`; with none configured the amount stays unknown.
+  `Tracon:Pricing`; with none configured the amount stays unknown. `search_knowledge` reports
+  the input tokens of its query embedding in the unit `tokens` with no amount: an embedding has
+  no price in Tracon yet, so the call is listed and counted as not added.
 
 ## Hosted tools
 
@@ -9770,7 +9779,8 @@ file store.
 
 `EnableVectorSearch` is different. It adds the code-defined `search_knowledge` tool
 over a persistent semantic knowledge base that you loaded. It does not remember
-conversations. See [Knowledge and RAG](/guides/knowledge/).
+conversations. The tool runs through the same tool chain as a tool you register in code.
+See [Knowledge and RAG](/guides/knowledge/).
 
 `EnableConversationMemory` remembers what one user said to this agent in earlier
 sessions. It needs setup in code. See
@@ -9874,6 +9884,14 @@ that yet" can come back in a later search.
 The `OnDemand` tool is not part of the agent's `ToolNames`: it needs no approval, and
 it reads only the scope of the run that calls it. A tool of the agent with the same
 name fails the build.
+
+The tool runs through the same chain as a tool you register in code. Your
+[authorization handler](/guides/embedding/#which-tools-reach-the-tool-authorization-handler)
+is asked first, with the effect `External`: the text of the query reaches the embedding
+model of your vector store. Your argument validator and the tool timeout apply, and a run
+whose [budget](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting) is spent
+does not start the search. A handler that denies `External` calls therefore also closes this
+search, and the model reads your reason as the result.
 
 ### Deleting memory
 
@@ -10339,7 +10357,7 @@ six are wired the same way, are all optional, and can be added one at a time.
 |---|---|---|
 | `ITenantContext`, `ITenantStore` | The current tenant, resolved from your own identity layer | A single fixed tenant |
 | `IRunAttributionContext` | The current user and job labels a run belongs to | `UserId` and `Labels` are always `null` |
-| `IToolAuthorizationHandler` | A decision for every tool call: allowed or denied | Every call is allowed |
+| `IToolAuthorizationHandler` | A decision for every tool call that runs through the tool chain ([which tools](#which-tools-reach-the-tool-authorization-handler)): allowed or denied | Every call is allowed |
 | `IRunAuthorizationHandler` | A decision for every run start, every access to a run's resources, and every session access: allowed or denied | Every run starts, every run is readable, and every session is reachable |
 | `IRunEventSink` | A bridge that receives every run event as it is written | No bridge; events reach only `IRunStore` |
 | `IAttachmentStorage` | A place to write attachment bytes outside the database | Content is stored as `bytea` in the database |
@@ -10433,6 +10451,25 @@ the streamed reply of an agent with a [loop](/concepts/agents/#run-until-the-wor
 needs one more frame: `loop.iteration-completed` marks where an iteration ends, because
 nothing in the `update` frames does. The [embeddable chat widget](/ui/#embeddable-chat-widget)
 does not stream (it sends `Idempotency-Key`), so it gets the final iteration only.
+
+#### Which tools reach the tool authorization handler
+
+The handler is asked for every tool call that runs through Tracon's tool chain:
+
+- tools you register in code (`AddTool`, `AddToolsFrom`, `AddScopedTool`) and the built-in tools
+  `speak`, `transcribe` and `generate_image`;
+- the tools of the MCP servers of the tenant;
+- the `file_access_*` tools of a [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session),
+  with the effect `Read`, `Write` or `Destructive`;
+- `search_knowledge`, the search tool of a [knowledge base](/guides/knowledge/), and
+  `search_conversation_memory`, the on-demand search of
+  [conversation memory](/guides/context-and-memory/#remember-a-user-across-sessions), both with the effect `External`:
+  the text of the query leaves the process for the embedding provider and the vector store.
+
+It is not asked for a tool that Tracon does not run or does not own: a hosted tool (it runs at the model provider), an
+agent called as a tool, the skill tools, the file memory, todo and harness tools, and the tools a provider
+that an agent extension adds brings with it. The two search tools are not in the tool registry, so `GET /api/tools` does
+not list them: write their names in your policy as fixed text.
 
 ### 4 — Run event bridge
 
@@ -11797,8 +11834,9 @@ against this name before the text leaves the process, and refuses a tenant that 
 its own credential for this provider, because the generator holds the setup key.
 Without it, the name the generator reports is used, and that name does not tell
 providers apart: the OpenAI and the Azure OpenAI generators both report `openai`. When
-no name is known, a tenant with an egress policy is refused (`403`, and the tool call
-fails); a tenant without one is not affected. Every setting can also come from the
+no name is known, a tenant with an egress policy is refused (`403` on the endpoints; for
+the agent's tool, the model reads the refusal as the result of the call); a tenant without
+one is not affected. Every setting can also come from the
 `Tracon:Knowledge` section of configuration.
 
 The embedding model in this example produces 1,536 dimensions. If you choose another
@@ -11841,6 +11879,24 @@ tracon.AddAgent(new AgentDefinition
 The compiler adds `search_knowledge` automatically. Do not add it to `ToolNames`.
 When `VectorCollection` is empty, the agent name is used. The tool returns at most
 `TraconKnowledgeOptions.MaxResults` chunks.
+
+The tool runs through the same chain as a tool you register in code, before the query is
+embedded:
+
+- Your `IToolAuthorizationHandler` is asked first, with the tool name `search_knowledge`
+  and the effect `External`, because the text of the query leaves the process for the
+  embedding provider. A handler that denies `External` calls also closes the knowledge
+  base to the agent, and the model reads your reason as the result.
+  The tool is not in the tool registry, so `GET /api/tools` does not list it: write its
+  name in your policy as fixed text.
+- Your `IToolArgumentsValidator`, the tool timeout (`Tracon:Tools:DefaultTimeout`) and the
+  output limit apply. A run whose budget is spent does not start the search, so it does not
+  pay for the embedding.
+- The call line of `GET /api/runs/{id}/tools` carries `usage`: the unit `tokens`, the input
+  token count of the query as the embedding provider reported it, and no `cost`. An
+  embedding has no price in Tracon yet, so the amount never reaches a budget, a quota or the
+  webhook total. The run's `nonTokenCost` lists the call under `unsummedItemCount`. A provider
+  that reports no token count leaves the line out.
 
 The console does not currently provide a knowledge-management screen or vector-memory
 fields in the agent editor. Use the knowledge HTTP API for ingestion and calibration,
@@ -15558,7 +15614,8 @@ with that sentence as its error. A run that does not stream records no call rows
 call's included. The run itself ends as it always did: the next model call is refused, and the run is
 `Failed` with error type `run_budget_exceeded`. The refusal needs no setting, and a host whose run
 never passes a ceiling sees no change. The check happens before the authorization handler, so a spent
-run does not ask it. Code tools, workspace tools and MCP tools pass the check in the tool chain. A skill
+run does not ask it. Code tools, workspace tools, MCP tools, the knowledge search and the conversation memory search pass the check in the
+tool chain. A skill
 script is checked by the script runner when its run would start, with the same condition and the same
 sentence in the refusal.
 
@@ -15571,10 +15628,9 @@ sentence in the refusal.
   one turn start at the same time, so all of them start before any of them reports. An installation
   that needs the ceiling to hold turns concurrent calls off.
 
-Three kinds of tool are outside the check. A hosted tool (a provider's web search or code interpreter)
-runs inside the model call, so Tracon cannot see it start. The search tool of a knowledge base
-(`search_knowledge`) and the on-demand search of conversation memory (`search_conversation_memory`) are
-not in the tool chain. The next model call is still refused in all three cases.
+A hosted tool (a provider's web search or code interpreter) is not checked: it runs inside the model call, so
+Tracon cannot see it start. The file memory, todo and harness tools, an agent called as a tool and a tool that an
+agent extension adds are not checked either. The next model call is still refused.
 
 ## Wait for in-flight runs before the process stops
 
