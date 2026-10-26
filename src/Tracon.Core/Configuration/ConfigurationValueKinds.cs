@@ -57,10 +57,11 @@ internal static class ConfigurationValueKinds
         => TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out value);
 
     /// <summary>
-    /// Reads an enum name or number. A plain enum accepts only a defined member: the
-    /// parser takes any number, so <c>"7"</c> would otherwise become a member that
-    /// does not exist. A <c>[Flags]</c> enum keeps the parser's reading; its undefined
-    /// bits are the options validator's to refuse.
+    /// Reads an enum name or number. A plain enum accepts only one defined member: the parser
+    /// takes any number, so <c>"7"</c> would otherwise become a member that does not exist, and
+    /// it ORs a comma-separated list, so <c>"Tenant,Global"</c> would become a third member.
+    /// A <c>[Flags]</c> enum keeps the parser's reading; its undefined bits are the options
+    /// validator's to refuse.
     /// </summary>
     /// <typeparam name="TEnum">The enum type.</typeparam>
     /// <param name="text">The text.</param>
@@ -68,8 +69,15 @@ internal static class ConfigurationValueKinds
     /// <returns>Whether the text is readable.</returns>
     internal static bool TryEnum<TEnum>(string text, out TEnum value)
         where TEnum : struct, Enum
-        => Enum.TryParse(text, ignoreCase: true, out value)
-            && (IsFlags<TEnum>() || Enum.IsDefined(value));
+    {
+        if (!Enum.TryParse(text, ignoreCase: true, out value))
+        {
+            return false;
+        }
+
+        return IsFlags<TEnum>()
+            || (!text.Contains(',', StringComparison.Ordinal) && Enum.IsDefined(value));
+    }
 
     /// <summary>Describes the members of an enum, completing "which is not …".</summary>
     /// <typeparam name="TEnum">The enum type.</typeparam>

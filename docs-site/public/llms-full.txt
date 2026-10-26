@@ -23007,20 +23007,28 @@ The configuration key separator is `:`. Environment variables use `__`, so
 
 ### A value that cannot be read stops the host
 
-A key that holds text its type cannot read stops the application at startup. The
-message names the full key and quotes the text, and it lists every such key of the
-options at once:
+A number, flag, time span or enum key that holds text it cannot read stops the
+application at startup. The message names the full key and quotes the text, and it lists
+every such key of the same options type at once:
 
 ```text
 Tracon:Tools:DefaultMaxOutputBytes is '10MB', which is not a 32-bit whole number.
 Write a valid value, or remove the key to keep the default.
 ```
 
-Tracon never skips such a key and keeps the default. Several defaults are the loose
+Tracon does not skip such a key and keep the default. Several defaults are the loose
 side: `10MB` instead of a number would leave tool output unbounded, `nope` or `yes`
 instead of `false` or `true` would leave a protection or a limit as it was. A number is
 a whole number or a decimal written with `.`, a flag is `true` or `false`, a duration
-is a time span such as `00:00:30`, and an enum is one of its member names.
+is a time span such as `00:00:30`, and an enum is one of its member names. A plain enum
+takes one member: `Tenant,Global` is refused, and so is a number that names no member.
+
+:::note[Address keys are not covered yet]
+`Voice:Endpoint`, `Providers:OpenAI:Live:Endpoint` and `Mcp:OAuthCallbackBaseUri` take an
+absolute address. Text that is not one is still ignored and the default stays, so check
+them by eye. The `Endpoint` keys of the model providers are checked by the provider's own
+validator, which refuses a relative address.
+:::
 
 - **Empty means not given.** A key with no text, or only white space, keeps the default.
 - **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
