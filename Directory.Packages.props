@@ -313,7 +313,7 @@
       gelmez; test fixture'i eksikse kendisi indirir (bkz.
       tests/Tracon.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
     -->
-    <PackageVersion Include="Microsoft.Playwright" Version="1.63.0" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.64.1" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--
