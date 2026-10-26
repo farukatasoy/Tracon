@@ -15,6 +15,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [250](250-ALT-AGENT-SURUM-SABITI.md) | Alt Agent Sürüm Sabiti | 🔧 Uygulandı, kapanış koşuyor (2026-10-26) |
+| [250](250-ALT-AGENT-SURUM-SABITI.md) | Alt Agent Sürüm Sabiti | ✅ Tamamlandı |
 
 Kapanan fazlar (249 kayıt; son: Faz 249 — Kod Grafında Agent Sürümünü Run Parametresi Seçer): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
