@@ -609,7 +609,13 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that inserts the tenant record when it is absent.</summary>
     public string UpsertTenant { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that inserts an agent definition or increments its version.</summary>
+    /// <summary>
+    /// Gets the query that takes the next version number of a name from its counter and returns it. The counter
+    /// outlives the definition: a delete keeps it, so a number is never given twice (phase 248).
+    /// </summary>
+    public string UpsertAgentDefinitionVersionCounter { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that inserts an agent definition or moves it to the version the counter gave.</summary>
     public string UpsertAgentDefinition { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that inserts the immutable version record of a definition.</summary>

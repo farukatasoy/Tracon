@@ -235,6 +235,44 @@ public sealed class WorkflowAgentVersionPinTests
         (await ChildRowsAsync(host, run.Id)).ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task A_pin_does_not_reach_the_content_of_an_agent_created_again_under_the_same_name()
+    {
+        // Phase 248: a version number is an identity. Before it, the numbering restarted at 1 when the agent
+        // was created again, so the pin to version 2 named the NEW agent's second save and ran its text.
+        var provider = Provider();
+        await using var host = await StartAsync(provider);
+
+        await CreateAgentAsync(host, Writer, "OLD ONE");
+        await UpdateAgentAsync(host, Writer, "OLD TWO");
+        await CreateAgentAsync(host, Editor, "EDIT text");
+
+        (await SaveAsync(host, Workflow, Plain(Editor), Pinned(Writer, 2))).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using (var deleted = await host.Client.DeleteAsync($"/tracon/api/agents/{Writer}"))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        await CreateAgentAsync(host, Writer, "NEW ONE");
+        await UpdateAgentAsync(host, Writer, "NEW TWO");
+
+        // The new era holds versions 3 and 4; number 2 names nothing.
+        using (var versions = await host.Client.GetAsync($"/tracon/api/agents/{Writer}/versions"))
+        {
+            (await TraconTestHost.ReadJsonAsync(versions)).EnumerateArray()
+                .Select(static version => version.GetProperty("version").GetInt32())
+                .ShouldBe([4, 3]);
+        }
+
+        var run = await RunAsync(host, Workflow);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull().Message.ShouldContain("pins agent 'writer' to version 2", Case.Sensitive);
+        provider.Requests.ShouldBeEmpty("the editor, which runs first, never started and no step ran the new agent's text");
+        (await ChildRowsAsync(host, run.Id)).ShouldBeEmpty();
+    }
+
     // --- Helpers ---------------------------------------------------------
 
     private static FakeModelProvider Provider()

@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Tracon;
@@ -12,6 +13,12 @@ namespace Tracon;
 /// every save increments the version, history is never deleted, and a rollback
 /// writes the old version back as a new version. A behavior difference between
 /// the two implementations is a defect and is guarded by the shared contract tests.
+/// </para>
+/// <para>
+/// The version comes from <c>agent_definition_version_counters</c>, not from the
+/// definition's row. A delete removes the definition and its versions but keeps the
+/// counter, so the next save under the same name continues the numbering and a
+/// version number is never given twice.
 /// </para>
 /// <para>
 /// All operations are scoped by <see cref="ITenantContext.TenantId"/>. A tenant
@@ -193,11 +200,24 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         return await _context.ExecuteInTransactionAsync(
             async (connection, transaction) =>
             {
+                // The number comes from the counter, not from the agent's row: the row goes with a
+                // delete and the counter does not, so a number is never given twice for one name.
+                var counter = _context.CreateCommand(_sql.UpsertAgentDefinitionVersionCounter, connection, transaction);
+
+                DbHelpers.AddTenant(counter, tenantId);
+                DbHelpers.Add(counter, "name", name);
+                Dialect.AddTimestamp(counter, "now", now);
+
+                var version = await DbHelpers.ExecuteScalarAsync(counter, cancellationToken).ConfigureAwait(false) is { } next
+                    ? Convert.ToInt32(next, CultureInfo.InvariantCulture)
+                    : throw new TraconException($"Could not save the '{name}' agent definition: the database did not return a version number.");
+
                 var upsert = _context.CreateCommand(_sql.UpsertAgentDefinition, connection, transaction);
 
                 DbHelpers.Add(upsert, "id", TraconId.NewId());
                 DbHelpers.AddTenant(upsert, tenantId);
                 DbHelpers.Add(upsert, "name", name);
+                DbHelpers.Add(upsert, "version", version);
                 Dialect.AddJsonb(upsert, "definition", payload);
                 Dialect.AddTimestamp(upsert, "now", now);
 

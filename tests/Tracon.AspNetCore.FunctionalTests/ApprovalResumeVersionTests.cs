@@ -92,6 +92,38 @@ public sealed class ApprovalResumeVersionTests
     }
 
     /// <summary>
+    /// Phase 248: the agent was deleted and created again while the approval waited. The numbering used to
+    /// restart at 1, so the recorded version 1 named the NEW agent and the continuation ran its text in the
+    /// place of the instructions that asked for the approval.
+    /// </summary>
+    [Fact]
+    public async Task An_approved_tool_call_does_not_resume_on_an_agent_created_again_under_the_same_name()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider);
+
+        await SaveVersionAsync(host, "v1", create: true);
+
+        var sourceRunId = await QueueRunAwaitingApprovalAsync(host);
+
+        using (var deleted = await host.Client.DeleteAsync(Agent))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        // The new agent is version 2: version 1 names nothing.
+        await SaveVersionAsync(host, "recreated", create: true);
+
+        var requestsBefore = provider.Requests.Count;
+        var resumed = await DecideAndWaitForResumedRunAsync(host, sourceRunId);
+
+        resumed.Status.ShouldBe(RunStatus.Failed);
+        provider.Requests.Skip(requestsBefore).ShouldNotContain(
+            static request => request.Options!.Instructions == "recreated",
+            "the continuation never ran the new agent's instructions");
+    }
+
+    /// <summary>
     /// A schedule can enqueue an ApprovalResume job with a hand-written
     /// payload; the source run's version is pinned only for the agent that
     /// run ran.

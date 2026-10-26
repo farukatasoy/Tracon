@@ -91,6 +91,8 @@ Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.The_exit_code_and_s
 Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.The_script_sees_its_two_variables_and_not_the_host_environment() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.AgentDefinitionStoreContract() -> void
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Concurrent_saves_of_one_name_get_distinct_versions_across_a_delete() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.DeleteAsync_of_a_name_that_never_existed_does_not_start_a_numbering() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.DeleteAsync_removes_all_versions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Each_tenants_version_counter_is_its_own() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.GetAsync_for_a_missing_definition_returns_null() -> System.Threading.Tasks.Task!
@@ -99,13 +101,18 @@ Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.GetVersionAsync_fo
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.GetVersionAsync_returns_the_requested_version() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.ListAsync_orders_by_name() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.ListVersionsAsync_orders_newest_to_oldest() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.One_tenants_delete_does_not_move_another_tenants_numbering() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_after_a_recreate_continues_the_numbering() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_for_a_deleted_agent_throws_and_keeps_the_numbering() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_for_a_missing_agent_throws() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_saves_the_old_version_as_a_new_version() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.RollbackAsync_to_a_missing_version_throws() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_after_DeleteAsync_continues_the_numbering() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_increments_version_and_keeps_history() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_marks_origin_as_database() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_round_trips_all_definition_fields() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Tenant_cannot_roll_back_another_tenants_definition() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.The_numbering_survives_every_delete_not_only_the_first() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentFileStoreContract
 Tracon.Testing.Contracts.Storage.AgentFileStoreContract.AgentFileStoreContract() -> void
 Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Creating_a_directory_does_not_produce_a_record() -> System.Threading.Tasks.Task!

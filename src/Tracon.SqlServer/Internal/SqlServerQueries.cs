@@ -149,9 +149,22 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Agent definitions ---
 
+        UpsertAgentDefinitionVersionCounter = $"""
+            UPDATE {Schema}.agent_definition_version_counters WITH (UPDLOCK, SERIALIZABLE)
+               SET last_version = last_version + 1,
+                   updated_at   = @now
+             OUTPUT inserted.last_version
+             WHERE tenant_id = @tenant_id AND name = @name;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.agent_definition_version_counters (tenant_id, name, last_version, updated_at)
+            OUTPUT inserted.last_version
+            VALUES (@tenant_id, @name, 1, @now);
+            """;
+
         UpsertAgentDefinition = $"""
             UPDATE {Schema}.agent_definitions WITH (UPDLOCK, SERIALIZABLE)
-               SET version    = version + 1,
+               SET version    = @version,
                    definition = @definition,
                    updated_at = @now
              OUTPUT inserted.id, inserted.version
@@ -160,7 +173,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.agent_definitions (id, tenant_id, name, version, definition, created_at, updated_at)
             OUTPUT inserted.id, inserted.version
-            VALUES (@id, @tenant_id, @name, 1, @definition, @now, @now);
+            VALUES (@id, @tenant_id, @name, @version, @definition, @now, @now);
             """;
 
         // --- Skills ---

@@ -132,6 +132,127 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
+    public async Task SaveAsync_after_DeleteAsync_continues_the_numbering()
+    {
+        // A version number is an identity: a run, a workflow node, an approval or an experiment arm
+        // that recorded version 2 must never be handed another content under that number.
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "first era 1" });
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "first era 2" });
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "first era 3" });
+
+        (await Store.DeleteAsync("a")).ShouldBeTrue();
+
+        var recreated = await Store.SaveAsync(TestData.Definition("a") with { Instructions = "second era" });
+
+        recreated.Version.ShouldBe(4);
+
+        // The old numbers name nothing: the history went with the delete, the numbers did not come back.
+        (await Store.GetVersionAsync("a", 1)).ShouldBeNull();
+        (await Store.GetVersionAsync("a", 2)).ShouldBeNull();
+        (await Store.GetVersionAsync("a", 3)).ShouldBeNull();
+        (await Store.GetVersionAsync("a", 4))!.Instructions.ShouldBe("second era");
+        (await Store.ListVersionsAsync("a")).Select(static v => v.Version).ShouldBe([4]);
+        (await Store.GetAsync("a"))!.Version.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task The_numbering_survives_every_delete_not_only_the_first()
+    {
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.DeleteAsync("a");
+        (await Store.SaveAsync(TestData.Definition("a"))).Version.ShouldBe(3);
+        await Store.DeleteAsync("a");
+
+        // A second delete of a name that is already gone changes nothing.
+        (await Store.DeleteAsync("a")).ShouldBeFalse();
+
+        (await Store.SaveAsync(TestData.Definition("a"))).Version.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_of_a_name_that_never_existed_does_not_start_a_numbering()
+    {
+        (await Store.DeleteAsync("never")).ShouldBeFalse();
+
+        (await Store.SaveAsync(TestData.Definition("never"))).Version.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RollbackAsync_after_a_recreate_continues_the_numbering()
+    {
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.DeleteAsync("a");
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "recreated" });
+
+        // Version 3 is the recreated one; the rollback is a new version, version 4.
+        var restored = await Store.RollbackAsync("a", version: 3);
+
+        restored.Version.ShouldBe(4);
+        restored.Instructions.ShouldBe("recreated");
+
+        // A version of the deleted era cannot be rolled back to.
+        await Should.ThrowAsync<TraconException>(async () => await Store.RollbackAsync("a", version: 1));
+    }
+
+    [Fact]
+    public async Task RollbackAsync_for_a_deleted_agent_throws_and_keeps_the_numbering()
+    {
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.DeleteAsync("a");
+
+        await Should.ThrowAsync<TraconException>(async () => await Store.RollbackAsync("a", version: 2));
+
+        (await Store.GetAsync("a")).ShouldBeNull();
+        (await Store.SaveAsync(TestData.Definition("a"))).Version.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task One_tenants_delete_does_not_move_another_tenants_numbering()
+    {
+        AmbientTenant.TenantId = TenantA;
+        await Store.SaveAsync(TestData.Definition("support"));
+        await Store.SaveAsync(TestData.Definition("support"));
+
+        AmbientTenant.TenantId = TenantB;
+        await Store.SaveAsync(TestData.Definition("support"));
+        await Store.DeleteAsync("support");
+
+        // Tenant A's name keeps its own counter and tenant B's counter is its own.
+        AmbientTenant.TenantId = TenantA;
+        (await Store.SaveAsync(TestData.Definition("support"))).Version.ShouldBe(3);
+
+        AmbientTenant.TenantId = TenantB;
+        (await Store.SaveAsync(TestData.Definition("support"))).Version.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Concurrent_saves_of_one_name_get_distinct_versions_across_a_delete()
+    {
+        // The first save of a name goes through the INSERT branch of the upsert, every other through the
+        // UPDATE branch: both are in the run, before and after the delete.
+        const int Writers = 8;
+
+        await Store.SaveAsync(TestData.Definition("a"));
+        await Store.DeleteAsync("a");
+
+        var saved = await Task.WhenAll(Enumerable.Range(1, Writers).Select(
+            index => Task.Run(async () => await Store.SaveAsync(TestData.Definition("a") with { Instructions = $"Writer {index}." }))));
+
+        saved.Select(static definition => definition.Version).Order().ShouldBe(Enumerable.Range(2, Writers));
+
+        // A number names one content: what each caller was told it wrote is what that version holds.
+        foreach (var definition in saved)
+        {
+            (await Store.GetVersionAsync("a", definition.Version))!.Instructions.ShouldBe(definition.Instructions);
+        }
+
+        (await Store.GetAsync("a"))!.Version.ShouldBe(Writers + 1);
+    }
+
+    [Fact]
     public async Task GetAsync_for_a_missing_definition_returns_null()
         => (await Store.GetAsync("missing")).ShouldBeNull();
 

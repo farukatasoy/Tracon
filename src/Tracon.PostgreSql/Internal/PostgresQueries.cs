@@ -66,11 +66,20 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // --- Agent definitions ---
 
+        UpsertAgentDefinitionVersionCounter = $"""
+            INSERT INTO {Schema}.agent_definition_version_counters (tenant_id, name, last_version, updated_at)
+            VALUES (@tenant_id, @name, 1, @now)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET last_version = {Schema}.agent_definition_version_counters.last_version + 1,
+                    updated_at   = EXCLUDED.updated_at
+            RETURNING last_version;
+            """;
+
         UpsertAgentDefinition = $"""
             INSERT INTO {Schema}.agent_definitions (id, tenant_id, name, version, definition, created_at, updated_at)
-            VALUES (@id, @tenant_id, @name, 1, @definition, @now, @now)
+            VALUES (@id, @tenant_id, @name, @version, @definition, @now, @now)
             ON CONFLICT (tenant_id, name) DO UPDATE
-                SET version    = {Schema}.agent_definitions.version + 1,
+                SET version    = EXCLUDED.version,
                     definition = EXCLUDED.definition,
                     updated_at = EXCLUDED.updated_at
             RETURNING id, version;
