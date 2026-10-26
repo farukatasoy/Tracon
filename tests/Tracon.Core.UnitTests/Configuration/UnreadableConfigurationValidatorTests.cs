@@ -63,6 +63,8 @@ public sealed class UnreadableConfigurationValidatorTests
     [InlineData("Tracon:RateLimit:Enabled", "evet", "true or false")]
     [InlineData("Tracon:Webhooks:Timeout", "30s", "time span")]
     [InlineData("Tracon:RateLimit:Partition", "per-user", "one of")]
+    [InlineData("Tracon:RateLimit:Partition", "Tenant,Global", "one of")]
+    [InlineData("Tracon:RateLimit:Partition", "7", "one of")]
     [InlineData("Tracon:AgentGraph:MaxTotalCost", "1,5", "decimal separator")]
     [InlineData("Tracon:Attachments:MaxBytes", "99999999999999999999", "64-bit whole number")]
     [InlineData("Tracon:MaxParameterValueLength", "3000000000", "32-bit whole number")]

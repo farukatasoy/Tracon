@@ -4777,4 +4777,4 @@ Otomatik karşılığı: `UnreadableConfigurationValidatorTests.A_list_key_that_
 - (1) Uygulama açılmaz (çıkış `134`); mesaj `Tracon:Skills:Scripts:EnvironmentAllowList is 'PATH', a single value` der ve `write it as Tracon:Skills:Scripts:EnvironmentAllowList:0` önerir.
 - (2) Uygulama açılır.
 
-2026-10-26 koşumu: (1) çıkış `134`, mesaj `…:EnvironmentAllowList:0` biçimini önerdi.
+2026-10-26 koşumu: (1) çıkış `134`, mesaj `…:EnvironmentAllowList:0` biçimini önerdi; (2) `Now listening on: http://localhost:5080`, `GET /tracon/api/meta` `200`.

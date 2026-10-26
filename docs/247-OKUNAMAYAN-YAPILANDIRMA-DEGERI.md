@@ -1,6 +1,6 @@
 # Faz 247 — Okunamayan Yapılandırma Değeri Açılışta Durur
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** ✅ Tamamlandı (2026-10-26)
 > **Kademe:** tam — geri dönüşü pahalı karar ve public davranış sözleşmesi: yapılandırmanın neyi kabul ettiği ve hostun ne zaman durduğu değişir. GA'dan sonra bu kuralı gevşetmek ya da sıkılaştırmak major sürüm ister
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan kararlar: okunamayan **her** skaler açılışta hata verir — kayıt başına sınıflandırma yok; boş ya da yalnız boşluk "verilmedi" kalır; liste anahtarına verilen tek skaler değer hatadır; F-513 kapsam dışı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-572**, **F-508**
@@ -263,17 +263,17 @@ Case'ler `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`'ye eklenir.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `Tracon:Tools:DefaultMaxOutputBytes = "10MB"` ile host açılmaz; mesaj anahtarı ve metni alıntılar
-- [ ] 181 sessiz site, 8 fiyat okuması ve 10 katalog alanı aynı kurala bağlı; kaynak taraması sıfır sessiz site raporlar
-- [ ] Birden çok okunamayan değer tek mesajda listelenir; bağlamadan sonra kodda yazılan değer kazanır
-- [ ] Liste anahtarına tek değer açılışı durdurur ve `:0` önerir; `[]` ve boş değer varsayılanı korur
-- [ ] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
-- [ ] `samples/Tracon.Api` ile gerçek açılış denendi (manuel case 1–2) ve geçerli yapılandırmayla gerçek `run` yapıldı; çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (247.5); `npm run build` + `check-links.mjs` temiz; `CHANGELOG.md` *Changed* satırı yazıldı
-- [ ] K-993'ün skalere genişlemesi `docs/KARARLAR.md`'ye yazıldı (reddedilen alternatifler: uyar ve atla · anahtar başına sınıflandırma · bağlama anında atmak)
+- [x] `Tracon:Tools:DefaultMaxOutputBytes = "10MB"` ile host açılmaz; mesaj anahtarı ve metni alıntılar
+- [x] 181 sessiz site, 8 fiyat okuması ve 10 katalog alanı aynı kurala bağlı; kaynak taraması sıfır sessiz site raporlar (`Uri.TryCreate` üç sitesi kapsam dışı: sapma 11, F-702)
+- [x] Birden çok okunamayan değer tek mesajda listelenir (seçenek tipi başına, sapma 7); bağlamadan sonra kodda yazılan değer kazanır
+- [x] Liste anahtarına tek değer açılışı durdurur ve `:0` önerir; `[]` ve boş değer varsayılanı korur
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
+- [x] `samples/Tracon.Api` ile gerçek açılış denendi (manuel case 1–2) ve geçerli yapılandırmayla gerçek `run` yapıldı; çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü
+- [x] `🤖` case'ler `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içinde ve koşuldu; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `docs-site/` güncellendi (247.5); `npm run build` + `check-links.mjs` temiz; `CHANGELOG.md` *Changed* satırı yazıldı
+- [x] K-993'ün skalere genişlemesi `docs/KARARLAR.md`'ye yazıldı (reddedilen alternatifler: uyar ve atla · anahtar başına sınıflandırma · bağlama anında atmak)
 
 ### Doğrulama komutları
 
@@ -329,8 +329,8 @@ cd samples/Tracon.Api && Tracon__Tools__DefaultMaxOutputBytes=10MB dotnet run --
    "kaldırılan `Responses` kipi" ipucu (XML ve site aynı bilgiyi taşır).
 5. **Ondalık sayıda binlik ayracı yok.** `NumberStyles.Number` `"1,5"`'i 15 okuyordu; sessiz yanlış okuma `ReadDecimal`
    ve katalog okuyucularında vardı. Okuyucu `AllowThousands`'sız stil kullanır, `"1,5"` okunamaz sayılır.
-6. **Enum'da tanımsız sayı reddedilir.** `Enum.TryParse` `"7"`'yi tanımsız üye olarak kabul ederdi. Düz enum yalnız tanımlı
-   üyeyi alır; `[Flags]` enum'da tanımsız bit seçenek doğrulayıcısının işidir (`MaskedPii`, K-993).
+6. **Enum'da tanımsız sayı ve virgüllü liste reddedilir.** `Enum.TryParse` `"7"`'yi tanımsız üye, `"Tenant,Global"`'ı üçüncü bir üye
+   (0\|1 = 1) olarak okurdu (denetim 🟡1). Düz enum yalnız tek tanımlı üyeyi alır; `[Flags]` enum'da tanımsız bit seçenek doğrulayıcısının işidir (`MaskedPii`, K-993).
 7. **Manuel case 1'in anahtarları değişti.** Plan `Tools:DefaultMaxOutputBytes` + `RateLimit:Enabled` ile "tek mesaj iki
    anahtar" bekliyordu; ikisi **ayrı seçenek tipidir**. Örnek uygulama `TraconOptions`'ı açılışta eager okur
    (`Program.cs:525`), bu yüzden ilk hata yalnız `TraconOptions`'ı gösterir. Tek mesaj kuralı **seçenek tipi başınadır**;
@@ -347,6 +347,14 @@ cd samples/Tracon.Api && Tracon__Tools__DefaultMaxOutputBytes=10MB dotnet run --
 11. **Kapsam dışı kalan: `Uri` anahtarları.** `Tracon:Voice:Endpoint`, `Tracon:Providers:OpenAI:Live:Endpoint` ve `Tracon:Mcp:OAuthCallbackBaseUri`
     `Uri.TryCreate(…, Absolute)` ile okunur ve mutlak olmayan metni sessizce atlar. Plan "skaler" dedi ve tip listesinde
     `Uri` yok; kaynak taraması `Uri.TryCreate`'e dokunmaz. Aday olarak yazıldı (F-702).
+12. **`UseOpenAICompatible` ortak kayıt yolunu kullanmıyordu (pakette bulundu).** Adlandırılmış seçenekleri elle kaydeder;
+    `UnreadableConfigurationValidator<OpenAIProviderOptions>` orada yoktu ve `Timeout = "30s"` yalnız `UseOpenAI()` da
+    çağrılırsa (tesadüfen) açılışı durduruyordu. Planın dosya listesi bu dosyayı sayarken yalnız `OpenAIProviderExtensions.cs`'yi
+    anmıştı. Kayıt eklendi; `UnreadableConfigurationValidator.Add` kullanılmadı: o, adsız seçeneği de `ValidateOnStart`'a
+    sokar ve yalnız uyumlu sağlayıcı kullanan bir host'ta var olmayan `ApiKey` yüzünden açılmazdı.
+13. **SQL deposu testleri `*.IntegrationTests`'te değil `Tracon.Sql.Shared.UnitTests`'te.** Üç entegrasyon projesinin assembly
+    fixture'ı, fixture almayan bir sınıf için bile konteyner başlatır (`docker events` ile ölçüldü). Üç pakete de başvuran
+    `Sql.Shared.UnitTests` Docker istemez; plandaki `*BindingTests` yeri değişti.
 
 ## Bu Fazda Verilen Kararlar
 
@@ -367,10 +375,10 @@ cd samples/Tracon.Api && Tracon__Tools__DefaultMaxOutputBytes=10MB dotnet run --
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 13 sapma (planın kendisi yeniden yazılmadı; her sapma `Plandan Sapmalar`da gerekçeli) |
+| Düzeltme turu sayısı | 2 (paket testi ajanının bulduğu `UseOpenAICompatible` kaydı · denetimin enum virgülü, site kapsamı ve kayıt bulguları) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (🟡 3: biri gerçek kusur, düzeltildi; 🟢 3: F-703, F-704, K-1015 notu) |
+| Fazın ürettiği regresyon | 0 (bir eksik kayıt, `UseOpenAICompatible`, aynı fazda bulundu ve kapandı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -378,3 +386,14 @@ cd samples/Tracon.Api && Tracon__Tools__DefaultMaxOutputBytes=10MB dotnet run --
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetçi: `faz-denetcisi`, taze bağlam, `git diff e6998f0d..HEAD`. 🔴 yok.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Skaler enum okuyucusu virgüllü metni başka bir üye diye okur (`RateLimit:Partition = "Tenant,Global"` → `Global`) | 🟡 | düzeltildi: `TryEnum` düz enum'da virgüllü metni reddeder; testler `Tenant,Global` ve `7` |
+| Site sayfası "hiçbir anahtar atlanmaz" der; üç `Uri` anahtarı atlanır | 🟡 | düzeltildi: sayfa kapsamı sayı, bayrak, süre ve enum olarak yazıldı ve adres anahtarlarını adıyla sayar; kod F-702'de |
+| `MT-PKG-174` adım 2'nin koşum sonucu yazılmamış | 🟡 | düzeltildi: adım 2 koşuldu, `Now listening`, `/tracon/api/meta` `200` |
+| `TimeSpan` anahtarında çıplak sayı gün sayılır (`"30"` = 30 gün) | 🟢 | F-703 olarak devredildi |
+| Sözlük anahtarına verilen tek skaler değer yok sayılır | 🟢 | F-704 olarak devredildi |
+| K-1015 satırına not düşülmedi | 🟢 | düzeltildi: K-1015 satırına not eklendi |
