@@ -262,6 +262,7 @@
 | 246 | Bilgi ve Konuşma Hafızası Aramaları Tool Zincirinden Geçer | tam | ✅ | 2026-10-26 | F-688 | `0c8445b1:docs/246-ARAMA-TOOLLARI-ZINCIRDE.md` |
 | 247 | Okunamayan Yapılandırma Değeri Açılışta Durur | tam | ✅ | 2026-10-26 | F-572 · F-508 | `c1519389:docs/247-OKUNAMAYAN-YAPILANDIRMA-DEGERI.md` |
 | 248 | Agent Sürüm Numarası Silmede Yeniden Kullanılmaz | tam | ✅ | 2026-10-26 | F-409 | `b04dac53:docs/248-AGENT-SURUM-NUMARASI-KIMLIGI.md` |
+| 249 | Kod Grafında Agent Sürümünü Run Parametresi Seçer | hafif | ✅ | 2026-10-26 | F-545 | `ad0c91ba:docs/249-RUN-PARAMETRESIYLE-AGENT-SURUMU.md` |
 
 ## Süreç Ölçümü
 
@@ -351,3 +352,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 246 | 0 | 1 | 0 / 0 / 1 | 0 | ölçülmedi |
 | 247 | 13 sapma | 2 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 248 | 9 sapma | 2 | 1 / 0 / 0 | 0 | ölçülmedi |
+| 249 | 0 | 1 | 1 / 0 / 0 | 0 | ölçülmedi |
