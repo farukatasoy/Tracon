@@ -170,12 +170,80 @@ public sealed class AgentDefinitionValidatorTests
         };
         var (validator, _, _) = CreateValidator(descriptors: descriptors);
 
-        var definition = TestData.Definition() with { CallableAgentNames = ["test-agent"] };
+        var definition = TestData.Definition() with { CallableAgents = ["test-agent"] };
         var report = await validator.ValidateAsync(definition);
 
         report.Valid.ShouldBeFalse();
         var message = report.Messages.ShouldHaveSingleItem();
         message.Code.ShouldBe("cycle");
+    }
+
+    [Fact]
+    public async Task A_pinned_callable_agent_whose_version_exists_is_valid()
+    {
+        var store = new InMemoryAgentDefinitionStore(new FixedTenantContext("default"));
+        await store.SaveAsync(TestData.Definition("support-agent"));
+
+        var (validator, _, _) = CreateValidator(
+            descriptors: [new AgentDescriptor { Name = "support-agent", Origin = AgentDefinitionOrigin.Database, SourceName = "database", Version = 1 }],
+            definitions: store);
+
+        var definition = TestData.Definition() with
+        {
+            CallableAgents = [new CallableAgentReference { Name = "support-agent", Version = 1 }],
+        };
+
+        (await validator.ValidateAsync(definition)).Valid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_pin_to_a_version_the_callable_agent_does_not_have_is_reported_at_the_entry()
+    {
+        var store = new InMemoryAgentDefinitionStore(new FixedTenantContext("default"));
+        await store.SaveAsync(TestData.Definition("support-agent"));
+
+        var (validator, _, _) = CreateValidator(
+            descriptors: [new AgentDescriptor { Name = "support-agent", Origin = AgentDefinitionOrigin.Database, SourceName = "database", Version = 1 }],
+            definitions: store);
+
+        var definition = TestData.Definition() with
+        {
+            CallableAgents = [new CallableAgentReference { Name = "support-agent", Version = 4 }],
+        };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Valid.ShouldBeFalse();
+
+        var message = report.Messages.ShouldHaveSingleItem();
+
+        message.Code.ShouldBe("callable_agent_version_not_found");
+        message.Severity.ShouldBe(ValidationSeverity.Error);
+        message.Path.ShouldBe("callableAgents[0].version");
+    }
+
+    [Fact]
+    public async Task A_pin_on_a_callable_agent_defined_in_code_and_a_repeated_name_are_each_reported()
+    {
+        var (validator, _, _) = CreateValidator(
+            descriptors:
+            [
+                new AgentDescriptor { Name = "coded-agent", Origin = AgentDefinitionOrigin.Code, SourceName = "code" },
+                new AgentDescriptor { Name = "other-agent", Origin = AgentDefinitionOrigin.Database, SourceName = "database" },
+            ]);
+
+        var definition = TestData.Definition() with
+        {
+            CallableAgents =
+            [
+                new CallableAgentReference { Name = "coded-agent", Version = 1 },
+                "other-agent",
+                "other-agent",
+            ],
+        };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Messages.Select(static message => (message.Code, message.Path)).ShouldBe(
+            [("callable_agent_version_invalid", "callableAgents[0].version"), ("callable_agent_duplicate", "callableAgents[2].name")]);
     }
 
     [Fact]
@@ -191,7 +259,7 @@ public sealed class AgentDefinitionValidatorTests
 
         var definition = TestData.Definition(toolNames: ["support_agent"]) with
         {
-            CallableAgentNames = ["support-agent"],
+            CallableAgents = ["support-agent"],
             SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
         };
         var report = await validator.ValidateAsync(definition);
@@ -200,7 +268,7 @@ public sealed class AgentDefinitionValidatorTests
         var message = report.Messages.ShouldHaveSingleItem();
         message.Code.ShouldBe("sub_agent_tool_name_conflict");
         message.Severity.ShouldBe(ValidationSeverity.Error);
-        message.Path.ShouldBe("callableAgentNames[0]");
+        message.Path.ShouldBe("callableAgents[0].name");
         message.Message.ShouldContain("'support-agent'");
         message.Message.ShouldContain("'support_agent'");
     }
@@ -216,7 +284,7 @@ public sealed class AgentDefinitionValidatorTests
             registry: TestData.Registry(TestData.Tool("support_agent")),
             descriptors: descriptors);
 
-        var definition = TestData.Definition(toolNames: ["support_agent"]) with { CallableAgentNames = ["support-agent"] };
+        var definition = TestData.Definition(toolNames: ["support_agent"]) with { CallableAgents = ["support-agent"] };
         var report = await validator.ValidateAsync(definition);
 
         // Only the conflict is asserted: this validator's compiler has no tenant context, so the
@@ -334,7 +402,8 @@ public sealed class AgentDefinitionValidatorTests
         IToolRegistry? registry = null,
         AgentDescriptor[]? descriptors = null,
         IMcpToolRefresher? mcpRefresher = null,
-        TimeSpan? mcpTimeout = null)
+        TimeSpan? mcpTimeout = null,
+        IAgentDefinitionStore? definitions = null)
     {
         var models = TestData.Providers(providers ?? [new FakeModelProvider()]);
         var tools = registry ?? TestData.Registry();
@@ -345,9 +414,9 @@ public sealed class AgentDefinitionValidatorTests
         });
         var tenantContext = new SingleTenantContext(options);
         var skills = new AgentSkillCatalog([], new InMemoryAgentSkillStore(), tenantContext, options);
-        var compiler = new AgentDefinitionCompiler(models, tools, skills: skills, callableAgents: new CallableAgentResolver(catalog));
+        var compiler = new AgentDefinitionCompiler(models, tools, skills: skills, callableAgents: new CallableAgentResolver(catalog), tenantContext: tenantContext);
 
-        var validator = new AgentDefinitionValidator(models, tools, skills, catalog, compiler, options, mcpRefresher);
+        var validator = new AgentDefinitionValidator(models, tools, skills, catalog, compiler, options, mcpRefresher, definitions);
 
         return (validator, catalog, compiler);
     }

@@ -65,7 +65,7 @@ describe('definition round trip', () => {
     skillNames: [],
     // The order is the order the extensions run: the round trip must keep it.
     extensionNames: ['second-run', 'first-run'],
-    callableAgentNames: [],
+    callableAgents: [],
     subAgents: { waitTimeout: '00:00:30' },
     mcpResourceUris: ['docs:file:///handbook.md'],
     memory: {

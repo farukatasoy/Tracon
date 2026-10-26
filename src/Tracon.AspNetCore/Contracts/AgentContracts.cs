@@ -60,18 +60,20 @@ public sealed record AgentDefinitionRequest
     public IReadOnlyList<string> ExtensionNames { get; init; } = [];
 
     /// <summary>
-    /// Names of other agents this agent may call.
+    /// The other agents this agent may call, each with the version of it that runs.
     /// </summary>
     /// <remarks>
     /// Checked at the moment the call graph is saved: an unknown name,
-    /// self-calling, and indirect cycles are rejected with <c>400 Bad Request</c>.
+    /// self-calling, and indirect cycles are rejected with <c>400 Bad Request</c>. So is a
+    /// <c>version</c> below 1, one the agent does not have, one on an agent defined in code,
+    /// and a name that appears twice. Leave <c>version</c> out to run the agent's current version.
     /// </remarks>
-    public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
+    public IReadOnlyList<CallableAgentReference> CallableAgents { get; init; } = [];
 
     /// <summary>
     /// How long this agent waits for the agents it calls. See
     /// <c>AgentDefinition.SubAgents</c>. Ignored when
-    /// <see cref="CallableAgentNames"/> is empty.
+    /// <c>CallableAgents</c> is empty.
     /// </summary>
     public SubAgentSettings? SubAgents { get; init; }
 
@@ -123,7 +125,7 @@ public sealed record AgentDefinitionRequest
             Skills = Skills,
             Workspace = Workspace,
             ExtensionNames = ExtensionNames,
-            CallableAgentNames = CallableAgentNames,
+            CallableAgents = CallableAgents,
             SubAgents = SubAgents,
             McpResourceUris = McpResourceUris,
             Harness = Harness,

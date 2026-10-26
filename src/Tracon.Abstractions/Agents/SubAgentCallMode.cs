@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Tracon;
 
-/// <summary>How an agent calls the agents it may call (<c>CallableAgentNames</c>).</summary>
+/// <summary>How an agent calls the agents it may call (<c>CallableAgents</c>).</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<SubAgentCallMode>))]
 public enum SubAgentCallMode
 {

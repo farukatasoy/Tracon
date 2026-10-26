@@ -192,7 +192,7 @@ internal sealed class UiHost : IAsyncDisposable
                     Provider = ScriptedModels.ProviderName,
                     Model = ScriptedModels.Router,
                 },
-                CallableAgentNames = ["support"],
+                CallableAgents = ["support"],
                 Origin = AgentDefinitionOrigin.Code,
             })
             .AddAgent(new AgentDefinition

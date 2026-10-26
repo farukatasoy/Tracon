@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A callable agent can be pinned to a version of the callee: `CallableAgentReference.Version`.** An entry of
+  `AgentDefinition.CallableAgents` with a version runs that stored version in every call mode (background tasks, one tool
+  for each agent), its child run row records that version, and, for an agent kept in the database, the description the model reads comes from it. An entry with
+  no version runs the callee's current version, as before. A caller that a workflow step or an approval resumption pins to
+  a version of its own now runs the callee versions *that version* names: a parent pinned to version 1 no longer calls a
+  child at version 3 unless version 1 says so. A new version of a pinned callee leaves the compiled caller as
+  it is. A name converts to a reference without a version (`CallableAgents = ["editor"]`), so a list of names stays a list of
+  names. A save, `POST /api/agents/validate` and the compile refuse a version below 1, a version the callee does not have, a
+  pin on an agent defined in code and a name listed twice: the codes are `callable_agent_version_invalid`,
+  `callable_agent_version_not_found` and `callable_agent_duplicate`, each with the path of the entry. A pin that stopped
+  holding after the save fails the caller by name before its first model call. The agent editor of the console shows a
+  *Version of … to run* select under each checked agent that has versions and keeps a pin it saved; the version compare
+  shows a change of pin. The OpenAPI document and both generated clients carry the new schema.
 - **`WorkflowAgentStepOptions.AgentVersionParameter` lets a run choose the version of an agent step in a graph built in code.**
   Set it to the name of a run parameter declared in `WorkflowRegistrationOptions.Parameters`. The step reads the value
   each time it runs: empty or absent runs the agent's current version, a whole number from 1 runs that version and the
@@ -366,6 +379,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ignores a frame name it does not know needs no change. See [Streaming](https://tracon.dev/http-api/#streaming).
 
 ### Changed
+
+- **`AgentDefinition.CallableAgentNames` is now `CallableAgents`, a list of `CallableAgentReference` (breaking).** Rename the
+  initializer; a name converts to a reference, so `CallableAgentNames = ["support"]` becomes `CallableAgents = ["support"]`.
+  `AgentDefinitionRequest.CallableAgentNames` is `CallableAgents` too, and over HTTP the field is `callableAgents`, a list of
+  `{ "name": ..., "version": ... }` objects. A request body that still carries `callableAgentNames` is refused with `400`
+  and names the new field, so it cannot drop the callable agents in silence. The validation path of a tool name that another
+  tool already has moved from `callableAgentNames[i]` to `callableAgents[i].name`. `AgentDescriptor.CallableAgentNames` (the
+  catalog's list of names) is unchanged. **Upgrade note:** no migration. A stored definition that holds the old key reads back
+  as entries with no version, and takes the new shape the next time it is saved; a custom `IAgentDefinitionStore` must keep
+  the version of each entry (`AgentDefinitionStoreContract` now checks it).
 
 - **`IAgentDefinitionStore` never gives a version number twice for one name.** `SaveAsync` returns one more than the highest
   version the name ever had, including the versions of a definition that was deleted; `DeleteAsync` still removes the

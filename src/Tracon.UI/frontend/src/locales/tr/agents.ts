@@ -153,6 +153,8 @@ export const trAgents: Pick<Messages, keyof typeof enAgents> = {
   "agentEditor.extensionNotRegistered": 'Kayıtlı değil',
   "agentEditor.callableNotice": "Bu agent'ın alt görev olarak çağırabileceği agent'lar. Kaydederken çağrı grafiği denetlenir: kendini çağırma ve dolaylı döngü reddedilir. Alt agent aynı kiracıda çalışır ve tool onayı isteyemez. Çalışma anı sınırları şuradan gelir:",
   "agentEditor.noCallable": 'Çağrılacak başka agent yok.',
+  "agentEditor.callableVersionOf": "Çalışacak {name} sürümü",
+  "agentEditor.callableVersionHint": "Çağrıyı agent'ın tek bir sürümüne sabitler; modelin okuduğu açıklama da o sürümden gelir. Sabitleme yoksa her çağrı geçerli sürümü çalıştırır, yani agent'ta yapılan bir değişiklik bu agent'a hemen yansır.",
   "fields.callMode": 'Çağrı kipi',
   "agentEditor.conversationMemorySearch.BeforeEachTurn": 'Her turdan önce',
   "agentEditor.conversationMemorySearch.OnDemand": 'Model isteyince',

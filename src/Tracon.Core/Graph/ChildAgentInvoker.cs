@@ -34,7 +34,7 @@ namespace Tracon;
 /// scope and builds the <see cref="TraconRunOptions"/> object itself.
 /// </para>
 /// <para>
-/// Tracon builds one wrapper for each name in <see cref="AgentDefinition.CallableAgentNames"/>
+/// Tracon builds one wrapper for each entry of <see cref="AgentDefinition.CallableAgents"/>
 /// when it compiles the calling agent; there is no other way to obtain one.
 /// </para>
 /// </remarks>
@@ -94,7 +94,8 @@ public sealed class ChildAgentInvoker : AIAgent
     /// </param>
     /// <param name="pinnedVersion">
     /// The version of the sub-agent every call runs (a workflow step's
-    /// <see cref="WorkflowNodeReference.AgentVersion"/>). <see langword="null"/> (the default)
+    /// <see cref="WorkflowNodeReference.AgentVersion"/>, or the <see cref="CallableAgentReference.Version"/> of a
+    /// callable agent). <see langword="null"/> (the default)
     /// resolves the current version on every call. The wrapper still resolves late, so a pinned
     /// step keeps its version across edits of the agent; the child run row records that version.
     /// </param>

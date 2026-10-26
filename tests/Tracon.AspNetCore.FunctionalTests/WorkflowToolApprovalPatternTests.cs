@@ -150,7 +150,7 @@ public sealed class WorkflowToolApprovalPatternTests
                 Description = "Delegates the work.",
                 Instructions = "Delegate.",
                 Model = new ModelBinding { Provider = Provider, Model = Model },
-                CallableAgentNames = ["researcher"],
+                CallableAgents = ["researcher"],
                 Origin = AgentDefinitionOrigin.Code,
             });
             builder.AddAgent(new AgentDefinition

@@ -63,7 +63,7 @@ flowchart TD
 | Maliyet figürleri (`/api/stats`'in maliyet alanları, `/api/stats/timeseries`, `/api/stats/recalculate-costs`) | `12-GOZLEMLENEBILIRLIK-MALIYET.md` |
 | `/v1/responses`, `/v1/chat/completions`, `/v1/conversations` (OpenAI uyumlu, `ProblemDetails` KULLANMAZ) | `08-OPENAI-UYUMLU-UCLAR.md` |
 | `/api/diagnostics` genel sözleşmesi, OpenAPI belge üretimi | `25-SAGLIK-TESHIS-OPENAPI.md` |
-| `callableAgentNames` çağrı grafiği döngü doğrulaması | `02-CEKIRDEK-VE-KATALOG.md` (zaten üretildi — `manuel-dongu` örneği) |
+| `callableAgents` çağrı grafiği döngü doğrulaması | `02-CEKIRDEK-VE-KATALOG.md` (zaten üretildi — `manuel-dongu` örneği) |
 | `AgentDefinitionRequest` alan doğrulaması (`unknown_tool`/`unknown_model`), agent derleme genel davranışı | `02-CEKIRDEK-VE-KATALOG.md` (zaten üretildi) |
 | Ek (attachment) yükleme/sahiplik uçları | `19-COK-MODLULUK-VE-SES.md` |
 | MCP sunucusu erişilemezliğinde `validate`'in `inconclusive` bayrağı | `18-MCP-VE-A2A.md` |

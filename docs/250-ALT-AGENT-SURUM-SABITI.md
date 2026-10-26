@@ -1,6 +1,6 @@
 # Faz 250 — Alt Agent Sürüm Sabiti
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** 🔧 Uygulandı, kapanış koşuyor (2026-10-26)
 > **Kademe:** tam — public API'den satır silinir (`AgentDefinition.CallableAgentNames` yerine `CallableAgents`) ve kalıcı veri şekli değişir (saklanan tanım JSON'u eski alanı okumaya devam etmeli); HTTP sözleşmesi, iki üretilen istemci ve konsol değişir
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan kararlar: yapılı liste `CallableAgents: [{name, version?}]` — yan sözlük reddedildi; konsol editörü sabiti gösterir ve düzenletir)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-409**
@@ -294,18 +294,18 @@ Case'ler `docs/manuel-test/29-AGENT-DESTEGI.md` ve `10-ARAYUZ-AGENT-PLAYGROUND.m
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `callableAgents: [{name, version: 1}]` ile çocuk `v1` koşar; açıklama ve parmak izi `v1`'den gelir; üç çağrı modunda da
-- [ ] Sabitsiz çocuk güncel sürümü koşar (değişmez davranış)
-- [ ] Eski JSON okunur; eski HTTP alanı `400` ve yeni adla cevaplanır
-- [ ] Konsol editörü sabiti gösterir, düzenletir ve korur; `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] İki istemci yeniden üretildi; `PublicAPI.Unshipped.txt` güncel
-- [ ] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`)
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler ilgili `docs/manuel-test/` dosyalarında ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (250.6); `npm run build` + `check-links.mjs` temiz; `CHANGELOG.md` *Changed* + *Added* yazıldı
-- [ ] Karar `docs/KARARLAR.md`'ye yazıldı (`public-api` + `kalıcı-veri`; reddedilen alternatifler: yan sözlük `CallableAgentVersions`, kayıtta kilit dosyası, zamana göre gizli sabit)
+- [x] `callableAgents: [{name, version: 1}]` ile çocuk `v1` koşar; açıklama ve parmak izi `v1`'den gelir; üç çağrı modunda da — `CallableAgentVersionPinTests` (Tool × Background × akışlı/akışsız; sabit satırı çıkarılınca beş test kırmızı, ölçüldü) · "üç mod" = varsayılan arka plan, `Tool`; MAF'ın arka plan sağlayıcısı aynı `CreateChildAgents`'ten geçer
+- [x] Sabitsiz çocuk güncel sürümü koşar (değişmez davranış) — aynı sınıf, `A_callee_with_no_pin_follows_the_agent_to_its_new_version`
+- [x] Eski JSON okunur; eski HTTP alanı `400` ve yeni adla cevaplanır — `AgentDefinitionPayloadRoundTripTests` (Sqlite) · `The_removed_callableAgentNames_field_is_refused_…` (POST, PUT, validate)
+- [x] Konsol editörü sabiti gösterir, düzenletir ve korur; `en`/`tr` eksiksiz; bundle payı ölçüldü: 225,8 KB gzip / 250 KB (+0,4 KB) — Vitest (`agent-editor.test.tsx`, `full-replace-editors.test.tsx`), E2E (`AgentTests`)
+- [x] İki istemci yeniden üretildi; `PublicAPI.Unshipped.txt` güncel
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 1b0be47e`) — kapanış koşumunda
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (`MT-UIAG-067`): sabitli üst agent çocuğu `agentVersion: 1`, cevap `Echo [instructions: ALPHA text]`; sabitsiz `agentVersion: 2`, `BETA text`. OpenAI anahtarı olmadığı için echo modelleriyle (Sapmalar)
+- [x] `secret` taraması boş döndü (`kapi.py tarama`)
+- [x] `🤖` case'ler `docs/manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md`'de (`MT-UIAG-067`, `068`) ve koşuldu; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu çıkmadı (🟡 üç, 🟢 beş: aşağıda)
+- [x] `docs-site/` güncellendi (250.6 + kalıcılık sayfası); `npm run check` (içerik, derleme, bağlantı, ağırlık) temiz; `CHANGELOG.md` *Changed* + *Added* yazıldı
+- [x] Karar `docs/KARARLAR.md`'ye yazıldı: K-1102 (`public-api` + `kalıcı-veri`; reddedilen alternatifler: yan sözlük `CallableAgentVersions`, kayıtta kilit dosyası, zamana göre gizli sabit)
 
 ### Doğrulama komutları
 
@@ -338,6 +338,24 @@ curl -s "http://localhost:5081/tracon/api/runs?parentRunId=<runId>" | jq '.. | .
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+- **`faz-baslangic` Adım 0 atlandı (kullanıcı kararı):** `main`'in son üç CI koşumu `failure` (fazlar 245–247 kapanışları). Kullanıcı "deploy sorununa hiç bakmadan direkt başla" dedi; neden araştırılmadı.
+- **`CallableAgentReference` iki üye fazla taşır:** `FromName(string)` ve `string`'ten örtük dönüşüm. Plan yalnız `Name` + `Version` yazıyordu. Gerekçe: `CallableAgentNames = ["support"]` yazan her tüketici ve testin 40+ satırı `CallableAgents = ["support"]` olarak kalır (yalnız alan adı değişir); CA2225 adlandırılmış bir eş ister, o da `FromName`. `PublicAPI.Unshipped.txt` iki satır fazla taşır.
+- **Üç yeni doğrulama kodu (planda yoktu):** `callable_agent_version_invalid` (sürüm < 1 ya da kod agent'ı), `callable_agent_version_not_found`, `callable_agent_duplicate`. Plan 250.3 dört durumu saydı ama kod adı vermedi; kayıt, doğrulayıcı ve derleyici aynı kodu paylaşsın diye `ValidationCodes`'a girdi. Yan etki: `docs/sozlesme/dogrulama-kodlari.txt` (+3), `required-uyeler.txt` (+`CallableAgentReference.Name`), `public-surface-baseline.txt` (+1 tip) yenilendi.
+- **Doğrulayıcı yolu:** `AgentCallGraph` ad listesiyle çalışmaya devam eder; sabit denetimi yeni `CallableAgentPins` (kayıt uç noktası `AgentDefinitionValidator` üzerinden, doğrulayıcı, derleyici). Kayıt ucundaki erken `ValidateCallGraphAsync` yalnız grafı denetler; sabit hatası `ValidateEntitiesAsync`'ten `400` olarak döner. Araç adı çakışması yolu `callableAgentNames[i]` → `callableAgents[i].name` oldu.
+- **`CallableAgentInfo` (public) değişmedi.** Plan 250.4 "çocuğun açıklaması ve parmak izi sabit sürümden okunur" dedi, ama sabiti info'ya eklemek public struct'ı değiştirirdi. `CreateChildAgents` sabiti tanımdan ad eşlemesiyle okur; `DescribeAsync(çağıran, referanslar)` yeni içsel aşırı yüklemedir. Sabitli çocuğun açıklaması yalnız veritabanı kaynağında sürümden okunur; özel kaynakta (`Custom`) güncel açıklama kalır ve sürümü bilmeyen kaynak çağrıyı katalogda reddeder.
+- **Saklanan satır:** eski `callableAgentNames` JSON'u metin düzeyinde taşınmadı; `AgentDefinitionPayload` onu yalnız OKUR (`ToDefinition` sürümsüz referansa çevirir, kayıt yalnız `callableAgents` yazar, boşken yazmaz). Her eski satır boş da olsa bu anahtarı taşıdığı için metin taşıması her okumada ayrıştırma isterdi. Sonuç: eski bir sürümü geri almak (`RollbackAsync`) ham JSON'u kopyalar, yani yeni satır eski anahtarı taşır; okunur ve bir sonraki kayıtta yeni biçime geçer. Sabit kaybı yoktur (eski satırda sabit yok).
+- **Açık soru 3:** `GET /api/agents/{name}/versions` sayfalamaz, tam liste döner. Konsol tam listeyi gösterir (iş akışı editörüyle aynı); "son N sürüm + elle sayı" gerekmedi. İş akışı editörünün `AgentVersion`'ı ortak `components/agent-version-select.tsx` oldu ve üç yerelleştirme anahtarı `workflowEditor.agentVersion{Current,Missing,VersionsFailed}` → `agentVersion.{current,missing,loadFailed}` taşındı.
+- **Yerelleştirme dosyaları:** plan `locales/en.ts` + `tr.ts` yazdı; sözlük `locales/{en,tr}/agents.ts` ve `common.ts` parçalarındadır.
+- **Manuel case'ler yalnız `10-ARAYUZ-AGENT-PLAYGROUND.md`'de** (`MT-UIAG-067` API + gerçek run, `068` konsol). Plan `29-AGENT-DESTEGI.md`'yi de saydı; o dosya agent destek aracını (`tracon agent-skill`, analyzer) kapsar, çağrılabilir agent'ı değil. Eski `callableAgentNames` gövdesi taşıyan altı manuel-test dosyası (`02`, `07`, `10`, `11`, `21`, `23`) yeni alanla güncellendi; yoksa `400` alırlardı.
+- **Örnek uygulama:** gerçek `run` için OpenAI anahtarı yoktu; `EchoModelProvider`'a `echo-delegator-1` eklendi (ilk tool'u bir kez çağırır, sonucu yanıtlar). Çocuk `echo-instructions-1` ile talimatını cevaba yazar, böylece hangi sürümün koştuğu metinden görünür.
+- **Bundle:** 225,8 KB gzip / 250 KB (+0,4 KB; plan tabanı 225,4).
+- **Devam kapısı testsiz:** `RunContinuationJobHandler` "skill ya da çağrılabilir agent varsa devam edilemez" kapısı yalnız alan adı değişikliğiyle güncellendi; kapıyı koşturan mevcut test yoktu ve eklenmedi (onay bekleyen bir run kurmak gerekir).
+- **Yayın provası (`kapi.py yayin --kuru`):** kirli ağaçta koşmaz; ilk commit'ten sonra koşuldu, sonucu "Süreç Ölçümü"nün altındaki satırda.
+- **Çağrı grafı ad ile çalışır; sabit onu değiştirmez (denetim 🟡1):** `AgentCallGraph` kenarlarını güncel sürümün adlarından kurar. Yalnız sabitli eski sürüm üzerinden kurulan bir döngü kayıtta görünmez ve derinlik sınırı çalışmada durdurur; tersi sahte `cycle` ile `400` alır. İlk taslağın site cümlesi ("sabit döngüyü gizlemez") yanlıştı, düzeltildi. Test: `A_cycle_that_exists_only_through_a_pinned_version_is_saved_and_the_depth_limit_stops_the_run`. Sabitli sürümün adlarıyla graf kurmak F-706'dır.
+- **Derleme tekrar eden adı da reddeder (denetim 🟡2):** ilk uygulama yalnız kayıtta ve doğrulayıcıda reddediyordu; kodda yazılmış bir tanım iki girdiyi tek sabite çökertirdi. `CallableAgentResolver.DescribeAsync` artık `callable_agent_duplicate` iletisiyle `TraconCompilationException` atar. Davranış değişikliği: eskiden kabul edilen kodda tekrarlı bir liste artık derlemede düşer (`rc.1` öncesi, UR-012 B).
+- **Eksik test satırları (denetim 🟡3):** (a) workflow adımı + sabitli üst agent için `CallableAgentVersionPinTests.A_workflow_step_pinned_to_a_parent_version_runs_the_callee_versions_that_version_names` eklendi (`WorkflowAgentVersionPinTests`'e değil: aynı rig, aynı sınıf). (b) `A_pin_is_judged_against_the_callers_own_tenant` eklendi (başlık tabanlı kiracılık). (c) Replay yalnız `NoTools`'ta sınandı: `LiveTools` derleme yolundan geçer ve normal run ile aynı `ResolveCallableAgentsAsync`'i koşar; ayrı test eklenmedi. (d) `AgentDefinitionStoreContract` eski biçimi okumaz: eski satır `AgentDefinitionPayload`'a özgüdür ve üç SQL sağlayıcısı aynı sınıfı paylaşır; özel bir `IAgentDefinitionStore` o anahtarı hiç görmez. Eski satırı Sqlite testi sınar.
+- **Sevk edilen metin daraltıldı (denetim 🟢2, 🟢3):** sürümden açıklama okuma yalnız veritabanı agent'ı için söylenir (`Custom` kaynak güncel açıklamayı korur); `SqlAgentDefinitionStore` ve `AgentDefinitionPayload` yorumları rollback'in `callableAgentNames`'i kopyaladığını söyler.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -345,20 +363,32 @@ curl -s "http://localhost:5081/tracon/api/runs?parentRunId=<runId>" | jq '.. | .
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
 
+- **K-1102** *(public-api, kalıcı-veri)* — `CallableAgents: [{name, version?}]`; `callableAgentNames` kalktı. `docs/KARARLAR.md`'de.
+- Commit mesajına: `CallableAgentReference`'ın `string`'ten örtük dönüşümü; üç `callable_agent_*` doğrulama kodu; saklanan satırda eski anahtarın yalnız okunması.
+
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan değişmedi; 12 sapma kayda geçti) |
+| Düzeltme turu sayısı | 1 (denetim sonrası: derleme tekrar reddi, üç test, belge daraltması, ekran görüntüleri) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 bilinen; kapanış koşumuna kadar kırmızı kalan: konsol ekran görüntüleri damgası ve iki sevk edilen sayı (`README.md` tür sayısı, `llms-full.txt`) — üretim adımları, kapıda yakalandı |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
-> (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
-> `ADAYLAR.md`'ye gider.
+> `faz-denetim` çıktısı (2026-10-26, `faz-denetcisi`). 🔴 yok.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Site "sabit döngüyü gizlemez" diyordu; graf güncel sürümün adlarını okur | 🟡 | Cümle düzeltildi, derinlik sınırının durdurduğunu gösteren test eklendi, graf F-706 olarak devredildi |
+| Belge "derleme tekrar eden adı reddeder" diyordu; yalnız kayıt reddediyordu | 🟡 | `DescribeAsync` tekrarı reddeder; birim testi eklendi |
+| Planın üç test satırı karşılıksız (workflow adımı, başka kiracı, eski biçim sözleşmesi, `LiveTools` replay) | 🟡 | İki case eklendi; ikisi Sapmalar'da gerekçelendi |
+| Sabitli çocuk her derlemede ve çağrıda `GetVersionAsync` okur | 🟢 | F-707 |
+| `Custom` kaynak açıklaması güncel sürümden gelir; metin koşulsuz yazıyordu | 🟢 | Sevk edilen metin daraltıldı |
+| `SqlAgentDefinitionStore` ve `UpgradeLegacyKeys` yorumları rollback'te yanlış | 🟢 | Yorumlar düzeltildi |
+| `describeCallable` başka bir JSDoc'un arasına girmişti | 🟢 | Taşındı |
+| İki dosyada dosya sonu boş satır | 🟢 | Düzeltildi |

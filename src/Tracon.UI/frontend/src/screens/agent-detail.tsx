@@ -22,7 +22,13 @@ import { DiffView, FieldDiffTable, SetDiff } from '../components/diff-view';
 import { CompareSection, ComparePanel, VersionHistory } from '../components/version-history';
 import { OriginBadge } from './agents';
 import type { LoopCriterion, TraconMetaResponse as Meta } from '@tracon/client';
-import type { AgentDefinition, AgentDetailResponse, AgentVersionDiffResponse, ToolLoopSettings } from '../lib/server-types';
+import type {
+  AgentDefinition,
+  AgentDetailResponse,
+  AgentVersionDiffResponse,
+  CallableAgentReference,
+  ToolLoopSettings,
+} from '../lib/server-types';
 
 export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
@@ -334,8 +340,8 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
           <SetDiff label={t('agentEditor.extensions')} left={data.left.extensionNames} right={data.right.extensionNames} />
           <SetDiff
             label={t('agentDetail.callableAgents')}
-            left={data.left.callableAgentNames}
-            right={data.right.callableAgentNames}
+            left={data.left.callableAgents.map(describeCallable)}
+            right={data.right.callableAgents.map(describeCallable)}
           />
 
           {/* Phase 228: a version that changes how the agent calls its callable agents shows it. */}
@@ -459,6 +465,11 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
  * table compares the formatted text, so a field left out here would hide a
  * change to it.
  */
+/** A callable agent as the version compare names it: the agent, and the version it is pinned to when it is. */
+function describeCallable(reference: CallableAgentReference): string {
+  return reference.version === null ? reference.name : `${reference.name} · v${reference.version}`;
+}
+
 /**
  * One cell for the tool-call loop settings of a version: only the members that differ from the loop's own
  * default are listed, so a definition that sets none reads the same as one saved before the settings existed.

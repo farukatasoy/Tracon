@@ -207,7 +207,7 @@ public sealed class ConversationMemoryTests
                     Name = "router",
                     Instructions = "Delegate.",
                     Model = new ModelBinding { Provider = "routing", Model = "router-model" },
-                    CallableAgentNames = ["helper"],
+                    CallableAgents = ["helper"],
                     Origin = AgentDefinitionOrigin.Code,
                 });
             });

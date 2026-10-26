@@ -156,7 +156,7 @@ public sealed class AgentDefinitionCacheInvalidationTests
                 Description = description,
                 Instructions = instructions,
                 SharedInstructionsName = sharedInstructionsName,
-                CallableAgentNames = callableAgentNames ?? [],
+                CallableAgents = [.. callableAgentNames ?? []],
                 Model = new ModelBinding { Provider = "cache-provider", Model = ModelName },
             },
             TestContext.Current.CancellationToken);

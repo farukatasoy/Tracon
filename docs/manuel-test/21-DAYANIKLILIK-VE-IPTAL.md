@@ -1890,7 +1890,7 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 
 **Ön koşul**
 - `samples/Tracon.Api` ayakta.
-- `router` adlı bir agent, `CallableAgentNames = ["researcher"]` ve
+- `router` adlı bir agent, `CallableAgents = ["researcher"]` ve
   `SubAgents.ChildDeadline = 00:00:01` ile tanımlı (gerçek bir model çağrısı
   genelde bir saniyeden uzun sürer, bu yüzden kesme gerçek koşulda tetiklenir).
 

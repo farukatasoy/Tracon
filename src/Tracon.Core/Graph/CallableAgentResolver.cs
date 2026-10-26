@@ -106,14 +106,7 @@ internal sealed class CallableAgentResolver
             return [];
         }
 
-        var descriptors = await ListAsync(cancellationToken).ConfigureAwait(false);
-        var byName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
-
-        foreach (var descriptor in descriptors)
-        {
-            byName[descriptor.Name] = descriptor;
-        }
-
+        var byName = await DescribeCatalogAsync(cancellationToken).ConfigureAwait(false);
         var result = new List<CallableAgentInfo>(callableAgentNames.Count);
 
         foreach (var name in callableAgentNames)
@@ -123,6 +116,107 @@ internal sealed class CallableAgentResolver
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Resolves the callable agents of a definition together with their descriptions, each from the version
+    /// the definition runs: the pinned one, or the current one.
+    /// </summary>
+    /// <param name="callerName">The calling agent, for the refusal.</param>
+    /// <param name="callableAgents">The references to resolve.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// One entry for each reference, in the same order. A pinned entry carries the pinned version and the
+    /// description of that version; an unpinned one carries the catalog's current version and description. A name
+    /// not present in the catalog gets no description, as in <see cref="DescribeAsync(IReadOnlyList{string}, CancellationToken)"/>.
+    /// </returns>
+    /// <exception cref="TraconCompilationException">
+    /// A reference pins an agent defined in code, or a version the agent no longer has, or a name is listed
+    /// twice. The definition was checked when it was saved; the agent can change after that, and a pin that no
+    /// longer holds fails the caller by name instead of running another version.
+    /// </exception>
+    public async ValueTask<IReadOnlyList<CallableAgentInfo>> DescribeAsync(
+        string callerName,
+        IReadOnlyList<CallableAgentReference> callableAgents,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callableAgents);
+
+        if (callableAgents.Count == 0)
+        {
+            return [];
+        }
+
+        var byName = await DescribeCatalogAsync(cancellationToken).ConfigureAwait(false);
+        var result = new List<CallableAgentInfo>(callableAgents.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var reference in callableAgents)
+        {
+            // The save refuses a repeated name, but a definition written in code never met the save. Two entries
+            // of one name would also share one pin, and the second would silently decide which version runs.
+            if (!seen.Add(reference.Name))
+            {
+                throw new TraconCompilationException(CallableAgentPins.DuplicateMessage(callerName, reference.Name))
+                {
+                    AgentName = callerName,
+                };
+            }
+
+            byName.TryGetValue(reference.Name, out var descriptor);
+
+            result.Add(reference.Version is { } version && descriptor is not null
+                ? await DescribePinnedAsync(callerName, reference.Name, version, descriptor, cancellationToken).ConfigureAwait(false)
+                : new CallableAgentInfo(reference.Name, descriptor?.Description, reference.Version ?? descriptor?.Version ?? 0));
+        }
+
+        return result;
+    }
+
+    private async ValueTask<CallableAgentInfo> DescribePinnedAsync(
+        string callerName,
+        string calleeName,
+        int version,
+        AgentDescriptor descriptor,
+        CancellationToken cancellationToken)
+    {
+        if (descriptor.Origin == AgentDefinitionOrigin.Code)
+        {
+            throw new TraconCompilationException(CallableAgentPins.CodeAgentMessage(callerName, calleeName, version))
+            {
+                AgentName = callerName,
+            };
+        }
+
+        // A stored agent's description is that of the pinned version: the model reads it to decide when to call.
+        // A custom source cannot be read this way; its description stays the current one, and the catalog
+        // refuses the call when the source has no such version.
+        if (descriptor.Origin == AgentDefinitionOrigin.Database &&
+            _services.GetService<IAgentDefinitionStore>() is { } store)
+        {
+            var pinned = await store.GetVersionAsync(calleeName, version, cancellationToken).ConfigureAwait(false)
+                ?? throw new TraconCompilationException(CallableAgentPins.VersionNotFoundMessage(callerName, calleeName, version))
+                {
+                    AgentName = callerName,
+                };
+
+            return new CallableAgentInfo(calleeName, pinned.Description, version);
+        }
+
+        return new CallableAgentInfo(calleeName, descriptor.Description, version);
+    }
+
+    private async ValueTask<Dictionary<string, AgentDescriptor>> DescribeCatalogAsync(CancellationToken cancellationToken)
+    {
+        var descriptors = await ListAsync(cancellationToken).ConfigureAwait(false);
+        var byName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
+
+        foreach (var descriptor in descriptors)
+        {
+            byName[descriptor.Name] = descriptor;
+        }
+
+        return byName;
     }
 
     /// <summary>Resolves the catalog on first use and caches it.</summary>

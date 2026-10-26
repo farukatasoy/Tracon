@@ -242,7 +242,8 @@ public sealed partial class AgentDefinitionCompiler
     /// <returns>Sub-agent summaries and the fingerprint.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconCompilationException">
-    /// The definition wants to call a sub-agent but the feature is not registered.
+    /// The definition wants to call a sub-agent but the feature is not registered, or it pins a sub-agent to a
+    /// version the sub-agent no longer has (or one defined in code, which has none).
     /// </exception>
     public async ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAsync(
         AgentDefinition definition,
@@ -250,7 +251,7 @@ public sealed partial class AgentDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        if (definition.CallableAgentNames.Count == 0)
+        if (definition.CallableAgents.Count == 0)
         {
             return ResolvedCallableAgents.Empty;
         }
@@ -266,7 +267,7 @@ public sealed partial class AgentDefinitionCompiler
         }
 
         var infos = await _callableAgents
-            .DescribeAsync(definition.CallableAgentNames, cancellationToken)
+            .DescribeAsync(definition.Name, definition.CallableAgents, cancellationToken)
             .ConfigureAwait(false);
 
         return new ResolvedCallableAgents(infos, CreateCallableFingerprint(infos));
@@ -286,6 +287,11 @@ public sealed partial class AgentDefinitionCompiler
     /// The version alone was not enough. A sub-agent deleted and recreated under the
     /// same name was version <c>1</c> again in a store that restarts numbering, and the
     /// caller stayed in the cache describing the deleted sub-agent to the model.
+    /// </para>
+    /// <para>
+    /// A sub-agent the definition pins is described from the pinned version, so its entry here does not
+    /// move when the sub-agent saves a newer one: the caller's compiled copy stays valid. An unpinned one
+    /// carries the current version and description, and the caller is compiled again when they change.
     /// </para>
     /// </remarks>
     private static string CreateCallableFingerprint(IReadOnlyList<CallableAgentInfo> infos)

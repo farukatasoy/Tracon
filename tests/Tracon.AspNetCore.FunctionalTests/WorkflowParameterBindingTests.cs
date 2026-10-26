@@ -210,7 +210,7 @@ public sealed class WorkflowParameterBindingTests
                     .AddAgent(Definition(Writer, "Write the script in a {{tone}} tone.", Tone(required: true)) with
                     {
                         Model = new ModelBinding { Provider = "param-provider", Model = writerModel },
-                        CallableAgentNames = ["helper"],
+                        CallableAgents = ["helper"],
                     })
                     .AddAgent(Definition("helper", "Help in a {{tone}} way.", Tone(required: false, defaultValue: "kind")) with
                     {

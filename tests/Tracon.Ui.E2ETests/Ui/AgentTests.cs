@@ -330,6 +330,48 @@ public sealed class AgentTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Callable_agent_pinned_in_the_console_is_saved_read_back_and_sent_to_the_server()
+    {
+        // Phase 250 (F-409): the editor shows the version a callable agent runs, lets the user pin it, and a
+        // save and a reopen keep the choice. The server's own read-back is the second witness: the select
+        // could hold a value the request never carried.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await CreateAgentWithTwoVersionsAsync(host, session, "pinned-callee", "first instructions", "second instructions");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+
+        await session.Page.GetByTestId("agent-name").FillAsync("pinning-caller");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        await session.Page.GetByLabel("pinned-callee", new() { Exact = false }).CheckAsync();
+
+        var version = session.Page.GetByTestId("agent-callable-version-pinned-callee");
+
+        // The list of versions is the callee's own: current, then v2 and v1.
+        await Expect(version.Locator("option")).ToHaveCountAsync(3);
+        await version.SelectOptionAsync("1");
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "pinning-caller", Exact = true })).ToBeVisibleAsync();
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit", Exact = true }).ClickAsync();
+        await Expect(session.Page.GetByTestId("agent-name")).ToHaveValueAsync("pinning-caller");
+        await Expect(session.Page.GetByTestId("agent-callable-version-pinned-callee")).ToHaveValueAsync("1");
+
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        var stored = await api.GetFromJsonAsync<JsonElement>("api/agents/pinning-caller");
+        var callable = stored.GetProperty("definition").GetProperty("callableAgents");
+
+        callable.GetArrayLength().ShouldBe(1);
+        callable[0].GetProperty("name").GetString().ShouldBe("pinned-callee");
+        callable[0].GetProperty("version").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Version_diff_compares_two_versions()
     {
         await using var host = await UiHost.StartAsync();

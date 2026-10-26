@@ -12,7 +12,7 @@ import type {
 } from '@tracon/client';
 // The definition READ back from the server, not the generated shape: the
 // generated one marks fields optional that a response always carries.
-import type { AgentDefinition } from '../../lib/server-types';
+import type { AgentDefinition, CallableAgentReference } from '../../lib/server-types';
 
 export const REASONING_EFFORTS = ['', 'None', 'Low', 'Medium', 'High', 'ExtraHigh'] as const;
 
@@ -173,7 +173,7 @@ export interface FormState {
   skills: SkillSettings;
   workspace: WorkspaceSettings;
   extensionNames: string[];
-  callableAgentNames: string[];
+  callableAgents: CallableAgentReference[];
   subAgentCallMode: SubAgentCallModeOption;
   harnessEnabled: boolean;
   harness: HarnessSettings;
@@ -216,7 +216,7 @@ export const emptyForm: FormState = {
   skills: emptySkills,
   workspace: emptyWorkspace,
   extensionNames: [],
-  callableAgentNames: [],
+  callableAgents: [],
   subAgentCallMode: 'Background',
   harnessEnabled: false,
   harness: {},
@@ -296,7 +296,7 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     skills: anySettingOn(form.skills) ? form.skills : null,
     workspace: anySettingOn(form.workspace) ? form.workspace : null,
     extensionNames: form.extensionNames,
-    callableAgentNames: form.callableAgentNames,
+    callableAgents: form.callableAgents,
     harness: form.harnessEnabled ? form.harness : null,
     compaction: form.compaction.strategy === 'None' ? null : form.compaction,
     memory: memoryIsOn(form.memory) ? form.memory : null,
@@ -357,7 +357,7 @@ export function fromDefinition(definition: AgentDefinition): FormState {
     skills: definition.skills ?? emptySkills,
     workspace: definition.workspace ?? emptyWorkspace,
     extensionNames: [...(definition.extensionNames ?? [])],
-    callableAgentNames: [...(definition.callableAgentNames ?? [])],
+    callableAgents: (definition.callableAgents ?? []).map(({ name, version }) => ({ name, version: version ?? null })),
     subAgentCallMode: definition.subAgents?.callMode ?? 'Background',
     harnessEnabled: definition.harness !== null && definition.harness !== undefined,
     harness: definition.harness ?? {},

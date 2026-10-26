@@ -326,7 +326,7 @@ yalnız MCP sunucusu görür (K-1074). Ayrıntı: [`hafiza/mcp-elicitation.md`](
 
 ### Çalıştırma ağacı
 
-Bir agent `CallableAgentNames` taşıyorsa derleyici her alt agent'ı bir
+Bir agent `CallableAgents` taşıyorsa derleyici her alt agent'ı bir
 `ChildAgentInvoker` ile sarar ve bunları MAF'ın `BackgroundAgentsProvider`'ına
 verir. Sağlayıcı modele altı tool açar; model önce görevi başlatır, sonra bekler,
 sonra sonucu okur. `SubAgentSettings.CallMode = Tool` (Faz 228, K-1043) bu sağlayıcıyı
@@ -334,6 +334,10 @@ kurmaz: her sarmalayıcı `AsAIFunction` ile adı agent adından türeyen tek bi
 bir çağrı çocuğu koşar ve cevabını döndürür. Aşağıdaki kurallar ve diyagramdaki
 `ChildAgentInvoker` her iki kipte aynıdır; tool kayıt defteri zincirinden
 (yetki, onay, tool zaman aşımı) geçmez, sınırı sarmalayıcı koyar.
+Çocuğun sürümü tanımdadır (Faz 250, K-1102): `CreateChildAgents` her sarmalayıcıya
+`CallableAgentReference.Version`'ı `pinnedVersion` olarak verir, iki kip de oradan geçer;
+sabitli çocuğun açıklaması ve önbellek parmak izi sabit sürümden okunur
+(`CallableAgentResolver.DescribeAsync`), sabitsiz çocuk her çağrıda güncel sürümü koşar.
 
 ```mermaid
 flowchart TD

@@ -58,8 +58,23 @@ internal sealed record AgentDefinitionPayload
     /// </remarks>
     public IReadOnlyList<string>? ExtensionNames { get; init; }
 
-    /// <summary>Gets the names of the other agents this agent can call.</summary>
-    public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
+    /// <summary>Gets the other agents this agent can call, each with the version it runs, or <see langword="null"/> when there are none.</summary>
+    /// <remarks>
+    /// Nullable and omitted when empty, like <see cref="ExtensionNames"/>: a row written before this member
+    /// existed has no such key, and the source-generated reader leaves an absent list <see langword="null"/>.
+    /// </remarks>
+    public IReadOnlyList<CallableAgentReference>? CallableAgents { get; init; }
+
+    /// <summary>
+    /// Gets the names a row written before the version pin carries (<c>callableAgentNames</c>). Read only:
+    /// a payload never writes it, and <see cref="ToDefinition"/> turns it into references with no version.
+    /// </summary>
+    /// <remarks>
+    /// Every row from before the pin holds this key, even for an agent that calls nobody. Reading it here
+    /// costs nothing; moving it in the stored text would parse every old row on every read. A save writes
+    /// <see cref="CallableAgents"/> only, so a row changes shape the first time it is saved.
+    /// </remarks>
+    public IReadOnlyList<string>? CallableAgentNames { get; init; }
 
     /// <summary>Gets how long this agent waits for the agents it calls.</summary>
     public SubAgentSettings? SubAgents { get; init; }
@@ -93,7 +108,7 @@ internal sealed record AgentDefinitionPayload
 
     /// <summary>Moves a key a row still carries from before it moved, and returns the JSON unchanged when there is none.</summary>
     /// <param name="json">The stored JSON.</param>
-    /// <returns>The JSON with every legacy key in its current place.</returns>
+    /// <returns>The JSON with the tool loop key in its current place. <c>callableAgentNames</c> is not moved: see <see cref="CallableAgentNames"/>.</returns>
     /// <remarks>
     /// <para>
     /// <c>model.allowConcurrentToolCalls</c> became <c>model.toolLoop.allowConcurrentToolCalls</c>. A row
@@ -156,7 +171,7 @@ internal sealed record AgentDefinitionPayload
             Skills = definition.Skills,
             Workspace = definition.Workspace,
             ExtensionNames = definition.ExtensionNames is { Count: > 0 } extensionNames ? extensionNames : null,
-            CallableAgentNames = definition.CallableAgentNames,
+            CallableAgents = definition.CallableAgents is { Count: > 0 } callableAgents ? callableAgents : null,
             SubAgents = definition.SubAgents,
             McpResourceUris = definition.McpResourceUris,
             Harness = definition.Harness,
@@ -189,7 +204,9 @@ internal sealed record AgentDefinitionPayload
             Skills = Skills,
             Workspace = Workspace,
             ExtensionNames = ExtensionNames ?? [],
-            CallableAgentNames = CallableAgentNames,
+            CallableAgents = CallableAgents is { } callableAgents
+                ? callableAgents
+                : [.. (CallableAgentNames ?? []).Select(static name => new CallableAgentReference { Name = name })],
             SubAgents = SubAgents,
             McpResourceUris = McpResourceUris ?? [],
             Harness = Harness,

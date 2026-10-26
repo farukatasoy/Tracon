@@ -29,7 +29,8 @@
 //     consecutive failures
 //
 // Agent-calls-agent:
-//   - `CallableAgentNames` grants an agent permission to call other agents
+//   - `CallableAgents` grants an agent permission to call other agents; an entry can pin
+//     the version of the callee that runs (`new CallableAgentReference { Name = ..., Version = 2 }`)
 //   - each sub-call produces a SEPARATE `runs` row; the UI draws it as a tree
 //   - depth, token, and count limits are configured under `Tracon:AgentGraph`
 //
@@ -660,7 +661,7 @@ tracon
         Instructions = "You are a router. Hand off order questions to the 'support' agent, " +
                        "wait for its result, and summarize it for the user. Do not call tools yourself.",
         Model = model,
-        CallableAgentNames = ["support"],
+        CallableAgents = ["support"],
     })
 
     // Two links for the Sequential chain. Neither uses a tool: the proof of

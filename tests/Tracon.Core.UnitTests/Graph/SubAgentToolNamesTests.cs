@@ -63,7 +63,7 @@ public sealed class SubAgentToolNamesTests
             .ShouldHaveSingleItem();
 
         problem.Code.ShouldBe("sub_agent_tool_name_conflict");
-        problem.Path.ShouldBe("callableAgentNames[1]");
+        problem.Path.ShouldBe("callableAgents[1].name");
         problem.Message.ShouldContain("'support-agent'");
         problem.Message.ShouldContain("'support_agent'");
         problem.Message.ShouldContain("toolNames");
@@ -74,7 +74,7 @@ public sealed class SubAgentToolNamesTests
     {
         var problem = SubAgentToolNames.FindProblems(Definition(callable: ["a-b", "a_b"])).ShouldHaveSingleItem();
 
-        problem.Path.ShouldBe("callableAgentNames[1]");
+        problem.Path.ShouldBe("callableAgents[1].name");
         problem.Message.ShouldContain("'a_b'");
         problem.Message.ShouldContain("'a-b'");
     }
@@ -148,7 +148,7 @@ public sealed class SubAgentToolNamesTests
     private static AgentDefinition Definition(string[] callable, string[]? toolNames = null)
         => TestData.Definition(toolNames: toolNames) with
         {
-            CallableAgentNames = callable,
+            CallableAgents = [.. callable],
             SubAgents = ToolMode,
         };
 }

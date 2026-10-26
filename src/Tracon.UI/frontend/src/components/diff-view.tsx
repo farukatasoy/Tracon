@@ -129,7 +129,7 @@ export function FieldDiffTable<T extends object>({
 
 /**
  * Set difference view for name lists (`toolNames`, `skillNames`,
- * `callableAgentNames`): added names in green, removed in red, unchanged neutral.
+ * `callableAgents`, one entry per name and pin): added names in green, removed in red, unchanged neutral.
  */
 export function SetDiff({
   left,

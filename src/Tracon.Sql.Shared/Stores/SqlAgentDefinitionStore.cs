@@ -186,7 +186,9 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         }
 
         // A rollback does NOT delete the old version; it saves its content as a new version. A key the
-        // old row carries from before it moved is moved first, so the new row holds the current shape only.
+        // old row carries from before the tool loop settings moved is moved first, so the new row holds the
+        // current shape for it. A row from before a callable agent took a version still holds
+        // `callableAgentNames`: the reader turns it into references, and the next save writes the new key.
         return await WriteVersionAsync(name, AgentDefinitionPayload.UpgradeLegacyKeys(payload), cancellationToken).ConfigureAwait(false);
     }
 

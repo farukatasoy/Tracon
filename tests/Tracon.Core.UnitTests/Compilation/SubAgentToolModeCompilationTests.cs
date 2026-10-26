@@ -16,7 +16,7 @@ public sealed class SubAgentToolModeCompilationTests
         var compiler = BuildCompiler(out var callable);
         var definition = TestData.Definition(toolNames: ["support_agent"]) with
         {
-            CallableAgentNames = ["support-agent"],
+            CallableAgents = ["support-agent"],
             SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
         };
 
@@ -33,7 +33,7 @@ public sealed class SubAgentToolModeCompilationTests
         var compiler = BuildCompiler(out var callable);
         var definition = TestData.Definition(toolNames: ["support_agent"]) with
         {
-            CallableAgentNames = ["support-agent"],
+            CallableAgents = ["support-agent"],
         };
 
         Should.NotThrow(() => compiler.Compile(definition, callable));

@@ -126,7 +126,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
         skills: descriptor.skills ?? emptySkills,
         workspace: descriptor.workspace ?? emptyWorkspace,
         extensionNames: [...descriptor.extensionNames],
-        callableAgentNames: [...descriptor.callableAgentNames],
+        callableAgents: descriptor.callableAgentNames.map((name) => ({ name, version: null })),
       }));
       setReady(true);
 

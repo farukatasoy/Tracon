@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1039 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1040 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1091 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1092 kalem)
 
 | K | Karar |
 |---|---|
-| K-1050 | `eval_cases.expected_tool_calls` yeni sütun; eski `expected_tools` yazılmaz, okunur, düşürülmez; okunamayan metin vakayı düşürür (F-605) |
 | K-1051 | Workflow adımında tool onayı reddedilmez; MAF'ın dış istek portuyla workflow isteğine döner (K-103'ün workflow kapsamı) 👤 |
 | K-1052 | A2A oturum kimliği `a2a:` + SHA-256 özeti: kiracı, agent, çağıran, `contextId`; her parça uzunluk önekli (F-614, Faz 229) |
 | K-1053 | A2A çağıranı tür önekli kimlik: `user:` · `apikey:` · `static-token` · `anonymous`; okunamayan kullanıcı reddedilir (F-614, Faz 229) |
@@ -62,3 +61,4 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1099 | Okunamayan her skaler yapılandırma değeri açılışı durdurur; boş "verilmedi" sayılır, liste anahtarına tek değer hata verir (Faz 247) |
 | K-1100 | Agent sürüm numarası ad başına bir kez verilir: sayaç tablosu silmede kalır, geçmiş silinir (F-409, Faz 248) |
 | K-1101 | Kod grafı adımı agent sürümünü adlı run parametresinden her çağrıda okur; `AgentVersion` ile birlikte verilemez (F-545, Faz 249) |
+| K-1102 | Çağrılabilir agent sürüm sabitini tanım taşır: `CallableAgents: [{name, version?}]`; eski `callableAgentNames` kalkar (F-409, Faz 250) |

@@ -64,6 +64,23 @@ public sealed class DefinitionFingerprintTests
     }
 
     [Fact]
+    public void A_pin_on_a_callable_agent_and_its_version_change_the_fingerprint()
+    {
+        // The compiled agent holds the version of each callee it runs. An entry compiled for the callee's
+        // current version must not serve a definition that now pins one, and one pinned to 1 must not serve 2.
+        static AgentDefinition Calling(int? version) => TestData.Definition("a") with
+        {
+            CallableAgents = [new CallableAgentReference { Name = "researcher", Version = version }],
+        };
+
+        var current = AgentDefinitionCompiler.CreateDefinitionFingerprint(Calling(null));
+        var first = AgentDefinitionCompiler.CreateDefinitionFingerprint(Calling(1));
+
+        first.ShouldNotBe(current, StringComparer.Ordinal);
+        AgentDefinitionCompiler.CreateDefinitionFingerprint(Calling(2)).ShouldNotBe(first, StringComparer.Ordinal);
+    }
+
+    [Fact]
     public void A_changed_sub_agent_call_mode_changes_the_fingerprint()
     {
         // The mode decides which tools the compiled agent carries. A cache entry compiled for
@@ -108,7 +125,7 @@ public sealed class DefinitionFingerprintTests
         yield return (nameof(AgentDefinition.SkillNames), baseline with { SkillNames = ["a_skill"] });
         yield return (nameof(AgentDefinition.Skills), baseline with { Skills = new SkillSettings { DisableReadApproval = true } });
         yield return (nameof(AgentDefinition.Workspace), baseline with { Workspace = new WorkspaceSettings { Enabled = true } });
-        yield return (nameof(AgentDefinition.CallableAgentNames), baseline with { CallableAgentNames = ["other-agent"] });
+        yield return (nameof(AgentDefinition.CallableAgents), baseline with { CallableAgents = ["other-agent"] });
         yield return (nameof(AgentDefinition.SubAgents), baseline with { SubAgents = new SubAgentSettings { ChildDeadline = TimeSpan.FromSeconds(7) } });
         yield return (nameof(AgentDefinition.McpResourceUris), baseline with { McpResourceUris = ["server:res://a"] });
         yield return (nameof(AgentDefinition.Harness), baseline with { Harness = new HarnessSettings() });

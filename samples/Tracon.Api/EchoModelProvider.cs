@@ -79,6 +79,18 @@ internal sealed class EchoModelProvider : IModelProvider
             SupportsTools = true,
         },
 
+        // Calls the first tool it is offered once, then answers with what the tool returned. An agent that calls
+        // another agent as a tool (SubAgentSettings.CallMode = Tool) delegates on this model with no network and no
+        // key, and the child run it opens can be read back from the run store.
+        new ModelDescriptor
+        {
+            Name = EchoDelegatorModel,
+            DisplayName = "Echo delegator (local, no network)",
+            ContextWindowTokens = 8_192,
+            MaxOutputTokens = 1_024,
+            SupportsTools = true,
+        },
+
         // Answers as the writer of the review-and-revise workflow: a JSON script, a revised one when the message asks
         // for a revision, and a script over the length limit when the brief says "#long".
         new ModelDescriptor
@@ -102,6 +114,9 @@ internal sealed class EchoModelProvider : IModelProvider
 
     /// <summary>The model that asks for two <c>narrate</c> calls in one turn, then answers.</summary>
     public const string EchoNarratorModel = "echo-narrator-1";
+
+    /// <summary>The model that calls the first tool it is offered once, then answers with the result.</summary>
+    public const string EchoDelegatorModel = "echo-delegator-1";
 
     /// <summary>The model that writes the script of the review-and-revise workflow as JSON.</summary>
     public const string EchoWriterModel = "echo-writer-1";
@@ -134,6 +149,15 @@ internal sealed class EchoModelProvider : IModelProvider
                 });
             }
 
+            if (string.Equals(_modelId, EchoDelegatorModel, StringComparison.Ordinal))
+            {
+                return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, DelegatorTurn(messages, options)))
+                {
+                    ModelId = _modelId,
+                    Usage = NarratorUsage,
+                });
+            }
+
             var reply = BuildReply(messages, options);
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, reply))
             {
@@ -155,6 +179,14 @@ internal sealed class EchoModelProvider : IModelProvider
             if (string.Equals(_modelId, EchoNarratorModel, StringComparison.Ordinal))
             {
                 yield return new ChatResponseUpdate(ChatRole.Assistant, NarratorTurn(messages)) { ModelId = _modelId };
+                yield return new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(NarratorUsage)]) { ModelId = _modelId };
+
+                yield break;
+            }
+
+            if (string.Equals(_modelId, EchoDelegatorModel, StringComparison.Ordinal))
+            {
+                yield return new ChatResponseUpdate(ChatRole.Assistant, DelegatorTurn(messages, options)) { ModelId = _modelId };
                 yield return new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(NarratorUsage)]) { ModelId = _modelId };
 
                 yield break;
@@ -199,6 +231,29 @@ internal sealed class EchoModelProvider : IModelProvider
                 new FunctionCallContent("narrate-1", NarrateTool.Name, new Dictionary<string, object?>(StringComparer.Ordinal) { ["text"] = text }),
                 new FunctionCallContent("narrate-2", NarrateTool.Name, new Dictionary<string, object?>(StringComparer.Ordinal) { ["text"] = $"Again: {text}" }),
             ];
+        }
+
+        // One call to the first tool offered, with the user's message as its `query`; the answer once the result is in
+        // the conversation. The tool of a callable agent in Tool mode takes exactly that argument.
+        private static List<AIContent> DelegatorTurn(IEnumerable<ChatMessage> messages, ChatOptions? options)
+        {
+            var results = messages.SelectMany(static message => message.Contents).OfType<FunctionResultContent>().ToList();
+
+            if (results.Count > 0)
+            {
+                return [new TextContent($"Echo delegator: {string.Join(' ', results.Select(static result => result.Result))}")];
+            }
+
+            var tool = options?.Tools?.FirstOrDefault();
+
+            if (tool is null)
+            {
+                return [new TextContent("Echo delegator: no tool was offered.")];
+            }
+
+            var text = messages.LastOrDefault(static message => message.Role == ChatRole.User)?.Text ?? "(empty request)";
+
+            return [new FunctionCallContent("delegate-1", tool.Name, new Dictionary<string, object?>(StringComparer.Ordinal) { ["query"] = text })];
         }
 
         private string BuildReply(IEnumerable<ChatMessage> messages, ChatOptions? options)

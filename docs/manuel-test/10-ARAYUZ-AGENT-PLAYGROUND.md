@@ -217,7 +217,7 @@ Sınır durumu.
 
 **Beklenen sonuç**
 - Adım 5: sağ panel `POST api/agents` etiketiyle **tam olarak** gönderilecek
-  gövdeyi gösterir — `toolNames: []`, `skillNames: []`, `callableAgentNames: []`,
+  gövdeyi gösterir — `toolNames: []`, `skillNames: []`, `callableAgents: []`,
   `harness: null`, `compaction: null`, `memory: null` (hiçbiri işaretlenmediği
   için `AgentDefinitionRequest`'in `null`'a düşen alanları budur).
 - Adım 6: `201`'e karşılık gelen davranış — ekran `agents/manuel-bos`'a yönlenir,
@@ -2068,17 +2068,17 @@ Rol: administrator.
 **Ön koşul** — Örnek uygulama Development'ta, dört boş ortam değişkeniyle (`PostgreSql`, `SqlServer`, `Sqlite` bağlantı dizesi ve `Ui:AuthToken`), `Tracon__Observability__SuccessSampleRatio=1`, OpenAI anahtarı gerçek. `support` kod agent'ı mevcut. Rol: administrator.
 
 **Adımlar**
-1. `POST $BASE/api/agents` ile `router-tool` kaydet: `callableAgentNames: ["support"]`, `subAgents: {"callMode":"Tool"}`, model `openai/gpt-5.4-mini`, talimat `router` ile aynı.
+1. `POST $BASE/api/agents` ile `router-tool` kaydet: `callableAgents: [{"name":"support"}]`, `subAgents: {"callMode":"Tool"}`, model `openai/gpt-5.4-mini`, talimat `router` ile aynı.
 2. Tarayıcıda `/tracon/agents/router-tool/edit` aç; "Call mode" seçimine bak. Seçimi "Background tasks" yap ve kaydet; `GET $BASE/api/agents/router-tool` oku.
 3. `/tracon/agents/router-tool` aç; sürüm 1 ve 2'yi karşılaştır.
 4. `router` (kod agent'ı, varsayılan kip) ve `router-tool` agent'ını ("What is the status of order ORD-7?") üçer kez koş. Her run için `GET $BASE/api/runs/{id}/trace` oku: ebeveynin `chat` span sayısını ve `gen_ai.tool.definitions` içindeki tool adlarını say.
-5. `POST $BASE/api/agents` ile `get-order-status` agent'ı kaydet; sonra `toolNames: ["get_order_status"]`, `callableAgentNames: ["get-order-status"]`, `subAgents: {"callMode":"Tool"}` taşıyan bir agent kaydetmeyi dene; aynısını `callMode` olmadan dene.
+5. `POST $BASE/api/agents` ile `get-order-status` agent'ı kaydet; sonra `toolNames: ["get_order_status"]`, `callableAgents: [{"name":"get-order-status"}]`, `subAgents: {"callMode":"Tool"}` taşıyan bir agent kaydetmeyi dene; aynısını `callMode` olmadan dene.
 
 **Beklenen sonuç**
 - Adım 2: seçim kayıtlı `Tool` değerini "One tool for each agent" olarak gösterir; kayıttan sonra `subAgents.callMode` = `Background`.
 - Adım 3: "Call mode" satırı iki sütunda farklı metin gösterir ("One tool for each agent" ↔ "Background tasks") ve vurgulanır.
 - Adım 4: `router-tool` ebeveyni 2 `chat` span'ı yazar ve yalnız `support` tool'unu görür; `router` ebeveyni 5 `chat` span'ı yazar ve altı `background_agents_*` tool'unu görür. Çocuk her iki kipte 2 model çağrısı yapar. Tüm run'lar `Completed`.
-- Adım 5: `get-order-status` agent'ı `201` alır. `Tool` kipi `400` verir ve ayrıntı `'get-order-status'` ile `'get_order_status'` adlarını ikisini de içerir; `callMode` olmadan kayıt `201` alır. `POST $BASE/api/agents/validate` aynı tanım için `sub_agent_tool_name_conflict` ve `callableAgentNames[0]` yolunu döner.
+- Adım 5: `get-order-status` agent'ı `201` alır. `Tool` kipi `400` verir ve ayrıntı `'get-order-status'` ile `'get_order_status'` adlarını ikisini de içerir; `callMode` olmadan kayıt `201` alır. `POST $BASE/api/agents/validate` aynı tanım için `sub_agent_tool_name_conflict` ve `callableAgents[0].name` yolunu döner.
 
 **Koşum (2026-10-20, ajan)** — Adım 2: seçim `One tool for each agent` gösterdi, kayıttan sonra sürüm 2 `callMode: Background`. Adım 3: satır iki farklı değerle ve `bg-warn-soft` ile göründü. Adım 4 (`router` ↔ `router-tool`, üçer run): ebeveyn model çağrısı 5 ↔ 2; ebeveyn girdi token'ı 3.603–3.705 ↔ 409–412; çıktı token'ı 139–170 ↔ 48–53; süre 5,8–9,0 sn ↔ 3,1–3,3 sn. Adım 5: `400`, ayrıntı iki adı da içerdi; `callMode` olmadan `201`. Günlükte `Npgsql` satırı 0.
 
@@ -2107,3 +2107,60 @@ Rol: administrator.
 - Adım 3: iki ayraç görünür: "Iteration 1 · draft-reviewed asked for another iteration" ve "Iteration 2 · the loop stopped"; Türkçede "İterasyon 1 · draft-reviewed yeni bir iterasyon istedi" ve "İterasyon 2 · döngü durdu". Ayraçlar metinlerin arasındadır, sonradan sona yığılmaz (`playground.test.tsx`, `PlaygroundTests`).
 
 **Koşum (2026-10-25, ajan)** — Adım 1: `run` · 7 `update` · `loop.iteration-completed` (id 8) · 1 `update` (`role: "user"`, "Reviewer findings (round 1): …") · 19 `update` · `loop.iteration-completed` (id 29, `iteration 2 stopped`) · `done`. Adım 3: ayraçlar iki dilde göründü. Gözlem: ayraçtan sonraki paragraf geri bildirim metnini ("Reviewer findings (round 1): …") modelin cevabıyla birleşik gösterir; transcript `update`'in rolünü okumaz. Günlükte `Npgsql` satırı 0.
+
+---
+
+### MT-UIAG-067 — Sabitlenmiş çağrılabilir agent, çağrılan agent düzenlendikten sonra da sabit sürümle koşar; kayıt geçersiz sabiti reddeder (Faz 250)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 250 |
+| **İlgili karar** | K-1102 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (echo kipi) + `curl` |
+
+**Ön koşul** — Örnek uygulama Development'ta, beş boş ortam değişkeniyle (`PostgreSql`, `SqlServer` bağlantı dizesi, `Ui:AuthToken`, her sağlayıcının `ApiKey`'i) ve geçici bir `Sqlite` dosyasıyla (`Tracon__Sqlite__ConnectionString`); OpenAI anahtarı **yok**. Model `echo-delegator-1` (ilk tool'u bir kez çağırır, sonra sonucu yanıtlar) ve `echo-instructions-1` (cevabında aldığı talimatı yazar) örnek uygulamanın yerel `echo` sağlayıcısındadır. `support` kod agent'ı mevcut.
+
+**Adımlar**
+1. `source-finder` agent'ını talimat `ALPHA text` ile kaydet, sonra `PUT` ile talimatı `BETA text` yap (iki sürüm). Model `echo/echo-instructions-1`.
+2. İki üst agent kaydet, ikisi de `echo/echo-delegator-1` ve `subAgents: {"callMode":"Tool"}`: `finder-pinned` → `callableAgents: [{"name":"source-finder","version":1}]`; `finder-current` → `callableAgents: [{"name":"source-finder"}]`. `GET $BASE/api/agents/finder-pinned` oku.
+3. İkisini de koştur (`POST $BASE/api/agents/{ad}/run`, "Find sources about tea."). Her kök run için `GET $BASE/api/runs?parentRunId={runId}&includeChildren=true` oku.
+4. Şu gövdelerle `POST $BASE/api/agents` dene: sürüm `9`, sürüm `0`, kod agent'ı `support` için sürüm `1`, aynı ad iki kez, eski `callableAgentNames` alanı. Sürüm `9` gövdesini `POST $BASE/api/agents/validate`'e de gönder.
+
+**Beklenen sonuç**
+- Adım 2: `callableAgents` `[{"name":"source-finder","version":1}]` döner.
+- Adım 3: `finder-pinned` yanıtı `Echo [instructions: ALPHA text]` içerir ve çocuk run satırı `agentVersion: 1`; `finder-current` yanıtı `BETA text` içerir ve çocuk satırı `agentVersion: 2`. İkisi de `Completed`.
+- Adım 4: dördü de `400`; ayrıntılar sırasıyla `has no version 9`, `to version 0`, `is defined in code and keeps no version history`, `more than once`; eski alan `Removed field` başlığı ve `callableAgents` adıyla döner. `validate` `200` döner: `valid: false`, kod `callable_agent_version_not_found`, yol `callableAgents[0].version`. Hiçbiri kaydedilmez.
+
+**Koşum (2026-10-26, ajan)** — Adım 2: `[{'name': 'source-finder', 'version': 1}]`. Adım 3: `finder-pinned` → `Echo delegator: Echo [instructions: ALPHA text]: Find sources about tea.`, çocuk `agentVersion: 1`; `finder-current` → `... BETA text ...`, çocuk `agentVersion: 2`. Adım 4: beş istek `400` (`Definition invalid` ×4, `Removed field`); `validate`: `callable_agent_version_not_found` · `callableAgents[0].version`.
+
+✅ 2026-10-26.
+
+---
+
+### MT-UIAG-068 — Konsol, çağrılabilir agent'ın sürüm sabitini gösterir, değiştirir ve korur (Faz 250)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 250 |
+| **İlgili karar** | K-1102 |
+| **Devir** | 🤖 ajan koşar — Playwright MCP + örnek uygulama (echo kipi) + `curl` |
+
+**Ön koşul** — `MT-UIAG-067` koşulmuş: `source-finder` iki sürümlü, `finder-pinned` sürüm 1'e sabit, `finder-current` sabitsiz.
+
+**Adımlar**
+1. Tarayıcıda `/tracon/agents/finder-pinned/edit` aç; "Callable agents" panelinde `source-finder` satırındaki "Version of source-finder to run" seçimine bak.
+2. `/tracon/agents/finder-current/edit` aç; seçimi `v1` yap ve kaydet. `GET $BASE/api/agents/finder-current` oku. Aynı düzenleme ekranını yeniden aç.
+3. Aynı ekranda seçimi "Current version" yap ve kaydet; `GET $BASE/api/agents/finder-current` oku.
+
+**Beklenen sonuç**
+- Adım 1: seçenekler "Current version", "v2", "v1"; `v1` seçili.
+- Adım 2: sürüm 2, `callableAgents: [{"name":"source-finder","version":1}]`; yeniden açılan ekranda `v1` seçili.
+- Adım 3: sürüm 3, `callableAgents: [{"name":"source-finder","version":null}]`.
+
+**Koşum (2026-10-26, ajan)** — Adım 1: seçenekler `Current version`, `v2`, `v1 [selected]`. Adım 2: kayıttan sonra `finder-current` sürüm 2, `[{'name': 'source-finder', 'version': 1}]`; yeniden açılışta `v1 [selected]`. Adım 3 Vitest (`agent-editor.test.tsx`, "drops the pin…") ve Playwright E2E (`Callable_agent_pinned_in_the_console_is_saved_read_back_and_sent_to_the_server`) kapsar; gerçek tarayıcıda ayrıca koşulmadı.
+
+✅ 2026-10-26 (adım 3 hariç).

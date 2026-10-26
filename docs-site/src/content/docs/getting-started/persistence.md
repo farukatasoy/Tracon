@@ -305,6 +305,8 @@ An agent definition keeps its content in one JSON column. A field that a new ver
 to the definition, such as the list of agent extensions, needs no migration: a row that
 was written before the field existed reads the field as empty, and it keeps running as it did.
 A row without `skills` reads back with the approval on for all three skill tools.
+A row that holds the callable agents as a list of names (`callableAgentNames`) reads back as
+entries with no version, and takes the new shape the next time it is saved.
 
 ## Keeping it from growing forever
 

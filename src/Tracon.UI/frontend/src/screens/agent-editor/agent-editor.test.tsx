@@ -19,7 +19,7 @@ const fullDefinition = {
   toolNames: [],
   skillNames: [],
   extensionNames: [],
-  callableAgentNames: [],
+  callableAgents: [],
   harness: null,
   compaction: null,
   memory: null,
@@ -810,6 +810,142 @@ describe('AgentEditorScreen', () => {
       renderScreen(<AgentEditorScreen />);
 
       expect(await screen.findByText('AddAgentExtension(...)')).toBeTruthy();
+    });
+  });
+
+  describe('callable agents (Phase 250)', () => {
+    type Sent = { callableAgents?: Array<{ name: string; version: number | null }> };
+
+    const listed = [
+      { name: 'researcher', origin: 'Database', sourceName: 'database', description: 'Finds sources.', version: 3 },
+      { name: 'coded-helper', origin: 'Code', sourceName: 'code', description: 'Defined in code.', version: 1 },
+    ];
+    const versionsOfResearcher = [3, 2, 1].map((version) => ({ ...fullDefinition, name: 'researcher', version }));
+
+    function withCallable(callableAgents: unknown[]): FixtureRoute[] {
+      return [
+        fixture('GET', 'api/tools', []),
+        fixture('GET', 'api/skills', []),
+        fixture('GET', 'api/agent-extensions', []),
+        fixture('GET', 'api/agents', listed),
+        fixture('GET', 'api/models', providers),
+        fixture('GET', 'api/agents/:name/versions', versionsOfResearcher),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, callableAgents },
+        }),
+      ];
+    }
+
+    function captureValidate(): { route: FixtureRoute; sent: () => Sent } {
+      let body: Sent = {};
+
+      return {
+        route: {
+          method: 'POST',
+          pattern: 'api/agents/validate',
+          handler: (_params, _url, sent) => {
+            body = sent as Sent;
+
+            return { valid: true, inconclusive: false, messages: [] };
+          },
+        },
+        sent: () => body,
+      };
+    }
+
+    it('sends a callable agent with no version when none is chosen', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withCallable([]), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await user.click(await screen.findByLabelText(/^researcher/));
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().callableAgents).toEqual([{ name: 'researcher', version: null }]));
+    });
+
+    it('pins a callable agent to a version it has and sends the pin', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withCallable([{ name: 'researcher', version: null }]), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const select = (await screen.findByTestId('agent-callable-version-researcher')) as HTMLSelectElement;
+
+      await waitFor(() => expect(Array.from(select.options).map((option) => option.textContent)).toEqual(['Current version', 'v3', 'v2', 'v1']));
+
+      await user.selectOptions(select, '2');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().callableAgents).toEqual([{ name: 'researcher', version: 2 }]));
+    });
+
+    it('shows a stored pin and sends it back unchanged', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withCallable([{ name: 'researcher', version: 1 }]), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const select = (await screen.findByTestId('agent-callable-version-researcher')) as HTMLSelectElement;
+
+      await waitFor(() => expect(select.value).toBe('1'));
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().callableAgents).toEqual([{ name: 'researcher', version: 1 }]));
+    });
+
+    it('drops the pin when the user goes back to the current version', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withCallable([{ name: 'researcher', version: 1 }]), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await user.selectOptions(await screen.findByTestId('agent-callable-version-researcher'), '');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().callableAgents).toEqual([{ name: 'researcher', version: null }]));
+    });
+
+    it('offers no version for an agent defined in code, which keeps none', async () => {
+      restoreFetch = installApiMock(withCallable([{ name: 'coded-helper', version: null }]));
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await waitFor(() => expect((screen.getByLabelText(/^coded-helper/) as HTMLInputElement).checked).toBe(true));
+
+      expect(screen.queryByTestId('agent-callable-version-coded-helper')).toBeNull();
+    });
+
+    it('shows a pin the agent no longer lists as not found and keeps it selectable', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withCallable([{ name: 'researcher', version: 9 }]), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const select = (await screen.findByTestId('agent-callable-version-researcher')) as HTMLSelectElement;
+
+      await waitFor(() => expect(Array.from(select.options).map((option) => option.textContent)).toContain('Version 9 (not found)'));
+
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().callableAgents).toEqual([{ name: 'researcher', version: 9 }]));
     });
   });
 

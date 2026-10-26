@@ -340,7 +340,7 @@ Negatif senaryo. Çağrı grafiği **kaydetme anında** denetlenir. Bir döngü,
 curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-dongu",
   "model": { "provider": "echo", "model": "echo-1" },
-  "callableAgentNames": ["manuel-dongu"]
+  "callableAgents": [{ "name": "manuel-dongu" }]
 }'
 
 # 2) Kaydetmeyi dene
@@ -348,7 +348,7 @@ curl -s -o /dev/null -w "kayit HTTP: %{http_code}\n" \
   -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-dongu",
   "model": { "provider": "echo", "model": "echo-1" },
-  "callableAgentNames": ["manuel-dongu"]
+  "callableAgents": [{ "name": "manuel-dongu" }]
 }'
 
 # 3) Dolayli dongu: A -> B -> A
@@ -357,11 +357,11 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
 }'
 curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-b", "model": { "provider": "echo", "model": "echo-1" },
-  "callableAgentNames": ["manuel-a"]
+  "callableAgents": [{ "name": "manuel-a" }]
 }'
 curl -s -X PUT "$APU/api/agents/manuel-a" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-a", "model": { "provider": "echo", "model": "echo-1" },
-  "callableAgentNames": ["manuel-b"]
+  "callableAgents": [{ "name": "manuel-b" }]
 }'
 ```
 

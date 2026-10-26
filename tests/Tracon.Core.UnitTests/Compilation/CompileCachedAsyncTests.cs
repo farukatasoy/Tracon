@@ -79,7 +79,7 @@ public sealed class CompileCachedAsyncTests
             callableAgents: callableAgents,
             tenantContext: new FixedTenantContext(TenantId));
         var cache = new CompiledAgentCache();
-        var definition = TestData.Definition() with { CallableAgentNames = ["sub"] };
+        var definition = TestData.Definition() with { CallableAgents = ["sub"] };
 
         var first = await compiler.CompileCachedAsync(definition, cache, TenantId);
 

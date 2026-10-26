@@ -195,7 +195,7 @@ Sınır durumu — hiç çalıştırma yokken.
 
 Kod tanımlı `router` agent'ı (Faz 12) siparişle ilgili istekleri
 `support`'a devreder; devir her zaman AYRI bir `runs` satırı açar
-(`CallableAgentNames`, `samples/Tracon.Api/Program.cs`).
+(`CallableAgents`, `samples/Tracon.Api/Program.cs`).
 
 | | |
 |---|---|

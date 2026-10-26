@@ -99,7 +99,7 @@ internal sealed partial class CodeAgentSource : IAgentSource
                 Skills = registration.Definition?.Skills,
                 Workspace = registration.Definition?.Workspace,
                 ExtensionNames = registration.Definition?.ExtensionNames ?? [],
-                CallableAgentNames = registration.Definition?.CallableAgentNames ?? [],
+                CallableAgentNames = registration.Definition is { } coded ? [.. coded.CallableAgents.Select(static agent => agent.Name)] : [],
                 UsesHarness = registration.Definition?.Harness is not null,
             });
         }

@@ -2082,7 +2082,7 @@ Regresyon. Alt run kendi başına saymaz; kök yalnız kendi usage'ını yazıyo
 Alt agent'ların token'ı ve maliyeti hiçbir sayaca ve kökün `run.completed`
 yüküne girmiyordu.
 
-**Ön koşul** — Örnek uygulama; alt agent çağıran bir agent (`CallableAgentNames`); fiyatlı modeller; `default` kiracısı için günlük token kotası.
+**Ön koşul** — Örnek uygulama; alt agent çağıran bir agent (`CallableAgents`); fiyatlı modeller; `default` kiracısı için günlük token kotası.
 
 **Adımlar**
 1. Kök agent'ı koş; alt agent'ın gerçekten çağrıldığını run ağacından doğrula.
@@ -2110,7 +2110,7 @@ yüküne girmiyordu.
 kök dönünce sayaç `runs 1 · tokens 1352 · cost 0.00043075`, çocuk bitince
 `runs 1 · tokens 1874 · cost 0.001417`; kök satırının `treeUsage.totalTokens`'ı 1874.
 
-**Ön koşul** — Örnek uygulama (`Tracon__PostgreSql__ConnectionString=` boş: bellek içi depo); `bg-writer` (araç yok, uzun cevap) ve `bg-router2` (`CallableAgentNames = ["bg-writer"]`; talimat: "`background_agents_start_task` ile başlat, BEKLEME, `Started` de") `POST $APU/api/agents` ile yaratılmış; `bg-router2` için günlük token kotası.
+**Ön koşul** — Örnek uygulama (`Tracon__PostgreSql__ConnectionString=` boş: bellek içi depo); `bg-writer` (araç yok, uzun cevap) ve `bg-router2` (`CallableAgents = ["bg-writer"]`; talimat: "`background_agents_start_task` ile başlat, BEKLEME, `Started` de") `POST $APU/api/agents` ile yaratılmış; `bg-router2` için günlük token kotası.
 
 **Adımlar**
 1. `bg-router2`'yi çalıştır; HTTP yanıtı (`done` çerçevesi) gelince `GET $APU/api/quotas/usage` oku.
