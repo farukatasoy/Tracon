@@ -6,7 +6,7 @@
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-545**
 > **Genellik:** Workflow'u kodda kuran (`AddWorkflow` + `GetWorkflowAgentStep`) ve agent'ı veritabanında sürümleyen her tüketici. İş tüketici kodunda kalamaz: fabrika yalnız `IServiceProvider` alır ve grafı run parametreleri bağlanmadan **önce** kurar (`WorkflowRunner.cs:1082` derleme, `:1090` `BindParametersAsync`); tüketici bir run'ın hangi sürümle koşacağını seçemez. İkinci kanıt ilk ilkedir (F-409, bakımcı kararı): sabitlenebilen bir sürüm modeli run başına seçimi de taşımalıdır; saklanan workflow bunu `definitionVersion` ve K-989 ile zaten verir
 > **Karşı görüş:** "Tüketici her sürüm için ayrı bir workflow kaydedebilir ya da `AgentVersion`'a sabit yazabilir." Cevap: fabrika her run'da koşar ama değerleri göremez; sabit sayı her yayında kod değişikliği ister ve bir template yayınından sonraki revizyon, yayını yapan run'ı yeni sürümle koşturur (video tüketicisi raporu, 2026-10-15). Run parametresi bugün zaten vardır (K-1010) ve devam/cevapta kayıtlı değerler yeniden kullanılır
-> **Önkoşul:** [Faz 248](248-AGENT-SURUM-NUMARASI-KIMLIGI.md) — sabit, silmede yeniden kullanılmayan bir numaraya dayanmalıdır
+> **Önkoşul:** Faz 248 — sabit, silmede yeniden kullanılmayan bir numaraya dayanmalıdır
 > **Paketler:** `Tracon.Workflows` (`WorkflowAgentStepOptions`, `WorkflowAgentBinding`, `WorkflowAgentCache`), `Tracon.Core` (`ChildAgentInvoker`)
 > **Tüketici yüzeyi:** site `concepts/workflows.md` (kod grafında agent adımı), `concepts/agents.md:452-460` (sabitsiz adım güncel sürümü çözer), `guides/review-and-revise-workflow.md` (varsa adım seçenekleri) · sevk edilen: `WorkflowAgentStepOptions` XML + `<example>`, `src/Tracon.Workflows/PublicAPI.Unshipped.txt`, `CHANGELOG.md` `[Unreleased]` → *Added*
 

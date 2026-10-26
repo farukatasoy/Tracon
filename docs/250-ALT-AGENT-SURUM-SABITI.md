@@ -6,7 +6,7 @@
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-409**
 > **Genellik:** Bir veritabanı agent'ına başka agent'ları çağırtan ve sürüm sabiti kullanan her kurulum: sabitlenmiş bir üst agent (K-989 düğüm sabiti, K-895 onay devamı, deney kolu) bugün çocuklarını güncel sürümle koşturur. İş tüketici kodunda kalamaz: çocuk çağrısı Tracon'un derleyicisinde kurulur. İkinci kanıt ilk ilkedir: sabitlenen sürüm çağırdığını da sabitlemelidir — yoksa "v1 ile koş" sözü yalnız üst agent'ın talimatını kapsar
 > **Karşı görüş:** "Çocuğun güncel sürümle koşması bilinçlidir; sürümü karşılaştırmak isteyen çocuğa doğrudan deney kurar" (site `concepts/agents.md:452-460`, K-895 (c)). Cevap: varsayılan değişmez — sabitsiz çocuk güncel sürümü koşar. Sabit yalnız tanım yazarı **açıkça** bir sürüm yazınca uygulanır; deney kolu yine yalnız kurulduğu agent'a uygulanır
-> **Önkoşul:** [Faz 248](248-AGENT-SURUM-NUMARASI-KIMLIGI.md) — numara silmede yeniden kullanılırsa çocuk sabiti başka içeriği koşturur
+> **Önkoşul:** Faz 248 — numara silmede yeniden kullanılırsa çocuk sabiti başka içeriği koşturur
 > **Paketler:** `Tracon.Abstractions` (`AgentDefinition`, yeni `CallableAgentReference`), `Tracon.Core` (derleyici, doğrulayıcı, `CallableAgentResolver`, `SubAgentToolNames`, replay, devam), `Tracon.Sql.Shared` (`AgentDefinitionPayload`), `Tracon.AspNetCore` (`AgentContracts`, `AgentEndpoints`, OpenAPI), `Tracon.UI` (agent editörü), `Tracon.Client` + `packages/tracon-client` (üretilir), `Tracon.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Yok — tanım `jsonb`/JSON metnidir; eski alan okuma anında çevrilir (250.2)
 > **Public API:** Değişir — `AgentDefinition.CallableAgentNames` (2 satır) silinir, `CallableAgents` ve `CallableAgentReference` eklenir. `rc.1` öncesi kırıcı değişiklik serbesttir (UR-012 B); sürüm notunda adıyla anılır. `wc -l src/*/PublicAPI.Shipped.txt`: 18 dosya × 1 satır (2026-10-26). `AgentDescriptor.CallableAgentNames` kalır (katalog izdüşümü; çağrı grafı adla kurulur, `AgentCallGraph.cs:83`)
@@ -20,7 +20,7 @@
 > `faz-baslangic` skill'ini uygula. Aşağıdaki liste o skill'in 2. adımıdır —
 > **tamamını değil, yalnız işaret edilen bölümleri oku.**
 
-1. Bu doküman ve [Faz 248](248-AGENT-SURUM-NUMARASI-KIMLIGI.md)'in kapanış devri (kapandıysa `FAZ-DEFTERI.md` satırı)
+1. Bu doküman ve Faz 248'in kapanış devri (kapandıysa `FAZ-DEFTERI.md` satırı)
 2. Kararlar — dosyanın tamamını **okuma**, yalnız bu kalemleri grep'le:
    ```bash
    grep -n "K-895 —\|K-989 —\|K-811 —\|K-1043 —\|K-228 —\|K-232 —" docs/KARARLAR.md
