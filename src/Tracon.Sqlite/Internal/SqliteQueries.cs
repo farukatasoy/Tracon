@@ -126,11 +126,20 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Agent definitions ---
 
+        // The next number is one more than the larger of the counter and the agent row's own version: a
+        // process of the older release (rolling upgrade) writes the row without touching the counter, and a
+        // number taken from the counter alone would then collide with its history entry for good.
         UpsertAgentDefinitionVersionCounter = $"""
             INSERT INTO {Schema}agent_definition_version_counters (tenant_id, name, last_version, updated_at)
-            VALUES (@tenant_id, @name, 1, @now)
+            VALUES (@tenant_id, @name,
+                    COALESCE((SELECT version FROM {Schema}agent_definitions
+                               WHERE tenant_id = @tenant_id AND name = @name), 0) + 1,
+                    @now)
             ON CONFLICT (tenant_id, name) DO UPDATE
-                SET last_version = {Schema}agent_definition_version_counters.last_version + 1,
+                SET last_version = MAX(
+                        {Schema}agent_definition_version_counters.last_version,
+                        COALESCE((SELECT version FROM {Schema}agent_definitions
+                                   WHERE tenant_id = @tenant_id AND name = @name), 0)) + 1,
                     updated_at   = excluded.updated_at
             RETURNING last_version;
             """;

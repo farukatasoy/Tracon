@@ -532,8 +532,8 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     public async Task Deleting_keeps_the_history_and_the_numbering_continues_after_it()
     {
         // A version number is an identity: a run that recorded version 3 must never be handed another
-        // content under that number. An agent's history dies with it and restarts at 1 (the
-        // hazard this store avoids); a workflow's does not.
+        // content under that number. An agent's history dies with it, but its numbering goes on (phase
+        // 248); a workflow keeps both.
         await Store.SaveAsync("tenant-a", Definition() with { Description = "One." });
         await Store.SaveAsync("tenant-a", Definition() with { Description = "Two." });
         await Store.SaveAsync("tenant-a", Definition() with { Description = "Three." });

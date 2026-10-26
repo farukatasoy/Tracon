@@ -13,8 +13,9 @@ namespace Tracon;
 /// <strong>The key measures CONTENT, not a version number.</strong> An earlier
 /// design keyed the entry by the definition's version and relied on "a save
 /// increments the version, so the entry naturally goes stale". That reasoning
-/// does not hold for a DELETE followed by a CREATE of the same name: the store
-/// restarts numbering, the new definition is version <c>1</c> again, and the
+/// does not hold for a DELETE followed by a CREATE of the same name: a store
+/// that restarts numbering (the built-in ones did, before phase 248) makes the
+/// new definition version <c>1</c> again, and the
 /// deleted definition's compiled agent kept answering every run - the database
 /// read correctly while the run did not. Measured on a real host.
 /// </para>

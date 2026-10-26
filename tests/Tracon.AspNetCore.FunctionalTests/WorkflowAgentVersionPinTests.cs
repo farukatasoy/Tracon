@@ -208,7 +208,7 @@ public sealed class WorkflowAgentVersionPinTests
     [Fact]
     public async Task A_pin_that_stopped_holding_after_the_save_fails_the_run_before_any_step_runs()
     {
-        // The agent was deleted and created again: its numbering restarted, so the pinned version
+        // The agent was deleted and created again: its history went with the delete, so the pinned version
         // 3 names nothing. The compiler says so, by node, before the first model call.
         var provider = Provider();
         await using var host = await StartAsync(provider);

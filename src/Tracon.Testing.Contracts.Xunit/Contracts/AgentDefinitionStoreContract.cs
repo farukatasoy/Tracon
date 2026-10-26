@@ -253,6 +253,27 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
+    public async Task Concurrent_first_saves_of_a_new_name_get_distinct_versions()
+    {
+        // No row of this name exists, neither the definition nor its counter: every writer races on the
+        // INSERT branch of both upserts, and only one of them may create the rows.
+        const int Writers = 8;
+
+        var saved = await Task.WhenAll(Enumerable.Range(1, Writers).Select(
+            index => Task.Run(async () => await Store.SaveAsync(TestData.Definition("fresh") with { Instructions = $"Writer {index}." }))));
+
+        saved.Select(static definition => definition.Version).Order().ShouldBe(Enumerable.Range(1, Writers));
+
+        foreach (var definition in saved)
+        {
+            (await Store.GetVersionAsync("fresh", definition.Version))!.Instructions.ShouldBe(definition.Instructions);
+        }
+
+        (await Store.ListVersionsAsync("fresh")).Count.ShouldBe(Writers);
+        (await Store.GetAsync("fresh"))!.Version.ShouldBe(Writers);
+    }
+
+    [Fact]
     public async Task GetAsync_for_a_missing_definition_returns_null()
         => (await Store.GetAsync("missing")).ShouldBeNull();
 

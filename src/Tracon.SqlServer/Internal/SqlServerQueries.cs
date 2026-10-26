@@ -149,9 +149,16 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Agent definitions ---
 
+        // The next number is one more than the larger of the counter and the agent row's own version: a
+        // process of the older release (rolling upgrade) writes the row without touching the counter, and a
+        // number taken from the counter alone would then collide with its history entry for good. The row is
+        // read without a lock: the counter row's UPDLOCK already orders every writer of this name.
         UpsertAgentDefinitionVersionCounter = $"""
+            DECLARE @agent_version int = ISNULL(
+                (SELECT version FROM {Schema}.agent_definitions WHERE tenant_id = @tenant_id AND name = @name), 0);
+
             UPDATE {Schema}.agent_definition_version_counters WITH (UPDLOCK, SERIALIZABLE)
-               SET last_version = last_version + 1,
+               SET last_version = IIF(last_version > @agent_version, last_version, @agent_version) + 1,
                    updated_at   = @now
              OUTPUT inserted.last_version
              WHERE tenant_id = @tenant_id AND name = @name;
@@ -159,7 +166,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.agent_definition_version_counters (tenant_id, name, last_version, updated_at)
             OUTPUT inserted.last_version
-            VALUES (@tenant_id, @name, 1, @now);
+            VALUES (@tenant_id, @name, @agent_version + 1, @now);
             """;
 
         UpsertAgentDefinition = $"""

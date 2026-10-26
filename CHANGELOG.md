@@ -368,7 +368,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   migrations add the `agent_definition_version_counters` table (`0065`, `0053` and `0052`), one row of name and number per
   agent and no agent content, and start each existing agent's counter at the version it holds today. **Upgrade note:** an
   agent that was deleted and created again before the upgrade cannot be recovered; its earlier numbers were never kept, so its
-  counter starts at the highest number it holds now.
+  counter starts at the highest number it holds now. During a rolling upgrade an older process may still save an agent without
+  touching the counter: the next number is one more than the larger of the counter and the agent's own version, so such a
+  save never collides with the history it wrote.
 
 - **A configuration value that cannot be read stops the host at startup.** A key that held text its type could not read
   (`Tracon:Tools:DefaultMaxOutputBytes = "10MB"`, `Tracon:RunRecording:RecordToolPayloads = "nope"`,

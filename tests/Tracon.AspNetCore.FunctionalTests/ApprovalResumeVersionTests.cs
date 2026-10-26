@@ -118,6 +118,7 @@ public sealed class ApprovalResumeVersionTests
         var resumed = await DecideAndWaitForResumedRunAsync(host, sourceRunId);
 
         resumed.Status.ShouldBe(RunStatus.Failed);
+        resumed.Error.ShouldNotBeNull().Message.ShouldBe($"Version 1 of agent '{AgentName}' was not found.");
         provider.Requests.Skip(requestsBefore).ShouldNotContain(
             static request => request.Options!.Instructions == "recreated",
             "the continuation never ran the new agent's instructions");

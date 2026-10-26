@@ -12,8 +12,8 @@ namespace Tracon;
 /// numbering from the highest version ever written. A number therefore always names
 /// the same content: a run that recorded version 3 of <c>narrated</c> can be resumed
 /// with exactly that content, even after the workflow was deleted and created again.
-/// (An agent definition differs: its history is deleted with it and a new definition
-/// starts at 1.)
+/// (An agent definition keeps the numbering the same way, but not the history: deleting it
+/// deletes its versions, and the next save continues from the highest number the name had.)
 /// </para>
 /// <para>
 /// <strong>Tenant behavior — EXPLICIT tenant.</strong> Every member takes the tenant
