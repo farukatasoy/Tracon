@@ -1,7 +1,9 @@
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Compaction;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.Core.UnitTests.Fakes;
+using Tracon.Core.UnitTests.Tools;
 
 namespace Tracon.Core.UnitTests.Compilation;
 
@@ -513,6 +515,7 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
+            services: new ServiceCollection().AddSingleton(BuiltInToolGovernanceTestSupport.Create()).BuildServiceProvider(),
             tenantContext: FixedTenantContext.Default,
             vectorSearchStore: new FakeVectorSearchStore(),
             embeddingGenerator: new FakeEmbeddingGenerator());
@@ -527,6 +530,30 @@ public sealed class AgentDefinitionCompilerTests
 
         options!.ChatOptions!.Tools.ShouldNotBeNull();
         options.ChatOptions.Tools!.ShouldContain(static tool => tool.Name == "search_knowledge");
+
+        // F-688: the tool the model sees is the one the tool chain built, not the bare function.
+        options.ChatOptions.Tools!.Single(static tool => string.Equals(tool.Name, "search_knowledge", StringComparison.Ordinal)).ShouldBeOfType<ExplainedFailureAIFunction>();
+    }
+
+    [Fact]
+    public void Vector_search_without_the_tool_chain_stops_compilation_instead_of_offering_an_ungoverned_tool()
+    {
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider()),
+            TestData.Registry(),
+            tenantContext: FixedTenantContext.Default,
+            vectorSearchStore: new FakeVectorSearchStore(),
+            embeddingGenerator: new FakeEmbeddingGenerator());
+
+        var definition = TestData.Definition() with
+        {
+            Memory = new MemorySettings { EnableVectorSearch = true },
+        };
+
+        var exception = Should.Throw<TraconCompilationException>(() => compiler.Compile(definition));
+
+        exception.AgentName.ShouldBe("test-agent");
+        exception.Message.ShouldContain("AddTracon");
     }
 
     [Fact]

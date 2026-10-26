@@ -24,6 +24,12 @@ namespace Tracon;
 /// and user, so a user is remembered across sessions; the write scope also carries the session, which is
 /// what an erasure of the session deletes by.
 /// </para>
+/// <para>
+/// The search tool of <see cref="ConversationMemorySearch.OnDemand"/> is made by the inner provider and is not in the
+/// tool registry, so the wrapper runs it through the tool chain (<see cref="BuiltInToolGovernance"/>) before the model
+/// sees it. The inner provider makes a new function on every call, so the chain is built on every call too. A tool
+/// the inner provider adds that the wrapper does not know is refused: it would run outside the chain.
+/// </para>
 /// </remarks>
 // MAAI001: the context provider contexts are marked "evaluation purposes only" - the rationale is the
 // same as in AgentDefinitionCompiler.Memory.cs.
@@ -33,6 +39,8 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
     private readonly ChatHistoryMemoryProvider _inner;
     private readonly string _tenantId;
     private readonly string _agentName;
+    private readonly ConversationMemorySearch _search;
+    private readonly BuiltInToolGovernance? _governance;
     private readonly ILogger? _logger;
 
     /// <summary>Creates the provider for one compiled agent.</summary>
@@ -42,7 +50,12 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
     /// <param name="agentName">The agent's name.</param>
     /// <param name="search">When the agent searches.</param>
     /// <param name="maxResults">The most records a search returns; <see langword="null"/> takes the framework's default.</param>
+    /// <param name="governance">
+    /// Runs the search tool through the tool chain. Required for <see cref="ConversationMemorySearch.OnDemand"/>,
+    /// the only mode that has a tool; <see langword="null"/> is allowed otherwise.
+    /// </param>
     /// <param name="loggerFactory">The logger factory.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="governance"/> is <see langword="null"/> for <see cref="ConversationMemorySearch.OnDemand"/>.</exception>
     public ConversationMemoryScopeProvider(
         VectorStore store,
         TraconConversationMemoryOptions settings,
@@ -50,10 +63,19 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
         string agentName,
         ConversationMemorySearch search,
         int? maxResults,
+        BuiltInToolGovernance? governance,
         ILoggerFactory? loggerFactory)
     {
+        // A search tool with no chain to run through is not offered: the provider does not build.
+        if (search == ConversationMemorySearch.OnDemand)
+        {
+            ArgumentNullException.ThrowIfNull(governance);
+        }
+
         _tenantId = AmbientTenantScope.Normalize(tenantId);
         _agentName = agentName;
+        _search = search;
+        _governance = governance;
         _logger = loggerFactory?.CreateLogger<ConversationMemoryScopeProvider>();
 
         _inner = new ChatHistoryMemoryProvider(
@@ -99,9 +121,70 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
             return context.AIContext;
         }
 
-        return await _inner
+        // The tools the caller has are read BEFORE the inner provider runs: a provider that changed the list it was
+        // given in place would otherwise make its own tool look like one the caller already had.
+        var before = _search == ConversationMemorySearch.OnDemand
+            ? new AIContext { Tools = [.. context.AIContext.Tools ?? []] }
+            : null;
+
+        var provided = await _inner
             .InvokingAsync(new InvokingContext(context.Agent, session: null, context.AIContext), cancellationToken)
             .ConfigureAwait(false);
+
+        return before is null
+            ? provided
+            : GovernAddedTools(before, provided, _governance!);
+    }
+
+    /// <summary>
+    /// Runs the tool the inner provider added through the tool chain, and refuses a tool it does not know.
+    /// </summary>
+    /// <param name="before">The context the inner provider was given.</param>
+    /// <param name="after">The context the inner provider returned; its tools are replaced.</param>
+    /// <param name="governance">Runs a tool through the tool chain.</param>
+    /// <returns><paramref name="after"/>, with the search tool wrapped.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The inner provider added a tool that is not <see cref="SearchToolName"/>. It would reach the model outside the
+    /// tool chain (no authorization handler, no budget gate, no timeout), so the run stops instead of offering it.
+    /// </exception>
+    internal static AIContext GovernAddedTools(AIContext before, AIContext after, BuiltInToolGovernance governance)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
+        ArgumentNullException.ThrowIfNull(governance);
+
+        if (after.Tools is null)
+        {
+            return after;
+        }
+
+        // The tools the caller already had are the framework's and the host's; they keep their identity. A tool
+        // that is not among them was added by the inner provider.
+        var known = new HashSet<AITool>(before.Tools ?? [], ReferenceEqualityComparer.Instance);
+        var tools = new List<AITool>();
+
+        foreach (var tool in after.Tools)
+        {
+            if (known.Contains(tool))
+            {
+                tools.Add(tool);
+
+                continue;
+            }
+
+            if (tool is not AIFunction { Name: SearchToolName } search)
+            {
+                throw new InvalidOperationException(
+                    $"Conversation memory added the tool '{tool.Name}', which Tracon does not know. It would run outside the tool " +
+                    $"chain, so it is not offered. Tracon runs only '{SearchToolName}' through the chain; update Tracon with the framework.");
+            }
+
+            tools.Add(governance.Govern(search, ToolEffect.External, requiresApproval: false));
+        }
+
+        after.Tools = tools;
+
+        return after;
     }
 
     /// <inheritdoc />

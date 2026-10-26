@@ -91,8 +91,9 @@ against this name before the text leaves the process, and refuses a tenant that 
 its own credential for this provider, because the generator holds the setup key.
 Without it, the name the generator reports is used, and that name does not tell
 providers apart: the OpenAI and the Azure OpenAI generators both report `openai`. When
-no name is known, a tenant with an egress policy is refused (`403`, and the tool call
-fails); a tenant without one is not affected. Every setting can also come from the
+no name is known, a tenant with an egress policy is refused (`403` on the endpoints; for
+the agent's tool, the model reads the refusal as the result of the call); a tenant without
+one is not affected. Every setting can also come from the
 `Tracon:Knowledge` section of configuration.
 
 The embedding model in this example produces 1,536 dimensions. If you choose another
@@ -135,6 +136,24 @@ tracon.AddAgent(new AgentDefinition
 The compiler adds `search_knowledge` automatically. Do not add it to `ToolNames`.
 When `VectorCollection` is empty, the agent name is used. The tool returns at most
 `TraconKnowledgeOptions.MaxResults` chunks.
+
+The tool runs through the same chain as a tool you register in code, before the query is
+embedded:
+
+- Your `IToolAuthorizationHandler` is asked first, with the tool name `search_knowledge`
+  and the effect `External`, because the text of the query leaves the process for the
+  embedding provider. A handler that denies `External` calls also closes the knowledge
+  base to the agent, and the model reads your reason as the result.
+  The tool is not in the tool registry, so `GET /api/tools` does not list it: write its
+  name in your policy as fixed text.
+- Your `IToolArgumentsValidator`, the tool timeout (`Tracon:Tools:DefaultTimeout`) and the
+  output limit apply. A run whose budget is spent does not start the search, so it does not
+  pay for the embedding.
+- The call line of `GET /api/runs/{id}/tools` carries `usage`: the unit `tokens`, the input
+  token count of the query as the embedding provider reported it, and no `cost`. An
+  embedding has no price in Tracon yet, so the amount never reaches a budget, a quota or the
+  webhook total. The run's `nonTokenCost` lists the call under `unsummedItemCount`. A provider
+  that reports no token count leaves the line out.
 
 The console does not currently provide a knowledge-management screen or vector-memory
 fields in the agent editor. Use the knowledge HTTP API for ingestion and calibration,

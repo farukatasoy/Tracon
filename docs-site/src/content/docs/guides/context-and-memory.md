@@ -177,7 +177,8 @@ file store.
 
 `EnableVectorSearch` is different. It adds the code-defined `search_knowledge` tool
 over a persistent semantic knowledge base that you loaded. It does not remember
-conversations. See [Knowledge and RAG](/guides/knowledge/).
+conversations. The tool runs through the same tool chain as a tool you register in code.
+See [Knowledge and RAG](/guides/knowledge/).
 
 `EnableConversationMemory` remembers what one user said to this agent in earlier
 sessions. It needs setup in code. See
@@ -281,6 +282,14 @@ that yet" can come back in a later search.
 The `OnDemand` tool is not part of the agent's `ToolNames`: it needs no approval, and
 it reads only the scope of the run that calls it. A tool of the agent with the same
 name fails the build.
+
+The tool runs through the same chain as a tool you register in code. Your
+[authorization handler](/guides/embedding/#which-tools-reach-the-tool-authorization-handler)
+is asked first, with the effect `External`: the text of the query reaches the embedding
+model of your vector store. Your argument validator and the tool timeout apply, and a run
+whose [budget](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting) is spent
+does not start the search. A handler that denies `External` calls therefore also closes this
+search, and the model reads your reason as the result.
 
 ### Deleting memory
 

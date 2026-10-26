@@ -16,7 +16,7 @@ six are wired the same way, are all optional, and can be added one at a time.
 |---|---|---|
 | `ITenantContext`, `ITenantStore` | The current tenant, resolved from your own identity layer | A single fixed tenant |
 | `IRunAttributionContext` | The current user and job labels a run belongs to | `UserId` and `Labels` are always `null` |
-| `IToolAuthorizationHandler` | A decision for every tool call: allowed or denied | Every call is allowed |
+| `IToolAuthorizationHandler` | A decision for every tool call that runs through the tool chain ([which tools](#which-tools-reach-the-tool-authorization-handler)): allowed or denied | Every call is allowed |
 | `IRunAuthorizationHandler` | A decision for every run start, every access to a run's resources, and every session access: allowed or denied | Every run starts, every run is readable, and every session is reachable |
 | `IRunEventSink` | A bridge that receives every run event as it is written | No bridge; events reach only `IRunStore` |
 | `IAttachmentStorage` | A place to write attachment bytes outside the database | Content is stored as `bytea` in the database |
@@ -110,6 +110,25 @@ the streamed reply of an agent with a [loop](/concepts/agents/#run-until-the-wor
 needs one more frame: `loop.iteration-completed` marks where an iteration ends, because
 nothing in the `update` frames does. The [embeddable chat widget](/ui/#embeddable-chat-widget)
 does not stream (it sends `Idempotency-Key`), so it gets the final iteration only.
+
+#### Which tools reach the tool authorization handler
+
+The handler is asked for every tool call that runs through Tracon's tool chain:
+
+- tools you register in code (`AddTool`, `AddToolsFrom`, `AddScopedTool`) and the built-in tools
+  `speak`, `transcribe` and `generate_image`;
+- the tools of the MCP servers of the tenant;
+- the `file_access_*` tools of a [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session),
+  with the effect `Read`, `Write` or `Destructive`;
+- `search_knowledge`, the search tool of a [knowledge base](/guides/knowledge/), and
+  `search_conversation_memory`, the on-demand search of
+  [conversation memory](/guides/context-and-memory/#remember-a-user-across-sessions), both with the effect `External`:
+  the text of the query leaves the process for the embedding provider and the vector store.
+
+It is not asked for a tool that Tracon does not run or does not own: a hosted tool (it runs at the model provider), an
+agent called as a tool, the skill tools, the file memory, todo and harness tools, and the tools a provider
+that an agent extension adds brings with it. The two search tools are not in the tool registry, so `GET /api/tools` does
+not list them: write their names in your policy as fixed text.
 
 ### 4 — Run event bridge
 

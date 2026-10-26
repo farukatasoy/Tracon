@@ -97,6 +97,13 @@ A denied call does not fail the run: the model receives the reason text as an or
 tool result and continues its turn — the same way a search that finds nothing is not an
 error. If your handler throws, the call is denied (fail-closed), never allowed.
 
+The chain does not stop at tools you register. The `file_access_*` tools of a session workspace
+and the two search tools Tracon adds itself, `search_knowledge` and the on-demand
+`search_conversation_memory`, run through it too, so the handler, the validator, the timeout and
+the budget check apply to them. The searches have the effect `External`, because the text of the
+query leaves the process. [Which tools reach the handler](/guides/embedding/#which-tools-reach-the-tool-authorization-handler)
+lists what is covered and what is not.
+
 Validation asks a narrower question, right after authorization: "are these specific
 arguments acceptable". Binding already rejects a type mismatch or a missing `required`
 field — including a required member of a generated tool's **object** parameter
@@ -308,7 +315,9 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   budget stops a tool call from starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
 - **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
   fill `Provider` and `Model` as well as the measurement. Prices come from
-  `Tracon:Pricing`; with none configured the amount stays unknown.
+  `Tracon:Pricing`; with none configured the amount stays unknown. `search_knowledge` reports
+  the input tokens of its query embedding in the unit `tokens` with no amount: an embedding has
+  no price in Tracon yet, so the call is listed and counted as not added.
 
 ## Hosted tools
 

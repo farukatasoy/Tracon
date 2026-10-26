@@ -9,7 +9,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Wraps <see cref="FileAccessProvider"/>, which is <see langword="sealed"/>. The wrapper takes the tools the
-/// framework provider makes and passes each one to <see cref="WorkspaceToolGovernance"/>, so the model sees
+/// framework provider makes and passes each one to <see cref="BuiltInToolGovernance"/>, so the model sees
 /// only the wrapped tools. The framework's own approval wrapper is off: Tracon sets approval itself, and the
 /// tools that change a file always ask (<see cref="WorkspaceSettings.DisableReadApproval"/> reaches the tools that read, and no
 /// member reaches the others).
@@ -28,7 +28,7 @@ internal sealed class SessionWorkspaceProvider : AIContextProvider, IDisposable
 {
     private readonly FileAccessProvider _inner;
     private readonly SessionWorkspaceFileStore _store;
-    private readonly WorkspaceToolGovernance _governance;
+    private readonly BuiltInToolGovernance _governance;
     private readonly bool _disableReadApproval;
     private AITool[]? _tools;
 
@@ -36,7 +36,7 @@ internal sealed class SessionWorkspaceProvider : AIContextProvider, IDisposable
     /// <param name="store">The store of the workspace.</param>
     /// <param name="settings">The settings of the definition.</param>
     /// <param name="governance">Runs each tool through the tool chain.</param>
-    public SessionWorkspaceProvider(SessionWorkspaceFileStore store, WorkspaceSettings settings, WorkspaceToolGovernance governance)
+    public SessionWorkspaceProvider(SessionWorkspaceFileStore store, WorkspaceSettings settings, BuiltInToolGovernance governance)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(settings);

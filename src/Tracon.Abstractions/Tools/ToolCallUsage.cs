@@ -94,7 +94,10 @@ public static class ToolUsageUnits
     /// <summary>Generated images. Used when an image provider bills per image.</summary>
     public const string Images = "images";
 
-    /// <summary>Output tokens. Used when an image provider bills image generation by tokens.</summary>
+    /// <summary>
+    /// Tokens. Used when an image provider bills image generation by output tokens, and by the knowledge search for
+    /// the input tokens of the query it embeds.
+    /// </summary>
     public const string Tokens = "tokens";
 
     /// <summary>Calls. Used when a provider bills a hosted tool, such as a web search, by the call.</summary>

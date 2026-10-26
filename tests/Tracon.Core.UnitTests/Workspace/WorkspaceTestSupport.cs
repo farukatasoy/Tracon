@@ -33,7 +33,7 @@ internal static class WorkspaceTestSupport
     public static ServiceProvider Services(Action<IServiceCollection>? configure = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton(new WorkspaceToolGovernance(
+        services.AddSingleton(new BuiltInToolGovernance(
             new AllowAllToolAuthorizationHandler(),
             NoOpToolArgumentsValidator.Instance,
             new StaticOptionsMonitor<TraconOptions>(new TraconOptions()),

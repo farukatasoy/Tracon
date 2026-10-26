@@ -103,6 +103,9 @@ public sealed partial class AgentDefinitionCompiler
             definition.Name,
             memory.ConversationMemorySearch,
             memory.ConversationMemoryMaxResults,
+            memory.ConversationMemorySearch == ConversationMemorySearch.OnDemand
+                ? RequireBuiltInToolGovernance(definition, "on-demand conversation memory")
+                : null,
             _loggerFactory);
     }
 
@@ -189,16 +192,42 @@ public sealed partial class AgentDefinitionCompiler
         var collection = memory.VectorCollection is { Length: > 0 } named ? named : definition.Name;
 
         // F-416: the registered check carries the policy and binding stores; a
-        // compiler built without a container still applies the policy it was given.
+        // compiler built without a container still applies the policy it was given
+        // (it cannot build the tool without a container, though: see below).
         var access = _services?.GetService(typeof(EmbeddingProviderAccess)) as EmbeddingProviderAccess
             ?? new EmbeddingProviderAccess(
                 Microsoft.Extensions.Options.Options.Create(new TraconKnowledgeOptions()),
                 _embeddingGenerator,
                 _tenantEgressPolicies);
 
-        tools.Add(VectorSearchToolFactory.Create(
-            _vectorSearchStore, _embeddingGenerator, tenantId, collection, _knowledgeMaxResults, access));
+        // F-688: the search sends the tenant's query to the embedding provider, so it runs through the tool chain
+        // like every other tool: the authorization handler, the argument validator, the budget gate and the timeout
+        // decide before the query leaves the process. The effect is External for the same reason.
+        var governance = RequireBuiltInToolGovernance(definition, "semantic search");
+
+        tools.Add(governance.Govern(
+            VectorSearchToolFactory.Create(
+                _vectorSearchStore, _embeddingGenerator, tenantId, collection, _knowledgeMaxResults, access),
+            ToolEffect.External,
+            requiresApproval: false));
     }
+
+    /// <summary>Gets the service that runs a tool Tracon adds to a run through the tool chain.</summary>
+    /// <param name="definition">The definition that needs the tool.</param>
+    /// <param name="feature">What the definition asked for, named in the error.</param>
+    /// <returns>The governance.</returns>
+    /// <exception cref="TraconCompilationException">
+    /// The compiler has no service provider, or Tracon is not registered in it. A tool that cannot be put through the
+    /// chain is not added without it: the chain is the rule that tools follow.
+    /// </exception>
+    private BuiltInToolGovernance RequireBuiltInToolGovernance(AgentDefinition definition, string feature)
+        => _services?.GetService(typeof(BuiltInToolGovernance)) as BuiltInToolGovernance
+            ?? throw new TraconCompilationException(
+                $"Agent '{definition.Name}' wants {feature}, but the services its tool needs are not registered. " +
+                "Register Tracon with AddTracon.")
+            {
+                AgentName = definition.Name,
+            };
 
     /// <remarks>
     /// Wraps with <see cref="TenantPrefixingAgentFileStore"/>: <see cref="_fileStore"/>

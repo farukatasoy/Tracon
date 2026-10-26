@@ -2,6 +2,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.VectorData;
 using Tracon.Core.UnitTests.Fakes;
+using Tracon.Core.UnitTests.Tools;
 using Tracon.Tests.Common;
 
 namespace Tracon.Core.UnitTests.Memory;
@@ -93,6 +94,38 @@ public sealed class ConversationMemoryCompileTests
     }
 
     [Fact]
+    public void The_on_demand_mode_gets_the_scope_provider_when_the_tool_chain_is_registered()
+    {
+        IEnumerable<AIContextProvider>? providers = null;
+        var compiler = Compiler(
+            Services(new InMemoryVectorStore(), dimensions: 8, toolChain: true),
+            new DelegateAgentExtension("probe", context => providers = context.ChatAgentOptions!.AIContextProviders, null));
+
+        _ = compiler.Compile(Definition() with
+        {
+            Memory = On with { ConversationMemorySearch = ConversationMemorySearch.OnDemand },
+            ExtensionNames = ["probe"],
+        });
+
+        providers.ShouldNotBeNull().OfType<ConversationMemoryScopeProvider>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void The_on_demand_mode_without_the_tool_chain_stops_the_build_instead_of_offering_an_ungoverned_tool()
+    {
+        // F-688: the search tool must run through the tool chain, so a compiler that cannot build it does not offer the tool.
+        var compiler = Compiler(Services(new InMemoryVectorStore(), dimensions: 8));
+
+        var failure = Should.Throw<TraconCompilationException>(() => compiler.Compile(Definition() with
+        {
+            Memory = On with { ConversationMemorySearch = ConversationMemorySearch.OnDemand },
+        }));
+
+        failure.Message.ShouldContain("AddTracon");
+        failure.AgentName.ShouldBe("test-agent");
+    }
+
+    [Fact]
     public void The_before_each_turn_mode_leaves_the_tool_name_free()
     {
         var compiler = Compiler(
@@ -129,11 +162,19 @@ public sealed class ConversationMemoryCompileTests
 
     private static AgentDefinition Definition() => TestData.Definition();
 
-    private static ServiceProvider Services(VectorStore store, int dimensions)
-        => new ServiceCollection()
+    private static ServiceProvider Services(VectorStore store, int dimensions, bool toolChain = false)
+    {
+        var services = new ServiceCollection()
             .AddSingleton(store)
-            .AddOptions<TraconConversationMemoryOptions>().Configure(options => options.VectorDimensions = dimensions).Services
-            .BuildServiceProvider();
+            .AddOptions<TraconConversationMemoryOptions>().Configure(options => options.VectorDimensions = dimensions).Services;
+
+        if (toolChain)
+        {
+            services.AddSingleton(BuiltInToolGovernanceTestSupport.Create());
+        }
+
+        return services.BuildServiceProvider();
+    }
 
     private static AgentDefinitionCompiler Compiler(
         IServiceProvider? services,

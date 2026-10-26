@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Tracon.Core.UnitTests.Fakes;
+using Tracon.Core.UnitTests.Tools;
 using Tracon.Tests.Common;
 
 namespace Tracon.Core.UnitTests.Memory;
@@ -241,6 +242,100 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task The_search_tool_of_the_on_demand_mode_runs_through_the_tool_chain()
+    {
+        // F-688: the search tool is made by the framework provider and is not in the tool registry, so it used to reach
+        // the model with no authorization handler, no budget gate and no timeout.
+        var handler = new DenyingToolHandler("Memory is closed for you.");
+        var provider = Provider("agent-a", ConversationMemorySearch.OnDemand, governance: BuiltInToolGovernanceTestSupport.Create(handler));
+        await RememberAsync(provider, Run("tenant-a", "agent-a", "ada", "session-1"), "My favourite colour is teal.");
+        var searches = CountSearches();
+
+        TraconRunContext.SetCurrent(Run("tenant-a", "agent-a", "ada", "session-2"));
+
+        var context = await provider.InvokingAsync(
+            new AIContextProvider.InvokingContext(_agent, null, new AIContext { Messages = [new ChatMessage(ChatRole.User, "colour?")] }));
+        var tool = context.Tools.ShouldNotBeNull().OfType<AIFunction>().ShouldHaveSingleItem();
+
+        var result = await tool.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal) { ["userQuestion"] = "favourite colour" });
+
+        result.ShouldBe("Memory is closed for you.");
+        searches().ShouldBe(0, "the store was read after the handler denied the call");
+
+        var request = handler.Seen.ShouldHaveSingleItem();
+
+        request.ToolName.ShouldBe(ConversationMemoryScopeProvider.SearchToolName);
+        request.Effect.ShouldBe(ToolEffect.External);
+        request.TenantId.ShouldBe("tenant-a");
+    }
+
+    [Fact]
+    public void A_tool_the_inner_provider_adds_under_another_name_is_refused_and_not_offered()
+    {
+        var existing = Function("lookup");
+        var before = new AIContext { Tools = [existing] };
+        var after = new AIContext { Tools = [existing, Function("search_the_past")] };
+
+        var failure = Should.Throw<InvalidOperationException>(
+            () => ConversationMemoryScopeProvider.GovernAddedTools(before, after, BuiltInToolGovernanceTestSupport.Create()));
+
+        failure.Message.ShouldContain("search_the_past");
+    }
+
+    [Fact]
+    public void A_second_tool_the_inner_provider_adds_next_to_the_search_tool_is_refused()
+    {
+        var before = new AIContext();
+        var after = new AIContext { Tools = [Function(ConversationMemoryScopeProvider.SearchToolName), Function("remember_this")] };
+
+        Should.Throw<InvalidOperationException>(
+            () => ConversationMemoryScopeProvider.GovernAddedTools(before, after, BuiltInToolGovernanceTestSupport.Create()))
+            .Message.ShouldContain("remember_this");
+    }
+
+    [Fact]
+    public void The_tools_the_caller_already_had_keep_their_identity_and_only_the_added_search_tool_is_wrapped()
+    {
+        var existing = Function("lookup");
+        var search = Function(ConversationMemoryScopeProvider.SearchToolName);
+        var before = new AIContext { Tools = [existing] };
+        var after = new AIContext { Tools = [existing, search] };
+
+        var governed = ConversationMemoryScopeProvider.GovernAddedTools(before, after, BuiltInToolGovernanceTestSupport.Create());
+
+        var tools = governed.Tools.ShouldNotBeNull().ToList();
+
+        tools.Count.ShouldBe(2);
+        tools[0].ShouldBeSameAs(existing);
+        tools[1].ShouldNotBeSameAs(search);
+        tools[1].Name.ShouldBe(ConversationMemoryScopeProvider.SearchToolName);
+    }
+
+    [Fact]
+    public void A_context_the_inner_provider_added_nothing_to_is_returned_with_the_same_tools()
+    {
+        var existing = Function("lookup");
+        var before = new AIContext { Tools = [existing] };
+        var after = new AIContext { Tools = [existing] };
+
+        var governed = ConversationMemoryScopeProvider.GovernAddedTools(before, after, BuiltInToolGovernanceTestSupport.Create());
+
+        governed.Tools.ShouldNotBeNull().ShouldHaveSingleItem().ShouldBeSameAs(existing);
+    }
+
+    [Fact]
+    public void The_on_demand_mode_cannot_be_built_without_the_tool_chain_and_the_other_mode_needs_none()
+    {
+        var options = new TraconConversationMemoryOptions { CollectionName = Collection, VectorDimensions = 8 };
+
+        Should.Throw<ArgumentNullException>(() => new ConversationMemoryScopeProvider(
+            _store, options, "tenant-a", "agent-a", ConversationMemorySearch.OnDemand, maxResults: null, governance: null, loggerFactory: null));
+
+        using var beforeEachTurn = new ConversationMemoryScopeProvider(
+            _store, options, "tenant-a", "agent-a", ConversationMemorySearch.BeforeEachTurn, maxResults: null, governance: null, loggerFactory: null);
+    }
+
+    [Fact]
     public async Task One_search_returns_no_more_records_than_the_limit_of_the_definition()
     {
         var provider = Provider("agent-a", maxResults: 2);
@@ -297,7 +392,8 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
         string agent,
         ConversationMemorySearch search = ConversationMemorySearch.BeforeEachTurn,
         string tenant = "tenant-a",
-        int? maxResults = null)
+        int? maxResults = null,
+        BuiltInToolGovernance? governance = null)
         => new(
             _store,
             new TraconConversationMemoryOptions { CollectionName = Collection, VectorDimensions = 8 },
@@ -305,7 +401,28 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
             agent,
             search,
             maxResults,
+            governance ?? BuiltInToolGovernanceTestSupport.Create(),
             loggerFactory: null);
+
+    private static AIFunction Function(string name) => AIFunctionFactory.Create(() => "ok", name);
+
+    /// <summary>Counts the searches the store receives from now on; the store keeps working.</summary>
+    private Func<int> CountSearches()
+    {
+        var searches = 0;
+
+        _store.FailOn = operation =>
+        {
+            if (string.Equals(operation, "search", StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref searches);
+            }
+
+            return null;
+        };
+
+        return () => Volatile.Read(ref searches);
+    }
 
     private static AgentRunScope Run(string tenant, string agent, string? user, string? session, bool sessionHasNoRecord = false)
         => new()

@@ -68,6 +68,19 @@ internal static class VectorSearchToolFactory
             var generated = await embeddings.GenerateAsync([query], options: null, cancellationToken)
                 .ConfigureAwait(false);
 
+            // F-688: the provider's own count of the query it embedded, with no cost. The embedding has no price
+            // identity yet (F-363), so nothing here reaches the budget, the quota or the webhook total, which add
+            // only an amount. The line is for the reader of the run record.
+            if (generated.Usage?.InputTokenCount is { } inputTokens)
+            {
+                TraconToolUsage.Report(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Tokens,
+                    Quantity = inputTokens,
+                    Provider = access.ProviderName,
+                });
+            }
+
             var hits = await store.SearchAsync(
                 new VectorSearchRequest
                 {

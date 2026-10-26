@@ -22,6 +22,16 @@ namespace Tracon;
 /// If this handler throws, the call is <strong>denied</strong> (fail-closed).
 /// A gate that fails open on an exception is not a gate.
 /// </para>
+/// <para>
+/// The handler is asked for every call that runs through Tracon's tool chain: a tool registered in code, a tool of an
+/// MCP server, the <c>file_access_*</c> tools of a session workspace (<see cref="ToolEffect.Read"/>,
+/// <see cref="ToolEffect.Write"/> or <see cref="ToolEffect.Destructive"/>), <c>search_knowledge</c> and the
+/// <c>search_conversation_memory</c> tool of an on-demand conversation memory (both <see cref="ToolEffect.External"/>:
+/// the text of the query leaves the process). The last three are not in <see cref="IToolRegistry"/>, so their names are
+/// not listed by <c>GET /api/tools</c>. The handler is not asked for a hosted tool (it runs at the model provider), an
+/// agent called as a tool, a skill tool, the file memory, todo and harness tools, or a tool that a provider added by an
+/// agent extension brings.
+/// </para>
 /// </remarks>
 public interface IToolAuthorizationHandler
 {
