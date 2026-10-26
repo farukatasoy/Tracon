@@ -49,10 +49,9 @@ public sealed class TraconQuotaOptionsBindingTests
     }
 
     [Theory]
-    [InlineData("yuz")]
     [InlineData("0")]
     [InlineData("-5")]
-    public void An_unreadable_threshold_fails_at_startup(string value)
+    public void A_threshold_outside_the_range_fails_at_startup(string value)
     {
         var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -66,15 +65,15 @@ public sealed class TraconQuotaOptionsBindingTests
     [Fact]
     public void An_unreadable_threshold_is_named_as_written()
     {
-        // Bound as zero, the entry alone would read "Actual value: 0": the
-        // operator wrote "9O", not 0, and could not find the typo from that.
+        // The entry is left out and named with its key and its text: the operator
+        // wrote "9O", and the list alone would not show where.
         var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Quotas:ThresholdPercents:0"] = "80",
             ["Tracon:Quotas:ThresholdPercents:1"] = "9O",
         });
 
-        failure.Message.ShouldContain("TraconQuotaOptions.ThresholdPercents[1] is '9O'");
+        failure.Message.ShouldContain("Tracon:Quotas:ThresholdPercents:1 is '9O'");
     }
 
     [Fact]

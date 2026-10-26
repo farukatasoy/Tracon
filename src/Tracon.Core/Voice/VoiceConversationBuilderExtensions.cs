@@ -105,7 +105,7 @@ public static class VoiceConversationBuilderExtensions
             services.Configure(configure);
         }
 
-        services.AddOptions<VoiceConversationOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<VoiceConversationOptions>(services);
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<VoiceConversationOptions>, VoiceConversationOptionsValidator>());
 
@@ -137,35 +137,37 @@ public static class VoiceConversationBuilderExtensions
     /// </remarks>
     private static void BindOptions(IConfiguration section, VoiceConversationOptions options)
     {
-        if (TryInt(section[nameof(VoiceConversationOptions.MaxConcurrentConnectionsPerTenant)], out var connections))
-        {
-            options.MaxConcurrentConnectionsPerTenant = connections;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (TryTimeSpan(section[nameof(VoiceConversationOptions.MaxConnectionDuration)], out var duration))
-        {
-            options.MaxConnectionDuration = duration;
-        }
+        read.Int32(
+            nameof(VoiceConversationOptions.MaxConcurrentConnectionsPerTenant),
+            static o => o.MaxConcurrentConnectionsPerTenant,
+            static (o, v) => o.MaxConcurrentConnectionsPerTenant = v);
 
-        if (TryTimeSpan(section[nameof(VoiceConversationOptions.IdleTimeout)], out var idle))
-        {
-            options.IdleTimeout = idle;
-        }
+        read.TimeSpan(
+            nameof(VoiceConversationOptions.MaxConnectionDuration),
+            static o => o.MaxConnectionDuration,
+            static (o, v) => o.MaxConnectionDuration = v);
 
-        if (TryTimeSpan(section[nameof(VoiceConversationOptions.MaxUtteranceDuration)], out var utterance))
-        {
-            options.MaxUtteranceDuration = utterance;
-        }
+        read.TimeSpan(
+            nameof(VoiceConversationOptions.IdleTimeout),
+            static o => o.IdleTimeout,
+            static (o, v) => o.IdleTimeout = v);
 
-        if (TryInt(section[nameof(VoiceConversationOptions.MaxUtteranceBytes)], out var utteranceBytes))
-        {
-            options.MaxUtteranceBytes = utteranceBytes;
-        }
+        read.TimeSpan(
+            nameof(VoiceConversationOptions.MaxUtteranceDuration),
+            static o => o.MaxUtteranceDuration,
+            static (o, v) => o.MaxUtteranceDuration = v);
 
-        if (bool.TryParse(section[nameof(VoiceConversationOptions.PersistAudio)], out var persist))
-        {
-            options.PersistAudio = persist;
-        }
+        read.Int32(
+            nameof(VoiceConversationOptions.MaxUtteranceBytes),
+            static o => o.MaxUtteranceBytes,
+            static (o, v) => o.MaxUtteranceBytes = v);
+
+        read.Boolean(
+            nameof(VoiceConversationOptions.PersistAudio),
+            static o => o.PersistAudio,
+            static (o, v) => o.PersistAudio = v);
 
         if (section[nameof(VoiceConversationOptions.VoiceId)] is { Length: > 0 } voiceId)
         {
@@ -177,20 +179,14 @@ public static class VoiceConversationBuilderExtensions
             options.OutputMediaType = mediaType;
         }
 
-        if (TryInt(section[nameof(VoiceConversationOptions.InputSampleRate)], out var sampleRate))
-        {
-            options.InputSampleRate = sampleRate;
-        }
+        read.Int32(
+            nameof(VoiceConversationOptions.InputSampleRate),
+            static o => o.InputSampleRate,
+            static (o, v) => o.InputSampleRate = v);
 
-        if (TryInt(section[nameof(VoiceConversationOptions.MaxSpokenCharactersPerTurn)], out var spoken))
-        {
-            options.MaxSpokenCharactersPerTurn = spoken;
-        }
+        read.Int32(
+            nameof(VoiceConversationOptions.MaxSpokenCharactersPerTurn),
+            static o => o.MaxSpokenCharactersPerTurn,
+            static (o, v) => o.MaxSpokenCharactersPerTurn = v);
     }
-
-    private static bool TryInt(string? raw, out int value)
-        => int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
-
-    private static bool TryTimeSpan(string? raw, out TimeSpan value)
-        => TimeSpan.TryParse(raw, CultureInfo.InvariantCulture, out value);
 }

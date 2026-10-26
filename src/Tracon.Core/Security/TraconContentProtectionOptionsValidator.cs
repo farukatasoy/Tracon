@@ -51,7 +51,7 @@ internal sealed class TraconContentProtectionOptionsValidator : IValidateOptions
         {
             if (!Enum.IsDefined(column))
             {
-                (failures ??= []).Add(UndefinedColumn(column, options));
+                (failures ??= []).Add(UndefinedColumn(column));
             }
         }
 
@@ -65,18 +65,11 @@ internal sealed class TraconContentProtectionOptionsValidator : IValidateOptions
             : ValidateOptionsResult.Fail(failures);
     }
 
-    /// <summary>Names an undefined <c>Columns</c> member as the operator wrote it, when the binder kept the text.</summary>
-    private static string UndefinedColumn(ProtectedColumn column, TraconContentProtectionOptions options)
-    {
-        var knownNames = string.Join(", ", Enum.GetNames<ProtectedColumn>());
-
-        return options.UnreadableColumns.TryGetValue(column, out var text)
-            ? $"{nameof(TraconContentProtectionOptions)}.{nameof(TraconContentProtectionOptions.Columns)} contains '{text}', " +
-              $"which is not a {nameof(ProtectedColumn)} name. Known names: {knownNames}."
-            : $"{nameof(TraconContentProtectionOptions)}.{nameof(TraconContentProtectionOptions.Columns)} contains " +
-              $"{((int)column).ToString(CultureInfo.InvariantCulture)}, which is not a {nameof(ProtectedColumn)} value. " +
-              $"Known names: {knownNames}.";
-    }
+    /// <summary>Names an undefined <c>Columns</c> member that code added; the binder leaves out one it cannot read.</summary>
+    private static string UndefinedColumn(ProtectedColumn column)
+        => $"{nameof(TraconContentProtectionOptions)}.{nameof(TraconContentProtectionOptions.Columns)} contains " +
+           $"{((int)column).ToString(CultureInfo.InvariantCulture)}, which is not a {nameof(ProtectedColumn)} value. " +
+           $"Known names: {string.Join(", ", Enum.GetNames<ProtectedColumn>())}.";
 
     private static void AddActiveKeyFailures(TraconContentProtectionOptions options, ref List<string>? failures)
     {

@@ -116,6 +116,23 @@ public sealed class TraconOptionsBindingCoverageTests
         bound.Tools.DefaultMaxOutputBytes.ShouldBe(500);
     }
 
+    /// <summary>
+    /// F-572: a number the binder cannot read used to leave the default in place, so
+    /// <c>"10MB"</c> kept the output size unbounded. The host must refuse to start and
+    /// name the key and the text.
+    /// </summary>
+    [Fact]
+    public void DefaultMaxOutputBytes_text_that_is_not_a_number_fails_at_startup()
+    {
+        var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Tools:DefaultMaxOutputBytes"] = "10MB",
+        });
+
+        failure.Message.ShouldContain("Tracon:Tools:DefaultMaxOutputBytes");
+        failure.Message.ShouldContain("'10MB'");
+    }
+
     private static void Collect(
         object instance,
         string configPrefix,

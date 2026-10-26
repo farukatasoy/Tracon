@@ -126,6 +126,8 @@ public static class GoogleProviderExtensions
     /// </remarks>
     internal static void Bind(IConfiguration section, GoogleProviderOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section[nameof(GoogleProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
@@ -146,11 +148,11 @@ public static class GoogleProviderExtensions
             options.ApiVersion = apiVersion;
         }
 
-        if (ProviderRegistrationCore.ReadTimeSpan(section, nameof(GoogleProviderOptions.Timeout)) is { } timeout)
-        {
-            options.Timeout = timeout;
-        }
+        read.TimeSpan(
+            nameof(GoogleProviderOptions.Timeout),
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
 
-        ProviderRegistrationCore.BindModels(section.GetSection(nameof(GoogleProviderOptions.Models)), options.Models);
+        ProviderRegistrationCore.BindModels(section.GetSection(nameof(GoogleProviderOptions.Models)), options.Models, options);
     }
 }

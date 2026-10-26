@@ -86,10 +86,9 @@ public sealed class VoiceLiveOptionsBindingTests
             ["Tracon:Voice:Live:DelegationMode"] = mode,
         };
 
-        var failure = Should.Throw<InvalidOperationException>(
-            () => SectionBinding.StartsCleanly(values, ComposeLiveVoice));
+        var failure = SectionBinding.FailsAtStartup(values, ComposeLiveVoice);
 
-        failure.Message.ShouldContain("DelegationMode");
+        failure.Message.ShouldContain($"Tracon:Voice:Live:DelegationMode is '{mode}'");
         failure.Message.ShouldContain("'Client'");
     }
 

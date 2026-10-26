@@ -76,14 +76,4 @@ public sealed class TraconContentProtectionOptions
     /// </para>
     /// </remarks>
     public ISet<ProtectedColumn> Columns { get; } = new HashSet<ProtectedColumn>(Enum.GetValues<ProtectedColumn>());
-
-    /// <summary>
-    /// The <see cref="Columns"/> entries the binder could not read, keyed by the
-    /// undefined value it bound in each one's place.
-    /// </summary>
-    /// <remarks>
-    /// For the startup message only: the failure itself comes from an undefined
-    /// member of <see cref="Columns"/>, so code that rewrites the set clears it.
-    /// </remarks>
-    internal Dictionary<ProtectedColumn, string> UnreadableColumns { get; } = [];
 }

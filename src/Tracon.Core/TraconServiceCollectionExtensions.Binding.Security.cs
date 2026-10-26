@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.Configuration;
 
 namespace Tracon;
@@ -13,35 +12,27 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconApprovalOptions.DefaultExpiration)],
-                CultureInfo.InvariantCulture,
-                out var defaultExpiration))
-        {
-            options.DefaultExpiration = defaultExpiration;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (TryReadBool(section, nameof(TraconApprovalOptions.ExpirationEnabled), out var expirationEnabled))
-        {
-            options.ExpirationEnabled = expirationEnabled;
-        }
+        read.TimeSpan(
+            nameof(TraconApprovalOptions.DefaultExpiration),
+            static o => o.DefaultExpiration,
+            static (o, v) => o.DefaultExpiration = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconApprovalOptions.ScanInterval)],
-                CultureInfo.InvariantCulture,
-                out var scanInterval))
-        {
-            options.ScanInterval = scanInterval;
-        }
+        read.Boolean(
+            nameof(TraconApprovalOptions.ExpirationEnabled),
+            static o => o.ExpirationEnabled,
+            static (o, v) => o.ExpirationEnabled = v);
 
-        if (int.TryParse(
-                section[nameof(TraconApprovalOptions.MaxPerScan)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxPerScan))
-        {
-            options.MaxPerScan = maxPerScan;
-        }
+        read.TimeSpan(
+            nameof(TraconApprovalOptions.ScanInterval),
+            static o => o.ScanInterval,
+            static (o, v) => o.ScanInterval = v);
+
+        read.Int32(
+            nameof(TraconApprovalOptions.MaxPerScan),
+            static o => o.MaxPerScan,
+            static (o, v) => o.MaxPerScan = v);
     }
 
     /// <summary>Binds the <c>Tracon:Egress</c> section.</summary>
@@ -52,10 +43,12 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconEgressOptions.AllowPrivateNetworkTargets), out var allowPrivate))
-        {
-            options.AllowPrivateNetworkTargets = allowPrivate;
-        }
+        var read = ConfigurationValueReader.For(section, options);
+
+        read.Boolean(
+            nameof(TraconEgressOptions.AllowPrivateNetworkTargets),
+            static o => o.AllowPrivateNetworkTargets,
+            static (o, v) => o.AllowPrivateNetworkTargets = v);
     }
 
     private static void BindMcpSecurity(IConfigurationSection section, TraconMcpSecurityOptions options)
@@ -93,31 +86,22 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconInboundTriggerOptions.TimestampTolerance)],
-                CultureInfo.InvariantCulture,
-                out var timestampTolerance))
-        {
-            options.TimestampTolerance = timestampTolerance;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (int.TryParse(
-                section[nameof(TraconInboundTriggerOptions.MaxBodyBytes)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxBodyBytes))
-        {
-            options.MaxBodyBytes = maxBodyBytes;
-        }
+        read.TimeSpan(
+            nameof(TraconInboundTriggerOptions.TimestampTolerance),
+            static o => o.TimestampTolerance,
+            static (o, v) => o.TimestampTolerance = v);
 
-        if (int.TryParse(
-                section[nameof(TraconInboundTriggerOptions.MaxRequestsPerMinute)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxRequestsPerMinute))
-        {
-            options.MaxRequestsPerMinute = maxRequestsPerMinute;
-        }
+        read.Int32(
+            nameof(TraconInboundTriggerOptions.MaxBodyBytes),
+            static o => o.MaxBodyBytes,
+            static (o, v) => o.MaxBodyBytes = v);
+
+        read.Int32(
+            nameof(TraconInboundTriggerOptions.MaxRequestsPerMinute),
+            static o => o.MaxRequestsPerMinute,
+            static (o, v) => o.MaxRequestsPerMinute = v);
 
         if (section[nameof(TraconInboundTriggerOptions.AllowedConfigurationPrefix)] is { Length: > 0 } allowedPrefix)
         {
@@ -133,20 +117,22 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconContentGuardOptions.InspectInput), out var inspectInput))
-        {
-            options.InspectInput = inspectInput;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (TryReadBool(section, nameof(TraconContentGuardOptions.InspectOutput), out var inspectOutput))
-        {
-            options.InspectOutput = inspectOutput;
-        }
+        read.Boolean(
+            nameof(TraconContentGuardOptions.InspectInput),
+            static o => o.InspectInput,
+            static (o, v) => o.InspectInput = v);
 
-        if (TryReadBool(section, nameof(TraconContentGuardOptions.BufferStreamingOutput), out var buffer))
-        {
-            options.BufferStreamingOutput = buffer;
-        }
+        read.Boolean(
+            nameof(TraconContentGuardOptions.InspectOutput),
+            static o => o.InspectOutput,
+            static (o, v) => o.InspectOutput = v);
+
+        read.Boolean(
+            nameof(TraconContentGuardOptions.BufferStreamingOutput),
+            static o => o.BufferStreamingOutput,
+            static (o, v) => o.BufferStreamingOutput = v);
     }
 
     /// <summary>Binds the <c>Tracon:ContentGuard:Pattern</c> section.</summary>
@@ -158,10 +144,11 @@ public static partial class TraconServiceCollectionExtensions
     /// </para>
     /// <para>
     /// An empty value means "not set", as before. A value that does not parse is
-    /// NOT skipped: one typo failed the whole parse, the value stayed
-    /// <see cref="PiiPatterns.None"/> and PII masking was silently off. It is
-    /// bound as a value with an undefined bit, and the text is kept beside it, so
-    /// <see cref="PatternContentGuardOptionsValidator"/> names it at startup.
+    /// NOT skipped silently: one typo failed the whole parse, the value stayed
+    /// <see cref="PiiPatterns.None"/> and PII masking was silently off. The text is
+    /// recorded and <see cref="UnreadableConfigurationValidator{TOptions}"/> names it at
+    /// startup. A number with an undefined bit does parse; the options validator
+    /// refuses it, whatever its source.
     /// </para>
     /// </remarks>
     private static void BindPatternContentGuard(IConfigurationSection section, PatternContentGuardOptions options)
@@ -171,21 +158,14 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        BindList(section.GetSection(nameof(PatternContentGuardOptions.DeniedTerms)), options.DeniedTerms);
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (section[nameof(PatternContentGuardOptions.MaskedPii)] is { } piiText && !string.IsNullOrWhiteSpace(piiText))
-        {
-            var pii = Enum.TryParse<PiiPatterns>(piiText, ignoreCase: true, out var parsed)
-                ? parsed
-                : PatternContentGuardOptionsValidator.UnreadableMaskedPii;
+        read.StringList(nameof(PatternContentGuardOptions.DeniedTerms), options.DeniedTerms);
 
-            options.MaskedPii = pii;
-
-            if (PatternContentGuardOptionsValidator.UndefinedBits(pii) != PiiPatterns.None)
-            {
-                options.UnreadableMaskedPii = (piiText, pii);
-            }
-        }
+        read.Enum<PiiPatterns>(
+            nameof(PatternContentGuardOptions.MaskedPii),
+            static o => o.MaskedPii,
+            static (o, v) => o.MaskedPii = v);
 
         if (section[nameof(PatternContentGuardOptions.MaskReplacement)] is { Length: > 0 } replacement)
         {
@@ -202,14 +182,15 @@ public static partial class TraconServiceCollectionExtensions
     /// the default (every column).
     /// </para>
     /// <para>
-    /// Nothing is skipped, the rule the scheduling collections follow. An unknown
-    /// name, an empty entry or an undefined number used to be dropped:
+    /// Nothing is skipped without a word, the rule the scheduling collections follow.
+    /// An unknown name, an empty entry or an undefined number used to be dropped:
     /// <c>["RunInput", "RunInputt"]</c> protected only <c>RunInput</c> and left the
-    /// column the operator meant in plain text. Such an entry is now bound as an undefined
-    /// <see cref="ProtectedColumn"/> value with its text kept beside it, and a key
-    /// entry with an empty name is bound as written; in both cases
-    /// <see cref="TraconContentProtectionOptionsValidator"/> names the entry at
-    /// startup, whether protection is on or off.
+    /// column the operator meant in plain text. Such an entry is now left out and
+    /// recorded with its position and its text, and a key entry with an empty name is
+    /// bound as written; in both cases the startup validators name the entry
+    /// (<see cref="UnreadableConfigurationValidator{TOptions}"/> and
+    /// <see cref="TraconContentProtectionOptionsValidator"/>), whether protection is on
+    /// or off.
     /// </para>
     /// </remarks>
     private static void BindContentProtection(IConfigurationSection section, TraconContentProtectionOptions options)
@@ -219,10 +200,12 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconContentProtectionOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options);
+
+        read.Boolean(
+            nameof(TraconContentProtectionOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
         if (section[nameof(TraconContentProtectionOptions.ActiveKeyId)] is { Length: > 0 } activeKeyId)
         {
@@ -237,62 +220,7 @@ public static partial class TraconServiceCollectionExtensions
             options.Keys[child.Key] = child.Value ?? string.Empty;
         }
 
-        var columns = section.GetSection(nameof(TraconContentProtectionOptions.Columns)).GetChildren().ToList();
-
-        if (columns.Count > 0)
-        {
-            options.Columns.Clear();
-
-            foreach (var child in columns)
-            {
-                BindProtectedColumn(child.Value ?? string.Empty, options);
-            }
-        }
-    }
-
-    /// <summary>Adds one <c>Columns</c> entry, or the undefined value that stands in for it.</summary>
-    private static void BindProtectedColumn(string text, TraconContentProtectionOptions options)
-    {
-        // A comma would make Enum.TryParse OR two names into a third column
-        // ("RunInput,ToolArguments" is AgentFileContent): one entry is one name.
-        if (!text.Contains(',', StringComparison.Ordinal)
-            && Enum.TryParse<ProtectedColumn>(text, ignoreCase: true, out var column)
-            && Enum.IsDefined(column))
-        {
-            options.Columns.Add(column);
-
-            return;
-        }
-
-        var placeholder = UnreadableColumnPlaceholder(text, options);
-        options.Columns.Add(placeholder);
-        options.UnreadableColumns[placeholder] = text;
-    }
-
-    /// <summary>
-    /// Picks the undefined <see cref="ProtectedColumn"/> value that stands in for an
-    /// entry the binder could not read. Each entry gets its own value, so two typos
-    /// are two members of the set and the validator names both.
-    /// </summary>
-    private static ProtectedColumn UnreadableColumnPlaceholder(string text, TraconContentProtectionOptions options)
-    {
-        // An undefined number ("99") stands for itself when it is still free.
-        if (!text.Contains(',', StringComparison.Ordinal)
-            && Enum.TryParse<ProtectedColumn>(text, ignoreCase: true, out var number)
-            && !Enum.IsDefined(number)
-            && !options.Columns.Contains(number))
-        {
-            return number;
-        }
-
-        var candidate = -1;
-
-        while (Enum.IsDefined((ProtectedColumn)candidate) || options.Columns.Contains((ProtectedColumn)candidate))
-        {
-            candidate--;
-        }
-
-        return (ProtectedColumn)candidate;
+        read.EnumList(nameof(TraconContentProtectionOptions.Columns), options.Columns);
     }
 
     /// <summary>Binds the <c>Tracon:Webhooks</c> section.</summary>
@@ -303,94 +231,57 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconWebhookOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (TryReadBool(section, nameof(TraconWebhookOptions.AllowPrivateNetworkTargets), out var allowPrivate))
-        {
-            options.AllowPrivateNetworkTargets = allowPrivate;
-        }
+        read.Boolean(
+            nameof(TraconWebhookOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        if (TryReadBool(section, nameof(TraconWebhookOptions.AllowInsecureHttp), out var allowHttp))
-        {
-            options.AllowInsecureHttp = allowHttp;
-        }
+        read.Boolean(
+            nameof(TraconWebhookOptions.AllowPrivateNetworkTargets),
+            static o => o.AllowPrivateNetworkTargets,
+            static (o, v) => o.AllowPrivateNetworkTargets = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconWebhookOptions.Timeout)],
-                CultureInfo.InvariantCulture,
-                out var timeout))
-        {
-            options.Timeout = timeout;
-        }
+        read.Boolean(
+            nameof(TraconWebhookOptions.AllowInsecureHttp),
+            static o => o.AllowInsecureHttp,
+            static (o, v) => o.AllowInsecureHttp = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconWebhookOptions.SignatureTolerance)],
-                CultureInfo.InvariantCulture,
-                out var tolerance))
-        {
-            options.SignatureTolerance = tolerance;
-        }
+        read.TimeSpan(
+            nameof(TraconWebhookOptions.Timeout),
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
+
+        read.TimeSpan(
+            nameof(TraconWebhookOptions.SignatureTolerance),
+            static o => o.SignatureTolerance,
+            static (o, v) => o.SignatureTolerance = v);
 
         if (section[nameof(TraconWebhookOptions.AllowedConfigurationPrefix)] is { Length: > 0 } prefix)
         {
             options.AllowedConfigurationPrefix = prefix;
         }
 
-        if (int.TryParse(
-                section[nameof(TraconWebhookOptions.MaxExtraHeaders)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxExtraHeaders))
-        {
-            options.MaxExtraHeaders = maxExtraHeaders;
-        }
+        read.Int32(
+            nameof(TraconWebhookOptions.MaxExtraHeaders),
+            static o => o.MaxExtraHeaders,
+            static (o, v) => o.MaxExtraHeaders = v);
 
-        if (int.TryParse(
-                section[nameof(TraconWebhookOptions.MaxResponseBytes)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxResponseBytes))
-        {
-            options.MaxResponseBytes = maxResponseBytes;
-        }
+        read.Int32(
+            nameof(TraconWebhookOptions.MaxResponseBytes),
+            static o => o.MaxResponseBytes,
+            static (o, v) => o.MaxResponseBytes = v);
 
-        if (int.TryParse(
-                section[nameof(TraconWebhookOptions.DisableAfterConsecutiveFailures)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var disableAfter))
-        {
-            options.DisableAfterConsecutiveFailures = disableAfter;
-        }
+        read.Int32(
+            nameof(TraconWebhookOptions.DisableAfterConsecutiveFailures),
+            static o => o.DisableAfterConsecutiveFailures,
+            static (o, v) => o.DisableAfterConsecutiveFailures = v);
 
-        // F-247, the F-385 rule: a list that is present REPLACES the default, and
-        // a delay that does not parse is bound as zero rather than skipped, so
-        // TraconWebhookOptionsValidator names it at startup. Skipping it (and a
-        // zero or negative delay with it) cut a rung off the retry ladder without
-        // a word. The text is kept by index so the message quotes what was
-        // written, not the zero that stands in for it.
-        var delays = section.GetSection(nameof(TraconWebhookOptions.RetryDelays)).GetChildren().ToList();
-
-        if (delays.Count > 0)
-        {
-            options.RetryDelays.Clear();
-
-            foreach (var child in delays)
-            {
-                if (TimeSpan.TryParse(child.Value, CultureInfo.InvariantCulture, out var delay))
-                {
-                    options.RetryDelays.Add(delay);
-                }
-                else
-                {
-                    options.UnreadableRetryDelays[options.RetryDelays.Count] = child.Value ?? string.Empty;
-                    options.RetryDelays.Add(TimeSpan.Zero);
-                }
-            }
-        }
+        // F-247: a list that is present REPLACES the default. A delay that is not
+        // readable is left out and named at startup with its position and its text
+        // (F-572); skipping it with no word cut a rung off the retry ladder.
+        read.TimeSpanList(nameof(TraconWebhookOptions.RetryDelays), options.RetryDelays);
     }
 
     /// <summary>Binds the <c>Tracon:Retention</c> section.</summary>
@@ -401,75 +292,68 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconRetentionOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (int.TryParse(
-                section[nameof(TraconRetentionOptions.BatchSize)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var batchSize))
-        {
-            options.BatchSize = batchSize;
-        }
+        read.Boolean(
+            nameof(TraconRetentionOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconRetentionOptions.BatchDelay)],
-                CultureInfo.InvariantCulture,
-                out var batchDelay))
-        {
-            options.BatchDelay = batchDelay;
-        }
+        read.Int32(
+            nameof(TraconRetentionOptions.BatchSize),
+            static o => o.BatchSize,
+            static (o, v) => o.BatchSize = v);
 
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunEvents)), options.RunEvents);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.ToolInvocations)), options.ToolInvocations);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Spans)), options.Spans);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Jobs)), options.Jobs);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.WebhookDeliveries)), options.WebhookDeliveries);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.EvalCaseResults)), options.EvalCaseResults);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.WorkflowCheckpoints)), options.WorkflowCheckpoints);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.SkillScriptGrants)), options.SkillScriptGrants);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Attachments)), options.Attachments);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Sessions)), options.Sessions);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Conversations)), options.Conversations);
+        read.TimeSpan(
+            nameof(TraconRetentionOptions.BatchDelay),
+            static o => o.BatchDelay,
+            static (o, v) => o.BatchDelay = v);
+
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunEvents)), options.RunEvents, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.ToolInvocations)), options.ToolInvocations, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Spans)), options.Spans, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Jobs)), options.Jobs, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.WebhookDeliveries)), options.WebhookDeliveries, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.EvalCaseResults)), options.EvalCaseResults, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.WorkflowCheckpoints)), options.WorkflowCheckpoints, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.SkillScriptGrants)), options.SkillScriptGrants, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Attachments)), options.Attachments, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Sessions)), options.Sessions, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Conversations)), options.Conversations, options);
 
         // F-247: defined and resolved by ForTarget, but never read here - the
         // HATA-S1-005 shape once more. TraconRetentionOptionsBindingTests now
         // counts the targets by reflection, so a target missing here fails it.
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.IdempotencyKeys)), options.IdempotencyKeys);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.IdempotencyKeys)), options.IdempotencyKeys, options);
 
         // HATA-S1-005: these four targets were added to ForTarget but were NOT
         // added HERE - a signature change is not considered complete until
         // applied at EVERY call site of the body (see AGENTS.md, the Phase 20 note).
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunInputs)), options.RunInputs);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.VoiceSessions)), options.VoiceSessions);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunScores)), options.RunScores);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.DocumentEmbeddings)), options.DocumentEmbeddings);
-        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.WorkflowRequests)), options.WorkflowRequests);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunInputs)), options.RunInputs, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.VoiceSessions)), options.VoiceSessions, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunScores)), options.RunScores, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.DocumentEmbeddings)), options.DocumentEmbeddings, options);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.WorkflowRequests)), options.WorkflowRequests, options);
     }
 
-    private static void BindRetentionTarget(IConfigurationSection section, RetentionTargetOptions options)
+    private static void BindRetentionTarget(IConfigurationSection section, RetentionTargetOptions options, TraconRetentionOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (int.TryParse(
-                section[nameof(RetentionTargetOptions.MaxAgeDays)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxAgeDays))
-        {
-            options.MaxAgeDays = maxAgeDays;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (TryReadBool(section, nameof(RetentionTargetOptions.Archive), out var archive))
-        {
-            options.Archive = archive;
-        }
+        read.Int32(
+            nameof(RetentionTargetOptions.MaxAgeDays),
+            static o => o.MaxAgeDays,
+            static (o, v) => o.MaxAgeDays = v);
+
+        read.Boolean(
+            nameof(RetentionTargetOptions.Archive),
+            static o => o.Archive,
+            static (o, v) => o.Archive = v);
     }
 
     /// <summary>
@@ -488,20 +372,22 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconSessionOwnershipOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (TryReadBool(section, nameof(TraconSessionOwnershipOptions.RequireAuthenticatedOwner), out var requireOwner))
-        {
-            options.RequireAuthenticatedOwner = requireOwner;
-        }
+        read.Boolean(
+            nameof(TraconSessionOwnershipOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        if (TryReadBool(section, nameof(TraconSessionOwnershipOptions.RefuseUnownedSessions), out var refuseUnowned))
-        {
-            options.RefuseUnownedSessions = refuseUnowned;
-        }
+        read.Boolean(
+            nameof(TraconSessionOwnershipOptions.RequireAuthenticatedOwner),
+            static o => o.RequireAuthenticatedOwner,
+            static (o, v) => o.RequireAuthenticatedOwner = v);
+
+        read.Boolean(
+            nameof(TraconSessionOwnershipOptions.RefuseUnownedSessions),
+            static o => o.RefuseUnownedSessions,
+            static (o, v) => o.RefuseUnownedSessions = v);
 
         // 🚨 Read with the empty string ACCEPTED, unlike most string settings
         // here: "" is the documented way to say "no caller gets an unfiltered

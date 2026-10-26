@@ -122,6 +122,8 @@ public static class AnthropicProviderExtensions
     /// </remarks>
     internal static void Bind(IConfiguration section, AnthropicProviderOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section[nameof(AnthropicProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
@@ -137,21 +139,21 @@ public static class AnthropicProviderExtensions
             options.Endpoint = endpoint;
         }
 
-        if (ProviderRegistrationCore.ReadInt32(section, nameof(AnthropicProviderOptions.DefaultMaxOutputTokens)) is { } maxOutputTokens)
-        {
-            options.DefaultMaxOutputTokens = maxOutputTokens;
-        }
+        read.Int32(
+            nameof(AnthropicProviderOptions.DefaultMaxOutputTokens),
+            static o => o.DefaultMaxOutputTokens,
+            static (o, v) => o.DefaultMaxOutputTokens = v);
 
-        if (ProviderRegistrationCore.ReadInt32(section, nameof(AnthropicProviderOptions.MaxRetries)) is { } maxRetries)
-        {
-            options.MaxRetries = maxRetries;
-        }
+        read.Int32(
+            nameof(AnthropicProviderOptions.MaxRetries),
+            static o => o.MaxRetries,
+            static (o, v) => o.MaxRetries = v);
 
-        if (ProviderRegistrationCore.ReadTimeSpan(section, nameof(AnthropicProviderOptions.Timeout)) is { } timeout)
-        {
-            options.Timeout = timeout;
-        }
+        read.TimeSpan(
+            nameof(AnthropicProviderOptions.Timeout),
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
 
-        ProviderRegistrationCore.BindModels(section.GetSection(nameof(AnthropicProviderOptions.Models)), options.Models);
+        ProviderRegistrationCore.BindModels(section.GetSection(nameof(AnthropicProviderOptions.Models)), options.Models, options);
     }
 }

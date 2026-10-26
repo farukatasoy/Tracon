@@ -41,18 +41,30 @@ public sealed class PatternContentGuardOptionsBindingTests
         options.DeniedTerms.ShouldBe(["project-falcon", "codename"]);
     }
 
+    [Fact]
+    public void An_unreadable_pii_list_fails_at_startup()
+    {
+        var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:ContentGuard:Pattern:MaskedPii"] = "Emial,CreditCard",
+        });
+
+        // The key and the text as written: one typo used to switch PII masking off without a word.
+        failure.Message.ShouldContain("Tracon:ContentGuard:Pattern:MaskedPii is 'Emial,CreditCard'");
+    }
+
     [Theory]
-    [InlineData("Emial,CreditCard")]
     [InlineData("64")]
     [InlineData("-1")]
-    public void An_unreadable_pii_list_fails_at_startup(string value)
+    public void A_pii_number_with_an_undefined_bit_fails_at_startup(string value)
     {
+        // A number parses, so the binder takes it; the options validator refuses the bit no member defines.
         var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:ContentGuard:Pattern:MaskedPii"] = value,
         });
 
-        failure.Message.ShouldContain($"PatternContentGuardOptions.MaskedPii is '{value}'");
+        failure.Message.ShouldContain($"PatternContentGuardOptions.MaskedPii is {value}");
     }
 
     [Theory]

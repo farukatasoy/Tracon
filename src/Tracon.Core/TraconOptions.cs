@@ -53,16 +53,6 @@ public sealed class TraconOptions
     /// </remarks>
     public ModelBinding? UtilityModel { get; set; }
 
-    /// <summary>
-    /// The <see cref="UtilityModel"/> numbers the binder could not read, each as its
-    /// key and the text written, and the binding it built without them.
-    /// </summary>
-    /// <remarks>
-    /// For the startup message only: the failure holds while <see cref="UtilityModel"/>
-    /// is still that binding, so code that assigns the member after binding clears it.
-    /// </remarks>
-    internal (ModelBinding Bound, IReadOnlyList<(string Key, string Text)> Values)? UnreadableUtilityModel { get; set; }
-
     /// <summary>Gets or sets definition-validation endpoint options.</summary>
     public TraconValidationOptions Validation { get; set; } = new();
 
@@ -697,16 +687,6 @@ public sealed class TraconObservabilityOptions
     /// </para>
     /// </remarks>
     public bool IncludeTenantTag { get; set; }
-
-    /// <summary>
-    /// The text of <see cref="IncludeTenantTag"/> the binder could not read as <c>true</c> or <c>false</c>, and
-    /// the value it left in place.
-    /// </summary>
-    /// <remarks>
-    /// For the startup message only: the failure holds while <see cref="IncludeTenantTag"/> still has that value,
-    /// so code that assigns the opposite value after binding clears it.
-    /// </remarks>
-    internal (bool Bound, string Text)? UnreadableIncludeTenantTag { get; set; }
 
     /// <summary>
     /// Gets or sets whether the <c>tracon.quota.usage</c> and

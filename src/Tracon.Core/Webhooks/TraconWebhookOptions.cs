@@ -123,14 +123,4 @@ public sealed class TraconWebhookOptions
     /// the value recommended to the recipient in the README; Tracon only documents it.
     /// </summary>
     public TimeSpan SignatureTolerance { get; set; } = TimeSpan.FromMinutes(5);
-
-    /// <summary>
-    /// The text of each <see cref="RetryDelays"/> entry the binder could not read,
-    /// keyed by its index. <see cref="TimeSpan.Zero"/> stands in for it in the list.
-    /// </summary>
-    /// <remarks>
-    /// For the startup message only: the failure itself comes from the zero, so code
-    /// that rewrites the list after binding clears it.
-    /// </remarks>
-    internal Dictionary<int, string> UnreadableRetryDelays { get; } = [];
 }

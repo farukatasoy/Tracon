@@ -52,7 +52,7 @@ public sealed class TraconUtilityModelBindingTests
 
         // The key and the text as written: bound as a number, the typo would read
         // "0" and the operator could not find it.
-        failure.Message.ShouldContain($"TraconOptions.UtilityModel.{key} is '{value}'");
+        failure.Message.ShouldContain($"Tracon:UtilityModel:{key} is '{value}'");
     }
 
     [Fact]
@@ -64,8 +64,8 @@ public sealed class TraconUtilityModelBindingTests
 
         var failure = SectionBinding.FailsAtStartup(values);
 
-        failure.Message.ShouldContain("UtilityModel.Temperature is 'abc'");
-        failure.Message.ShouldContain("UtilityModel.TopP is 'high'");
+        failure.Message.ShouldContain("Tracon:UtilityModel:Temperature is 'abc'");
+        failure.Message.ShouldContain("Tracon:UtilityModel:TopP is 'high'");
     }
 
     [Theory]

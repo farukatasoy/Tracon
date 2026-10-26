@@ -128,7 +128,7 @@ public static class TraconMcpBuilderExtensions
 
         // Validated at startup: RefreshInterval feeds the discovery loop's
         // delay, and a value it refuses stopped the host after startup (F-278).
-        services.AddOptions<TraconMcpOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconMcpOptions>(services);
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconMcpOptions>, TraconMcpOptionsValidator>());
 
@@ -187,61 +187,42 @@ public static class TraconMcpBuilderExtensions
     /// </remarks>
     private static void Bind(IConfiguration section, TraconMcpOptions options)
     {
-        if (bool.TryParse(section[nameof(TraconMcpOptions.Enabled)], out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconMcpOptions.RefreshInterval)],
-                CultureInfo.InvariantCulture,
-                out var refreshInterval))
-        {
-            options.RefreshInterval = refreshInterval;
-        }
+        read.Boolean(
+            nameof(TraconMcpOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconMcpOptions.StaleToolRetention)],
-                CultureInfo.InvariantCulture,
-                out var staleToolRetention))
-        {
-            options.StaleToolRetention = staleToolRetention;
-        }
+        read.TimeSpan(
+            nameof(TraconMcpOptions.RefreshInterval),
+            static o => o.RefreshInterval,
+            static (o, v) => o.RefreshInterval = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconMcpOptions.ConnectionTimeout)],
-                CultureInfo.InvariantCulture,
-                out var connectionTimeout))
-        {
-            options.ConnectionTimeout = connectionTimeout;
-        }
+        read.TimeSpan(
+            nameof(TraconMcpOptions.StaleToolRetention),
+            static o => o.StaleToolRetention,
+            static (o, v) => o.StaleToolRetention = v);
 
-        if (int.TryParse(
-                section[nameof(TraconMcpOptions.MaxToolsPerServer)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxToolsPerServer))
-        {
-            options.MaxToolsPerServer = maxToolsPerServer;
-        }
+        read.TimeSpan(
+            nameof(TraconMcpOptions.ConnectionTimeout),
+            static o => o.ConnectionTimeout,
+            static (o, v) => o.ConnectionTimeout = v);
 
-        if (int.TryParse(
-                section[nameof(TraconMcpOptions.MaxResourceBytesPerResource)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxResourceBytesPerResource))
-        {
-            options.MaxResourceBytesPerResource = maxResourceBytesPerResource;
-        }
+        read.Int32(
+            nameof(TraconMcpOptions.MaxToolsPerServer),
+            static o => o.MaxToolsPerServer,
+            static (o, v) => o.MaxToolsPerServer = v);
 
-        if (int.TryParse(
-                section[nameof(TraconMcpOptions.MaxResourceBytesTotal)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxResourceBytesTotal))
-        {
-            options.MaxResourceBytesTotal = maxResourceBytesTotal;
-        }
+        read.Int32(
+            nameof(TraconMcpOptions.MaxResourceBytesPerResource),
+            static o => o.MaxResourceBytesPerResource,
+            static (o, v) => o.MaxResourceBytesPerResource = v);
+
+        read.Int32(
+            nameof(TraconMcpOptions.MaxResourceBytesTotal),
+            static o => o.MaxResourceBytesTotal,
+            static (o, v) => o.MaxResourceBytesTotal = v);
 
         if (section[nameof(TraconMcpOptions.OAuthCallbackBaseUri)] is { Length: > 0 } callbackBaseUri
             && Uri.TryCreate(callbackBaseUri, UriKind.Absolute, out var parsedCallbackBaseUri))

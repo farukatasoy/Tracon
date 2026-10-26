@@ -84,7 +84,7 @@ public static class TraconPostgreSqlBuilderExtensions
 
         var services = builder.Services;
 
-        services.AddOptions<TraconPostgreSqlOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconPostgreSqlOptions>(services);
         services.Configure(configure);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<
             IValidateOptions<TraconPostgreSqlOptions>,
@@ -444,6 +444,8 @@ public static class TraconPostgreSqlBuilderExtensions
     /// </remarks>
     private static void Bind(IConfiguration section, TraconPostgreSqlOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section[nameof(TraconPostgreSqlOptions.ConnectionString)] is { Length: > 0 } connectionString)
         {
             options.ConnectionString = connectionString;
@@ -454,28 +456,24 @@ public static class TraconPostgreSqlBuilderExtensions
             options.SchemaName = schemaName;
         }
 
-        if (bool.TryParse(section[nameof(TraconPostgreSqlOptions.AutoApplyMigrations)], out var autoApply))
-        {
-            options.AutoApplyMigrations = autoApply;
-        }
+        read.Boolean(
+            nameof(TraconPostgreSqlOptions.AutoApplyMigrations),
+            static o => o.AutoApplyMigrations,
+            static (o, v) => o.AutoApplyMigrations = v);
 
-        if (int.TryParse(
-                section[nameof(TraconPostgreSqlOptions.CommandTimeoutSeconds)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var commandTimeout))
-        {
-            options.CommandTimeoutSeconds = commandTimeout;
-        }
+        read.Int32(
+            nameof(TraconPostgreSqlOptions.CommandTimeoutSeconds),
+            static o => o.CommandTimeoutSeconds,
+            static (o, v) => o.CommandTimeoutSeconds = v);
 
-        if (bool.TryParse(section[nameof(TraconPostgreSqlOptions.EnableKnowledge)], out var enableKnowledge))
-        {
-            options.EnableKnowledge = enableKnowledge;
-        }
+        read.Boolean(
+            nameof(TraconPostgreSqlOptions.EnableKnowledge),
+            static o => o.EnableKnowledge,
+            static (o, v) => o.EnableKnowledge = v);
 
-        if (bool.TryParse(section[nameof(TraconPostgreSqlOptions.EnableReadViews)], out var enableReadViews))
-        {
-            options.EnableReadViews = enableReadViews;
-        }
+        read.Boolean(
+            nameof(TraconPostgreSqlOptions.EnableReadViews),
+            static o => o.EnableReadViews,
+            static (o, v) => o.EnableReadViews = v);
     }
 }

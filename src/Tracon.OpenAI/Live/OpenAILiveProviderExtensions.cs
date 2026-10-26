@@ -89,7 +89,7 @@ public static class OpenAILiveProviderExtensions
 
         // The validator promises a STARTUP failure; without this line an invalid
         // value surfaced only when the first session read the options (F-336).
-        services.AddOptions<OpenAILiveOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<OpenAILiveOptions>(services);
 
         // TryAdd: a consumer that registered its own live provider keeps theirs.
         services.TryAddSingleton<ILiveVoiceProvider>(static provider => new OpenAILiveProvider(
@@ -109,6 +109,8 @@ public static class OpenAILiveProviderExtensions
     /// </remarks>
     private static void Bind(IConfiguration section, OpenAILiveOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section["Model"] is { Length: > 0 } model)
         {
             options.Model = model;
@@ -125,18 +127,14 @@ public static class OpenAILiveProviderExtensions
             options.Endpoint = parsed;
         }
 
-        if (int.TryParse(
-                section["MaxAppendCharacters"],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxAppendCharacters))
-        {
-            options.MaxAppendCharacters = maxAppendCharacters;
-        }
+        read.Int32(
+            "MaxAppendCharacters",
+            static o => o.MaxAppendCharacters,
+            static (o, v) => o.MaxAppendCharacters = v);
 
-        if (TimeSpan.TryParse(section["Timeout"], CultureInfo.InvariantCulture, out var timeout))
-        {
-            options.Timeout = timeout;
-        }
+        read.TimeSpan(
+            "Timeout",
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
     }
 }

@@ -10,15 +10,14 @@ namespace Tracon;
 /// <para>
 /// One typo in <c>MaskedPii</c> (<c>"Emial,CreditCard"</c>) used to fail the
 /// whole parse, so the value stayed <see cref="PiiPatterns.None"/> and PII masking
-/// was off, with nothing to say so. The binder now binds an unreadable value as a
-/// value with an undefined bit, and this validator refuses any value with an
-/// undefined bit, whatever its source.
+/// was off, with nothing to say so. The binder records a text it cannot read
+/// (<see cref="UnreadableConfigurationValidator{TOptions}"/> names it); this
+/// validator refuses any value with an undefined bit, whatever its source - a number
+/// such as <c>128</c> parses, and so does an <c>AddPatternContentGuard(...)</c> callback.
 /// </para>
 /// <para>
-/// The failure comes from the bound <see cref="PatternContentGuardOptions.MaskedPii"/>,
-/// not from the text the binder kept: code that sets the member after binding wins
-/// and clears the error, the same rule the scheduling collections follow. The kept
-/// text only makes the message name the value as the operator wrote it.
+/// Code that sets the member after binding wins and clears the error, the same rule
+/// the scheduling collections follow.
 /// </para>
 /// <para>
 /// Hand-written; <c>ValidateDataAnnotations()</c> relies on reflection and produces
@@ -28,12 +27,6 @@ namespace Tracon;
 /// </remarks>
 internal sealed class PatternContentGuardOptionsValidator : IValidateOptions<PatternContentGuardOptions>
 {
-    /// <summary>
-    /// The value the binder binds for a <c>MaskedPii</c> text that does not parse:
-    /// only the sign bit, which no <see cref="PiiPatterns"/> member defines.
-    /// </summary>
-    internal const PiiPatterns UnreadableMaskedPii = (PiiPatterns)int.MinValue;
-
     private static readonly PiiPatterns DefinedBits =
         Enum.GetValues<PiiPatterns>().Aggregate(PiiPatterns.None, static (all, pattern) => all | pattern);
 
@@ -51,12 +44,9 @@ internal sealed class PatternContentGuardOptionsValidator : IValidateOptions<Pat
 
         var knownNames = string.Join(", ", Enum.GetNames<PiiPatterns>());
 
-        var message = options.UnreadableMaskedPii is { } unreadable && UndefinedBits(unreadable.Bound) == undefined
-            ? $"{nameof(PatternContentGuardOptions)}.{nameof(PatternContentGuardOptions.MaskedPii)} is '{unreadable.Text}', " +
-              $"which is not a comma-separated list of {nameof(PiiPatterns)} names. Known names: {knownNames}."
-            : $"{nameof(PatternContentGuardOptions)}.{nameof(PatternContentGuardOptions.MaskedPii)} is " +
-              $"{((int)options.MaskedPii).ToString(CultureInfo.InvariantCulture)}, which carries a bit no " +
-              $"{nameof(PiiPatterns)} member defines. Known names: {knownNames}.";
+        var message = $"{nameof(PatternContentGuardOptions)}.{nameof(PatternContentGuardOptions.MaskedPii)} is " +
+                      $"{((int)options.MaskedPii).ToString(CultureInfo.InvariantCulture)}, which carries a bit no " +
+                      $"{nameof(PiiPatterns)} member defines. Known names: {knownNames}.";
 
         return ValidateOptionsResult.Fail(message);
     }
