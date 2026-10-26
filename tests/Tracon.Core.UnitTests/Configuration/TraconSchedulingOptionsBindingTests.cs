@@ -100,7 +100,7 @@ public sealed class TraconSchedulingOptionsBindingTests
     public void A_lane_budget_that_is_not_a_number_fails_at_startup()
     {
         // A silently skipped budget is the defect this class closes, so an
-        // unreadable value is not skipped: it reaches the validator as zero.
+        // unreadable value stops the host and is named with its key and its text.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Scheduling:MaxConcurrentJobsPerLane:media"] = "three",
@@ -108,7 +108,7 @@ public sealed class TraconSchedulingOptionsBindingTests
 
         var failure = Should.Throw<OptionsValidationException>(() => Bind(values));
 
-        failure.Message.ShouldContain(nameof(TraconSchedulingOptions.MaxConcurrentJobsPerLane));
+        failure.Message.ShouldContain("Tracon:Scheduling:MaxConcurrentJobsPerLane:media is 'three'");
     }
 
     [Fact]

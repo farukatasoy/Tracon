@@ -75,6 +75,13 @@ public static class OpenAICompatibleProviderExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<
             IValidateOptions<OpenAIProviderOptions>,
             OpenAIProviderOptionsValidator>());
+
+        // Not UnreadableConfigurationValidator.Add: it would also register the UNNAMED options for
+        // ValidateOnStart, and a host that only uses compatible providers has no OpenAI key to give them.
+        // The validator ignores the options name, so one registration serves every named instance.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<OpenAIProviderOptions>,
+            UnreadableConfigurationValidator<OpenAIProviderOptions>>());
         services.TryAddSingleton<OpenAINamedChatClientFactoryCache>();
 
         // A second call merges the options but does not register the providers again;

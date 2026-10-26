@@ -10,8 +10,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// 🚨 F-247: the binder dropped a delay it could not read, and a delay of zero or
 /// below, without a word — the retry ladder came out one rung short and the
 /// validator's <c>&lt;= TimeSpan.Zero</c> branch could not be reached from
-/// configuration. The F-385 rule now applies: an unreadable delay is bound as zero
-/// and the validator names <c>RetryDelays</c> at startup.
+/// configuration. The rule now applies: an unreadable delay is left out and named
+/// with its key and its text at startup (F-572), and a delay that is not above zero
+/// is the validator's.
 /// </remarks>
 public sealed class TraconWebhookOptionsBindingTests
 {

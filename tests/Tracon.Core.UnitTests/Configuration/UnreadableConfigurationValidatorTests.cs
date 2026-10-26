@@ -12,7 +12,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// <para>
 /// Before the rule, a number or flag the binder could not read left the shipped
 /// default in place and said nothing: <c>DefaultMaxOutputBytes = "10MB"</c> kept the
-/// tool output unbounded, <c>RecordToolPayloads = "hayır"</c> kept recording, and
+/// tool output unbounded, <c>RecordToolPayloads = "nope"</c> kept recording, and
 /// <c>RateLimit:Enabled = "evet"</c> kept the limit off. The default of each of these
 /// is the loose side, so a typo opened a limit or a protection.
 /// </para>
@@ -39,11 +39,11 @@ public sealed class UnreadableConfigurationValidatorTests
         // Three sub-sections of the one TraconOptions: the operator fixes all three from one start.
         var failure = SectionBinding.FailsAtStartup(Keys(
             ("Tracon:Tools:DefaultMaxOutputBytes", "10MB"),
-            ("Tracon:RunRecording:RecordToolPayloads", "hayır"),
+            ("Tracon:RunRecording:RecordToolPayloads", "nope"),
             ("Tracon:Observability:SuccessSampleRatio", "half")));
 
         failure.Message.ShouldContain("Tracon:Tools:DefaultMaxOutputBytes is '10MB'");
-        failure.Message.ShouldContain("Tracon:RunRecording:RecordToolPayloads is 'hayır'");
+        failure.Message.ShouldContain("Tracon:RunRecording:RecordToolPayloads is 'nope'");
         failure.Message.ShouldContain("Tracon:Observability:SuccessSampleRatio is 'half'");
     }
 
@@ -124,13 +124,13 @@ public sealed class UnreadableConfigurationValidatorTests
     [Fact]
     public void Code_that_assigns_one_option_does_not_hide_another_unreadable_value()
     {
-        var values = Keys(("Tracon:Tools:DefaultMaxOutputBytes", "10MB"), ("Tracon:RunRecording:RecordToolPayloads", "hayır"));
+        var values = Keys(("Tracon:Tools:DefaultMaxOutputBytes", "10MB"), ("Tracon:RunRecording:RecordToolPayloads", "nope"));
 
         var failure = SectionBinding.FailsAtStartup(values, static (builder, _) =>
             builder.Services.Configure<TraconOptions>(static options => options.Tools.DefaultMaxOutputBytes = 4096));
 
         failure.Message.ShouldNotContain("DefaultMaxOutputBytes");
-        failure.Message.ShouldContain("Tracon:RunRecording:RecordToolPayloads is 'hayır'");
+        failure.Message.ShouldContain("Tracon:RunRecording:RecordToolPayloads is 'nope'");
     }
 
     [Fact]

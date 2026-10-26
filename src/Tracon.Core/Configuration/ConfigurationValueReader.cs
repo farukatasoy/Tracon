@@ -271,7 +271,7 @@ internal sealed class ConfigurationValueReader<TOptions>
 
         values = children
             .Select(static child => child.Value)
-            .Where(static value => value is { Length: > 0 })
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
             .Select(static value => value!)
             .ToArray();
 

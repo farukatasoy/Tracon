@@ -37,7 +37,7 @@ Write a valid value, or remove the key to keep the default.
 ```
 
 Tracon never skips such a key and keeps the default. Several defaults are the loose
-side: `10MB` instead of a number would leave tool output unbounded, `hayır` or `evet`
+side: `10MB` instead of a number would leave tool output unbounded, `nope` or `yes`
 instead of `false` or `true` would leave a protection or a limit as it was. A number is
 a whole number or a decimal written with `.`, a flag is `true` or `false`, a duration
 is a time span such as `00:00:30`, and an enum is one of its member names.

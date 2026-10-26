@@ -10,8 +10,8 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// 🚨 F-247: the binder dropped a threshold it could not read, and a threshold of
 /// zero or below, without a word. <c>["80", "yuz"]</c> started with <c>[80]</c>,
 /// and the validator's <c>&lt;= 0</c> branch could not be reached from configuration
-/// at all. The F-385 rule now applies: an unreadable entry is bound as zero, so the
-/// validator names <c>ThresholdPercents</c> at startup.
+/// at all. The rule now applies: an unreadable entry is left out and named with its
+/// key and its text at startup (F-572), and an entry out of range is the validator's.
 /// </remarks>
 public sealed class TraconQuotaOptionsBindingTests
 {

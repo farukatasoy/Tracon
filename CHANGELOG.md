@@ -359,6 +359,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **A configuration value that cannot be read stops the host at startup.** A key that held text its type could not read
+  (`Tracon:Tools:DefaultMaxOutputBytes = "10MB"`, `Tracon:RunRecording:RecordToolPayloads = "nope"`,
+  `Tracon:RateLimit:Enabled = "yes"`) was skipped and the shipped default stayed, with no message. 25 of those defaults are
+  the loose side, so a typo left a limit open or a protection off. Now every number, flag, time span and enum name in the
+  `Tracon:*` sections and in the package sections (`Mcp`, `Voice`, `Voice:Live`, `Voice:Conversation`, the providers, the
+  SQL stores) must be readable, and so must the numbers of a model catalog entry and of a price. The host refuses to start
+  and the message names the full key and quotes the text: `Tracon:Tools:DefaultMaxOutputBytes is '10MB', which is not a
+  32-bit whole number.` Every unreadable key of the same options type is listed in one message. **Empty text, or only white
+  space, is still "not given"** and keeps the default. Code that assigns the option after binding still wins, so a typo you
+  have overridden in a `Configure` callback does not stop the host. **Upgrade check:** start the application once; the
+  keys it names are the ones that were ignored until now.
+- **A list key that holds one value is refused.** `Tracon:Skills:Scripts:EnvironmentAllowList=PATH` was ignored and the
+  default list stayed. The message now says to write `…:EnvironmentAllowList:0`. A JSON `[]` and a key with no text keep
+  the default list, as before; to empty a list, clear it in code. This covers every list key (`Lanes`,
+  `HttpSchedulableHandlerKeys`, `DeniedTerms`, `AgentNames`, `AllowedMediaTypes`, `ThresholdPercents`, `RetryDelays`,
+  `Columns`).
+- **An entry of a list or a map that cannot be read is left out and named by its position or name** (`Quotas:ThresholdPercents:1`,
+  `Scheduling:MaxConcurrentJobsPerLane:media`). It used to be bound as `0` (or as an undefined value) so that the options
+  validator would complain about the stand-in; the message now quotes what you wrote.
+- **A decimal no longer takes a thousands separator.** `Tracon:Pricing:…:Input = "1,5"` was read as fifteen. It is now an
+  unreadable value; write `1.5`.
+- **`Tracon:Voice:Live:DelegationMode` is refused by the same rule** instead of throwing while the options are bound:
+  the host stops at startup with an `OptionsValidationException` that names the key and the one mode, `Client`.
+
 - **The knowledge search and the on-demand conversation memory search run through the tool chain.** `search_knowledge`
   (`MemorySettings.EnableVectorSearch`) and `search_conversation_memory` (`ConversationMemorySearch.OnDemand`) were added
   to a run as bare functions, so your `IToolAuthorizationHandler`, your `IToolArgumentsValidator`, the tool timeout and
