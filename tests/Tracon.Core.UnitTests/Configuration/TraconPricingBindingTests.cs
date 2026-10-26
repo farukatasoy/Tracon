@@ -217,6 +217,70 @@ public sealed class TraconPricingBindingTests
             .Pricing.HostedTools["openai-responses"]["FileSearch"].PerCall.ShouldBe(0.0025m);
     }
 
+    [Theory]
+    [InlineData("Tracon:Pricing:echo:echo-1:Input", "1,5")]
+    [InlineData("Tracon:Pricing:echo:echo-1:Output", "two")]
+    [InlineData("Tracon:Pricing:echo:echo-1:CachedInput", "0,1")]
+    [InlineData("Tracon:Pricing:Voice:eleven:flash:PerMinute", "cheap")]
+    [InlineData("Tracon:Pricing:Voice:eleven:flash:PerMillionCharacters", "1,5")]
+    [InlineData("Tracon:Pricing:HostedTools:openai-responses:WebSearch:PerCall", "0,01")]
+    [InlineData("Tracon:Pricing:Images:openai:gpt-image:PerImage", "free")]
+    [InlineData("Tracon:Pricing:Images:openai:gpt-image:OutputCostPerMillionTokens", "1,5")]
+    [InlineData("Tracon:Pricing:Images:openai:gpt-image:SizeMultipliers:1024x1024", "double")]
+    public void A_price_that_cannot_be_read_stops_the_host_and_is_named_by_its_key(string key, string text)
+    {
+        // The reader left an unreadable price null, which made the model unpriced without a word. A decimal
+        // takes no thousands separator: "1,5" used to be read as fifteen.
+        var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal) { [key] = text });
+
+        failure.Message.ShouldContain($"{key} is '{text}'");
+    }
+
+    [Fact]
+    public void A_price_with_a_thousands_separator_is_not_read_as_a_bigger_number()
+    {
+        var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:echo:echo-1:Input"] = "1,000.5",
+            ["Tracon:Pricing:echo:echo-1:Output"] = "2",
+        });
+
+        failure.Message.ShouldContain("Tracon:Pricing:echo:echo-1:Input is '1,000.5'");
+    }
+
+    [Fact]
+    public void Code_that_replaces_the_price_entry_wins_over_an_unreadable_price()
+    {
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:echo:echo-1:Input"] = "1,5",
+            ["Tracon:Pricing:echo:echo-1:Output"] = "2",
+        };
+
+        SectionBinding.StartsCleanly(values, static (builder, _) =>
+            builder.Services.Configure<TraconOptions>(static options =>
+                options.Pricing.Providers["echo"]["echo-1"] = new ModelPriceOverride
+                {
+                    InputCostPerMillionTokens = 1.5m,
+                    OutputCostPerMillionTokens = 2m,
+                }));
+    }
+
+    [Fact]
+    public void An_empty_price_means_not_given()
+    {
+        var options = BindOnly(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Pricing:echo:echo-1:Input"] = "0.25",
+            ["Pricing:echo:echo-1:Output"] = string.Empty,
+            ["Pricing:echo:echo-1:CachedInput"] = "  ",
+        });
+
+        options.Pricing.Providers["echo"]["echo-1"].InputCostPerMillionTokens.ShouldBe(0.25m);
+        options.Pricing.Providers["echo"]["echo-1"].OutputCostPerMillionTokens.ShouldBeNull();
+        options.Pricing.Providers["echo"]["echo-1"].CachedInputCostPerMillionTokens.ShouldBeNull();
+    }
+
     /// <summary>
     /// Calls <c>TraconServiceCollectionExtensions.Bind</c> (the private,
     /// manually written K-021 binder) directly, without DI or the validator

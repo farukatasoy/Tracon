@@ -19,8 +19,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// message.
 /// </para>
 /// <para>
-/// The package option types (providers, MCP, voice, the SQL stores) are probed by the
-/// binding tests of their own packages; the source scan
+/// The package option types (providers, MCP, voice) are probed by the unreadable-value
+/// tests of their own packages, and the three SQL stores by <c>Tracon.Sql.Shared.UnitTests</c>
+/// (the integration projects start a container for every class); the source scan
 /// (<c>UnreadableConfigurationSiteTests</c>) keeps their binders on the same reader.
 /// </para>
 /// </remarks>

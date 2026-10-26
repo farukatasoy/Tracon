@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214, 237, 238
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214, 237, 238, 247
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -4717,3 +4717,64 @@ eklenir, commit edilir ve `v1.0.0` etiketlenir.
 - (4) Çıkış `0`: minor sürümde ekleme serbesttir; son satır `✅ .NET dışı yüzeylerde kırılma yok (1 ekleme)`.
 
 2026-10-24 koşumu: (2) iki kırılma, çıkış `1`; (3) `Hat: donmuş 1.x yama …` ve `hata kodu: ghost_code — yeni satır`, çıkış `1`; (4) çıkış `0`.
+
+---
+
+### MT-PKG-173 — Okunamayan yapılandırma değeri açılışı durdurur: mesaj tam anahtarı ve metni adlandırır; geçerli yapılandırmayla uygulama açılır ve `run` tamamlanır (Faz 247)
+
+Otomatik karşılığı: `UnreadableConfigurationValidatorTests` · `UnreadableValueProbeTests` · `ConfigurationStartupTests`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 247 |
+| **İlgili karar** | K-1099 |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` (`dotnet run --no-build -c Release`) ve `curl` |
+
+**Ön koşul** — `samples/Tracon.Api` Release derlenmiş (`dotnet build Tracon.slnx -c Release`). Üç adımdaki `Tracon__Ui__AuthToken`
+dışında ortam değişkeni yoktur; SQL bağlantısı gerekmez (bellek içi depo).
+
+**Adımlar**
+1. `Tracon__Tools__DefaultMaxOutputBytes=10MB Tracon__RunRecording__RecordToolPayloads=hayır dotnet run --no-build -c Release`.
+2. `Tracon__RateLimit__Enabled=evet dotnet run --no-build -c Release`.
+3. Yapılandırmayı bozmadan `Tracon__Ui__AuthToken=<FIX-TOKEN-01> dotnet run --no-build -c Release`; `POST /tracon/api/agents/support/run`
+   (`{"message":"ORD-1001 siparisim nerede?","sessionId":"f247-probe"}`) ve `GET /tracon/api/runs?limit=1`.
+
+**Beklenen sonuç**
+- (1) Uygulama açılmaz (çıkış `134`). Tek `OptionsValidationException` iki anahtarı **tam yoluyla** ve metniyle adlandırır:
+  `Tracon:RunRecording:RecordToolPayloads is 'hayır', which is not true or false` ve
+  `Tracon:Tools:DefaultMaxOutputBytes is '10MB', which is not a 32-bit whole number`.
+- (2) Uygulama açılmaz (çıkış `134`); mesaj `Tracon:RateLimit:Enabled is 'evet'` der. Örnek uygulama `TraconOptions`'ı açılışta eager okuduğu için
+  **farklı seçenek tiplerinin** hataları tek tek görünür: (1)'deki iki anahtar aynı tipin (`TraconOptions`) alt bölümleridir, `RateLimit` ayrı bir tiptir.
+- (3) `Now listening on: http://localhost:5080`; `run` kaydı `Completed`.
+
+2026-10-26 koşumu: (1) çıkış `134`, mesaj iki anahtarı da adlandırdı; (2) öncesinde `DefaultMaxOutputBytes=10MB` ile aynı komut yalnız `Tracon:Tools:DefaultMaxOutputBytes`'i
+adlandırdı (`TraconOptions` önce okundu); (3) `support` agent'ı `Completed`, `gpt-5.4-mini`, 797 token.
+
+---
+
+### MT-PKG-174 — Liste anahtarına verilen tek değer açılışı durdurur ve `:0` biçimini önerir; boş değer varsayılanı korur (Faz 247)
+
+Otomatik karşılığı: `UnreadableConfigurationValidatorTests.A_list_key_that_holds_one_value_is_refused_and_the_message_shows_the_entry_form` ·
+`A_list_key_with_no_text_keeps_the_default`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 247 |
+| **İlgili karar** | K-1099 |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` (`dotnet run --no-build -c Release`) |
+
+**Ön koşul** — MT-PKG-173 ile aynı.
+
+**Adımlar**
+1. `Tracon__Skills__Scripts__EnvironmentAllowList=PATH dotnet run --no-build -c Release`.
+2. `Tracon__Skills__Scripts__EnvironmentAllowList__0=PATH dotnet run --no-build -c Release`.
+
+**Beklenen sonuç**
+- (1) Uygulama açılmaz (çıkış `134`); mesaj `Tracon:Skills:Scripts:EnvironmentAllowList is 'PATH', a single value` der ve `write it as Tracon:Skills:Scripts:EnvironmentAllowList:0` önerir.
+- (2) Uygulama açılır.
+
+2026-10-26 koşumu: (1) çıkış `134`, mesaj `…:EnvironmentAllowList:0` biçimini önerdi.

@@ -308,12 +308,58 @@ cd samples/Tracon.Api && Tracon__Tools__DefaultMaxOutputBytes=10MB dotnet run --
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **Okuyucunun yeri (Açık Soru 4): `Tracon.Core`, `internal`.** Plan A (`Tracon.Abstractions` + beş pakete
+   `InternalsVisibleTo`) ile B (paylaşılan kaynak) arasında seçiyordu. İki ölçüm ikisini de eledi. (a) Planın
+   "Abstractions friend listesi Anthropic, Azure, Google, OpenAI ve Voice'u kapsamaz" iddiası yanlıştı: liste
+   `Tracon.Abstractions.csproj:56-72`'de onları zaten kapsıyor (plan yalnız `:14-46`'yı okumuştu). (b) Abstractions'ın
+   `Microsoft.Extensions.Configuration` bağımlılığı yok; `IConfiguration` okuyan bir tip MIT lisanslı sözleşme paketinin
+   bağımlılık grafiğini büyütürdü. `Tracon.Core` ise zaten on bağlayıcı paketin hepsine `InternalsVisibleTo` verir ve
+   `IConfiguration` ile `Options`'a bağlıdır: yeni friend yok, kopya yok, grafik aynı.
+2. **Taşıyıcı üye yok, yan tablo var (247.3).** Her seçenek tipine `internal` üye eklemek yerine rapor, seçenek örneğine
+   bağlı bir `ConditionalWeakTable`'da durur (`UnreadableConfigurationReport.For(options)`). Sebep: sekiz bağlanan tip
+   Abstractions'tadır ve Core'un `internal` arayüzünü uygulayamaz; tablo ile 40 public tipte tek satır değişmedi. İç içe
+   `TraconOptions` ağacında rapor **kökün** örneğine yazılır (iç içe nesnelerin kendi kaydı yok); bağlayıcılar `root` taşır.
+3. **Eski taşıyıcılar ve yerine konan değerler kalktı.** `UnreadableIncludeTenantTag`, `UnreadableUtilityModel`,
+   `UnreadableThresholdPercents`, `UnreadableRetryDelays`, `UnreadableColumns`, `UnreadableMaskedPii` ve `0` / `-1` /
+   `TimeSpan.Zero` / tanımsız-bit yerine geçen değerler silindi. Okunamayan liste girdisi ya da harita girdisi **listeden
+   çıkar** ve konumuyla ya da adıyla adlandırılır (`Quotas:ThresholdPercents:1`). Aksi hâlde aynı girdi için iki mesaj
+   çıkardı (yerine geçen `0` aralık doğrulayıcısına da takılırdı).
+4. **`DelegationMode` (Açık Soru 1 = A).** Genel `Enum<T>` okuyucusuna geçti; K-1015'in "bağlama anında atar" davranışı
+   gitti, açılışta `OptionsValidationException` verir. Mesaj `which is not the name 'Client'` der. Kaybolan: eski mesajın
+   "kaldırılan `Responses` kipi" ipucu (XML ve site aynı bilgiyi taşır).
+5. **Ondalık sayıda binlik ayracı yok.** `NumberStyles.Number` `"1,5"`'i 15 okuyordu; sessiz yanlış okuma `ReadDecimal`
+   ve katalog okuyucularında vardı. Okuyucu `AllowThousands`'sız stil kullanır, `"1,5"` okunamaz sayılır.
+6. **Enum'da tanımsız sayı reddedilir.** `Enum.TryParse` `"7"`'yi tanımsız üye olarak kabul ederdi. Düz enum yalnız tanımlı
+   üyeyi alır; `[Flags]` enum'da tanımsız bit seçenek doğrulayıcısının işidir (`MaskedPii`, K-993).
+7. **Manuel case 1'in anahtarları değişti.** Plan `Tools:DefaultMaxOutputBytes` + `RateLimit:Enabled` ile "tek mesaj iki
+   anahtar" bekliyordu; ikisi **ayrı seçenek tipidir**. Örnek uygulama `TraconOptions`'ı açılışta eager okur
+   (`Program.cs:525`), bu yüzden ilk hata yalnız `TraconOptions`'ı gösterir. Tek mesaj kuralı **seçenek tipi başınadır**;
+   case `Tools:DefaultMaxOutputBytes` + `RunRecording:RecordToolPayloads` (ikisi `TraconOptions`) ile yazıldı ve
+   `RateLimit` ayrı bir adım oldu (`MT-PKG-173`). Tipler arası tek mesaj için açılışta her seçeneği çözen bir toplayıcı
+   gerekirdi; bu faza girmedi.
+8. **Fonksiyonel test `TraconTestHost` ile değil `WebApplication` ile.** `TraconTestHost.StartAsync` yapılandırma almaz
+   (`AddTracon()` argümansız); public API büyütmeden yapılandırma veremezdi. `Tracon.Testing.UnitTests`'te
+   `ConfigurationStartupTests` gerçek bir `WebApplication`'ı `StartAsync` ile sınar.
+9. **Davranış probu iki yere bölündü (247.6).** Core ve Abstractions tipleri `UnreadableValueProbeTests` ile; paket tipleri
+   (Mcp, Voice, dört sağlayıcı, üç SQL deposu) kendi test projelerinde aynı yöntemle.
+10. **Kaynak taraması (Açık Soru 2 = A).** Bağlayıcı dosya **adla** bulunur; ikinci test okuyucuyu kullanan her dosyanın
+    taranan kümede olduğunu kanıtlar. Muaf site yok.
+11. **Kapsam dışı kalan: `Uri` anahtarları.** `Tracon:Voice:Endpoint`, `Tracon:Providers:OpenAI:Live:Endpoint` ve `Tracon:Mcp:OAuthCallbackBaseUri`
+    `Uri.TryCreate(…, Absolute)` ile okunur ve mutlak olmayan metni sessizce atlar. Plan "skaler" dedi ve tip listesinde
+    `Uri` yok; kaynak taraması `Uri.TryCreate`'e dokunmaz. Aday olarak yazıldı (F-702).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **K-1099** (`public-api`, `geri-dönüşü-pahalı`): okunamayan her skaler açılışı durdurur; boş "verilmedi"; liste anahtarına
+  tek değer hata. Reddedilen: uyar ve atla · anahtar başına sınıflandırma · bağlama anında atmak.
+- Kategori dışı (kapanış commit mesajına): okuyucu `Tracon.Core`'da `internal` (sapma 1) · yan tablo, taşıyıcı üye değil
+  (sapma 2) · ondalıkta binlik ayracı yok (sapma 5) · düz enum'da tanımsız sayı reddedilir (sapma 6) · `Uri` anahtarları
+  bu fazda dışarıda (sapma 11, F-702).
 
 ## Süreç Ölçümü
 
