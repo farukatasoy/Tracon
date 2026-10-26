@@ -45,7 +45,7 @@ public sealed class ProviderRegistrationCoreTests
             customMessage: "A ModelDescriptor property has no configuration key in this test. Add it here AND to ProviderRegistrationCore.BindModels.");
 
         var models = new List<ModelDescriptor>();
-        ProviderRegistrationCore.BindModels(Configuration(values), models);
+        ProviderRegistrationCore.BindModels(Configuration(values), models, new SampleOptions());
 
         var model = models.ShouldHaveSingleItem();
         var defaults = new ModelDescriptor { Name = string.Empty };
@@ -66,7 +66,8 @@ public sealed class ProviderRegistrationCoreTests
 
         ProviderRegistrationCore.BindModels(
             Configuration(new Dictionary<string, string?>(StringComparer.Ordinal) { ["0:DisplayName"] = "no name" }),
-            models);
+            models,
+            new SampleOptions());
 
         models.ShouldHaveSingleItem().Name.ShouldBeEmpty();
     }
@@ -83,21 +84,25 @@ public sealed class ProviderRegistrationCoreTests
     }
 
     [Fact]
-    public void Readers_use_the_invariant_culture()
+    public void Catalog_numbers_use_the_invariant_culture()
     {
         var previous = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
 
         try
         {
-            var section = Configuration(new Dictionary<string, string?>(StringComparer.Ordinal)
-            {
-                ["Cost"] = "1.5",
-                ["Timeout"] = "00:00:30",
-            });
+            var models = new List<ModelDescriptor>();
 
-            ProviderRegistrationCore.ReadDecimal(section, "Cost").ShouldBe(1.5m);
-            ProviderRegistrationCore.ReadTimeSpan(section, "Timeout").ShouldBe(TimeSpan.FromSeconds(30));
+            ProviderRegistrationCore.BindModels(
+                Configuration(new Dictionary<string, string?>(StringComparer.Ordinal)
+                {
+                    ["0:Name"] = "model-a",
+                    ["0:InputCostPerMillionTokens"] = "1.5",
+                }),
+                models,
+                new SampleOptions());
+
+            models.ShouldHaveSingleItem().InputCostPerMillionTokens.ShouldBe(1.5m);
         }
         finally
         {
@@ -106,13 +111,67 @@ public sealed class ProviderRegistrationCoreTests
     }
 
     [Fact]
-    public void Absent_or_unparsable_values_read_as_null()
+    public void An_unreadable_catalog_field_is_left_unset_and_recorded()
+    {
+        var options = new SampleOptions();
+        var models = new List<ModelDescriptor>();
+
+        ProviderRegistrationCore.BindModels(
+            Configuration(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["0:Name"] = "model-a",
+                ["0:ContextWindowTokens"] = "128k",
+                ["0:SupportsTools"] = "evet",
+                ["0:InputCostPerMillionTokens"] = "1,5",
+                ["0:OutputCostPerMillionTokens"] = "2.5",
+            }),
+            models,
+            options);
+
+        var model = models.ShouldHaveSingleItem();
+
+        model.ContextWindowTokens.ShouldBeNull();
+        model.InputCostPerMillionTokens.ShouldBeNull();
+        model.SupportsTools.ShouldBeTrue();
+        model.OutputCostPerMillionTokens.ShouldBe(2.5m);
+
+        UnreadableConfigurationReport.TryGet(options, out var report).ShouldBeTrue();
+
+        var failures = report!.Failures();
+
+        failures.Count.ShouldBe(3);
+        failures.ShouldContain(static failure => failure.StartsWith("0:ContextWindowTokens is '128k'", StringComparison.Ordinal));
+        failures.ShouldContain(static failure => failure.StartsWith("0:SupportsTools is 'evet'", StringComparison.Ordinal));
+        failures.ShouldContain(static failure => failure.StartsWith("0:InputCostPerMillionTokens is '1,5'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void An_unreadable_catalog_field_stops_counting_once_code_removes_the_model()
+    {
+        var options = new SampleOptions();
+        var models = new List<ModelDescriptor>();
+
+        ProviderRegistrationCore.BindModels(
+            Configuration(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["0:Name"] = "model-a",
+                ["0:ContextWindowTokens"] = "128k",
+            }),
+            models,
+            options);
+
+        UnreadableConfigurationReport.For(options).Failures().ShouldHaveSingleItem();
+
+        models.Clear();
+
+        UnreadableConfigurationReport.For(options).Failures().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void An_absent_endpoint_reads_as_null()
     {
         var section = Configuration(new Dictionary<string, string?>(StringComparer.Ordinal) { ["Number"] = "abc" });
 
-        ProviderRegistrationCore.ReadInt32(section, "Number").ShouldBeNull();
-        ProviderRegistrationCore.ReadBoolean(section, "Missing").ShouldBeNull();
-        ProviderRegistrationCore.ReadTimeSpan(section, "Missing").ShouldBeNull();
         ProviderRegistrationCore.ReadEndpoint(section, "Missing").ShouldBeNull();
     }
 
@@ -124,7 +183,10 @@ public sealed class ProviderRegistrationCoreTests
         ProviderRegistrationCore.AddValidatedOptions<SampleOptions, SampleValidator>(services, static options => options.First = "1");
         ProviderRegistrationCore.AddValidatedOptions<SampleOptions, SampleValidator>(services, static options => options.Second = "2");
 
-        services.Count(static descriptor => descriptor.ServiceType == typeof(IValidateOptions<SampleOptions>)).ShouldBe(1);
+        services.Count(static descriptor => descriptor.ServiceType == typeof(IValidateOptions<SampleOptions>)
+            && descriptor.ImplementationType == typeof(SampleValidator)).ShouldBe(1);
+        services.Count(static descriptor => descriptor.ServiceType == typeof(IValidateOptions<SampleOptions>)
+            && descriptor.ImplementationType == typeof(UnreadableConfigurationValidator<SampleOptions>)).ShouldBe(1);
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<SampleOptions>>().Value;

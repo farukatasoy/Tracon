@@ -153,6 +153,8 @@ public static class AzureOpenAIProviderExtensions
     /// </remarks>
     internal static void Bind(IConfiguration section, AzureOpenAIProviderOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (ProviderRegistrationCore.ReadEndpoint(section, nameof(AzureOpenAIProviderOptions.Endpoint)) is { } endpoint)
         {
             options.Endpoint = endpoint;
@@ -173,11 +175,11 @@ public static class AzureOpenAIProviderExtensions
             options.Audience = audience;
         }
 
-        if (ProviderRegistrationCore.ReadTimeSpan(section, nameof(AzureOpenAIProviderOptions.Timeout)) is { } timeout)
-        {
-            options.Timeout = timeout;
-        }
+        read.TimeSpan(
+            nameof(AzureOpenAIProviderOptions.Timeout),
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
 
-        ProviderRegistrationCore.BindModels(section.GetSection(nameof(AzureOpenAIProviderOptions.Models)), options.Models);
+        ProviderRegistrationCore.BindModels(section.GetSection(nameof(AzureOpenAIProviderOptions.Models)), options.Models, options);
     }
 }

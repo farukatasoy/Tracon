@@ -187,19 +187,19 @@ public static partial class TraconServiceCollectionExtensions
         // early return causes later sections to never be read at all when the
         // first one is undefined; measured: Observability was being silently
         // ignored in a configuration where RunRecording was not written.
-        BindRunRecording(section.GetSection(nameof(TraconOptions.RunRecording)), options.RunRecording);
-        BindObservability(section.GetSection(nameof(TraconOptions.Observability)), options.Observability);
-        BindCircuitBreaker(section.GetSection(nameof(TraconOptions.CircuitBreaker)), options.CircuitBreaker);
-        BindHealth(section.GetSection(nameof(TraconOptions.Health)), options.Health);
+        BindRunRecording(section.GetSection(nameof(TraconOptions.RunRecording)), options.RunRecording, options);
+        BindObservability(section.GetSection(nameof(TraconOptions.Observability)), options.Observability, options);
+        BindCircuitBreaker(section.GetSection(nameof(TraconOptions.CircuitBreaker)), options.CircuitBreaker, options);
+        BindHealth(section.GetSection(nameof(TraconOptions.Health)), options.Health, options);
         BindAudit(section.GetSection(nameof(TraconOptions.Audit)), options.Audit);
-        BindSkills(section.GetSection(nameof(TraconOptions.Skills)), options.Skills);
-        BindAgentGraph(section.GetSection(nameof(TraconOptions.AgentGraph)), options.AgentGraph);
-        BindAttachments(section.GetSection(nameof(TraconOptions.Attachments)), options.Attachments);
-        BindPricing(section.GetSection(nameof(TraconOptions.Pricing)), options.Pricing);
+        BindSkills(section.GetSection(nameof(TraconOptions.Skills)), options.Skills, options);
+        BindAgentGraph(section.GetSection(nameof(TraconOptions.AgentGraph)), options.AgentGraph, options);
+        BindAttachments(section.GetSection(nameof(TraconOptions.Attachments)), options.Attachments, options);
+        BindPricing(section.GetSection(nameof(TraconOptions.Pricing)), options.Pricing, options);
         BindUtilityModel(section.GetSection(nameof(TraconOptions.UtilityModel)), options);
-        BindValidation(section.GetSection(nameof(TraconOptions.Validation)), options.Validation);
-        BindPreflight(section.GetSection(nameof(TraconOptions.Preflight)), options.Preflight);
-        BindModelConcurrency(section.GetSection(nameof(TraconOptions.ModelConcurrency)), options.ModelConcurrency);
-        BindTools(section.GetSection(nameof(TraconOptions.Tools)), options.Tools);
+        BindValidation(section.GetSection(nameof(TraconOptions.Validation)), options.Validation, options);
+        BindPreflight(section.GetSection(nameof(TraconOptions.Preflight)), options.Preflight, options);
+        BindModelConcurrency(section.GetSection(nameof(TraconOptions.ModelConcurrency)), options.ModelConcurrency, options);
+        BindTools(section.GetSection(nameof(TraconOptions.Tools)), options.Tools, options);
     }
 }

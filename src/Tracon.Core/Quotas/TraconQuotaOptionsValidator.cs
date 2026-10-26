@@ -51,13 +51,10 @@ internal sealed class TraconQuotaOptionsValidator : IValidateOptions<TraconQuota
                 continue;
             }
 
-            // An entry the binder could not read stands here as zero; quote the
-            // text the operator wrote instead of the zero (F-247).
-            (failures ??= []).Add(percent == 0 && options.UnreadableThresholdPercents.TryGetValue(index, out var text)
-                ? $"{nameof(TraconQuotaOptions)}.{nameof(TraconQuotaOptions.ThresholdPercents)}[{index.ToString(CultureInfo.InvariantCulture)}] " +
-                  $"is '{text}', which is not a whole number. Values must be between 1 and 100."
-                : $"{nameof(TraconQuotaOptions)}.{nameof(TraconQuotaOptions.ThresholdPercents)} " +
-                  $"values must be between 1 and 100. Actual value: {percent}.");
+            // The binder leaves out an entry it cannot read and names it itself (F-572).
+            (failures ??= []).Add(
+                $"{nameof(TraconQuotaOptions)}.{nameof(TraconQuotaOptions.ThresholdPercents)} " +
+                $"values must be between 1 and 100. Actual value: {percent}.");
         }
 
         return failures is null

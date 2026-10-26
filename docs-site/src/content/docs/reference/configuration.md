@@ -25,6 +25,35 @@ The configuration key separator is `:`. Environment variables use `__`, so
 `Tracon:Providers:OpenAI:ApiKey` becomes
 `Tracon__Providers__OpenAI__ApiKey`.
 
+### A value that cannot be read stops the host
+
+A key that holds text its type cannot read stops the application at startup. The
+message names the full key and quotes the text, and it lists every such key of the
+options at once:
+
+```text
+Tracon:Tools:DefaultMaxOutputBytes is '10MB', which is not a 32-bit whole number.
+Write a valid value, or remove the key to keep the default.
+```
+
+Tracon never skips such a key and keeps the default. Several defaults are the loose
+side: `10MB` instead of a number would leave tool output unbounded, `hayır` or `evet`
+instead of `false` or `true` would leave a protection or a limit as it was. A number is
+a whole number or a decimal written with `.`, a flag is `true` or `false`, a duration
+is a time span such as `00:00:30`, and an enum is one of its member names.
+
+- **Empty means not given.** A key with no text, or only white space, keeps the default.
+- **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
+  one; `EnvironmentAllowList=PATH` is refused, and the message shows the `:0` form. A list
+  that is present replaces the default. A JSON `[]` and a key with no text are "not
+  given" and keep the default: to empty a list, clear it in code.
+- **An entry that cannot be read is named by its position** (`Quotas:ThresholdPercents:1`)
+  or by its name (`Scheduling:MaxConcurrentJobsPerLane:media`).
+- **Code that sets the option after binding wins.** A value you assign in a `Configure`
+  callback replaces the one from configuration, and a typo in the file that you have
+  overridden in code does not stop the host. Writing the value the option already has is
+  not told apart from leaving it.
+
 :::danger[Secrets do not belong in a settings file]
 Provider keys, connection strings, bearer tokens, webhook secrets, and MCP
 credentials must come from user-secrets, environment variables, or a secret manager.

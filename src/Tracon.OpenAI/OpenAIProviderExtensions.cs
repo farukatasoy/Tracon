@@ -153,6 +153,8 @@ public static class OpenAIProviderExtensions
     /// </remarks>
     internal static void Bind(IConfiguration section, OpenAIProviderOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section[nameof(OpenAIProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
@@ -173,16 +175,16 @@ public static class OpenAIProviderExtensions
             options.Organization = organization;
         }
 
-        if (ProviderRegistrationCore.ReadTimeSpan(section, nameof(OpenAIProviderOptions.Timeout)) is { } timeout)
-        {
-            options.Timeout = timeout;
-        }
+        read.TimeSpan(
+            nameof(OpenAIProviderOptions.Timeout),
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
 
-        if (bool.TryParse(section[nameof(OpenAIProviderOptions.EnableResponsesSurface)], out var enableResponses))
-        {
-            options.EnableResponsesSurface = enableResponses;
-        }
+        read.Boolean(
+            nameof(OpenAIProviderOptions.EnableResponsesSurface),
+            static o => o.EnableResponsesSurface,
+            static (o, v) => o.EnableResponsesSurface = v);
 
-        ProviderRegistrationCore.BindModels(section.GetSection(nameof(OpenAIProviderOptions.Models)), options.Models);
+        ProviderRegistrationCore.BindModels(section.GetSection(nameof(OpenAIProviderOptions.Models)), options.Models, options);
     }
 }

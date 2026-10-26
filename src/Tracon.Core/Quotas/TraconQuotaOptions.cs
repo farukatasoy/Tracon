@@ -51,16 +51,6 @@ public sealed class TraconQuotaOptions
     public IList<int> ThresholdPercents { get; } = [80, 100];
 
     /// <summary>
-    /// The text of each <see cref="ThresholdPercents"/> entry the binder could not read,
-    /// keyed by its index. Zero stands in for it in the list.
-    /// </summary>
-    /// <remarks>
-    /// For the startup message only: the failure itself comes from the zero, so code
-    /// that rewrites the list after binding clears it.
-    /// </remarks>
-    internal Dictionary<int, string> UnreadableThresholdPercents { get; } = [];
-
-    /// <summary>
     /// Gets or sets whether to allow a run when quota enforcement fails.
     /// </summary>
     /// <remarks>

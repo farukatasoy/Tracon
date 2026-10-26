@@ -61,14 +61,4 @@ public sealed class PatternContentGuardOptions
     /// The text written in place of a masked match. Default <c>[redacted]</c>.
     /// </summary>
     public string MaskReplacement { get; set; } = "[redacted]";
-
-    /// <summary>
-    /// The <see cref="MaskedPii"/> text the binder could not read, and the undefined
-    /// value it bound in its place.
-    /// </summary>
-    /// <remarks>
-    /// For the startup message only: the failure itself comes from
-    /// <see cref="MaskedPii"/>, so code that sets the member after binding clears it.
-    /// </remarks>
-    internal (string Text, PiiPatterns Bound)? UnreadableMaskedPii { get; set; }
 }

@@ -81,7 +81,7 @@ public static class TraconSqlServerBuilderExtensions
 
         var services = builder.Services;
 
-        services.AddOptions<TraconSqlServerOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconSqlServerOptions>(services);
         services.Configure(configure);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<
             IValidateOptions<TraconSqlServerOptions>,
@@ -369,6 +369,8 @@ public static class TraconSqlServerBuilderExtensions
     /// </remarks>
     private static void Bind(IConfiguration section, TraconSqlServerOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section[nameof(TraconSqlServerOptions.ConnectionString)] is { Length: > 0 } connectionString)
         {
             options.ConnectionString = connectionString;
@@ -379,23 +381,19 @@ public static class TraconSqlServerBuilderExtensions
             options.SchemaName = schemaName;
         }
 
-        if (bool.TryParse(section[nameof(TraconSqlServerOptions.AutoApplyMigrations)], out var autoApply))
-        {
-            options.AutoApplyMigrations = autoApply;
-        }
+        read.Boolean(
+            nameof(TraconSqlServerOptions.AutoApplyMigrations),
+            static o => o.AutoApplyMigrations,
+            static (o, v) => o.AutoApplyMigrations = v);
 
-        if (int.TryParse(
-                section[nameof(TraconSqlServerOptions.CommandTimeoutSeconds)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var commandTimeout))
-        {
-            options.CommandTimeoutSeconds = commandTimeout;
-        }
+        read.Int32(
+            nameof(TraconSqlServerOptions.CommandTimeoutSeconds),
+            static o => o.CommandTimeoutSeconds,
+            static (o, v) => o.CommandTimeoutSeconds = v);
 
-        if (bool.TryParse(section[nameof(TraconSqlServerOptions.EnableReadViews)], out var enableReadViews))
-        {
-            options.EnableReadViews = enableReadViews;
-        }
+        read.Boolean(
+            nameof(TraconSqlServerOptions.EnableReadViews),
+            static o => o.EnableReadViews,
+            static (o, v) => o.EnableReadViews = v);
     }
 }

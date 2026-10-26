@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -49,7 +48,7 @@ internal static class ProviderRegistrationCore
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
 
-        services.AddOptions<TOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TOptions>(services);
         services.Configure(configure);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<TOptions>, TValidator>());
     }
@@ -89,79 +88,57 @@ internal static class ProviderRegistrationCore
                 ? endpointUri
                 : null;
 
-    /// <summary>Reads an invariant-culture <see cref="TimeSpan"/>.</summary>
-    /// <param name="section">The configuration section.</param>
-    /// <param name="key">The setting name.</param>
-    /// <returns>The value, or <see langword="null"/> when absent or unparsable.</returns>
-    internal static TimeSpan? ReadTimeSpan(IConfiguration section, string key)
-        => TimeSpan.TryParse(section[key], CultureInfo.InvariantCulture, out var value) ? value : null;
-
-    /// <summary>Reads an invariant-culture <see cref="int"/>.</summary>
-    /// <param name="section">The configuration section.</param>
-    /// <param name="key">The setting name.</param>
-    /// <returns>The value, or <see langword="null"/> when absent or unparsable.</returns>
-    internal static int? ReadInt32(IConfiguration section, string key)
-        => int.TryParse(section[key], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    /// <summary>Reads an invariant-culture <see cref="decimal"/>.</summary>
-    /// <param name="section">The configuration section.</param>
-    /// <param name="key">The setting name.</param>
-    /// <returns>The value, or <see langword="null"/> when absent or unparsable.</returns>
-    internal static decimal? ReadDecimal(IConfiguration section, string key)
-        => decimal.TryParse(section[key], NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    /// <summary>Reads a <see cref="bool"/>.</summary>
-    /// <param name="section">The configuration section.</param>
-    /// <param name="key">The setting name.</param>
-    /// <returns>The value, or <see langword="null"/> when absent or unparsable.</returns>
-    internal static bool? ReadBoolean(IConfiguration section, string key)
-        => bool.TryParse(section[key], out var value) ? value : null;
-
     /// <summary>Binds the <c>Models</c> section into the provider's catalog list.</summary>
     /// <param name="section">The <c>Models</c> section.</param>
     /// <param name="models">The options' catalog list.</param>
+    /// <param name="options">The provider options that own <paramref name="models"/>; they hold the report of a number or flag that cannot be read.</param>
     /// <remarks>
     /// Every field of <see cref="ModelDescriptor"/> is read here. A new field is
-    /// added here once, not in four copies.
+    /// added here once, not in four copies. A field whose text cannot be read is
+    /// left unset and named at startup: an unreadable price would otherwise
+    /// leave the model unpriced, and an unreadable window would leave the
+    /// pre-flight check blind.
     /// </remarks>
-    internal static void BindModels(IConfiguration section, ICollection<ModelDescriptor> models)
+    internal static void BindModels(IConfiguration section, ICollection<ModelDescriptor> models, object options)
     {
         ArgumentNullException.ThrowIfNull(section);
         ArgumentNullException.ThrowIfNull(models);
+        ArgumentNullException.ThrowIfNull(options);
 
         foreach (var child in section.GetChildren())
         {
+            var batch = new ConfigurationValueBatch(options);
+
             // An empty or missing name is added too: the validator rejects it
             // in its Models[i] loop. Skipping it here would leave that
             // validator branch unreachable (HATA-S3-002/004; the Azure copy
             // still skipped it until phase 181).
-            models.Add(new ModelDescriptor
+            var descriptor = new ModelDescriptor
             {
                 Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty,
                 DisplayName = child[nameof(ModelDescriptor.DisplayName)],
-                ContextWindowTokens = ReadInt32(child, nameof(ModelDescriptor.ContextWindowTokens)),
-                MaxOutputTokens = ReadInt32(child, nameof(ModelDescriptor.MaxOutputTokens)),
-                SupportsStreaming = ReadBoolean(child, nameof(ModelDescriptor.SupportsStreaming)) ?? true,
-                SupportsTools = ReadBoolean(child, nameof(ModelDescriptor.SupportsTools)) ?? true,
-                SupportsReasoning = ReadBoolean(child, nameof(ModelDescriptor.SupportsReasoning)) ?? false,
-                SupportsStructuredOutput = ReadBoolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
+                ContextWindowTokens = batch.Int32(child, nameof(ModelDescriptor.ContextWindowTokens)),
+                MaxOutputTokens = batch.Int32(child, nameof(ModelDescriptor.MaxOutputTokens)),
+                SupportsStreaming = batch.Boolean(child, nameof(ModelDescriptor.SupportsStreaming)) ?? true,
+                SupportsTools = batch.Boolean(child, nameof(ModelDescriptor.SupportsTools)) ?? true,
+                SupportsReasoning = batch.Boolean(child, nameof(ModelDescriptor.SupportsReasoning)) ?? false,
+                SupportsStructuredOutput = batch.Boolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
 
                 // Nullable on purpose: an absent key means "unknown" and checks
                 // nothing; only an explicit false rejects Temperature/TopP (F-346).
-                SupportsSampling = ReadBoolean(child, nameof(ModelDescriptor.SupportsSampling)),
-                InputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
-                OutputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
+                SupportsSampling = batch.Boolean(child, nameof(ModelDescriptor.SupportsSampling)),
+                InputCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
+                OutputCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
 
                 // 🚨 Without this line the catalog can never carry a cache rate,
                 // and Tracon:Pricing cannot supply one either: the catalog price
                 // WINS over the configured one, so a model priced here would
                 // silently charge every cached token at the full input rate.
-                CachedInputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.CachedInputCostPerMillionTokens)),
-            });
+                CachedInputCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.CachedInputCostPerMillionTokens)),
+            };
+
+            models.Add(descriptor);
+            batch.Commit(() => models.Contains(descriptor));
         }
     }
 }

@@ -91,7 +91,7 @@ public static class LiveVoiceBuilderExtensions
             services.Configure(configure);
         }
 
-        services.AddOptions<VoiceLiveOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<VoiceLiveOptions>(services);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<VoiceLiveOptions>, VoiceLiveOptionsValidator>());
 
         services.TryAddTraconDefault<IVoiceSessionStore, InMemoryVoiceSessionStore>();
@@ -135,19 +135,6 @@ public static class LiveVoiceBuilderExtensions
         return builder;
     }
 
-    /// <summary>Reads a delegation mode by name and refuses a name that is not one.</summary>
-    /// <remarks>
-    /// A name that does not parse used to fall back to the default without a word. The mode
-    /// decides who runs delegated work, so a setting that names another mode (the removed
-    /// <c>Responses</c> mode, for one) must stop the host at startup instead of running
-    /// with a mode the operator did not ask for.
-    /// </remarks>
-    private static LiveVoiceDelegationMode ParseDelegationMode(string value)
-        => Enum.TryParse<LiveVoiceDelegationMode>(value, ignoreCase: true, out var mode) && Enum.IsDefined(mode)
-            ? mode
-            : throw new InvalidOperationException(
-                $"The live voice setting 'DelegationMode' is '{value}', which is not a delegation mode. The only mode is 'Client'.");
-
     /// <summary>Binds the live voice section by hand.</summary>
     /// <remarks>
     /// Hand-written because <c>Bind</c> uses reflection and the package must stay
@@ -157,67 +144,66 @@ public static class LiveVoiceBuilderExtensions
     /// </remarks>
     private static void Bind(IConfiguration section, VoiceLiveOptions options)
     {
-        if (TryInt(section["MaxConcurrentDelegations"], out var maxConcurrentDelegations))
-        {
-            options.MaxConcurrentDelegations = maxConcurrentDelegations;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (TryInt(section["MaxAppendsPerDelegation"], out var maxAppends))
-        {
-            options.MaxAppendsPerDelegation = maxAppends;
-        }
+        read.Int32(
+            "MaxConcurrentDelegations",
+            static o => o.MaxConcurrentDelegations,
+            static (o, v) => o.MaxConcurrentDelegations = v);
 
-        if (TryInt(section["MaxTranscriptLedgerCharacters"], out var maxLedgerCharacters))
-        {
-            options.MaxTranscriptLedgerCharacters = maxLedgerCharacters;
-        }
+        read.Int32(
+            "MaxAppendsPerDelegation",
+            static o => o.MaxAppendsPerDelegation,
+            static (o, v) => o.MaxAppendsPerDelegation = v);
 
-        if (TryInt(section["MaxLedgerEntriesPerDelegation"], out var maxLedgerEntries))
-        {
-            options.MaxLedgerEntriesPerDelegation = maxLedgerEntries;
-        }
+        read.Int32(
+            "MaxTranscriptLedgerCharacters",
+            static o => o.MaxTranscriptLedgerCharacters,
+            static (o, v) => o.MaxTranscriptLedgerCharacters = v);
 
-        if (TryTimeSpan(section["DelegationTimeout"], out var delegationTimeout))
-        {
-            options.DelegationTimeout = delegationTimeout;
-        }
+        read.Int32(
+            "MaxLedgerEntriesPerDelegation",
+            static o => o.MaxLedgerEntriesPerDelegation,
+            static (o, v) => o.MaxLedgerEntriesPerDelegation = v);
 
-        if (section["DelegationMode"] is { Length: > 0 } delegationMode)
-        {
-            options.DelegationMode = ParseDelegationMode(delegationMode);
-        }
+        read.TimeSpan(
+            "DelegationTimeout",
+            static o => o.DelegationTimeout,
+            static (o, v) => o.DelegationTimeout = v);
+
+        // A name that is not a delegation mode stops the host at startup: the mode decides who runs
+        // delegated work, so a setting that names another mode (the removed Responses mode, for one)
+        // must not run with a mode the operator did not ask for (K-1015).
+        read.Enum<LiveVoiceDelegationMode>(
+            "DelegationMode",
+            static o => o.DelegationMode,
+            static (o, v) => o.DelegationMode = v);
 
         if (section["Instructions"] is { Length: > 0 } instructions)
         {
             options.Instructions = instructions;
         }
 
-        if (bool.TryParse(section["PersistTranscript"], out var persistTranscript))
-        {
-            options.PersistTranscript = persistTranscript;
-        }
+        read.Boolean(
+            "PersistTranscript",
+            static o => o.PersistTranscript,
+            static (o, v) => o.PersistTranscript = v);
 
-        if (TryTimeSpan(section["MaxSessionDuration"], out var maxSessionDuration))
-        {
-            options.MaxSessionDuration = maxSessionDuration;
-        }
+        read.TimeSpan(
+            "MaxSessionDuration",
+            static o => o.MaxSessionDuration,
+            static (o, v) => o.MaxSessionDuration = v);
 
-        if (TryTimeSpan(section["PendingSessionTimeout"], out var pendingSessionTimeout))
-        {
-            options.PendingSessionTimeout = pendingSessionTimeout;
-        }
+        read.TimeSpan(
+            "PendingSessionTimeout",
+            static o => o.PendingSessionTimeout,
+            static (o, v) => o.PendingSessionTimeout = v);
 
-        if (TryInt(section["MaxConcurrentSessionsPerTenant"], out var maxSessions))
-        {
-            options.MaxConcurrentSessionsPerTenant = maxSessions;
-        }
+        read.Int32(
+            "MaxConcurrentSessionsPerTenant",
+            static o => o.MaxConcurrentSessionsPerTenant,
+            static (o, v) => o.MaxConcurrentSessionsPerTenant = v);
     }
-
-    private static bool TryInt(string? value, out int result)
-        => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
-
-    private static bool TryTimeSpan(string? value, out TimeSpan result)
-        => TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out result);
 }
 
 /// <summary>Closes every live voice session when the application stops.</summary>

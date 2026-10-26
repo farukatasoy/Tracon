@@ -91,24 +91,22 @@ public sealed class TraconContentProtectionOptionsBindingTests
             ["Tracon:ContentProtection:Columns:1"] = column,
         });
 
-        // The message names the text as written: an undefined enum value alone
-        // could not tell the operator which entry to fix.
-        failure.Message.ShouldContain($"TraconContentProtectionOptions.Columns contains '{column}'");
+        // The message names the key and the text as written, so the operator can find the entry to fix.
+        failure.Message.ShouldContain($"Tracon:ContentProtection:Columns:1 is '{column}'");
     }
 
     [Fact]
     public void Every_unknown_column_is_named()
     {
-        // Each unreadable entry stands in the set as its own undefined value; one
-        // shared stand-in would collapse two typos into one and name only the last.
+        // Each unreadable entry is recorded under its own key; two typos are two failures.
         var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:ContentProtection:Columns:0"] = "RunInputt",
             ["Tracon:ContentProtection:Columns:1"] = "ToolResultt",
         });
 
-        failure.Message.ShouldContain("TraconContentProtectionOptions.Columns contains 'RunInputt'");
-        failure.Message.ShouldContain("TraconContentProtectionOptions.Columns contains 'ToolResultt'");
+        failure.Message.ShouldContain("Tracon:ContentProtection:Columns:0 is 'RunInputt'");
+        failure.Message.ShouldContain("Tracon:ContentProtection:Columns:1 is 'ToolResultt'");
     }
 
     [Fact]

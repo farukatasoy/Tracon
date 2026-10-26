@@ -141,16 +141,27 @@ public sealed class TraconSchedulingOptionsBindingTests
         options.MaxDurationByHandlerKey["contoso.nightly-report"].ShouldBe(TimeSpan.FromHours(1));
     }
 
+    [Fact]
+    public void An_unreadable_max_duration_fails_at_startup()
+    {
+        // An unreadable duration is left out and named with its key and its text; a
+        // skipped entry would leave the key's jobs without the limit the operator wrote.
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow"] = "half an hour",
+        };
+
+        var failure = Should.Throw<OptionsValidationException>(() => Bind(values));
+
+        failure.Message.ShouldContain("Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow is 'half an hour'");
+    }
+
     [Theory]
-    [InlineData("half an hour")]
     [InlineData("00:00:00")]
     [InlineData("-00:00:05")]
     [InlineData("50.00:00:00")]
     public void A_max_duration_a_timer_cannot_arm_fails_at_startup(string value)
     {
-        // An unreadable duration is bound as zero, not skipped, so the validator
-        // names it; a skipped entry would leave the key's jobs without the limit
-        // the operator wrote.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow"] = value,

@@ -86,7 +86,7 @@ public static class VoiceBuilderExtensions
         services.Configure(configure);
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<VoiceOptions>, VoiceOptionsValidator>());
-        services.AddOptions<VoiceOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<VoiceOptions>(services);
 
         // A single client serves synthesis, transcription, and health checks:
         // the same instance is bound to all three interfaces so the
@@ -167,6 +167,8 @@ public static class VoiceBuilderExtensions
     /// </remarks>
     private static void BindOptions(IConfiguration section, VoiceOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section[nameof(VoiceOptions.Provider)] is { Length: > 0 } provider)
         {
             options.Provider = provider;
@@ -208,41 +210,29 @@ public static class VoiceBuilderExtensions
             options.OutputFormat = outputFormat;
         }
 
-        if (int.TryParse(
-                section[nameof(VoiceOptions.MaxCharactersPerRequest)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxCharacters))
-        {
-            options.MaxCharactersPerRequest = maxCharacters;
-        }
+        read.Int32(
+            nameof(VoiceOptions.MaxCharactersPerRequest),
+            static o => o.MaxCharactersPerRequest,
+            static (o, v) => o.MaxCharactersPerRequest = v);
 
-        if (int.TryParse(
-                section[nameof(VoiceOptions.MaxDialogueCharactersPerRequest)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxDialogueCharacters))
-        {
-            options.MaxDialogueCharactersPerRequest = maxDialogueCharacters;
-        }
+        read.Int32(
+            nameof(VoiceOptions.MaxDialogueCharactersPerRequest),
+            static o => o.MaxDialogueCharactersPerRequest,
+            static (o, v) => o.MaxDialogueCharactersPerRequest = v);
 
-        if (int.TryParse(
-                section[nameof(VoiceOptions.MaxConcurrentRequests)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxConcurrent))
-        {
-            options.MaxConcurrentRequests = maxConcurrent;
-        }
+        read.Int32(
+            nameof(VoiceOptions.MaxConcurrentRequests),
+            static o => o.MaxConcurrentRequests,
+            static (o, v) => o.MaxConcurrentRequests = v);
 
-        if (bool.TryParse(section[nameof(VoiceOptions.RequireApproval)], out var requireApproval))
-        {
-            options.RequireApproval = requireApproval;
-        }
+        read.Boolean(
+            nameof(VoiceOptions.RequireApproval),
+            static o => o.RequireApproval,
+            static (o, v) => o.RequireApproval = v);
 
-        if (TimeSpan.TryParse(section[nameof(VoiceOptions.Timeout)], CultureInfo.InvariantCulture, out var timeout))
-        {
-            options.Timeout = timeout;
-        }
+        read.TimeSpan(
+            nameof(VoiceOptions.Timeout),
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
     }
 }

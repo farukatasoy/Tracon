@@ -59,10 +59,9 @@ public sealed class TraconWebhookOptionsBindingTests
     }
 
     [Theory]
-    [InlineData("soon")]
     [InlineData("00:00:00")]
     [InlineData("-00:00:05")]
-    public void An_unreadable_retry_delay_fails_at_startup(string value)
+    public void A_retry_delay_that_is_not_positive_fails_at_startup(string value)
     {
         var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -76,15 +75,15 @@ public sealed class TraconWebhookOptionsBindingTests
     [Fact]
     public void An_unreadable_retry_delay_is_named_as_written()
     {
-        // Bound as zero, the entry alone would read "Actual value: 00:00:00": the
-        // operator wrote "soon", and the message has to say so.
+        // The entry is left out and named with its key and its text: the operator
+        // wrote "soon", and the message has to say so.
         var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Webhooks:RetryDelays:0"] = "00:01:00",
             ["Tracon:Webhooks:RetryDelays:1"] = "soon",
         });
 
-        failure.Message.ShouldContain("TraconWebhookOptions.RetryDelays[1] is 'soon'");
+        failure.Message.ShouldContain("Tracon:Webhooks:RetryDelays:1 is 'soon'");
     }
 
     [Fact]

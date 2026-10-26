@@ -60,13 +60,10 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
                 continue;
             }
 
-            // An entry the binder could not read stands here as zero; quote the
-            // text the operator wrote instead of the zero (F-247).
-            (failures ??= []).Add(delay == TimeSpan.Zero && options.UnreadableRetryDelays.TryGetValue(index, out var text)
-                ? $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)}[{index.ToString(CultureInfo.InvariantCulture)}] " +
-                  $"is '{text}', which is not a TimeSpan (for example 00:05:00). Values must be greater than zero."
-                : $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)} " +
-                  $"values must be greater than zero. Actual value: {delay}.");
+            // The binder leaves out an entry it cannot read and names it itself (F-572).
+            (failures ??= []).Add(
+                $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)} " +
+                $"values must be greater than zero. Actual value: {delay}.");
         }
 
         return failures is null

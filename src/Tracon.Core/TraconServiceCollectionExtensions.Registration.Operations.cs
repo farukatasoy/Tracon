@@ -13,7 +13,7 @@ public static partial class TraconServiceCollectionExtensions
 {
     private static void RegisterOptions(IServiceCollection services, IConfiguration? configurationSection)
     {
-        services.AddOptions<TraconOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconOptions>(services);
 
         if (configurationSection is not null)
         {
@@ -31,7 +31,7 @@ public static partial class TraconServiceCollectionExtensions
         // TraconPostgreSqlOptions, but unlike TraconOptions it is
         // always registered even without a separate Use...() call (K-018 -
         // stores are first-class).
-        services.AddOptions<TraconSchedulingOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconSchedulingOptions>(services);
 
         if (configurationSection is not null)
         {
@@ -45,7 +45,7 @@ public static partial class TraconServiceCollectionExtensions
         // Single-executor selection (Phase 42). Same rationale: carries its own
         // SectionName, requires no separate Use...() call. Default
         // Enabled=false; while disabled, no call reaches InMemorySingletonLeaseStore (K1).
-        services.AddOptions<SingletonExecutionOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<SingletonExecutionOptions>(services);
 
         if (configurationSection is not null)
         {
@@ -60,57 +60,57 @@ public static partial class TraconServiceCollectionExtensions
         // Quotas and event publishing (Phase 21). Same rationale as
         // scheduling: carries its own SectionName and requires no separate
         // Use...() call.
-        services.AddOptions<TraconQuotaOptions>().ValidateOnStart();
-        services.AddOptions<TraconWebhookOptions>().ValidateOnStart();
-        services.AddOptions<TraconRateLimitOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconQuotaOptions>(services);
+        UnreadableConfigurationValidator.Add<TraconWebhookOptions>(services);
+        UnreadableConfigurationValidator.Add<TraconRateLimitOptions>(services);
 
         // Data retention and archiving (Phase 25). Same rationale: carries its
         // own SectionName, requires no separate Use...() call.
-        services.AddOptions<TraconRetentionOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconRetentionOptions>(services);
 
         // Idempotency-Key support (Phase 43). Same rationale: carries its own
         // SectionName, requires no separate Use...() call.
-        services.AddOptions<TraconIdempotencyOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconIdempotencyOptions>(services);
 
         // Queued (durable) run (Phase 46). Same rationale: carries its own
         // SectionName, requires no separate Use...() call.
-        services.AddOptions<TraconAsyncRunOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconAsyncRunOptions>(services);
 
         // Orphaned run reconciliation (Phase 54). Same rationale: carries its
         // own SectionName, requires no separate Use...() call. Default
         // Enabled=false; while disabled, none of the heartbeat/reconciliation
         // queries are issued (K1).
-        services.AddOptions<RunReconciliationOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<RunReconciliationOptions>(services);
 
         // Async approval inbox (Phase 55). Same rationale: carries its own
         // SectionName, requires no separate Use...() call.
-        services.AddOptions<TraconApprovalOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconApprovalOptions>(services);
 
         // Knowledge base / semantic search (Phase 51). Same rationale: carries
         // its own SectionName, requires no separate Use...() call. Becomes
         // functional only when an IVectorSearchStore (today only PostgreSQL)
         // AND an IEmbeddingGenerator are both registered together
         // (KnowledgeIngestionService.IsSupported).
-        services.AddOptions<TraconKnowledgeOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconKnowledgeOptions>(services);
 
         // Content moderation (Phase 48). Settings are always registered, but
         // when no IContentGuard is registered they are never read at all: the
         // moderation wrapper is not added to the pipeline. K1's gate is the
         // registration itself, not a flag.
-        services.AddOptions<TraconContentGuardOptions>().ValidateOnStart();
-        services.AddOptions<PatternContentGuardOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconContentGuardOptions>(services);
+        UnreadableConfigurationValidator.Add<PatternContentGuardOptions>(services);
 
         // Online evaluation (Phase 49). Same rationale: carries its own
         // SectionName, requires no separate Use...() call. The two-gate
         // default (Enabled=false AND SampleRate=0) ensures the judge model is
         // NEVER called - see the OnlineEvaluationOptions class documentation.
-        services.AddOptions<OnlineEvaluationOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<OnlineEvaluationOptions>(services);
 
         // Canary rollout and automatic rollback (Phase 56). Same rationale:
         // carries its own SectionName, requires no separate Use...() call.
         // AutoRollbackEnabled defaults to false (K1) - no experiment stops on
         // its own unless turned on.
-        services.AddOptions<CanaryOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<CanaryOptions>(services);
 
         // Tenant provider bindings / BYOK (Phase 65). Same rationale: carries
         // its own section, requires no separate Use...() call. The default
@@ -121,13 +121,13 @@ public static partial class TraconServiceCollectionExtensions
         // Inbound triggers (Phase 66). Same rationale as tenant providers:
         // carries its own section, requires no separate Use...() call. The
         // default prefix is restrictive on its own (section 66.2).
-        services.AddOptions<TraconInboundTriggerOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconInboundTriggerOptions>(services);
 
         // Outbound network guard (Phase 77). Governs all three outbound
         // surfaces: webhook delivery, MCP connections and model provider
         // calls. AllowPrivateNetworkTargets defaults to false, so the guard
         // arrives open and the private network arrives closed.
-        services.AddOptions<TraconEgressOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconEgressOptions>(services);
 
         // The prefix that bounds which configuration key an MCP server
         // definition may name (Phase 77). Lives in the abstractions package
@@ -139,37 +139,37 @@ public static partial class TraconServiceCollectionExtensions
         // own section, requires no separate Use...() call. Enabled defaults
         // to false (K1); the default IContentProtector below writes plaintext
         // unchanged until AddContentProtection(...) replaces it.
-        services.AddOptions<TraconContentProtectionOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconContentProtectionOptions>(services);
 
         // Interrupted-run continuation and graceful-shutdown drain (Phase
         // 87). Same rationale: carry their own section, require no separate
         // Use...() call. Both default Enabled=false (K1) - see the
         // RunReconciliation comment above; this is the same pattern.
-        services.AddOptions<TraconRunContinuationOptions>().ValidateOnStart();
-        services.AddOptions<TraconDrainOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconRunContinuationOptions>(services);
+        UnreadableConfigurationValidator.Add<TraconDrainOptions>(services);
 
         // Image generation (Phase 88). The option exists even when no provider
         // package is installed; its default is disabled, so this registration has
         // no runtime effect until both the option and an IImageGenerator are present.
-        services.AddOptions<TraconImageOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconImageOptions>(services);
 
         // Structured response validation (Phase 131) and bounded repair (Phase
         // 134). Same rationale: carries its own section, requires no separate
         // Use...() call. Enabled=false and MaxRepairAttempts=0 (K1) - repair
         // never fires unless a setup opts into both.
-        services.AddOptions<TraconStructuredResponseOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconStructuredResponseOptions>(services);
 
         // Per-user session ownership (Phase 148). Same rationale: carries its
         // own SectionName, requires no separate Use...() call. Enabled=false
         // (K1) - while off, no owner is written, no listing is narrowed and
         // sessions.owner_id stays NULL, so a setup that configures nothing
         // keeps today's behaviour exactly.
-        services.AddOptions<TraconSessionOwnershipOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconSessionOwnershipOptions>(services);
 
         // Session workspace limits (Phase 234). Same rationale: carries its own SectionName, requires no
         // separate Use...() call. The workspace itself is off until a definition turns it on (K1); the
         // limits apply only then.
-        services.AddOptions<TraconWorkspaceOptions>().ValidateOnStart();
+        UnreadableConfigurationValidator.Add<TraconWorkspaceOptions>(services);
 
         if (configurationSection is not null)
         {

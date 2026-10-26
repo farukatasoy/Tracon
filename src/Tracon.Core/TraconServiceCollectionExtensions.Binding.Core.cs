@@ -8,116 +8,101 @@ public static partial class TraconServiceCollectionExtensions
     /// <summary>Binds the two scalar <c>TraconOptions</c> fields that carry no sub-section.</summary>
     private static void BindCoreFields(IConfiguration section, TraconOptions options)
     {
+        var read = ConfigurationValueReader.For(section, options);
+
         if (section[nameof(TraconOptions.DefaultTenantId)] is { Length: > 0 } tenantId)
         {
             options.DefaultTenantId = tenantId;
         }
 
-        if (int.TryParse(
-                section[nameof(TraconOptions.MaxParameterValueLength)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxParameterValueLength))
-        {
-            options.MaxParameterValueLength = maxParameterValueLength;
-        }
+        read.Int32(
+            nameof(TraconOptions.MaxParameterValueLength),
+            static o => o.MaxParameterValueLength,
+            static (o, v) => o.MaxParameterValueLength = v);
     }
 
     /// <summary>Binds the <c>Tracon:Tools</c> section.</summary>
-    private static void BindTools(IConfigurationSection section, TraconToolOptions options)
+    private static void BindTools(IConfigurationSection section, TraconToolOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconToolOptions.DefaultTimeout)],
-                CultureInfo.InvariantCulture,
-                out var defaultTimeout))
-        {
-            options.DefaultTimeout = defaultTimeout;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (int.TryParse(
-                section[nameof(TraconToolOptions.DefaultMaxOutputBytes)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var defaultMaxOutputBytes))
-        {
-            options.DefaultMaxOutputBytes = defaultMaxOutputBytes;
-        }
+        read.TimeSpan(
+            nameof(TraconToolOptions.DefaultTimeout),
+            static o => o.DefaultTimeout,
+            static (o, v) => o.DefaultTimeout = v);
 
-        if (bool.TryParse(section[nameof(TraconToolOptions.AllowUnverifiedToolRegistry)], out var allowUnverifiedToolRegistry))
-        {
-            options.AllowUnverifiedToolRegistry = allowUnverifiedToolRegistry;
-        }
+        read.Int32(
+            nameof(TraconToolOptions.DefaultMaxOutputBytes),
+            static o => o.DefaultMaxOutputBytes,
+            static (o, v) => o.DefaultMaxOutputBytes = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconToolOptions.ApprovalPresentationTimeout)],
-                CultureInfo.InvariantCulture,
-                out var approvalPresentationTimeout))
-        {
-            options.ApprovalPresentationTimeout = approvalPresentationTimeout;
-        }
+        read.Boolean(
+            nameof(TraconToolOptions.AllowUnverifiedToolRegistry),
+            static o => o.AllowUnverifiedToolRegistry,
+            static (o, v) => o.AllowUnverifiedToolRegistry = v);
+
+        read.TimeSpan(
+            nameof(TraconToolOptions.ApprovalPresentationTimeout),
+            static o => o.ApprovalPresentationTimeout,
+            static (o, v) => o.ApprovalPresentationTimeout = v);
     }
 
     /// <summary>Binds the <c>Tracon:Preflight</c> section.</summary>
-    private static void BindPreflight(IConfigurationSection section, TraconPreflightOptions options)
+    private static void BindPreflight(IConfigurationSection section, TraconPreflightOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconPreflightOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (double.TryParse(
-                section[nameof(TraconPreflightOptions.ReserveRatio)],
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out var reserveRatio))
-        {
-            options.ReserveRatio = reserveRatio;
-        }
+        read.Boolean(
+            nameof(TraconPreflightOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
+
+        read.Double(
+            nameof(TraconPreflightOptions.ReserveRatio),
+            static o => o.ReserveRatio,
+            static (o, v) => o.ReserveRatio = v);
     }
 
     /// <summary>Binds the <c>Tracon:ModelConcurrency</c> section.</summary>
-    private static void BindModelConcurrency(IConfigurationSection section, TraconModelConcurrencyOptions options)
+    private static void BindModelConcurrency(IConfigurationSection section, TraconModelConcurrencyOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (int.TryParse(
-                section[nameof(TraconModelConcurrencyOptions.MaxConcurrentCallsPerProvider)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxConcurrentCallsPerProvider))
-        {
-            options.MaxConcurrentCallsPerProvider = maxConcurrentCallsPerProvider;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
+
+        read.Int32(
+            nameof(TraconModelConcurrencyOptions.MaxConcurrentCallsPerProvider),
+            static o => o.MaxConcurrentCallsPerProvider,
+            static (o, v) => o.MaxConcurrentCallsPerProvider = v);
     }
 
     /// <summary>Binds the <c>Tracon:Validation</c> section.</summary>
-    private static void BindValidation(IConfigurationSection section, TraconValidationOptions options)
+    private static void BindValidation(IConfigurationSection section, TraconValidationOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconValidationOptions.McpTimeout)],
-                CultureInfo.InvariantCulture,
-                out var mcpTimeout))
-        {
-            options.McpTimeout = mcpTimeout;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
+
+        read.TimeSpan(
+            nameof(TraconValidationOptions.McpTimeout),
+            static o => o.McpTimeout,
+            static (o, v) => o.McpTimeout = v);
     }
 
     private static void BindAudit(IConfigurationSection section, TraconAuditOptions options)
@@ -133,34 +118,36 @@ public static partial class TraconServiceCollectionExtensions
         }
     }
 
-    private static void BindSkills(IConfigurationSection section, TraconSkillOptions options)
+    private static void BindSkills(IConfigurationSection section, TraconSkillOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (int.TryParse(section[nameof(TraconSkillOptions.MaxSkillsPerAgent)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxSkills))
-        {
-            options.MaxSkillsPerAgent = maxSkills;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (int.TryParse(section[nameof(TraconSkillOptions.MaxInstructionsLength)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxInstructions))
-        {
-            options.MaxInstructionsLength = maxInstructions;
-        }
+        read.Int32(
+            nameof(TraconSkillOptions.MaxSkillsPerAgent),
+            static o => o.MaxSkillsPerAgent,
+            static (o, v) => o.MaxSkillsPerAgent = v);
 
-        if (int.TryParse(section[nameof(TraconSkillOptions.MaxResourceContentLength)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxResourceContent))
-        {
-            options.MaxResourceContentLength = maxResourceContent;
-        }
+        read.Int32(
+            nameof(TraconSkillOptions.MaxInstructionsLength),
+            static o => o.MaxInstructionsLength,
+            static (o, v) => o.MaxInstructionsLength = v);
 
-        if (int.TryParse(section[nameof(TraconSkillOptions.MaxResourcesPerSkill)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxResources))
-        {
-            options.MaxResourcesPerSkill = maxResources;
-        }
+        read.Int32(
+            nameof(TraconSkillOptions.MaxResourceContentLength),
+            static o => o.MaxResourceContentLength,
+            static (o, v) => o.MaxResourceContentLength = v);
 
-        BindSkillScripts(section.GetSection(nameof(TraconSkillOptions.Scripts)), options.Scripts);
+        read.Int32(
+            nameof(TraconSkillOptions.MaxResourcesPerSkill),
+            static o => o.MaxResourcesPerSkill,
+            static (o, v) => o.MaxResourcesPerSkill = v);
+
+        BindSkillScripts(section.GetSection(nameof(TraconSkillOptions.Scripts)), options.Scripts, root);
     }
 
     /// <summary>Binds script run settings from configuration.</summary>
@@ -170,22 +157,24 @@ public static partial class TraconServiceCollectionExtensions
     /// support on or off in different environments from the same image.
     /// Validation still requires both together; turning on only <c>Enabled</c> fails at startup.
     /// </remarks>
-    private static void BindSkillScripts(IConfigurationSection section, TraconSkillScriptOptions options)
+    private static void BindSkillScripts(IConfigurationSection section, TraconSkillScriptOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconSkillScriptOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (TryReadBool(section, nameof(TraconSkillScriptOptions.PlatformIsolationAcknowledged), out var acknowledged))
-        {
-            options.PlatformIsolationAcknowledged = acknowledged;
-        }
+        read.Boolean(
+            nameof(TraconSkillScriptOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
+
+        read.Boolean(
+            nameof(TraconSkillScriptOptions.PlatformIsolationAcknowledged),
+            static o => o.PlatformIsolationAcknowledged,
+            static (o, v) => o.PlatformIsolationAcknowledged = v);
 
         // 🚨 AllowStoredScripts, SkillRoots and Interpreters are deliberately NOT
         // bound from configuration. All three widen what may be executed on the
@@ -199,294 +188,207 @@ public static partial class TraconServiceCollectionExtensions
         // (see the comment above): they can only NARROW or acknowledge, never
         // widen the executable surface.
 
-        if (TimeSpan.TryParse(section[nameof(TraconSkillScriptOptions.Timeout)], CultureInfo.InvariantCulture, out var timeout))
-        {
-            options.Timeout = timeout;
-        }
+        read.TimeSpan(
+            nameof(TraconSkillScriptOptions.Timeout),
+            static o => o.Timeout,
+            static (o, v) => o.Timeout = v);
 
-        if (int.TryParse(section[nameof(TraconSkillScriptOptions.MaxOutputBytes)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxOutput))
-        {
-            options.MaxOutputBytes = maxOutput;
-        }
+        read.Int32(
+            nameof(TraconSkillScriptOptions.MaxOutputBytes),
+            static o => o.MaxOutputBytes,
+            static (o, v) => o.MaxOutputBytes = v);
 
-        if (int.TryParse(section[nameof(TraconSkillScriptOptions.MaxArgumentBytes)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxArguments))
-        {
-            options.MaxArgumentBytes = maxArguments;
-        }
+        read.Int32(
+            nameof(TraconSkillScriptOptions.MaxArgumentBytes),
+            static o => o.MaxArgumentBytes,
+            static (o, v) => o.MaxArgumentBytes = v);
 
-        if (int.TryParse(section[nameof(TraconSkillScriptOptions.MaxScriptContentLength)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxContent))
-        {
-            options.MaxScriptContentLength = maxContent;
-        }
+        read.Int32(
+            nameof(TraconSkillScriptOptions.MaxScriptContentLength),
+            static o => o.MaxScriptContentLength,
+            static (o, v) => o.MaxScriptContentLength = v);
 
-        if (int.TryParse(section[nameof(TraconSkillScriptOptions.MaxScriptsPerSkill)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxScripts))
-        {
-            options.MaxScriptsPerSkill = maxScripts;
-        }
+        read.Int32(
+            nameof(TraconSkillScriptOptions.MaxScriptsPerSkill),
+            static o => o.MaxScriptsPerSkill,
+            static (o, v) => o.MaxScriptsPerSkill = v);
 
-        if (int.TryParse(section[nameof(TraconSkillScriptOptions.MaxConcurrentPerTenant)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var perTenant))
-        {
-            options.MaxConcurrentPerTenant = perTenant;
-        }
+        read.Int32(
+            nameof(TraconSkillScriptOptions.MaxConcurrentPerTenant),
+            static o => o.MaxConcurrentPerTenant,
+            static (o, v) => o.MaxConcurrentPerTenant = v);
 
-        if (int.TryParse(section[nameof(TraconSkillScriptOptions.MaxConcurrentTotal)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var total))
-        {
-            options.MaxConcurrentTotal = total;
-        }
+        read.Int32(
+            nameof(TraconSkillScriptOptions.MaxConcurrentTotal),
+            static o => o.MaxConcurrentTotal,
+            static (o, v) => o.MaxConcurrentTotal = v);
 
-        if (int.TryParse(section[nameof(TraconSkillScriptOptions.SearchDepth)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var depth))
-        {
-            options.SearchDepth = depth;
-        }
+        read.Int32(
+            nameof(TraconSkillScriptOptions.SearchDepth),
+            static o => o.SearchDepth,
+            static (o, v) => o.SearchDepth = v);
 
-        BindList(section.GetSection(nameof(TraconSkillScriptOptions.EnvironmentAllowList)), options.EnvironmentAllowList);
+        read.StringList(nameof(TraconSkillScriptOptions.EnvironmentAllowList), options.EnvironmentAllowList);
     }
 
-    /// <summary>Writes a configuration array into an existing list.</summary>
-    /// <remarks>
-    /// When the list is defined in configuration, the default content is
-    /// <strong>fully</strong> replaced. If a merge were done instead, it would
-    /// be impossible to narrow the environment variable allow-list.
-    /// </remarks>
-    private static void BindList(IConfigurationSection section, IList<string> target)
+    private static void BindCircuitBreaker(IConfigurationSection section, TraconCircuitBreakerOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        var values = section.GetChildren()
-            .Select(static child => child.Value)
-            .Where(static value => value is { Length: > 0 })
-            .ToArray();
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (values.Length == 0)
-        {
-            return;
-        }
+        read.Boolean(
+            nameof(TraconCircuitBreakerOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        target.Clear();
+        read.Int32(
+            nameof(TraconCircuitBreakerOptions.FailureThreshold),
+            static o => o.FailureThreshold,
+            static (o, v) => o.FailureThreshold = v);
 
-        foreach (var value in values)
-        {
-            target.Add(value!);
-        }
+        read.TimeSpan(
+            nameof(TraconCircuitBreakerOptions.BreakDuration),
+            static o => o.BreakDuration,
+            static (o, v) => o.BreakDuration = v);
     }
 
-    private static void BindCircuitBreaker(IConfigurationSection section, TraconCircuitBreakerOptions options)
+    private static void BindHealth(IConfigurationSection section, TraconHealthOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconCircuitBreakerOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (int.TryParse(
-                section[nameof(TraconCircuitBreakerOptions.FailureThreshold)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var failureThreshold))
-        {
-            options.FailureThreshold = failureThreshold;
-        }
+        read.TimeSpan(
+            nameof(TraconHealthOptions.CacheTtl),
+            static o => o.CacheTtl,
+            static (o, v) => o.CacheTtl = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconCircuitBreakerOptions.BreakDuration)],
-                CultureInfo.InvariantCulture,
-                out var breakDuration))
-        {
-            options.BreakDuration = breakDuration;
-        }
+        read.TimeSpan(
+            nameof(TraconHealthOptions.BackgroundInterval),
+            static o => o.BackgroundInterval,
+            static (o, v) => o.BackgroundInterval = v);
     }
 
-    private static void BindHealth(IConfigurationSection section, TraconHealthOptions options)
-    {
-        if (!section.Exists())
-        {
-            return;
-        }
-
-        if (TimeSpan.TryParse(
-                section[nameof(TraconHealthOptions.CacheTtl)],
-                CultureInfo.InvariantCulture,
-                out var cacheTtl))
-        {
-            options.CacheTtl = cacheTtl;
-        }
-
-        if (TimeSpan.TryParse(
-                section[nameof(TraconHealthOptions.BackgroundInterval)],
-                CultureInfo.InvariantCulture,
-                out var backgroundInterval))
-        {
-            options.BackgroundInterval = backgroundInterval;
-        }
-    }
-
-    private static void BindRunRecording(IConfigurationSection recording, TraconRunRecordingOptions options)
+    private static void BindRunRecording(IConfigurationSection recording, TraconRunRecordingOptions options, TraconOptions root)
     {
         if (!recording.Exists())
         {
             return;
         }
 
-        if (TryReadBool(recording, nameof(TraconRunRecordingOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var recordingRead = ConfigurationValueReader.For(recording, options, root);
 
-        if (TryReadBool(recording, nameof(TraconRunRecordingOptions.RecordRunInput), out var recordRunInput))
-        {
-            options.RecordRunInput = recordRunInput;
-        }
+        recordingRead.Boolean(
+            nameof(TraconRunRecordingOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        if (TryReadBool(recording, nameof(TraconRunRecordingOptions.RecordMessageDeltas), out var recordDeltas))
-        {
-            options.RecordMessageDeltas = recordDeltas;
-        }
+        recordingRead.Boolean(
+            nameof(TraconRunRecordingOptions.RecordRunInput),
+            static o => o.RecordRunInput,
+            static (o, v) => o.RecordRunInput = v);
 
-        if (TryReadBool(recording, nameof(TraconRunRecordingOptions.RecordToolPayloads), out var recordPayloads))
-        {
-            options.RecordToolPayloads = recordPayloads;
-        }
+        recordingRead.Boolean(
+            nameof(TraconRunRecordingOptions.RecordMessageDeltas),
+            static o => o.RecordMessageDeltas,
+            static (o, v) => o.RecordMessageDeltas = v);
 
-        if (TryReadBool(
-                recording,
-                nameof(TraconRunRecordingOptions.RecordReasoningDeltas),
-                out var recordReasoningDeltas))
-        {
-            options.RecordReasoningDeltas = recordReasoningDeltas;
-        }
+        recordingRead.Boolean(
+            nameof(TraconRunRecordingOptions.RecordToolPayloads),
+            static o => o.RecordToolPayloads,
+            static (o, v) => o.RecordToolPayloads = v);
 
-        if (int.TryParse(
-                recording[nameof(TraconRunRecordingOptions.MaxPayloadLength)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxPayloadLength))
-        {
-            options.MaxPayloadLength = maxPayloadLength;
-        }
+        recordingRead.Boolean(
+            nameof(TraconRunRecordingOptions.RecordReasoningDeltas),
+            static o => o.RecordReasoningDeltas,
+            static (o, v) => o.RecordReasoningDeltas = v);
+
+        recordingRead.Int32(
+            nameof(TraconRunRecordingOptions.MaxPayloadLength),
+            static o => o.MaxPayloadLength,
+            static (o, v) => o.MaxPayloadLength = v);
     }
 
-    private static void BindObservability(IConfigurationSection section, TraconObservabilityOptions options)
+    private static void BindObservability(IConfigurationSection section, TraconObservabilityOptions options, TraconOptions root)
     {
         if (!section.Exists())
         {
             return;
         }
 
-        if (TryReadBool(section, nameof(TraconObservabilityOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options, root);
 
-        if (TryReadBool(section, nameof(TraconObservabilityOptions.PersistSpans), out var persistSpans))
-        {
-            options.PersistSpans = persistSpans;
-        }
+        read.Boolean(
+            nameof(TraconObservabilityOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        if (TryReadBool(
-                section,
-                nameof(TraconObservabilityOptions.AlwaysPersistFailures),
-                out var alwaysPersistFailures))
-        {
-            options.AlwaysPersistFailures = alwaysPersistFailures;
-        }
+        read.Boolean(
+            nameof(TraconObservabilityOptions.PersistSpans),
+            static o => o.PersistSpans,
+            static (o, v) => o.PersistSpans = v);
 
-        if (TryReadBool(
-                section,
-                nameof(TraconObservabilityOptions.RecordSensitiveData),
-                out var recordSensitiveData))
-        {
-            options.RecordSensitiveData = recordSensitiveData;
-        }
+        read.Boolean(
+            nameof(TraconObservabilityOptions.AlwaysPersistFailures),
+            static o => o.AlwaysPersistFailures,
+            static (o, v) => o.AlwaysPersistFailures = v);
 
-        if (double.TryParse(
-                section[nameof(TraconObservabilityOptions.SuccessSampleRatio)],
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out var sampleRatio))
-        {
-            options.SuccessSampleRatio = sampleRatio;
-        }
+        read.Boolean(
+            nameof(TraconObservabilityOptions.RecordSensitiveData),
+            static o => o.RecordSensitiveData,
+            static (o, v) => o.RecordSensitiveData = v);
 
-        if (int.TryParse(
-                section[nameof(TraconObservabilityOptions.MaxSpansPerRun)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxSpans))
-        {
-            options.MaxSpansPerRun = maxSpans;
-        }
+        read.Double(
+            nameof(TraconObservabilityOptions.SuccessSampleRatio),
+            static o => o.SuccessSampleRatio,
+            static (o, v) => o.SuccessSampleRatio = v);
 
-        if (TryReadBool(
-                section,
-                nameof(TraconObservabilityOptions.IncludeAgentVersionTag),
-                out var includeAgentVersionTag))
-        {
-            options.IncludeAgentVersionTag = includeAgentVersionTag;
-        }
+        read.Int32(
+            nameof(TraconObservabilityOptions.MaxSpansPerRun),
+            static o => o.MaxSpansPerRun,
+            static (o, v) => o.MaxSpansPerRun = v);
 
-        // An unreadable value would leave the tag off without a word, and the dashboard that splits by tenant
-        // would stay empty. The text is kept for the startup message (K-993).
-        options.UnreadableIncludeTenantTag = null;
+        read.Boolean(
+            nameof(TraconObservabilityOptions.IncludeAgentVersionTag),
+            static o => o.IncludeAgentVersionTag,
+            static (o, v) => o.IncludeAgentVersionTag = v);
 
-        if (TryReadBool(
-                section,
-                nameof(TraconObservabilityOptions.IncludeTenantTag),
-                out var includeTenantTag))
-        {
-            options.IncludeTenantTag = includeTenantTag;
-        }
-        else if (section[nameof(TraconObservabilityOptions.IncludeTenantTag)] is { Length: > 0 } unreadableTenantTag)
-        {
-            options.UnreadableIncludeTenantTag = (options.IncludeTenantTag, unreadableTenantTag);
-        }
+        read.Boolean(
+            nameof(TraconObservabilityOptions.IncludeTenantTag),
+            static o => o.IncludeTenantTag,
+            static (o, v) => o.IncludeTenantTag = v);
 
-        if (TryReadBool(
-                section,
-                nameof(TraconObservabilityOptions.EnableQuotaUsageGauge),
-                out var enableQuotaUsageGauge))
-        {
-            options.EnableQuotaUsageGauge = enableQuotaUsageGauge;
-        }
+        read.Boolean(
+            nameof(TraconObservabilityOptions.EnableQuotaUsageGauge),
+            static o => o.EnableQuotaUsageGauge,
+            static (o, v) => o.EnableQuotaUsageGauge = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconObservabilityOptions.QuotaUsageRefreshInterval)],
-                CultureInfo.InvariantCulture,
-                out var quotaUsageRefreshInterval))
-        {
-            options.QuotaUsageRefreshInterval = quotaUsageRefreshInterval;
-        }
+        read.TimeSpan(
+            nameof(TraconObservabilityOptions.QuotaUsageRefreshInterval),
+            static o => o.QuotaUsageRefreshInterval,
+            static (o, v) => o.QuotaUsageRefreshInterval = v);
 
-        if (TryReadBool(
-                section,
-                nameof(TraconObservabilityOptions.EnableJobQueueDepthGauge),
-                out var enableJobQueueDepthGauge))
-        {
-            options.EnableJobQueueDepthGauge = enableJobQueueDepthGauge;
-        }
+        read.Boolean(
+            nameof(TraconObservabilityOptions.EnableJobQueueDepthGauge),
+            static o => o.EnableJobQueueDepthGauge,
+            static (o, v) => o.EnableJobQueueDepthGauge = v);
 
-        if (TimeSpan.TryParse(
-                section[nameof(TraconObservabilityOptions.JobQueueDepthRefreshInterval)],
-                CultureInfo.InvariantCulture,
-                out var jobQueueDepthRefreshInterval))
-        {
-            options.JobQueueDepthRefreshInterval = jobQueueDepthRefreshInterval;
-        }
+        read.TimeSpan(
+            nameof(TraconObservabilityOptions.JobQueueDepthRefreshInterval),
+            static o => o.JobQueueDepthRefreshInterval,
+            static (o, v) => o.JobQueueDepthRefreshInterval = v);
 
-        if (int.TryParse(
-                section[nameof(TraconObservabilityOptions.MaxJobLaneCardinality)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxJobLaneCardinality))
-        {
-            options.MaxJobLaneCardinality = maxJobLaneCardinality;
-        }
+        read.Int32(
+            nameof(TraconObservabilityOptions.MaxJobLaneCardinality),
+            static o => o.MaxJobLaneCardinality,
+            static (o, v) => o.MaxJobLaneCardinality = v);
     }
 
     /// <summary>Binds the <c>Tracon:OnlineEvaluation</c> section.</summary>
@@ -497,84 +399,44 @@ public static partial class TraconServiceCollectionExtensions
             return;
         }
 
-        if (TryReadBool(section, nameof(OnlineEvaluationOptions.Enabled), out var enabled))
-        {
-            options.Enabled = enabled;
-        }
+        var read = ConfigurationValueReader.For(section, options);
 
-        if (double.TryParse(
-                section[nameof(OnlineEvaluationOptions.SampleRate)],
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out var sampleRate))
-        {
-            options.SampleRate = sampleRate;
-        }
+        read.Boolean(
+            nameof(OnlineEvaluationOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
 
-        if (int.TryParse(
-                section[nameof(OnlineEvaluationOptions.MaxScoresPerHour)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var maxScoresPerHour))
-        {
-            options.MaxScoresPerHour = maxScoresPerHour;
-        }
+        read.Double(
+            nameof(OnlineEvaluationOptions.SampleRate),
+            static o => o.SampleRate,
+            static (o, v) => o.SampleRate = v);
 
-        var agentNames = section.GetSection(nameof(OnlineEvaluationOptions.AgentNames));
+        read.Int32(
+            nameof(OnlineEvaluationOptions.MaxScoresPerHour),
+            static o => o.MaxScoresPerHour,
+            static (o, v) => o.MaxScoresPerHour = v);
 
-        if (agentNames.Exists())
-        {
-            var parsed = agentNames.GetChildren()
-                .Select(static child => child.Value)
-                .Where(static name => !string.IsNullOrWhiteSpace(name))
-                .ToList();
+        read.StringList(nameof(OnlineEvaluationOptions.AgentNames), options.AgentNames);
 
-            if (parsed.Count > 0)
-            {
-                options.AgentNames.Clear();
+        read.Int32(
+            nameof(OnlineEvaluationOptions.LowScoreThreshold),
+            static o => o.LowScoreThreshold,
+            static (o, v) => o.LowScoreThreshold = v);
 
-                foreach (var name in parsed)
-                {
-                    options.AgentNames.Add(name!);
-                }
-            }
-        }
+        read.Int32(
+            nameof(OnlineEvaluationOptions.MinSampleSize),
+            static o => o.MinSampleSize,
+            static (o, v) => o.MinSampleSize = v);
 
-        if (int.TryParse(
-                section[nameof(OnlineEvaluationOptions.LowScoreThreshold)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var lowScoreThreshold))
-        {
-            options.LowScoreThreshold = lowScoreThreshold;
-        }
+        read.TimeSpan(
+            nameof(OnlineEvaluationOptions.EvaluationWindow),
+            static o => o.EvaluationWindow,
+            static (o, v) => o.EvaluationWindow = v);
 
-        if (int.TryParse(
-                section[nameof(OnlineEvaluationOptions.MinSampleSize)],
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var minSampleSize))
-        {
-            options.MinSampleSize = minSampleSize;
-        }
-
-        if (TimeSpan.TryParse(
-                section[nameof(OnlineEvaluationOptions.EvaluationWindow)],
-                CultureInfo.InvariantCulture,
-                out var evaluationWindow))
-        {
-            options.EvaluationWindow = evaluationWindow;
-        }
-
-        if (TimeSpan.TryParse(
-                section[nameof(OnlineEvaluationOptions.JudgeTimeout)],
-                CultureInfo.InvariantCulture,
-                out var judgeTimeout))
-        {
-            options.JudgeTimeout = judgeTimeout;
-        }
+        read.TimeSpan(
+            nameof(OnlineEvaluationOptions.JudgeTimeout),
+            static o => o.JudgeTimeout,
+            static (o, v) => o.JudgeTimeout = v);
     }
 
-    private static bool TryReadBool(IConfiguration section, string key, out bool value)
-        => bool.TryParse(section[key], out value);
 }
