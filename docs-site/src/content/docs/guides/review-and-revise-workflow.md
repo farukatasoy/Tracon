@@ -134,16 +134,22 @@ static Workflow Build(IServiceProvider services)
 ## What each helper gives a step
 
 `GetWorkflowFunction` takes a `WorkflowFunctionStepOptions` (`Timeout`, `Settings`, and `SetSettings(value)` for a typed
-value). `GetWorkflowAgentStep` takes a `WorkflowAgentStepOptions` (`Timeout`, `AgentVersion`).
+value). `GetWorkflowAgentStep` takes a `WorkflowAgentStepOptions` (`Timeout`, `AgentVersion`, `AgentVersionParameter`).
 
 | Step | Time limit | Retry | Budget gate | Cost named by node | Settings | Version pin | Concurrency |
 |---|---|---|---|---|---|---|---|
 | `GetWorkflowFunction` | the registration's, or the step's own | the registration's | yes | yes | strict read, typed or JSON | no | the registration's |
-| `GetWorkflowAgentStep` | the step's own, else `ChildDeadline` | no | yes: a refused step fails | the agent's own run rows | no | yes, `AgentVersion` | no |
+| `GetWorkflowAgentStep` | the step's own, else `ChildDeadline` | no | yes: a refused step fails | the agent's own run rows | no | yes: `AgentVersion`, or `AgentVersionParameter` for a run to choose | no |
 
 A pinned version that does not exist, or an agent defined in code that keeps no versions, fails the
 step by name before its model call. A graph factory is synchronous, so it cannot check this when
 the graph is built, as a stored chain does.
+
+The writer of a script that a template produces is an agent that its owner edits. Set
+`step.AgentVersionParameter = "writerVersion"` and declare `writerVersion` in the registration's
+`Parameters`: a run that sends `"writerVersion": "2"` runs version 2 of the writer on every pass of the
+loop, including the pass after a rejection, and a run that leaves it out runs the current version. See
+[Let a run choose the version of an agent step](/concepts/workflow-parameters/#let-a-run-choose-the-version-of-an-agent-step).
 
 The agent step asks the agent for its whole answer. A JSON answer that does not fit the schema is
 repaired as it is for a plain agent run (`Tracon:StructuredResponse`), and a loop agent hands the

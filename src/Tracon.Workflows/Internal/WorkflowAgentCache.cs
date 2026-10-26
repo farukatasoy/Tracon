@@ -115,11 +115,18 @@ internal sealed class WorkflowAgentCache
     /// step (a mixed chain's agent node, <c>GetWorkflowAgentStep</c>) and a Magentic manager do not, and
     /// their wrapper refuses the approval.
     /// </param>
+    /// <param name="agentVersionParameter">
+    /// The name of the run parameter that carries the version the step runs
+    /// (<see cref="WorkflowAgentStepOptions.AgentVersionParameter"/>), read on every call.
+    /// <see langword="null"/> leaves the choice to <paramref name="agentVersion"/>.
+    /// </param>
     /// <returns>An agent with a stable identity, ready to be placed in the graph.</returns>
     /// <remarks>
-    /// The timeout and the version are part of the cache key, because
-    /// <see cref="ChildAgentInvoker"/> takes both in its constructor; neither is part of the
-    /// identity. Every wrapper of the same <c>(workflow, agent)</c> pair gets the same executor
+    /// The timeout, the version and the name of the version parameter are part of the cache key, because
+    /// <see cref="ChildAgentInvoker"/> takes all three in its constructor; none is part of the
+    /// identity. The key holds the parameter's <em>name</em>, never a run's value: the value is read when
+    /// the step runs, so every run, whatever version it asks for, shares one wrapper and the cache stays
+    /// the size of the graph. Every wrapper of the same <c>(workflow, agent)</c> pair gets the same executor
     /// id, so a changed timeout or a changed pin does not make a waiting run's checkpoint
     /// incompatible.
     /// </remarks>
@@ -129,9 +136,10 @@ internal sealed class WorkflowAgentCache
         string? description,
         TimeSpan? timeout = null,
         int? agentVersion = null,
-        bool hostsApproval = false)
+        bool hostsApproval = false,
+        string? agentVersionParameter = null)
         => _agents.GetOrAdd(
-            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout, agentVersion, hostsApproval),
+            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout, agentVersion, hostsApproval, agentVersionParameter),
             static (key, state) => Create(key, state),
             (
                 Resolver: _resolver,
@@ -206,7 +214,8 @@ internal sealed class WorkflowAgentCache
             state.ParameterFactory,
             limitName,
             key.AgentVersion,
-            key.HostsApproval);
+            key.HostsApproval,
+            versionParameter: key.AgentVersionParameter);
 
         // The identity is written on the instance BEFORE it enters the graph:
         // MAF reads the executor id at binding time, and changing it afterward
@@ -235,11 +244,16 @@ internal sealed class WorkflowAgentCache
     // wrapper takes it in its constructor. Like the tenant, it never reaches the id. The
     // pinned agent version (phase 200) follows the same rule: two steps of the same
     // (workflow, agent) pair that pin different versions are two wrappers with ONE id.
+    //
+    // The version PARAMETER enters as its name and never as a run's value. A value in the key would make one
+    // wrapper per version a caller ever asked for - a number the caller controls, so the cache would grow
+    // without a bound - and the wrapper reads the value from the running scope anyway.
     private readonly record struct AgentKey(
         string TenantId,
         string WorkflowName,
         string AgentName,
         TimeSpan? Timeout,
         int? AgentVersion,
-        bool HostsApproval);
+        bool HostsApproval,
+        string? AgentVersionParameter);
 }

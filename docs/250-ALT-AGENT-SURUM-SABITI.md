@@ -68,6 +68,21 @@ Faz 248 kapandı (satırı `FAZ-DEFTERI.md`'de, karar K-1100). Bu faz ondan şun
   tabanın alınabilir olduğunu doğrula. Sebebi araştırılmadı.
 - Hazırlanmış ama kullanılmayan altyapı: yok.
 
+## Faz 249'dan Devir
+
+Faz 249 (K-1101) `ChildAgentInvoker`'ın sürüm çözümünü yeniden düzenledi; bu faz aynı dosyada çocuk sabitini kurar:
+
+- **Sürüm artık çağrı başına çözülür.** `ResolveForRunAsync` en başta `VersionFor(scope)` çağırır ve sonucu hem
+  `ParameterizedAgentFactory.FindAsync(ad, sürüm)` hem `ResolveAsync(sürüm)`'e verir; `_pinnedVersion` yalnız sabit durumda
+  bu fonksiyondan döner. Oturum metotları (`CreateSessionCoreAsync` …) `ResolveAsync(ct)` ile `_pinnedVersion`'da kalır: parametreli
+  adımda `_pinnedVersion` null'dır, yani oturum güncel sürümden, run seçilen sürümden gelir. `GetWorkflowAgentStep` oturum geçmediği
+  için bugün erişilmez; çocuk sabiti bir oturum yoluna dokunursa bunu bil.
+  Çocuk sabiti bu iki çağrıya aynı sürümü vermeli: biri bağlı agent'ın tanımını, öbürü derlenmiş agent'ı çözer.
+- **Bu fazın "sürüm yok" yolu zaten kapalıdır:** olmayan sürüm `CallableAgentResolver.ResolveAsync(ad, sürüm)`'de
+  `Version N of agent 'x' was not found.` ile düşer; geçmişi olmayan kod agent'ı `does not keep version history` ile.
+- **Önbellek anahtarı kuralı:** `WorkflowAgentCache.AgentKey` sürüm parametresinin *adını* taşır, değerini değil (değer çağıranın
+  kontrolündedir). Çocuk sabiti tanım yazarının sabit bir sayısıdır; derleyici önbelleği için ayrı düşünülmeli (K-811).
+
 ## Amaç
 
 Bir agent başka agent'ları adıyla çağırır (`AgentDefinition.CallableAgentNames`,

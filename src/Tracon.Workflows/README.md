@@ -145,7 +145,9 @@ options =>
   the budget gate, a cost line that names the node and the strict read of its settings
   (`step.Settings`, or typed with `step.SetSettings(value)`).
 - `GetWorkflowAgentStep` binds a catalog agent as a plain step with its own timeout and version pin. Use
-  it, not `GetWorkflowAgent`, for a step a message can return to over a back edge.
+  it, not `GetWorkflowAgent`, for a step a message can return to over a back edge. `step.AgentVersion` fixes
+  the version for every run; `step.AgentVersionParameter` names a run parameter that carries it, read each time
+  the step runs (empty runs the current version).
 - `WorkflowFunctionOptions.MaxConcurrency` limits how many calls of a function run at once in the
   process, across workflows.
 - `WorkflowRegistrationOptions.RunTimeout` is held to `Tracon:Workflows:MaxRunTimeout` when the host

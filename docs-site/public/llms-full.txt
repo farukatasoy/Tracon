@@ -165,7 +165,7 @@ is the list.
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
-| Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()`, `GetWorkflowFunction` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin, and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
+| Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()`, `GetWorkflowFunction` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin (fixed in the graph, or read from a run parameter), and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
 | Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and a spent cost quota of the tenant does too (`tenant_quota_exceeded`), and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one from both; the ceiling is the logical run's, so a run that continues an earlier one (an answer, a resume, a recovery) starts from what the earlier runs spent; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
@@ -818,7 +818,9 @@ A child resolves the callable agent's **current** version. This is deliberate: a
 version or an [experiment](/concepts/evaluation/#experiments) arm applies to the agent
 it was set on, not to the agents it calls. A workflow step resolves its agent's current
 version the same way, unless the step pins one (see
-[Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)).
+[Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)),
+or a step built in code reads the version from a run parameter (see
+[Let a run choose the version of an agent step](/concepts/workflow-parameters/#let-a-run-choose-the-version-of-an-agent-step)).
 A pin reaches only the step's own agent: the callable agents of that agent still run
 their current version. A parent run pinned to version 1 can therefore call a child that
 runs version 3. To compare a child agent's versions, run an experiment on that agent
@@ -4569,8 +4571,55 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 - **A workflow defined in code declares its schema in its registration**
   (`WorkflowRegistrationOptions.Parameters`), checked, queued and recorded like a stored one's.
   Without a schema every value sent is refused.
+- **A parameter can choose the version of an agent step built in code**
+  (`step.AgentVersionParameter`; see [below](#let-a-run-choose-the-version-of-an-agent-step)).
 
 A workflow row stores no message: the values are the only input it records.
+
+## Let a run choose the version of an agent step
+
+A step of a graph built in code can pin its agent in the graph (`step.AgentVersion = 4`), or read the version
+from a run parameter, so one graph serves every version:
+
+```csharp
+tracon.AddWorkflow(
+    "episode",
+    services =>
+    {
+        var writer = services.GetWorkflowAgentStep("episode", "writer", step => step.AgentVersionParameter = "writerVersion");
+
+        return new WorkflowBuilder(writer).WithOutputFrom(writer).WithName("episode").Build();
+    },
+    options => options.Parameters = [new AgentParameter { Name = "writerVersion", Kind = AgentParameterKind.Number }]);
+```
+
+```bash
+curl -N -X POST http://localhost:5081/tracon/api/workflows/episode/run \
+     -H 'Content-Type: application/json' \
+     -d '{"message":"Episode 12","parameters":{"writerVersion":"2"}}'
+```
+
+- The step reads the value every time it runs. The factory of a graph built in code runs before a run's
+  parameters are bound, so it cannot read them; the step does.
+- An empty value, or no value, runs the agent's current version. A whole number from 1 runs that version,
+  and the step's own run row records it.
+- Declare the parameter optional, with no default, when a run may leave it out. A required one is refused
+  with `400` at the start of a run that omits it.
+- A value that is not a whole number from 1, a parameter name the workflow does not declare, a version the
+  agent does not have and an agent defined in code (it keeps no history) fail the step by name before its
+  model call. The error for a value that is not a number, and for a name the workflow does not declare,
+  names the parameter and never repeats the value; a version the agent does not have is named by its
+  number. Earlier steps have already run.
+- `AgentVersion` and `AgentVersionParameter` exclude each other: setting both throws when the graph is built.
+- A run that continues after a human answer, or a resume, reads the value its first part started with. A
+  number keeps that version through the wait, so an edit made while the run waited does not change the
+  version its later steps run. An empty value still means the current version, resolved when each step
+  runs, so a later step runs an edit made during the wait.
+- Whoever may start the run chooses the version, and any stored version of the agent can be chosen. Pass the
+  value from your own code, not from an end user's input, unless every version is meant to be reachable.
+- A stored workflow has no such setting: a node's `agentVersion` is fixed (see
+  [Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)), and a run chooses the
+  version of the whole workflow with `definitionVersion`.
 
 ## Read next
 
@@ -5210,7 +5259,9 @@ rather than an error. Use the same string in both places.
 A graph with a way back or a human gate is built in code with `AddWorkflow`. Two helpers give its steps
 what a stored chain's steps have: `GetWorkflowFunction` binds a registered function with its time limit,
 retry, budget gate and cost line, and `GetWorkflowAgentStep` binds an agent as a plain step that a message
-can return to. A registration also takes `RunTimeout` and `Parameters`.
+can return to; the step can run a fixed version of its agent or the one a run parameter names (see
+[Let a run choose the version of an agent step](/concepts/workflow-parameters/#let-a-run-choose-the-version-of-an-agent-step)).
+A registration also takes `RunTimeout` and `Parameters`.
 [A workflow that a person can send back](/guides/review-and-revise-workflow/) builds one.
 
 A graph built in code can also raise its own `WorkflowEvent` from an executor
@@ -15876,16 +15927,22 @@ static Workflow Build(IServiceProvider services)
 ## What each helper gives a step
 
 `GetWorkflowFunction` takes a `WorkflowFunctionStepOptions` (`Timeout`, `Settings`, and `SetSettings(value)` for a typed
-value). `GetWorkflowAgentStep` takes a `WorkflowAgentStepOptions` (`Timeout`, `AgentVersion`).
+value). `GetWorkflowAgentStep` takes a `WorkflowAgentStepOptions` (`Timeout`, `AgentVersion`, `AgentVersionParameter`).
 
 | Step | Time limit | Retry | Budget gate | Cost named by node | Settings | Version pin | Concurrency |
 |---|---|---|---|---|---|---|---|
 | `GetWorkflowFunction` | the registration's, or the step's own | the registration's | yes | yes | strict read, typed or JSON | no | the registration's |
-| `GetWorkflowAgentStep` | the step's own, else `ChildDeadline` | no | yes: a refused step fails | the agent's own run rows | no | yes, `AgentVersion` | no |
+| `GetWorkflowAgentStep` | the step's own, else `ChildDeadline` | no | yes: a refused step fails | the agent's own run rows | no | yes: `AgentVersion`, or `AgentVersionParameter` for a run to choose | no |
 
 A pinned version that does not exist, or an agent defined in code that keeps no versions, fails the
 step by name before its model call. A graph factory is synchronous, so it cannot check this when
 the graph is built, as a stored chain does.
+
+The writer of a script that a template produces is an agent that its owner edits. Set
+`step.AgentVersionParameter = "writerVersion"` and declare `writerVersion` in the registration's
+`Parameters`: a run that sends `"writerVersion": "2"` runs version 2 of the writer on every pass of the
+loop, including the pass after a rejection, and a run that leaves it out runs the current version. See
+[Let a run choose the version of an agent step](/concepts/workflow-parameters/#let-a-run-choose-the-version-of-an-agent-step).
 
 The agent step asks the agent for its whole answer. A JSON answer that does not fit the schema is
 repaired as it is for a plain agent run (`Tracon:StructuredResponse`), and a loop agent hands the
@@ -19751,7 +19808,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
-| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts, a report of what they spent beyond tokens and a start gate on the call tree's cost and time budget, checkpoints, human input, run parameters, per-workflow run timeouts, a version history with rollback and agent version pins, a per-function concurrency limit, a per-tenant run limit, and the same step capabilities in graphs built in code (`GetWorkflowFunction`, `GetWorkflowAgentStep`) |
+| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts, a report of what they spent beyond tokens and a start gate on the call tree's cost and time budget, checkpoints, human input, run parameters, per-workflow run timeouts, a version history with rollback and agent version pins (in a graph built in code, fixed or chosen by a run parameter), a per-function concurrency limit, a per-tenant run limit, and the same step capabilities in graphs built in code (`GetWorkflowFunction`, `GetWorkflowAgentStep`) |
 | `Tracon.Mcp` | Tools discovered from remote MCP servers, and their requests for user input |
 | `Tracon.UI` | The embedded console |
 

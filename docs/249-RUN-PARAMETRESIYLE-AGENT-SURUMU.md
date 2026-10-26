@@ -1,6 +1,6 @@
 # Faz 249 — Kod Grafında Agent Sürümünü Run Parametresi Seçer
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** ✅ Tamamlandı (2026-10-26)
 > **Kademe:** hafif — migration yok · public API'den satır silinmez (yalnız `WorkflowAgentStepOptions`'a bir özellik eklenir; `Unshipped` büyümesi) · hedef framework değişmez · güvenlik/kiracı sınırı yok · geri dönüşü pahalı karar yok
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan kararlar: F-409 bu kalemin ikinci kanıtıdır — sabitlenen sürüm çağırdığını da sabitlemelidir; sürüm faz zinciri üç faza bölündü: 248 numara kimliği, 249 bu faz, 250 alt agent sabiti)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-545**
@@ -46,13 +46,31 @@ Devam ve cevap run'ı başlangıçtaki kayıtlı değerleri yeniden kullanır
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `AgentVersionParameter = "agentVersion"` ve `POST /tracon/api/workflows/{name}/run` gövdesinde `parameters: { agentVersion: "2" }` → çocuk run satırı `agentVersion = 2`; parametre yoksa güncel sürüm
-- [ ] Geçersiz değer (`"abc"`, `"0"`), bildirilmemiş ad ve tutulamayan sürüm adımı adıyla, model çağrısından önce düşürür
-- [ ] `AgentVersion` + `AgentVersionParameter` birlikte grafı kurarken düşer
-- [ ] Devam ve cevap run'ı aynı sürümle sürer
-- [ ] `WorkflowAgentStepOptions` sınıf açıklaması saklanan düğümle eşlik iddiasını düzeltir (Açık Soru 1)
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
+- [x] `AgentVersionParameter = "agentVersion"` ve `POST /tracon/api/workflows/{name}/run` gövdesinde `parameters: { agentVersion: "2" }` → çocuk run satırı `agentVersion = 2`; parametre yoksa güncel sürüm — `CodeWorkflowAgentStepTests.A_run_parameter_picks_the_version_the_step_runs_and_its_row_records_it`, `One_graph_serves_every_version_…`, `A_run_that_leaves_the_version_parameter_empty_or_out_…`; gerçek `run`: aşağıdaki çıktı
+- [x] Geçersiz değer (`"abc"`, `"0"`, `"-1"`, `"1.5"`, `"+2"`, `" 2"`, taşan sayı), bildirilmemiş ad (hiç bildirilmemiş ve başka ad bildirilmiş) ve tutulamayan sürüm (olmayan sürüm, geçmişi olmayan kod agent'ı) adımı adıyla, model çağrısından önce düşürür — aynı sınıfın `Theory` case'leri; her biri `provider.Requests` boş ve çocuk satırı yok der
+- [x] `AgentVersion` + `AgentVersionParameter` birlikte grafı kurarken düşer — `WorkflowAgentStepVersionParameterTests.A_fixed_version_and_a_version_parameter_together_are_refused_when_the_graph_is_built` (düz `ArgumentException`); boş ad da düşer
+- [x] Devam ve cevap run'ı aynı sürümle sürer — `CodeWorkflowParameterTests.The_run_that_answers_runs_the_agent_version_the_run_started_with` (cevaptan önce agent v3'e düzenlenir; adım v1'i koşar)
+- [x] `WorkflowAgentStepOptions` sınıf açıklaması saklanan düğümle eşlik iddiasını düzeltir (Açık Soru 1, seçenek A)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı aşağıda (*Örnek Uygulama Koşumu*)
+- [x] Kapanış kapısı yeşil: `python3 scripts/kapi.py kapanis --taban 7af62952` (29 146 test, 39 modül; denetim düzeltmelerinden sonra koştu)
+
+## Örnek Uygulama Koşumu
+
+2026-10-26, `samples/Tracon.Api` (Release, `Development`, dört boş ortam değişkeni; günlükte `Npgsql` satırı: **0**).
+**Geçici yama, geri alındı:** örnekte `episode-writer` kodda tanımlıdır ve kod agent'ı sürüm geçmişi tutmaz; sürüm seçimini
+göstermek için yalnız bu koşumda yazar veritabanına taşındı (API ile oluşturuldu, üç sürüm), kayıt `agentVersion` (Number)
+bildirdi ve adım `AgentVersionParameter = "agentVersion"` aldı. Koşum sonrası `git checkout` ile geri alındı; oluşan
+`agentprism-manuel.db` silindi.
+
+| Çağrı (`POST /tracon/api/workflows/review-and-revise/run`) | Kök run | Çocuk satırı (`GET /runs/{id}/tree`) |
+|---|---|---|
+| `parameters: {productionId: p-1, agentVersion: "2"}` | `AwaitingInput` | `episode-writer`, `agentVersion=2`, `Completed` |
+| `agentVersion: "1"` | `AwaitingInput` | `agentVersion=1` |
+| `agentVersion` yok (güncel = 3) | `AwaitingInput` | `agentVersion=3` |
+| `agentVersion: "abc"` | `Failed`: `Workflow step 'episode-writer' cannot run: run parameter 'agentVersion' is not a version number. A version is a whole number from 1; leave the parameter empty to run the agent's current version.` | çocuk satırı yok |
+| `agentVersion: "9"` | `Failed`: `Version 9 of agent 'episode-writer' was not found.` | çocuk satırı yok |
+| agent v4'e düzenlendi; run 1 `data: {approved: false, note: …}` ile cevaplandı | cevap run'ı `AwaitingInput` | revizyon adımı **`agentVersion=2`** (güncel 4) |
+| `Tracon__Observability__SuccessSampleRatio=1` ile yeniden başlatma (veritabanı kaldı), `agentVersion: "3"` | `AwaitingInput` | `agentVersion=3` |
 
 ## Testler
 
@@ -82,24 +100,55 @@ case'i yok: davranışın tamamı fonksiyonel testte tekrarlanır.
 
 > Çalışırken dolar; kapanışta commit mesajına taşınır.
 
+- **Bildirilmemiş ad `ParameterValues`'tan ayırt edilemez → scope'a `ParameterNames` eklendi.** Plan "bildirilmemiş parametre
+  adı adımı düşürür" diyordu ama son değer kümesi, değeri ve varsayılanı olmayan *bildirilmiş* parametreyi içermez
+  (`ParameterValueSet.Resolve`); yalnız ona bakan adım yazım hatasını "verilmedi" sanıp güncel sürümü koşardı. `AgentRunScope`'a
+  internal `ParameterNames` (bildirilen adlar) eklendi, `BindParametersAsync` yazar, `ChildAgentInvoker.VersionFor` okur. Public
+  yüzey değişmedi. Test: `A_name_the_workflow_does_not_declare_…(declaresOtherName: true)` (başka ad bildirilmiş) bu sınıfı kapatır.
+- **Açık Soru 1 → A, Açık Soru 2 → A** (planın önerisi; "direkt başla" talimatıyla sorulmadı). Saklanan düğümün run parametresi eşi
+  yoktur ve bu faza girmedi.
+- **Örnek uygulama değişmedi.** Yazarı kodda tanımlı (`episode-writer`) ve kod agent'ı sürüm geçmişi tutmaz; kalıcı bir
+  `agentVersion` parametresi örnekte yalnız hata yolunu gösterirdi. Canlı koşum geçici yamayla yapıldı (yukarıda).
+- **İki seçenek birlikte → düz `ArgumentException`** (`ArgumentOutOfRangeException` değil: değer aralığı değil, birlikte verilemezlik).
+  `AgentVersionParameter` boş ya da boşluksa da `ArgumentException`.
+- **Yalnız boşluk içeren değer "boş" sayılmaz, geçersizdir** (`" 2"`, `"  "`): yalnız `""` güncel sürümdür. Ayrıştırma
+  `NumberStyles.None` + değişmez kültür: işaret, boşluk ve ondalık nokta reddedilir; `"02"` 2 okunur.
+- **Plandaki dosya yolları** `WorkflowAgentCache.cs` ve `ChildAgentInvoker.cs` için bayattı: gerçek yollar
+  `src/Tracon.Workflows/Internal/WorkflowAgentCache.cs` ve `src/Tracon.Core/Graph/ChildAgentInvoker.cs`.
+- **`docs/hafiza/workflows.md` bütçeyi aştı** (16 536 B / 16 000): üç eski not kısaltıldı, tam metni `arsiv/HAFIZA-GECMISI.md`'ye taşındı.
+
 ## Bu Fazda Verilen Kararlar
 
 > Dört kategoriden biri `docs/KARARLAR.md`'ye; gerisi kapanış commit mesajına.
-> Beklenen: `public-api` — seçenek adın, değer çağrı anında okunur; reddedilen
-> alternatifler: parametre alan fabrika aşırı yüklemesi (derleme bağlamadan önce
-> koşar, graf şekli parametreye bağlanırdı) ve temsilci (`Func<…, int?>`; her run
-> yeni temsilci → önbellek sınırsız büyürdü, `WorkflowAgentCache.cs:238`).
+
+- **K-1101** (`public-api`, `docs/KARARLAR.md`): seçenek adı taşır, değer her çağrıda kapsamdan okunur, `AgentVersion` ile birlikte
+  verilemez. Reddedilen: parametre alan fabrika aşırı yüklemesi ve temsilci.
+- Kategori dışı (kapanış commit mesajına): önbellek anahtarı adı taşır, değeri değil; geçersiz değerin iletisi yalnız adı yazar,
+  değeri hiç yazmaz (run hatası ve log kullanıcı içeriği taşımasın).
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan yeniden yazılmadı; 7 sapma kaydedildi) |
+| Düzeltme turu sayısı | 1 (denetim sonrası) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (tam test kümesi yeşil) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
 > `faz-denetim` çıktısı; 🟢 kapanışta `ADAYLAR.md`'ye gider.
+
+Bağımsız denetçi (`faz-denetcisi`, 2026-10-26): koddan çıkan kusur yok; 🔴 1, 🟡 3, 🟢 2. Hepsi kapandı.
+
+- 🔴 **Metin kodla çelişiyordu:** "hata değeri hiç tekrarlamaz" iddiası olmayan sürümde (`Version 7 of agent … was not found.`) ve geçmişi
+  olmayan kod agent'ında (`does not keep version history`) yanlıştı. XML, site ve CHANGELOG düzeltildi: değer yalnız "sayı değil" ve
+  "bildirilmemiş ad" hatalarında hiç yazılmaz; olmayan sürüm numarasıyla anılır.
+- 🟡 **Sürümü taşıyan iki dal kanıtsızdı** (`FindAsync(…, sürüm)` ve `stepValues.Count == 0`): iki fonksiyonel case eklendi. Mutasyon
+  (`FindAsync` ya da ikinci dal sürümü yok sayar) her biri için tam bir case'i kırdı.
+- 🟡 **Boş değer, cevap run'ında düzenlemeyi izler** (kayıtlı değer boştur, sürüm çağrı anında "güncel" çözülür); site cümlesi yalnız
+  sayı için doğruydu. Metin düzeltildi; `The_run_that_answers_…` bir `Theory` oldu ve iki davranışı da sabitler.
+- 🟡 **Çocuk satırı yokluğu üç testte iddia edilmiyordu:** eklendi.
+- 🟢 **Oturum metotları `_pinnedVersion`'da kalır:** Faz 250 devrine yazıldı. 🟢 **`Required = true` parametre ve sürümü seçmenin yetkisi:**
+  doğrudan XML ve site metnine yazıldı, aday açılmadı.

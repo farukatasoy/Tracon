@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`WorkflowAgentStepOptions.AgentVersionParameter` lets a run choose the version of an agent step in a graph built in code.**
+  Set it to the name of a run parameter declared in `WorkflowRegistrationOptions.Parameters`. The step reads the value
+  each time it runs: empty or absent runs the agent's current version, a whole number from 1 runs that version and the
+  step's run row records it. A value that is not a whole number from 1, a name the workflow does not declare, a version the
+  agent does not have and an agent defined in code fail the step by name before its model call; the error for a value that
+  is not a number never repeats it. It cannot be set together with `AgentVersion` (`GetWorkflowAgentStep` throws
+  `ArgumentException`). A run that continues after an answer reads the value the run started with: a number keeps its
+  version through the wait, an empty value still means the current version when each step runs.
 - **`openai.strictJsonSchema` and `azure-openai.strictJsonSchema` ask OpenAI to enforce the response schema while the
   model generates.** Set either to `true` in `ModelBinding.ProviderSettings` (`OpenAIProviderNames.StrictJsonSchemaSetting`,
   `AzureOpenAIProviderNames.StrictJsonSchemaSetting`; `SupportedSettings` is no longer empty). The request then carries

@@ -469,7 +469,9 @@ rather than an error. Use the same string in both places.
 A graph with a way back or a human gate is built in code with `AddWorkflow`. Two helpers give its steps
 what a stored chain's steps have: `GetWorkflowFunction` binds a registered function with its time limit,
 retry, budget gate and cost line, and `GetWorkflowAgentStep` binds an agent as a plain step that a message
-can return to. A registration also takes `RunTimeout` and `Parameters`.
+can return to; the step can run a fixed version of its agent or the one a run parameter names (see
+[Let a run choose the version of an agent step](/concepts/workflow-parameters/#let-a-run-choose-the-version-of-an-agent-step)).
+A registration also takes `RunTimeout` and `Parameters`.
 [A workflow that a person can send back](/guides/review-and-revise-workflow/) builds one.
 
 A graph built in code can also raise its own `WorkflowEvent` from an executor

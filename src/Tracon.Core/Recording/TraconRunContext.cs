@@ -133,6 +133,17 @@ public sealed record AgentRunScope
     internal IReadOnlyDictionary<string, string>? ParameterValues { get; init; }
 
     /// <summary>
+    /// Gets the names a WORKFLOW run's schema declares, whether or not a value was supplied.
+    /// <see langword="null"/> outside a workflow and for a workflow that declares no parameters.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ParameterValues"/> leaves out a declared parameter that has neither a value nor a default,
+    /// so it cannot tell that parameter from a name nobody declared. A step that reads a parameter by name
+    /// (an agent version) needs the difference: the first means "not given", the second a mistake.
+    /// </remarks>
+    internal IReadOnlySet<string>? ParameterNames { get; init; }
+
+    /// <summary>
     /// Gets whether a tool approval this run asks for suspends the workflow that called it
     /// (<see cref="TraconRunOptions.SuspendsWorkflowOnApproval"/>), so the run closes
     /// <see cref="RunStatus.AwaitingApproval"/> and not <see cref="RunStatus.Failed"/>.

@@ -87,6 +87,8 @@ Tracon.WorkflowAgentStepOptions.Timeout.get -> System.TimeSpan?
 Tracon.WorkflowAgentStepOptions.Timeout.set -> void
 Tracon.WorkflowAgentStepOptions.AgentVersion.get -> int?
 Tracon.WorkflowAgentStepOptions.AgentVersion.set -> void
+Tracon.WorkflowAgentStepOptions.AgentVersionParameter.get -> string?
+Tracon.WorkflowAgentStepOptions.AgentVersionParameter.set -> void
 Tracon.WorkflowRegistrationOptions.RunTimeout.get -> System.TimeSpan?
 Tracon.WorkflowRegistrationOptions.RunTimeout.set -> void
 Tracon.WorkflowRegistrationOptions.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>!
