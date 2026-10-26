@@ -680,6 +680,13 @@ Every save appends a version rather than overwriting. Nothing rewrites history:
 Rollback moving forward is the point: the rollback is itself auditable and can be
 rolled back in turn.
 
+A version number is an identity, and a name never gets one twice. `DELETE /api/agents/{name}`
+removes the definition and every version, but the numbering stays: create the agent again and
+its first version is one more than the highest the name ever had. An agent that had versions 1
+to 3 and was deleted comes back as version 4, and versions 1 to 3 name nothing. A pin to one of
+those numbers (a workflow step, a loop reviewer, an experiment arm) or an approval that waited
+on it therefore stops with "no such version" instead of running the text of the new agent.
+
 Versions are also what make [experiments](/concepts/evaluation/) possible —
 an A/B test splits traffic between two versions of the same agent, which is why a
 code-defined agent cannot be experimented on. A [workflow step](/concepts/workflows/#pin-an-agent-step-to-a-version)
@@ -6182,6 +6189,15 @@ were never kept, so its history starts at the version it has today. The table ha
 foreign key to `workflows`: deleting a workflow keeps its versions, and saving the name
 again continues the numbering
 ([Workflows](/concepts/workflows/#versions-rollback-and-pinning-an-agent-step)).
+
+The `agent_definition_version_counters` migration only adds: `0065` on PostgreSQL, `0053` on
+SQL Server and `0052` on SQLite. It creates the table that holds the highest version number
+each stored agent has had, and starts the counter of every existing agent at the version it
+holds today. An agent that was deleted and created again before the upgrade cannot be
+recovered: its earlier numbers were never kept, so its counter starts at the highest number it
+holds now. The table has no foreign key to `agent_definitions` and no agent content: deleting
+an agent keeps the number, and saving the name again continues the numbering
+([Versions](/concepts/agents/#versions)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds

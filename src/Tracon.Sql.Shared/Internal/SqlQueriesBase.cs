@@ -611,7 +611,7 @@ internal abstract class SqlQueriesBase
 
     /// <summary>
     /// Gets the query that takes the next version number of a name from its counter and returns it. The counter
-    /// outlives the definition: a delete keeps it, so a number is never given twice (phase 248).
+    /// outlives the definition: a delete keeps it, so a number is never given twice.
     /// </summary>
     public string UpsertAgentDefinitionVersionCounter { get; protected set; } = string.Empty;
 
