@@ -643,6 +643,17 @@ for (const file of allContent) {
   }
 }
 
+// A generated page used to publish the build machine's home directory: xunit's
+// caller-info arguments put `/Users/<name>/...` into 718 API signatures (F-495).
+// Generated and hand-written pages alike; no page needs a real home path.
+const homeDirectory = /(?:\/Users|\/home)\/[A-Za-z0-9._-]+\/|[A-Za-z]:\\Users\\/;
+for (const file of allContent) {
+  const match = homeDirectory.exec(readFileSync(file, 'utf8'));
+  if (match) {
+    errors.push(`${relative(docsRoot, file)}: publishes a machine home directory (${match[0]})`);
+  }
+}
+
 for (const file of collect(resolve(siteRoot, 'src'))) {
   if (/ \d+\.[^/]+$/.test(basename(file))) {
     errors.push(`Synchronization copy under src: ${relative(siteRoot, file)}`);

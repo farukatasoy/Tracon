@@ -179,11 +179,10 @@ public static class VoiceBuilderExtensions
             options.ApiKey = apiKey;
         }
 
-        if (section[nameof(VoiceOptions.Endpoint)] is { Length: > 0 } endpoint &&
-            Uri.TryCreate(endpoint, UriKind.Absolute, out var parsedEndpoint))
-        {
-            options.Endpoint = parsedEndpoint;
-        }
+        read.Uri(
+            nameof(VoiceOptions.Endpoint),
+            static o => o.Endpoint,
+            static (o, v) => o.Endpoint = v);
 
         if (section[nameof(VoiceOptions.DefaultVoiceId)] is { Length: > 0 } voiceId)
         {

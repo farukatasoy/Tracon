@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace Tracon;
@@ -32,6 +33,8 @@ internal static class ConfigurationValueKinds
 
     internal const string TimeSpanExpectation = "a time span such as 00:00:30";
 
+    internal const string AbsoluteUriExpectation = "an absolute address such as https://example.com/";
+
     private const NumberStyles DecimalStyles =
         NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
 
@@ -55,6 +58,9 @@ internal static class ConfigurationValueKinds
 
     internal static bool TryTimeSpan(string text, out TimeSpan value)
         => TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out value);
+
+    internal static bool TryAbsoluteUri(string text, [NotNullWhen(true)] out Uri? value)
+        => Uri.TryCreate(text, UriKind.Absolute, out value);
 
     /// <summary>
     /// Reads an enum name or number. A plain enum accepts only one defined member: the parser

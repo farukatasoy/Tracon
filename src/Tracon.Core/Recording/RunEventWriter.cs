@@ -60,6 +60,7 @@ public sealed class RunEventWriter
     // second thread could keep calling a sink that is already known to be broken.
     private readonly int[] _sinkDisabled;
     private readonly TraconMetrics? _metrics;
+    private readonly TimeProvider _timeProvider;
 
     // F-257: numbering, the store write and the sink dispatch of ONE event form
     // a single step. Without it two writers took 5 and 6, the second one's store
@@ -101,6 +102,11 @@ public sealed class RunEventWriter
     /// <see langword="null"/> or empty runs the identical hot path as before this
     /// extension point existed — no allocation, no branching difference.
     /// </param>
+    /// <param name="timeProvider">
+    /// The clock the events and the run's end are stamped with: the one its start came from, so a
+    /// run's times are on one clock (a continuation's spent time subtracts the start from the last
+    /// event). <see langword="null"/> is the system clock.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     internal RunEventWriter(
         IRunStore store,
@@ -108,7 +114,8 @@ public sealed class RunEventWriter
         ILogger logger,
         Guid runId,
         TraconMetrics? metrics,
-        IReadOnlyList<IRunEventSink>? sinks = null)
+        IReadOnlyList<IRunEventSink>? sinks = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(options);
@@ -121,6 +128,7 @@ public sealed class RunEventWriter
         _metrics = metrics;
         _sinks = sinks is { Count: > 0 } ? sinks : [];
         _sinkDisabled = new int[_sinks.Count];
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>Gets the identity of the run this writer writes to.</summary>
@@ -340,7 +348,7 @@ public sealed class RunEventWriter
             // Whole microseconds, the finest precision every store keeps (PostgreSQL's timestamptz stops
             // there): the event handed back here and the one the store serves later must serialize alike
             // (the loop iteration frame of the native stream is this very event).
-            Timestamp = AuditChainHasher.TruncateToMicroseconds(DateTimeOffset.UtcNow),
+            Timestamp = AuditChainHasher.TruncateToMicroseconds(_timeProvider.GetUtcNow()),
             Text = Truncate(draft.Text),
             ToolName = draft.ToolName,
             ToolCallId = draft.ToolCallId,
@@ -656,7 +664,7 @@ public sealed class RunEventWriter
                 {
                     RunId = RunId,
                     Status = status,
-                    CompletedAt = DateTimeOffset.UtcNow,
+                    CompletedAt = _timeProvider.GetUtcNow(),
                     EventCount = EventCount,
                     Usage = usage,
                     Error = error,

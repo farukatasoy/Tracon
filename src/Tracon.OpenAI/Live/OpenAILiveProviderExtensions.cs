@@ -121,11 +121,10 @@ public static class OpenAILiveProviderExtensions
             options.Voice = voice;
         }
 
-        if (section["Endpoint"] is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.Absolute, out var parsed))
-        {
-            options.Endpoint = parsed;
-        }
+        read.Uri(
+            "Endpoint",
+            static o => o.Endpoint,
+            static (o, v) => o.Endpoint = v);
 
         read.Int32(
             "MaxAppendCharacters",

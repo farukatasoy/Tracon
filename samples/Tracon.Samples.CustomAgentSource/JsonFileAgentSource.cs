@@ -174,6 +174,7 @@ public sealed class JsonFileAgentSource : IAgentSource
             SkillNames = definition.SkillNames,
             Skills = definition.Skills,
             Workspace = definition.Workspace,
+            ExtensionNames = definition.ExtensionNames,
             CallableAgentNames = [.. definition.CallableAgents.Select(static agent => agent.Name)],
             UsesHarness = definition.Harness is not null,
             UpdatedAt = definition.UpdatedAt,

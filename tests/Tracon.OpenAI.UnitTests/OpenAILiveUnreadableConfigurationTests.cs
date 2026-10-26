@@ -16,7 +16,8 @@ namespace Tracon.OpenAI.UnitTests;
 /// </para>
 /// <para>
 /// The probe has no exemption list: the binder reads every scalar of <see cref="OpenAILiveOptions"/>.
-/// The properties it skips are text and an address.
+/// The properties it skips are text and an address; the address has its own case, because the shared
+/// probe also serves providers whose endpoint reader lets a relative address through to the validator.
 /// </para>
 /// </remarks>
 public sealed class OpenAILiveUnreadableConfigurationTests
@@ -51,6 +52,17 @@ public sealed class OpenAILiveUnreadableConfigurationTests
         var failure = Provider.FailsAtStartup((nameof(OpenAILiveOptions.MaxAppendCharacters), "1k"));
 
         failure.Message.ShouldContain("Tracon:Providers:OpenAI:Live:MaxAppendCharacters is '1k', which is not a 32-bit whole number.");
+    }
+
+    [Fact]
+    public void An_endpoint_that_is_not_an_absolute_address_is_refused_and_named()
+    {
+        // Uri.TryCreate(text, UriKind.Absolute) alone kept the default for this text, and the live session
+        // went to api.openai.com while the operator believed it went to their own gateway (F-702).
+        var failure = Provider.FailsAtStartup((nameof(OpenAILiveOptions.Endpoint), "gateway.internal/v1"));
+
+        failure.Message.ShouldContain(
+            "Tracon:Providers:OpenAI:Live:Endpoint is 'gateway.internal/v1', which is not an absolute address such as https://example.com/.");
     }
 
     [Theory]

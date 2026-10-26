@@ -432,6 +432,24 @@ public sealed class ContinuationBudgetTests
     // --- Time ---
 
     [Fact]
+    public async Task A_run_closes_on_the_clock_it_started_on()
+    {
+        // F-673: the start came from the runner's clock and the end from the system clock, so a
+        // continuation's spent time was the gap between a fake start and today.
+        var clock = new AdjustableClock(Start);
+        var host = new WorkflowTestHost();
+        var flow = new BudgetedApprovalWorkflow(host, firstAmount: 0m, publishAmount: 0m);
+
+        var runner = host.CreateRunnerWith(timeProvider: clock, services: flow.Services, codeWorkflows: flow.Registration);
+        var waiting = await RunToTheRequestAsync(runner);
+
+        var record = (await host.RunStore.GetRunAsync(waiting)).ShouldNotBeNull();
+
+        record.StartedAt.ShouldBe(Start);
+        record.CompletedAt.ShouldBe(Start);
+    }
+
+    [Fact]
     public async Task The_time_a_workflow_waited_for_a_person_does_not_count_against_the_time_limit()
     {
         var clock = new AdjustableClock(Start);
@@ -648,8 +666,8 @@ public sealed class ContinuationBudgetTests
     }
 
     /// <summary>
-    /// Sets when a closed run started and ended. The writer stamps the end with the system clock, and a test that drives
-    /// the runner with its own clock needs both ends on that clock.
+    /// Sets when a closed run started and ended. The runner's clock does not move while the test workflow executes, so a
+    /// test that needs a run that worked for some minutes writes both ends itself.
     /// </summary>
     private static async Task SetTimesAsync(WorkflowTestHost host, Guid run, DateTimeOffset startedAt, DateTimeOffset completedAt)
     {

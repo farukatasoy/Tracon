@@ -18171,9 +18171,11 @@ belt-and-suspenders, not a license to violate the contract; a source that shares
 mutable list with the catalog is still a bug the copy merely contains.
 
 If the source builds agents from an `AgentDefinition`, copy the fields the host reads off the
-descriptor: `SkillNames` and `Skills` for the A2A and MCP exposure check. A descriptor that names
-skills and leaves `Skills` empty reads as "the read approval is on", and the host refuses to
-expose the agent even when the definition turned the approval off.
+descriptor: `SkillNames` and `Skills` for the A2A and MCP exposure check, and `ExtensionNames`
+for the catalog. A descriptor that names skills and leaves `Skills` empty reads as "the read
+approval is on", and the host refuses to expose the agent even when the definition turned the
+approval off. A descriptor without `ExtensionNames` lists an agent compiled with an extension
+as one without it.
 
 Honor the `CancellationToken` you are given — Tracon adds no timeout of its own, so
 an uncancellable source blocks its caller indefinitely. A genuine
@@ -23135,7 +23137,7 @@ The configuration key separator is `:`. Environment variables use `__`, so
 
 ### A value that cannot be read stops the host
 
-A number, flag, time span or enum key that holds text it cannot read stops the
+A number, flag, time span, enum or address key that holds text it cannot read stops the
 application at startup. The message names the full key and quotes the text, and it lists
 every such key of the same options type at once:
 
@@ -23150,19 +23152,19 @@ instead of `false` or `true` would leave a protection or a limit as it was. A nu
 a whole number or a decimal written with `.`, a flag is `true` or `false`, a duration
 is a time span such as `00:00:30`, and an enum is one of its member names. A plain enum
 takes one member: `Tenant,Global` is refused, and so is a number that names no member.
-
-:::note[Address keys are not covered yet]
 `Voice:Endpoint`, `Providers:OpenAI:Live:Endpoint` and `Mcp:OAuthCallbackBaseUri` take an
-absolute address. Text that is not one is still ignored and the default stays, so check
-them by eye. The `Endpoint` keys of the model providers are checked by the provider's own
+absolute address such as `https://gateway.example.com/v1/`; `gateway.example.com/v1` is
+refused. The `Endpoint` keys of the model providers are checked by the provider's own
 validator, which refuses a relative address.
-:::
 
 - **Empty means not given.** A key with no text, or only white space, keeps the default.
 - **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
   one; `EnvironmentAllowList=PATH` is refused, and the message shows the `:0` form. A list
   that is present replaces the default. A JSON `[]` and a key with no text are "not
   given" and keep the default: to empty a list, clear it in code.
+- **A map is written as one entry per name.** `MaxConcurrentJobsPerLane:media=2` limits the
+  `media` lane; `MaxConcurrentJobsPerLane=2` names no lane and is refused, and the message
+  shows the `:<name>` form.
 - **An entry that cannot be read is named by its position** (`Quotas:ThresholdPercents:1`)
   or by its name (`Scheduling:MaxConcurrentJobsPerLane:media`).
 - **Code that sets the option after binding wins.** A value you assign in a `Configure`

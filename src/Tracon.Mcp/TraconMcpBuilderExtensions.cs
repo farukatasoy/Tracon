@@ -224,10 +224,9 @@ public static class TraconMcpBuilderExtensions
             static o => o.MaxResourceBytesTotal,
             static (o, v) => o.MaxResourceBytesTotal = v);
 
-        if (section[nameof(TraconMcpOptions.OAuthCallbackBaseUri)] is { Length: > 0 } callbackBaseUri
-            && Uri.TryCreate(callbackBaseUri, UriKind.Absolute, out var parsedCallbackBaseUri))
-        {
-            options.OAuthCallbackBaseUri = parsedCallbackBaseUri;
-        }
+        read.Uri(
+            nameof(TraconMcpOptions.OAuthCallbackBaseUri),
+            static o => o.OAuthCallbackBaseUri,
+            static (o, v) => o.OAuthCallbackBaseUri = v);
     }
 }

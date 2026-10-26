@@ -112,6 +112,44 @@ internal sealed class ConfigurationValueReader<TOptions>
     internal void TimeSpan(string key, Func<TOptions, TimeSpan?> get, Action<TOptions, TimeSpan> set)
         => Scalar(key, get, set, ConfigurationValueKinds.TryTimeSpan, ConfigurationValueKinds.TimeSpanExpectation);
 
+    /// <summary>
+    /// Reads an absolute address. <c>Uri.TryCreate(text, UriKind.Absolute, …)</c> alone kept the
+    /// default for a relative or mistyped address, and requests went to the provider's public
+    /// address without a word.
+    /// </summary>
+    /// <param name="key">The key in the section.</param>
+    /// <param name="get">Reads the option.</param>
+    /// <param name="set">Writes the option.</param>
+    internal void Uri(string key, Func<TOptions, Uri?> get, Action<TOptions, Uri> set)
+    {
+        var path = ConfigurationValueReader.PathOf(_section, key);
+        var text = _section[key];
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            ClearRecord(path);
+
+            return;
+        }
+
+        if (ConfigurationValueKinds.TryAbsoluteUri(text, out var value))
+        {
+            ClearRecord(path);
+            set(_options, value);
+
+            return;
+        }
+
+        var bound = get(_options);
+        var options = _options;
+
+        UnreadableConfigurationReport.For(_root).Record(
+            path,
+            text,
+            ConfigurationValueKinds.AbsoluteUriExpectation,
+            () => EqualityComparer<Uri?>.Default.Equals(get(options), bound));
+    }
+
     /// <summary>Reads the name of an enum member.</summary>
     /// <typeparam name="TEnum">The enum type.</typeparam>
     /// <param name="key">The key in the section.</param>
@@ -193,6 +231,33 @@ internal sealed class ConfigurationValueReader<TOptions>
     /// <param name="target">The options' map.</param>
     internal void TimeSpanMap(string key, IDictionary<string, TimeSpan> target)
         => Map(key, target, ConfigurationValueKinds.TryTimeSpan, ConfigurationValueKinds.TimeSpanExpectation);
+
+    /// <summary>
+    /// Reads a map from a name to text. An entry is bound as written, even empty: the
+    /// options' validator names an empty entry instead of the mapping silently vanishing.
+    /// </summary>
+    /// <param name="key">The key in the section.</param>
+    /// <param name="target">The options' map.</param>
+    internal void StringMap(string key, IDictionary<string, string> target)
+    {
+        var path = ConfigurationValueReader.PathOf(_section, key);
+        ClearRecord(path);
+
+        var section = _section.GetSection(key);
+        var children = section.GetChildren().ToList();
+
+        if (children.Count == 0)
+        {
+            RecordSingleMapValue(section.Value, path, target);
+
+            return;
+        }
+
+        foreach (var child in children)
+        {
+            target[child.Key] = child.Value ?? string.Empty;
+        }
+    }
 
     /// <summary>
     /// Starts the reads of a value the binder builds (a price, a catalog entry) and
@@ -343,7 +408,17 @@ internal sealed class ConfigurationValueReader<TOptions>
         var path = ConfigurationValueReader.PathOf(_section, key);
         ClearRecord(path);
 
-        foreach (var child in _section.GetSection(key).GetChildren())
+        var section = _section.GetSection(key);
+        var children = section.GetChildren().ToList();
+
+        if (children.Count == 0)
+        {
+            RecordSingleMapValue(section.Value, path, target);
+
+            return;
+        }
+
+        foreach (var child in children)
         {
             var text = child.Value;
 
@@ -385,6 +460,28 @@ internal sealed class ConfigurationValueReader<TOptions>
             $"{path} is {UnreadableConfigurationReport.Quote(value)}, a single value. A list is written as one entry per key: " +
             $"write it as {path}{ConfigurationPath.KeyDelimiter}0.",
             () => (current() ?? []).SequenceEqual(snapshot));
+    }
+
+    /// <summary>
+    /// Records a map key that holds one value and no names:
+    /// <c>MaxConcurrentJobsPerLane=5</c> names no lane, and the binder, which reads one
+    /// entry per name, would ignore it without a word.
+    /// </summary>
+    private void RecordSingleMapValue<T>(string? value, string path, IDictionary<string, T> target)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var snapshot = target.ToArray();
+
+        UnreadableConfigurationReport.For(_root).RecordMessage(
+            path,
+            $"{path} is {UnreadableConfigurationReport.Quote(value)}, a single value. A map is written as one entry per name: " +
+            $"write it as {path}{ConfigurationPath.KeyDelimiter}<name>.",
+            () => target.Count == snapshot.Length
+                && snapshot.All(entry => target.TryGetValue(entry.Key, out var now) && EqualityComparer<T>.Default.Equals(now, entry.Value)));
     }
 
     private void ClearRecord(string path)
