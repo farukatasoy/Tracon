@@ -124,6 +124,18 @@
   `busy_timeout` (5 sn) kadar bekler, **toplam bütçe `CommandTimeout`'tur**
   (30 sn). ∴ 30–40 sn süren bir `database is locked` `busy_timeout`'un değil
   `CommandTimeout`'un dolmasıdır (2026-10-11, F-307, decompile + ölçüm).
+- 🚨 **Açık bir yazma işleminin içinden İKİNCİ bağlantıyla yazmak kendi sürecini
+  kilitler** (2026-10-26, F-644): işlem veritabanının tek yazma kilidini tutar;
+  ikinci bağlantı `CommandTimeout` (30 sn) dolana dek bekler ve düşer. `IsDeadlock`
+  `SQLITE_BUSY`'yi de sayar, bu yüzden `SqlAuditLog`'un 50 denemeli zincir döngüsü
+  bekleyişi çarpar: HTTP veri sahibi silme 200 sn'de dönmedi. Çözüm: silme işlemi
+  callback süresince `SqlStoreContext.LendTransaction` ile ödünç verilir ve
+  `SqlAuditLog` komutlarını ödünç işlemde açar — yalnız `SqlDialect.SerializesWriters`
+  sağlayıcıda (K-1097). Sınıf taraması: dört `BeginTransactionAsync` sitesinden
+  işlem içinden dışarı çağıran yalnız veri sahibi silmesidir; `ExecuteInTransactionAsync`
+  gövdeleri başka depo çağırmaz (belgesi yasaklar); içerik silicileri işlemden önce
+  koşar (Faz 234). Kalan çarpan bilinçlidir: dış bir yazar kilidi tutarsa `IsDeadlock`
+  döngüleri N × 30 sn bekler, çünkü denetim satırı kaybolmamalıdır.
 - 🚨 **K-827'nin `SqliteRetryingCommand`'ı HİÇ yeniden denemiyordu — 2026-10-11'de silindi (F-312, seçenek c)** (aynı vaka,
   prob: tek deneme, 5,2 sn). `CanRetry` filtresi `_inner.Transaction` okur; data
   source komutu `DbCommandWrapper`'dır ve o getter `NotSupportedException` atar.

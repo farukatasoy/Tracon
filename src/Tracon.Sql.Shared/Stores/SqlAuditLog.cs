@@ -186,7 +186,22 @@ internal sealed class SqlAuditLog : IAuditLog
         return result as string;
     }
 
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
+    /// <summary>
+    /// Creates a command on the transaction a store lent to the current flow, or on a
+    /// connection of its own when none is lent.
+    /// </summary>
+    /// <remarks>
+    /// On SQLite the data subject erasure calls the audit write while it holds the
+    /// database's single write lock. A write from a second connection waited for that lock
+    /// until the command timed out, and the deadlock retry below repeated the wait up to
+    /// <see cref="MaxChainWriteAttempts"/> times. On the lent transaction the entry commits
+    /// or rolls back with the erasure, and no other writer can take the chain's last hash
+    /// while the lock is held, so the insert does not race.
+    /// </remarks>
+    private DbCommand CreateCommand(string sql)
+        => _context.LentTransaction is { } lent
+            ? _context.CreateCommand(sql, lent.Connection, lent.Transaction)
+            : _context.CreateCommand(sql);
 
     private static AuditEntry ReadEntry(DbDataReader reader)
         => new()

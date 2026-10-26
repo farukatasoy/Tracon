@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1034 kalem)
+## Arşivlenen Kararlar (1035 kalem)
 
 | K | Karar |
 |---|---|
@@ -1043,3 +1043,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1042 | Run seçeneği `AllowMultipleToolCalls = false` geçer; `true` ve öteki korunan üyeler reddedilir (K-1039 daraltması) |
 | K-1043 | Alt agent çağrı modu tanımdadır: `SubAgentSettings.CallMode` (`Background`, `Tool`); `Tool`'da ad çakışması reddedilir (F-599) |
 | K-1044 | Hosted tool kodda kaydedilir, tanım adla seçer: `AddHostedTool`; tool zinciri yoktur, tür başına en çok bir tane (F-603) |
+| K-1045 | Hosted tool desteğini sağlayıcı `IHostedToolSupport` ile bildirir; bildirmeyen tür derleme hatasıdır (F-603) |

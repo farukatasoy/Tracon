@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1034 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1035 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1086 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1087 kalem)
 
 | K | Karar |
 |---|---|
-| K-1045 | Hosted tool desteğini sağlayıcı `IHostedToolSupport` ile bildirir; bildirmeyen tür derleme hatasıdır (F-603) |
 | K-1046 | Kayıtlı hosted çağrı `tracon.content` değil `ToolInvoking`/`ToolInvoked` olur; kayıtsız olan K-1034'te kalır (F-603) |
 | K-1047 | Hosted çağrı ücreti iç döngü halkasında, yanıt önbelleğinin içinde raporlanır; fiyatsız tür `null` kalır, `0` olmaz (F-603) |
 | K-1048 | `EvalCase.ExpectedTools` yerine `ExpectedToolCalls` (ad + isteğe bağlı argüman); eski HTTP anahtarı `400` alır (F-605) 👤 |
@@ -62,3 +61,4 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1094 | `openai.strictJsonSchema` ve `azure-openai.strictJsonSchema` yalnız yanıt şemasına uygulanır; tool bildirimleri `strict: false` taşır (F-347) |
 | K-1095 | `IResponseSchemaSupport` gönderilen etkin şemayı verir; OpenAI ailesi MEAI dönüşümünü kopyalar, kaymayı tel testi kapatır (F-347) |
 | K-1096 | `response_schema_strict_unsupported` yalnız `api.openai.com`'da (iki yüzey) ve uyarı olarak üretilir; Azure ve uyumlu sunucuda üretilmez (F-347) |
+| K-1097 | SQLite'ta veri sahibi silme işlemini denetim yazımına ödünç verir; denetim satırı silmeyle birlikte commit/rollback olur (F-644) |

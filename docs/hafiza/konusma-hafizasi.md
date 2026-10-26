@@ -31,7 +31,7 @@
 - **Sayfalama:** süzgeçli okuma `OrderBy(Key)` + `Skip` ile; silme sayfa başı 200 anahtar ve süzgeç boşalana dek. Depo silmeyi bildirip kaydı döndürürse döngü yerine hata verir.
 - **Dışa aktarma** `content`, `role`, `agent`, `sessionId`, `createdAt` yazar; vektör ve kullanıcı kimliği yazmaz.
 
-- **🚨 HTTP veri sahibi silme SQLite üzerinde tamamlanmıyor** (ölçüldü, bu fazdan ÖNCEKİ kusur, F-644): `SqlDataSubjectStore` silme işlemini bir bağlantıda açık tutarken denetim yazımı (`callback`) başka bir bağlantıdan SQLite'ın tek yazarına çarpar. Hafıza olmadan, yalnız `UseSqlite` + `DELETE /api/data-subjects/{id}?dryRun=false`: istek 200 sn'de bile dönmedi; mağaza düzeyinde `IAuditLog.WriteAsync`'li callback ~31 sn sonra iptal gördü. Bu yüzden `ConversationMemorySqlTests` mağazayı DI'dan alıp boş callback ile sürer; HTTP ucu PostgreSQL/SQL Server'da çalışır.
+- **HTTP veri sahibi silme SQLite'ta da tamamlanır** (F-644, 2026-10-26'da kapandı): silme işlemi denetim yazımına ödünç verilir (`SqlStoreContext.LendTransaction`, K-1097); ayrıntı ve sınıf taraması [`sqlite.md`](sqlite.md). `ConversationMemorySqlTests` mağazayı hâlâ boş callback ile sürer; HTTP yolu `DataSubjectEndpointTests` (SQLite) içindedir.
 
 ## Test altyapısı
 

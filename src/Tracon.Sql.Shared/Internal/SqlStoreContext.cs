@@ -20,6 +20,8 @@ namespace Tracon;
 /// </remarks>
 internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
 {
+    private readonly AsyncLocal<SqlLentTransaction?> _lentTransaction = new();
+
     /// <summary>Gets the data source. The provider driver manages the connection pool.</summary>
     public required DbDataSource DataSource { get; init; }
 
@@ -98,6 +100,51 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
     /// </summary>
     public IReadOnlySet<ProtectedColumn> ProtectedColumns { get; init; } =
         System.Collections.Immutable.ImmutableHashSet<ProtectedColumn>.Empty;
+
+    /// <summary>
+    /// Gets the open transaction a store lent to the work it is awaiting in the current flow,
+    /// or <see langword="null"/> when none is lent.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The erasure of a data subject calls the audit write before it commits. On
+    /// SQLite the erasure holds the database's single write lock
+    /// (<see cref="SqlDialect.SerializesWriters"/>), so the audit write from a second
+    /// connection waited for its own process until the command timed out, and the audit
+    /// log's lock retry repeated that wait. The erasure now lends its transaction for the
+    /// duration of the callback (<see cref="LendTransaction"/>).
+    /// </para>
+    /// <para>
+    /// A store that reads this value runs its commands on the lent connection and
+    /// transaction, so its writes commit or roll back with the work that lent them. Today
+    /// only <see cref="SqlAuditLog"/> reads it; every other store keeps its own connection.
+    /// </para>
+    /// </remarks>
+    public SqlLentTransaction? LentTransaction => _lentTransaction.Value;
+
+    /// <summary>
+    /// Lends an open transaction of this context to the work the caller awaits, until the
+    /// returned scope is disposed.
+    /// </summary>
+    /// <param name="connection">The open connection the transaction runs on.</param>
+    /// <param name="transaction">The transaction.</param>
+    /// <returns>The scope that ends the loan and puts back the previous value.</returns>
+    /// <remarks>
+    /// The value is an <see cref="AsyncLocal{T}"/>: it flows DOWN into the work the caller
+    /// awaits, never back to the caller. Open the scope in the body of the method that
+    /// awaits the work, not in an async helper. The work must not use the lent connection
+    /// from two tasks at once.
+    /// </remarks>
+    public IDisposable LendTransaction(DbConnection connection, DbTransaction transaction)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(transaction);
+
+        var previous = _lentTransaction.Value;
+        _lentTransaction.Value = new SqlLentTransaction(connection, transaction);
+
+        return new TransactionLoan(_lentTransaction, previous);
+    }
 
     /// <summary>Creates a command with the configured timeout.</summary>
     /// <param name="sql">The command text.</param>
@@ -317,6 +364,20 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
         if (OwnsDataSource)
         {
             await DataSource.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Ends a loan made with <see cref="LendTransaction"/> and puts back the previous value.</summary>
+    private sealed class TransactionLoan(AsyncLocal<SqlLentTransaction?> slot, SqlLentTransaction? previous) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                slot.Value = previous;
+            }
         }
     }
 }

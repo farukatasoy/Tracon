@@ -295,7 +295,7 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 192 | 0 | 4 | 1 / 0 / 0 | 0 | 0 |
 | 194 | 0 | 6 | 1 / 0 / 0 | 2 | 0 |
 | 195 | 1 | 12 + kapanış kapıları | 1 / 1 / 0 | 2 | 0 |
-| 196 | 2 | 1 | 0 / 0 / 0 | 1 | ölçülmedi |
+| 196 | 2 | 1 | 0 / 0 / 0 | 1 | 1 |
 | 197 | 1 | 12 | 1 / 0 / 0 | 3 | ölçülmedi |
 | 198 | 1 | 3 | 0 / 0 / 0 | 1 | ölçülmedi |
 | 199 | 0 | 2 | Denetçi | Davranış | Henüz ölçülmedi |

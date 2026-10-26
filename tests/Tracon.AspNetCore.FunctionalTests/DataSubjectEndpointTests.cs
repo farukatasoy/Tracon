@@ -92,6 +92,31 @@ public sealed class DataSubjectEndpointTests
         body.GetProperty("dryRun").GetBoolean().ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task Erase_with_dryRun_false_completes_on_sqlite_and_writes_the_audit_entry()
+    {
+        // 🚨 F-644: on SQLite the audit write reached the erasure's single write lock
+        // from a second connection, so the request did not return within 200 seconds.
+        using var database = new TempSqliteDatabase("data-subject-erase");
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseSqlite(options => options.ConnectionString = database.ConnectionString),
+            configureServices: static services =>
+                services.AddSingleton<IDataSubjectResolver>(new FixedDataSubjectResolver()));
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        bound.CancelAfter(TimeSpan.FromSeconds(25));
+
+        using var response = await host.Client.DeleteAsync(
+            new Uri("/tracon/api/data-subjects/subject-1?dryRun=false", UriKind.Relative),
+            bound.Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(bound.Token));
+        var audit = await host.Services.GetRequiredService<IAuditLog>()
+            .QueryAsync(new AuditQuery { TenantId = "default" }, bound.Token);
+        audit.ShouldContain(entry => entry.Action == "data_subject.erase");
+    }
+
     // F-400: a run of the subject that is still running writes its session and its
     // checkpoints back after the erasure commits. The erasure is refused while one
     // runs, the preview names them, and 'force=true' erases anyway: a row a crashed

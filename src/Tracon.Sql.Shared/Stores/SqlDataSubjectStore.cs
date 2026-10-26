@@ -109,6 +109,17 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
     /// rows stay and point at nothing; the external store treats a repeat delete
     /// as success, so a repeat call finishes the erasure.
     /// </para>
+    /// <para>
+    /// On SQLite (<see cref="SqlDialect.SerializesWriters"/>) this transaction holds
+    /// the database's single write lock while the callback runs, so an audit write from a
+    /// second connection waited for its own process until it timed out, and the HTTP erasure
+    /// never returned. The transaction is lent to the callback
+    /// (<see cref="SqlStoreContext.LentTransaction"/>): <see cref="SqlAuditLog"/> writes the
+    /// entry on it, and the entry commits or rolls back with the erasure. An
+    /// <see cref="IAuditLog"/> the consumer registered in its place writes on its own
+    /// connection. On PostgreSQL and SQL Server the audit write keeps its own connection: a
+    /// second connection waits only for the rows the erasure touched.
+    /// </para>
     /// </remarks>
     private async ValueTask<IReadOnlyDictionary<string, int>> RunEraseTransactionAsync(
         string tenantId,
@@ -195,7 +206,13 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                 {
                     await DeleteExternalContentAsync(externalUris, cancellationToken).ConfigureAwait(false);
 
-                    await beforeCommitAsync(counts, cancellationToken).ConfigureAwait(false);
+                    // F-644: on a database that lets one connection write at a time, the audit
+                    // write joins this transaction (see the remarks). The loan is opened in
+                    // this body, so it flows down into the callback.
+                    using (_dialect.SerializesWriters ? _context.LendTransaction(connection, transaction) : null)
+                    {
+                        await beforeCommitAsync(counts, cancellationToken).ConfigureAwait(false);
+                    }
                 }
                 catch
                 {

@@ -73,29 +73,41 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     [Theory]
-    [InlineData(1)]
-    [InlineData(3)]
-    public async Task A_cancelled_job_whose_handler_throws_stays_cancelled(int maxAttempts)
+    [InlineData(1, false)]
+    [InlineData(3, false)]
+    [InlineData(1, true)]
+    [InlineData(3, true)]
+    public async Task A_cancelled_job_whose_handler_throws_stays_cancelled(int maxAttempts, bool throwsAfterTheWatchSawTheCancel)
     {
         var jobs = new ObservingJobStore();
-        var handler = new CancelThenThrowHandler(jobs);
+        var handler = new CancelThenThrowHandler(jobs, throwsAfterTheWatchSawTheCancel);
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        using var meters = new TestMeterFactory();
+        using var collector = new MetricCollector(meters.Meter);
+        using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
 
         var jobId = await EnqueueAsync(jobs, maxAttempts, DateTimeOffset.UtcNow);
 
-        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5));
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5), metrics: metrics);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
-        // The worker's next store call after the throw decides the outcome: a
-        // completion or a release overwrites the cancel; a read leaves it.
-        await jobs.AfterHandlerThrew.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        // 🚨 F-687: the attempt's job metric is the one signal both orders share. A
+        // handler that throws before the watch reads the cancel goes through the
+        // failure path, which reads the status back; when the watch reads it first,
+        // the worker writes and reads nothing more. Waiting for that read hung the
+        // second order for 30 s, and a busy machine made it the order that ran.
+        await WaitUntil.TrueAsync(
+            () => collector.LongTags(TraconDiagnostics.JobCounterName).Count > 0,
+            "the worker to record the attempt's outcome");
 
         var record = await jobs.GetAsync(TenantId, jobId, TestContext.Current.CancellationToken);
 
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
         record!.Status.ShouldBe(JobStatus.Cancelled);
+        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
+            .ShouldBe(nameof(JobStatus.Cancelled));
         handler.Calls.ShouldBe(1);
     }
 
@@ -336,7 +348,8 @@ public sealed class JobWorkerLeaseContractTests
         IJobStore jobs,
         TestJobHandlerHost host,
         TimeSpan leaseDuration,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null,
+        TraconMetrics? metrics = null)
         => new(
             jobs,
             new InMemoryJobScheduleStore(),
@@ -352,6 +365,7 @@ public sealed class JobWorkerLeaseContractTests
             new SchemaReadyGate([]),
             new NotDraining(),
             timeProvider: clock,
+            metrics: metrics,
             logger: NullLogger<JobWorkerBackgroundService>.Instance);
 
     private static async Task<Guid> EnqueueAsync(IJobStore jobs, int maxAttempts, DateTimeOffset now)
@@ -454,7 +468,13 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     /// <summary>Cancels its own job, as an operator would mid-run, then fails on its way out.</summary>
-    private sealed class CancelThenThrowHandler(ObservingJobStore jobs) : IJobHandler
+    /// <param name="jobs">The store the handler cancels its job in.</param>
+    /// <param name="waitForTheWatch">
+    /// Throws only after the worker's cancel watch has read the cancel and stopped the
+    /// handler's token. Without the wait the order is a race between the throw and the
+    /// watch's next tick, and the worker writes nothing after the throw when the watch wins.
+    /// </param>
+    private sealed class CancelThenThrowHandler(ObservingJobStore jobs, bool waitForTheWatch) : IJobHandler
     {
         private int _calls;
 
@@ -467,7 +487,11 @@ public sealed class JobWorkerLeaseContractTests
             (await jobs.CancelAsync(context.Job.TenantId, context.Job.Id, cancellationToken)).ShouldBeTrue();
             (await context.IsCancelledAsync(cancellationToken)).ShouldBeTrue();
 
-            jobs.HandlerThrew = true;
+            if (waitForTheWatch)
+            {
+                await Should.ThrowAsync<OperationCanceledException>(
+                    () => Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)); // delay: simulated
+            }
 
             throw new InvalidOperationException("The handler stopped because its job was cancelled.");
         }
@@ -611,18 +635,11 @@ public sealed class JobWorkerLeaseContractTests
     /// </summary>
     private sealed class ObservingJobStore : DelegatingJobStore
     {
-        private readonly TaskCompletionSource _afterHandlerThrew = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _readAfterMarkRunning = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private volatile bool _markedRunning;
 
         /// <summary>Cancels the job just before the worker marks it running.</summary>
         public bool CancelBeforeMarkRunning { get; init; }
-
-        /// <summary>Set by the handler right before it throws.</summary>
-        public bool HandlerThrew { get; set; }
-
-        /// <summary>The worker's first completion, release or read after the handler threw.</summary>
-        public Task AfterHandlerThrew => _afterHandlerThrew.Task;
 
         /// <summary>The worker's first read after marking the job running failed.</summary>
         public Task ReadAfterMarkRunning => _readAfterMarkRunning.Task;
@@ -641,23 +658,9 @@ public sealed class JobWorkerLeaseContractTests
             return marked;
         }
 
-        public override async ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
-        {
-            await base.CompleteAsync(completion, cancellationToken);
-            Signal();
-        }
-
-        public override async ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
-        {
-            await base.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken);
-            Signal();
-        }
-
         public override async ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
         {
             var record = await base.GetAsync(tenantId, jobId, cancellationToken);
-
-            Signal();
 
             if (_markedRunning)
             {
@@ -665,14 +668,6 @@ public sealed class JobWorkerLeaseContractTests
             }
 
             return record;
-        }
-
-        private void Signal()
-        {
-            if (HandlerThrew)
-            {
-                _afterHandlerThrew.TrySetResult();
-            }
         }
     }
 }
