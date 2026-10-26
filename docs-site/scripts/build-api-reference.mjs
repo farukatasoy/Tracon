@@ -256,6 +256,7 @@ function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
   // 4. DocFX exposes the compiler-only clone member of every record. It is not a
   // useful callable surface and makes hundreds of reference pages look unfinished.
   body = removeCompilerGeneratedClone(body);
+  body = removeCallerInfoArguments(body);
 
   // 5. XML documentation uses HTML block elements. Markdown inside a raw HTML block
   // is not parsed, so links written by step 3 used to appear as literal brackets in
@@ -663,6 +664,15 @@ function removeCompilerGeneratedClone(body) {
   }
 
   return output.join('\n');
+}
+
+// xunit v3's `FactAttribute` and `TheoryAttribute` take `[CallerFilePath]` and
+// `[CallerLineNumber]` parameters, so the compiled signature carries the absolute
+// source path of the machine that built the assembly: 718 signatures published
+// `[Fact("/Users/<name>/...", 13)]`. The source writes `[Fact]`; publish that.
+// check-content.mjs fails the build if any page still carries a home directory.
+function removeCallerInfoArguments(body) {
+  return body.replace(/^\[(Fact|Theory)\("[^"\n]*", -?\d+\)\]$/gm, '[$1]');
 }
 
 function dedupeMemberSections(body) {

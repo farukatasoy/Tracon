@@ -111,6 +111,25 @@ public sealed class TraconSchedulingOptionsBindingTests
         failure.Message.ShouldContain("Tracon:Scheduling:MaxConcurrentJobsPerLane:media is 'three'");
     }
 
+    [Theory]
+    [InlineData("MaxConcurrentJobsPerLane", "5")]
+    [InlineData("MaxDurationByHandlerKey", "00:10:00")]
+    [InlineData("LaneByHandlerKey", "media")]
+    public void A_map_key_with_one_value_and_no_name_fails_at_startup(string key, string text)
+    {
+        // F-704: the binder reads one entry per name, so a value written on the map key
+        // itself named nothing and vanished without a word.
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            [$"Tracon:Scheduling:{key}"] = text,
+        };
+
+        var failure = Should.Throw<OptionsValidationException>(() => Bind(values));
+
+        failure.Message.ShouldContain($"Tracon:Scheduling:{key} is '{text}', a single value.");
+        failure.Message.ShouldContain($"write it as Tracon:Scheduling:{key}:<name>.");
+    }
+
     [Fact]
     public void An_empty_lane_mapping_fails_at_startup()
     {

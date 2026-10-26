@@ -12,13 +12,15 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-26):** sıralanabilir kuyrukta **6** aday var (F-420 podcast
-turu; F-324 video tüketicisi turu; F-618…F-621 MAF Dalga 4 turu,
+**Durum (2026-10-26):** sıralanabilir kuyrukta **5** aday var (F-324 video tüketicisi
+turu; F-618…F-621 MAF Dalga 4 turu,
 [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md)).
-2026-10-26'da öncelikli kalemler plana dönüştü: F-688 (Faz 246), F-572 + F-508
+2026-10-26'da iki planlama turu oldu. Birincisi: F-688 (Faz 246), F-572 + F-508
 (Faz 247), F-409 (Faz 248 numara kimliği, Faz 250 alt agent sabiti) ve F-545
 (Faz 249; ikinci kanıtı F-409, bakımcı kararı). F-409'un skill yarısı F-698
-olarak § *Tetik bekleyenler*'dedir.
+olarak § *Tetik bekleyenler*'dedir. İkincisi, yanlış çalıştığı ölçülen dört birim:
+F-503 + F-505 (Faz 251), F-606 + F-607 (Faz 252), F-420 (Faz 253), F-689 + F-690
+(Faz 254). Aynı gün doğrudan kapandı: F-495, F-640, F-673, F-702, F-704, F-705.
 Bugün yapılabilecek iş
 § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil,
 üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
@@ -128,9 +130,9 @@ dosyayı **aynı değişiklikte** düzeltir.
 ## Sıralanabilir Adaylar
 
 Bir kalem buraya § *Değerlendirme Ölçütleri*'nin tam gövdesiyle girer; yeni
-aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast ve video
-tüketicisi turlarından gelir; kanal ve aciliyet
-§ *Faz planlama* tablosundadır.
+aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 video tüketicisi
+turundan (F-324) ve 2026-10-21 MAF Dalga 4 turundan (F-618…F-621) gelir; kanal
+ve aciliyet § *Faz planlama* tablosundadır.
 
 ### F-324 · Karışık zincirde agent adımının iletim modu
 
@@ -158,31 +160,6 @@ tüketicisi turlarından gelir; kanal ve aciliyet
 
 ---
 
-### F-420 · Önbellek yazma token'ı ve fiyatı run maliyetine girsin
-
-**Kanal:** faz planlama · 🟢 (ölçüm kanalı değiştirebilir, bkz. Genellik)
-
-**Sorun:** Run maliyeti yalnız önbellek **okuma** token'ını ve fiyatını taşır (`UsageBreakdown.cs:36`, `RunSupportTypes.cs:41`, `:148`; `ModelDescriptor` okuma fiyatı `:46`). Anthropic önbellek yazmasını ayrıca faturalar (5 dk TTL 1,25×, 1 sa 2× girdi fiyatı). Faz 204 ölçtü (SDK 12.39.0 decompile + canlı run): yazma token'ı `InputTokenCount`'a girer ve `AdditionalCounts["CacheCreationInputTokens"]`'e yazılır; `RunPricingResolver` önbelleksiz payı çıkarmayla bulduğu için yazma düz girdi fiyatıyla fiyatlanır. Genellik kuralına göre kalem fiyat eksiğidir ve planlamada kalır.
-
-**Kapsam:** Adım 0 ölçümü; sonra `RunUsage` ve `RunCost`/`RunTreeCost`'a yazma terimi, `ModelDescriptor`'a TTL başına yazma fiyatı (K-032), `Total()` dört terim (K-483), üç sağlayıcıda migration, kota ve webhook toplamı.
-
-**Değer:** Önbellekli Anthropic kullanan her tüketicinin run maliyeti ve maliyet kotası doğru olur.
-
-**Genellik:** İlk ilke: Tracon run maliyetini sözleşme olarak sunar; önbellekli her Anthropic kullanıcısı etkilenir. Tek tüketici ölçümü yalnız sinyaldir (podcast pilotu, toplamın ~%1'i). Ölçüm token'ın hiç sayılmadığını gösterirse kalem maliyet kaydı kusurudur ve kusur kanalına geçer; girdi fiyatıyla sayılıyorsa fiyat eksiğidir ve burada kalır.
-
-**Mercek:** 2, 8.
-
-**Hazırlık:** Okuma fiyatı deseni hazır (`CachedInputCostPerMillionTokens`); SDK 12.39.0 `Ttl.Ttl1h` taşır.
-
-**Maliyet:** Public alanlar, migration (üç sağlayıcı), ağaç toplamı sorgusu, konsol maliyet satırı, iki istemci.
-
-**Risk:** Toplama ifadesine yeni terim (K-483 sınıfı): kota veya webhook terimi kaçırırsa kiracı tavanı aşılır.
-
-**Bağımlılık:** Faz 204 (`promptCaching.ttl`); ağaç ve istatistik toplamları para birimi kuralını `CurrencyTotals`'tan alır (K-976) — yeni terim oradan geçmeli.
-
-**Ekosistem (2026-10-13):** Anthropic önbellek yazmasını TTL'e göre fiyatlar; OpenAI yazma ücreti almaz; Gemini bağlam önbelleği saklama süresine göre ücretlendirir.
-
-**Karşı görüş:** Ölçülen pilotta pay ~%1'dir; migration'ın maliyeti değerden büyük olabilir. Ölçüm "hiç sayılmıyor" demedikçe beklemek savunulabilir.
 
 ### F-618 · MCP sunucusundan dağıtılan skill (`UseMcpSkills`)
 
@@ -303,10 +280,8 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-679** · Slot bekleyen run'ın `Queued → Running` terfisi koşulsuz upsert'tir: bu arada kapanmış satırı yeniden `Running` yazabilir | Faz 240 denetimi (🟢8, kod okuması). `RunEventWriter.PromoteAsync` `StartRunAsync`'i çağırır; upsert `status`'u ezer, `completed_at`/hata alanlarına dokunmaz. Kuyruktan lease'li bir workflow run'ı başka bir örnekte slot beklerken iptal ucu (kayıt defteri o örnekte yok) işi iptal edip satırı `Canceled` yazarsa, bekleyen örnek slotu alınca satırı `Running`'e döndürür; iş iptalini `PollInterval` içinde fark edip run'ı yeniden kapatır. Kısa süreli tutarsız görünüm; ölçülmedi | Terfiyi "satır hâlâ `Queued` ise" koşullu yaz (depo sözleşmesine koşullu güncelleme gerekir) ya da terfiden sonra satırı oku ve kapanmışsa run'ı iptal et. Önce iki örnekli bir testle ölç |
 | 🟢 | **F-680** · Uzlaştırmanın `Failed`/`orphaned` kapattığı hiç başlamamış bekleyen run, `ResumeInterruptedRuns` açıkken sonraki iş denemesinde "kesinti" sayılır ve bir `MaxResumeAttempts` hakkı harcar | Faz 240 denetimi (🟢12). `WorkflowRecovery.PlanAsync` (`WorkflowRecovery.cs:109`, `:135-160`): tek `Queued` zincir `NotStarted` sayılır, ama uzlaştırma satırı `Failed` kapattıysa zincir "kesinti" olur, devam run'ı açılır (checkpoint yoksa baştan koşar) ve hak tüketilir. Sonuç doğru, hak tüketimi belgelenmemiş. Ölçülmedi | Davranışı `Resume an interrupted workflow run` bölümüne yaz ya da `orphaned` kapanan ve olayı olmayan tek run'ı `NotStarted` say. Önce testle ölç |
 | 🟢 | **F-639** · Dış yüzey kapısı yalnız açılıştaki, bağlamsız katalogu okur: açıldıktan sonra kaydedilen agent, başka kiracının agent'ı ve çağrılabilir alt agent görünmez | Faz 231 denetimi (🟡4, 🟢2). Ölçüldü: açıldıktan sonra HTTP ile kaydedilen veritabanı agent'ı denetlenmez (`SkillExposureTests` iki host ister). Okuma, ölçülmedi: bağlam yoksa kiracı varsayılandır, çok kiracılı host'ta başka kiracının agent'ı listede yoktur; çağrılabilir alt agent'ın skill ve tool'u sayılmaz. Tool kuralıyla aynı sınıf (eski). Çalışma anı reddi tutar, sızıntı yok | Önce çok kiracılı host'ta ölç. Sonra kapıyı katalog değişince ya da agent çözülürken yeniden koştur; olmazsa sınırı belgede bırak (belgede açılış anı yazılı) |
-| 🟢 | **F-640** · `JsonFileAgentSource` örneği `ExtensionNames`'i descriptor'a kopyalamaz | Faz 231 denetimi (🟡1 yanında): `ToDescriptor` `SkillNames` ve `Skills`'i kopyalar, `ExtensionNames`'i kopyalamaz (Faz 222 sonrası eski kusur). Örneği kopyalayan kaynak uzantılı agent'ı katalogda uzantısız gösterir | Örneğe satırı ekle; `write-your-own-agent-source.md` descriptor paragrafına `ExtensionNames`'i yaz |
 | 🟢 | **F-641** · Yedek zincir bağlantı istemcilerini kilitsiz bir sözlükte tutar | Faz 232 denetimi (🟢, kod okuması): `FallbackChatClient._fallbackClients` düz `Dictionary` (`FallbackChatClient.cs:57`, `ResolveFallbackClientAsync`); derlenmiş agent eşzamanlı run'lar arasında paylaşılır, iki run aynı anda yedeğe geçerse sözlük eşzamanlı yazılır. Faz 232'den beri uzantının halka fabrikası da bu yoldan koşar. Ölçülmedi, repro yok (`KR-05`) | Eşzamanlı yedek geçişini ölç; kusursa `ConcurrentDictionary` ya da kilit, test: iki paralel run aynı anda yedeğe geçer |
 | 🟢 | **F-672** · Kesintiyle kapanan workflow run'ının tutarı kota sayacına yazılmaz | Faz 239 (kod okuması): `WorkflowRecovery.CloseInterruptedAsync` satırı kapatır ama kök kota yazımı (`WorkflowRunner.RecordQuotaAsync`, kapanışta) süreçle birlikte gitti; kalemler `non_token_usage`'dedir, sayaçta yoktur. Devam run'ı bütçeye bu tutarı devralır (`BudgetLineage`) ama sayaç eksik kalır, kota payı hesabı onu iki kez saymamak için temel alır | Önce ölç (çökmeden sonra `GET /api/quotas/usage`). Kapanışta kalemlerden bir kota girdisi yazmak (`TreeQuota.RecordAsync` tek yol) ya da sınırı belgede bırakmak |
-| 🟢 | **F-673** · `RunEventWriter.CompleteAsync` `CompletedAt`'i sistem saatiyle yazar | Faz 239: `StartedAt` runner'ın `TimeProvider`'ından gelir, `CompletedAt` `DateTimeOffset.UtcNow`'dan (`RunEventWriter.cs:589`). Üretimde aynıdır; sahte saatli testte devam bütçesinin aktif süresi bozulur, testler satır zamanını elle yazar | Yazıcıya `TimeProvider` ver (kurucu zaten metrik ve sink alıyor); `SetTimesAsync` yardımcıları silinir |
 | 🟢 | **F-674** · Devam bütçesi okumasının iki sessiz kenarı | Faz 239 denetimi 🟢2, 🟢3: (a) zincir okunurken gelen iptal yutulur, iptal edilen operatör resume'unun satırı kaynağına bağlanmaz (run yine `Canceled` kapanır; yalnız `?continuedFromRunId=` listesinde eksik görünür); (b) çok para birimli ağaç `RunSpend.Total(...) ?? 0m` ile seed'e sessizce 0 yazar, log yok (özel `IRunPricingResolver` gerekir) | (a) iptalde bağı yine yaz (satır zaten açık); (b) bir kez `Warning` yaz. İkisi birlikte küçük bir `kusur-giderme` |
 | 🟢 | **F-675** · Operatör resume'u, kuyruk işinin hâlâ sahip olduğu zincire katılır | Faz 239 (kod okuması): resume artık `ContinuedFromRunId` yazar; `WorkflowContinuationChain` onu zincirin son halkası sayar. Kuyruk işi kurtarılırken canlı bir operatör resume'u `Running` görünür ve `CloseChainAsync` onu `interrupted` kapatır; resume aynı zamanda `MaxResumeAttempts` hakkından yer. Bilinen sınır CHANGELOG'da yazılı: işi bitmemiş bir run'ı resume etme | Önce ölç (iş kira süresi dolmadan resume, sonra kurtarma). Kural: kurtarma yalnız kendi açtığı devamları sayar ya da operatör resume'u işin zincirinden ayrı bağ alır |
 | 🟢 | **F-643** · Workflow adımındaki agent konuşma hafızası kullanamaz | Faz 233 denetimi (🔴1): workflow'un oturum kimliğinin `sessions` satırı yoktur (F-332); oturum silme, `sessions` saklama hedefi ve oturum anahtarlı silme satırdan başlar, hafıza kaydı silinemezdi. Çözüm: `SessionHasNoRecord` işareti workflow kök kapsamından altındaki her run'a akar ve hafıza yazmaz (K-1067). Kaybedilen: bir workflow'un agent adımı, aynı kullanıcının önceki oturumlarını hatırlayamaz | Açma kararı: workflow run'ına bir silme çapası vermek (ör. veri sahibi silmede `runs.session_id` genişletmesi + `runs` saklamasında kopya silme). Ölçülmüş ihtiyaç gelirse |
@@ -325,7 +300,6 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-526** · `kapi.py` sevk edilen sözleşme değişimini çözüm dışı örnek depoya bağlamıyor | Ölçüldü (2026-10-14, F-502): `RunStoreContract`'a case ekleyen değişiklik `samples/Tracon.Samples.FileRunStore`'u kırdı; çözümde olmadığı için yalnız `kapi.py yayin --kuru` gördü. `faz-tamamlama` bunu yazar, kapı hatırlatmaz | `src/Tracon.Testing.Contracts.Xunit/` dokunulduğunda `ic-dongu` ve `kapanis`, `samples/Tracon.Samples.*` uyarısının kardeşi olarak "yayın provası gerekir" bassın |
 | 🟢 | **F-527** · Yeniden denemeden sonra reddedilen düğümde ilk denemenin hatası kayıttan düşer | Faz 210 denetimi (🟢): ikinci deneme bütçe kapısında reddedilirse run satırı yalnız `Could not start function node …` der; ilk denemenin geçici hatası kayıtta yok. `WorkflowNodeRetry` başarısız denemeyi bütçeden bağımsız olarak da loglamaz | Retry döngüsü her başarısız denemeyi `Warning` olarak logla; ret mesajı gerekirse ilk denemenin hata tipini anar |
 | 🟢 | **F-496** · Kuyruklu workflow `respond`'unun `definitionVersion` zinciri uçtan uca sınanmıyor | Faz 200 denetimi (🟡2, kısmen): `resume` için tezgâh var (`WorkflowAsyncRunTests`); stored workflow'un insan girdisi bekleyen bir tezgâhı yok, `WorkflowEndpoints` respond satırı silinirse yalnız yük ve handler birim testleri parçalarını sınar | İnsan girdisi bekleyen stored workflow tezgâhı kur; adı konan sürüm ve olmayan sürüm (`400`, iş kuyruğa girmez) |
-| 🟢 | **F-495** · Üretilen API sayfaları xunit `[Fact]` özniteliğinin mutlak kaynak yolunu taşır | Ölçüldü (2026-10-14, Faz 200): `docs-site/src/content/docs/api/Tracon.Testing.Contracts.*.md` içinde 48 sayfa `[Fact("/Users/…/src/…", 13)]` yazar (`[CallerFilePath]`); site yayınında yerel kullanıcı yolu sızar. Aynı sayfalar, adında `faz` geçen bir çalışma ağacında `SourceLanguageTests`'i kırar | `build-api-reference.mjs` öznitelik argümanlarını yazmasın |
 | 🟢 | **F-485** · A2A istemcisi onay reddinin metnini görmez | Ölçüldü (2026-10-14, F-448 sınıf taraması): `ExternalAgentProxy` `TraconExternalCallException` atar, A2A host'u yanıtı `-32006` *"Agent handler did not produce any response..."* ile değiştirir; drain ve bilinmeyen agent reddi de aynı yoldan geçer. Run artık `Failed` kapanır (K-977) | Karar: hata A2A görev durumu (`failed` + mesaj) olarak mı, JSON-RPC hata metni olarak mı taşınır; önce A2A SDK'nın istisna eşlemesini ölç |
 | 🟢 | **F-486** · Konsolun skill seçicisi yalnız `store` skill'lerini listeler; kod ve disk skill'i seçilemez | Kod okuması (2026-10-14, F-481 sınıf taraması): ajan düzenleyicisi `GET /api/skills`'i okur, uç `IAgentSkillStore.ListAsync`'i döner. `AddSkill` ve `SkillRoots` skill'i yalnız API'den adlandırılır | Karar: liste ucu kaynağı (`origin`) ile kod ve disk skill'ini de dönsün mü; disk taramasının liste maliyeti |
 | 🟢 | **F-487** · Devre dışı `store` skill'i aynı adlı disk skill'ini katalogda gölgeler, run'da gölgelemez | Kod okuması (2026-10-14, F-481): katalog adı `store`'da bulur ve `disabled` sayar (parmak izi `:disabled`); derleme yolunda `TraconSkillsSource` devre dışı kaydı vermez, MAF dosya kaynağı aynı adlı disk skill'ini sunar | Karar: devre dışı kayıt adı diske de kapatsın mı (öncelik kuralı) |
@@ -387,18 +361,13 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-494** · Konsol grafı belirli bir workflow sürümü için çizemez | Faz 200 kapsam dışı: graf görünümü güncel tanımı çizer; sürüm farkı alan karşılaştırmasıdır | `GET …/graph?version=N` ve Sürümler satırında bağlantı |
 | 🟢 | **F-410** · Kod Loop ölçütüne tanım başına tipli ayar | Faz 201 kapsam dışı: özel tür veri almaz — tek örnek bütün tanımlara hizmet eder (`LoopEvaluatorRegistry.BuildCriterion`, `default` dalı); konsol kod türü için alan göstermez ve tür değişiminde `marker`/`judgeCriteria`/`modes`'u temizler (`loop-section.tsx` `withKind`). Faz 195'in `Settings` deseni emsal; ayar `FindProblems`'a ve `GET /api/loop-criteria`'ya (şema) birlikte girer | Faz 201'den sonra |
 | 🟢 | **F-417** · Görsel sağlayıcısı kiracının kendi anahtarını kullanabilsin | K-912 (2026-10-13): kiracının görsel sağlayıcısı için bağlaması varsa üretim reddedilir, çünkü sağlayıcı paketleri üreticiyi kurulum anahtarıyla kurar. Canlı ses `SupportsTenantCredentials` ile aynı işi çözdü (K-878) | Faz 198'in konuşma modeliyle birlikte: anahtarlı üretici fabrikası, OpenAI/Azure/Google görsel kaydı |
-| 🟢 | F-420 · Önbellek yazma token'ı ve fiyatı | Faz 204'ten ayrıldı (2026-10-13); önce ölçüm | Gövde: § *F-420* |
 | 🟢 | **F-445** · Konuşma soketi ses sağlayıcısını tur başına yeniden denetlesin | Faz 198 denetimi 🟢1 (2026-10-13, kod okuması): soket STT ve TTS'i bağlantı açılırken bir kez çözer (`VoiceConversationDriver.ResolveProvidersAsync`); açık bağlantı sonradan kaydedilen egress politikasını kapanana kadar görmez. Model tarafı her turda yeniden okur (F-310 emsali). Site ve XML bugün bu sınırı yazar | Karar: tur ortasında ret davranışı (hata çerçevesi, bağlantıyı kapatma) — protokol sözleşmesi; sonra tur başına çözümleme ve fonksiyonel test |
-| 🟢 | **F-503** · OpenAI Responses kesik yanıtı `incomplete` işaretlemez | Ölçüldü (2026-10-14, Faz 207, geçici prob): `Length` ile kesik düz metin iki kolda `completed` döner | Karar: MAF JSON'una yama ile `incomplete` + `response.incomplete` (tel sözleşmesi) |
 | 🟢 | **F-504** · Workflow SSE'si agent adımının kesildiğini söylemez | Faz 207 §207.6, kod okuması: olay alt run'da kalır; workflow `MessageDelta`'sı bitiş sebebi taşımaz | Önce ölçüm; sonra çerçeve kararı (K-991 emsali) |
-| 🟢 | **F-505** · İçerikli `content_filter` yarım yanıtı kayıtta iz bırakmaz | Faz 207 §207.6: dedektör yalnız boş yanıtı hata yapar; yalnız chat/completions `content_filter` der | Karar: yeni ayrılmış `CustomType` ve ayna listesi (K-991) |
-| 🟢 | **F-506** · Konsol playground'u `custom` çerçevelerini göstersin | Faz 207 §207.6: `use-playground-run.ts` `custom`'u yok sayar; kesilme ve kota bildirimi görünmez | Rozet tasarımı (`en.ts` + `tr.ts`), E2E |
+| 🟢 | **F-506** · Konsol playground'u `custom` çerçevelerini göstersin | Faz 207 §207.6: `use-playground-run.ts` `custom`'u yok sayar; kesilme ve kota bildirimi görünmez. Faz 251 listeye `tracon.output.filtered`'ı ekler | Rozet tasarımı (`en.ts` + `tr.ts`), E2E; üç tip |
 | 🟢 | **F-513** · Retention hedefi yapılandırmadan kapatılamaz | Faz 206 Açık Soru 1-A: `MaxAgeDays` yalnız sayı alır; JSON `null` (8.0.1 `""`, 10.0.0 `null`) varsayılanı sessizce bırakır | Karar (1-B): boş değer `null` bağlar mı; saklama süresini uzatma yönü |
 | 🟢 | **F-517** · Tek cevaplı istek için yönetici çıkışı | Faz 208 denetimi 🟢1 + kapsam dışı: teslimden sonra düşen devamda zıt cevap hep `409`; motorun teslimde reddettiği cevap isteği kilitler; kaydı `Abandoned` yapan uç yok | Admin ucu, denetim kaydı, konsol düğmesi |
 | 🟢 | **F-518** · `workflow_responses` sınırsız büyür | Faz 208 🟡5: kayıt yalnız veri sahibi silmesiyle gider; hiçbir saklama hedefi `runs` silmez | `workflow_requests` hedefi var (K-1004); aynı kalıp `workflow_responses` için ayrı karar |
 | 🟢 | **F-519** · Yalnız devam run'ı silinince cevap kaydı kalır | Faz 208 denetimi 🟢2: FK yalnız `source_run_id`'de; zincir boş görünür, aynı cevap `Gone` → `409` alır | Karar: `response_run_id` FK'sı ya da `Gone`'da yeniden sürme |
-| 🟢 | **F-689** · Akışsız run başarısız bitince araç satırı yazılmaz | Faz 243 denetimi 🟡2: `RunAsync` (akışsız) bütçe reddiyle biterse hem reddedilen hem başarılı çağrının satırı yoktur; kuyruk (`AgentRunJobHandler`), devam (`RunContinuationJobHandler`) ve workflow agent adımı (`WorkflowAgentStepExecutor`) akışsız yolu kullanır. İzleyici mesajları yanıtla birlikte okur | Karar: başarısız run'ın mesajları kurtarılır mı; `/runs/{id}/tools` boş döner |
-| 🟢 | **F-690** · Betik yolu ve gerçek token yolu uçtan uca sınanmıyor | Faz 243 denetimi 🟢1+🟢2: betik kapısı `script.RunAsync` ile sınanır, model → onay → devam hattı yok (`run_skill_script` her zaman onay ister; onaylı çağrı devam run'ında yeni bütçeyle koşar). Bütçe reddi `script.denied` denetim kaydı yazmaz. Token testi yan kanal kullanır, çünkü `FakeModelProvider.CallsTools` kullanım yazamaz | `Tracon.Testing` genel yüzeyi büyür (tool çağrı turuna kullanım); betik reddi denetim kaydı ister mi — karar |
 | 🟢 | **F-532** · Süre kapanışı normal kapanışın temizliğini atlar | Faz 209 denetimi 🟢2: süre ile kapanan run `KeepCheckpointsAfterCompletion = false` temizliğini ve `RecordRun` metriğini çalıştırmaz (onay emsali aynı); retention yine bırakır | Ortak kapanış yardımcısı ya da karar: emsal gibi kalsın |
 | 🟢 | **F-533** · Kısmen dolmuş run'da kapanmış isteğe cevap alınır | Faz 209 denetimi 🟢5: bir istek kapanmış, öbürü açıkken kapalı isteğe cevap `WorkflowRunner` denetiminden geçer (satır durumuna bakılmaz); işaret kapalı satıra yazılmaz | Karar: kapı kapalı satırı `400` ile reddetsin mi |
 | 🟢 | **F-534** · Kiracı listesi sayfa başına olay okur | Faz 209 §209.1: satır olayı `event_seq` ile adlandırır ama istem her satır için `ReadEventsAsync`'le okunur (sayfa en çok 200) | Tek olay okuyan `IRunStore` üyesi; önce ölç |
@@ -409,8 +378,6 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-602** · Kod tanımlı MAF skill'i (C-09) | Ölçüldü (2026-10-20, gerçek host): uzantının ikinci skill provider'ı Tracon skill'iyle birlikte MAF tarafından reddedilir (aynı state key) | `CreateSkillsProvider`'a `UseSkill`; C# script'i süreç içinde koşar → kapı tasarımı. Yargı: [`kesif/2026-10-20-maf-dalga-3.md`](kesif/2026-10-20-maf-dalga-3.md) § F-602 |
 | 🟢 | **F-604** · Hosted MCP sunucusu (C-12 b) | Ölçüldü (2026-10-20, gerçek OpenAI teli): onay `store=false` ile çalışır; Tracon onay yolu `McpServerToolCallContent`'i `tool:unknown` yazar, kural yazmaz (`ToolApprovalResolver.cs:91,197`) | `secret` adla (K-059), adres izin listesi; OpenAI sunucuyu kendi bulutundan çağırır (Tracon egress'i yok). Bağımlılık Faz 226 (F-603). Yargı: [`kesif/2026-10-20-maf-dalga-3.md`](kesif/2026-10-20-maf-dalga-3.md) § F-604 |
 | 🟢 | **F-605** · Değerlendirme: çok turlu vaka ve workflow suite'i (C-17 kalan) | Dilim (a) beklenen tool argümanı Faz 227 oldu. Kalan: vaka tek turdur (`EvalCase.cs:16`), suite yalnız agent hedefler (`EvalSuite.AgentName`); MAF `Run.EvaluateAsync` akışsız `Run` ister, Tracon `StreamingRun` kullanır (ölçüldü 2026-10-20) | Talep ölçülmeden planlanmaz. Yargı: [`kesif/2026-10-20-maf-dalga-3.md`](kesif/2026-10-20-maf-dalga-3.md) § F-605 |
-| 🟢 | **F-606** · Model başına istek alanı desteği (`ModelDescriptor`) | Faz 225 gerçek koşumu (2026-10-20): `openai` Chat Completions yüzeyi `stop`'u gönderir ama `gpt-5.4-mini` onu `400 unsupported_parameter` ile reddeder. `ISamplingSupport` yüzeye bağlıdır; model düzeyi yalnız `SupportsSampling` (Temperature/TopP) bayrağındadır | Alan başına `bool?` bayrak ya da `SamplingFields` kümesi katalogda; `null` = bilinmiyor, denetlenmez (K-032). Önce hangi modellerin hangi alanı reddettiği ölçülür |
-| 🟢 | **F-607** · İstek alanı değer aralığı denetimi | Faz 225 denetimi 🟢: Google adaptörü `Seed`'i `(int)` ile denetimsiz daraltır (`ModelBinding.Seed` `long?`; `2^31` üstü başka değere döner). Konsol `Seed`'i JS `Number` ile taşır (`2^53` üstü bozulur). `StopSequences` giriş sınırı sağlayıcıya göre değişir ve Tracon denetlemez | `ISamplingSupport`'a alan başına sınır ya da sağlayıcı bildirimi; konsolda `seed` metin olarak taşınır. Sınır için önce her sağlayıcının belgelenmiş değeri ölçülür |
 | 🟢 | F-618 · MCP sunucusundan dağıtılan skill (C-14 c) | Ölçüldü (2026-10-21, decompile): `UseMcpSkills` alpha pakette | Paket yeri kararı; F-602 ile tek kural. Gövde: § *F-618* |
 | 🟢 | F-619 · A2A görev modu ve dış çağıranın onayı (C-15 a2) | Ölçüldü (2026-10-21): A2A hep mesaj döner, MAF onayı `input-required`'a çevirmez | Bağımlılık F-614; dış onay kararı. Gövde: § *F-619* |
 | 🟢 | F-620 · Workflow'u agent olarak sunmak (C-18 c) | Ölçüldü (2026-10-21, decompile): `Workflow.AsAIAgent` `src/`'de 0 | Bağımlılık F-615. Gövde: § *F-620* |
@@ -591,25 +558,6 @@ tarayıcısızdır.
 
 ---
 
-### F-705 · `DELETE /api/agents/{name}` açıklaması sürüm numarasının kaldığını söylemez
-
-**Kanal:** faz planlama · 🟢
-
-**Sorun:** `AgentEndpoints.cs` silme ucunun özeti "…and its version history" der ve
-açıklaması numaralamadan söz etmez. Faz 248'den beri numara silmede kalır: silinen
-agent aynı adla yeniden oluşturulunca eski numaranın devamını alır. Davranış
-`concepts/agents.md` ve `IAgentDefinitionStore` XML'inde yazılıdır; ucu okuyan
-tüketici (üretilen `http-api/agents.md`, iki istemci) bunu görmez.
-
-**Kapsam:** `WithDescription` metnine bir cümle. Metin `docs/openapi/tracon.json`,
-`packages/tracon-client/src/schema.ts` ve `Tracon.Client/Generated/TraconApiClient.g.cs`
-içinde de geçtiği için üç üretilen dosya yeniden üretilir.
-
-**Maliyet:** Ölçülmedi. Bir cümle ve üç üretilmiş dosyanın yenilenmesi.
-
-**Risk:** Yok; yalnız üretim hattının sürüm sıçraması yaratmaması denetlenir.
-
----
 
 ## Aday Olmayan Açık Kayıtlar
 
@@ -637,9 +585,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 | 🟢 | **F-696** · Azure OpenAI ve uyumlu sunucular için strict reddi ölçülmedi | Faz 245: reddedilen yapı listesi yalnız `api.openai.com`'da (iki yüzey) ölçüldü; Azure kaynağı ve bir uyumlu sunucu (vLLM, Ollama) yoktu. Ölçülene kadar liste boş ve rapor susar | Bir Azure OpenAI kaynağı ya da uyumlu sunucu sondaj için hazır olunca (`MT-GUARD-117` sondajı) |
 | 🟢 | **F-697** · Şemayı yeniden yazılamayan tanım (`default` yanında metin olmayan `description`) raporda iz bırakmaz | Faz 245 denetimi: istemci `InvalidOperationException` verir; doğrulama o sağlayıcı için `responseSchemas` girişi yazmaz ve uyarı vermez, ilk çalıştırma düşer. Bir bulgu kodu ("şema yeniden yazılamıyor") bunu görünür yapar | Böyle bir tanım bir tüketicide görülürse |
 | 🟢 | **F-701** · Yönetilen arama tool'ları: replay `OnDemand` aracını oynatmaz, üç yol testsiz | Faz 246 denetimi: `toolTransform` yalnız `ChatOptions` tool'larını sarar (`AgentDefinitionCompiler.cs:645-657`); `search_conversation_memory` sağlayıcı bağlamından gelir, replay'de canlı koşar (önceden de böyleydi, kod agent'ı replay edilemez; DB agent'ında `OnDemand` replay'i ölçülmedi). Testsiz: `search_knowledge` işleyicisinin gördüğü kiracı ile `VectorSearchRequest.TenantId`, `OnDemand` aramada depo hatası (zaman aşımı dışı), hafıza aracında doğrulayıcı ve zaman aşımı (yalnız ortak `Govern` yolu) | Önce ölçüm: DB agent'ında `OnDemand` + `ReplayTools`. Tüketici replay'de hafıza aramasının canlı koştuğunu görürse |
-| 🟢 | **F-702** · `Uri` yapılandırma anahtarları okunamayan metni sessizce atlar | Faz 247 paket testleri (doğrulandı): `Tracon:Voice:Endpoint`, `Tracon:Providers:OpenAI:Live:Endpoint` ve `Tracon:Mcp:OAuthCallbackBaseUri` `Uri.TryCreate(…, UriKind.Absolute)` ile okunur; `"not-readable"` değeri `null` bırakır ve uygulama açılır (`Voice:Endpoint` yazım hatası istekleri sağlayıcının genel adresine yollar). Dört sağlayıcının `Endpoint`'i `ReadEndpoint` ile göreli metni de alır ve doğrulayıcıya düşer | Okuyucuya `Uri(key, get, set)` eklenir, üç site ona geçer; `UnreadableConfigurationSiteTests` `Uri.TryCreate`'i de tarar |
 | 🟢 | **F-703** · `TimeSpan` anahtarında çıplak sayı gün sayılır | Faz 247 denetimi (ölçüldü): `TimeSpan.TryParse("30", Invariant)` = `30.00:00:00`; `Tracon:Webhooks:Timeout=30` otuz gün olur. `"1,5"` → 15 ile aynı sessiz yanlış okuma sınıfı, ama okunabilen değer; eski davranış | Karar: çıplak sayı reddedilir mi, saniye mi sayılır; tek okuyucu `ConfigurationValueKinds.TryTimeSpan` |
-| 🟢 | **F-704** · Sözlük anahtarına verilen tek skaler değer sessizce yok sayılır | Faz 247 denetimi: `Tracon:Scheduling:MaxConcurrentJobsPerLane=5` (çocuksuz anahtar) `Map` okuyucusunda iz bırakmaz; F-508 yalnız liste anahtarlarını kapsadı | `ConfigurationValueReader.Map`: çocuksuz ama metinli anahtarı `RecordSingleValue` gibi kaydet; `key:<ad>` biçimini öner |
 | 🟢 | **F-706** · Çağrı grafı ve döngü denetimi sabitli sürümün adlarıyla kurulmaz | Faz 250 denetimi: `AgentCallGraph` kenarları `descriptor.CallableAgentNames`'ten (güncel sürüm) kurar. `B` v1 `[A]`, güncel `B` `[]` iken `A`'yı `[B@1]` ile kaydetmek `201` alır ve çalışmada `A→B@1→A…` derinlik sınırına kadar model harcar (`CallableAgentVersionPinTests`, derinlik sınırı vakası); tersi sahte `cycle` ile `400` alır | Düğümü `(ad, sürüm)` yap: sabitli kenar için `IAgentDefinitionStore.GetVersionAsync` ile o sürümün adlarını oku. Kapı: iki yönü kanıtlayan `AgentCallGraph` testi |
 | 🟢 | **F-707** · Sabitli çocuğun açıklaması her derlemede ve her çağrıda yeniden okunur | Faz 250 denetimi: `CompileCachedAsync` önbellek isabetinde de `ResolveDependenciesAsync` → `CallableAgentResolver.DescribePinnedAsync` → `GetVersionAsync` koşar. Bir sürümün içeriği değişmez (Faz 248 sayacı); ölçülmedi | Önce ölçüm: sabitli çocuk sayısı × çözümleme başına okuma. Gerekirse `(kiracı, ad, sürüm)` anahtarlı küçük bir açıklama önbelleği; silmede boşalması K-1100 ile uyumlu olmalı |
 | **Ölçüm bekliyor — F-ID'leri** | F-51 · F-94 · F-96 · F-97 · F-99 · F-101 · F-123 · F-128 · F-154 · F-156 · F-157 · F-159 · F-160 · F-161 · F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. Kanıt üretmeden aday olmaz |

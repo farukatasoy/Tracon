@@ -34,13 +34,10 @@ public sealed class McpUnreadableConfigurationTests
     private const string Unreadable = "not-readable";
 
     /// <summary>Public settable properties the probe does not write, each with the reason.</summary>
-    private static readonly Dictionary<string, string> NotProbed = new(StringComparer.Ordinal)
-    {
-        [nameof(TraconMcpOptions.OAuthCallbackBaseUri)] =
-            "a Uri: the binder reads it with Uri.TryCreate and, for text that is not an absolute address, keeps the " +
-            "default (no callback address) without a word. The rule of phase 247 covers scalars; a Uri is not one of " +
-            "its kinds, and the source scan leaves Uri.TryCreate alone.",
-    };
+    private static readonly Dictionary<string, string> NotProbed = new(StringComparer.Ordinal);
+
+    /// <summary>The address the assignment probe writes over an address option.</summary>
+    private static readonly Uri ChangedAddress = new("https://tracon.example/");
 
     [Fact]
     public void Every_scalar_stops_the_host_when_its_text_cannot_be_read()
@@ -104,6 +101,7 @@ public sealed class McpUnreadableConfigurationTests
     [Theory]
     [InlineData("Tracon:Mcp:ConnectionTimeout", "30s", "a time span")]
     [InlineData("Tracon:Mcp:MaxResourceBytesPerResource", "10MB", "a 32-bit whole number")]
+    [InlineData("Tracon:Mcp:OAuthCallbackBaseUri", "tracon.example.com", "an absolute address")]
     public void An_unreadable_value_stops_the_host_and_is_named(string key, string text, string expected)
     {
         using var provider = Compose(Settings((key, text)));
@@ -166,7 +164,9 @@ public sealed class McpUnreadableConfigurationTests
         foreach (var property in Scalars())
         {
             var key = KeyOf(property);
-            var assigned = Changed(property.PropertyType, property.GetValue(new TraconMcpOptions()));
+            var assigned = property.PropertyType == typeof(Uri)
+                ? ChangedAddress
+                : Changed(property.PropertyType, property.GetValue(new TraconMcpOptions()));
 
             using var provider = Compose(
                 Settings((key, Unreadable)),
@@ -213,6 +213,7 @@ public sealed class McpUnreadableConfigurationTests
             || underlying == typeof(double)
             || underlying == typeof(decimal)
             || underlying == typeof(TimeSpan)
+            || underlying == typeof(Uri)
             || underlying.IsEnum;
     }
 

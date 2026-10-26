@@ -78,12 +78,7 @@ public static partial class TraconServiceCollectionExtensions
 
         read.Int32Map(nameof(TraconSchedulingOptions.MaxConcurrentJobsPerLane), options.MaxConcurrentJobsPerLane);
 
-        foreach (var child in section.GetSection(nameof(TraconSchedulingOptions.LaneByHandlerKey)).GetChildren())
-        {
-            // An empty lane is bound as written, not skipped: the validator
-            // names it at startup instead of the mapping silently vanishing.
-            options.LaneByHandlerKey[child.Key] = child.Value ?? string.Empty;
-        }
+        read.StringMap(nameof(TraconSchedulingOptions.LaneByHandlerKey), options.LaneByHandlerKey);
 
         read.StringList(nameof(TraconSchedulingOptions.HttpSchedulableHandlerKeys), options.HttpSchedulableHandlerKeys);
 

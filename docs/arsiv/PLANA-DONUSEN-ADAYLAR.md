@@ -22,6 +22,36 @@
 
 ---
 
+## 2026-10-26 — F-420 → Faz 253
+
+Taşındığı gün `docs/ADAYLAR.md`'den alınan gövde. Güncel plan: Faz 253. Aynı gün gövdesiz tablo satırları da plana dönüştü: F-503 + F-505 → Faz 251, F-606 + F-607 → Faz 252, F-689 + F-690 → Faz 254. Seçim ölçümü: § *Faz planlama* tablosunun 39 kaleminin 12'si talep ya da kullanıcı kararı bekliyordu; bugün yanlış çalıştığı ölçülen dört birim plana döndü (bakımcı kararı, 2026-10-26).
+
+### F-420 · Önbellek yazma token'ı ve fiyatı run maliyetine girsin
+
+**Kanal:** faz planlama · 🟢 (ölçüm kanalı değiştirebilir, bkz. Genellik)
+
+**Sorun:** Run maliyeti yalnız önbellek **okuma** token'ını ve fiyatını taşır (`UsageBreakdown.cs:36`, `RunSupportTypes.cs:41`, `:148`; `ModelDescriptor` okuma fiyatı `:46`). Anthropic önbellek yazmasını ayrıca faturalar (5 dk TTL 1,25×, 1 sa 2× girdi fiyatı). Faz 204 ölçtü (SDK 12.39.0 decompile + canlı run): yazma token'ı `InputTokenCount`'a girer ve `AdditionalCounts["CacheCreationInputTokens"]`'e yazılır; `RunPricingResolver` önbelleksiz payı çıkarmayla bulduğu için yazma düz girdi fiyatıyla fiyatlanır. Genellik kuralına göre kalem fiyat eksiğidir ve planlamada kalır.
+
+**Kapsam:** Adım 0 ölçümü; sonra `RunUsage` ve `RunCost`/`RunTreeCost`'a yazma terimi, `ModelDescriptor`'a TTL başına yazma fiyatı (K-032), `Total()` dört terim (K-483), üç sağlayıcıda migration, kota ve webhook toplamı.
+
+**Değer:** Önbellekli Anthropic kullanan her tüketicinin run maliyeti ve maliyet kotası doğru olur.
+
+**Genellik:** İlk ilke: Tracon run maliyetini sözleşme olarak sunar; önbellekli her Anthropic kullanıcısı etkilenir. Tek tüketici ölçümü yalnız sinyaldir (podcast pilotu, toplamın ~%1'i). Ölçüm token'ın hiç sayılmadığını gösterirse kalem maliyet kaydı kusurudur ve kusur kanalına geçer; girdi fiyatıyla sayılıyorsa fiyat eksiğidir ve burada kalır.
+
+**Mercek:** 2, 8.
+
+**Hazırlık:** Okuma fiyatı deseni hazır (`CachedInputCostPerMillionTokens`); SDK 12.39.0 `Ttl.Ttl1h` taşır.
+
+**Maliyet:** Public alanlar, migration (üç sağlayıcı), ağaç toplamı sorgusu, konsol maliyet satırı, iki istemci.
+
+**Risk:** Toplama ifadesine yeni terim (K-483 sınıfı): kota veya webhook terimi kaçırırsa kiracı tavanı aşılır.
+
+**Bağımlılık:** Faz 204 (`promptCaching.ttl`); ağaç ve istatistik toplamları para birimi kuralını `CurrencyTotals`'tan alır (K-976) — yeni terim oradan geçmeli.
+
+**Ekosistem (2026-10-13):** Anthropic önbellek yazmasını TTL'e göre fiyatlar; OpenAI yazma ücreti almaz; Gemini bağlam önbelleği saklama süresine göre ücretlendirir.
+
+**Karşı görüş:** Ölçülen pilotta pay ~%1'dir; migration'ın maliyeti değerden büyük olabilir. Ölçüm "hiç sayılmıyor" demedikçe beklemek savunulabilir.
+
 ## 2026-10-25 — F-297 → Faz 244, F-347 → Faz 245
 
 Taşındığı gün `docs/ADAYLAR.md`'den alınan gövdeler. Güncel plan: Faz 244 ve Faz 245. Aynı gün gövdesiz tablo satırları da plana dönüştü: F-544 → Faz 241, F-411 → Faz 242, F-530 → Faz 243, F-465 → Faz 244 (F-297 ile).

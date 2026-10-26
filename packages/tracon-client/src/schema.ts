@@ -68,7 +68,7 @@ export interface paths {
         post?: never;
         /**
          * Deletes an agent definition and its version history.
-         * @description The delete removes the current definition together with every stored version; it is not a soft delete and there is no rollback afterwards. A code-defined name returns 409. A name with no stored definition returns 404, so the call is not idempotent across repeats. Runs already recorded for the agent are kept — the run history does not depend on the definition still existing.
+         * @description The delete removes the current definition together with every stored version; it is not a soft delete and there is no rollback afterwards. A code-defined name returns 409. A name with no stored definition returns 404, so the call is not idempotent across repeats. Runs already recorded for the agent are kept — the run history does not depend on the definition still existing. The version numbering is kept too: an agent created again under the name starts one above the highest version the name ever had, so a pin to a deleted version finds no version.
          */
         delete: operations["TraconDeleteAgent"];
         options?: never;

@@ -56,6 +56,37 @@ public sealed class JsonFileAgentSourceRunTests
     }
 
     [Fact]
+    public async Task The_descriptor_names_the_extensions_the_definition_names()
+    {
+        // The catalog shows a source agent's extensions from its descriptor. The sample
+        // copied every other definition field and left this one out, so an agent compiled
+        // with an extension was listed as one without it.
+        var directory = Directory.CreateTempSubdirectory("tracon-json-source-extensions-").FullName;
+
+        await File.WriteAllTextAsync(
+            Path.Combine(directory, "audited.json"),
+            """
+            {
+              "name": "audited",
+              "instructions": "Reply briefly.",
+              "model": { "provider": "fake", "model": "fake-model" },
+              "extensionNames": ["audit-trail"]
+            }
+            """);
+
+        var services = new ServiceCollection();
+        var tracon = services.AddTracon().AddModelProvider(new FakeModelProvider().EchoesUserMessage());
+        tracon.Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = directory });
+        tracon.AddAgentSource<JsonFileAgentSource>();
+
+        await using var provider = services.BuildServiceProvider();
+
+        var descriptor = (await provider.GetRequiredService<IAgentCatalog>().ListAsync()).ShouldHaveSingleItem();
+
+        descriptor.ExtensionNames.ShouldBe(["audit-trail"]);
+    }
+
+    [Fact]
     public async Task An_unknown_agent_name_resolves_to_null_instead_of_throwing()
     {
         var directory = Directory.CreateTempSubdirectory("tracon-json-source-run-empty-").FullName;

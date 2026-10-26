@@ -426,6 +426,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   unreadable value; write `1.5`.
 - **`Tracon:Voice:Live:DelegationMode` is refused by the same rule** instead of throwing while the options are bound:
   the host stops at startup with an `OptionsValidationException` that names the key and the one mode, `Client`.
+- **An address key that is not an absolute address is refused by the same rule.** `Tracon:Voice:Endpoint`,
+  `Tracon:Providers:OpenAI:Live:Endpoint` and `Tracon:Mcp:OAuthCallbackBaseUri` ignored text such as
+  `gateway.example.com/v1` and kept the default, so speech and live sessions went to the provider's public address. The
+  host now stops and names the key: `… is 'gateway.example.com/v1', which is not an absolute address such as
+  https://example.com/.`
+- **A map key that holds one value is refused.** `Tracon:Scheduling:MaxConcurrentJobsPerLane=5`,
+  `…:MaxDurationByHandlerKey=00:10:00` and `…:LaneByHandlerKey=media` name no lane or handler and were ignored. The
+  message now says to write `…:MaxConcurrentJobsPerLane:<name>`.
 
 - **The knowledge search and the on-demand conversation memory search run through the tool chain.** `search_knowledge`
   (`MemorySettings.EnableVectorSearch`) and `search_conversation_memory` (`ConversationMemorySearch.OnDemand`) were added
@@ -603,6 +611,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A run's events and its end are stamped with the `TimeProvider` its start came from.** A run's start came from the
+  registered `TimeProvider` and its end and events from the system clock. With your own `TimeProvider` registered (a test
+  clock, for example) a run seemed to last from the fake start to today, and the time a workflow continuation inherited
+  from the run it continues was that gap. With the default clock nothing changes.
 - **A version number of a stored agent could name another content after the agent was deleted and created again.** The
   numbering restarted at 1, so a pin to version 3 (a workflow step's `agentVersion`, a loop reviewer, an experiment arm) or
   a tool approval that waited on version 2 reached the new agent's third or second save a few edits later, and ran its

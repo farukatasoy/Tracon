@@ -35,13 +35,10 @@ public sealed class VoiceUnreadableConfigurationTests
     private const string Unreadable = "not-readable";
 
     /// <summary>Public settable properties the probe does not write, each with the reason.</summary>
-    private static readonly Dictionary<string, string> NotProbed = new(StringComparer.Ordinal)
-    {
-        [nameof(VoiceOptions.Endpoint)] =
-            "a Uri: the binder reads it with Uri.TryCreate and, for text that is not an absolute address, keeps the " +
-            "provider's public address without a word. The rule of phase 247 covers scalars; a Uri is not one of " +
-            "its kinds, and the source scan leaves Uri.TryCreate alone.",
-    };
+    private static readonly Dictionary<string, string> NotProbed = new(StringComparer.Ordinal);
+
+    /// <summary>The address the assignment probe writes over an address option.</summary>
+    private static readonly Uri ChangedAddress = new("https://voice.example/");
 
     [Fact]
     public void Every_scalar_stops_the_host_when_its_text_cannot_be_read()
@@ -106,6 +103,7 @@ public sealed class VoiceUnreadableConfigurationTests
     [InlineData("Tracon:Voice:Timeout", "30s", "a time span")]
     [InlineData("Tracon:Voice:MaxCharactersPerRequest", "10MB", "a 32-bit whole number")]
     [InlineData("Tracon:Voice:RequireApproval", "evet", "true or false")]
+    [InlineData("Tracon:Voice:Endpoint", "api.elevenlabs.io/v1", "an absolute address")]
     public void An_unreadable_value_stops_the_host_and_is_named(string key, string text, string expected)
     {
         using var provider = Compose(Settings((key, text)));
@@ -170,7 +168,9 @@ public sealed class VoiceUnreadableConfigurationTests
         foreach (var property in Scalars())
         {
             var key = KeyOf(property);
-            var assigned = Changed(property.PropertyType, property.GetValue(new VoiceOptions()));
+            var assigned = property.PropertyType == typeof(Uri)
+                ? ChangedAddress
+                : Changed(property.PropertyType, property.GetValue(new VoiceOptions()));
 
             using var provider = Compose(
                 Settings((key, Unreadable)),
@@ -217,6 +217,7 @@ public sealed class VoiceUnreadableConfigurationTests
             || underlying == typeof(double)
             || underlying == typeof(decimal)
             || underlying == typeof(TimeSpan)
+            || underlying == typeof(Uri)
             || underlying.IsEnum;
     }
 

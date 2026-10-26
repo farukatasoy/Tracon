@@ -85,6 +85,7 @@ public sealed partial class UnreadableConfigurationSiteTests
     [InlineData("var pii = Enum.TryParse<PiiPatterns>(text, ignoreCase: true, out var parsed)")]
     [InlineData("if (ProviderRegistrationCore.ReadInt32(section, key) is { } v)")]
     [InlineData("? decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var m)")]
+    [InlineData("&& Uri.TryCreate(endpoint, UriKind.Absolute, out var parsed))")]
     public void The_pattern_sees_the_silent_reads(string source)
         => SilentRead().IsMatch(source).ShouldBeTrue();
 
@@ -115,10 +116,12 @@ public sealed partial class UnreadableConfigurationSiteTests
         matchTimeoutMilliseconds: 5000)]
     private static partial Regex BinderFileName();
 
-    // A typed TryParse, the repository's own wrappers around it, an enum TryParse, and the old shared
-    // readers of ProviderRegistrationCore.
+    // A typed TryParse, the repository's own wrappers around it, an enum TryParse, the old shared
+    // readers of ProviderRegistrationCore, and an absolute-only Uri.TryCreate: it kept the default for
+    // a relative or mistyped address (F-702). RelativeOrAbsolute is left alone - the options validator
+    // refuses the relative address it lets through (ProviderRegistrationCore.ReadEndpoint).
     [GeneratedRegex(
-        @"\b(?:int|long|double|float|decimal|bool|TimeSpan)\.TryParse\(|\bEnum\.TryParse\b|\bTryReadBool\(|\bTryInt\(|\bTryTimeSpan\(|ProviderRegistrationCore\.Read(?:Int32|TimeSpan|Boolean|Decimal)\(",
+        @"\b(?:int|long|double|float|decimal|bool|TimeSpan)\.TryParse\(|\bEnum\.TryParse\b|\bTryReadBool\(|\bTryInt\(|\bTryTimeSpan\(|ProviderRegistrationCore\.Read(?:Int32|TimeSpan|Boolean|Decimal)\(|\bUri\.TryCreate\([^)]*\bUriKind\.Absolute\b",
         RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 5000)]
     private static partial Regex SilentRead();
