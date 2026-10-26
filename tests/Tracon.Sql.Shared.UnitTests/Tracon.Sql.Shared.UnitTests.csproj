@@ -14,4 +14,9 @@
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- In-memory configuration provider for the unreadable-value tests (phase 247). -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
 </Project>
