@@ -62,6 +62,7 @@ Tracon.AuditEntry.CreatedAt
 Tracon.AuditEntry.Entity
 Tracon.AuditEntry.Id
 Tracon.AuditEntry.TenantId
+Tracon.CallableAgentReference.Name
 Tracon.CanaryPolicy.CanaryVariant
 Tracon.ClientToolResult.CallId
 Tracon.ConfigurationDiagnostic.Key

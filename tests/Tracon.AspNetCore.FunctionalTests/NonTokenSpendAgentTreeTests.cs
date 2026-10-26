@@ -176,7 +176,7 @@ public sealed class NonTokenSpendAgentTreeTests
                     Description = "Delegates the work.",
                     Instructions = "Delegate.",
                     Model = new ModelBinding { Provider = ProviderName, Model = RouterModel },
-                    CallableAgentNames = ["arastirmaci"],
+                    CallableAgents = ["arastirmaci"],
                     ToolNames = [SpeakTool],
                     Origin = AgentDefinitionOrigin.Code,
                 });

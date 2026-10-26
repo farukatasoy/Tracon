@@ -211,7 +211,7 @@ public sealed class LoopIterationFrameTests
                 Description = "Delegates the work.",
                 Instructions = "Delegate.",
                 Model = new ModelBinding { Provider = ProviderName, Model = RouterModel },
-                CallableAgentNames = [ChildName],
+                CallableAgents = [ChildName],
                 SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
                 Origin = AgentDefinitionOrigin.Code,
             });

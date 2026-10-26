@@ -66,7 +66,7 @@ public sealed class AgentValidateEndpointTests
 
         using var response = await host.Client.PostAsJsonAsync(
             Validate,
-            TestData.Request() with { CallableAgentNames = ["db-agent"] });
+            TestData.Request() with { CallableAgents = ["db-agent"] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 

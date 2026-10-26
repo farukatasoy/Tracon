@@ -379,7 +379,7 @@ public sealed class HarnessDefaultsTests
                     Harness = harness,
                     Memory = memory,
                     SkillNames = skillNames ?? [],
-                    CallableAgentNames = callableAgentNames ?? [],
+                    CallableAgents = [.. callableAgentNames ?? []],
                     Origin = AgentDefinitionOrigin.Code,
                 });
             });

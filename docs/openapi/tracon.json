@@ -7901,12 +7901,12 @@
             },
             "description": "Gets the names of the agent extensions this agent is compiled with, in call\norder. Every name must match an extension registered in code with\n\u0060AddAgentExtension\u0060; otherwise building the agent fails."
           },
-          "callableAgentNames": {
+          "callableAgents": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CallableAgentReference"
             },
-            "description": "Gets the names of the other agents this agent may call."
+            "description": "Gets the other agents this agent may call, each with the version of it that runs."
           },
           "subAgents": {
             "oneOf": [
@@ -7914,7 +7914,7 @@
                 "type": "null"
               },
               {
-                "description": "Gets how this agent calls the agents it may call\n(\u0060SubAgentSettings.CallMode\u0060) and how long it waits for them. When\n\u0060null\u0060, the agent uses background tasks and\n\u0060TraconAgentGraphOptions.ChildDeadline\u0060 and \u0060WaitTimeout\u0060 apply.\nIgnored when \u0060CallableAgentNames\u0060 is empty.",
+                "description": "Gets how this agent calls the agents it may call\n(\u0060SubAgentSettings.CallMode\u0060) and how long it waits for them. When\n\u0060null\u0060, the agent uses background tasks and\n\u0060TraconAgentGraphOptions.ChildDeadline\u0060 and \u0060WaitTimeout\u0060 apply.\nIgnored when \u0060CallableAgents\u0060 is empty.",
                 "$ref": "#/components/schemas/SubAgentSettings"
               }
             ]
@@ -8116,12 +8116,12 @@
             },
             "description": "Names of agent extensions to compile the agent with, in call order. Extensions\nare defined only in code; only the name of an already registered extension may\nbe given here. See \u0060AgentDefinition.ExtensionNames\u0060."
           },
-          "callableAgentNames": {
+          "callableAgents": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CallableAgentReference"
             },
-            "description": "Names of other agents this agent may call."
+            "description": "The other agents this agent may call, each with the version of it that runs."
           },
           "subAgents": {
             "oneOf": [
@@ -8129,7 +8129,7 @@
                 "type": "null"
               },
               {
-                "description": "How long this agent waits for the agents it calls. See\n\u0060AgentDefinition.SubAgents\u0060. Ignored when\nIReadOnlyList\u0026lt;string\u0026gt; AgentDefinitionRequest.CallableAgentNames is empty.",
+                "description": "How long this agent waits for the agents it calls. See\n\u0060AgentDefinition.SubAgents\u0060. Ignored when\n\u0060CallableAgents\u0060 is empty.",
                 "$ref": "#/components/schemas/SubAgentSettings"
               }
             ]
@@ -10323,6 +10323,32 @@
           }
         },
         "description": "A row in the audit trail that records who changed which entity and when."
+      },
+      "CallableAgentReference": {
+        "examples": [
+          null
+        ],
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the name of the agent to call."
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the version of the agent to run. \u0060null\u0060 runs its current version.",
+            "format": "int32"
+          }
+        },
+        "description": "One agent another agent may call, and the version of it that runs."
       },
       "CanaryDecisionKind": {
         "enum": [
@@ -17279,7 +17305,7 @@
           "Background",
           "Tool"
         ],
-        "description": "How an agent calls the agents it may call (\u0060CallableAgentNames\u0060)."
+        "description": "How an agent calls the agents it may call (\u0060CallableAgents\u0060)."
       },
       "SubAgentSettings": {
         "examples": [
@@ -17288,7 +17314,7 @@
         "type": "object",
         "properties": {
           "callMode": {
-            "description": "Gets how the agent calls every agent in \u0060CallableAgentNames\u0060.\nDefaults to \u0060Background\u0060.",
+            "description": "Gets how the agent calls every agent in \u0060CallableAgents\u0060.\nDefaults to \u0060Background\u0060.",
             "$ref": "#/components/schemas/SubAgentCallMode"
           },
           "childDeadline": {

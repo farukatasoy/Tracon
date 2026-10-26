@@ -73,7 +73,7 @@ public sealed class AgentDefinitionCompilerPathTests
             TestData.Registry(),
             callableAgents: new CallableAgentResolver(catalog),
             tenantContext: tenantContext);
-        var definition = TestData.Definition() with { CallableAgentNames = ["sub"] };
+        var definition = TestData.Definition() with { CallableAgents = ["sub"] };
         var callableAgents = await compiler.ResolveCallableAgentsAsync(definition, CancellationToken.None);
 
         var agent = compiler.Compile(definition, callableAgents);
@@ -101,7 +101,7 @@ public sealed class AgentDefinitionCompilerPathTests
             TestData.Registry(),
             callableAgents: new CallableAgentResolver(catalog),
             tenantContext: tenantContext);
-        var definition = TestData.Definition() with { CallableAgentNames = ["sub"] };
+        var definition = TestData.Definition() with { CallableAgents = ["sub"] };
         var callableAgents = await compiler.ResolveCallableAgentsAsync(definition, CancellationToken.None);
 
         var agent = await compiler.CompileAsync(definition, callableAgents, culture: null, CancellationToken.None);
@@ -172,7 +172,7 @@ public sealed class AgentDefinitionCompilerPathTests
             TestData.Registry(),
             callableAgents: new CallableAgentResolver(catalog),
             tenantContext: tenantContext);
-        var definition = TestData.Definition() with { CallableAgentNames = ["sub"] };
+        var definition = TestData.Definition() with { CallableAgents = ["sub"] };
 
         var agent = await compiler.CompileParameterizedAsync(definition, culture: null, values: null, CancellationToken.None);
         var options = agent.GetService<ChatClientAgentOptions>();

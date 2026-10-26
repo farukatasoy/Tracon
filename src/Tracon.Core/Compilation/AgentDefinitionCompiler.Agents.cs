@@ -192,10 +192,25 @@ public sealed partial class AgentDefinitionCompiler
         var logger = _loggerFactory?.CreateLogger<ChildAgentInvoker>()
             ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger<ChildAgentInvoker>.Instance;
 
+        // The pin is the definition's own: the infos were described from it, and an info list handed to a
+        // Compile overload by a caller is matched to the definition by name.
+        var pins = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var reference in definition.CallableAgents)
+        {
+            if (reference.Version is { } version)
+            {
+                pins[reference.Name] = version;
+            }
+        }
+
         var children = new List<AIAgent>(callableAgents.Agents.Count);
 
         foreach (var info in callableAgents.Agents)
         {
+            // Every call mode builds its children here, so the version the callee runs is the same in all of
+            // them. The wrapper resolves late and the version is passed on every call: a pinned callee keeps its
+            // version across edits of the callee, and an unpinned one runs the current version.
             children.Add(new ChildAgentInvoker(
                 _callableAgents,
                 _tenantContext,
@@ -204,7 +219,8 @@ public sealed partial class AgentDefinitionCompiler
                 info,
                 childDeadline,
                 waitTimeout,
-                _timeProvider));
+                _timeProvider,
+                pinnedVersion: pins.TryGetValue(info.Name, out var pinned) ? pinned : null));
         }
 
         return new ChildAgentsBuild(children, waitTimeout);

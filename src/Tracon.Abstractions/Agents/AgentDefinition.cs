@@ -85,13 +85,19 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> ExtensionNames { get => field ?? []; init; }
 
     /// <summary>
-    /// Gets the names of the other agents this agent may call.
+    /// Gets the other agents this agent may call, each with the version of it that runs.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Every name must resolve to an agent in the catalog. The call graph is checked
     /// <strong>when the definition is saved</strong>: self calls and indirect cycles
     /// are rejected.
+    /// </para>
+    /// <para>
+    /// A reference with no <see cref="CallableAgentReference.Version"/> runs the callee's current version.
+    /// One with a version runs that stored version, and for an agent kept in the database its description comes from that version. The version
+    /// must exist and the callee must keep a version history (an agent defined in code does not), or the
+    /// definition is refused when it is saved and when it is compiled. A name appears once.
     /// </para>
     /// <para>
     /// The static check alone is not enough - a factory agent on the code side carries
@@ -102,14 +108,14 @@ public sealed record AgentDefinition
     /// A child agent runs in the <strong>same tenant</strong> and cannot change the tenant.
     /// </para>
     /// </remarks>
-    public IReadOnlyList<string> CallableAgentNames { get => field ?? []; init; }
+    public IReadOnlyList<CallableAgentReference> CallableAgents { get => field ?? []; init; }
 
     /// <summary>
     /// Gets how this agent calls the agents it may call
     /// (<c>SubAgentSettings.CallMode</c>) and how long it waits for them. When
     /// <see langword="null"/>, the agent uses background tasks and
     /// <c>TraconAgentGraphOptions.ChildDeadline</c> and <c>WaitTimeout</c> apply.
-    /// Ignored when <c>CallableAgentNames</c> is empty.
+    /// Ignored when <c>CallableAgents</c> is empty.
     /// </summary>
     public SubAgentSettings? SubAgents { get; init; }
 

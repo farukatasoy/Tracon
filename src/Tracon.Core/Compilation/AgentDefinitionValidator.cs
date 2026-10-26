@@ -316,21 +316,36 @@ internal sealed partial class AgentDefinitionValidator
         List<ValidationMessage> messages,
         CancellationToken cancellationToken)
     {
-        if (definition.CallableAgentNames.Count == 0)
+        if (definition.CallableAgents.Count == 0)
         {
             return;
         }
 
         var descriptors = await _catalog.ListAsync(cancellationToken).ConfigureAwait(false);
+        var names = definition.CallableAgents.Select(static agent => agent.Name).ToList();
 
-        if (AgentCallGraph.ValidateDetailed(definition.Name, definition.CallableAgentNames, descriptors) is { } problem)
+        if (AgentCallGraph.ValidateDetailed(definition.Name, names, descriptors) is { } problem)
         {
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
                 Code = problem.Code,
                 Message = problem.Message,
-                Path = "callableAgentNames",
+                Path = "callableAgents",
+            });
+        }
+
+        // Each pin and each repeated name is its own finding, with the path of the entry that causes it.
+        foreach (var pin in await CallableAgentPins
+            .FindProblemsAsync(definition.Name, definition.CallableAgents, descriptors, _definitions, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            messages.Add(new ValidationMessage
+            {
+                Severity = ValidationSeverity.Error,
+                Code = pin.Code,
+                Message = pin.Message,
+                Path = pin.Path,
             });
         }
     }

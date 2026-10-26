@@ -77,6 +77,7 @@ internal static class AgentEndpoints
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .AddEndpointFilter(new RemovedFieldFilter("model.allowConcurrentToolCalls", "model.toolLoop.allowConcurrentToolCalls"))
+            .AddEndpointFilter(new RemovedFieldFilter("callableAgentNames", "callableAgents: a list of { \"name\": ..., \"version\": ... } objects ('version' is optional)"))
             .WithName("TraconCreateAgent")
             .WithTags("Tracon", "Agents")
             .WithSummary("Creates a new agent definition.")
@@ -95,6 +96,7 @@ internal static class AgentEndpoints
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .AddEndpointFilter(new RemovedFieldFilter("model.allowConcurrentToolCalls", "model.toolLoop.allowConcurrentToolCalls"))
+            .AddEndpointFilter(new RemovedFieldFilter("callableAgentNames", "callableAgents: a list of { \"name\": ..., \"version\": ... } objects ('version' is optional)"))
             .WithName("TraconValidateAgent")
             .WithTags("Tracon", "Agents")
             .WithSummary("Compiles a definition without saving it and without calling any model.")
@@ -112,6 +114,7 @@ internal static class AgentEndpoints
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .AddEndpointFilter(new RemovedFieldFilter("model.allowConcurrentToolCalls", "model.toolLoop.allowConcurrentToolCalls"))
+            .AddEndpointFilter(new RemovedFieldFilter("callableAgentNames", "callableAgents: a list of { \"name\": ..., \"version\": ... } objects ('version' is optional)"))
             .WithName("TraconUpdateAgent")
             .WithTags("Tracon", "Agents")
             .WithSummary("Updates an agent definition and produces a new version.")
@@ -1303,14 +1306,15 @@ internal static class AgentEndpoints
         AgentDefinitionRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.CallableAgentNames.Count == 0)
+        if (request.CallableAgents.Count == 0)
         {
             return null;
         }
 
         var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
+        var names = request.CallableAgents.Select(static agent => agent.Name).ToList();
 
-        return AgentCallGraph.Validate(request.Name, request.CallableAgentNames, descriptors) is { } problem
+        return AgentCallGraph.Validate(request.Name, names, descriptors) is { } problem
             ? TypedResults.Problem(
                 title: "Call graph invalid",
                 detail: problem,

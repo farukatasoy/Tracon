@@ -117,6 +117,15 @@ internal static class ValidationCodes
     /// <summary>Validation finding <c>sub_agent_tool_name_conflict</c>.</summary>
     public const string SubAgentToolNameConflict = "sub_agent_tool_name_conflict";
 
+    /// <summary>Validation finding <c>callable_agent_duplicate</c>.</summary>
+    public const string CallableAgentDuplicate = "callable_agent_duplicate";
+
+    /// <summary>Validation finding <c>callable_agent_version_invalid</c>.</summary>
+    public const string CallableAgentVersionInvalid = "callable_agent_version_invalid";
+
+    /// <summary>Validation finding <c>callable_agent_version_not_found</c>.</summary>
+    public const string CallableAgentVersionNotFound = "callable_agent_version_not_found";
+
     /// <summary>Validation finding <c>missing_parameter</c>.</summary>
     public const string MissingParameter = "missing_parameter";
 

@@ -228,7 +228,7 @@ public sealed class SubAgentToolModeTests
             name,
             instructions = "Delegate.",
             toolNames = new[] { "lookup_agent" },
-            callableAgentNames = new[] { "lookup-agent" },
+            callableAgents = new[] { new { name = "lookup-agent" } },
             subAgents,
             model = new { provider = ProviderName, model = RouterModel },
         };
@@ -279,7 +279,7 @@ public sealed class SubAgentToolModeTests
             {
                 name = "stored-router",
                 instructions = "Delegate.",
-                callableAgentNames = new[] { ChildName },
+                callableAgents = new[] { new { name = ChildName } },
                 subAgents = new { callMode = "Tool" },
                 model = new { provider = ProviderName, model = RouterModel },
             });
@@ -484,7 +484,7 @@ public sealed class SubAgentToolModeTests
                     Description = "Delegates the work.",
                     Instructions = "Delegate.",
                     Model = Binding(RouterModel),
-                    CallableAgentNames = [ChildName],
+                    CallableAgents = [ChildName],
                     SubAgents = mode is { } callMode
                         ? new SubAgentSettings
                         {

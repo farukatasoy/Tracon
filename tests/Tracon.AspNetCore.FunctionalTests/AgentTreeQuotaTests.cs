@@ -217,7 +217,7 @@ public sealed class AgentTreeQuotaTests
                     Description = "Delegates the work.",
                     Instructions = "Delegate.",
                     Model = Binding(RouterModel),
-                    CallableAgentNames = ["arastirmaci"],
+                    CallableAgents = ["arastirmaci"],
                     Origin = AgentDefinitionOrigin.Code,
                 });
             },

@@ -571,8 +571,8 @@ curl -sS -X PUT http://localhost:5081/tracon/api/workflows/narrated \
   after the workflow was saved: the run then fails before its first step.
 - A pin is not part of the step's identity. Changing the pin of a step in a node list never
   makes a waiting run's checkpoint unusable.
-- A pin reaches the step's agent only. The agent's own callable agents and skills resolve
-  their current version, as they do for a direct run.
+- A pin reaches the step's agent and the callable agents that version pins. An entry with no
+  `version`, and the skills, run their current version.
 - Only `Sequential` workflows have `nodes`, so only they can pin. A chain written as
   `agentNames` cannot.
 

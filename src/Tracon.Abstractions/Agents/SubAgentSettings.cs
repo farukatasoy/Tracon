@@ -43,7 +43,7 @@ namespace Tracon;
 /// {
 ///     Name = "router",
 ///     Model = new ModelBinding { Provider = "openai", Model = "gpt-5" },
-///     CallableAgentNames = ["researcher"],
+///     CallableAgents = ["researcher"],
 ///     SubAgents = new SubAgentSettings
 ///     {
 ///         ChildDeadline = TimeSpan.FromSeconds(10),
@@ -55,7 +55,7 @@ namespace Tracon;
 public sealed record SubAgentSettings
 {
     /// <summary>
-    /// Gets how the agent calls every agent in <c>CallableAgentNames</c>.
+    /// Gets how the agent calls every agent in <c>CallableAgents</c>.
     /// Defaults to <c>Background</c>.
     /// </summary>
     /// <remarks>

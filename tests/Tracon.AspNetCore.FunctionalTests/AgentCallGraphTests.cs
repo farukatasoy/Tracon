@@ -19,7 +19,7 @@ public sealed class AgentCallGraphTests
 
         using var response = await host.Client.PostAsJsonAsync(
             Agents,
-            TestData.Request() with { CallableAgentNames = ["db-agent"] });
+            TestData.Request() with { CallableAgents = ["db-agent"] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
@@ -34,7 +34,7 @@ public sealed class AgentCallGraphTests
 
         using var response = await host.Client.PostAsJsonAsync(
             Agents,
-            TestData.Request() with { CallableAgentNames = ["does-not-exist"] });
+            TestData.Request() with { CallableAgents = ["does-not-exist"] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
@@ -54,7 +54,7 @@ public sealed class AgentCallGraphTests
         // The chain b -> a is ready. Adding a -> b closes the cycle.
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/tracon/api/agents/a", UriKind.Relative),
-            TestData.Request(name: "a") with { CallableAgentNames = ["b"] });
+            TestData.Request(name: "a") with { CallableAgents = ["b"] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
@@ -298,7 +298,7 @@ public sealed class AgentCallGraphTests
     {
         using var response = await host.Client.PutAsJsonAsync(
             new Uri($"/tracon/api/agents/{name}", UriKind.Relative),
-            TestData.Request(name: name) with { CallableAgentNames = callable });
+            TestData.Request(name: name) with { CallableAgents = [.. callable] });
 
         response.EnsureSuccessStatusCode();
     }

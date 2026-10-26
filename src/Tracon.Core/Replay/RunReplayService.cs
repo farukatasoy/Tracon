@@ -432,7 +432,7 @@ internal sealed class RunReplayService
 
         if (request.ToolMode != ReplayToolMode.LiveTools)
         {
-            effective = effective with { SkillNames = [], CallableAgentNames = [], ExtensionNames = [] };
+            effective = effective with { SkillNames = [], CallableAgents = [], ExtensionNames = [] };
 
             var hostedTools = _compiler.GetHostedTools();
 

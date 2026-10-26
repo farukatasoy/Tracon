@@ -280,7 +280,7 @@ public sealed class McpServerEndpointTests
                 Description = "Delegates the work.",
                 Instructions = "Delegate.",
                 Model = new ModelBinding { Provider = "routing", Model = RouterModel },
-                CallableAgentNames = ["researcher"],
+                CallableAgents = ["researcher"],
                 Origin = AgentDefinitionOrigin.Code,
             });
 

@@ -17443,17 +17443,17 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> ExtensionNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
-        /// Gets the names of the other agents this agent may call.
+        /// Gets the other agents this agent may call, each with the version of it that runs.
         /// </summary>
-        [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
-        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
+        [System.Text.Json.Serialization.JsonPropertyName("callableAgents")]
+        public System.Collections.Generic.ICollection<CallableAgentReference> CallableAgents { get; set; } = new System.Collections.Generic.List<CallableAgentReference>();
 
         /// <summary>
         /// Gets how this agent calls the agents it may call
         /// <br/>(`SubAgentSettings.CallMode`) and how long it waits for them. When
         /// <br/>`null`, the agent uses background tasks and
         /// <br/>`TraconAgentGraphOptions.ChildDeadline` and `WaitTimeout` apply.
-        /// <br/>Ignored when `CallableAgentNames` is empty.
+        /// <br/>Ignored when `CallableAgents` is empty.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
         public SubAgentSettings? SubAgents { get; set; } = default!;
@@ -17639,15 +17639,15 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> ExtensionNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
-        /// Names of other agents this agent may call.
+        /// The other agents this agent may call, each with the version of it that runs.
         /// </summary>
-        [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
-        public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
+        [System.Text.Json.Serialization.JsonPropertyName("callableAgents")]
+        public System.Collections.Generic.ICollection<CallableAgentReference> CallableAgents { get; set; } = new System.Collections.Generic.List<CallableAgentReference>();
 
         /// <summary>
         /// How long this agent waits for the agents it calls. See
         /// <br/>`AgentDefinition.SubAgents`. Ignored when
-        /// <br/>IReadOnlyList&amp;lt;string&amp;gt; AgentDefinitionRequest.CallableAgentNames is empty.
+        /// <br/>`CallableAgents` is empty.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
         public SubAgentSettings? SubAgents { get; set; } = default!;
@@ -19502,6 +19502,27 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("hash")]
         public string? Hash { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// One agent another agent may call, and the version of it that runs.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CallableAgentReference
+    {
+
+        /// <summary>
+        /// Gets the name of the agent to call.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the version of the agent to run. `null` runs its current version.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public int? Version { get; set; } = default!;
 
     }
 
@@ -26206,7 +26227,7 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
-    /// How an agent calls the agents it may call (`CallableAgentNames`).
+    /// How an agent calls the agents it may call (`CallableAgents`).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SubAgentCallMode>))]
@@ -26229,7 +26250,7 @@ namespace Tracon.Client.Generated
     {
 
         /// <summary>
-        /// Gets how the agent calls every agent in `CallableAgentNames`.
+        /// Gets how the agent calls every agent in `CallableAgents`.
         /// <br/>Defaults to `Background`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("callMode")]

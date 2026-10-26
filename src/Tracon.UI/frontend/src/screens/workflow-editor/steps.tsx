@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import type { WorkflowFunctionResponse } from '@tracon/client';
+import { AgentVersionSelect } from '../../components/agent-version-select';
 import { Badge, ErrorNote, Field, Select, TextArea, TextInput, cx, type FieldIds } from '../../components/ui';
 import { Tooltip } from '../../components/tooltip';
-import { client, unwrap } from '../../lib/api';
 import { useT } from '../../lib/i18n';
-import type { AgentDefinition } from '../../lib/server-types';
 import {
   describeSchema,
   hasFunction,
@@ -157,8 +155,12 @@ export function StepList({
               {step.kind === 'Agent' &&
                 storedAgents !== undefined &&
                 (storedAgents.has(step.name) || (step.agentVersion ?? null) !== null) && (
-                  <AgentVersion
-                    step={step}
+                  <AgentVersionSelect
+                    name={step.name}
+                    pinned={step.agentVersion ?? null}
+                    label={t('workflowEditor.agentVersionOf', { name: step.name })}
+                    hint={t('workflowEditor.agentVersionHint')}
+                    testId={`workflow-version-${step.name}`}
                     onChange={(agentVersion) => replace(index, { ...step, agentVersion })}
                   />
                 )}
@@ -310,72 +312,6 @@ function FunctionSettings({
           />
         )}
       </Field>
-    </div>
-  );
-}
-
-/**
- * The version of the stored agent one step runs: its current version, or one of the versions the
- * agent has.
- *
- * The list is the agent's own (`GET /api/agents/{name}/versions`), fetched when the step shows and
- * cached under the key the agent screen uses. Whether the chosen version still exists is the save
- * endpoint's answer. A pin the agent no longer lists stays selectable, so it is neither dropped from
- * the field nor from the save.
- */
-function AgentVersion({
-  step,
-  onChange,
-}: {
-  step: Step;
-  onChange: (agentVersion: number | null) => void;
-}): ReactNode {
-  const t = useT();
-  const versions = useQuery({
-    queryKey: ['agent-versions', step.name],
-    queryFn: () =>
-      unwrap(
-        client.GET('/api/agents/{name}/versions', { params: { path: { name: step.name } } }),
-      ) as Promise<AgentDefinition[]>,
-  });
-  const pinned = step.agentVersion ?? null;
-  const listed = (versions.data ?? []).map((definition) => definition.version);
-
-  return (
-    <div className="mt-1.5 max-w-xs">
-      <Field
-        label={t('workflowEditor.agentVersionOf', { name: step.name })}
-        hint={t('workflowEditor.agentVersionHint')}
-      >
-        {(ids) => (
-          <Select
-            {...ids}
-            testId={`workflow-version-${step.name}`}
-            value={pinned === null ? '' : String(pinned)}
-            onChange={(value) => onChange(value.length === 0 ? null : Number(value))}
-          >
-            <option value="">{t('workflowEditor.agentVersionCurrent')}</option>
-            {pinned !== null && !listed.includes(pinned) && (
-              // Until the list is in, the pin is shown as it is stored; "not found" is a claim
-              // about the list and waits for it.
-              <option value={String(pinned)}>
-                {versions.isSuccess ? t('workflowEditor.agentVersionMissing', { version: pinned }) : `v${pinned}`}
-              </option>
-            )}
-            {listed.map((version) => (
-              <option key={version} value={String(version)}>
-                v{version}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
-      {versions.isError && (
-        <div className="mt-1 flex flex-col gap-1">
-          <p className="text-xs text-muted">{t('workflowEditor.agentVersionsFailed')}</p>
-          <ErrorNote error={versions.error} onRetry={() => void versions.refetch()} />
-        </div>
-      )}
     </div>
   );
 }

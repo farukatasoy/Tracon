@@ -163,7 +163,7 @@ public sealed class SubAgentTimeoutTests
                     Description = "Delegates the work.",
                     Instructions = "Delegate.",
                     Model = RouterBinding,
-                    CallableAgentNames = ["arastirmaci"],
+                    CallableAgents = ["arastirmaci"],
                     SubAgents = new SubAgentSettings
                     {
                         ChildDeadline = TimeSpan.FromSeconds(30),
@@ -308,7 +308,7 @@ public sealed class SubAgentTimeoutTests
                     Description = "Delegates the work.",
                     Instructions = "Delegate.",
                     Model = RouterBinding,
-                    CallableAgentNames = ["arastirmaci"],
+                    CallableAgents = ["arastirmaci"],
                     SubAgents = new SubAgentSettings { ChildDeadline = childDeadline, WaitTimeout = waitTimeout },
                     Harness = harness ? new HarnessSettings() : null,
                     Origin = AgentDefinitionOrigin.Code,

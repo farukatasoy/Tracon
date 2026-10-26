@@ -186,7 +186,7 @@ internal sealed class RunContinuationJobHandler(
             // Skills, callable sub-agents and agent extensions can run through an
             // AIContextProvider, not through the tool-calling pipeline
             // RecordedToolPlayback wraps — see the class documentation.
-            if (definition.SkillNames.Count > 0 || definition.CallableAgentNames.Count > 0)
+            if (definition.SkillNames.Count > 0 || definition.CallableAgents.Count > 0)
             {
                 throw new TraconException(
                     $"Agent '{source.AgentName}' uses skills or callable sub-agents, which do not go " +

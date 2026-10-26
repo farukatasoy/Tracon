@@ -62,12 +62,12 @@ internal static class SubAgentToolNames
     /// whose tool name another tool of the agent already has.
     /// </summary>
     /// <param name="definition">The definition.</param>
-    /// <returns>The problems, in the order of <see cref="AgentDefinition.CallableAgentNames"/>; empty when the names are free or the mode is not <see cref="SubAgentCallMode.Tool"/>.</returns>
+    /// <returns>The problems, in the order of <see cref="AgentDefinition.CallableAgents"/>; empty when the names are free or the mode is not <see cref="SubAgentCallMode.Tool"/>.</returns>
     public static IReadOnlyList<SubAgentToolProblem> FindProblems(AgentDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        if (definition.SubAgents is not { CallMode: SubAgentCallMode.Tool } || definition.CallableAgentNames.Count == 0)
+        if (definition.SubAgents is not { CallMode: SubAgentCallMode.Tool } || definition.CallableAgents.Count == 0)
         {
             return [];
         }
@@ -103,9 +103,9 @@ internal static class SubAgentToolNames
 
         List<SubAgentToolProblem>? problems = null;
 
-        for (var index = 0; index < definition.CallableAgentNames.Count; index++)
+        for (var index = 0; index < definition.CallableAgents.Count; index++)
         {
-            var agentName = definition.CallableAgentNames[index];
+            var agentName = definition.CallableAgents[index].Name;
             var toolName = NameOf(agentName);
 
             if (taken.TryGetValue(toolName, out var holder))
@@ -114,7 +114,7 @@ internal static class SubAgentToolNames
                     ConflictCode,
                     $"The callable agent '{agentName}' becomes the tool '{toolName}', and {holder} already has that name. " +
                     "Rename one of them, or call the agents as background tasks.",
-                    $"callableAgentNames[{index}]"));
+                    $"callableAgents[{index}].name"));
             }
             else
             {

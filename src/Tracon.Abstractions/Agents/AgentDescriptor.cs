@@ -56,6 +56,8 @@ public sealed record AgentDescriptor
     /// Gets the names of the other agents this agent may call.
     /// </summary>
     /// <remarks>
+    /// Names only: the catalog lists who calls whom, and the call graph is built from the names. The version
+    /// a call is pinned to is read from the definition (<see cref="AgentDefinition.CallableAgents"/>).
     /// An agent registered in code with a <em>factory</em> carries no declarative
     /// definition; the list is empty for such an agent. That means the graph can be
     /// incomplete, which is why the static cycle check is not enough on its own.

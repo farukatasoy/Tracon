@@ -65,7 +65,7 @@ public sealed partial class DefinitionReadFromJsonTests
               "toolNames": null,
               "skillNames": null,
               "extensionNames": null,
-              "callableAgentNames": null,
+              "callableAgents": null,
               "mcpResourceUris": null,
               "metadata": null,
               "parameters": null

@@ -68,7 +68,7 @@ public sealed class QueuedRunAttributionTests
                 Description = "Delegates the work.",
                 Instructions = "Delegate.",
                 Model = new ModelBinding { Provider = "routing", Model = "router-model" },
-                CallableAgentNames = ["helper"],
+                CallableAgents = ["helper"],
                 Origin = AgentDefinitionOrigin.Code,
             });
         });

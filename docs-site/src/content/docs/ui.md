@@ -96,7 +96,10 @@ keeps its approval ([approval of the skill tools](/concepts/tools/#approval-of-t
 The Extensions panel lists the extensions the host registered. It keeps a name the host
 no longer registers, with a mark, so you can remove it. The Callable agents panel picks the
 agents this one may call and the [call mode](/concepts/agents/#one-tool-for-each-agent):
-background tasks, or one tool for each agent. The version compare shows a change of mode.
+background tasks, or one tool for each agent. Under a checked agent that is stored in the
+database, a select pins the call to one of the agent's versions
+([Pin a callable agent to a version](/concepts/agents/#pin-a-callable-agent-to-a-version)); the
+default is its current version. The version compare shows a change of mode and a change of pin.
 
 <a class="ui-shot" href="/screenshots/agent-editor-loop.png"><img src="/screenshots/agent-editor-loop.png" alt="The agent editor's Loop panel with a marker criterion, a criterion registered in code, the iteration ceiling and the outcome selectors" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

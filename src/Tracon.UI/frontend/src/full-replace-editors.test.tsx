@@ -120,7 +120,9 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
   // Phase 222: 'retired' is a name the host no longer registers. The form keeps it, so an edit that
   // does not touch it sends it back unchanged instead of dropping it.
   extensionNames: ['audit', 'retired'],
-  callableAgentNames: ['billing'],
+  // Phase 250: a pinned callable agent comes back with its version. The agent is not in the catalog the
+  // screen lists below, so only the form's own state can carry the pin to the save.
+  callableAgents: [{ name: 'billing', version: 2 }],
   subAgents: { childDeadline: '00:00:10', waitTimeout: '00:00:30', callMode: 'Tool' },
   mcpResourceUris: ['docs:file:///handbook.md'],
   harness: {

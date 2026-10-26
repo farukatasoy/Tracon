@@ -616,7 +616,7 @@ public sealed class McpElicitationTests
                     Name = "elicit-router",
                     Instructions = "Delegate.",
                     Model = new ModelBinding { Provider = "elicit-router", Model = "router" },
-                    CallableAgentNames = [Agent],
+                    CallableAgents = [Agent],
                 });
             }
 

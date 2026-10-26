@@ -55,7 +55,7 @@ describe('AgentDetailScreen read-only notice', () => {
       toolNames: [],
       skillNames: [],
       extensionNames: version === 1 ? ['audit'] : ['audit', 'policy'],
-      callableAgentNames: [],
+      callableAgents: [],
       harness: {
         loop: {
           criteria: [
@@ -133,7 +133,7 @@ describe('AgentDetailScreen read-only notice', () => {
       toolNames: [],
       skillNames: [],
       extensionNames: [],
-      callableAgentNames: [],
+      callableAgents: [],
       harness: null,
       compaction: null,
       memory: null,
@@ -190,7 +190,7 @@ describe('AgentDetailScreen read-only notice', () => {
       toolNames: [],
       skillNames: [],
       extensionNames: [],
-      callableAgentNames: ['support'],
+      callableAgents: [{ name: 'support', version: null }],
       subAgents: { callMode },
       harness: null,
       compaction: null,
@@ -226,6 +226,49 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(row?.className).toContain('bg-warn-soft');
   });
 
+  it('shows a callable agent that a version pins, beside the same agent without a pin (Phase 250)', async () => {
+    const definition = (version: number, pin: number | null): unknown => ({
+      name: 'router',
+      instructions: 'Delegate.',
+      instructionsByCulture: {},
+      model: { provider: 'echo', model: 'echo-1' },
+      toolNames: [],
+      skillNames: [],
+      extensionNames: [],
+      callableAgents: [{ name: 'support', version: pin }],
+      subAgents: null,
+      harness: null,
+      compaction: null,
+      memory: null,
+      origin: 'Database',
+      version,
+    });
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/agents/:name/versions/:a/diff/:b', { left: definition(1, null), right: definition(2, 3) }),
+      fixture('GET', 'api/agents/:name/versions', [
+        { name: 'router', version: 1, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-13T09:00:00Z' },
+        { name: 'router', version: 2, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-13T10:00:00Z' },
+      ]),
+      fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'router', origin: 'Database', sourceName: 'database', version: 2, toolNames: [] },
+        definition: definition(2, 3),
+        factoryInstructions: null,
+        isEditable: true,
+      }),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<AgentDetailScreen name="router" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('version-checkbox-1'));
+    await user.click(screen.getByTestId('version-checkbox-2'));
+
+    expect(await screen.findByText('+ support · v3')).toBeTruthy();
+    expect(screen.getByText('− support')).toBeTruthy();
+  });
+
   it('shows a version that turns the skill read approval off (Phase 231)', async () => {
     const definition = (version: number, skills: { disableReadApproval: boolean } | null): unknown => ({
       name: 'support',
@@ -236,7 +279,7 @@ describe('AgentDetailScreen read-only notice', () => {
       skillNames: ['house-style'],
       skills,
       extensionNames: [],
-      callableAgentNames: [],
+      callableAgents: [],
       subAgents: null,
       harness: null,
       compaction: null,
@@ -282,7 +325,7 @@ describe('AgentDetailScreen read-only notice', () => {
       skillNames: [],
       workspace,
       extensionNames: [],
-      callableAgentNames: [],
+      callableAgents: [],
       subAgents: null,
       harness: null,
       compaction: null,

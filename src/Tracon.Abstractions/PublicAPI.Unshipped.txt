@@ -2,8 +2,8 @@
 Tracon.AgentDefinition
 Tracon.AgentDefinition.<Clone>$() -> Tracon.AgentDefinition!
 Tracon.AgentDefinition.AgentDefinition() -> void
-Tracon.AgentDefinition.CallableAgentNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Tracon.AgentDefinition.CallableAgentNames.init -> void
+Tracon.AgentDefinition.CallableAgents.get -> System.Collections.Generic.IReadOnlyList<Tracon.CallableAgentReference!>!
+Tracon.AgentDefinition.CallableAgents.init -> void
 Tracon.AgentDefinition.Compaction.get -> Tracon.CompactionSettings?
 Tracon.AgentDefinition.Compaction.init -> void
 Tracon.AgentDefinition.Description.get -> string?
@@ -423,6 +423,14 @@ Tracon.AuditQuery.Limit.get -> int
 Tracon.AuditQuery.Limit.init -> void
 Tracon.AuditQuery.TenantId.get -> string?
 Tracon.AuditQuery.TenantId.init -> void
+Tracon.CallableAgentReference
+Tracon.CallableAgentReference.<Clone>$() -> Tracon.CallableAgentReference!
+Tracon.CallableAgentReference.CallableAgentReference() -> void
+Tracon.CallableAgentReference.Equals(Tracon.CallableAgentReference? other) -> bool
+Tracon.CallableAgentReference.Name.get -> string!
+Tracon.CallableAgentReference.Name.init -> void
+Tracon.CallableAgentReference.Version.get -> int?
+Tracon.CallableAgentReference.Version.init -> void
 Tracon.CanaryPolicy
 Tracon.CanaryPolicy.<Clone>$() -> Tracon.CanaryPolicy!
 Tracon.CanaryPolicy.CanaryPolicy() -> void
@@ -1197,9 +1205,16 @@ Tracon.ResponseSchemaShape.Strict.get -> bool
 Tracon.ResponseSchemaShape.StrictUnsupported.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.ResponseSchemaShape.StrictUnsupported.init -> void
 Tracon.ResponseSchemaShape.Strict.init -> void
+override Tracon.CallableAgentReference.Equals(object? obj) -> bool
+override Tracon.CallableAgentReference.GetHashCode() -> int
+override Tracon.CallableAgentReference.ToString() -> string!
 override Tracon.ResponseSchemaShape.Equals(object? obj) -> bool
 override Tracon.ResponseSchemaShape.GetHashCode() -> int
 override Tracon.ResponseSchemaShape.ToString() -> string!
+static Tracon.CallableAgentReference.FromName(string! name) -> Tracon.CallableAgentReference!
+static Tracon.CallableAgentReference.implicit operator Tracon.CallableAgentReference!(string! name) -> Tracon.CallableAgentReference!
+static Tracon.CallableAgentReference.operator !=(Tracon.CallableAgentReference? left, Tracon.CallableAgentReference? right) -> bool
+static Tracon.CallableAgentReference.operator ==(Tracon.CallableAgentReference? left, Tracon.CallableAgentReference? right) -> bool
 static Tracon.ResponseSchemaShape.operator !=(Tracon.ResponseSchemaShape? left, Tracon.ResponseSchemaShape? right) -> bool
 static Tracon.ResponseSchemaShape.operator ==(Tracon.ResponseSchemaShape? left, Tracon.ResponseSchemaShape? right) -> bool
 Tracon.ISessionStore

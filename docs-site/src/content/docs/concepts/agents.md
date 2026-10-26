@@ -18,7 +18,7 @@ new AgentDefinition
     Model = new ModelBinding { Provider = "openai", Model = "…" },
     ToolNames = ["get_order_status"],
     SkillNames = ["refund-policy"],
-    CallableAgentNames = ["billing"],
+    CallableAgents = ["billing"],
 }
 ```
 
@@ -337,7 +337,7 @@ agent is edited; a code-defined agent has no version to pin.
 
 ## Agents calling agents
 
-List other agents in `CallableAgentNames` and the compiler wraps each one in a child
+List other agents in `CallableAgents` and the compiler wraps each one in a child
 invoker and hands them to MAF's background agents provider. The model starts a task,
 waits, and reads the result.
 
@@ -371,7 +371,7 @@ Five rules hold across the tree:
   new AgentDefinition
   {
       Name = "router",
-      CallableAgentNames = ["researcher"],
+      CallableAgents = ["researcher"],
       SubAgents = new SubAgentSettings
       {
           ChildDeadline = TimeSpan.FromSeconds(10),
@@ -404,7 +404,7 @@ one tool, named after the agent, and one tool call runs the sub-agent and return
 new AgentDefinition
 {
     Name = "router",
-    CallableAgentNames = ["support"],
+    CallableAgents = ["support"],
     SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
     // ...
 };
@@ -438,7 +438,7 @@ its own run row, linked to the caller with `ParentRunId`, and the caller's strea
   `support_agent`. A name that another tool of the agent already has — a tool in
   `ToolNames`, a skill tool, `search_knowledge` while semantic search is on, or the tool of
   another callable agent — fails validation with `sub_agent_tool_name_conflict` and the path
-  `callableAgentNames[i]`. A save returns `400` and names both. A definition written in code
+  `callableAgents[i].name`. A save returns `400` and names both. A definition written in code
   fails the compilation with the same message.
 - **The agent tool skips the tool chain.** It is not a registered tool, so Tracon does not
   authorize, approve, or time it as one. The wait limits above bound it. The tools the
@@ -456,17 +456,70 @@ its own run row, linked to the caller with `ParentRunId`, and the caller's strea
   tools in one turn, they run at the same time only when `ToolLoop.AllowConcurrentToolCalls`
   is on.
 
-A child resolves the callable agent's **current** version. This is deliberate: a
-version or an [experiment](/concepts/evaluation/#experiments) arm applies to the agent
-it was set on, not to the agents it calls. A workflow step resolves its agent's current
-version the same way, unless the step pins one (see
-[Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)),
-or a step built in code reads the version from a run parameter (see
-[Let a run choose the version of an agent step](/concepts/workflow-parameters/#let-a-run-choose-the-version-of-an-agent-step)).
-A pin reaches only the step's own agent: the callable agents of that agent still run
-their current version. A parent run pinned to version 1 can therefore call a child that
-runs version 3. To compare a child agent's versions, run an experiment on that agent
-directly.
+### Pin a callable agent to a version
+
+Without a pin, a child resolves the callable agent's **current** version, each time it is
+called: an edit of the callee reaches the caller at the next call. To keep a caller on a
+callee it was tested with, give the entry a version:
+
+```csharp
+new AgentDefinition
+{
+    Name = "writer",
+    CallableAgents =
+    [
+        new CallableAgentReference { Name = "researcher", Version = 3 },
+        "editor",
+    ],
+    // ...
+};
+```
+
+A name converts to a reference with no version, so `CallableAgents = ["editor"]` runs the
+current version of `editor`. Over HTTP the field is `callableAgents`, a list of
+`{ "name": "researcher", "version": 3 }` objects, and `version` may be left out. The
+console's Callable agents panel shows a *Version of … to run* select under each checked
+agent that has versions.
+
+- The pinned callee runs that version's instructions, model and tools, and its child run
+  row records that version. For a callee kept in the database, the description the model reads
+  to decide when to call it comes from that version too. This holds in both call modes. A
+  callee from a custom agent source keeps its current description, and the source decides
+  whether it has the version.
+- A new version of the callee leaves the compiled caller as it is. A caller with no pin is
+  compiled again when the callee changes.
+- A caller that a workflow step or an approval resumption pins to a version of its own runs
+  the callee versions **that version** names. A parent pinned to version 1 no longer calls a
+  child at version 3 unless version 1 says so.
+- A pin applies to the entry that carries it. An [experiment](/concepts/evaluation/#experiments)
+  arm still applies only to the agent it was set on, not to the agents that agent calls; to
+  compare a callee's versions, run an experiment on the callee directly.
+- Only a stored agent has versions. Pinning an agent defined in code is refused.
+- The call graph and the cycle check read the names of the callees' **current** versions. A pin
+  does not change them, so a cycle that exists only through a pinned older version is not found
+  when the definition is saved: the depth limit stops it while the run goes on, after the model
+  calls it spent. The same rule can refuse a definition whose pinned version does not close the
+  cycle that the current version does.
+
+A save returns `400`, and `POST /api/agents/validate` reports each finding with the path of
+the entry:
+
+| Code | Path | Meaning |
+|---|---|---|
+| `callable_agent_version_invalid` | `callableAgents[i].version` | The version is below 1, or the callee is defined in code |
+| `callable_agent_version_not_found` | `callableAgents[i].version` | The callee has no such version |
+| `callable_agent_duplicate` | `callableAgents[i].name` | The name is listed more than once |
+
+The compile repeats the check, because the callee can be deleted after the caller was saved.
+A numbering that goes on after a delete (see [Versions](#versions)) means version 3 of a
+deleted and recreated callee never names the new agent's content, so the caller fails with
+`Agent 'writer' pins callable agent 'researcher' to version 3, but the agent has no version
+3` instead of running other text.
+
+Before 1.0 the field was `callableAgentNames`, a list of names. An HTTP body that still
+carries it is refused with `400` and the name of the new field, and a row stored before the
+change reads back as entries with no version: nothing needs a migration, and a row takes the
+new shape the next time it is saved.
 
 ## Run until the work is done
 

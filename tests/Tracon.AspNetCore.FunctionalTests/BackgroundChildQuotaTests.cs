@@ -421,7 +421,7 @@ public sealed class BackgroundChildQuotaTests
                     Description = "Delegates the work.",
                     Instructions = "Delegate.",
                     Model = new ModelBinding { Provider = RouterProvider, Model = RouterModel },
-                    CallableAgentNames = ["arastirmaci"],
+                    CallableAgents = ["arastirmaci"],
                     SubAgents = subAgents,
                     Origin = AgentDefinitionOrigin.Code,
                 });

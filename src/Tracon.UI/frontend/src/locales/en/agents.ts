@@ -148,6 +148,8 @@ export const enAgents = {
   "agentEditor.extensionNotRegistered": 'Not registered',
   "agentEditor.callableNotice": 'Agents this one may call as a sub-task. The call graph is checked when you save: a self-call and an indirect cycle are rejected. A sub-agent runs in the same tenant and cannot ask for tool approval. Runtime limits come from',
   "agentEditor.noCallable": 'No other agent exists to call.',
+  "agentEditor.callableVersionOf": 'Version of {name} to run',
+  "agentEditor.callableVersionHint": 'Pins the call to one version of the agent, and the description the model reads comes from that version. Without a pin, every call runs the current version, so an edit of the agent reaches this one at once.',
   "fields.callMode": 'Call mode',
   "agentEditor.conversationMemorySearch.BeforeEachTurn": 'Before every turn',
   "agentEditor.conversationMemorySearch.OnDemand": 'When the model asks',

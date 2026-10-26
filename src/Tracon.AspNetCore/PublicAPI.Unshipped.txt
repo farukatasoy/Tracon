@@ -2,8 +2,8 @@
 Tracon.AgentDefinitionRequest
 Tracon.AgentDefinitionRequest.<Clone>$() -> Tracon.AgentDefinitionRequest!
 Tracon.AgentDefinitionRequest.AgentDefinitionRequest() -> void
-Tracon.AgentDefinitionRequest.CallableAgentNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Tracon.AgentDefinitionRequest.CallableAgentNames.init -> void
+Tracon.AgentDefinitionRequest.CallableAgents.get -> System.Collections.Generic.IReadOnlyList<Tracon.CallableAgentReference!>!
+Tracon.AgentDefinitionRequest.CallableAgents.init -> void
 Tracon.AgentDefinitionRequest.Compaction.get -> Tracon.CompactionSettings?
 Tracon.AgentDefinitionRequest.Compaction.init -> void
 Tracon.AgentDefinitionRequest.Description.get -> string?

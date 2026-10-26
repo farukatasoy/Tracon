@@ -100,6 +100,90 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
 
         // The list is ordered data: the order the extensions run is the order stored.
         read.ExtensionNames.ShouldBe(["echo-extension", "second-extension"]);
+
+        // A pin that came back unpinned would run the callee's current version in silence.
+        read.CallableAgents.ShouldBe(
+            [new CallableAgentReference { Name = "child-agent" }, new CallableAgentReference { Name = "pinned-child", Version = 2 }]);
+    }
+
+    /// <summary>
+    /// Phase 250: a row written before the version pin holds <c>callableAgentNames</c> (an array of names, present even
+    /// when empty) and no <c>callableAgents</c>. It must read back through every store read as references with no
+    /// version, and a save must write the new key only.
+    /// </summary>
+    [Fact]
+    public async Task A_row_written_before_the_version_pin_reads_back_its_names_as_references_without_a_version()
+    {
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition { Name = "old-caller", Model = Model() });
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition { Name = "old-caller", Model = Model(), Description = "second" });
+
+        // Rewrite what the stored rows hold to the shape that was written before the pin.
+        var prefix = context.Options.TablePrefix;
+        const string model = """{"provider":"echo","model":"echo-1"}""";
+
+        (await context.ExecuteAsync(
+            $$"""UPDATE {{prefix}}agent_definitions SET definition = '{"model":{{model}},"callableAgentNames":["alpha","beta"]}' WHERE name = 'old-caller';"""))
+            .ShouldBe(1);
+        (await context.ExecuteAsync(
+            $$"""UPDATE {{prefix}}agent_definition_versions SET definition = '{"model":{{model}},"callableAgentNames":["alpha","beta"]}';"""))
+            .ShouldBe(2);
+
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition { Name = "old-quiet", Model = Model() });
+
+        (await context.ExecuteAsync(
+            $$"""UPDATE {{prefix}}agent_definitions SET definition = '{"model":{{model}},"callableAgentNames":[]}' WHERE name = 'old-quiet';"""))
+            .ShouldBe(1);
+
+        CallableAgentReference[] expected = ["alpha", "beta"];
+
+        (await context.AgentDefinitions.GetAsync("old-caller"))!.CallableAgents.ShouldBe(expected);
+        (await context.AgentDefinitions.GetVersionAsync("old-caller", 1))!.CallableAgents.ShouldBe(expected);
+        (await context.AgentDefinitions.GetAsync("old-quiet"))!.CallableAgents.ShouldBeEmpty();
+
+        var listed = await context.AgentDefinitions.ListAsync();
+
+        listed.Single(static definition => string.Equals(definition.Name, "old-caller", StringComparison.Ordinal)).CallableAgents.ShouldBe(expected);
+
+        // A save writes the new key only, and only when there is something to write.
+        await context.AgentDefinitions.SaveAsync((await context.AgentDefinitions.GetAsync("old-caller"))! with { Description = "third" });
+
+        var stored = await context.ScalarAsync<string>($"SELECT definition FROM {prefix}agent_definitions WHERE name = 'old-caller';");
+
+        using var document = JsonDocument.Parse(stored.ShouldNotBeNull());
+
+        document.RootElement.TryGetProperty("callableAgentNames", out _).ShouldBeFalse("a saved row never carries the old key");
+        document.RootElement.GetProperty("callableAgents").GetArrayLength().ShouldBe(2);
+
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition { Name = "new-quiet", Model = Model() });
+
+        var quiet = await context.ScalarAsync<string>($"SELECT definition FROM {prefix}agent_definitions WHERE name = 'new-quiet';");
+
+        using var quietDocument = JsonDocument.Parse(quiet.ShouldNotBeNull());
+
+        quietDocument.RootElement.TryGetProperty("callableAgents", out _).ShouldBeFalse("an agent that calls nobody keeps the bytes it would have without the member");
+        quietDocument.RootElement.TryGetProperty("callableAgentNames", out _).ShouldBeFalse();
+    }
+
+    /// <summary>A pin survives a rollback: the old version is saved again as a new one, version and all.</summary>
+    [Fact]
+    public async Task A_pin_survives_a_rollback()
+    {
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition
+        {
+            Name = "pinning-caller",
+            Model = Model(),
+            CallableAgents = [new CallableAgentReference { Name = "callee", Version = 3 }],
+        });
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition { Name = "pinning-caller", Model = Model() });
+
+        var rolledBack = await context.AgentDefinitions.RollbackAsync("pinning-caller", 1);
+
+        rolledBack.CallableAgents.ShouldBe([new CallableAgentReference { Name = "callee", Version = 3 }]);
+        (await context.AgentDefinitions.GetAsync("pinning-caller"))!.CallableAgents.ShouldBe([new CallableAgentReference { Name = "callee", Version = 3 }]);
     }
 
     /// <summary>
@@ -355,7 +439,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
             Skills = new SkillSettings { DisableReadApproval = true },
             Workspace = new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true },
             ExtensionNames = ["echo-extension", "second-extension"],
-            CallableAgentNames = ["child-agent"],
+            CallableAgents = ["child-agent", new CallableAgentReference { Name = "pinned-child", Version = 2 }],
             SubAgents = new SubAgentSettings { WaitTimeout = TimeSpan.FromSeconds(30), CallMode = SubAgentCallMode.Tool },
             McpResourceUris = ["docs:file:///handbook.md"],
             Harness = new HarnessSettings(),

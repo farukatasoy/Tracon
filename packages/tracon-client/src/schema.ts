@@ -2998,8 +2998,8 @@ export interface components {
              *     `AddAgentExtension`; otherwise building the agent fails.
              */
             extensionNames?: string[];
-            /** @description Gets the names of the other agents this agent may call. */
-            callableAgentNames?: string[];
+            /** @description Gets the other agents this agent may call, each with the version of it that runs. */
+            callableAgents?: components["schemas"]["CallableAgentReference"][];
             subAgents?: null | components["schemas"]["SubAgentSettings"];
             /**
              * @description Gets the MCP resources added to the run context (mode A). Each item has the
@@ -3075,8 +3075,8 @@ export interface components {
              *     be given here. See `AgentDefinition.ExtensionNames`.
              */
             extensionNames?: string[];
-            /** @description Names of other agents this agent may call. */
-            callableAgentNames?: string[];
+            /** @description The other agents this agent may call, each with the version of it that runs. */
+            callableAgents?: components["schemas"]["CallableAgentReference"][];
             subAgents?: null | components["schemas"]["SubAgentSettings"];
             /**
              * @description MCP resources added to the run context, each of the form
@@ -3832,6 +3832,19 @@ export interface components {
              *     value; a caller-supplied value is ignored.
              */
             hash?: null | string;
+        };
+        /**
+         * @description One agent another agent may call, and the version of it that runs.
+         * @example null
+         */
+        CallableAgentReference: {
+            /** @description Gets the name of the agent to call. */
+            name: string;
+            /**
+             * Format: int32
+             * @description Gets the version of the agent to run. `null` runs its current version.
+             */
+            version?: null | number | string;
         };
         /**
          * @description Defines the outcome of a canary evaluation.
@@ -7371,7 +7384,7 @@ export interface components {
         /** Format: binary */
         Stream: string;
         /**
-         * @description How an agent calls the agents it may call (`CallableAgentNames`).
+         * @description How an agent calls the agents it may call (`CallableAgents`).
          * @enum {unknown}
          */
         SubAgentCallMode: "Background" | "Tool";
@@ -7381,7 +7394,7 @@ export interface components {
          */
         SubAgentSettings: {
             /**
-             * @description Gets how the agent calls every agent in `CallableAgentNames`.
+             * @description Gets how the agent calls every agent in `CallableAgents`.
              *     Defaults to `Background`.
              */
             callMode?: components["schemas"]["SubAgentCallMode"];
@@ -8989,6 +9002,7 @@ export type AttachmentDescriptor = components['schemas']['AttachmentDescriptor']
 export type AuditChainStatus = components['schemas']['AuditChainStatus'];
 export type AuditChainVerification = components['schemas']['AuditChainVerification'];
 export type AuditEntry = components['schemas']['AuditEntry'];
+export type CallableAgentReference = components['schemas']['CallableAgentReference'];
 export type CanaryDecisionKind = components['schemas']['CanaryDecisionKind'];
 export type CanaryEvaluation = components['schemas']['CanaryEvaluation'];
 export type CanaryPolicy = components['schemas']['CanaryPolicy'];

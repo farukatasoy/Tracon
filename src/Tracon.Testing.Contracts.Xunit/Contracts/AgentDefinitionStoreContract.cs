@@ -349,7 +349,10 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
             SkillNames = ["house-skill"],
             Skills = new SkillSettings { DisableReadApproval = true },
             Workspace = new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true },
-            CallableAgentNames = ["researcher"],
+
+            // One callee as it is now and one pinned: a store that dropped the pin would run the pinned
+            // callee's current version, with nothing to say so.
+            CallableAgents = ["researcher", new CallableAgentReference { Name = "writer", Version = 2 }],
             Harness = new HarnessSettings
             {
                 MaxContextWindowTokens = 4096,
@@ -412,7 +415,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.SkillNames.ShouldBe(["house-skill"]);
         loaded.Skills.ShouldNotBeNull().DisableReadApproval.ShouldBeTrue();
         loaded.Workspace.ShouldBe(new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true });
-        loaded.CallableAgentNames.ShouldBe(["researcher"]);
+        loaded.CallableAgents.ShouldBe([new CallableAgentReference { Name = "researcher" }, new CallableAgentReference { Name = "writer", Version = 2 }]);
         loaded.Harness.ShouldNotBeNull();
         loaded.Harness.MaxContextWindowTokens.ShouldBe(4096);
         loaded.Harness.DisableWebSearch.ShouldBeTrue();
