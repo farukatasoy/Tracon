@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
@@ -52,6 +53,7 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly ParameterizedAgentFactory? _parameterFactory;
     private readonly string _deadlineSetting;
     private readonly int? _pinnedVersion;
+    private readonly string? _versionParameter;
     private readonly bool _hostsApproval;
     private readonly string _callKind;
 
@@ -106,6 +108,13 @@ public sealed class ChildAgentInvoker : AIAgent
     /// What kind of caller a refusal that fails names (<see cref="ChildRefusalMode.Fail"/>): a
     /// <c>"workflow step"</c> (the default) or the <c>"loop reviewer"</c> of an <c>agentReview</c> criterion.
     /// </param>
+    /// <param name="versionParameter">
+    /// The name of the run parameter whose value is the version of the sub-agent a call runs; only a graph
+    /// built in code sets it. The value is read from the running workflow's scope on <em>every call</em>:
+    /// empty or absent runs the current version, a whole number from 1 runs that version, anything else
+    /// fails the call by name. <see langword="null"/> (the default) leaves the choice to
+    /// <paramref name="pinnedVersion"/>; the two are never both set.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
@@ -126,7 +135,8 @@ public sealed class ChildAgentInvoker : AIAgent
         string? deadlineSetting = null,
         int? pinnedVersion = null,
         bool hostsApproval = false,
-        string? callKind = null)
+        string? callKind = null,
+        string? versionParameter = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -164,6 +174,7 @@ public sealed class ChildAgentInvoker : AIAgent
         _refusalMode = refusalMode;
         _parameterFactory = parameterFactory;
         _pinnedVersion = pinnedVersion;
+        _versionParameter = versionParameter;
         _hostsApproval = hostsApproval;
         _callKind = callKind ?? "workflow step";
         _deadlineSetting = deadlineSetting ?? "'Tracon:AgentGraph:ChildDeadline'";
@@ -658,18 +669,22 @@ public sealed class ChildAgentInvoker : AIAgent
         AgentRunScope scope,
         CancellationToken cancellationToken)
     {
+        // The version is read from the scope on EVERY call: the graph was built before the run's values were
+        // bound, so nothing earlier could have known it.
+        var version = VersionFor(scope);
+
         if (_parameterFactory is not { } factory ||
             scope.ParameterValues is not { Count: > 0 } workflowValues)
         {
-            return (await ResolveAsync(cancellationToken).ConfigureAwait(false), null);
+            return (await ResolveAsync(version, cancellationToken).ConfigureAwait(false), null);
         }
 
-        var (definition, origin) = await factory.FindAsync(_childName, _pinnedVersion, cancellationToken)
+        var (definition, origin) = await factory.FindAsync(_childName, version, cancellationToken)
             .ConfigureAwait(false);
 
         if (definition is not { Parameters.Count: > 0 })
         {
-            return (await ResolveAsync(cancellationToken).ConfigureAwait(false), null);
+            return (await ResolveAsync(version, cancellationToken).ConfigureAwait(false), null);
         }
 
         var stepValues = ParameterValueSet.Intersect(definition.Parameters, workflowValues);
@@ -688,7 +703,7 @@ public sealed class ChildAgentInvoker : AIAgent
         // the step's own defaults and caches the result.
         if (stepValues.Count == 0)
         {
-            return (await ResolveAsync(cancellationToken).ConfigureAwait(false), final);
+            return (await ResolveAsync(version, cancellationToken).ConfigureAwait(false), final);
         }
 
         var bound = await factory
@@ -698,12 +713,64 @@ public sealed class ChildAgentInvoker : AIAgent
         return (bound, final);
     }
 
-    private async ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// The version of the sub-agent this call runs: the fixed pin, or the value of the run parameter the step
+    /// names.
+    /// </summary>
+    /// <param name="scope">The running run's scope.</param>
+    /// <returns>The version; <see langword="null"/> runs the current one.</returns>
+    /// <exception cref="TraconException">
+    /// The workflow does not declare the parameter, or its value is not a whole number from 1. The message
+    /// names the parameter and never repeats the value: a value is the caller's content, and this text reaches
+    /// a run's error and a log line.
+    /// </exception>
+    /// <remarks>
+    /// An absent name is not enough to tell a mistyped parameter from a declared one nobody supplied (a
+    /// parameter with no value and no default is not in the final set), so the scope carries the declared
+    /// names: a name that is not declared would otherwise run the current version in silence, the very
+    /// outcome a pin exists to prevent.
+    /// </remarks>
+    private int? VersionFor(AgentRunScope scope)
+    {
+        if (_versionParameter is not { } parameter)
+        {
+            return _pinnedVersion;
+        }
+
+        if (scope.ParameterNames?.Contains(parameter) != true)
+        {
+            throw new TraconException(
+                $"Workflow step '{_childName}' reads its agent version from run parameter '{parameter}', " +
+                $"but workflow '{_callerName}' does not declare it. Declare the parameter in the workflow's parameters.");
+        }
+
+        if (scope.ParameterValues is not { } values ||
+            !values.TryGetValue(parameter, out var text) ||
+            text.Length == 0)
+        {
+            return null;
+        }
+
+        // Digits only: no sign, no space, no decimal point. A number that overflows is as invalid as a word.
+        if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var version) || version < 1)
+        {
+            throw new TraconException(
+                $"Workflow step '{_childName}' cannot run: run parameter '{parameter}' is not a version number. " +
+                "A version is a whole number from 1; leave the parameter empty to run the agent's current version.");
+        }
+
+        return version;
+    }
+
+    private ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)
+        => ResolveAsync(_pinnedVersion, cancellationToken);
+
+    private async ValueTask<AIAgent> ResolveAsync(int? version, CancellationToken cancellationToken)
     {
         // A pinned step asks the catalog for ITS version: a version the agent does not
         // have, or an agent that keeps no history, throws here and fails the step by name
         // (the compiler checked both, but the agent can change after that).
-        var agent = await _resolver.ResolveAsync(_childName, _pinnedVersion, cancellationToken).ConfigureAwait(false);
+        var agent = await _resolver.ResolveAsync(_childName, version, cancellationToken).ConfigureAwait(false);
 
         return agent ?? throw new TraconException(
             $"Agent '{_callerName}' wants to call agent '{_childName}', but no such agent " +

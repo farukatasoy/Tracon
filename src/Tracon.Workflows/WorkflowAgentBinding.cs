@@ -118,15 +118,18 @@ public static class WorkflowAgentBinding
 
     /// <summary>
     /// Binds a catalog agent as a plain step of a workflow graph defined in code, with the step's own
-    /// timeout and version pin.
+    /// timeout and a version pin, fixed or read from a run parameter.
     /// </summary>
     /// <param name="services">The service provider.</param>
     /// <param name="workflowName">The name of the enclosing workflow. Appears in error messages.</param>
     /// <param name="agentName">The name of the agent to run. Also the id of the step.</param>
-    /// <param name="configure">Sets the step's timeout and version pin; called once, here.</param>
+    /// <param name="configure">Sets the step's timeout and version pin or version parameter; called once, here.</param>
     /// <returns>The executor binding to put in the graph.</returns>
     /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">One of the names is empty.</exception>
+    /// <exception cref="ArgumentException">
+    /// One of the names is empty, <see cref="WorkflowAgentStepOptions.AgentVersionParameter"/> is empty, or
+    /// both it and <see cref="WorkflowAgentStepOptions.AgentVersion"/> are set.
+    /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <see cref="WorkflowAgentStepOptions.Timeout"/> is outside the range an agent step accepts, or
     /// <see cref="WorkflowAgentStepOptions.AgentVersion"/> is less than 1.
@@ -148,6 +151,13 @@ public static class WorkflowAgentBinding
     /// stream: it asks the agent for its whole answer, so the structured-response repair
     /// (<c>Tracon:StructuredResponse</c>) and a loop agent's final iteration work as they do for a plain
     /// agent run.
+    /// </para>
+    /// <para>
+    /// <strong>A version is fixed in the graph or chosen by the run, never both.</strong>
+    /// <see cref="WorkflowAgentStepOptions.AgentVersion"/> fixes it for every run;
+    /// <see cref="WorkflowAgentStepOptions.AgentVersionParameter"/> names a run parameter that carries it. The
+    /// factory of a graph built in code cannot read the run's parameters, so the step reads the value each
+    /// time it runs.
     /// </para>
     /// <para>
     /// The step takes and passes on a <c>List&lt;ChatMessage&gt;</c>; put a node between it and a node of
@@ -199,6 +209,23 @@ public static class WorkflowAgentBinding
                 $"and that sum must still fit the timer. Actual value: {timeout}.");
         }
 
+        if (options.AgentVersion is not null && options.AgentVersionParameter is not null)
+        {
+            throw new ArgumentException(
+                $"{nameof(WorkflowAgentStepOptions)} of step '{agentName}' in workflow '{workflowName}' sets both " +
+                $"{nameof(WorkflowAgentStepOptions.AgentVersion)} and {nameof(WorkflowAgentStepOptions.AgentVersionParameter)}. " +
+                "Pin one version for every run, or read it from a run parameter; not both.",
+                nameof(configure));
+        }
+
+        if (options.AgentVersionParameter is { } versionParameter && string.IsNullOrWhiteSpace(versionParameter))
+        {
+            throw new ArgumentException(
+                $"{nameof(WorkflowAgentStepOptions)}.{nameof(WorkflowAgentStepOptions.AgentVersionParameter)} of step '{agentName}' in workflow " +
+                $"'{workflowName}' is empty. Name a run parameter, or leave it unset to run the agent's current version.",
+                nameof(configure));
+        }
+
         if (options.AgentVersion is < 1 and var version)
         {
             throw new ArgumentOutOfRangeException(
@@ -209,7 +236,13 @@ public static class WorkflowAgentBinding
         }
 
         var agent = services.GetRequiredService<WorkflowAgentCache>()
-            .Get(workflowName, agentName, description: null, options.Timeout, options.AgentVersion);
+            .Get(
+                workflowName,
+                agentName,
+                description: null,
+                options.Timeout,
+                options.AgentVersion,
+                agentVersionParameter: options.AgentVersionParameter);
 
         return ExecutorBindingExtensions.BindExecutor(new WorkflowAgentStepExecutor(agentName, agent));
     }

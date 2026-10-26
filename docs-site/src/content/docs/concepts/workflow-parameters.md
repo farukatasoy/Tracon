@@ -86,8 +86,55 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 - **A workflow defined in code declares its schema in its registration**
   (`WorkflowRegistrationOptions.Parameters`), checked, queued and recorded like a stored one's.
   Without a schema every value sent is refused.
+- **A parameter can choose the version of an agent step built in code**
+  (`step.AgentVersionParameter`; see [below](#let-a-run-choose-the-version-of-an-agent-step)).
 
 A workflow row stores no message: the values are the only input it records.
+
+## Let a run choose the version of an agent step
+
+A step of a graph built in code can pin its agent in the graph (`step.AgentVersion = 4`), or read the version
+from a run parameter, so one graph serves every version:
+
+```csharp
+tracon.AddWorkflow(
+    "episode",
+    services =>
+    {
+        var writer = services.GetWorkflowAgentStep("episode", "writer", step => step.AgentVersionParameter = "writerVersion");
+
+        return new WorkflowBuilder(writer).WithOutputFrom(writer).WithName("episode").Build();
+    },
+    options => options.Parameters = [new AgentParameter { Name = "writerVersion", Kind = AgentParameterKind.Number }]);
+```
+
+```bash
+curl -N -X POST http://localhost:5081/tracon/api/workflows/episode/run \
+     -H 'Content-Type: application/json' \
+     -d '{"message":"Episode 12","parameters":{"writerVersion":"2"}}'
+```
+
+- The step reads the value every time it runs. The factory of a graph built in code runs before a run's
+  parameters are bound, so it cannot read them; the step does.
+- An empty value, or no value, runs the agent's current version. A whole number from 1 runs that version,
+  and the step's own run row records it.
+- Declare the parameter optional, with no default, when a run may leave it out. A required one is refused
+  with `400` at the start of a run that omits it.
+- A value that is not a whole number from 1, a parameter name the workflow does not declare, a version the
+  agent does not have and an agent defined in code (it keeps no history) fail the step by name before its
+  model call. The error for a value that is not a number, and for a name the workflow does not declare,
+  names the parameter and never repeats the value; a version the agent does not have is named by its
+  number. Earlier steps have already run.
+- `AgentVersion` and `AgentVersionParameter` exclude each other: setting both throws when the graph is built.
+- A run that continues after a human answer, or a resume, reads the value its first part started with. A
+  number keeps that version through the wait, so an edit made while the run waited does not change the
+  version its later steps run. An empty value still means the current version, resolved when each step
+  runs, so a later step runs an edit made during the wait.
+- Whoever may start the run chooses the version, and any stored version of the agent can be chosen. Pass the
+  value from your own code, not from an end user's input, unless every version is meant to be reachable.
+- A stored workflow has no such setting: a node's `agentVersion` is fixed (see
+  [Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)), and a run chooses the
+  version of the whole workflow with `definitionVersion`.
 
 ## Read next
 

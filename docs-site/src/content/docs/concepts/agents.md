@@ -460,7 +460,9 @@ A child resolves the callable agent's **current** version. This is deliberate: a
 version or an [experiment](/concepts/evaluation/#experiments) arm applies to the agent
 it was set on, not to the agents it calls. A workflow step resolves its agent's current
 version the same way, unless the step pins one (see
-[Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)).
+[Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)),
+or a step built in code reads the version from a run parameter (see
+[Let a run choose the version of an agent step](/concepts/workflow-parameters/#let-a-run-choose-the-version-of-an-agent-step)).
 A pin reaches only the step's own agent: the callable agents of that agent still run
 their current version. A parent run pinned to version 1 can therefore call a child that
 runs version 3. To compare a child agent's versions, run an experiment on that agent

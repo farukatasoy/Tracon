@@ -1297,7 +1297,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         await SaveRunInputAsync(execution, scope, final, cancellationToken).ConfigureAwait(false);
 
-        return scope with { ParameterValues = final };
+        return scope with
+        {
+            ParameterValues = final,
+            ParameterNames = schema.Select(static parameter => parameter.Name).ToHashSet(StringComparer.Ordinal),
+        };
     }
 
     /// <summary>

@@ -21,6 +21,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// graph here is the shape such a pipeline has: load (a function that reads the id), a human review, publish (a function
 /// that reads the id again in the run that answers).
 /// </para>
+/// <para>
+/// An agent step can read its version from a run parameter (phase 249): the run that answers a human request runs the
+/// version the run started with, not the one an edit made in between.
+/// </para>
 /// </remarks>
 public sealed class CodeWorkflowParameterTests
 {
@@ -174,6 +178,92 @@ public sealed class CodeWorkflowParameterTests
 
         // The agent's own parameter is bound; the workflow's other name does not reach it and does not fail it.
         provider.Requests.ShouldHaveSingleItem().Options!.Instructions.ShouldBe("Speak in a formal tone.");
+    }
+
+    [Theory]
+    [InlineData("1", "ALPHA text", 1)]
+    [InlineData(null, "GAMMA text", 3)]
+    public async Task The_run_that_answers_runs_the_agent_version_the_run_started_with(string? startedWith, string expectedText, int expectedVersion)
+    {
+        // A number the run started with is kept through the wait. An empty value means "the current version", resolved
+        // when the step runs, so an edit made while the run waited is the version its later step runs.
+        var provider = new FakeModelProvider("episode-provider").WithModel(new ModelDescriptor { Name = "episode-model" }).EchoesUserMessage();
+
+        await using var host = await StartAsync(
+            new Probe(),
+            configure: builder =>
+            {
+                builder.AddModelProvider(provider);
+
+                builder.AddWorkflowFunction<List<ChatMessage>, string>("ask", _ => (_, _, _) => new ValueTask<string>("Write the episode?"));
+                builder.AddWorkflowFunction<bool, List<ChatMessage>>(
+                    "brief",
+                    _ => (_, _, _) => new ValueTask<List<ChatMessage>>([new ChatMessage(ChatRole.User, "Write the episode.")]));
+
+                builder.AddWorkflow(
+                    "episode-review",
+                    static services =>
+                    {
+                        var ask = services.GetWorkflowFunction("ask");
+                        var review = RequestPort.Create<string, bool>(Port).BindAsExecutor(allowWrappedRequests: false);
+                        var brief = services.GetWorkflowFunction("brief");
+                        var writer = services.GetWorkflowAgentStep("episode-review", "writer", static step => step.AgentVersionParameter = "writerVersion");
+
+                        return new WorkflowBuilder(ask)
+                            .AddEdge(ask, review)
+                            .AddEdge(review, brief)
+                            .AddEdge(brief, writer)
+                            .WithOutputFrom(writer)
+                            .WithName("episode-review")
+                            .Build();
+                    },
+                    static options => options.Parameters = [new AgentParameter { Name = "writerVersion", Kind = AgentParameterKind.Number }]);
+            });
+
+        await SaveWriterAsync(host, HttpMethod.Post, "/tracon/api/agents", "ALPHA text");
+        await SaveWriterAsync(host, HttpMethod.Put, "/tracon/api/agents/writer", "BETA text");
+
+        using var started = await host.Client.PostAsJsonAsync(
+            "/tracon/api/workflows/episode-review/run",
+            new WorkflowRunHttpRequest { Message = "go", Parameters = startedWith is null ? null : Values(("writerVersion", startedWith)) });
+
+        started.StatusCode.ShouldBe(HttpStatusCode.OK, await started.Content.ReadAsStringAsync());
+
+        var runId = RunIdOf((await SseReader.ReadAllAsync(await started.Content.ReadAsStreamAsync())).ToList());
+        var requestId = (await RequestsAsync(host, runId)).ShouldHaveSingleItem();
+
+        // The agent step has not run yet. An edit lands while the run waits for its answer.
+        provider.Requests.ShouldBeEmpty();
+        await SaveWriterAsync(host, HttpMethod.Put, "/tracon/api/agents/writer", "GAMMA text");
+
+        // The answer carries no parameters of its own: it takes the recorded values.
+        using var response = await RespondAsync(host, runId, new { requestId, approved = true });
+        var frames = await FramesAsync(response);
+
+        (await host.WaitForTerminalRunAsync(RunIdOf(frames))).Status.ShouldBe(RunStatus.Completed);
+        provider.Requests.ShouldHaveSingleItem().Options!.Instructions.ShouldBe(expectedText);
+
+        (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
+            .Where(static run => run.Kind == RunKind.Agent)
+            .ShouldHaveSingleItem()
+            .AgentVersion.ShouldBe(expectedVersion);
+    }
+
+    private static async Task SaveWriterAsync(TraconTestHost host, HttpMethod method, string path, string instructions)
+    {
+        using var request = new HttpRequestMessage(method, path)
+        {
+            Content = JsonContent.Create(new AgentDefinitionRequest
+            {
+                Name = "writer",
+                Instructions = instructions,
+                Model = new ModelBinding { Provider = "episode-provider", Model = "episode-model" },
+            }),
+        };
+
+        using var saved = await host.Client.SendAsync(request);
+
+        saved.IsSuccessStatusCode.ShouldBeTrue(await saved.Content.ReadAsStringAsync());
     }
 
     private static Dictionary<string, string> Values(params (string Name, string Value)[] values)
