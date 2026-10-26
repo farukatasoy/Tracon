@@ -16,14 +16,14 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
-    <MicrosoftAgentsAIVersion>1.25.0</MicrosoftAgentsAIVersion>
+    <MicrosoftAgentsAIVersion>1.26.0</MicrosoftAgentsAIVersion>
     <!--
       MEAI 10.11.0 System.Text.Json >= 10.0.13 ister (olculdu 2026-10-16:
       nuspec); 10.0.11'de kalmak NU1605 (paket dusurme) verir ve
       TreatWarningsAsErrors altinda restore'u kirar. Bu satir MEAI
       yukseltmesinin ZORUNLU sonucudur, ayri bir secim degil.
     -->
-    <MicrosoftExtensionsVersion>10.0.13</MicrosoftExtensionsVersion>
+    <MicrosoftExtensionsVersion>10.0.14</MicrosoftExtensionsVersion>
   </PropertyGroup>
 
   <ItemGroup Label="Microsoft Agent Framework - GA">
@@ -192,7 +192,7 @@
       SQLitePCLRaw surumu Microsoft.Data.Sqlite'in bagimliligidir (10.0.13 ->
       2.1.13, acik yok); K-197'nin CVE sabitleri Faz 214'te kalkti.
     -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
 
   <!--
@@ -297,8 +297,8 @@
       is a library with none — TestHost above stays the pattern for testing it.
       Same 10.0.13 ASP.NET Core line as TestHost/OpenApi.
     -->
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <!--
       Yalnizca UI paketi (SwaggerGen degil): dokuman zaten Microsoft.AspNetCore.OpenApi
       ile uretiliyor (AddOpenApi/MapOpenApi), bu paket sadece /openapi/v1.json'u
