@@ -42,6 +42,9 @@
     "src/Tracon.Sqlite/Migrations/0050_eval_case_expected_tool_calls.sql": "deb1033517353c6654af0acf85b82215ce046934",
     "src/Tracon.PostgreSql/Migrations/0064_agent_files_tenant_path_index.sql": "a21a23a7ea6fd9aece29476955cc7cec9e44d7cc",
     "src/Tracon.SqlServer/Migrations/0052_agent_files_tenant_path_index.sql": "a21a23a7ea6fd9aece29476955cc7cec9e44d7cc",
-    "src/Tracon.Sqlite/Migrations/0051_agent_files_tenant_path_index.sql": "a21a23a7ea6fd9aece29476955cc7cec9e44d7cc"
+    "src/Tracon.Sqlite/Migrations/0051_agent_files_tenant_path_index.sql": "a21a23a7ea6fd9aece29476955cc7cec9e44d7cc",
+    "src/Tracon.PostgreSql/Migrations/0065_agent_definition_version_counters.sql": "c570094c212ea6b5b025defbbdf966dce4398faa",
+    "src/Tracon.SqlServer/Migrations/0053_agent_definition_version_counters.sql": "c570094c212ea6b5b025defbbdf966dce4398faa",
+    "src/Tracon.Sqlite/Migrations/0052_agent_definition_version_counters.sql": "c570094c212ea6b5b025defbbdf966dce4398faa"
   }
 }

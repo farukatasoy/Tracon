@@ -359,6 +359,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`IAgentDefinitionStore` never gives a version number twice for one name.** `SaveAsync` returns one more than the highest
+  version the name ever had, including the versions of a definition that was deleted; `DeleteAsync` still removes the
+  definition and every one of its versions and keeps only the number. A custom `IAgentDefinitionStore` must keep that number
+  too: `AgentDefinitionStoreContract` has seven more cases (`SaveAsync_after_DeleteAsync_continues_the_numbering` and six
+  around it: a second delete, a delete of a name that never existed, a rollback after a recreate, a rollback of a deleted
+  agent, two tenants, and concurrent saves) that a store which restarts at 1 now fails. The PostgreSQL, SQL Server and SQLite
+  migrations add the `agent_definition_version_counters` table (`0065`, `0053` and `0052`), one row of name and number per
+  agent and no agent content, and start each existing agent's counter at the version it holds today. **Upgrade note:** an
+  agent that was deleted and created again before the upgrade cannot be recovered; its earlier numbers were never kept, so its
+  counter starts at the highest number it holds now.
+
 - **A configuration value that cannot be read stops the host at startup.** A key that held text its type could not read
   (`Tracon:Tools:DefaultMaxOutputBytes = "10MB"`, `Tracon:RunRecording:RecordToolPayloads = "nope"`,
   `Tracon:RateLimit:Enabled = "yes"`) was skipped and the shipped default stayed, with no message. 25 of those defaults are
@@ -558,6 +569,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that uses only one of the two, does not change.
 
 ### Fixed
+
+- **A version number of a stored agent could name another content after the agent was deleted and created again.** The
+  numbering restarted at 1, so a pin to version 3 (a workflow step's `agentVersion`, a loop reviewer, an experiment arm) or
+  a tool approval that waited on version 2 reached the new agent's third or second save a few edits later, and ran its
+  text instead of failing. A run on an approval, for example, was resumed with the new agent's instructions and completed.
+  The numbering now continues, so the old number names no version and the run stops before any step with `pins agent 'x' to
+  version N, but the agent has no version N` (a workflow) or fails (an approval resume). Version numbers a run recorded
+  before the delete are not reachable any more, as they were not before. Needs the migration of the **Changed** entry above.
 
 - **A data subject erasure (`DELETE /api/data-subjects/{id}?dryRun=false`) did not return on SQLite.** The audit
   entry is written before the erasure commits, from inside its transaction. On SQLite that transaction holds the
