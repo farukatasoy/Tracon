@@ -435,6 +435,30 @@ public sealed class SamplingSupportCheckTests
     }
 
     [Fact]
+    public async Task A_provider_whose_limits_member_returns_null_states_no_limit_and_does_not_break_the_check()
+    {
+        // A provider is third-party code: a null answer must not become a NullReferenceException (a 500) in the
+        // compiler or the validation endpoint. It is read as "no limit", as a provider that states nothing is.
+        var provider = new NullLimitsProvider();
+        var definition = SamplingSupportTests.Definition(new ModelBinding
+        {
+            Provider = NullLimitsProvider.ProviderName,
+            Model = "m",
+            Seed = long.MaxValue,
+            StopSequences = [.. Enumerable.Range(0, 20).Select(static index => $"stop-{index}")],
+        });
+
+        TestData.Providers(provider).List().ShouldHaveSingleItem().SamplingLimits.ShouldBeSameAs(SamplingLimits.None);
+
+        SamplingSupportTests.Compiler(provider).Compile(definition).ShouldNotBeNull();
+
+        var report = await SamplingSupportTests.Validator(provider).ValidateAsync(definition, TestContext.Current.CancellationToken);
+
+        report.Valid.ShouldBeTrue();
+        report.Messages.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void The_limits_record_compares_by_value_and_none_states_nothing()
     {
         SamplingLimits.None.ShouldBe(new SamplingLimits());
@@ -456,6 +480,22 @@ public sealed class SamplingSupportCheckTests
         public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = "m" }];
 
         public SamplingFields SupportedSamplingFields => SamplingFields.Seed | SamplingFields.StopSequences;
+
+        public IChatClient CreateChatClient(ModelBinding binding) => new FakeChatClient();
+    }
+
+    /// <summary>A provider that answers <see cref="ISamplingSupport.SamplingLimits"/> with <see langword="null"/>, which the contract forbids.</summary>
+    private sealed class NullLimitsProvider : IModelProvider, ISamplingSupport
+    {
+        public const string ProviderName = "null-limits";
+
+        public string Name => ProviderName;
+
+        public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = "m" }];
+
+        public SamplingFields SupportedSamplingFields => SamplingFields.Seed | SamplingFields.StopSequences;
+
+        public SamplingLimits SamplingLimits => null!;
 
         public IChatClient CreateChatClient(ModelBinding binding) => new FakeChatClient();
     }
