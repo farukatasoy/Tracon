@@ -425,18 +425,18 @@ Okuma:
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Adım 0 ölçümü bu dokümana yazıldı (iki TTL, iki kol)
-- [ ] Önbellekli Anthropic run'ında `RunUsage` iki yazma sayacını, `RunCost` `CacheWriteCost`'u taşır; `Total()` dört terimdir
-- [ ] Fiyatsız kurulumda maliyet değişmez (regresyon testi yeşil)
-- [ ] `grep -rn "\.Total()\|CachedInputCost" src` ile bulunan her toplama yeri dördüncü terimi taşır; tarama sonucu dokümana yazıldı
-- [ ] Kota tavanı yazmalı run'da doğru dolar (fonksiyonel test)
-- [ ] Migration üç sağlayıcıda; `RunStoreContract` dört depoda yeşil
-- [ ] Yeni `K-*` (`kalıcı-veri`, `public-api`): yazma terimi ve geri uyum kuralı, reddedilen alternatifler (TTL sözlüğü, tek fiyat) adıyla
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1-3), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/12-…` ve `06-…` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run check` temiz; bundle payı ölçüldü ve yazıldı
+- [x] Önbellekli Anthropic run'ında `RunUsage` iki yazma sayacını, `RunCost` `CacheWriteCost`'u taşır; `Total()` dört terimdir — kanıt: `AnthropicCacheWriteTests` (akışlı ve akışsız, tel ve kayıt), `RunCostTotalTests`, canlı koşum
+- [x] Fiyatsız kurulumda maliyet değişmez (regresyon testi yeşil) — kanıt: `PricingResolverCacheWriteTests.Without_a_write_rate_the_cost_is_exactly_what_it_was_before_the_write_counters_existed`, `AnthropicCacheWriteTests.Without_write_rates_the_cost_is_what_it_was_before_the_write_was_priced`, canlı case 3
+- [x] `grep -rn "\.Total()\|CachedInputCost" src` ile bulunan her toplama yeri dördüncü terimi taşır; tarama sonucu dokümana yazıldı — 253.4 "Tarama sonucu"
+- [x] Kota tavanı yazmalı run'da doğru dolar (fonksiyonel test) — `AnthropicCacheWriteTests.The_quota_counter_and_the_webhook_carry_the_whole_cost_including_the_write`
+- [x] Migration üç sağlayıcıda; `RunStoreContract` dört depoda yeşil — kanıt: `CacheWriteMigrationTests` (×3, eski şemadan yükseltme), `ReadViewContractTests` (×3), `RunStoreContract` (bellek içi, SQLite, PostgreSQL, SQL Server); beşinci depo `FileRunStore` örneği de geçti (geçici proje)
+- [ ] Yeni `K-*` (`kalıcı-veri`, `public-api`): yazma terimi ve geri uyum kuralı, reddedilen alternatifler (TTL sözlüğü, tek fiyat) adıyla — taslak yazıldı (*Entegrasyon Notları*, b: `K-NEW-1…3`); numara ve işleme entegratörde
+- [ ] Dört doğrulama kapısı sıfır uyarı verir — entegratörde (`kapi.py kapanis`). Bu dalda yerel kanıt: *Doğrulama kaydı*
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1-3), çıktı belgeye yazıldı — "Canlı koşum sonucu"
+- [x] `secret` taraması boş döndü — `kapi.py tarama` temiz; fark üzerinde anahtar kalıbı yok
+- [x] `🤖` case'ler `docs/manuel-test/12-…` ve `06-…` içinde ve koşuldu — `MT-PROV-096`, `MT-PROV-097`, `MT-OBS-086`
+- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — entegratörde
+- [ ] `docs-site/` güncellendi; `npm run check` temiz; bundle payı ölçüldü ve yazıldı — **kısmen:** sayfalar güncel, bundle +41 B yazıldı, `build`, `check:links` ve `check:weight` temiz; `check:content` tek bulguyla kırmızı (`llms-full.txt`, bu fazın yasak listesinde; entegratör üretir)
 
 ### Doğrulama komutları
 
@@ -448,6 +448,25 @@ curl -s http://localhost:5081/tracon/api/runs/$RUN -H "Authorization: Bearer $KE
 # Toplama yerlerinin taraması
 grep -rn "\.Total()\|CachedInputCost" src --include='*.cs' | grep -v Generated
 ```
+
+### Doğrulama kaydı (2026-10-27 · `faz/253` · kod ağacı `edd25903`; sonrasında yalnız bu doküman değişti)
+
+| Komut | Sonuç |
+|---|---|
+| `python3 scripts/kapi.py ic-dongu --taban eb0341f3` (heavy kilidiyle) | **çıkış 0.** `dotnet build Tracon.slnx -c Release`: 0 uyarı, 0 hata. On dört test projesi, 0 hata: `Anthropic.UnitTests` 522 · `AspNetCore.FunctionalTests` 2878 · `Azure.UnitTests` 714 · `Client.UnitTests` 28 · `Core.UnitTests` 15.771 · `Generators.UnitTests` 338 · `Google.UnitTests` 711 · `OpenAI.UnitTests` 1134 · `PostgreSql.IntegrationTests` 1162 (1 atlandı) · `Sql.Shared.UnitTests` 270 · `SqlServer.IntegrationTests` 1087 · `Sqlite.IntegrationTests` 3441 · `Testing.Contracts.Xunit.UnitTests` 42 · `Ui.E2ETests` 105. Çok hedefli projelerde sayı üç TFM'in (net8.0, net9.0, net10.0) toplamıdır |
+| atlanan test | `PostgreSql.IntegrationTests` içinde `BoundedSqlLoadTests.Bounded_run_recording_load_produces_a_report`: eski, koşullu `Assert.SkipUnless`; bu faz test atlamadı |
+| `dotnet format Tracon.slnx --verify-no-changes` | çıkış 0 |
+| `python3 scripts/kapi.py tarama` | temiz (15 işaretli sentetik credential atlandı); `secret` kalıbı taraması fark üzerinde boş |
+| `python3 scripts/dokuman-bakim.py --denetle` | çıkış 0; kırık bağlantı 0 |
+| `python3 scripts/dokuman-bakim.py --site-denetle --taban eb0341f3` | 4 kural tetiklendi; hedef sayfaların hepsi değişti |
+| `python3 -m unittest scripts/dokuman_bakim_test.py` | 307 test, OK |
+| `docs-site`: `npm ci`, `npm run build`, `check:links`, `check:weight` (heavy kilidiyle) | derleme temiz · bağlantı: 1052 sayfa, 186.933 başvuru, 0 kırık, SEO 0 hata · ağırlık: 1052 sayfa ≤ 59.000 B gzip, en ağır 58.195 B |
+| `docs-site`: `check:content` | **tek bulgu:** `docs-site/public/llms-full.txt` `capabilities.md` ile uyuşmuyor. Dosyayı entegratör üretir (*Entegrasyon Notları*, f-4). README sayısı ve ekran görüntüsü damgası bu fazda düzeltildi |
+| `Tracon.Ui.E2ETests`, tam koşum | 105/105 (ikinci koşum); `ic-dongu` içinde yine 105/105. İlk koşumda yük altında 1 titreşim (bkz. "Arayüz payı") |
+| `cd src/Tracon.UI/frontend && npx tsc --noEmit && npx vitest run` | `tsc` temiz. Vitest 39 dosya, 526/526. İlk koşumda 1 test düştü (adı kaydedilmedi; makine yükü ortalaması 55); sonraki 18 koşum (yük 55–130) 526/526 |
+| PostgreSQL ve SQL Server `IntegrationTests`, tek başına | 1162 (1 atlandı) ve 1087; ikisi de 0 hata |
+| `samples/Tracon.Samples.FileRunStore` | geçici, projeye bağlı test projesiyle derlendi (0 uyarı) ve iki sözleşme sınıfı koştu: 139/139; proje silindi |
+| Canlı koşum | yukarıda ("Canlı koşum sonucu") |
 
 ---
 
