@@ -57,10 +57,19 @@ reads `Running` once the run has what it waited for.
 `modelProvider` names the provider that actually answered — the same provider
 `modelId`'s model came from. `cost` is a **price snapshot**: it also carries the
 unit price (per million tokens) that was applied for input, output, and any
-prompt-cache read, computed once when the run ends. A later change to your
+prompt-cache read or write, computed once when the run ends. A later change to your
 pricing catalog or configuration never rewrites a run's already-known cost —
 `POST /api/stats/recalculate-costs` only fills in runs whose price was unknown
 at the time, it never re-prices a run that already has one.
+
+Prompt-cache tokens are counted **inside** `usage.inputTokens`, never beside it:
+`cachedInputTokens` were served from the cache, and `cacheWriteInputTokens` and
+`cacheWriteLongInputTokens` were written into it with the short and the long time to
+live (Anthropic: five minutes and one hour, which it bills apart). The cost has a term
+for each: `cachedInputCost` and `cacheWriteCost` are taken out of `inputCost` and billed
+at their own rates, so a run's total is the sum of all four terms and never only the
+first two. A counter the provider did not report is `null`, not `0`. A model with no
+write rate keeps its written tokens in `inputCost`, as before the rate existed.
 
 A run can spend tokens on more than one model: the context compaction
 summarizer and the judge of an `aiJudge` loop criterion can run on models of
