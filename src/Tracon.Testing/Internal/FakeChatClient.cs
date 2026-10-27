@@ -55,30 +55,37 @@ internal sealed class FakeChatClient(FakeModelScript script, Action<FakeModelReq
 
         if (step is { ToolCalls.Count: > 0 } multiCall)
         {
-            return
-            [
+            return WithUsage(
                 new ChatResponseUpdate(
                     ChatRole.Assistant,
                     [.. multiCall.ToolCalls!.Select(static call =>
                         (AIContent)new FunctionCallContent(Guid.NewGuid().ToString("N"), call.ToolName, ToArguments(call.Arguments)))]),
-            ];
+                multiCall.Usage);
         }
 
         if (step is { ToolName: { Length: > 0 } toolName })
         {
-            return
-            [
+            return WithUsage(
                 new ChatResponseUpdate(
                     ChatRole.Assistant,
                     [new FunctionCallContent(Guid.NewGuid().ToString("N"), toolName, ToArguments(step.ToolArguments))]),
-            ];
+                step.Usage);
         }
 
         var (text, usage) = step is null
             ? ResolveFallback(messages)
             : (step.Text ?? string.Empty, step.Usage);
 
-        var updates = new List<ChatResponseUpdate> { new(ChatRole.Assistant, text) };
+        return WithUsage(new ChatResponseUpdate(ChatRole.Assistant, text), usage);
+    }
+
+    /// <summary>
+    /// The turn's update, followed by an update that reports the turn's token usage when it has one: the way a real
+    /// provider reports it, in a part of its own, after the content.
+    /// </summary>
+    private static List<ChatResponseUpdate> WithUsage(ChatResponseUpdate turn, FakeUsage? usage)
+    {
+        var updates = new List<ChatResponseUpdate> { turn };
 
         if (usage is { } reported)
         {
