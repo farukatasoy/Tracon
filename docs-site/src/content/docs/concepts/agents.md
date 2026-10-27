@@ -207,6 +207,11 @@ flowchart LR
 Every name must resolve. An unknown tool, skill, extension, provider, or callable agent is a
 compilation error, not a run-time surprise.
 
+A request field of the model binding passes the same check. The provider's API surface must send it,
+the model catalog must not say the model rejects it, and its value must lie in the range the provider
+accepts; the primary model and every fallback link are checked. The error names the field and the
+provider ([Sampling and tool-use fields](/guides/model-providers/#sampling-and-tool-use-fields)).
+
 The same check runs on the **save** path, so a definition that could not run is
 rejected when it is written. `POST /api/agents/validate` runs it without saving and
 without calling any model — useful in CI. A validation failure there is not an HTTP

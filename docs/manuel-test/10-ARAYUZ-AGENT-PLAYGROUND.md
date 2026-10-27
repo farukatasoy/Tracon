@@ -2164,3 +2164,37 @@ Rol: administrator.
 **Koşum (2026-10-26, ajan)** — Adım 1: seçenekler `Current version`, `v2`, `v1 [selected]`. Adım 2: kayıttan sonra `finder-current` sürüm 2, `[{'name': 'source-finder', 'version': 1}]`; yeniden açılışta `v1 [selected]`. Adım 3 Vitest (`agent-editor.test.tsx`, "drops the pin…") ve Playwright E2E (`Callable_agent_pinned_in_the_console_is_saved_read_back_and_sent_to_the_server`) kapsar; gerçek tarayıcıda ayrıca koşulmadı.
 
 ✅ 2026-10-26 (adım 3 hariç).
+
+---
+
+### MT-UIAG-069 — Konsol güvenli tamsayı aralığı dışındaki `seed`'i göndermez; yuvarlanmış okunan kayıtlı `seed`'le kaydetmez (Faz 252, F-607)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 252 |
+| **İlgili karar** | K-1040 |
+| **Devir** | ➜ CI: `AgentTests.A_seed_outside_the_safe_integer_range_is_refused_in_the_form_and_nothing_is_sent` · `AgentTests.The_seed_range_error_reads_in_Turkish` · `AgentTests.A_stored_seed_beyond_the_safe_range_is_flagged_and_the_stored_value_is_not_rewritten` · `agent-editor.test.tsx` "seed range" · `model.test.ts` "seed" |
+
+Sunucu 64 bit `seed` alır; tarayıcı sayısı `2^53 − 1`'e kadar tamdır. `9007199254740993` yazılırsa `Number` onu `9007199254740992`'ye yuvarlar ve agent kimsenin yazmadığı bir `seed`'le koşar.
+
+**Ön koşul** — Konsol açık; `scripted` sağlayıcılı örnek host (E2E host'u). Bir API istemcisi `seed: 9007199254740993` ile `stored-big-seed` agent'ını kaydetmiş (sunucu `long`'u olduğu gibi tutar).
+
+**Adımlar**
+1. `/agents/new` aç; ad ve model gir; "Sampling and tool use" grubunu aç; `seed` alanına `9007199254740993` yaz.
+2. Alanı `9007199254740991` yap ve kaydet; `GET /api/agents/<ad>` oku.
+3. Dili `tr-TR` yap ve 1. adımı yinele.
+4. `/agents/stored-big-seed/edit` aç. Kaydetme düğmesine ve `GET /api/agents/stored-big-seed` yanıtına bak.
+5. Alanı `7` yap ve kaydet.
+
+**Beklenen sonuç**
+- Adım 1: alanın altında `Seed must be a whole number from -9007199254740991 to 9007199254740991.` hatası görünür; alan `aria-invalid`; Validate ve Save kapalı; sunucuya hiçbir istek gitmez (`GET` `404`).
+- Adım 2: hata kalkar; kayıt tamamlanır; `seed` `9007199254740991` döner.
+- Adım 3: hata `Seed, -9007199254740991 ile 9007199254740991 arasında bir tam sayı olmalıdır.` diye okunur.
+- Adım 4: alan tarayıcının okuduğu `9007199254740992`'yi gösterir; hata görünür; Save kapalı. Sunucudaki değer hâlâ `9007199254740993`'tür (konsol onu yeniden yazmadı).
+- Adım 5: Save açılır; kayıttan sonra `seed` `7` döner.
+
+**Koşum (2026-10-27, ajan)** — Üç Playwright testi ve Vitest (`528/528`) bu adımların tamamını koşar; E2E `AgentTests` `14/14` geçti. Gerçek tarayıcıda ayrıca elle koşulmadı.
+
+✅ 2026-10-27 (➜ CI).
