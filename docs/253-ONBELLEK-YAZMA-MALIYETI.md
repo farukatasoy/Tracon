@@ -438,7 +438,7 @@ Okuma:
 - [x] `grep -rn "\.Total()\|CachedInputCost" src` ile bulunan her toplama yeri dördüncü terimi taşır; tarama sonucu dokümana yazıldı — 253.4 "Tarama sonucu"
 - [x] Kota tavanı yazmalı run'da doğru dolar (fonksiyonel test) — `AnthropicCacheWriteTests.The_quota_counter_and_the_webhook_carry_the_whole_cost_including_the_write`
 - [x] Migration üç sağlayıcıda; `RunStoreContract` dört depoda yeşil — kanıt: `CacheWriteMigrationTests` (×3, eski şemadan yükseltme), `ReadViewContractTests` (×3), `RunStoreContract` (bellek içi, SQLite, PostgreSQL, SQL Server); beşinci depo `FileRunStore` örneği de geçti (geçici proje)
-- [ ] Yeni `K-*` (`kalıcı-veri`, `public-api`): yazma terimi ve geri uyum kuralı, reddedilen alternatifler (TTL sözlüğü, tek fiyat) adıyla — taslak yazıldı (*Entegrasyon Notları*, b: `K-NEW-1…3`); numara ve işleme entegratörde
+- [x] Yeni `K-*` (`kalıcı-veri`, `public-api`): yazma terimi ve geri uyum kuralı, reddedilen alternatifler (TTL sözlüğü, tek fiyat) adıyla — `K-1105`, `K-1106`, `K-1107` işlendi (taslaklar *Entegrasyon Notları*, b: `K-NEW-1…3`)
 - [ ] Dört doğrulama kapısı sıfır uyarı verir — entegratörde (`kapi.py kapanis`). Bu dalda yerel kanıt: *Doğrulama kaydı*
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1-3), çıktı belgeye yazıldı — "Canlı koşum sonucu"
 - [x] `secret` taraması boş döndü — `kapi.py tarama` temiz; fark üzerinde anahtar kalıbı yok
@@ -798,10 +798,10 @@ Bu yüzden metinler boşluğu olan dosyalara yazıldı; bütçe aşılırsa içe
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 9 sapma |
+| Düzeltme turu sayısı | 1 |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları

@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1042 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1045 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1094 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1097 kalem)
 
 | K | Karar |
 |---|---|
-| K-1053 | A2A çağıranı tür önekli kimlik: `user:` · `apikey:` · `static-token` · `anonymous`; okunamayan kullanıcı reddedilir (F-614, Faz 229) |
-| K-1054 | Sahiplik açıkken A2A mesajı, atıf kimliği yoksa ya da konuşma başka kullanıcınınsa model çağrılmadan reddedilir (F-614, Faz 229) |
-| K-1055 | Workflow adımı tool onayını yalnız MAF'ın host ettiği ve ölçülen düğümde bekler; fonksiyon adımı ve Magentic reddi sürdürür 🔁 |
 | K-1056 | `ToolApproval` cevabı yalnız karar taşır; araç çağrısı kayıtlı istekten gelir, `data` reddedilir |
 | K-1057 | Onay kuralı ve denetim satırı tek `ToolApprovalDecisionRecorder`'dan; ajan adı executor kimliğinden çözülür |
 | K-1058 | Cevaplanmayan istek süresi dolunca bekleyen adım run'ı workflow'la `Failed` kapanır; cevaplanan `AwaitingApproval` kalır |
@@ -62,3 +59,6 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1102 | Çağrılabilir agent sürüm sabitini tanım taşır: `CallableAgents: [{name, version?}]`; eski `callableAgentNames` kalkar (F-409, Faz 250) |
 | K-1103 | Model reddi katalogda `RejectedSamplingFields` ile yazılır; denetim yüzey desteği − model reddidir (F-606, Faz 252) |
 | K-1104 | Değer sınırı `ISamplingSupport.SamplingLimits` ile bildirilir; yalnız ölçülmüş ya da belgelenmiş sınır yazılır (F-607, Faz 252) |
+| K-1105 | Önbellek yazması run maliyetinin DÖRDÜNCÜ terimidir: TTL'e göre iki sayaç ve iki fiyat; fiyatsız yazma girdide kalır (F-420, Faz 253) |
+| K-1106 | Önbellek yazması sağlayıcıdan bağımsız iki anahtarla bildirilir: `TraconUsageCounts`; Core yalnız bu anahtarları okur (F-420, Faz 253) |
+| K-1107 | Eski `runs` satırları yazma sütunlarında NULL kalır ve "ayrı fiyatlanmadı" demektir; geri doldurma yok (F-420, Faz 253) |

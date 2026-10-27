@@ -164,3 +164,16 @@ eder. Ölçülmüş kapsam gerçekleri:
   `npx astro preview stop`, durum `status`, günlük `logs`. Manuel setteki "ön planda çalışır" varsayımı bayattı.
 - **`[WARN] Could not render /404 … conflicts with higher priority route /404` ESKİDEN beri vardır**
   (2026-09-14 denetimi); yükseltme getirmedi.
+
+## 🚨 Yeni public tip, `capabilities.md` satırı ve arayüz kaynağı üç ayrı çıktıyı bayatlatır (Faz 253)
+
+- **Yeni bir public tip `README.md`'deki "N public types" sayısını ve `kapi.py tarama` kanıt kapısını etkiler** (2026-10-27,
+  Faz 253): `check:content` sayıyı üretilen `api/package-*.md` sayfalarından karşılaştırır; kapı (K-850) tipin adının sitede,
+  örnekte, şablonda ya da README'de geçmesini ister. Faz 253: 625 → 626, `TraconUsageCounts` `guides/model-providers.md`'de
+  anıldı. Sayı elle tutulur ve paralel fazlar aynı satırda çakışır (aday F-723).
+- **`capabilities.md` satırı `docs-site/public/llms-full.txt`'i bayatlatır:** `node docs-site/scripts/build-agent-map.mjs`.
+- **Arayüz kaynağı değişince `.ui-source.sha256` bayatlar.** Değişen yüzey hiçbir ekranda görünmüyorsa görüntüleri değil
+  yalnız damgayı tazele (`node scripts/refresh-console-screenshot-stamp.mjs`, `docs-site` içinde). Faz 253 ölçümü: 44
+  görüntü yeniden üretildi, fark yalnız sürüm etiketi, kimlik ve saat; fiyatsız tohum yeni bir maliyet satırı çizmez. Damga
+  birleştirilemez, birleşmeden sonra yeniden hesaplanır (aday F-723). Damganın neyi saymadığı:
+  [`site-uretim-kapilari.md`](site-uretim-kapilari.md).

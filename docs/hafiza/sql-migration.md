@@ -67,6 +67,10 @@ tabandan **sonra eklenen** bir dosya o tabanda yoktur ve kapı onu ihlal sayar.
 - Ankrajlamadan önce **ölç**: `git diff --name-status <taban>..HEAD --
   "src/*/Migrations/*.sql"` yalnız `A` satırları göstermelidir. Bir `M` satırı
   varsa sorun ankraj değil, uygulanmış bir migration'ın değişmesidir.
+- **Yeniden yazma commit SHA'sını değiştirir; düz birleştirme değiştirmez** (2026-10-27, Faz 253): rebase, squash ve
+  cherry-pick yeni SHA üretir; ankraj girdileri dosyayı ekleyen yeni commit'e taşınır, sonra `kapi.py tarama`. Merge
+  commit dalın commit'lerini korur: Faz 253'ün üç migration'ı `8d9e5b11`'e ankrajlıdır ve birleşmeden sonra girdi
+  değişmedi.
 
 ## Sütun düşüren veri taşıma migration'ı (Faz 218)
 
@@ -74,3 +78,13 @@ tabandan **sonra eklenen** bir dosya o tabanda yoktur ve kapı onu ihlal sayar.
 - **Taşıma testi eski şemaya satır yazar, sonra gerçek `MigrationRunner` ile yükseltir ve satırı gerçek `store` ile okur** (üç sağlayıcının `RemoveAuthorizationConfigurationKeyMigrationTests`'i). `jsonb` nesne üyelerini uzunluğa göre sıralar, SQL Server ve SQLite eklenme sırasını tutar: haritayı **sıralı** sözlükle karşılaştır, yoksa test sağlayıcıya göre kırılır. SQL Server `OPENJSON`'un `key` sütunu ikili harmanlıdır (`LOWER([key])`), SQLite `json_each` kendi `key`/`value` sütunlarını getirir (alias + nitelik); ikisi de çakışma dalını (`authorization` her harf biçimi) test eder.
 - **Yükseltme koşumu iki derlemedir:** eski sürümü `git worktree add --detach <dizin> HEAD` ile derle, aynı SQLite dosyasına bir kayıt yaz (gerekirse `sqlite3` ile eski şemaya satır ekle), uygulamayı durdur, yeni derlemeyi AYNI dosyayla başlat. `ASPNETCORE_ENVIRONMENT=Production` ile başlat: `user-secrets` yüklenmez ve gerçek sağlayıcı anahtarları koşuma karışmaz (ayrıntı: [`elle-kosum-ortami.md`](elle-kosum-ortami.md)).
 - **Taşınan JSON anahtarı migration istemez: okuyucu çevirir** (2026-10-20, F-598, K-1041): `model.allowConcurrentToolCalls` → `model.toolLoop.allowConcurrentToolCalls`. `AgentDefinitionPayload.Read`/`UpgradeLegacyKeys` her okumada ve `RollbackAsync`'te çevirir; yeni bir okuma yolu `JsonSerializer.Deserialize`'ı doğrudan çağırırsa anahtar sessizce düşer (kapı: `A_stored_row_with_the_old_key_reads_back_through_every_store_read_with_its_value`).
+
+## Okuma görünümleri: `runs`'a sütun ekleyen faz `runs_v1`'i yeniden tanımlar (Faz 253)
+
+- **🚨 `MigrationsViews/*.sql` bütünlük kapısının DIŞINDADIR** (2026-10-27, Faz 253, K-1105): kapı yalnız
+  `src/*/Migrations/*.sql` ve `src/*/MigrationsKnowledge/*.sql`'i git tabanıyla karşılaştırır (aday F-726); görünüm dosyasını
+  yalnız `EnableReadViews` açan host koşar. `runs`'a sütun ekleyen faz `runs_v1`'i de yeniden tanımlar ve tanım YENİ bir dosyadır
+  (`0002_read_views_cache_write.sql`); `0001` düzenlenmez. PostgreSQL `CREATE OR REPLACE VIEW`, SQL Server `CREATE OR ALTER`
+  (`EXEC` içinde), SQLite `DROP` + `CREATE`. Yeni sütunlar görünümün SONUNA gider (sıra sözleşmesi); SQLite'ta `TEXT` tutar
+  sütunları `CAST(… AS REAL)` ile toplanır. Görünüm testleri adı sıralı SON dosyayı okur (`ReadViewSqlText`): son dosya
+  görünümün TAM tanımıdır.

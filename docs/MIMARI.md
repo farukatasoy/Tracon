@@ -204,7 +204,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar |
 | `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
 | `responses` | **Boş.** `/v1/responses` ve `/v1/conversations` durumu `sessions` tablosunda tutulur (K-036, K-043); ayrı bir yanıt kaydı yazılmadı |
-| `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet; token dışı harcamanın dört snapshot sütunu (`non_token_*`, K-974). Workflow kök satırında `agent_version` derlenen **tanım sürümüdür** (kod workflow'unda NULL, K-988) |
+| `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet; token dışı harcamanın dört snapshot sütunu (`non_token_*`, K-974); önbellek yazmasının beş sütunu (`cache_write_*`: iki token sayacı, tutar, iki birim fiyat; hepsi `NULL`'lanabilir, eski satırlarda `NULL`, geri doldurma yok; K-1105, K-1107). Workflow kök satırında `agent_version` derlenen **tanım sürümüdür** (kod workflow'unda NULL, K-988) |
 | `run_events` | Append-only olay akışı, `(run_id, seq)` birincil anahtar |
 | `tool_invocations` | Tool çağrıları: ad, argüman, sonuç, süre, hata; tool'un bildirdiği ölçüm ve sağlayıcı/model |
 | `run_non_token_usage` | Workflow fonksiyon düğümünün bildirdiği her token dışı kalem (birim, miktar, tutar, düğüm adı); run silinince cascade (K-974) |

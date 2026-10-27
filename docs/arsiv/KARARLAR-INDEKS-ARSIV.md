@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1042 kalem)
+## Arşivlenen Kararlar (1045 kalem)
 
 | K | Karar |
 |---|---|
@@ -1051,3 +1051,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1050 | `eval_cases.expected_tool_calls` yeni sütun; eski `expected_tools` yazılmaz, okunur, düşürülmez; okunamayan metin vakayı düşürür (F-605) |
 | K-1051 | Workflow adımında tool onayı reddedilmez; MAF'ın dış istek portuyla workflow isteğine döner (K-103'ün workflow kapsamı) 👤 |
 | K-1052 | A2A oturum kimliği `a2a:` + SHA-256 özeti: kiracı, agent, çağıran, `contextId`; her parça uzunluk önekli (F-614, Faz 229) |
+| K-1053 | A2A çağıranı tür önekli kimlik: `user:` · `apikey:` · `static-token` · `anonymous`; okunamayan kullanıcı reddedilir (F-614, Faz 229) |
+| K-1054 | Sahiplik açıkken A2A mesajı, atıf kimliği yoksa ya da konuşma başka kullanıcınınsa model çağrılmadan reddedilir (F-614, Faz 229) |
+| K-1055 | Workflow adımı tool onayını yalnız MAF'ın host ettiği ve ölçülen düğümde bekler; fonksiyon adımı ve Magentic reddi sürdürür 🔁 |

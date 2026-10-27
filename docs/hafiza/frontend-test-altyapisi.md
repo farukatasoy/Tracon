@@ -49,3 +49,4 @@
 - **`workflow-editor.test.tsx:314` Faz 216 deneme yükseltmesinden ÖNCE bir kez düştü, sonra dört kez geçti** (2026-10-16): taban
   (Vite 7) kırılgandı. Yükseltmeden sonra dört tam koşum geçti (418/418 ×1, 420/420 ×3; denetçininki dahil); tekrar ederse `kusur-giderme` Adım 2 ile kırılgan testten
   ayır; yükseltmeye bağlama (sınıf 2026-10-15'te üç kez "kap kayıttan önce görünür" idi, yukarıdaki üç madde).
+- **🚨 Maliyet toplamı konsolda tek yerden gelir: `lib/cost.ts` `runCostTotal`; `COST_TERMS` `RunCost`'un `*Cost` alanlarının TAM listesidir** (2026-10-27, Faz 253, K-1105): `RunCost`'a yeni bir `*Cost` alanı gelince `tsc` eksik terimde durur (`MissingCostTerm`); bir ekran terimleri elle toplamaz, `runCostTotal` çağırır.

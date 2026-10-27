@@ -1,6 +1,7 @@
 # Hosted Tool Tuzakları (web arama · kod yorumlayıcı · dosya arama)
 
 > `AddHostedTool`, sağlayıcı desteği (`IHostedToolSupport`), ücret halkası ve çağrı kaydı (Faz 226, F-603).
+> Anthropic'in önbellek yazması ölçümü (Faz 253) da burada: "Tuzaklar" sonu.
 > Tool onayı/yetkisi: [tool-onay-ve-yetkilendirme](tool-onay-ve-yetkilendirme.md). Halka sırası:
 > [model-boru-hatti](model-boru-hatti.md). Olay sözleşmesi: [run-olay-sozlesmesi](run-olay-sozlesmesi.md).
 > Maliyet terimi: [olcum-kota-ve-secenekler](olcum-kota-ve-secenekler.md).
@@ -67,6 +68,16 @@ ikisini de okur, **hosted önce** (bir MCP sunucusunun sonradan yayınladığı 
 - **Sahte sunucu tuzakları**: Anthropic SDK 12.58 `usage.server_tool_use` için `web_fetch_requests` ister
   (`AnthropicInvalidDataException: 'web_fetch_requests' cannot be absent`); OpenAI sahtesi `ResponsesOutputBeforeMessage`
   ile gerçek öğe şekillerini döndürür ve SDK ayrıştırır.
+- **🚨 Anthropic önbellek yazması: sayı girdinin İÇİNDEDİR, TTL dökümü yalnız ham kullanımdadır** (2026-10-27, Faz 253,
+  K-1105, K-1106; SDK 12.58.0, canlı ölçüm): yazma token'ları `InputTokenCount`'un İÇİNDEDİR; adaptör yalnız toplamı
+  `AdditionalCounts["CacheCreationInputTokens"]` yazar (sıfırsa anahtar yok). TTL dökümü yalnız ham `usage.cache_creation`'dadır:
+  akışsız `Message.RawData["usage"]`, akışlı yalnız `message_start` olayı — `message_delta` toplamı taşır, `UsageContent` en
+  sonda gelir ve yalnız toplamı taşır. `AnthropicCacheUsageChatClient` bu yüzden adaptörün hemen üstünde,
+  `AnthropicStopReasonChatClient`'ın İÇİNDE durur: `pause_turn` devamı ayrı bir çağrıdır. Döküm 13 çağrının 13'ünde geldi
+  (Haiku 4.5/5.5 · iki TTL · akışlı ve akışsız); gelmezse halka toplamı bağlamanın `ttl` ayarına yazar ve bir kez uyarır
+  (uyarı örnek başınadır, aday F-727). Üst düzey `cache_control` tüm isteği (kullanıcı mesajı dahil) önbelleğe alır: ikinci
+  çağrı aynı mesajla okur, farklı mesajla yeniden yazar. Gemini'nin saklama süresi ücreti token tabanlı değildir ve bu
+  sayaçlara girmez (aday F-721).
 
 ## Tel tablosu (2026-10-20/21, `HostedToolWireTests` + gerçek koşum)
 
