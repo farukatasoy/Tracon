@@ -59,6 +59,17 @@ internal sealed class ConfigurationValueBatch
     internal bool? Boolean(IConfiguration section, string key)
         => Read<bool>(section, key, ConfigurationValueKinds.TryBoolean, ConfigurationValueKinds.BooleanExpectation);
 
+    /// <summary>
+    /// Reads the name of an enum member, or a comma-separated list of names for a <c>[Flags]</c> enum.
+    /// </summary>
+    /// <typeparam name="TEnum">The enum type.</typeparam>
+    /// <param name="section">The section that holds the key.</param>
+    /// <param name="key">The key.</param>
+    /// <returns>The member or the set, or <see langword="null"/> when not given or unreadable.</returns>
+    internal TEnum? Enum<TEnum>(IConfiguration section, string key)
+        where TEnum : struct, Enum
+        => Read<TEnum>(section, key, ConfigurationValueKinds.TryDefinedEnum<TEnum>, ConfigurationValueKinds.EnumExpectation<TEnum>());
+
     /// <summary>Files the unreadable texts of this batch.</summary>
     /// <param name="stillBound">Whether the stored value is still the one the binder built.</param>
     internal void Commit(Func<bool> stillBound)

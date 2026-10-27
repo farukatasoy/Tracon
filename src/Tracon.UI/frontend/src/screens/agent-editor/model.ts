@@ -235,6 +235,31 @@ export function toNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const WHOLE_NUMBER = /^-?\d+$/;
+
+/**
+ * True when the seed text can be sent as it is: empty (not set), or a whole number a JavaScript number
+ * holds exactly.
+ *
+ * The server takes a 64-bit seed, and a JavaScript number is exact only up to `Number.MAX_SAFE_INTEGER`.
+ * A larger number is not an error to JavaScript: it is rounded, so `9007199254740993` would go out as
+ * `9007199254740992` and the agent would run with a seed nobody wrote. The text is therefore checked
+ * before it becomes a number, and a seed outside the range is refused rather than rounded. A stored seed
+ * outside the range fails the same check: the response was parsed before the form saw it, so what the
+ * form holds is already the rounded number.
+ */
+export function isValidSeed(text: string): boolean {
+  const trimmed = text.trim();
+
+  return trimmed.length === 0 || (WHOLE_NUMBER.test(trimmed) && Number.isSafeInteger(Number(trimmed)));
+}
+
+function toSeed(text: string): number | null {
+  // An invalid seed is left out here; the field shows its own error and the save and validate
+  // buttons are disabled until it is a seed the form can send.
+  return isValidSeed(text) ? toNumber(text) : null;
+}
+
 function toResponseFormat(form: FormState): AgentResponseFormat | null {
   if (form.responseFormatKind === '') {
     return null;
@@ -264,7 +289,7 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     topP: toNumber(form.topP),
     reasoningEffort: form.reasoningEffort.length > 0 ? form.reasoningEffort : null,
     reasoningOutput: form.reasoningOutput.length > 0 ? form.reasoningOutput : null,
-    seed: toNumber(form.seed),
+    seed: toSeed(form.seed),
     topK: toNumber(form.topK),
     stopSequences: stopSequencesToSend(form),
     frequencyPenalty: toNumber(form.frequencyPenalty),

@@ -1188,6 +1188,7 @@ Tracon.IRunStore.StartRunAsync(Tracon.RunStartInfo! info, System.Threading.Cance
 Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollection<System.Guid>! runIds, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.UpdateRunCostAsync(System.Guid runId, Tracon.RunCost? cost, string? tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ISamplingSupport
+Tracon.ISamplingSupport.SamplingLimits.get -> Tracon.SamplingLimits!
 Tracon.ISamplingSupport.SupportedSamplingFields.get -> Tracon.SamplingFields
 Tracon.IResponseSchemaSupport
 Tracon.IResponseSchemaSupport.DescribeResponseSchema(Tracon.ModelBinding! binding, System.Text.Json.JsonElement schema) -> Tracon.ResponseSchemaShape!
@@ -1905,6 +1906,8 @@ Tracon.ModelDescriptor.Name.get -> string!
 Tracon.ModelDescriptor.Name.init -> void
 Tracon.ModelDescriptor.OutputCostPerMillionTokens.get -> decimal?
 Tracon.ModelDescriptor.OutputCostPerMillionTokens.init -> void
+Tracon.ModelDescriptor.RejectedSamplingFields.get -> Tracon.SamplingFields
+Tracon.ModelDescriptor.RejectedSamplingFields.init -> void
 Tracon.ModelDescriptor.SupportsReasoning.get -> bool
 Tracon.ModelDescriptor.SupportsReasoning.init -> void
 Tracon.ModelDescriptor.SupportsStreaming.get -> bool
@@ -2953,6 +2956,16 @@ Tracon.SamplingFields.Seed = 1 -> Tracon.SamplingFields
 Tracon.SamplingFields.StopSequences = 4 -> Tracon.SamplingFields
 Tracon.SamplingFields.ToolMode = 32 -> Tracon.SamplingFields
 Tracon.SamplingFields.TopK = 2 -> Tracon.SamplingFields
+Tracon.SamplingLimits
+Tracon.SamplingLimits.<Clone>$() -> Tracon.SamplingLimits!
+Tracon.SamplingLimits.Equals(Tracon.SamplingLimits? other) -> bool
+Tracon.SamplingLimits.MaxSeed.get -> long?
+Tracon.SamplingLimits.MaxSeed.init -> void
+Tracon.SamplingLimits.MaxStopSequences.get -> int?
+Tracon.SamplingLimits.MaxStopSequences.init -> void
+Tracon.SamplingLimits.MinSeed.get -> long?
+Tracon.SamplingLimits.MinSeed.init -> void
+Tracon.SamplingLimits.SamplingLimits() -> void
 Tracon.SessionAccess
 Tracon.SessionAccess.Branch = 3 -> Tracon.SessionAccess
 Tracon.SessionAccess.Delete = 2 -> Tracon.SessionAccess
@@ -4836,6 +4849,9 @@ override Tracon.RunUserStatistics.ToString() -> string!
 override Tracon.RunVersionStatistics.Equals(object? obj) -> bool
 override Tracon.RunVersionStatistics.GetHashCode() -> int
 override Tracon.RunVersionStatistics.ToString() -> string!
+override Tracon.SamplingLimits.Equals(object? obj) -> bool
+override Tracon.SamplingLimits.GetHashCode() -> int
+override Tracon.SamplingLimits.ToString() -> string!
 override Tracon.SessionAuthorizationRequest.Equals(object? obj) -> bool
 override Tracon.SessionAuthorizationRequest.GetHashCode() -> int
 override Tracon.SessionAuthorizationRequest.ToString() -> string!
@@ -5321,6 +5337,9 @@ static Tracon.RunUserStatistics.operator !=(Tracon.RunUserStatistics? left, Trac
 static Tracon.RunUserStatistics.operator ==(Tracon.RunUserStatistics? left, Tracon.RunUserStatistics? right) -> bool
 static Tracon.RunVersionStatistics.operator !=(Tracon.RunVersionStatistics? left, Tracon.RunVersionStatistics? right) -> bool
 static Tracon.RunVersionStatistics.operator ==(Tracon.RunVersionStatistics? left, Tracon.RunVersionStatistics? right) -> bool
+static Tracon.SamplingLimits.None.get -> Tracon.SamplingLimits!
+static Tracon.SamplingLimits.operator !=(Tracon.SamplingLimits? left, Tracon.SamplingLimits? right) -> bool
+static Tracon.SamplingLimits.operator ==(Tracon.SamplingLimits? left, Tracon.SamplingLimits? right) -> bool
 static Tracon.SessionAuthorizationRequest.operator !=(Tracon.SessionAuthorizationRequest? left, Tracon.SessionAuthorizationRequest? right) -> bool
 static Tracon.SessionAuthorizationRequest.operator ==(Tracon.SessionAuthorizationRequest? left, Tracon.SessionAuthorizationRequest? right) -> bool
 static Tracon.SessionQuery.operator !=(Tracon.SessionQuery? left, Tracon.SessionQuery? right) -> bool

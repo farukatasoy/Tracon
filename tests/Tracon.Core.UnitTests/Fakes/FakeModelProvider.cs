@@ -12,11 +12,13 @@ internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISampl
         string name = "fake",
         IReadOnlyList<ModelDescriptor>? models = null,
         SamplingFields? supportedSamplingFields = null,
-        HostedToolKinds? supportedHostedTools = null)
+        HostedToolKinds? supportedHostedTools = null,
+        SamplingLimits? samplingLimits = null)
     {
         _client = client ?? new FakeChatClient();
         Name = name;
         SupportedSamplingFields = supportedSamplingFields ?? AllSamplingFields;
+        SamplingLimits = samplingLimits ?? SamplingLimits.None;
         SupportedHostedTools = supportedHostedTools ?? AllHostedTools;
         Models = models ??
         [
@@ -42,6 +44,8 @@ internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISampl
     public string Name { get; }
 
     public SamplingFields SupportedSamplingFields { get; }
+
+    public SamplingLimits SamplingLimits { get; }
 
     public HostedToolKinds SupportedHostedTools { get; }
 

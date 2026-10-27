@@ -3,6 +3,7 @@ import { useT } from '../../../lib/i18n';
 import { Button, Field, Panel, Select, TextArea, TextInput } from '../../../components/ui';
 import type { ModelProviderDescriptor } from '../../../lib/server-types';
 import {
+  isValidSeed,
   REASONING_EFFORTS,
   REASONING_OUTPUTS,
   RESPONSE_FORMAT_KINDS,
@@ -219,14 +220,19 @@ export function ModelSection({
           <summary className="hover:bg-raised cursor-pointer p-3 text-base">{t('agentEditor.sampling')}</summary>
           <div className="grid gap-4 p-4 sm:grid-cols-2">
             <p className="text-sm text-muted sm:col-span-2">{t('agentEditor.samplingNotice')}</p>
-            <Field label={t('fields.seed')}>
-              <TextInput
-                inputMode="numeric"
-                value={form.seed}
-                data-testid="agent-seed"
-                placeholder="42"
-                onChange={(event) => setForm({ ...form, seed: event.target.value })}
-              />
+            {/* The render-prop form of `Field`: the message is bound to the input with `aria-describedby`
+                and marks it invalid. A seed the browser cannot hold exactly is never rounded and sent. */}
+            <Field label={t('fields.seed')} error={isValidSeed(form.seed) ? undefined : t('agentEditor.seedError')}>
+              {(ids) => (
+                <TextInput
+                  {...ids}
+                  inputMode="numeric"
+                  value={form.seed}
+                  data-testid="agent-seed"
+                  placeholder="42"
+                  onChange={(event) => setForm({ ...form, seed: event.target.value })}
+                />
+              )}
             </Field>
             <Field label={t('fields.topK')}>
               <TextInput

@@ -98,6 +98,27 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
+    /// The seed is a 32-bit integer. Measured on 2026-10-27: the Gemini API accepts <c>-2147483648</c> and
+    /// <c>2147483647</c> and answers <c>3000000000</c> with <c>400</c> (<c>TYPE_INT32</c>), and the
+    /// Google.GenAI 1.26.1 chat client adapter narrows the seed with an unchecked <c>(int)</c> cast, so
+    /// <c>3000000000</c> would reach the model as <c>-1294967296</c> and nothing would say so.
+    /// </para>
+    /// <para>
+    /// At most five stop sequences: the Gemini API answers six with <c>400</c> (<c>the number of
+    /// stop_sequences must not exceed 5</c>, measured on 2026-10-27, <c>gemini-3.6-flash</c>), as its
+    /// reference states.
+    /// </para>
+    /// </remarks>
+    public SamplingLimits SamplingLimits { get; } = new()
+    {
+        MinSeed = int.MinValue,
+        MaxSeed = int.MaxValue,
+        MaxStopSequences = 5,
+    };
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Measured with a real call (2026-10-20, <c>gemini-3.6-flash</c>): the web search and the code
     /// execution run. The adapter maps a file search to Google's <c>Retrieval</c> tool, which needs a
     /// retrieval source Tracon has no way to name, so it is not reported.

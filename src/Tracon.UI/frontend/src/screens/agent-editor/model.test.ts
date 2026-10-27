@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentDefinition } from '../../lib/server-types';
-import { emptyForm, fromDefinition, toRequest, withDefaultProvider } from './model';
+import { emptyForm, fromDefinition, isValidSeed, toRequest, withDefaultProvider } from './model';
 
 describe('withDefaultProvider', () => {
   it('defaults to the first catalog provider when the form has none', () => {
@@ -283,4 +283,80 @@ describe('definition round trip', () => {
 
     expect(request.memory).toEqual(remembering);
   });
+});
+
+// F-607: the server takes a 64-bit seed, a JavaScript number holds 53 bits exactly, and a number that does not fit
+// comes back as another one. The form keeps the seed as text and never rounds it into a request.
+describe('seed', () => {
+  const withSeed = (seed: string) => ({ ...emptyForm, seed });
+  const MAX_SAFE = '9007199254740991';
+
+  it('sends a whole number inside the safe range as that number, the ends included', () => {
+    expect(toRequest(withSeed('42')).model.seed).toBe(42);
+    expect(toRequest(withSeed('-7')).model.seed).toBe(-7);
+    expect(toRequest(withSeed('0')).model.seed).toBe(0);
+    expect(toRequest(withSeed(' 42 ')).model.seed).toBe(42);
+    expect(toRequest(withSeed(MAX_SAFE)).model.seed).toBe(Number.MAX_SAFE_INTEGER);
+    expect(toRequest(withSeed(`-${MAX_SAFE}`)).model.seed).toBe(Number.MIN_SAFE_INTEGER);
+  });
+
+  it('does not send a seed outside the safe range, and says it is not valid', () => {
+    for (const text of ['9007199254740992', '9007199254740993', '-9007199254740992', '3000000000000000000', '99999999999999999999']) {
+      expect(isValidSeed(text), text).toBe(false);
+      expect(toRequest(withSeed(text)).model.seed, text).toBeNull();
+    }
+  });
+
+  it('does not send text that is not a whole number, and says it is not valid', () => {
+    for (const text of ['1.5', 'abc', '12abc', '0x10', '1e3', '--1', '1,000', '4 2']) {
+      expect(isValidSeed(text), text).toBe(false);
+      expect(toRequest(withSeed(text)).model.seed, text).toBeNull();
+    }
+  });
+
+  it('treats an empty seed as not set', () => {
+    for (const text of ['', '   ']) {
+      expect(isValidSeed(text), text).toBe(true);
+      expect(toRequest(withSeed(text)).model.seed, text).toBeNull();
+    }
+  });
+
+  // The response is parsed before the form sees it: the server's 9007199254740993 reaches the form as the nearest
+  // number, 9007199254740992. That number is not the stored seed, so it is never sent back.
+  it('flags a stored seed the browser could not read exactly, and never sends the rounded number back', () => {
+    const stored = JSON.parse('9007199254740993') as number;
+    const form = fromDefinition({ ...definitionWithSeed(stored) });
+
+    expect(form.seed).toBe('9007199254740992');
+    expect(isValidSeed(form.seed)).toBe(false);
+    expect(toRequest(form).model.seed).toBeNull();
+  });
+
+  it('flags a stored seed the browser writes with an exponent', () => {
+    const form = fromDefinition(definitionWithSeed(JSON.parse('1000000000000000000000') as number));
+
+    expect(form.seed).toBe('1e+21');
+    expect(isValidSeed(form.seed)).toBe(false);
+  });
+
+  it('keeps a stored seed inside the safe range exactly', () => {
+    const form = fromDefinition(definitionWithSeed(Number.MAX_SAFE_INTEGER));
+
+    expect(isValidSeed(form.seed)).toBe(true);
+    expect(toRequest(form).model.seed).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  function definitionWithSeed(seed: number): AgentDefinition {
+    return {
+      name: 'seeded',
+      instructions: 'Be brief.',
+      model: { provider: 'openai', model: 'configured-model', fallbacks: [], seed },
+      toolNames: [],
+      skillNames: [],
+      extensionNames: [],
+      callableAgents: [],
+      origin: 'Database',
+      version: 1,
+    } as unknown as AgentDefinition;
+  }
 });

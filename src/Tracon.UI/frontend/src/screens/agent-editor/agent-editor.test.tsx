@@ -276,6 +276,132 @@ describe('AgentEditorScreen', () => {
       });
     });
 
+    // F-607: a seed the browser cannot hold exactly is refused with an error, never rounded and sent.
+    describe('seed range', () => {
+      const SEED_ERROR = /Seed must be a whole number from -9007199254740991 to 9007199254740991/;
+
+      it('refuses a typed seed outside the safe integer range, says why, and sends it nowhere', async () => {
+        let sent: Sent | undefined;
+
+        restoreFetch = installApiMock([
+          ...baseOverrides(),
+          fixture('GET', 'api/agents/:name', { descriptor: { name: 'support', origin: 'Database', sourceName: 'database' }, definition: fullDefinition }),
+          validateInto((body) => {
+            sent = body;
+          }),
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        await screen.findByTestId('agent-name');
+        await user.click(screen.getByText('Sampling and tool use'));
+
+        const seed = screen.getByTestId('agent-seed');
+
+        expect(screen.queryByText(SEED_ERROR)).toBeNull();
+
+        await user.type(seed, '9007199254740993');
+
+        expect(await screen.findByText(SEED_ERROR)).toBeTruthy();
+        expect(seed.getAttribute('aria-invalid')).toBe('true');
+        expect((screen.getByTestId('agent-validate') as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(true);
+
+        // A seed inside the range clears the error and is sent as typed.
+        await user.clear(seed);
+        await user.type(seed, '9007199254740991');
+
+        await waitFor(() => {
+          expect(screen.queryByText(SEED_ERROR)).toBeNull();
+        });
+        expect(seed.getAttribute('aria-invalid')).toBeNull();
+
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(sent?.model?.seed).toBe(9007199254740991);
+        });
+      });
+
+      it('flags a stored seed the browser read rounded, and does not save before it is replaced or cleared', async () => {
+        // The server stores 9007199254740993; JSON.parse in the browser reads it as 9007199254740992.
+        let sent: Sent | undefined;
+
+        restoreFetch = installApiMock([
+          ...baseOverrides(),
+          fixture('GET', 'api/agents/:name', {
+            descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+            definition: { ...fullDefinition, model: { ...fullDefinition.model, seed: JSON.parse('9007199254740993') as number } },
+          }),
+          validateInto((body) => {
+            sent = body;
+          }),
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        // The group opens by itself for a stored value, and the error is already on the field.
+        expect(await screen.findByText(SEED_ERROR)).toBeTruthy();
+        expect((screen.getByTestId('sampling-settings') as HTMLDetailsElement).open).toBe(true);
+        expect((screen.getByTestId('agent-seed') as HTMLInputElement).value).toBe('9007199254740992');
+        expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByTestId('agent-validate') as HTMLButtonElement).disabled).toBe(true);
+
+        // Editing another field does not let the rounded seed through.
+        await user.type(screen.getByTestId('agent-display-name'), ' Two');
+
+        expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(true);
+
+        // Replacing the seed does.
+        await user.clear(screen.getByTestId('agent-seed'));
+        await user.type(screen.getByTestId('agent-seed'), '7');
+
+        await waitFor(() => {
+          expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(false);
+        });
+
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(sent?.model?.seed).toBe(7);
+        });
+      });
+
+      it('lets a stored seed be cleared, which sends no seed', async () => {
+        let sent: Sent | undefined;
+
+        restoreFetch = installApiMock([
+          ...baseOverrides(),
+          fixture('GET', 'api/agents/:name', {
+            descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+            definition: { ...fullDefinition, model: { ...fullDefinition.model, seed: JSON.parse('9007199254740993') as number } },
+          }),
+          validateInto((body) => {
+            sent = body;
+          }),
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        await screen.findByText(SEED_ERROR);
+        await user.clear(screen.getByTestId('agent-seed'));
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(sent?.model).toBeDefined();
+        });
+
+        expect(sent?.model?.seed).toBeNull();
+        expect(screen.queryByText(SEED_ERROR)).toBeNull();
+      });
+    });
+
     it('marks a hosted tool and does not offer it as a required tool', async () => {
       // The first matching route wins, so the screen's own fixtures come before the empty defaults.
       restoreFetch = installApiMock([
@@ -1462,5 +1588,153 @@ describe('AgentEditorScreen', () => {
     const alert = await screen.findByRole('alert');
 
     expect(alert.textContent).toContain('Name already exists');
+  });
+
+  // Retry is Save (or Validate) sent again from the form as it is NOW. The request leaves out what
+  // it cannot hold (a seed that is not a safe integer, a schema that is not JSON), so a Retry from a
+  // form the buttons refuse would store an agent without the field the user is still fixing.
+  describe('Retry after a failed request', () => {
+    type Sent = { model?: { seed?: number | null; responseFormat?: { schema?: unknown } | null } };
+
+    /** A route that always fails and keeps every body it receives. */
+    function failing(method: 'POST', pattern: string, sent: Sent[]): FixtureRoute {
+      return {
+        method,
+        pattern,
+        status: 503,
+        handler: (_params, _url, body) => {
+          sent.push(body as Sent);
+
+          return { title: 'Store unavailable', status: 503 };
+        },
+      };
+    }
+
+    async function fillNewAgent(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+      await user.type(await screen.findByTestId('agent-name'), 'demo');
+      await user.type(screen.getByTestId('agent-model'), 'claude');
+      await user.selectOptions(screen.getByLabelText(/^Provider/), 'anthropic');
+    }
+
+    it('is not offered for a seed outside the safe integer range, and is again once the seed is fixed', async () => {
+      const saves: Sent[] = [];
+
+      restoreFetch = installApiMock([...baseOverrides(), failing('POST', 'api/agents', saves)]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen />);
+
+      await fillNewAgent(user);
+      await user.click(screen.getByText('Sampling and tool use'));
+
+      const seed = screen.getByTestId('agent-seed');
+
+      await user.type(seed, '7');
+      await user.click(screen.getByTestId('agent-save'));
+
+      // Nothing is wrong with the form yet, so the failure offers Retry.
+      expect(await screen.findByTestId('error-retry')).toBeTruthy();
+      expect(saves).toHaveLength(1);
+      expect(saves[0]?.model?.seed).toBe(7);
+
+      await user.clear(seed);
+      await user.type(seed, '9007199254740993');
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('error-retry')).toBeNull();
+      });
+      // The failure stays on screen; only the way to send it again with the seed dropped is gone.
+      expect(screen.getByText(/Store unavailable/)).toBeTruthy();
+      expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(true);
+      expect(saves).toHaveLength(1);
+
+      await user.clear(seed);
+      await user.type(seed, '8');
+      await user.click(await screen.findByTestId('error-retry'));
+
+      await waitFor(() => {
+        expect(saves).toHaveLength(2);
+      });
+      expect(saves[1]?.model?.seed).toBe(8);
+    });
+
+    it('is not offered for a response schema that stopped being JSON, and is again once it parses', async () => {
+      const saves: Sent[] = [];
+
+      restoreFetch = installApiMock([...baseOverrides(), failing('POST', 'api/agents', saves)]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen />);
+
+      await fillNewAgent(user);
+      await user.selectOptions(screen.getByTestId('agent-response-format'), 'JsonSchema');
+
+      const schema = screen.getByTestId('agent-response-schema');
+
+      // `userEvent.type` reads `{` as key syntax; a change event puts the text in as it is.
+      fireEvent.change(schema, { target: { value: '{"type":"object"}' } });
+      await user.click(screen.getByTestId('agent-save'));
+
+      expect(await screen.findByTestId('error-retry')).toBeTruthy();
+      expect(saves).toHaveLength(1);
+      expect(saves[0]?.model?.responseFormat?.schema).toEqual({ type: 'object' });
+
+      fireEvent.change(schema, { target: { value: '{ not json' } });
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('error-retry')).toBeNull();
+      });
+      expect(screen.getByText(/Store unavailable/)).toBeTruthy();
+      expect(saves).toHaveLength(1);
+
+      fireEvent.change(schema, { target: { value: '{"type":"string"}' } });
+      await user.click(await screen.findByTestId('error-retry'));
+
+      await waitFor(() => {
+        expect(saves).toHaveLength(2);
+      });
+      expect(saves[1]?.model?.responseFormat?.schema).toEqual({ type: 'string' });
+    });
+
+    it('holds back the Retry of a failed Validate the same way', async () => {
+      const validations: Sent[] = [];
+
+      restoreFetch = installApiMock([...baseOverrides(), failing('POST', 'api/agents/validate', validations)]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen />);
+
+      await fillNewAgent(user);
+      await user.click(screen.getByText('Sampling and tool use'));
+
+      const seed = screen.getByTestId('agent-seed');
+
+      await user.type(seed, '7');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      expect(await screen.findByTestId('error-retry')).toBeTruthy();
+      expect(validations).toHaveLength(1);
+
+      await user.clear(seed);
+      await user.type(seed, '9007199254740993');
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('error-retry')).toBeNull();
+      });
+      expect(screen.getByText(/Store unavailable/)).toBeTruthy();
+      expect(validations).toHaveLength(1);
+
+      await user.clear(seed);
+      await user.type(seed, '8');
+      await user.click(await screen.findByTestId('error-retry'));
+
+      await waitFor(() => {
+        expect(validations).toHaveLength(2);
+      });
+      expect(validations[1]?.model?.seed).toBe(8);
+    });
   });
 });

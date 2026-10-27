@@ -93,6 +93,16 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
     /// <inheritdoc />
     /// <remarks>
+    /// States no limit. The Messages API sends no seed, and it does not bound the NUMBER of stop sequences: it
+    /// bounds their total length (measured with real calls on 2026-10-27, <c>claude-haiku-4-5-20251001</c>:
+    /// <c>stop_sequences: total length: 0..2,500</c>, and 2,500 one-character entries pass where 2,501 and
+    /// 100 entries of 40 characters do not). A count limit cannot state that, so a definition that exceeds it
+    /// gets the provider's own <c>400</c>.
+    /// </remarks>
+    public SamplingLimits SamplingLimits => SamplingLimits.None;
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Measured with a real call (2026-10-20, <c>claude-haiku-4-5-20251001</c>): the adapter maps the web
     /// search to the web search tool and the code interpreter to the code execution tool, and both run.
     /// It has no file search.

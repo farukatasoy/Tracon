@@ -50,6 +50,31 @@ public sealed record ModelDescriptor
     /// </remarks>
     public bool? SupportsSampling { get; init; }
 
+    /// <summary>
+    /// The request fields this model rejects although its provider's API surface sends them;
+    /// <c>None</c> when the catalog names none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A model decides what it accepts, not the API surface: <c>openai</c> sends
+    /// <see cref="ModelBinding.StopSequences"/>, and some reasoning models answer a request that
+    /// carries them with <c>400 unsupported_parameter</c>. <see cref="SamplingFields.None"/> (the
+    /// default) means the catalog does not say and checks nothing. When the catalog names a field, an
+    /// agent definition that sets it does not compile, the validation report names the field as
+    /// <c>sampling_field_rejected_by_model</c>, and saving the definition returns <c>400</c>: the
+    /// provider would reject the first run. The check covers the binding's
+    /// <see cref="ModelBinding.Fallbacks"/> links too, because they receive the same fields.
+    /// </para>
+    /// <para>
+    /// Only a field the provider's surface sends can be rejected here; a field the surface drops is
+    /// reported as <c>sampling_field_unsupported</c> already. In configuration the value is a name or a
+    /// comma-separated list of names, such as <c>"StopSequences, Seed"</c>, and a name that does not
+    /// exist stops the host at start. The value comes from the catalog, never from a model-name list
+    /// in code: which models reject a field changes with every release.
+    /// </para>
+    /// </remarks>
+    public SamplingFields RejectedSamplingFields { get; init; }
+
     /// <summary>The cost per million input tokens. For reporting only.</summary>
     public decimal? InputCostPerMillionTokens { get; init; }
 
@@ -101,6 +126,16 @@ public sealed record ModelProviderDescriptor
     /// definition that sets a field the provider would drop.
     /// </remarks>
     internal SamplingFields SupportedSamplingFields { get; init; }
+
+    /// <summary>
+    /// Gets the value ranges the provider's API surface accepts, as the provider stated them through
+    /// <see cref="ISamplingSupport"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not part of the wire shape. The compiler and the validator read it to reject a definition whose
+    /// value the provider would refuse or change.
+    /// </remarks>
+    internal SamplingLimits SamplingLimits { get; init; } = SamplingLimits.None;
 
     /// <summary>
     /// Gets the hosted tool kinds the provider's API surface runs, as the provider stated them

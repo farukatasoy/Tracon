@@ -581,6 +581,11 @@ the record as it was.
   vector binding, the search limit of conversation memory, or a `todoCompletion`
   criterion's `modes`. It keeps them as they are; change them through code or the
   management HTTP API.
+- The seed field takes a whole number from -9007199254740991 to 9007199254740991, the range a
+  browser number holds exactly. A larger seed is refused in the form, never rounded and sent.
+  The API stores a 64-bit seed, so a stored seed beyond the range is read rounded: the field
+  shows the error, and the agent cannot be saved until you replace the seed or clear it.
+  Set a larger seed through code or the management HTTP API.
 - The workflow editor keeps a workflow's run parameter schema as it is and has no control
   for it. Change the schema with `PUT /api/workflows/{name}`.
 - A quota's agent and period identify the rule, so they are locked while you edit

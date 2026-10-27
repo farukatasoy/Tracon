@@ -16,8 +16,16 @@ internal static class ModelCatalogLookup
     /// the catalog is not a validation list).
     /// </returns>
     public static ModelDescriptor? Find(IModelProviderRegistry registry, string provider, string model)
+        => Find(registry.List(), provider, model);
+
+    /// <summary>Finds the descriptor in a provider list the caller already holds.</summary>
+    /// <param name="providers">The listed providers.</param>
+    /// <param name="provider">The provider name.</param>
+    /// <param name="model">The model name.</param>
+    /// <returns>The descriptor, or <see langword="null"/> when the provider or the model is not in the catalog.</returns>
+    public static ModelDescriptor? Find(IReadOnlyList<ModelProviderDescriptor> providers, string provider, string model)
     {
-        foreach (var providerDescriptor in registry.List())
+        foreach (var providerDescriptor in providers)
         {
             if (!string.Equals(providerDescriptor.Name, provider, StringComparison.OrdinalIgnoreCase))
             {

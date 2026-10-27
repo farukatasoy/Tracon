@@ -10,14 +10,15 @@ public sealed partial class AgentDefinitionCompiler
 {
     /// <summary>
     /// Stops compilation when the binding sets a field that the primary provider or a fallback
-    /// link would drop.
+    /// link would drop, that the catalog says its model rejects, or whose value the provider would
+    /// refuse or change.
     /// </summary>
     /// <remarks>
     /// The rule lives in <see cref="SamplingSupportCheck"/>, which the validation report reads too.
     /// </remarks>
     private void CheckSamplingSupport(AgentDefinition definition)
     {
-        var findings = SamplingSupportCheck.Unsupported(_models, definition.Model);
+        var findings = SamplingSupportCheck.Find(_models, definition.Model);
 
         if (findings.Count == 0)
         {

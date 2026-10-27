@@ -73,14 +73,23 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
         }
       />
 
+      {/* Retry is Save (or Validate) again, so it holds back whenever the buttons do. The request is
+          built from the form as it is now: after a failed save, a seed that is no longer a safe
+          integer or a schema that is no longer JSON would be sent as an agent without it. */}
       {editor.save.isError && (
         <div className="mb-4">
-          <ErrorNote error={editor.save.error} onRetry={() => editor.save.mutate()} />
+          <ErrorNote
+            error={editor.save.error}
+            onRetry={editor.valid ? () => editor.save.mutate() : undefined}
+          />
         </div>
       )}
       {editor.validate.isError && (
         <div className="mb-4">
-          <ErrorNote error={editor.validate.error} onRetry={() => editor.validate.mutate()} />
+          <ErrorNote
+            error={editor.validate.error}
+            onRetry={editor.valid ? () => editor.validate.mutate() : undefined}
+          />
         </div>
       )}
       {editor.validate.data && <div className="mb-4"><ValidationReportPanel report={editor.validate.data} /></div>}

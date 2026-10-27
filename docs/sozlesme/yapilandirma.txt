@@ -117,6 +117,7 @@ Tracon:Providers:Anthropic:Models:*:InputCostPerMillionTokens
 Tracon:Providers:Anthropic:Models:*:MaxOutputTokens
 Tracon:Providers:Anthropic:Models:*:Name
 Tracon:Providers:Anthropic:Models:*:OutputCostPerMillionTokens
+Tracon:Providers:Anthropic:Models:*:RejectedSamplingFields
 Tracon:Providers:Anthropic:Models:*:SupportsReasoning
 Tracon:Providers:Anthropic:Models:*:SupportsSampling
 Tracon:Providers:Anthropic:Models:*:SupportsStreaming
@@ -134,6 +135,7 @@ Tracon:Providers:AzureOpenAI:Models:*:InputCostPerMillionTokens
 Tracon:Providers:AzureOpenAI:Models:*:MaxOutputTokens
 Tracon:Providers:AzureOpenAI:Models:*:Name
 Tracon:Providers:AzureOpenAI:Models:*:OutputCostPerMillionTokens
+Tracon:Providers:AzureOpenAI:Models:*:RejectedSamplingFields
 Tracon:Providers:AzureOpenAI:Models:*:SupportsReasoning
 Tracon:Providers:AzureOpenAI:Models:*:SupportsSampling
 Tracon:Providers:AzureOpenAI:Models:*:SupportsStreaming
@@ -151,6 +153,7 @@ Tracon:Providers:Google:Models:*:InputCostPerMillionTokens
 Tracon:Providers:Google:Models:*:MaxOutputTokens
 Tracon:Providers:Google:Models:*:Name
 Tracon:Providers:Google:Models:*:OutputCostPerMillionTokens
+Tracon:Providers:Google:Models:*:RejectedSamplingFields
 Tracon:Providers:Google:Models:*:SupportsReasoning
 Tracon:Providers:Google:Models:*:SupportsSampling
 Tracon:Providers:Google:Models:*:SupportsStreaming
@@ -173,6 +176,7 @@ Tracon:Providers:OpenAI:Models:*:InputCostPerMillionTokens
 Tracon:Providers:OpenAI:Models:*:MaxOutputTokens
 Tracon:Providers:OpenAI:Models:*:Name
 Tracon:Providers:OpenAI:Models:*:OutputCostPerMillionTokens
+Tracon:Providers:OpenAI:Models:*:RejectedSamplingFields
 Tracon:Providers:OpenAI:Models:*:SupportsReasoning
 Tracon:Providers:OpenAI:Models:*:SupportsSampling
 Tracon:Providers:OpenAI:Models:*:SupportsStreaming
