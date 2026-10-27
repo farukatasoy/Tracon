@@ -69,6 +69,80 @@ public sealed class ReadViewContractTests(PostgresFixture fixture) : IAsyncLifet
         viewTotalCost.ShouldBe(stats.TotalCost);
     }
 
+    /// <summary>
+    /// Phase 253: the cache-write charge is the fourth term of <c>total_cost</c>, and the view publishes
+    /// the write columns beside the read ones -- a consumer reading the view directly must see the same
+    /// number the store's own statistics report.
+    /// </summary>
+    [Fact]
+    public async Task Total_cost_in_the_view_includes_the_cache_write_charge_and_the_view_publishes_the_write_columns()
+    {
+        const string tenant = "tenant-view-cache-write";
+        const string agentName = "read-view-cache-write-agent";
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow;
+
+        await _context.Runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = agentName,
+            StartedAt = startedAt,
+            TenantId = tenant,
+        });
+
+        await _context.Runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = startedAt.AddSeconds(1),
+            Usage = new RunUsage
+            {
+                InputTokens = 1_000,
+                OutputTokens = 50,
+                CachedInputTokens = 100,
+                TotalTokens = 1_050,
+                CacheWriteInputTokens = 600,
+                CacheWriteLongInputTokens = 300,
+            },
+            Cost = new RunCost
+            {
+                InputCost = 0.5m,
+                OutputCost = 0.25m,
+                CachedInputCost = 0.125m,
+                CacheWriteCost = 0.0625m,
+                CacheWritePricePerMillionTokens = 1.25m,
+                CacheWriteLongPricePerMillionTokens = 2m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+            TenantId = tenant,
+        });
+
+        var viewTotalCost = await _context.ScalarAsync<decimal?>(
+            $"SELECT total_cost FROM {_context.SchemaName}.runs_v1 WHERE run_id = '{runId}';");
+
+        var stats = await _context.Runs.GetStatisticsAsync(new RunStatisticsQuery
+        {
+            TenantId = tenant,
+            AgentName = agentName,
+        });
+
+        // A three-term sum would read 0.875.
+        viewTotalCost.ShouldBe(0.5m + 0.25m + 0.125m + 0.0625m);
+        viewTotalCost.ShouldBe(stats.TotalCost);
+
+        (await _context.ScalarAsync<long?>(
+            $"SELECT cache_write_input_tokens FROM {_context.SchemaName}.runs_v1 WHERE run_id = '{runId}';")).ShouldBe(600);
+        (await _context.ScalarAsync<long?>(
+            $"SELECT cache_write_long_input_tokens FROM {_context.SchemaName}.runs_v1 WHERE run_id = '{runId}';")).ShouldBe(300);
+        (await _context.ScalarAsync<decimal?>(
+            $"SELECT cache_write_cost FROM {_context.SchemaName}.runs_v1 WHERE run_id = '{runId}';")).ShouldBe(0.0625m);
+        (await _context.ScalarAsync<decimal?>(
+            $"SELECT cache_write_price_per_mtok FROM {_context.SchemaName}.runs_v1 WHERE run_id = '{runId}';")).ShouldBe(1.25m);
+        (await _context.ScalarAsync<decimal?>(
+            $"SELECT cache_write_long_price_per_mtok FROM {_context.SchemaName}.runs_v1 WHERE run_id = '{runId}';")).ShouldBe(2m);
+    }
+
     [Fact]
     public async Task Total_cost_is_null_not_zero_when_pricing_is_undefined()
     {
