@@ -487,7 +487,8 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Statistics_total_the_cache_wri
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_write_charge_round_trips_with_its_unit_prices_and_counts_toward_every_total() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_write_counters_round_trip_and_stay_null_when_they_were_never_reported() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_cost_adds_the_cache_write_charge_of_every_run_in_the_tree() -> System.Threading.Tasks.Task!
-Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_usage_sums_the_cache_writes_across_child_runs_and_keeps_an_unreported_class_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_usage_keeps_a_cache_write_class_nobody_in_the_tree_reported_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_usage_sums_both_cache_write_classes_across_the_runs_of_the_tree() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.UpdateRunCostAsync_writes_the_cache_write_charge_and_its_unit_prices() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_are_summarized_per_arm() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_average_a_run_level_score_written_with_an_empty_message_id() -> System.Threading.Tasks.Task!

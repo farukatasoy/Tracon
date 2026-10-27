@@ -1296,7 +1296,64 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Tree_usage_sums_the_cache_writes_across_child_runs_and_keeps_an_unreported_class_null()
+    public async Task Tree_usage_sums_both_cache_write_classes_across_the_runs_of_the_tree()
+    {
+        // Each class is reported by some runs of the tree and not by others: the root reports both, the
+        // first child only the short class, the second child only the long class. A class that is
+        // missing from the aggregation, a run left out of it, or a run that reported nothing for the
+        // class resetting the sum to null each give a different total.
+        var rootId = TraconId.NewId();
+        var firstChildId = TraconId.NewId();
+        var secondChildId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(firstChildId) with { ParentRunId = rootId, RootRunId = rootId, Depth = 1 });
+        await Store.StartRunAsync(TestData.Run(secondChildId) with { ParentRunId = rootId, RootRunId = rootId, Depth = 1 });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = rootId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage
+            {
+                InputTokens = 100,
+                OutputTokens = 50,
+                TotalTokens = 150,
+                CacheWriteInputTokens = 60,
+                CacheWriteLongInputTokens = 20,
+            },
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = firstChildId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 10, OutputTokens = 5, TotalTokens = 15, CacheWriteInputTokens = 7 },
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = secondChildId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 5, OutputTokens = 2, TotalTokens = 7, CacheWriteLongInputTokens = 5 },
+        });
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.TreeUsage.ShouldNotBeNull();
+
+        // Counted INSIDE the input total, never added to it.
+        root.TreeUsage.InputTokens.ShouldBe(115);
+        root.TreeUsage.CacheWriteInputTokens.ShouldBe(67);
+        root.TreeUsage.CacheWriteLongInputTokens.ShouldBe(25);
+    }
+
+    [Fact]
+    public async Task Tree_usage_keeps_a_cache_write_class_nobody_in_the_tree_reported_null()
     {
         var rootId = TraconId.NewId();
         var childId = TraconId.NewId();
@@ -1324,7 +1381,6 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         root.ShouldNotBeNull();
         root.TreeUsage.ShouldNotBeNull();
-        root.TreeUsage.InputTokens.ShouldBe(110);
         root.TreeUsage.CacheWriteInputTokens.ShouldBe(67);
 
         // Nobody in the tree reported a long-lived write: "not measured", not "measured zero".
