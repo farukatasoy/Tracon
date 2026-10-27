@@ -65,19 +65,83 @@ public sealed class FallbackToolSideEffectTests
         // even though both the primary and the fallback asked for it.
         ChargeProbeTool.Calls.ShouldBe(1);
 
-        var events = new List<RunEvent>();
-
-        await foreach (var runEvent in host.Services
-            .GetRequiredService<IRunStore>()
-            .ReadEventsAsync(runId, cancellationToken: TestContext.Current.CancellationToken))
-        {
-            events.Add(runEvent);
-        }
+        var events = await ReadEventsAsync(host, runId);
 
         // Confirms the fallback link genuinely engaged — otherwise the
         // "ran once" assertion above would be trivially true for the wrong
         // reason (the primary never having failed at all).
         events.ShouldContain(e => e.Type == RunEventType.ModelFallbackUsed);
+
+        // 🚨 The run answered, so its record of the call is the one its messages hold: ONE row and ONE event pair.
+        // Two turns asked for the charge and the tool chain ran it once; a second row for the call that only the
+        // chain's ledger knows (the primary's own) would read as a second charge, because nothing on it says it was
+        // answered again from the first. The ledger writes such a call when a run fails or is cancelled, never when
+        // it succeeds.
+        var rows = await host.Services
+            .GetRequiredService<IRunStore>()
+            .ListToolInvocationsAsync(runId, TestContext.Current.CancellationToken);
+
+        rows.ShouldHaveSingleItem().ToolName.ShouldBe("charge_customer");
+        events.Count(static e => e.Type == RunEventType.ToolInvoking).ShouldBe(1);
+        events.Count(static e => e.Type == RunEventType.ToolInvoked).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_run_that_fails_after_the_fallback_replayed_the_call_lists_the_call_that_ran_once()
+    {
+        // The twin of the first test for a run that does NOT answer. The primary ran the charge (the tool chain wrote
+        // it into the run's ledger as c1), then failed; the fallback asked for the same charge as c2 and was answered
+        // from the recorded result, outside the chain; then the fallback failed too. A failed run has no messages, so
+        // the ledger is the only record of what ran: one row, the call that really ran.
+        ChargeProbeTool.Reset();
+
+        var primary = new StepModelProvider(
+            "primary-provider-5",
+            Step.CallTool("charge_customer", "orderId", "ORD-1", callId: "c1"),
+            Step.Throw(new TraconProviderUnavailableException("simulated outage") { ProviderName = "primary-provider-5" }));
+
+        var fallback = new StepModelProvider(
+            "fallback-provider-5",
+            Step.CallTool("charge_customer", "orderId", "ORD-1", callId: "c2"),
+            Step.Throw(new TraconProviderUnavailableException("simulated outage") { ProviderName = "fallback-provider-5" }));
+
+        await using var host = await TraconTestHost.StartAsync(builder => builder
+            .AddModelProvider(primary)
+            .AddModelProvider(fallback)
+            .AddToolsFrom(typeof(ChargeProbeTool))
+            .AddAgent(new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Charge the customer's order when asked.",
+                Model = new ModelBinding
+                {
+                    Provider = "primary-provider-5",
+                    Model = "primary-model",
+                    Fallbacks = [new ModelFallback { Provider = "fallback-provider-5", Model = "fallback-model" }],
+                },
+                ToolNames = ["charge_customer"],
+            }));
+
+        using var response = await PostBufferedAsync(host, new AgentRunRequest { Message = "please charge ORD-1" });
+
+        response.IsSuccessStatusCode.ShouldBeFalse("both links failed, so the run did too");
+        ChargeProbeTool.Calls.ShouldBe(1);
+
+        var store = host.Services.GetRequiredService<IRunStore>();
+        var run = (await store.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+        run.Status.ShouldBe(RunStatus.Failed);
+
+        var row = (await store.ListToolInvocationsAsync(run.Id, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+        row.ToolCallId.ShouldBe("c1", "the row is the call that ran, not the one that was answered from its result");
+        row.Succeeded.ShouldBeTrue();
+        row.Duration.ShouldNotBeNull("the ledger timed the call that ran");
+
+        var events = await ReadEventsAsync(host, run.Id);
+
+        events.Count(static e => e.Type == RunEventType.ToolInvoking).ShouldBe(1);
+        events.Count(static e => e.Type == RunEventType.ToolInvoked).ShouldBe(1);
     }
 
     [Fact]
@@ -229,6 +293,20 @@ public sealed class FallbackToolSideEffectTests
 
         return await host.Client.SendAsync(request, TestContext.Current.CancellationToken).ConfigureAwait(false);
     }
+
+    private static async Task<List<RunEvent>> ReadEventsAsync(TraconTestHost host, Guid runId)
+    {
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in host.Services
+            .GetRequiredService<IRunStore>()
+            .ReadEventsAsync(runId, cancellationToken: TestContext.Current.CancellationToken))
+        {
+            events.Add(runEvent);
+        }
+
+        return events;
+    }
 }
 
 /// <summary>
@@ -237,10 +315,10 @@ public sealed class FallbackToolSideEffectTests
 /// </summary>
 file static class Step
 {
-    public static Func<ChatResponse> CallTool(string toolName, string argumentName, object? argumentValue)
+    public static Func<ChatResponse> CallTool(string toolName, string argumentName, object? argumentValue, string? callId = null)
         => () => new ChatResponse(new ChatMessage(
             ChatRole.Assistant,
-            [new FunctionCallContent(Guid.NewGuid().ToString("N"), toolName, Arguments(argumentName, argumentValue))]));
+            [new FunctionCallContent(callId ?? Guid.NewGuid().ToString("N"), toolName, Arguments(argumentName, argumentValue))]));
 
     public static Func<ChatResponse> CallTools(params (string ToolName, string ArgumentName, object? ArgumentValue)[] calls)
         => () => new ChatResponse(new ChatMessage(
