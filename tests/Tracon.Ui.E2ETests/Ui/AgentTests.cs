@@ -1,5 +1,8 @@
+using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
@@ -12,6 +15,10 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// </summary>
 public sealed class AgentTests(BrowserFixture browsers)
 {
+    /// <summary>The seed error, whole: <c>Exact</c> matching holds only when the text is the whole message.</summary>
+    private const string SeedRangeError =
+        "Seed must be a whole number from -9007199254740991 to 9007199254740991. The console can send only that range exactly. Replace the seed or clear it to save.";
+
     [Fact]
     public async Task Code_defined_agent_appears_in_list_and_cannot_be_edited()
     {
@@ -320,6 +327,149 @@ public sealed class AgentTests(BrowserFixture browsers)
         await Expect(session.Page.GetByTestId("tool-loop-concurrent")).ToBeCheckedAsync();
         await Expect(session.Page.GetByTestId("tool-loop-max-errors")).ToHaveValueAsync("1");
         await Expect(session.Page.GetByTestId("tool-loop-terminate-unknown")).ToHaveValueAsync("true");
+    }
+
+    [Fact]
+    public async Task A_seed_outside_the_safe_integer_range_is_refused_in_the_form_and_nothing_is_sent()
+    {
+        // Phase 252 (F-607): the server takes a 64-bit seed, and a browser number is exact up to 2^53 - 1. 9007199254740993
+        // typed into the field would go out as 9007199254740992, a seed nobody wrote. The form refuses it instead.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+
+        await session.Page.GetByTestId("agent-name").FillAsync("big-seed-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+        await session.Page.GetByText("Sampling and tool use", new() { Exact = true }).ClickAsync();
+
+        var seed = session.Page.GetByTestId("agent-seed");
+        var error = session.Page.GetByText(SeedRangeError, new() { Exact = true });
+
+        await Expect(error).ToHaveCountAsync(0);
+
+        await seed.FillAsync("9007199254740993");
+
+        await Expect(error).ToBeVisibleAsync();
+        await Expect(seed).ToHaveAttributeAsync("aria-invalid", "true");
+        await Expect(session.Page.GetByTestId("agent-save")).ToBeDisabledAsync();
+        await Expect(session.Page.GetByTestId("agent-validate")).ToBeDisabledAsync();
+
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        using (var absent = await api.GetAsync("api/agents/big-seed-agent"))
+        {
+            absent.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
+
+        // The largest seed a browser number holds exactly is accepted, sent as typed, and stored as that number.
+        await seed.FillAsync("9007199254740991");
+
+        await Expect(error).ToHaveCountAsync(0);
+        await Expect(session.Page.GetByTestId("agent-save")).ToBeEnabledAsync();
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "big-seed-agent", Exact = true })).ToBeVisibleAsync();
+
+        var model = (await api.GetFromJsonAsync<JsonElement>("api/agents/big-seed-agent")).GetProperty("definition").GetProperty("model");
+
+        model.GetProperty("seed").GetInt64().ShouldBe(9007199254740991);
+    }
+
+    [Fact]
+    public async Task The_seed_range_error_reads_in_Turkish()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "tr-TR");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+
+        await session.Page.GetByTestId("agent-name").FillAsync("big-seed-agent-tr");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+        await session.Page.GetByText(TurkishText("agentEditor.sampling"), new() { Exact = true }).ClickAsync();
+        await session.Page.GetByTestId("agent-seed").FillAsync("9007199254740993");
+
+        await Expect(session.Page.GetByText(TurkishText("agentEditor.seedError"), new() { Exact = true })).ToBeVisibleAsync();
+        await Expect(session.Page.GetByTestId("agent-save")).ToBeDisabledAsync();
+    }
+
+    [Fact]
+    public async Task A_stored_seed_beyond_the_safe_range_is_flagged_and_the_stored_value_is_not_rewritten()
+    {
+        // An API client stored 2^53 + 1. The browser reads that response as 9007199254740992, so the form holds a number
+        // nobody wrote: it says so, it does not save before the seed is replaced or cleared, and the server's value stays.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        using (var created = await api.PostAsync(
+            "api/agents",
+            new StringContent(
+                """{"name":"stored-big-seed","instructions":"Answer briefly.","model":{"provider":"scripted","model":"scripted-1","seed":9007199254740993}}""",
+                Encoding.UTF8,
+                "application/json")))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/stored-big-seed/edit");
+        await Expect(session.Page.GetByTestId("agent-name")).ToHaveValueAsync("stored-big-seed");
+
+        var seed = session.Page.GetByTestId("agent-seed");
+        var error = session.Page.GetByText(SeedRangeError, new() { Exact = true });
+
+        // The group opens by itself for a stored value; the field shows the rounded number the browser read, with the error.
+        await Expect(seed).ToHaveValueAsync("9007199254740992");
+        await Expect(error).ToBeVisibleAsync();
+        await Expect(session.Page.GetByTestId("agent-save")).ToBeDisabledAsync();
+
+        var stored = (await api.GetFromJsonAsync<JsonElement>("api/agents/stored-big-seed")).GetProperty("definition").GetProperty("model");
+
+        stored.GetProperty("seed").GetInt64().ShouldBe(9007199254740993);
+
+        // Replacing the seed lets the agent be saved, with the new seed.
+        await seed.FillAsync("7");
+
+        await Expect(error).ToHaveCountAsync(0);
+        await Expect(session.Page.GetByTestId("agent-save")).ToBeEnabledAsync();
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "stored-big-seed", Exact = true })).ToBeVisibleAsync();
+
+        var replaced = (await api.GetFromJsonAsync<JsonElement>("api/agents/stored-big-seed")).GetProperty("definition").GetProperty("model");
+
+        replaced.GetProperty("seed").GetInt64().ShouldBe(7);
+    }
+
+    /// <summary>
+    /// A Turkish UI text, read from the dictionary the console ships. The source-language gate keeps Turkish out of test
+    /// code, and a sentence copied into a test would drift from the dictionary the first time a translation changes.
+    /// </summary>
+    private static string TurkishText(string key)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Tracon.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        var root = directory?.FullName ?? throw new InvalidOperationException("Tracon.slnx not found above the test binary.");
+        var dictionary = File.ReadAllText(Path.Combine(root, "src", "Tracon.UI", "frontend", "src", "locales", "tr", "agents.ts"));
+
+        // `"key": 'text',` or `"key": "text",` — a text that holds an apostrophe is written with double quotes.
+        var match = Regex.Match(
+            dictionary,
+            $"\"{Regex.Escape(key)}\":\\s*(?<quote>['\"])(?<text>.*?)\\k<quote>,",
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(5));
+
+        match.Success.ShouldBeTrue($"The Turkish dictionary has no text for '{key}'.");
+
+        return match.Groups["text"].Value;
     }
 
     private static string? EventType(string data)

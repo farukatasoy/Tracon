@@ -176,6 +176,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 SupportedSamplingFields = provider is ISamplingSupport sampling
                     ? sampling.SupportedSamplingFields
                     : SamplingFields.None,
+                // A provider is third-party code. A null answer is read as "no limit" instead of failing the
+                // compile and validation paths that read this descriptor with a NullReferenceException.
+                SamplingLimits = provider is ISamplingSupport limits
+                    ? limits.SamplingLimits ?? SamplingLimits.None
+                    : SamplingLimits.None,
                 SupportedHostedTools = provider is IHostedToolSupport hostedTools
                     ? hostedTools.SupportedHostedTools
                     : HostedToolKinds.None,

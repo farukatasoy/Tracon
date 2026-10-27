@@ -99,6 +99,14 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
     /// <inheritdoc />
     /// <remarks>
+    /// Azure OpenAI documents at most four stop sequences for <c>stop</c>, as OpenAI does for the same
+    /// Chat Completions request. The seed is a 64-bit integer on the wire, so no seed range is stated. Not
+    /// provoked with a real <c>400</c> (no Azure resource was available).
+    /// </remarks>
+    public SamplingLimits SamplingLimits { get; } = new() { MaxStopSequences = 4 };
+
+    /// <inheritdoc />
+    /// <remarks>
     /// The provider builds the Chat Completions client, which runs no hosted tool Tracon reports (see
     /// <c>OpenAIModelProvider</c>).
     /// </remarks>

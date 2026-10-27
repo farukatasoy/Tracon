@@ -2012,3 +2012,36 @@ Faz 217 düşünme biçimini değiştirdi; akış, araç çağrısı ve önbelle
 - Run `Completed`; `code_interpreter` ve `web_search` tool olayları kayıtlı adlarla.
 - `nonTokenCost.amount` `null`, `unsummedItemCount` `2`; iki `usage.cost` `null`. Günlükte her tür için bir `PerCall is not set` uyarısı.
 - (2026-10-21 koşumu: `gemini-3.6-flash`, `Completed`, iki çift olay, `amount null`, `unsummedItemCount 2`, iki uyarı. Google `file_search` (`Retrieval`) ölçülmedi: kaynaksız, tür ✗ kalır.)
+
+---
+
+### MT-PROV-096 — Sağlayıcıların bildirdiği değer sınırları gerçek API ile aynıdır: Google 32 bit seed ve beş stop dizisi; Anthropic'in sınırı sayı değil toplam uzunluktur (Faz 252, F-607)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 252 |
+| **İlgili karar** | K-1040 |
+| **Devir** | 🤖 ajan koşar — gerçek Google ve Anthropic anahtarı (`curl`) + `samples/Tracon.Api` |
+
+`GoogleModelProvider.SamplingLimits` ve Anthropic'in "sınır bildirmez" kararı bir ölçüme dayanır. Bir SDK ya da API değişince bu case ölçümü yeniden yapar.
+
+**Ön koşul** — `Tracon:Providers:Google:ApiKey` ve `Tracon:Providers:Anthropic:ApiKey` user-secrets'ta. `curl` komutlarında anahtar yalnız başlıkta gider ve yazdırılmaz. Örnek uygulama MT-OAI-098'in kurulumuyla.
+
+**Adımlar**
+1. Google: `POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent` (`x-goog-api-key` başlığı) ile `generationConfig` `{"maxOutputTokens":8,"seed":N}` gönder; `N` sırayla `-2147483648`, `2147483647`, `3000000000`.
+2. Google: aynı uca `"stopSequences":["a","b","c","d","e","f"]` (altı öğe) gönder.
+3. Anthropic: `POST https://api.anthropic.com/v1/messages` (`claude-haiku-4-5-20251001`, `max_tokens: 1`) ile `stop_sequences` şu biçimlerde gönder: 2500 × `"a"`; 2501 × `"a"`; 60 öğe × 40 karakter; 100 öğe × 40 karakter.
+4. Örnek uygulamada `POST $BASE/api/agents/validate` ile `google` sağlayıcısına `seed: 3000000000`, sonra altı `stopSequences`, sonra `seed: 2147483647` ve beş `stopSequences` gönder. `anthropic` için elli `stopSequences` gönder.
+
+**Beklenen sonuç**
+- Adım 1: ilk ikisi `200`; üçüncüsü `400` ve `Invalid value at 'generation_config.seed' (TYPE_INT32)`.
+- Adım 2: `400` ve `the number of stop_sequences must not exceed 5`.
+- Adım 3: ilk ve üçüncü `200`; ikinci ve dördüncü `400` ve `stop_sequences: total length: 0..2,500`. Sınır karakter toplamıdır, öğe sayısı değildir.
+- Adım 4: ilk iki gövde `sampling_value_out_of_range` (`model.seed`, `model.stopSequences`), mesajlar değeri ve aralığı (`-2147483648` … `2147483647`, `at most 5`) taşır; üçüncü gövde `valid: true`; `anthropic` elli dizi `valid: true`.
+- Bildirilen aralık gerçek API'den farklıysa `GoogleModelProvider.SamplingLimits` yeniden ölçülür.
+
+**Koşum (2026-10-27, ajan)** — Adım 1: `-5`, `-2147483648` ve `2147483647` `200`; `3000000000` `400 TYPE_INT32`. Adım 2: `400`. Adım 3: 2500 × `"a"` ve 60 × 40 `200`; 2501 × `"a"` ve 100 × 40 `400 total length: 0..2,500`. Adım 4: canlı örnek uygulamada `sampling_value_out_of_range` (`model.seed`, `model.stopSequences`) ve `valid:true` cevapları beklendiği gibi. Google.GenAI 1.26.1 adaptörü `3000000000`'i `(int)` ile daraltır: telde `-1294967296` (`GoogleSamplingLimitsTests`, yerel sunucuya karşı gerçek adaptör).
+
+✅ 2026-10-27.

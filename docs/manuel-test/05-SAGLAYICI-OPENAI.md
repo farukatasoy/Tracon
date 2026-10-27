@@ -1944,3 +1944,40 @@ Sağlayıcı hosted tool'u model çağrısının içinde koşar. Yanıt tool ad�
 - (3) Akışlı run'da her çağrı **bir kez** yazılır (çift `ToolInvoking` yok); `nonTokenCost.amount` `0.01`.
 - 🚨 Eski davranış: çağrı `tracon.content` olurdu ve hiçbir yerde ücreti yoktu.
 - (2026-10-21 koşumu: (1) `valid:false` ve mesaj adları göründü. (2) `Completed`; iki çift olay; `0.04` USD, `isEstimated:true`, `unsummedItemCount:0`. (3) akışlı koşuda web araması iki ayrı içerikle geldi (başlangıç + bitiş), ilk koşuda her biri çift yazıldı — `TryClaimWrite` ile düzeltildi; sonra tek çift, `0.01`.)
+
+---
+
+### MT-OAI-098 — Katalogda `RejectedSamplingFields` yazan model `stop`'u kayıttan önce reddeder; satır yokken gerçek OpenAI `400 unsupported_parameter` verir (Faz 252, F-606)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 252 |
+| **İlgili karar** | K-032 · K-921 · K-1040 |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` + gerçek OpenAI anahtarı (`curl`) |
+
+`openai` yüzeyi `stop`'u gönderir; hesabın üç modeli (`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`) onu model düzeyinde reddeder. Katalog bunu `RejectedSamplingFields` ile yazar; doğrulama ve kayıt ilk run'ı beklemez.
+
+**Ön koşul** — `samples/Tracon.Api` Development'ta (MT-OAI-097'nin dört boş ortam değişkeniyle, bellek içi depo); `Tracon:Providers:OpenAI:ApiKey` user-secrets'ta; `appsettings.json`'daki üç `openai` satırı (`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`) `"RejectedSamplingFields": "StopSequences"` taşır.
+
+**Adımlar**
+1. `GET $BASE/api/models` oku; `openai` sağlayıcısının modellerine bak.
+2. `POST $BASE/api/agents/validate` ile `{"name":"stop-probe","instructions":"Answer briefly.","model":{"provider":"openai","model":"gpt-5.4-mini","maxOutputTokens":16,"stopSequences":["END"]}}` gönder.
+3. Aynı gövdeyi `POST $BASE/api/agents` ile kaydet; sonra `GET $BASE/api/agents/stop-probe` oku.
+4. Uygulamayı `Tracon__Providers__OpenAI__Models__1__RejectedSamplingFields=` (boş; `gpt-5.6-luna` satırı) ile yeniden başlat. Birincil modeli `gpt-5.6-luna` yap, `"fallbacks":[{"provider":"openai","model":"gpt-5.4-mini"}]` ekle ve doğrula. Aynı gövdeyi `fallbacks` olmadan da doğrula.
+5. Uygulamayı yalnız `Tracon__Providers__OpenAI__Models__0__RejectedSamplingFields=` (boş) ile yeniden başlat. Adım 2'nin gövdesini doğrula ve kaydet; `POST $BASE/api/agents/stop-probe/run` ile `{"message":"hi"}` gönder (tek gerçek çağrı).
+6. Konak günlüğünde `unsupported_parameter` ara.
+
+**Beklenen sonuç**
+- Adım 1: üç model de (`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`) `rejectedSamplingFields: "StopSequences"`. Yanıtta sınır alanı yok.
+- Adım 2: `valid: false`; tek mesaj: `code: sampling_field_rejected_by_model`, `path: model.stopSequences`. Mesaj `'gpt-5.4-mini'` ve `'openai' provider` adlarını taşır.
+- Adım 3: `400`, `title: Definition invalid`, aynı mesaj; `GET` `404` döner (kayıt yok).
+- Adım 4: `GET $BASE/api/models` `gpt-5.6-luna` için `"None"`, `gpt-5.6-terra` için `"StopSequences"` der. Aynı kod ve yol (`model.stopSequences`); birincil model bulgu vermez, mesaj yedek bağlantının modelini (`'gpt-5.4-mini'`) adlandırır. `fallbacks`'sız gövde `valid: true` döner.
+- Adım 5: `valid: true`; kayıt `201`. Run `Failed`; SSE `error` çerçevesi `ProviderInvocationException … (HTTP 400)` taşır. Günlükte sağlayıcının kendi metni: `HTTP 400 (invalid_request_error: unsupported_parameter)` ve `Unsupported parameter: 'stop' is not supported with this model.`
+- `Npgsql` günlük satırı `0`.
+- 🚨 Eski davranış: katalog satırı yazılsa bile kayıt geçerdi ve yalnız ilk run düşerdi (adım 5'in sonucu).
+
+**Koşum (2026-10-27, ajan)** — Adım 1–4 denetim düzeltmesinden sonra, üç satırı işaretli örnek katalogla yeniden koşuldu (gerçek çağrı yok). Adım 1: üç model de `StopSequences`; modelde `samplingLimits` anahtarı yok. Adım 2: `valid:false`, `sampling_field_rejected_by_model`, `model.stopSequences`; `gpt-5.6-luna` ve `gpt-5.6-terra` aynı bulguyu verdi. Adım 3: `HTTP 400`, `Definition invalid`; `GET` `404`. Adım 4: `gpt-5.6-luna` `None`, `gpt-5.6-terra` `StopSequences`; aynı kod, mesaj `'gpt-5.4-mini'` adlı; `fallbacks`'sız gövde `valid:true`. Adım 5 ilk koşumdaki canlı çağrıdır (katalogda o gün yalnız `gpt-5.4-mini` satırı işaretliydi); yalnız satır 0'ı boşaltır, yeniden koşulmadı: `valid:true`, `201`; run `Failed`, `error` çerçevesi `(HTTP 400)`; günlük `HTTP 400 (invalid_request_error: unsupported_parameter)`. Üç hesap modeli de beş `stop` dizisiyle aynı `unsupported_parameter` yanıtını verdi: model düzeyindeki ret, dizi sayısı denetiminden önce gelir (bu yüzden OpenAI'nin dört dizi sınırı gerçek `400` ile kanıtlanamadı).
+
+✅ 2026-10-27.

@@ -657,11 +657,15 @@ identity is required.
 Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
 `ContextWindowTokens`, `MaxOutputTokens`, `SupportsStreaming` (`true`),
 `SupportsTools` (`true`), `SupportsReasoning` (`false`), `SupportsStructuredOutput`
-(`false`), `SupportsSampling` (`null`), and the three `*CostPerMillionTokens` prices.
+(`false`), `SupportsSampling` (`null`), `RejectedSamplingFields` (`None`), and the three
+`*CostPerMillionTokens` prices.
 `SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
-to compile. `MaxOutputTokens` lets the validation report warn when a binding leaves
-its own limit to a lower provider default, such as Anthropic's
-`DefaultMaxOutputTokens`. See
+to compile. `RejectedSamplingFields` takes a name or a comma-separated list of request
+fields (`Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`,
+`AllowMultipleToolCalls`, `ReasoningOutput`), and makes a definition that sets one fail to compile
+for that model; a name that does not exist stops the host at start. `MaxOutputTokens` lets the
+validation report warn when a binding leaves its own limit to a lower provider default, such as
+Anthropic's `DefaultMaxOutputTokens`. See
 [the model catalog](/guides/model-providers/#model-catalog-is-metadata-not-permission).
 
 ```json
