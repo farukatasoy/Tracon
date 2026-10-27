@@ -27,8 +27,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Public types changed.** `RunUsage`, `RunCost`, `RunTreeCost`, `RunStatistics`, `ModelDescriptor` and
   `ModelPriceOverride` gain properties; the wire, the OpenAPI document and both clients gain the same fields.
   Code that adds the cost terms of a `RunCost` by hand must add `CacheWriteCost`: call `RunCost.Total()`
-  instead. A custom `IRunStore` must store the new fields and pass the new cases of `RunStoreContract` and
-  its two updated expectations.
+  instead. A custom `IRunStore` must store the new fields and pass the new cases of the shared contract:
+  `RunStoreContract.A_run_that_reports_only_a_cache_write_count_still_produces_a_usage_record`,
+  `RunStoreContract.Statistics_total_the_cache_writes_of_every_run_beside_the_input_total`,
+  `RunStoreContract.The_cache_write_charge_round_trips_with_its_unit_prices_and_counts_toward_every_total`,
+  `RunStoreContract.The_cache_write_counters_round_trip_and_stay_null_when_they_were_never_reported`,
+  `RunStoreContract.Tree_cost_adds_the_cache_write_charge_of_every_run_in_the_tree`,
+  `RunStoreContract.Tree_usage_keeps_a_cache_write_class_nobody_in_the_tree_reported_null`,
+  `RunStoreContract.Tree_usage_sums_both_cache_write_classes_across_the_runs_of_the_tree` and
+  `RunStoreContract.UpdateRunCostAsync_writes_the_cache_write_charge_and_its_unit_prices`. Two existing
+  expectations changed because a total now has four terms:
+  `RunStoreContract.Every_cost_total_includes_the_cache_charge` and
+  `RunStoreContract.No_cost_total_adds_amounts_in_two_currencies`.
 
 ### Added
 
