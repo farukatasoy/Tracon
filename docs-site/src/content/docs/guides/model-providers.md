@@ -424,7 +424,8 @@ Google supports five `google.safety.*` thresholds plus
 budget range is `-1..65535`; `-1` lets the model decide and `0` disables thinking.
 Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
-failed run with error type `content_filtered`.
+failed run with error type `content_filtered`; one that already has text completes with a
+`tracon.output.filtered` run event.
 
 OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
 other key:
@@ -700,7 +701,8 @@ was actually cancelled.
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself. The same holds for the output limit:
+`TraconContentFilteredException` itself when the response is empty, or records a
+`tracon.output.filtered` event when it already has text. The same holds for the output limit:
 report `ChatFinishReason.Length`, and Tracon raises
 `TraconOutputTruncatedException` for a structured request or records a
 `tracon.output.truncated` event for plain text. Throwing instead leaves the decision to
@@ -927,8 +929,8 @@ the output limit and set temperature to `1` or leave it out.
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes
 with a `tracon.output.truncated` run event, which a streaming client also receives as a
-`custom` frame before `done`, and `/v1/chat/completions` reports
-`finish_reason: "length"`. Raise `MaxOutputTokens`. When the message
+`custom` frame before `done`. `/v1/chat/completions` reports `finish_reason: "length"`
+and `/v1/responses` reports `incomplete`. Raise `MaxOutputTokens`. When the message
 and the event's `cause` name the **context window** instead (Anthropic's
 `model_context_window_exceeded`), the conversation filled the window: shorten it with
 context compaction or use a model with a larger window.

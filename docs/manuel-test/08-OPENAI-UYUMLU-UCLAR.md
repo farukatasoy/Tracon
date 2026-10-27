@@ -1,6 +1,6 @@
 # 08 — OpenAI Uyumlu Uçlar (`COMPAT`)
 
-> **Alan kodu:** `COMPAT` · **Faz:** 50, 207, 214
+> **Alan kodu:** `COMPAT` · **Faz:** 50, 207, 214, 251
 > **Kaynak:** `src/Tracon.AspNetCore/OpenAICompat/` — `OpenAIChatCompletionsEndpoints.cs`
 > (`/v1/chat/completions`), `OpenAIResponsesEndpoints.cs` (`/v1/responses`),
 > `OpenAIConversationsEndpoints.cs` (`/v1/conversations*`), `OpenAICompatSupport.cs`
@@ -2137,3 +2137,76 @@ metin göndermiş gibi yanıtlıyordu. Yalnız görsel taşıyan mesaj `400` *"'
 - Adım 3: `400`, mesaj `tool` rolünü adlandırır ve tool'ların sunucuda koştuğunu söyler.
 - Adım 4: `400`, mesaj `video_url`'ü adlandırır.
 - 🚨 Eski kusur: Adım 1 `200` ama yanıt görseli görmez; Adım 2 `400` "cannot be empty"; Adım 3 `200`.
+
+---
+
+### MT-COMPAT-058 — Kesik yanıtta `/v1/responses` `incomplete` döner; akışta son olay `response.incomplete` olur (Faz 251)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 251 |
+| **İlgili karar** | K-992 |
+| **Devir** | 🤖 ajan koşar — resmî OpenAI Python SDK + gerçek `gpt-5.4-mini` |
+
+MAF, Responses yanıtını yazar ve bitiş sebebini okumaz: her sebep `status: "completed"` ve `response.completed` ile biter.
+Kodla tekrarlanan kısmı (durum, son olay, öğe durumu) `ResponsesIncompleteTests` kanıtlar. Bu case'in ek değeri
+**resmî SDK'nın** olayı ayrıştırması ve gerçek sağlayıcıdır.
+
+**Ön koşul**
+- Örnek uygulama Development'ta, OpenAI anahtarıyla çalışıyor. `Tracon:Ui:AuthToken` boşsa SDK çağrılarına
+  `extra_headers={"Authorization": Omit()}` ekle: başlık taşıyan her istek API anahtarı sayılır ve reddedilir.
+- `openai` Python paketi kurulu.
+
+**Adımlar**
+1. `maxOutputTokens: 16` olan düz metin agent'ını ve kısa yanıt veren bir karşı kontrol agent'ını kaydet.
+2. SDK ile `/v1/responses`'a uzun cevap isteyen soruyu **akışsız** gönder.
+3. Aynı soruyu `stream` ile gönder; tüm olayları ve son olayı oku.
+4. 2–3. adımları karşı kontrol agent'ıyla tekrarla.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
+     -d '{"name":"manuel-kesilen-openai","instructions":"Answer in long paragraphs.","model":{"provider":"openai","model":"gpt-5.4-mini","maxOutputTokens":16}}'
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
+     -d '{"name":"manuel-kisa-openai","instructions":"Answer in one short sentence.","model":{"provider":"openai","model":"gpt-5.4-mini","maxOutputTokens":64}}'
+```
+```python
+from openai import OpenAI, Omit
+
+client = OpenAI(base_url="http://localhost:5080/tracon/v1", api_key="unused")
+no_auth = {"Authorization": Omit()}   # AuthToken doluysa: api_key="<token>" ve bu satır gerekmez
+
+r = client.responses.create(model="manuel-kesilen-openai", input="Write a long essay about rivers.", extra_headers=no_auth)
+print(r.status, r.incomplete_details, [(o.type, o.status) for o in r.output])
+
+names, last = [], None
+with client.responses.stream(model="manuel-kesilen-openai", input="Write a long essay about rivers.", extra_headers=no_auth) as stream:
+    for event in stream:
+        names.append(event.type)
+        last = event
+print(names[-1], last.response.status, last.response.incomplete_details)
+```
+
+**Beklenen sonuç**
+- Akışsız: `status == "incomplete"`, `incomplete_details.reason == "max_output_tokens"`, tek `message` öğesi
+  `status == "incomplete"`; metin cümlenin ortasında biter.
+- Akışlı: olay sırası `response.created` · `response.in_progress` · `response.output_item.added` ·
+  `response.content_part.added` · `response.output_text.delta` (çok) · `response.output_text.done` ·
+  `response.content_part.done` · `response.output_item.done` (öğe `incomplete`) · `response.incomplete`.
+  Terminal olay **bir** tanedir; son olayın `response`'ı `incomplete` + `max_output_tokens` taşır.
+- `stream.get_final_response()` `RuntimeError: Didn't receive a response.completed event.` verir. Bu SDK'nın
+  davranışıdır, OpenAI'nin kendi kesik akışında da aynıdır (aynı gün gerçek `api.openai.com` ile ölçüldü); yanıt son
+  olayın `response`'ından okunur.
+- Karşı kontrol: `status == "completed"`, `incomplete_details` yok (SDK'da `None`), tek `message` öğesi `completed`, son
+  olay `response.completed`, `get_final_response()` döner.
+- 🚨 Eski kusur: kesik yanıt iki kolda da `completed`; akış `response.completed` ile biter.
+
+> **Koşum (2026-10-27, Faz 251):** ✅ — gerçek `gpt-5.4-mini`, `openai` 3.0.0.
+> Akışsız: `{"status": "incomplete", "incomplete_details": "max_output_tokens", "output": [["message", "incomplete"]],
+> "output_text": "Rivers are among the most important and enduring features of the natural"}`.
+> Akışlı: `created · in_progress · output_item.added · content_part.added · output_text.delta · output_text.done ·
+> content_part.done · output_item.done · incomplete` (olay sırası OpenAI'nin kendi kesik akışıyla birebir aynı), terminal
+> olay 1, `output_item.done` öğesi `incomplete`, `get_final_response()` `RuntimeError`.
+> Karşı kontrol: `completed` / `incomplete_details: null`, son olay `response.completed`, `get_final_response()` döndü.

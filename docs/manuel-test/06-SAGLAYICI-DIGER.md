@@ -1180,7 +1180,7 @@ curl -N -s -X POST "$APU/api/agents/gemini-support/run" -H "$APB" \
 |---|---|
 | **İzlek** | B |
 | **Önem** | **Kritik** |
-| **İlgili faz** | Faz 26 |
+| **İlgili faz** | Faz 26, 251 |
 | **İlgili karar** | — |
 
 Gerçek para harcar (en az bir istek gönderilir, filtrelense bile ücretlendirilir).
@@ -1216,18 +1216,27 @@ curl -s "$APU/api/runs?agentName=gemini-strict-filter" -H "$APB" | python3 -m js
 ```
 
 **Beklenen sonuç**
-- **Eğer** Gemini isteği en katı eşikte filtreler (beklenen davranış —
-  `BLOCK_LOW_AND_ABOVE` çok düşük bir eşiktir): SSE bağlantısında `event:
+- **Eğer** Gemini isteği en katı eşikte, hiç metin yazmadan filtreler (beklenen
+  davranış — `BLOCK_LOW_AND_ABOVE` çok düşük bir eşiktir): SSE bağlantısında `event:
   error` çerçevesi görünür. `GET /api/runs/{runId}` çıktısında `status:
   Failed`, `error.type` = `content_filtered`, `error.class` = `ContentFiltered`,
   `error.message` içinde `guvenlik esiklerini gevsetilebilir` ve
   `google.safety.harassment` ibareleri geçer (`FinishReasonDetectingChatClient.Filtered`
   metodunun ürettiği mesaj).
-- **Eğer** Gemini bu isteği filtrelemezse (beklenmez ama olası — model
-  davranışı sürüm bağımlıdır): çalıştırma `Completed` olur; bu durum
-  `00-INDEKS.md`'ye "beklenen tetikleyici artık filtrelemiyor" notuyla
-  düşülür ve case farklı bir istekle tekrarlanır — **metin içeriği** bu case'in
-  başarı ölçütü değildir, yalnız filtrelenip filtrelenmediği önemlidir.
+- **Eğer** Gemini yanıta başlar ve filtre onu yarıda keserse (olası — model
+  bazen birkaç cümle yazıp durur): çalıştırma yine `Completed` olur, ama
+  `GET /api/runs/{runId}/events` çıktısında bir `tracon.output.filtered` olayı
+  vardır (Faz 251; yükü yalnız `provider` adını taşır). Burada `Completed`
+  "tetikleyici artık filtrelemiyor" demek **değildir**: filtre çalıştı, yanıt
+  boş olmadığı için çalıştırma başarısız olmadı. O yol MT-GUARD-119'un
+  konusudur. Bu case için farklı bir istekle, boş yanıt veren bir tetikleyici
+  aranır.
+- **Eğer** Gemini bu isteği hiç filtrelemezse (beklenmez ama olası — model
+  davranışı sürüm bağımlıdır): çalıştırma `Completed` olur ve
+  `tracon.output.filtered` olayı **yoktur**; bu durum `00-INDEKS.md`'ye
+  "beklenen tetikleyici artık filtrelemiyor" notuyla düşülür ve case farklı bir
+  istekle tekrarlanır — **metin içeriği** bu case'in başarı ölçütü değildir,
+  yalnız filtrelenip filtrelenmediği önemlidir.
 
 ---
 

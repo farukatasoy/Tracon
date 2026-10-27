@@ -100,28 +100,49 @@ adımında tamlık durumunu da alır: `status` ve `incomplete_details`. Tek bir 
 yazım fonksiyonu iki işi yapar; ikinci bir ayrıştırma eklenmez. Bekleyen onaylı yanıtın son
 sebebi `ToolCalls`'tır, dokunulmaz.
 
-**Akışlı.** `updates` dizisi bir sarmalayıcıdan geçer ve son boş olmayan `FinishReason`'ı tutar
-(Chat Completions emsali). MAF'ın son çerçevesi (`response.completed`) yazılmadan önce
-yakalanır; sebep eksikse olduğu gibi yazılır, eksik değilse `event: response.incomplete` adıyla
-ve gövdesindeki `response.status` ile `response.incomplete_details` değiştirilerek yazılır.
-Diğer çerçeveler bayt bayt aynı geçer.
+**Akışlı.** `updates` dizisi bir sarmalayıcıdan geçer (`ResponsesStreamRewriter.Observe`) ve son
+boş olmayan `FinishReason`'ı tutar (Chat Completions emsali). Kaynak bittikten **sonra** MAF'ın
+yazdığı çerçeveler `Patch`'ten geçer: kapanan mesaj öğesi (`output_item.done`) `incomplete` olur ve
+`response.completed`, `event: response.incomplete` adıyla, `response.status` ile
+`response.incomplete_details` değiştirilerek yazılır. Kaynak bitmeden yazılan çerçeveler ve tam
+yanıtın her çerçevesi aynı `string` olarak geçer (ayrıştırılmaz). Plan yalnız son çerçeveyi
+anıyordu; ölçüm (aşağıda) kapanış çerçevelerinin kuyrukta yazıldığını ve OpenAI'nin öğeyi de
+işaretlediğini gösterdi.
 
-**Doğrulanmadı — `maf-api-kesfi` ve geçici bir probla ölçülmeli:** MAF
-`OpenAIResponses.WriteResponseStreamAsync` (1.25.0-alpha) son çerçeveyi gerçekten
-`response.completed` adıyla mı yazar; gövde `{"type":…,"response":{…}}` biçiminde mi; mesaj
-öğesinin (`output_item.done`) kendi `status` alanı var mı. Ölçüm sonucu bu bölüme yazılır;
-Açık Soru 1 ona bağlıdır.
+**Ölçüldü (2026-10-27)** — `maf-api-kesfi` imza dökümü ve repo dışı geçici prob,
+`Microsoft.Agents.AI.Hosting.OpenAI` 1.25.0-alpha.261014.1. Soru: MAF
+`OpenAIResponses.WriteResponseStreamAsync` ve `WriteResponse` bitiş sebebini okur mu?
+
+| Ölçüm | Sonuç |
+|---|---|
+| Son çerçevenin adı | `event: response.completed`. `Length`, `ContentFilter`, `Stop` ve `null` için **aynı**: MAF `FinishReason`'ı hiç okumaz |
+| Gövde biçimi | `{"type":"response.completed","response":{…,"status":"completed",…},"sequence_number":N}` — tek satır `data:` |
+| `incomplete_details` | `response` nesnesinde **anahtar yok** (`null` bile değil). Akışsız `WriteResponse` gövdesinde de yok |
+| Mesaj öğesinin `status`'u | **Var.** `output_item.added` → `in_progress`; `output_item.done` ve `response.output[]` → `completed` |
+| Son öğenin kapanışı | MAF son mesaj öğesinin `output_text.done` · `content_part.done` · `output_item.done` çerçevelerini ve `response.completed`'ı `updates` bittikten **sonra** yazar. Önceki öğeleri sıradaki öğe açılınca kapatır (tool turundan önceki metin). Yani son bitiş sebebi, son öğenin kapanış çerçeveleri yazılırken bellidir |
+| Akışsız `output[]` sırası | `function_call`, `message`, `function_call_output`, `message` — kesilen son mesaj dizinin **son `message` öğesidir** |
+| JSON kaçışı | Varsayılan kodlayıcı: ASCII dışı ve HTML'e duyarlı karakterler `\u015E`, `\u003C` gibi yazılır. `JsonNode.ToJsonString()` aynı baytları üretir; yeniden yazım değişmeyen alanları bozmaz |
+
+Karşılaştırma için gerçek OpenAI (`gpt-5.4-mini`, `max_output_tokens: 16`, iki çağrı, SDK
+`openai` Python 3.0.0): akışsız `status: "incomplete"`, `incomplete_details:
+{"reason":"max_output_tokens"}`, `output[0].status: "incomplete"`. Akışta sıra
+`…output_text.done`, `content_part.done`, `output_item.done` (öğe `status: "incomplete"`),
+`response.incomplete`; son olay `response.incomplete`'tır. Tracon bu şekle uyar.
+
+**Sonuç:** Açık Soru 1 → **A**. MAF gövdesi öğe `status`'u taşır; son mesaj öğesi hem
+`output_item.done` çerçevesinde hem `response.output[]` içinde `incomplete` olur (OpenAI'nin
+yaptığı gibi). "MAF düzeltirse" kuralı aşağıda: yeniden yazım yalnız `completed` gövdeye uygulanır.
 
 ```mermaid
 sequenceDiagram
     participant A as AgentAnswerStream
-    participant W as FinishReason tutucu
+    participant W as Observe (FinishReason tutucu)
     participant M as MAF WriteResponseStreamAsync
     participant E as ResponsesStream
     A->>W: update (FinishReason?)
     W->>M: update (aynen)
     M->>E: çerçeve
-    E->>E: son çerçeve mi? sebep kesik/filtreli mi?
+    E->>E: kaynak bitti mi? son sebep kesik/filtreli mi?
     E-->>İstemci: response.completed (aynen) ya da response.incomplete (yeniden yazılmış)
 ```
 
@@ -136,8 +157,8 @@ yanı, akışlı `:145` yanı) `RecordTruncatedTextAsync`'in kardeşi olan bir y
 - Tip: `RunEventCustomTypes.OutputFiltered` = `tracon.output.filtered` (public sabit, XML ile).
 - Metin: "The provider's content filter stopped the model mid-answer; the answer is incomplete."
 - Yük: `internal` bir record (`OutputFilteredEventPayload`), `TraconCoreJsonContext`'e kayıtlı.
-  Alanlar: `provider` ve sağlayıcının ham bitiş değeri (varsa; ör. Anthropic `refusal`, K-985).
-  **Cevap metni asla yazılmaz.**
+  Tek alan: `provider`. Ham sağlayıcı sözcüğü (`refusal`, `SAFETY`) yazılmaz: Core halkasına
+  ulaşmaz (Plandan Sapmalar 2). **Cevap metni asla yazılmaz.**
 - Run `Completed` kalır; hata sınıfı yoktur (K-919'un düz metin kuralı).
 - Yan kanal çağrısı (özetleyici, `aiJudge`) yazmaz: aynı `SideChannelFallback` kuralı.
 - Yapılandırılmış yanıt: olay yine yazılır; yapılandırılmış doğrulayıcının sonucu değişmez
@@ -173,6 +194,17 @@ bu fazdan sonra iki tipi gösterir.
 public const string OutputFiltered = ReservedPrefix + "output.filtered";
 ```
 
+### Gerçekleşen Public API
+
+`src/Tracon.Abstractions/PublicAPI.Unshipped.txt` (tek satır, `OutputTruncated`'ın yanında):
+
+```
+const Tracon.RunEventCustomTypes.OutputFiltered = "tracon.output.filtered" -> string!
+```
+
+Başka public üye eklenmedi. `FinishReasonDetectingChatClient.IsContentFilter` ve `IsIncomplete`,
+`OutputFilteredEventPayload`, `ResponsesIncompleteness` ve `ResponsesStreamRewriter` `internal`'dır.
+
 ### HTTP tel değişiklikleri
 
 | Yüzey | Bugün | Faz sonrası |
@@ -205,6 +237,14 @@ tests/Tracon.AspNetCore.FunctionalTests/…ResponsesIncompleteTests.cs   # yeni
 tests/Tracon.AspNetCore.FunctionalTests/OutputTruncationStreamingTests.cs  # filtre ikizleri
 tests/Tracon.Core.UnitTests/Models/FinishReasonDetectingChatClientTests.cs  # filtre yazımı
 ```
+
+Gerçekleşen ek dosyalar: `src/Tracon.AspNetCore/OpenAICompat/ResponsesIncompleteness.cs` (JSON
+işaretleme + akış yeniden yazıcısı; sınıfı birim düzeyinde sınanabilsin diye ayrı dosya),
+`tests/Tracon.AspNetCore.FunctionalTests/ResponsesIncompletePatchTests.cs` (saf kural testleri),
+`scripts/dokuman-bakim.py` (`SURUM_DAMGASI_KAYDI` tek satır), `docs/manuel-test/{00-INDEKS,08-…,22-…}.md`,
+site: `concepts/runs.md` · `http-api.md` · `guides/openai-api.md` · `guides/model-providers.md` ·
+`capabilities.md`, `src/Tracon.Google/README.md`, üç `///` bloğu (`IModelProvider`,
+`TraconContentFilteredException`, `RunEventType`).
 
 `FinishReasonModelProvider` (Faz 207'nin test sağlayıcısı) bitiş sebebini yazar; Responses
 testleri onu kullanır. Konumu: `grep -rn "class FinishReasonModelProvider" tests/`.
@@ -263,17 +303,17 @@ testleri onu kullanır. Konumu: `grep -rn "class FinishReasonModelProvider" test
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `/v1/responses` kesik düz metinde JSON `status: "incomplete"` + `incomplete_details.reason: "max_output_tokens"` döner; akışta son olay `response.incomplete`'tır
-- [ ] İçerikli filtre yanıtı: run `Completed`, `/events`'te `tracon.output.filtered`, ajan akışında `done`'dan önce `custom` çerçevesi, Responses'ta `content_filter`
-- [ ] Ara tool turu ve erken harness iterasyonu kesilmesi sonucu değiştirmez
-- [ ] `RunEventCustomTypes.OutputFiltered` XML'i ve run ucu açıklaması yeni tipi anar; OpenAPI ve iki istemci yenilendi
-- [ ] Yeni `K-*` (`public-api`): ayna listesi `tracon.output.filtered` ile genişledi, alternatifler adıyla
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1 ve 2), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/08-…` ve `22-…` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`guides/openai-api.md` matris satırı ve paragraf, `concepts/runs.md`, `http-api.md`); `npm run check` temiz
+- [x] `/v1/responses` kesik düz metinde JSON `status: "incomplete"` + `incomplete_details.reason: "max_output_tokens"` döner; akışta son olay `response.incomplete`'tır — `ResponsesIncompleteTests` (akışsız/akışlı) ve canlı koşum (gerçek `gpt-5.4-mini`, resmî SDK)
+- [x] İçerikli filtre yanıtı: run `Completed`, `/events`'te `tracon.output.filtered`, ajan akışında `done`'dan önce `custom` çerçevesi, Responses'ta `content_filter` — `OutputTruncation*Tests`, `ResponsesIncompleteTests`; canlı: gerçek Gemini (yerel akış 2/2, `/v1/responses` akışı 1/6)
+- [x] Ara tool turu ve erken harness iterasyonu kesilmesi ya da filtrelenmesi sonucu değiştirmez — `A_tool_turn_cut_at_the_limit_or_filtered_…` (`length` · `content_filter`) · `An_earlier_cut_harness_iteration_…` (akışsız/akışlı) · `OutputTruncationToolTurnTests` filtre ikizleri
+- [x] `RunEventCustomTypes.OutputFiltered` XML'i ve run ucu açıklaması yeni tipi anar; OpenAPI ve iki istemci yenilendi — `tracon.json` (`OpenApiSnapshotTests` yenilendi), `schema.ts` (`npm run generate`, Vitest `schema-drift` yeşil), `TraconApiClient.g.cs` (NSwag zinciri; `ClientCoverageTests` yeşil)
+- [ ] Yeni `K-*` (`public-api`): ayna listesi `tracon.output.filtered` ile genişledi, alternatifler adıyla — taslak `K-NEW-1` / `K-NEW-2` hazır (Entegrasyon Notları b); `docs/KARARLAR.md`'yi entegratör yazar
+- [ ] Dört doğrulama kapısı sıfır uyarı verir — entegratör `kapanis` koşar. Bu dalda koşulanlar (düzeltme turundan sonra yeniden): `ic-dongu` çıkış 0 (build 0 uyarı, 0 hata; AGUI 62 · AspNetCore.Functional 2935 · Azure 238 × 3 · Client 28 · Core 5233 × 3 · Generators 338 · Google 237 × 3 · Sql.Shared 90 × 3 TFM; hepsi yeşil, ilk koşumda), `dotnet format --verify-no-changes` çıkış 0 (değişen `.cs` dosyaları), `kapi.py tarama` temiz, `dokuman-bakim.py --denetle` temiz (site derlemesinden sonra; öncesinde taze bir çalışma ağacında tabandaki gibi `reference/changelog` bağlantıları kırık görünür), `dokuman-bakim.py --site-denetle --taban eb0341f3` yalnız `paket-readme` kuralında kırmızı (Sapma 9)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1 ve 2), çıktı belgeye yazıldı — "Canlı Koşum Kaydı"
+- [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`: temiz; canlı koşumda anahtarlar yalnız user-secrets'tan okundu, hiçbir çıktıya ya da dosyaya yazılmadı
+- [x] `🤖` case'ler `docs/manuel-test/08-…` ve `22-…` içinde ve koşuldu; gerisi otomatik testte — `MT-COMPAT-058` · `MT-GUARD-118` · `MT-GUARD-119` (üçü de `🤖`; `👤` yok)
+- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — entegratör koşar. Uygulayıcı bağımsız bir `faz-denetcisi` ile ön okuma yaptı (`faz-denetim` DEĞİLDİR): 0 🔴, 2 🟡 (ikisi de kapandı), 6 🟢 (Entegrasyon Notları e). Entegratörün taze denetimi (0 🔴, 2 🟡, 6 🟢 grup) düzeltme turunda işlendi: Denetim Bulguları
+- [x] `docs-site/` güncellendi (`guides/openai-api.md` matris satırı ve paragraf, `concepts/runs.md`, `http-api.md`; düzeltme turunda `guides/model-providers.md` bir cümle); `npm run check` temiz — ölçüldü (2026-10-27, kilit altında; düzeltme turundan sonra 2026-10-28'de yeniden koşuldu, sonuç aynı): derleme 1051 sayfa · içerik 69 el yazısı sayfa geçti · bağlantı 0 kırık · SEO 0 hata · ağırlık tavanın altında (en ağır sayfa `concepts/governance` 58 195 B, tavan 59 000; dokunulan sayfalar onu geçmedi). **Koşul:** `docs-site/public/llms-full.txt` bayat ve `check:content` yalnız onun yüzünden kırmızıdır; yukarıdaki sonuçlar dosya geçici olarak yeniden üretilip geri alınarak alındı. Dalda yalnız o dosya (+3 859 B; düzeltme turundan önce +3 753 B) farklı çıkar; `llms.txt` ve `Tracon.AgentMap.md` değişmez. Entegratör `python3 scripts/kapi.py uret` koşar (Entegrasyon Notları f)
 
 ### Doğrulama komutları
 
@@ -312,12 +352,282 @@ curl -sN http://localhost:5081/tracon/v1/responses -H "Authorization: Bearer $KE
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **Akışta iki çerçeve yeniden yazılır, biri değil.** Plan yalnız `response.completed`'ı anıyordu.
+   Ölçüm (251.2): MAF son mesaj öğesinin kapanışını da `updates` bittikten sonra yazar ve OpenAI kesik
+   öğeyi `output_item.done` içinde de `incomplete` işaretler. Açık Soru 1-A bu yüzden iki çerçeveyi kapsar.
+   Yeniden yazım "kaynak bitti mi?" bilgisiyle çalışır (`ResponsesStreamRewriter`); bitmeden yazılan
+   çerçeveye dokunulmaz.
+2. **Filtre olayının yükü yalnız `provider` taşır; Açık Soru 2-A uygulanamadı (B uygulandı).** Plan K-985'in
+   ham `stop_reason` okumasına dayanıyordu. O okuma `Tracon.Anthropic` içindedir
+   (`AnthropicStopReasonChatClient`) ve yalnız iki sebebi yeniden yazar (`model_context_window_exceeded`,
+   `pause_turn`). `refusal` ve Gemini `SAFETY` adaptörde `ChatFinishReason.ContentFilter`'a eşlenir.
+   `FinishReasonDetectingChatClient` filtre dalına yalnız `ContentFilter` ile girer; yani oradaki
+   `finishReason.Value` her zaman `content_filter`'dır. Sabit bir alan telde gürültüdür, sonradan anlam
+   değiştirirse kırıcıdır; sonradan alan eklemek ucuzdur. Ham sözcük için sağlayıcı paketlerinde bir kanca
+   gerekir ve bu faz o paketlere dokunmaz. Bkz. 🟢 adaylar (Entegrasyon Notları e).
+3. **Manuel case 3 koşuldu, "koşulamadı" yazılmadı.** Gerçek Gemini (`gemini-strict-filter`) yerel akışta 2/2
+   denemede yanıtın ortasında durdu (olasılıklı), `/v1/responses` akışında 6 denemede 1 kez
+   `content_filter` verdi. Case `🤖` oldu (`MT-GUARD-119`). Case 2 ayrı bir case oldu (`MT-GUARD-118`);
+   case 1 `MT-COMPAT-058`'dir.
+4. **Kaynak bitmeden kapanan mesaj öğesi `completed` kalır.** Gemini akışında metin, ondan sonra gelen akıl
+   yürütme öğesi yüzünden erken kapandı: `output_item.done` `completed` taşıdı, terminal olayın
+   `output[]`'ı `incomplete` taşıdı. Terminal olay doğruluk kaynağıdır; site sayfası ve
+   `ResponsesStreamRewriter` açıklaması bunu söyler. Planın "öğe de `incomplete` olur" cümlesi bu durumda
+   yalnız terminal olay için doğrudur. Bu sınır deterministik bir testle sabitlendi (Hata Modu → Test Eşlemesi).
+   **Tetikleyici ölçüldü (düzeltme turu):** MAF, açık öğeden farklı türde bir içerik gelince öğeyi kapatır
+   (`generator.IsSupported` yanlış: metinden sonra akıl yürütme ya da tool çağrısı). `IsSameMessage` yolu (farklı
+   `MessageId`/`AuthorName`/`Role`) bu sürümde ÇALIŞMAZ: `previousUpdate` döngüde `null` başlar, yalnız o dalın
+   içinde atanır ve `IsSameMessage(update, null)` hep doğrudur. Decompile (`AgentResponseUpdateExtensions`) ve
+   `WriteResponseStreamAsync` ile metin→metin sondası (üç değişken de tek açık öğe verdi) birbirini doğruladı.
+   Metin bu yüzden tetikleyiciyi sayarak değil "MAF'ın zaten kapattığı öğe `completed` kalır" diye yazıldı;
+   MAF o hatayı düzeltirse erken kapanma sıklaşır ve metin yine doğru kalır.
+5. **Plan riski "OpenAI SDK'sı `response.incomplete`'ı tanımaz" kısmen yanlıştı.** SDK olayı tanır
+   (`ResponseIncompleteEvent`). `stream.get_final_response()` ise yalnız `response.completed`'dan sonra döner
+   ve gerçek OpenAI'nin kesik akışında da `RuntimeError` verir (ölçüldü). Kusur Tracon'da değildir. Site
+   sayfası ve `MT-COMPAT-058` yanıtın son olayın `response`'ından okunmasını söyler.
+6. **Yeni dosyalar.** `ResponsesIncompleteness.cs` (planın dosya listesinde yoktu: yeniden yazıcı birim
+   düzeyinde sınanabilsin diye ayrı sınıf), `OutputFilteredEventPayload.cs` (planda vardı),
+   `ResponsesIncompletePatchTests.cs`. `FinishReasonDetectingChatClient`'ta kayıt koruması
+   (`NoticeWriter`) iki yazım için ortak oldu; `IsContentFilter` `internal` oldu.
+7. **`scripts/dokuman-bakim.py`.** `SURUM_DAMGASI_KAYDI`'na tek satır: yeniden yazıcının XML'indeki
+   "ölçüldü" damgası kayıt ister. Betik fazın izinli dosyaları arasında anılmıyordu; kapı kızdığı için eklendi.
+8. **Plana ek yüzeyler.** `/v1/responses` ucunun OpenAPI açıklaması (planda yalnız run ucu vardı) tüketiciye
+   yeni `status` anlamını söyler. Ayrıca `capabilities.md` satırı, `guides/model-providers.md` (sağlayıcı
+   yazarı sözleşmesi), `src/Tracon.Google/README.md`, `IModelProvider` ve `TraconContentFilteredException`
+   `///` blokları "boş filtre yanıtı hata, metinli yanıt bildirim" ayrımını anlatır.
+   `RunEventType` önsözü "iki bildirim tipi" diyordu; `ToolInputDeclined` zaten muaftı. Dört tip sayıldı
+   ve "Two exceptions" cümlesi "Three exceptions" oldu.
+9. **Site senkron kapısı `paket-readme` kuralı.** Google README'si değişince kural `packages.md` ister.
+   `packages.md` paket başına tek özet satırı taşır ve o satır değişmedi; README cümlesi bir run olayını
+   anlatır. Kapanışta `dokuman-bakim.py --site-denetle --taban <commit> --site-gerekce-yazildi` ile geçilir
+   (Entegrasyon Notları f).
+10. **Ortam notu.** Örnek uygulama `Tracon:Ui:AuthToken` boşken açıktır, ama OpenAI SDK'sı her istekte
+    `Authorization` gönderir ve başlık API anahtarı sayılıp `401` alır. Canlı koşum SDK çağrılarına
+    `extra_headers={"Authorization": Omit()}` verdi (`MT-COMPAT-058` ön koşulunda yazılı).
+
+11. **`ic-dongu` bir kırmızı buldu, düzeltildi.** İlk koşumda `TestDelayClassificationTests.Every_Task_Delay_under_tests_carries_a_known_class`
+    üç TFM'de düştü: `ResponsesIncompleteTests.StallingModelProvider`'ın `Task.Delay(Timeout.InfiniteTimeSpan, …)` satırı
+    sınıf etiketi taşımıyordu. `// delay: simulated` eklendi (düzeltme turu: 1). `ic-dongu` ilk kırmızıda durduğu için
+    `Generators.UnitTests` ve `Sql.Shared.UnitTests` o koşumda çalışmadı; düzeltmeden sonra ayrı koşuldu (338 · 90 × 3 yeşil).
+12. **Ön denetim.** Uygulayıcı, bitmiş dalı bağımsız bir `faz-denetcisi` alt agent'ına salt-okunur okuttu (`faz-denetim`
+    DEĞİLDİR; o entegratörde). Sonuç: 0 🔴, 2 🟡, 6 🟢. 🟡 1: karar taslağı başlıkları numara alınca 160 B'ı aşıyordu (taslaklar
+    kısaltıldı, betiğin kendi ölçüsüyle 127 ve 144 B). 🟡 2: `llms-full.txt` bayat (Sapma 9'un devamı: entegratör üretir, bkz.
+    Entegrasyon Notları f). 🟢: iki sevk edilen `///` cümlesi yumuşatıldı (sağlayıcı adı bağlamanın sağlayıcısıdır; "asla"
+    yerine "normalde"), bir test adının iddiası gövdesiyle eşlendi, Entegrasyon yol listesi düzeltildi, ikisi aday oldu
+    (F-yeni 6, 7; 7 sonradan kapandı, bkz. Denetim Bulguları). Açık kalan: "son çerçeve bulunamadı" uyarı satırının uç düzeyi testi yok (tek `if`; MAF çıktısı
+    enjekte edilemez, bayrak birim testli, gerçek akışlarda uyarının çıkmadığı `AskAsync` içinde sınanır).
+
+## Canlı Koşum Kaydı (2026-10-27)
+
+> `samples/Tracon.Api` derlenmiş DLL'den, port 5181, `ASPNETCORE_ENVIRONMENT=Development`, dört bağlantı/token
+> değişkeni boş (bellek içi depo). Uygulama günlüğünde `Npgsql` satırı: 0. Gerçek `gpt-5.4-mini` ve
+> `gemini-3.6-flash`, en küçük istemler. Uygulama koşum sonunda durduruldu.
+
+**Case 1 — `MT-COMPAT-058`** (resmî `openai` Python SDK 3.0.0, `manuel-kesilen-openai`, `maxOutputTokens: 16`):
+
+```
+--- Responses, non-streaming
+{"status": "incomplete", "incomplete_details": "max_output_tokens", "output": [["message", "incomplete"]],
+ "output_text": "Rivers are among the most important and enduring features of the natural"}
+--- Responses, streaming
+get_final_response(): RuntimeError: Didn't receive a `response.completed` event.
+events (collapsed): created, in_progress, output_item.added, content_part.added, output_text.delta,
+                    output_text.done, content_part.done, output_item.done, incomplete
+last event: response.incomplete | count of terminal events: 1 | output_item.done items: [('message', 'incomplete')]
+final response: {"status": "incomplete", "incomplete_details": "max_output_tokens", "output": [["message", "incomplete"]], ...}
+--- negative control (manuel-kisa-openai): status completed / incomplete_details null; last event response.completed;
+    get_final_response() returned
+```
+
+Karşılaştırma için gerçek `api.openai.com` aynı iki biçimde (16 token): akışsız `incomplete` +
+`max_output_tokens` + mesaj öğesi `incomplete`; akışta aynı olay sırası, son olay `response.incomplete`,
+`get_final_response()` aynı `RuntimeError`.
+
+**Case 2 — `MT-GUARD-118`** (yerel akış, aynı agent):
+
+```
+frame tail: ['update', 'custom', 'done'] | error frames: 0
+custom: tracon.output.truncated | payload {"provider":"openai","maxOutputTokens":16,"cause":"output_limit"}
+replay custom frames: 1 | byte-for-byte equal: True | run status: Completed | error: None
+negative control: tail ['update', 'update', 'done'], custom 0
+```
+
+**Case 3 — `MT-GUARD-119`** (gerçek Gemini, `gemini-strict-filter`; filtre olasılıklıdır):
+
+```
+native stream, attempt 1: tail=['update','custom','done'] custom=['tracon.output.filtered'] error=0
+  notice: {"type":"Custom","customType":"tracon.output.filtered",
+           "text":"The provider's content filter stopped the model mid-answer; the answer is incomplete.",
+           "payload":"{\"provider\":\"google\"}"}
+  streamed text chars: 168 | byte-for-byte equal with /events: True | run: Completed | error: None
+/v1/responses stream, attempt 3 of 6: last=response.incomplete status=incomplete reason=content_filter
+  item_done=[('message','incomplete')] text chars: 36 | terminal events: 1
+other outcomes with the same prompt: tracon.output.truncated (thinking tokens used the 1024 budget),
+  error content_filtered (filter before any text) - both expected, unchanged behaviour
+```
+
+## Hata Modu → Test Eşlemesi
+
+> Planın "Hata Modları ve Testler" tablosundaki her satırın gerçekleşen karşılığı. Önce düşen test yazıldı;
+> kırmızı koşum: `ResponsesIncomplete*` 22 / `OutputTruncation*` 9 / `FinishReasonDetectingChatClientTests` +
+> `ReservedPayloadPolicyTests` 4 test düştü, kalan yeşiller "değişmez" kontrolleriydi.
+
+| Satır | Test |
+|---|---|
+| Kesik düz metin JSON'da `completed` kalır · akışta son olay · bağlam penceresi | `ResponsesIncompleteTests.A_cut_off_answer_is_incomplete_because_of_max_output_tokens` (`length`, `context_window_exceeded` × akışsız/akışlı) |
+| Olay iki kez gelir · önceki çerçeveler değişir | `ResponsesIncompleteTests.An_incomplete_stream_keeps_the_event_order_and_numbering_of_a_complete_one_and_changes_its_last_event_and_item_status` (olay adları ve sırası, `sequence_number` aralıksız); dokunulmayan çerçevenin aynı dize olarak geçişi bir seviye aşağıda: `ResponsesIncompletePatchTests` (`ShouldBeSameAs`) |
+| İçerikli filtre Responses'ta `completed` kalır | `ResponsesIncompleteTests.A_content_filtered_answer_with_text_is_incomplete_because_of_content_filter` |
+| Ara tool turu · harness erken iterasyonu | `A_tool_turn_cut_at_the_limit_or_filtered_does_not_make_the_final_answer_incomplete` (`length` · `content_filter` × akışsız/akışlı) · `An_earlier_cut_harness_iteration_does_not_make_the_last_one_incomplete` · `A_cut_final_harness_iteration_is_incomplete`; filtre ikizi: `OutputTruncationToolTurnTests.An_intermediate_tool_turn_stopped_by_a_content_filter_records_no_notice_for_a_run_whose_final_turn_completes` · `Streamed_plain_text_run_whose_intermediate_tool_turn_was_stopped_by_a_content_filter_sends_no_notice` |
+| Bekleyen onaylı yanıt | `A_pending_approval_response_keeps_its_status_and_gets_its_function_call_item` |
+| Run kaydı kapalı | `The_status_does_not_depend_on_run_recording` |
+| MAF `incomplete` yazarsa çift yama | `ResponsesIncompletePatchTests.A_body_that_is_not_completed_is_left_alone` · `A_terminal_frame_that_already_says_incomplete_is_left_alone_and_not_reported_missing` · `A_completed_frame_whose_body_is_not_completed_is_left_alone` |
+| Son çerçeve bulunamazsa uyarı | `ResponsesIncompletePatchTests.A_stream_that_never_wrote_the_terminal_frame_is_reported_missing` · `A_terminal_frame_this_code_cannot_read_passes_through_and_is_reported_missing`; uç tarafı: gerçek akışlarda `Tracon.OpenAICompat` kategorisinde hiçbir uyarı **yok** (`AskAsync`; metne değil kategori önekine bakar) |
+| Erken kapanan öğe (Sapma 4) | `ResponsesIncompleteTests.A_message_closed_before_the_stream_ends_keeps_its_own_status_but_the_final_response_is_incomplete` |
+| Akış iptal edilir | `ResponsesIncompleteTests.A_client_that_goes_away_mid_stream_ends_the_run_without_a_terminal_frame_or_an_error_log` |
+| İçerikli filtre yanıtı iz bırakmaz · olay cevap metnini taşır | Birim: `FinishReasonDetectingChatClientTests.Filtered_response_that_still_carries_text_records_the_notice_without_the_text` · `Streaming_filtered_response_…`; fonksiyonel: `OutputTruncationTests.A_plain_text_response_stopped_by_a_content_filter_completes_and_records_the_notice` · `OutputTruncationStreamingTests.A_streamed_plain_text_response_stopped_by_a_content_filter_completes_and_records_the_notice` (yük anahtarları yalnız `provider`) |
+| Boş filtre yanıtı hata kalır | `FinishReasonDetectingChatClientTests.A_filtered_empty_response_is_still_an_error_and_records_no_notice` · `OutputTruncationTests.A_filtered_empty_response_still_records_the_tokens_it_spent` · `ResponsesIncompleteTests.An_empty_content_filtered_answer_is_still_an_error_not_an_incomplete_response` |
+| Yan kanal olay yazmaz | `FinishReasonDetectingChatClientTests.A_side_channel_call_records_no_filter_notice` |
+| Yapılandırılmış yanıt (Açık Soru 3) | `FinishReasonDetectingChatClientTests.A_structured_response_stopped_by_a_filter_records_the_notice_and_is_still_returned` · `OutputTruncationTests.A_structured_response_stopped_by_a_content_filter_*` |
+| Ajan akışı bildirimi `done`'dan önce, `/events` ile bayt bayt aynı | `OutputTruncationStreamingTests.A_streamed_filter_notice_is_the_recorded_event_sent_before_done` · `A_harness_loop_with_a_cut_and_a_filtered_iteration_sends_both_notices_in_record_order` |
+| Kapı genişler (depo okuma sayacı) | `OutputTruncationStreamingTests.The_stream_reads_the_run_events_only_after_an_update_reported_a_cut_or_a_filter` (`content_filter` → 1, `stop` → 0) |
+| `RecordToolPayloads=false` | `OutputTruncationTests.The_filter_notice_keeps_its_payload_when_payload_recording_is_off` · `ReservedPayloadPolicyTests` (yeni `InlineData`) |
+| Depo okuma hatası | `OutputTruncationStreamingTests.A_store_failure_while_reading_the_filter_notice_still_ends_the_stream_with_done` |
+| Üretilen OpenAPI/istemci bayatlar | `OpenApiSnapshotTests` (yenilendi) · `ClientCoverageTests` · `ClientSchemaFieldCoverageTests` · `@tracon/client` Vitest (`schema-drift`) |
+| Başka kiracının run'ı | Yeni yol yok; test eklenmedi |
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+**Açık Sorular.**
+
+| # | Seçim | Gerekçe |
+|---|---|---|
+| 1 | **A** — mesaj öğesinin `status`'u da `incomplete` | Ölçüm: MAF gövdesi öğe `status`'u taşır; OpenAI kesik öğeyi `output_item.done` içinde ve `output[]` içinde işaretler. Kaynak bitmeden kapanan öğe istisnadır (Sapma 4) |
+| 2 | **B** — yük yalnız `provider` (önerilen A uygulanamadı) | Sapma 2: ham sözcük Core halkasına ulaşmaz; sabit alan gürültüdür |
+| 3 | **A** — yapılandırılmış yanıtta olay yazılır, doğrulayıcının sonucu değişmez | Testler: `OutputTruncationTests.A_structured_response_stopped_by_a_content_filter_*` (doğrulama kapalı: run `Completed` + olay; açık ve geçersiz belge: run `Failed` + olay) |
+
+**Karar defteri adayları** (dört kategoriden biri + reddedilen alternatif): `K-NEW-1` ve `K-NEW-2`,
+aşağıda Entegrasyon Notları (b).
+
+**Karar defterine girmeyenler** (commit mesajına gider): yeniden yazıcının konumu (`ResponsesStreamRewriter`
+kuyruk çerçevelerine uygular: gerekçesi ölçümdür, alternatifi yoktu); bildirim kapısının adı
+(`IsIncomplete`); `NoticeWriter` ortak koruması.
+
+### Entegrasyon Notları
+
+> Entegratör içindir: aşağıdakileri ilgili dosyalara tek tek, sırayla işler. Bu fazın dalı yalnız
+> `src/`, `tests/`, üretilmiş sözleşme dosyaları (`docs/openapi/tracon.json`, `schema.ts`,
+> `TraconApiClient.g.cs`), `docs/manuel-test/` (06 `MT-PROV-052`, 08, 22, indeks satırları), site sayfaları,
+> `scripts/dokuman-bakim.py` (`SURUM_DAMGASI_KAYDI` tek satır, Sapma 7) ve bu dokümana dokundu.
+
+**(a) CHANGELOG.md — `[Unreleased]`.** Tam metin ve bölüm:
+
+*### Added*
+
+```
+- **`RunEventCustomTypes.OutputFiltered` (`tracon.output.filtered`): a run records when a provider's content filter stops an answer that already has text.** The run still completes with the partial answer. The payload holds the `provider` and never the answer, and it survives `RecordToolPayloads = false`. The agent run stream (`POST /api/agents/{name}/run`) sends the event as a `custom` frame right before `done`, next to `tracon.output.truncated`, with the same data `GET /api/runs/{id}/events` serves; a structured response gets the event too, and the structured-response validator still decides whether the document is usable. A filtered answer with no content at all still fails the run as `content_filtered`.
+```
+
+*### Changed*
+
+```
+- **`POST /v1/responses` reports a cut-off or filtered answer as `incomplete`.** Microsoft Agent Framework wrote `status: "completed"` (and `response.completed` on a stream) for every finish reason. An answer the model cut off at its output token limit or its context window now has `status: "incomplete"` and `incomplete_details.reason: "max_output_tokens"`; an answer a content filter stopped after it wrote text has the reason `content_filter`. The message item that was cut is `incomplete` too, and a stream ends with `response.incomplete` in place of `response.completed`, as OpenAI's own stream does. Only the answer's final model call decides, so a tool turn or an earlier loop iteration that hit the limit changes nothing, and the status does not depend on run recording. **Upgrade note:** a client that took `status == "completed"` to mean a whole answer now sees the truth for these answers. The OpenAI Python SDK's `stream.get_final_response()` now raises `RuntimeError` when the stream ends with `response.incomplete`, as it already does against OpenAI's own incomplete stream: read the `response` of the last event of the stream instead.
+
+- **The `custom` frames of the agent run stream come from a list of three types.** `tracon.output.filtered` joins `tracon.output.truncated` (always) and `tracon.quota.threshold` (with `PublishThresholdToRunStream`). A client that reads frames by name and ignores an unknown `customType` needs no change; a client that assumed the list holds two types should handle a third.
+```
+
+**(b) K-* taslakları** (`docs/KARARLAR.md` §2, numara entegratörde; ikisi de `public-api`). Betiğin kendi ölçüsüyle (`_karar_basligi`, başlık `K-1104 — …` dahil): başlık 127 ve 156 B (sınır 160), satır 492 ve 587 B (sınır 600); K-NEW-2'ye okuma kapısı eklenince yeniden ölçüldü. Numara 4 haneyi aşarsa yeniden ölç:
+
+```
+| **K-NEW-1 — `/v1/responses` kesik ya da filtreli yanıtı `incomplete` bildirir; akışta son olay `response.incomplete` (F-503)** *(kategori: public-api)* | 2026-10-27 | Alternatif: `completed` bırakıp yalnız run olayına güvenmek — OpenAI SDK'sının o kanalı yok; MAF yazıcısı bitiş sebebini okumaz (alpha.261014.1'de ölçüldü). Yeniden yazım yalnız `completed` gövdeye ve kaynak bittikten sonra yazılan çerçevelere uygulanır. | MAF `incomplete` yazmaya başlarsa |
+| **K-NEW-2 — İçerikli filtre yanıtı `tracon.output.filtered` yazar, ajan akışı onu `done`'dan önce `custom` verir; K-991 listesi ve kapısı genişler** *(kategori: public-api)* | 2026-10-27 | Alternatif: kesilme olayına `cause: content_filter` eklemek ya da run'ı düşürmek — ilki iki sonucu tek tipe sıkıştırır, ikincisi elindeki yarım cevabı atar. Yük yalnız `provider`'dır. Depo, bir `update` kesilme ya da filtre bildirince okunur (`IsIncomplete`): K-991'in kesilme kapısı genişledi. | Bir sağlayıcı paketi ham sözcüğü Core halkasına taşırsa |
+```
+
+K-992'nin "yeniden açılma koşulu" (*"Responses `incomplete` (F-503) aynı yüklemle gelince"*) gerçekleşti: K-NEW-1 aynı
+yüklemleri okur (`FinishReasonDetectingChatClient.IsTruncated` / `IsContentFilter`). K-992 satırına "bkz. K-NEW-1" eklenir; K-991
+satırının "listeye tip eklemek sözleşme kararıdır" kuralı K-NEW-2 ile işlendi. K-991 satırı "depo yalnız kota
+seçeneği açıksa ya da bir `update` kesilme sebebi taşıdıysa okunur" der; kapı artık `IsIncomplete`'tir (kesilme ya da
+filtre) ve K-NEW-2 bunu söyler. Bu yüzden K-991 satırına, K-992'nin yanına, "bkz. K-NEW-2" notu da eklenir. `docs/ADAYLAR.md`'den F-503 ve F-505 satırları
+`faz-kapat` adımında kapanan kalemlere taşınır.
+
+**(c) Hafıza notları.**
+
+- `docs/hafiza/maf-oturum.md` (≈1,4 KB boş; "MAF oturumu, `ChatHistoryProvider`, Responses"):
+  *"**🚨 MAF'ın Responses yazıcısı bitiş sebebini OKUMAZ ve son öğeyi `updates` bittikten SONRA kapatır**
+  (2026-10-27, Faz 251, `Hosting.OpenAI` 1.25.0-alpha.261014.1 ölçüldü): her sebep `status: completed` ve
+  `response.completed` ile biter; `incomplete_details` anahtarı gövdede hiç yoktur. Tracon yeniden yazar
+  (`ResponsesIncompleteness` · `ResponsesStreamRewriter`): yalnız `completed` gövdeye ve kaynak bittikten sonra
+  yazılan çerçevelere dokunur. Kaynak bitmeden kapanan öğe (metinden sonra farklı türde içerik: akıl yürütme/tool)
+  kendi `output_item.done`'ında `completed` kalır; terminal olay doğruluk kaynağıdır. MAF'ın `IsSameMessage`
+  yolu (farklı `MessageId`/`AuthorName`/`Role`) bu sürümde çalışmaz: `previousUpdate` `null` başlar, yalnız o dalda
+  atanır. MAF düzeltirse erken kapanma sıklaşır, metin bunu karşılar. Resmî Python SDK'nın
+  `get_final_response()`'u yalnız `response.completed`'dan sonra döner (gerçek OpenAI'de de): yanıtı son olayın
+  `response`'ından oku. Yükseltmede `ResponsesIncompleteTests` kayma kapısıdır."*
+- `docs/hafiza/kod-haritasi.md` (15 997/16 000 B, DAR): "İçerik filtresi tespiti" satırına
+  `AspNetCore/OpenAICompat/ResponsesIncompleteness.cs` (Responses yeniden yazımı) eklenecek; yer yoksa
+  entegratör eski bir satırı `arsiv/`'e taşır.
+- `docs/hafiza/run-olay-sozlesmesi.md` (15 958/16 000 B, DAR): **iki ek sığmaz.** Cümle ≈ +115 B, liste ≈ +34 B;
+  dosya ≈ 16 110 B olur ve 16 000 B bütçesini aşar. Önce aynı dosyadan eski bir maddeyi (≥ ≈ 110 B)
+  `docs/arsiv/HAFIZA-GECMISI.md`'ye taşı, sonra ekle. Ekler: 2026-10-14 tarihli "Yeni ayrılmış `CustomType`
+  canlı ajan akışına kendiliğinden girmez" maddesine bir cümle: *"Faz 251: ikinci tip `tracon.output.filtered`;
+  kapı 'kesilmiş' yerine `IsIncomplete` (kesilme ya da filtre) okur."* Aynı dosyada
+  "Ayrılmış `Custom` tipin yük muafiyeti AÇIK LİSTEDİR" maddesindeki liste dört tip olur (`quota.threshold`,
+  `output.truncated`, `output.filtered`, `tool.input.declined`).
+- `docs/hafiza/elle-kosum-ortami.md` (9,6 KB; ≈6 KB boş): *"Örnek uygulama `Tracon:Ui:AuthToken` boşken açıktır,
+  ama başlık taşıyan her istek API anahtarı sayılıp `401` alır: resmî OpenAI SDK'sı `api_key` zorunlu
+  tuttuğundan boş-token koşumunda her çağrıya `extra_headers={"Authorization": Omit()}` ver
+  (`TraconEndpointFilter`: başlıksız istek loopback'te yerel operatördür)."* Aynı dosyaya: *"Gemini
+  `gemini-strict-filter` yanıtın ortasında filtre bildirimini olasılıkla verir (2/2 yerel akış, 1/6
+  `/v1/responses` akışı); akışsız yolda 7 denemede görülmedi."*
+
+**(d) MIMARI / MAF-GENISLEME-NOKTALARI.** `docs/MAF-GENISLEME-NOKTALARI.md` § `OpenAIResponses` yardımcısı
+(satır ≈232-239): "`WriteResponse` / `WriteResponseStreamAsync` bitiş sebebini okumaz; Tracon sonradan
+yeniden yazar (`ResponsesIncompleteness`, K-NEW-1). MAF `incomplete` yazmaya başlarsa yeniden yazım etkisiz
+kalır." `docs/MIMARI.md` değişmez (katman ya da veri modeli yok). `docs/MAF-KAPSAMA.md` §5 `OpenAIResponses`
+satırı: "kullanım" sütununa "bitiş sebebi Tracon'da" notu isteğe bağlı.
+
+**(e) 🟢 adaylar** (uygulanmadı):
+
+- **F-yeni 1 — Filtre olayında sağlayıcının ham filtre sözcüğü.** `AnthropicStopReasonChatClient` (`refusal`) ve
+  Gemini adaptörü (`SAFETY`, `BLOCKLIST` …) ham sözcüğü Core halkasına taşıyacak bir kanalla (örn. run kapsamında
+  salt-okunur bir tutucu) ulaştırırsa `OutputFilteredEventPayload`'a `finishReason` eklenebilir. Ek alan
+  geriye dönük uyumludur. Bugün sabit olurdu.
+- **F-yeni 3 — `OutputTruncated` ve `OutputFiltered` olaylarının `provider` alanı, yedek zincirde cevap veren
+  halkayı değil `binding.Provider`'ı yazar.** `FallbackChatClient` cevap veren halkayı
+  `AgentRunScope.FallbackAttribution`'a yazar; dedektör onu okumaz. İki olayda da aynı sınıf.
+- **F-yeni 4 — Gemini akışında akıl yürütme içeriği metinden sonra da gelir.** Ölçüm: `output_item.done` sırası
+  `message`, `reasoning`. MAF mesaj öğesini bu yüzden erken kapatır ve `output_item.done` `completed` taşır
+  (Sapma 4). Gerçek OpenAI ölçümünde (akıl yürütme belirteci 0) bu durum görülmedi. Öğe sırasına bakan bir
+  Responses tüketicisi Gemini'de farklı görür. MAF tarafı ölçüldü (farklı türde içerik gelince açık öğeyi
+  kapatır); güncellemeleri o sırayla Gemini'nin mi Gemini adaptörünün mü verdiği ölçülmedi.
+- **F-yeni 5 — `/v1/responses` akışsız Gemini çağrısı mid-answer filtre vermedi (7 denemede 0).** Gemini
+  akışsız yolda engellenen yanıtın metnini döndürmüyor olabilir; doğrulanmadı. Doğrulanırsa akışsız yolda
+  filtre bildirimi hiç yazılamaz ve site cümlesi bunu söylemelidir.
+- **F-yeni 6 — Tool turundan sonra metinsiz filtre hata değil bildirim olur.** `HasContent`/`sawContent`
+  tüm turların içeriğini birikir (fonksiyon çağrısı da içeriktir; akışsız yanıt döngünün tüm mesajlarını
+  taşır). Son tur boş ve filtreli olsa da run `Completed` biter ve olay yazılır; Responses'ta `incomplete`
+  döner ama `output[]`'da mesaj öğesi yoktur. Davranış bu fazdan öncesine aittir; bu fazın tek eki bildirimin
+  yazılmasıdır. Değiştirmek ayrı bir karardır: son turun metni boşsa hata mı olmalı?
+- **F-yeni 8 — Yeniden yazıcının hata-açık kapsamı yalnız `JsonException`.** `ResponsesStreamRewriter.TryReadData`
+  yalnız `System.Text.Json.JsonException`'ı yakalar (`ResponsesIncompleteness.cs` ~271): `Patch`'ten çıkan başka bir
+  istisna `ResponsesStream.ExecuteAsync`'in genel `catch (Exception ex)`'ine ulaşır ve cevaptan SONRA bir `error`
+  çerçevesi ekler; akışsız `PatchResponse` de genel `catch`'e düşer ve `502` verirdi. MAF'ın tipli yazıcısıyla bugün
+  erişilemez (decompile ile kontrol edildi). İsteğe bağlı sigorta: çağrıyı sar, çerçeveyi olduğu gibi geçir,
+  `MissedTerminalFrame`'i koru.
+- **F-yeni 9 — Yeniden yazıcının CRLF testi yok.** `ResponsesStreamRewriter` çerçeveyi `\n` satır sonlarıyla
+  tanır; satırları CRLF olan bir çerçeve tanınmadan değişmeden geçer ve yanıt kesikse "son çerçeve bulunamadı"
+  uyarısı loglanır (davranış kodda okunur); bunu pinleyen test yok.
+
+(F-yeni 2 — `TraconContentFilteredException.FinishReason` XML'i — ve F-yeni 7 — `MT-PROV-052` çatalı — düzeltme
+turunda kapandı, bkz. Denetim Bulguları; numaralar kayma olmasın diye yeniden verilmedi.)
+
+**(f) Kapanış komutları.** Site senkron kapısı `paket-readme` kuralı Google README'si için `packages.md`
+ister (Sapma 9); `--site-gerekce-yazildi` ile geç. Hand-written sayfalar değiştiği için `llms.txt` /
+`llms-full.txt` ve `Tracon.AgentMap.md` yeniden üretilir: `python3 scripts/kapi.py uret`.
 
 ## Süreç Ölçümü
 
@@ -340,3 +650,22 @@ curl -sN http://localhost:5081/tracon/v1/responses -H "Authorization: Bearer $KE
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+**Taze son denetim** (entegratörün `faz-denetcisi`'si, nihai diff üzerinde, decompile ile doğrulanmış): 0 🔴 · 2 🟡 · 6 🟢 grup.
+Hepsi uygulayıcı dalında işlendi; commit'ler `faz/251` üzerinde. Ön okumanın bulguları Plandan Sapmalar 12'dedir.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| `RunEventType` önsözü, yük muafiyeti olan dört bildirimin yükünün "kullanıcı verisi ya da cevap" taşımadığını söylüyordu; `tracon.quota.threshold` kiracı, kullanıcı ve oturum kimliğini taşır | 🟡 | **Düzeltildi** (`42c61601`): cümle "bir tool'un girdisini ya da çıktısını ve cevap metnini asla taşımaz" oldu. Filtre bildirimine dokunan öteki `///` ve site metinleri tarandı, aynı aşırı genelleme yok; bu fazın bir test yorumu hizalandı |
+| "Yalnız cevabı bitiren tur karar verir" cümlesinin (`concepts/runs`) filtre testi yoktu | 🟡 | **Düzeltildi** (`d5e0db47`): `A_tool_turn_cut_at_the_limit_or_filtered_…` teorisine `content_filter` satırı (akışsız/akışlı) ve `OutputTruncationToolTurnTests`'e iki filtre ikizi. Kırmızı kanıt: dedektör "herhangi bir güncelleme `ContentFilter` dedi" olarak yerelde değiştirilince 38 testten 2'si düştü (ikisi de akışlı); mutasyon geri alındı, 38/38 yeşil. Akışsız satırlar karşı kontroldür: MEAI son turun sebebini döndürür, dedektör mutasyonu oraya ulaşmaz |
+| `RunErrorClass.ContentFiltered` açıklaması, komşusu `OutputTruncated` gibi bildirimi anmıyordu | 🟢 | **Düzeltildi** (`42c61601`) |
+| `TraconContentFilteredException.FinishReason` açıklaması "Anthropic `refusal` ya da Gemini `SAFETY`" diyordu; değer hep `content_filter`'dır | 🟢 | **Düzeltildi** (`42c61601`); F-yeni 2 kapandı |
+| `IsTruncated` açıklaması run ucunun onu okuduğunu söylüyordu; uç `IsIncomplete` okur | 🟢 | **Düzeltildi** (`42c61601`) |
+| `AzureOpenAIModelProvider` açıklaması "`content_filtered` kaydeder" diyordu; boş ve metinli yanıtı ayırmıyordu | 🟢 | **Düzeltildi** (`42c61601`); `ToChatFinishReason` açıklamasındaki eski "asla ulaşmaz" cümlesi de "normalde" oldu |
+| Erken kapanma metni dardı: "bir öğe MAF zaten kapattıysa kendi çerçevesinde `completed` kalır, terminal olay doğrudur" | 🟢 | **Düzeltildi** (`357746dc`): `///`, site ve `/v1/responses` OpenAPI açıklaması; üç sözleşme dosyası bir kez yenilendi, yalnız o açıklama değişti. **Sapma:** denetçinin tetikleyicisi (`IsSameMessage` yanlış) bu MAF sürümünde ölçülemedi — Plandan Sapmalar 4; metin tetikleyiciyi saymaz |
+| Site: "the final response is always complete and right"; `model-providers` `/v1/responses` `incomplete`'i anmıyordu | 🟢 | **Düzeltildi** (`357746dc`): "whole and accurate"; Anthropic uzun yanıt paragrafına tek cümle; `get_final_response()` cümlesi `RuntimeError`'ı açıkça söyler. Ağırlık (düzeltme turundan sonra, `npm run check` kilit altında): `guides/openai-api` 43 482 → 43 511 B, `guides/model-providers` 57 447 → 57 458 B (tavan 59 000), `concepts/runs` · `http-api` · `capabilities` değişmedi |
+| `An_incomplete_stream_differs_…` başlığı yalnız olay adlarını karşılaştıran bir gövdeye "yalnız bunlar farklı" diyordu | 🟢 | **Düzeltildi** (`ad4e6c72`): başlık karşılaştırılanı söyler; iki koşunun çerçeveleri id ve zaman damgası yüzünden çerçeve çerçeve karşılaştırılamaz, aynı dize geçişi `ResponsesIncompletePatchTests`'te sabit |
+| `AskAsync`'in negatif log denetimi uyarı metninin bir parçasına bağlıydı | 🟢 | **Düzeltildi** (`ad4e6c72`): `Warning Tracon.OpenAICompat` kategori önekine bakar. Kırmızı kanıt: yeniden yazıcı terminal çerçeveyi yazmaz ve bildirmez hâle getirilince (yerel mutasyon) `ResponsesIncompleteTests`'in 30 testinden 10'u `AskAsync`'teki bu denetimden düştü; mutasyon geri alındı, 54/54 yeşil |
+| Entegrasyon Notları: hafıza bütçesi · K-991 kapısı ve ölçüler · CHANGELOG `RuntimeError` · `MT-PROV-052` çatalı | — | **Düzeltildi** (`42d1dfde` ve bu belge): (a) `run-olay-sozlesmesi.md` iki ek sığmaz, önce eski bir madde `HAFIZA-GECMISI`'ne; (b) K-NEW-2 `IsIncomplete` kapısını söyler, K-991'e "bkz. K-NEW-2", ölçüler 127/156 B ve 492/587 B; (c) upgrade note `RuntimeError`'ı açıkça yazar; (d) `MT-PROV-052`'nin ikinci çatalı metinli yarıda kesilmeyi ayırır; F-yeni 7 kapandı |
+| Hata-açık kapsamı yalnız `JsonException`; CRLF testi yok | 🟢 | **Aday, düzeltilmedi** (istek üzerine): F-yeni 8, 9 |
+| `docs-site/public/llms-full.txt` bayat | — | **Açık**, entegratörde (`python3 scripts/kapi.py uret`); Entegrasyon Notları f |

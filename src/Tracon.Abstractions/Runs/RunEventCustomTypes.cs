@@ -66,6 +66,42 @@ public static partial class RunEventCustomTypes
     public const string OutputTruncated = ReservedPrefix + "output.truncated";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the notice a run writes when the
+    /// provider's content filter stopped the model in the middle of an answer that already
+    /// has text.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The run does not fail: the partial answer is still useful, so the run keeps its
+    /// status and this event says the answer is incomplete. A filtered answer with
+    /// <strong>no</strong> content at all fails its run with
+    /// <see cref="RunErrorClass.ContentFiltered"/> instead, because there is nothing to keep.
+    /// A structured (JSON) response filtered the same way gets this event too; whether
+    /// the run then fails is still the structured-response validator's decision, as it is
+    /// for any other response.
+    /// </para>
+    /// <para>
+    /// The payload is a JSON object with <c>provider</c>, the provider of the agent's model
+    /// binding (behind a fallback chain this is the binding's own provider, not necessarily
+    /// the link that answered). It never carries the response text. The filter's own
+    /// word (Anthropic <c>refusal</c>, Gemini <c>SAFETY</c>) is not in it: the provider
+    /// adapters report every filter stop as the one common finish reason before Tracon sees
+    /// it. Written only for the agent's own model calls, not for a side-channel call such
+    /// as a context summarizer or a loop judge.
+    /// </para>
+    /// <para>
+    /// The live stream of an agent run (<c>POST /api/agents/{name}/run</c> without
+    /// <c>Idempotency-Key</c>) also carries this event, always: it arrives as a
+    /// <c>custom</c> frame right before <c>done</c>, with the same data
+    /// <c>GET /api/runs/{id}/events</c> serves, and the same list holds
+    /// <see cref="OutputTruncated"/>. No event is written, and no frame is sent, when run
+    /// recording is off. On <c>POST /v1/responses</c> the same stop makes the response
+    /// <c>incomplete</c> with the reason <c>content_filter</c>.
+    /// </para>
+    /// </remarks>
+    public const string OutputFiltered = ReservedPrefix + "output.filtered";
+
+    /// <summary>
     /// The <see cref="RunEventType.Custom"/> type of the event a run writes for model
     /// content that no other event type covers: a hosted tool call or result, a provider
     /// <c>ErrorContent</c>, generated or attached data, a file reference, and any content

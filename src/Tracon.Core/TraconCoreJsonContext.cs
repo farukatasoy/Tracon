@@ -57,6 +57,9 @@ namespace Tracon;
 // Phase 204: the output truncation notice's Custom run-event payload.
 [JsonSerializable(typeof(OutputTruncatedEventPayload))]
 
+// Phase 251: the output filter notice's Custom run-event payload.
+[JsonSerializable(typeof(OutputFilteredEventPayload))]
+
 // Phase 151: the LoopIterationCompleted run-event payload.
 [JsonSerializable(typeof(LoopIterationCompletedEventPayload))]
 internal sealed partial class TraconCoreJsonContext : JsonSerializerContext;

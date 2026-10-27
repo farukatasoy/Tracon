@@ -281,7 +281,9 @@ internal static class AgentEndpoints
                 "stream ends with an 'error' event of that type instead of 'done'. Right before 'done', the " +
                 "stream sends a 'custom' event for each notice the run recorded from a fixed list, with the same " +
                 "data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the " +
-                "model cut off at its output token limit or its context window) always, and " +
+                "model cut off at its output token limit or its context window) and " +
+                "'tracon.output.filtered' (an answer with text that the provider's content filter stopped; " +
+                "an answer with no content at all fails the run instead) always, and " +
                 "'tracon.quota.threshold' when the quota options publish it to the run stream. " +
                 "An agent with a harness loop streams every iteration, so the 'update' events carry the drafts and " +
                 "the feedback as well as the answer. After each iteration the loop evaluated, the stream sends a " +
@@ -1103,8 +1105,9 @@ internal static class AgentEndpoints
 
                 // Phase 207: ANY update, not the last one. A tool turn cut at the limit
                 // raises it too; the notice scan then finds no event, which costs one
-                // read. Missing the final turn's reason would lose the notice.
-                var sawTruncation = false;
+                // read. Missing the final turn's reason would lose the notice. Phase 251:
+                // a content-filter reason may leave a notice as well.
+                var sawIncomplete = false;
 
                 await foreach (var update in updates.ConfigureAwait(false))
                 {
@@ -1113,7 +1116,7 @@ internal static class AgentEndpoints
                         (pending ??= []).Add(names);
                     }
 
-                    sawTruncation |= FinishReasonDetectingChatClient.IsTruncated(update.FinishReason);
+                    sawIncomplete |= FinishReasonDetectingChatClient.IsIncomplete(update.FinishReason);
 
                     var payload = JsonSerializer.Serialize(update, AIJsonUtilities.DefaultOptions);
                     await writer.WriteEventAsync(sequence++, "update", payload, cancellationToken).ConfigureAwait(false);
@@ -1139,7 +1142,7 @@ internal static class AgentEndpoints
                 await opened.SaveSessionAsync(httpContext, cancellationToken).ConfigureAwait(false);
 
                 sequence = await RunNoticeMirror
-                    .WriteAsync(httpContext, turn.RunId, writer, sequence, sawTruncation, cancellationToken)
+                    .WriteAsync(httpContext, turn.RunId, writer, sequence, sawIncomplete, cancellationToken)
                     .ConfigureAwait(false);
 
                 await writer.WriteEventAsync(

@@ -152,8 +152,8 @@ internal static class OpenAICompatSupport
     /// <para>
     /// <see cref="ChatFinishReason.ToolCalls"/> is <c>"stop"</c>. The tools run on the
     /// server and the endpoint never hands a tool call to the caller, so a tool turn's
-    /// reason is never the answer's. An empty filtered answer never reaches this
-    /// method: the run fails and the endpoint answers with an error.
+    /// reason is never the answer's. A filtered answer with no content normally
+    /// fails the run, so the endpoint answers with an error instead.
     /// </para>
     /// </remarks>
     public static string ToChatFinishReason(ChatFinishReason? finishReason)
@@ -163,7 +163,38 @@ internal static class OpenAICompatSupport
             return "length";
         }
 
-        return finishReason == ChatFinishReason.ContentFilter ? "content_filter" : "stop";
+        return FinishReasonDetectingChatClient.IsContentFilter(finishReason) ? "content_filter" : "stop";
+    }
+
+    /// <summary>
+    /// Maps the finish reason of the answer's final model call to the Responses
+    /// <c>incomplete_details.reason</c>.
+    /// </summary>
+    /// <param name="finishReason">
+    /// The last finish reason the run reported, read the way <see cref="ToChatFinishReason"/> reads it.
+    /// </param>
+    /// <returns>
+    /// <c>"max_output_tokens"</c> or <c>"content_filter"</c> for an answer that is incomplete;
+    /// <see langword="null"/> for one that is not, which stays <c>completed</c>.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The same two predicates as <see cref="ToChatFinishReason"/>, in the same order, so the two
+    /// OpenAI-compatible surfaces never disagree about one answer: <c>length</c> is
+    /// <c>max_output_tokens</c> and <c>content_filter</c> is <c>content_filter</c>. OpenAI has no
+    /// separate reason for a full context window, so
+    /// <see cref="TraconFinishReasons.ContextWindowExceeded"/> is <c>max_output_tokens</c> here too.
+    /// A filtered answer with no content normally fails the run, so the endpoint answers with an error instead.
+    /// </para>
+    /// </remarks>
+    public static string? ToResponsesIncompleteReason(ChatFinishReason? finishReason)
+    {
+        if (FinishReasonDetectingChatClient.IsTruncated(finishReason))
+        {
+            return "max_output_tokens";
+        }
+
+        return FinishReasonDetectingChatClient.IsContentFilter(finishReason) ? "content_filter" : null;
     }
 
     /// <summary>Current time in Unix seconds.</summary>
