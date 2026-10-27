@@ -5,7 +5,7 @@ A `dotnet new` template — generates a working [Tracon](https://www.nuget.org/p
 ## Install
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.5
+dotnet new install Tracon.Templates@1.0.0-preview.6
 ```
 
 Check [nuget.org](https://www.nuget.org/packages/Tracon.Templates) before pinning a

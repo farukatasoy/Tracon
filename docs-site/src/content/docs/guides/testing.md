@@ -4,7 +4,7 @@ description: Test agents without network model calls by using the in-memory host
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 

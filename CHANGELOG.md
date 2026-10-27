@@ -6,6 +6,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-preview.6] - 2026-10-27
+
+Agents and workflows gain the controls a production host needs before the surface
+freezes. The new `Tracon.AGUI` package lets a front end that speaks the AG-UI protocol
+run a Tracon agent. An agent keeps files in a workspace for each session and remembers
+what its user said in earlier sessions, a tool can ask the user for input in the middle
+of a call (MCP elicitation), and a workflow waits for a tool approval that a person
+answers. A callable agent can be pinned to a version, and a version number is never
+given twice for one name. A spent call-tree budget or tenant cost quota now stops a tool
+call, a function node or an agent step before it starts; a workflow continuation keeps
+the budget of the runs before it; and a configuration value Tracon cannot read stops the
+host at startup. The release adds three migrations to each SQL provider and breaks
+source in several places: read Upgrading from 1.0.0-preview.5 first.
+
+### Upgrading from 1.0.0-preview.5
+
+- **Migrations.** PostgreSQL `0063`–`0065`, SQL Server `0051`–`0053` and SQLite `0050`–`0052`.
+  With `AutoApplyMigrations` (the default) they run at startup. They add the `expected_tool_calls`
+  column of an eval case, an index on the agent files of a tenant by path, and the
+  `agent_definition_version_counters` table, which starts the counter of each agent at the version
+  it holds today. No column is dropped. An agent that was deleted and created again before the
+  upgrade keeps only the numbers it holds now (see the `IAgentDefinitionStore` entry, Changed).
+- **Public types changed.** Each entry below (Changed) says what to do:
+  - `AgentDefinition.CallableAgentNames` and `AgentDefinitionRequest.CallableAgentNames` are
+    `CallableAgents`, a list of `CallableAgentReference`; a body that still carries
+    `callableAgentNames` is refused with `400`.
+  - `ModelBinding.AllowConcurrentToolCalls` is `ModelBinding.ToolLoop.AllowConcurrentToolCalls`; a
+    body that still carries the old key is refused with `400`.
+  - `EvalCase.ExpectedTools` and `EvalCaseDraft.ExpectedTools` are `ExpectedToolCalls`; a body that
+    still carries `expectedTools` is refused with `400`.
+  - `IJobStore.LeaseAsync` takes one `JobLeaseRequest`.
+  - A custom `IAgentDefinitionStore`, `IRunStore` or `IJobStore` must pass the new cases of
+    `AgentDefinitionStoreContract`, `RunStoreContract` and `JobStoreContract`.
+  - `AddSpeechSynthesizer(name, null)` and `AddSpeechTranscriber(name, null)` no longer compile.
+- **Behavior changes most likely to reach an upgrade**, each described in its entry below:
+  - A configuration value Tracon cannot read stops startup, and so does a list or map key that
+    holds one value. Start the application once: the keys it names were ignored until now.
+  - The eight `tracon.*` metrics that carried `tracon.tenant.id` carry it only when
+    `Tracon:Observability:IncludeTenantTag` is `true`.
+  - A tool call, a workflow function node or an agent step does not start once the call-tree budget
+    or the cost quota of the tenant is spent, and a workflow continuation starts from what the runs
+    before it spent.
+  - An `IToolAuthorizationHandler` that denies `ToolEffect.External` now also closes
+    `search_knowledge` and `search_conversation_memory`.
+  - `/v1/chat/completions` refuses a model setting the agent owns, tool-call history and unknown
+    roles with `400`.
+  - With strict session ownership, an A2A message needs a caller identity to own the conversation.
+  - `agentReview` and `toolCallArgsMatch` are built-in names; a criterion or check registered in
+    code under either name is refused.
+  - An `IAgentDecorator` with an `Order` above 0 no longer sees `TraconRunOptions`.
+- Pin every Tracon package to the same exact version. The pre-release Microsoft Agent Framework
+  hosting packages stay pinned at `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI` at
+  `1.25.0-alpha.261014.1` and `A2A.AspNetCore` at `1.0.0-preview3`. The Model Context Protocol SDK
+  moves to `2.3.0`.
+
 ### Added
 
 - **A callable agent can be pinned to a version of the callee: `CallableAgentReference.Version`.** An entry of

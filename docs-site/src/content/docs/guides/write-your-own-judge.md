@@ -4,7 +4,7 @@ description: Implement a safe deterministic or model-backed IRunJudge and verify
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 

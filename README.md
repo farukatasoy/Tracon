@@ -7,7 +7,7 @@ Tracon is a .NET package family built on
 You write the AI harness; you operate it at `/tracon`. Start with
 `dotnet new tracon-api`, and test without calling a model using `Tracon.Testing`.
 
-> **Status:** fifth preview published — **`1.0.0-preview.5`**, twenty packages on one
+> **Status:** sixth preview published — **`1.0.0-preview.6`**, twenty-one packages on one
 > version line, plus `@tracon/client` on npm. The install command below resolves; keep
 > `--prerelease`, because there is no stable version yet. The public API is **not
 > frozen**: `PublicAPI.Shipped.txt` is empty in every package and the surface may still
@@ -221,7 +221,7 @@ family is AOT-safe" and `PublishAot` fails on one of those two. Per-package reas
 
 ## Installation
 
-The packages are published as `1.0.0-preview.5`. Select pre-release packages
+The packages are published as `1.0.0-preview.6`. Select pre-release packages
 explicitly:
 
 ```bash
