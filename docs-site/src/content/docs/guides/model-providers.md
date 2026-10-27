@@ -666,7 +666,8 @@ was actually cancelled.
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself. The same holds for the output limit:
+`TraconContentFilteredException` itself when the response is empty, or records a
+`tracon.output.filtered` event when it already has text. The same holds for the output limit:
 report `ChatFinishReason.Length`, and Tracon raises
 `TraconOutputTruncatedException` for a structured request or records a
 `tracon.output.truncated` event for plain text. Throwing instead leaves the decision to
