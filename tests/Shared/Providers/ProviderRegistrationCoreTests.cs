@@ -28,6 +28,7 @@ public sealed class ProviderRegistrationCoreTests
             ["0:SupportsReasoning"] = "true",
             ["0:SupportsStructuredOutput"] = "true",
             ["0:SupportsSampling"] = "false",
+            ["0:RejectedSamplingFields"] = "StopSequences, Seed",
             ["0:InputCostPerMillionTokens"] = "1.5",
             ["0:OutputCostPerMillionTokens"] = "2.5",
             ["0:CachedInputCostPerMillionTokens"] = "0.5",
@@ -143,6 +144,62 @@ public sealed class ProviderRegistrationCoreTests
         failures.ShouldContain(static failure => failure.StartsWith("0:ContextWindowTokens is '128k'", StringComparison.Ordinal));
         failures.ShouldContain(static failure => failure.StartsWith("0:SupportsTools is 'evet'", StringComparison.Ordinal));
         failures.ShouldContain(static failure => failure.StartsWith("0:InputCostPerMillionTokens is '1,5'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_catalog_entry_names_the_fields_its_model_rejects()
+    {
+        var models = new List<ModelDescriptor>();
+
+        ProviderRegistrationCore.BindModels(
+            Configuration(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["0:Name"] = "model-a",
+                ["0:RejectedSamplingFields"] = "StopSequences",
+                ["1:Name"] = "model-b",
+                ["1:RejectedSamplingFields"] = " stopsequences , TopK ",
+                ["2:Name"] = "model-c",
+                ["3:Name"] = "model-d",
+                ["3:RejectedSamplingFields"] = "   ",
+            }),
+            models,
+            new SampleOptions());
+
+        models.Select(static model => model.RejectedSamplingFields).ShouldBe(
+        [
+            SamplingFields.StopSequences,
+            SamplingFields.StopSequences | SamplingFields.TopK,
+            SamplingFields.None,
+            SamplingFields.None,
+        ]);
+    }
+
+    [Theory]
+    [InlineData("StopSequences, Nonsense")]
+    [InlineData("Nonsense")]
+    [InlineData("256")]
+    [InlineData("StopSequences;Seed")]
+    public void A_rejected_field_list_that_cannot_be_read_is_left_unset_and_recorded(string text)
+    {
+        var options = new SampleOptions();
+        var models = new List<ModelDescriptor>();
+
+        ProviderRegistrationCore.BindModels(
+            Configuration(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["0:Name"] = "model-a",
+                ["0:RejectedSamplingFields"] = text,
+            }),
+            models,
+            options);
+
+        // Unset means "rejects nothing": the host stops at start, so the empty set is never what runs.
+        models.ShouldHaveSingleItem().RejectedSamplingFields.ShouldBe(SamplingFields.None);
+
+        var failure = UnreadableConfigurationReport.For(options).Failures().ShouldHaveSingleItem();
+
+        failure.ShouldStartWith($"0:RejectedSamplingFields is '{text}'");
+        failure.ShouldContain("a comma-separated list of None, Seed, TopK, StopSequences");
     }
 
     [Fact]

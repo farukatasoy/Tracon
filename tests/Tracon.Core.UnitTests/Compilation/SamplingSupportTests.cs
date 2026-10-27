@@ -183,7 +183,7 @@ public sealed class SamplingSupportTests
     }
 
     /// <summary>The binding that sets exactly <paramref name="field"/>.</summary>
-    private static ModelBinding Setting(string field) => field switch
+    internal static ModelBinding Setting(string field) => field switch
     {
         nameof(ModelBinding.Seed) => TestData.Binding() with { Seed = 7 },
         nameof(ModelBinding.TopK) => TestData.Binding() with { TopK = 40 },
@@ -196,12 +196,12 @@ public sealed class SamplingSupportTests
         _ => throw new ArgumentOutOfRangeException(nameof(field), field, null),
     };
 
-    private static AgentDefinition Definition(ModelBinding model) => TestData.Definition() with { Model = model };
+    internal static AgentDefinition Definition(ModelBinding model) => TestData.Definition() with { Model = model };
 
-    private static AgentDefinitionCompiler Compiler(params IModelProvider[] providers)
+    internal static AgentDefinitionCompiler Compiler(params IModelProvider[] providers)
         => new(TestData.Providers(providers), TestData.Registry());
 
-    private static AgentDefinitionValidator Validator(params IModelProvider[] providers)
+    internal static AgentDefinitionValidator Validator(params IModelProvider[] providers)
     {
         var models = TestData.Providers(providers);
         var tools = TestData.Registry();

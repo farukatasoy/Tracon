@@ -23,7 +23,10 @@ namespace Tracon;
 /// <para>
 /// <strong>A field the provider would drop is an error.</strong> The same holds for the
 /// other request fields (<see cref="SamplingSupportCheck"/>): a provider whose API surface
-/// does not send <see cref="ModelBinding.Seed"/> would run the agent without it.
+/// does not send <see cref="ModelBinding.Seed"/> would run the agent without it. So are a field the
+/// catalog says the model rejects (<c>sampling_field_rejected_by_model</c>) and a value outside the range
+/// the provider accepts (<c>sampling_value_out_of_range</c>); each finding carries its own code and the
+/// path of the field.
 /// </para>
 /// <para>
 /// <strong>A low default output limit is a warning.</strong> It does not stop
@@ -40,9 +43,6 @@ internal sealed partial class AgentDefinitionValidator
 {
     /// <summary>The code of a sampling parameter a catalog model rejects.</summary>
     internal const string SamplingUnsupportedCode = ValidationCodes.SamplingUnsupported;
-
-    /// <summary>The code of a request field the provider's API surface would drop.</summary>
-    internal const string SamplingFieldUnsupportedCode = ValidationCodes.SamplingFieldUnsupported;
 
     /// <summary>The code of the warning about a low default output limit.</summary>
     internal const string OutputTruncationRiskCode = ValidationCodes.OutputTruncationRisk;
@@ -89,12 +89,12 @@ internal sealed partial class AgentDefinitionValidator
 
     private void CheckSamplingSupport(AgentDefinition definition, List<ValidationMessage> messages)
     {
-        foreach (var finding in SamplingSupportCheck.Unsupported(_models, definition.Model))
+        foreach (var finding in SamplingSupportCheck.Find(_models, definition.Model))
         {
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
-                Code = SamplingFieldUnsupportedCode,
+                Code = finding.Code,
                 Message = finding.Describe(),
                 Path = finding.Path,
             });

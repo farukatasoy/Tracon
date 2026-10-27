@@ -176,6 +176,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 SupportedSamplingFields = provider is ISamplingSupport sampling
                     ? sampling.SupportedSamplingFields
                     : SamplingFields.None,
+                SamplingLimits = provider is ISamplingSupport limits
+                    ? limits.SamplingLimits
+                    : SamplingLimits.None,
                 SupportedHostedTools = provider is IHostedToolSupport hostedTools
                     ? hostedTools.SupportedHostedTools
                     : HostedToolKinds.None,

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Tracon;
 
 /// <summary>
@@ -5,12 +7,20 @@ namespace Tracon;
 /// provider's API surface.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The model adapters of the shipped providers map only some of these fields to
 /// the wire and drop the rest without an error. A provider states what its
 /// surface sends through <see cref="ISamplingSupport"/>, so a definition that
 /// sets an unsupported field stops with an error instead of running without it.
+/// </para>
+/// <para>
+/// The model catalog uses the same set for the fields a model rejects
+/// (<see cref="ModelDescriptor.RejectedSamplingFields"/>). A set is written as names
+/// in JSON and in configuration, separated by commas: <c>"Seed, StopSequences"</c>.
+/// </para>
 /// </remarks>
 [Flags]
+[JsonConverter(typeof(JsonStringEnumConverter<SamplingFields>))]
 public enum SamplingFields
 {
     /// <summary>No field.</summary>
@@ -59,11 +69,16 @@ public enum SamplingFields
 /// primary provider and every <see cref="ModelBinding.Fallbacks"/> link are
 /// checked, because a link receives the primary call's request options.
 /// </para>
+/// <para>
+/// A field the surface sends can still be refused for its value, or by the model. The ranges of the
+/// values a surface accepts belong here too (<see cref="SamplingLimits"/>); the fields a single model
+/// rejects belong to the model catalog (<see cref="ModelDescriptor.RejectedSamplingFields"/>).
+/// </para>
 /// <para><strong>Lifetime and threading</strong></para>
 /// <para>
-/// The registry reads the property from the provider's <strong>singleton</strong> instance whenever
+/// The registry reads the properties from the provider's <strong>singleton</strong> instance whenever
 /// it lists providers, which the compile path and the validation path do, so it may be read
-/// concurrently. Return a value that does not change after construction.
+/// concurrently. Return values that do not change after construction.
 /// </para>
 /// <para><strong>Tenant mode</strong></para>
 /// <para>
@@ -82,4 +97,14 @@ public interface ISamplingSupport
     /// only when the wire request carries it.
     /// </summary>
     SamplingFields SupportedSamplingFields { get; }
+
+    /// <summary>
+    /// Gets the value ranges this provider's API surface accepts for the fields it sends. The default
+    /// states none, so nothing is checked.
+    /// </summary>
+    /// <remarks>
+    /// The member has a default body: a provider written before it existed still compiles, loads and
+    /// runs, and states no limit. State a limit only when you measured it or the provider documents it.
+    /// </remarks>
+    SamplingLimits SamplingLimits => SamplingLimits.None;
 }

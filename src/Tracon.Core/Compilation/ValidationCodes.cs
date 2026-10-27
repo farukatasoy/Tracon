@@ -60,6 +60,12 @@ internal static class ValidationCodes
     /// <summary>Validation finding <c>sampling_field_unsupported</c>.</summary>
     public const string SamplingFieldUnsupported = "sampling_field_unsupported";
 
+    /// <summary>Validation finding <c>sampling_field_rejected_by_model</c>.</summary>
+    public const string SamplingFieldRejectedByModel = "sampling_field_rejected_by_model";
+
+    /// <summary>Validation finding <c>sampling_value_out_of_range</c>.</summary>
+    public const string SamplingValueOutOfRange = "sampling_value_out_of_range";
+
     /// <summary>Validation finding <c>output_truncation_risk</c>.</summary>
     public const string OutputTruncationRisk = "output_truncation_risk";
 
