@@ -206,7 +206,7 @@ function node reported, with the node's name and the same measurement line, endi
 A badge such as **1 not added** counts the items left out of the total because they carry no
 amount or are in another currency than the configured one. A run that reported nothing
 shows no panel. See
-[Report what a node spent beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+[Report what a node spent beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
 for what adds up and what does not.
 
 Two runs can be compared side by side, and any run can be scored. The thumbs on the
@@ -294,7 +294,7 @@ function is the server's answer, which names the node and the member and shows a
 form. Settings are stored with the workflow and shown to everyone who can read it, so
 the field says not to put a secret there. The server also refuses a chain whose step
 cannot take what the step before it passes on (see
-[Function nodes](/concepts/workflows/#function-nodes)); that answer names both steps.
+[Function nodes](/concepts/workflow-function-nodes/)); that answer names both steps.
 
 An agent step of a stored agent has an **Agent version** field. *Current version* runs the
 agent's latest version each time the step runs; picking a version pins the step to it, so
@@ -323,7 +323,7 @@ over HTTP — Save stays disabled with a note until you clear it, add a function
 an agent version. The
 **Run timeout** field sets the workflow's own run timeout; empty uses the installation's,
 and a longer value is accepted only up to `Tracon:Workflows:MaxRunTimeout` (see
-[Bound a node with a timeout](/concepts/workflows/#bound-a-node-with-a-timeout)).
+[Bound a node with a timeout](/concepts/workflow-function-nodes/#bound-a-node-with-a-timeout)).
 
 A workflow defined in the database also has a **Versions** section on its screen: every
 save is a version, with the time it was saved and which one is current. Tick two versions

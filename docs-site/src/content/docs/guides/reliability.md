@@ -438,7 +438,7 @@ model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
 measured, so it cannot be enforced.
 
 `MaxTotalCost` counts more than model tokens. What a workflow function node or a tool
-[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+[reported beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
 is recorded into the budget the moment it is reported, so a tree whose speech and renders
 have already spent the ceiling is refused at its next model call, the same as one that
 spent it on tokens. Only an amount that adds counts: an item with no amount, or in a
@@ -489,7 +489,7 @@ model call that was still running when the process stopped is in no row at all.
 
 ### Function nodes and the budget
 
-A [workflow function node](/concepts/workflows/#a-spent-budget-stops-a-function-node-from-starting)
+A [workflow function node](/concepts/workflow-function-nodes/#a-spent-budget-stops-a-function-node-from-starting)
 is checked when it would start, and again before each retry attempt:
 
 | Limit | Stops a node from starting | Why |

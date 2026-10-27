@@ -48,6 +48,7 @@ export const sidebar = [
       { label: 'Attachments and multimodal', slug: 'guides/multimodal' },
       { label: 'Knowledge and RAG', slug: 'guides/knowledge' },
       { label: 'Voice and live conversation', slug: 'guides/voice' },
+      { label: 'Provider-hosted live voice', slug: 'guides/live-voice' },
       { label: 'Gemini speech and dialogue', slug: 'guides/gemini-speech' },
     ],
   },
@@ -57,6 +58,7 @@ export const sidebar = [
     items: [
       { label: 'Sessions and conversations', slug: 'concepts/sessions' },
       { label: 'Workflows', slug: 'concepts/workflows' },
+      { label: 'Workflow function nodes', slug: 'concepts/workflow-function-nodes' },
       { label: 'Workflow parameters', slug: 'concepts/workflow-parameters' },
       { label: 'Answering a workflow', slug: 'concepts/workflow-answers' },
       { label: 'Workflow requests and time limits', slug: 'concepts/workflow-requests' },
@@ -98,6 +100,7 @@ export const sidebar = [
       { label: 'Typed client and CLI', slug: 'guides/cli' },
       { label: 'TypeScript client', slug: 'guides/typescript-client' },
       { label: 'Production deployment', slug: 'guides/production' },
+      { label: 'Upgrading a production deployment', slug: 'guides/production-upgrades' },
       { label: 'Embedding into a host application', slug: 'guides/embedding' },
       { label: 'Two connection planes: EF Core and Tracon', slug: 'guides/ef-core' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },

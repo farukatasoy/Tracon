@@ -173,7 +173,7 @@ provider is rejected too, so the two surfaces cannot disagree.
 The policy covers every model an agent calls, not only its own model: that model's
 fallbacks, the model that summarizes the conversation during compaction, the
 judge of an `aiJudge` loop criterion, and a
-[provider-hosted live voice](/guides/voice/#tenant-policy-and-credentials) session. Each of them receives the tenant's data. The
+[provider-hosted live voice](/guides/live-voice/#tenant-policy-and-credentials) session. Each of them receives the tenant's data. The
 summarizer is billed like the agent's own model: it uses the tenant's key when the
 tenant has one for its provider. The loop judge is the host's one judge model, the
 same one the run judge calls, and keeps the shared setup-time key.
@@ -506,7 +506,7 @@ door, and a spent cost quota stops new work inside a run that is already going (
 
 A **cost** limit counts what a run spent, not only its tokens. The amount a run
 writes into the counter is its token cost plus what its workflow function nodes and tools
-[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens), in the
+[reported beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens), in the
 currency set by `Tracon:Pricing:Currency`. An item that reported no amount, or one in
 another currency, counts for nothing, because Tracon cannot add what it cannot price; the run
 lists it as not added instead of reading it as free. An item whose quantity was estimated
@@ -884,7 +884,7 @@ tree's tokens and cost as the tree stands when the root closes: an agent root ad
 child agents to its own, and a workflow root (which has none of its own) sums its steps.
 A child that ends after its root is not in it; the quota counter and `GET /api/runs/{runId}`
 carry the exact total. Child runs publish nothing. `cost` is the token cost and the amount the tree
-[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+[reported beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
 together; `nonTokenCost` is the reported part alone and is left out when nothing was
 reported, so the token part is `cost - nonTokenCost`. `workflow.request.pending` carries the request id, the
 run id and the workflow name — read the prompt and the form from

@@ -83,7 +83,7 @@ amount in `Tracon:Pricing:Currency` adds; Tracon never converts one currency int
 and never adds a quantity across units. `nonTokenCost` is `null` when the run reported
 nothing, which is not zero, and an `amount` of `null` beside a non-zero `unsummedItemCount`
 means items were reported but none could be priced: unknown, not free. The
-[budget, the tenant's quota and the `run.completed` webhook](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+[budget, the tenant's quota and the `run.completed` webhook](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
 count the reported amount beside the token cost. `GET /api/stats`, the dashboard and the
 comparison of two runs show the token cost only.
 

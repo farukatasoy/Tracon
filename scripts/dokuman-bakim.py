@@ -375,7 +375,7 @@ SITE_KURALLARI: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
     ("cekirdek-kavram", r"^src/Tracon\.(Abstractions|Core)/",
      ("concepts/",), "cekirdek kavram yuzeyi degisti"),
     ("workflow", r"^src/Tracon\.Workflows/",
-     ("concepts/workflows.md",), "workflow yurutmesi degisti"),
+     ("concepts/workflows.md", "concepts/workflow-function-nodes.md"), "workflow yurutmesi degisti"),
     ("kalicilik", r"^src/Tracon\.(PostgreSql|SqlServer|Sqlite|Sql\.Shared)/",
      ("getting-started/persistence.md",), "kalicilik katmani degisti"),
     # Faz 181: Providers.Shared paket degildir ama dort saglayicinin davranisidir.
