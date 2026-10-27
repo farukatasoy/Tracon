@@ -56,6 +56,15 @@ const dist = resolve(here, '../dist');
 // TRC id and agent-map symptom) moved to guides/build-diagnostics.md; troubleshooting dropped
 // to 49 054 B and the new page weighs 43 648 B. The heaviest page is now guides/production.
 // Ceiling unchanged.
+//
+// Split three pages 2026-10-27 (1.0.0-preview.6): CI measured concepts/workflows at 59 039 B
+// and guides/voice at 59 007 B while a local build of the same commit measured workflows at
+// 58 983 B - the gap between the two environments has grown to about 56 B, and every page
+// shares the same 23 925 B of assets. Function nodes moved to concepts/workflow-function-nodes,
+// provider-hosted live voice to guides/live-voice, and the three upgrade sections of
+// guides/production (which the new sidebar entries had pushed to 58 985 B locally) to
+// guides/production-upgrades. The heaviest page is now concepts/governance at 58 194 B
+// locally. Ceiling unchanged.
 const CEILING = 59_000;
 
 // The release notes page is generated from CHANGELOG.md and is the one page whose

@@ -301,7 +301,7 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   100, a model longer than 200, a quantity outside 0 to 9,999,999,999 or an amount outside
   0 to 1,000,000,000. These are the limits a function node's items have.
 - **It also joins the run's non-token total, the moment the tool reports it.** The same
-  rule as a [workflow function node's items](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+  rule as a [workflow function node's items](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
   applies: amounts in `Tracon:Pricing:Currency` add, a quantity is never added across units,
   and a call with no amount is listed and counted as not added — unknown, not free. The
   call-tree budget, the tenant's cost quota and the `run.completed` webhook therefore count a
