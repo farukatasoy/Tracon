@@ -14,9 +14,13 @@ namespace Tracon;
 /// without scanning the whole event stream.
 /// </para>
 /// <para>
-/// The record is written only when the call <strong>settles</strong>; its
-/// duration is computed from correlating the <c>ToolInvoking</c> and
-/// <c>ToolInvoked</c> event pair.
+/// The record is written when the call <strong>settles</strong>; a call the
+/// run ended before it settled is written when the run closes, as failed. A
+/// call that went through the tool chain is recorded where it happens, so
+/// its record exists however the run ends and its duration is measured
+/// whether the run streams or not. A call outside the chain (a hosted tool,
+/// a tool of the framework) is read from the messages of the answer: a run
+/// that does not stream has no duration for it, and no record when it fails.
 /// </para>
 /// </remarks>
 public sealed record ToolInvocationRecord
@@ -45,7 +49,10 @@ public sealed record ToolInvocationRecord
     /// <summary>The call result. Raw text; may not be valid JSON.</summary>
     public string? Result { get; init; }
 
-    /// <summary>The call's duration. <see langword="null"/> if the event pair did not match.</summary>
+    /// <summary>
+    /// The call's duration. <see langword="null"/> for a call outside the tool chain in a run that does not stream,
+    /// and if the event pair of a streaming run did not match.
+    /// </summary>
     public TimeSpan? Duration { get; init; }
 
     /// <summary>The error message. Populated only if the call errored.</summary>
