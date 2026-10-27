@@ -17,7 +17,7 @@ public sealed class AgentTests(BrowserFixture browsers)
 {
     /// <summary>The seed error, whole: <c>Exact</c> matching holds only when the text is the whole message.</summary>
     private const string SeedRangeError =
-        "Seed must be a whole number from -9007199254740991 to 9007199254740991. The console cannot send larger numbers exactly. Replace the seed or clear it to save.";
+        "Seed must be a whole number from -9007199254740991 to 9007199254740991. The console can send only that range exactly. Replace the seed or clear it to save.";
 
     [Fact]
     public async Task Code_defined_agent_appears_in_list_and_cannot_be_edited()
