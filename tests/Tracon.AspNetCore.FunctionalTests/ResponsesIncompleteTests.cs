@@ -96,10 +96,12 @@ public sealed class ResponsesIncompleteTests
     }
 
     [Fact]
-    public async Task An_incomplete_stream_differs_from_a_complete_one_only_in_its_terminal_event_and_item_status()
+    public async Task An_incomplete_stream_keeps_the_event_order_and_numbering_of_a_complete_one_and_changes_its_last_event_and_item_status()
     {
-        // Only the tail changes; every frame before it is what MAF wrote, in the same order, and the
-        // numbering a client reads stays gap-free.
+        // The event names before the last frame are the same, in the same order, and the numbering a client
+        // reads stays gap-free. That an untouched frame passes through as the very string MAF wrote is pinned
+        // one level down, in ResponsesIncompletePatchTests; the ids and timestamps of two runs differ, so
+        // two streams cannot be compared frame by frame here.
         var complete = await StreamOf(ChatFinishReason.Stop);
         var cut = await StreamOf(ChatFinishReason.Length);
 
@@ -445,9 +447,9 @@ public sealed class ResponsesIncompleteTests
 
         frames.ShouldNotBeEmpty();
 
-        // A stream the rewriter understood never logs its "terminal frame not found" warning.
+        // A stream the rewriter understood logs no warning of the endpoint's category, whatever its text says.
         host.Logs.Entries.ShouldNotContain(
-            static entry => entry.Contains("no response.completed frame was found", StringComparison.Ordinal));
+            static entry => entry.StartsWith("Warning Tracon.OpenAICompat", StringComparison.Ordinal));
 
         using var terminal = JsonDocument.Parse(frames[^1].Data);
 
