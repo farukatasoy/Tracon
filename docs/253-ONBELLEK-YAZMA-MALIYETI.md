@@ -191,14 +191,16 @@ flowchart LR
 ### Tarama sonucu (2026-10-27 · uygulama oturumu)
 
 ```bash
-grep -rn "\.Total()" src --include='*.cs' | grep -v "/Generated/"        # 39 satır, 13 dosya (plan günü: 29 satır, 13 dosya)
+grep -rn "\.Total()" src --include='*.cs' | grep -v "/Generated/"        # 39 satır, 13 dosya (taban `eb0341f3`: 30 satır, 13 dosya; plan 29 yazmıştı)
 grep -rln "CachedInputCost" src --include='*.cs' | grep -v "/Generated/"  # 13 dosya
 grep -rln "CacheWriteCost" src --include='*.cs' | grep -v "/Generated/"   # aynı 13 dosya
 grep -rn "cached_input_cost" src --include='*.cs' --include='*.sql' | grep -v "/Migrations/"
 grep -rn "InputCost ?? 0\|InputCost + " src samples --include='*.cs'
 ```
 
-Satır sayısı 29'dan 39'a çıktı: `RunStoreContract` yeni terimi sınar (26 satır). **Üçüncü terimi anan her
+Satır sayısı taban commit'te 30'du (plan 29 yazmıştı) ve 39 oldu; dosya sayısı aynı (13). Fark iki dosyadadır:
+`RunStoreContract` 9 → 15 (yeni case'ler yeni terimi sınar) ve `InMemoryRunStore.Statistics` 1 → 4 (elle toplam
+kopyaları `Total()`'a indi). **Üçüncü terimi anan her
 dosya dördüncüyü de anar:** iki dosya kümesinin farkı boştur. Elle yazılmış `InputCost + OutputCost`
 toplamı kalmadı. Kalan `?? 0` satırları `Total()` gövdeleri ile üç ağaç toplayıcısıdır
 (bellek içi depo, `SqlRunStore`, `FileRunStore`); üçü de dördüncü terimi taşır. Token tarafında aynı
@@ -211,13 +213,14 @@ sınama geçer: `CachedInputTokens` anan her dosya bir yazma sayacı da anar. Te
 | `RunSpend` ×2 · `RunRecordingAgent.Completion` · `RunBudgetChatClient` · `ModelRunJudge` · `EvaluatorRunJudge` · `OnlineEvalSummaryService` | `Total()` çağırır | değişmedi; terim kendiliğinden girer. Kota sayacı ve webhook toplamı: `AnthropicCacheWriteTests.The_quota_counter_and_the_webhook_carry_the_whole_cost_including_the_write` |
 | `RunRecordingAgent.Completion` · `RunBudgetChatClient` · `ModelRunJudge` · `EvaluatorRunJudge` | **Plan görmedi:** dört yer `UsageDetails` → `RunUsage` eşlemesini elle yazıyordu; yeni sayaç dört yerde kaybolabilirdi | tek eşleyici `UsageBreakdown.ToRunUsage`; yansıma testi `Every_property_of_RunUsage_is_filled_by_the_one_mapping` |
 | `InMemoryRunStore.Statistics` · `.Analytics` · `.Queries` | **Plan görmedi:** `costSum` ve `RunCostTotal` elle toplam kopyaları; ağaç maliyeti ve ağaç kullanımı elle toplanıyor | `RunCost.Total()`; ağaç toplamı dördüncü terimi ve iki sayacı ekler; istatistik iki token toplamı taşır |
-| `RunCostCombiner` · `CurrencyTotals.Tree` · `RunUsageSum` · `SideChannelUsageAccumulator` | dördüncü terim yok | terim ve sayaçlar eklendi; `RunCostCombinerTests`, `SideChannelUsageAccumulatorTests`, `RunSpendTests` |
+| `RunCostCombiner` · `CurrencyTotals.Tree` · `SideChannelUsageAccumulator` | dördüncü terim yok | terim ve sayaçlar eklendi; `RunCostCombinerTests`, `SideChannelUsageAccumulatorTests`, `RunSpendTests` |
+| `RunUsageSum.Add` — üç çağıran: `RunRecordingAgent.Completion` ×2 (agent'ın kendi payı, diğer modellerin payı) ve `RunCostCombiner` (agent'ın modelini adlandıran pay) | iki sayaç eklenmişti ama **hiçbir test onları okumuyordu** (denetim 🟡1): iki satır silinse yan kanallı her run (özetleyici, `aiJudge`, onarım turu) sayaçsız `RunUsage` kurar, yazılan token düz girdi fiyatında kalır, kota, webhook ve istatistik eksik çıkar; tüm testler yeşil kalırdı | `RunUsageSumTests` (6) ve `SideChannelCacheWriteRunTests` (3: üç çağıran yer, bir `RunRecordingAgent` ve fiyat çözücüyle); **dokuzuncu mutasyon yeri** |
 | `SqlQueriesBase.CostAddends` + üç `*Queries.cs` | SQL ağaç, istatistik, zaman serisi, deney kolu ve yargıç toplamı buradan türer | `cache_write_cost` eklendi; `CostAddendsCrossCheckTests` listeyi `RunCost.Total()`'a karşı doğrular |
 | `SqlRunStore` | okuma, yazma, ağaç; `ReadUsage`'ın "bir şey bildirildi mi" sınaması | beş sütun; yalnız yazma bildiren run artık bir `RunUsage` üretir (`A_run_that_reports_only_a_cache_write_count_still_produces_a_usage_record`) |
 | `MigrationsViews/0001_read_views.sql` ×3 (`runs_v1.total_cost`) | **Plan görmedi:** görünümdeki `total_cost` elle üç terimdir | `0002_read_views_cache_write.sql` görünümü yeniden tanımlar: dört terim, yeni sütunlar SONA; `ReadViewContractTests`, `ReadViewCostTermTests` |
 | `run-comparison.tsx` | elle üç terim | `lib/cost.ts` `runCostTotal`; `COST_TERMS` derleme zamanı kapısı |
 | `server-types.ts` | `Fix<>` alan listeleri | yeni alanlar eklendi |
-| `samples/Tracon.Samples.FileRunStore/FileRunStore.cs` | **Plan görmedi:** beşinci depo; çözümde yok, yalnız `kapi.py yayin` koşar | token toplamları, ağaç kullanımı ve ağaç maliyeti dördüncü terimi taşır. Yerel kanıt: örnek ve iki sözleşme sınıfı geçici, projeye bağlı bir test projesinde derlendi ve koşuldu (139 test, 0 hata; proje silindi). Paketlenmiş sürüme karşı koşum entegratörün `yayin` provasındadır |
+| `samples/Tracon.Samples.FileRunStore/FileRunStore.cs` | **Plan görmedi:** beşinci depo; çözümde yok, yalnız `kapi.py yayin` koşar | token toplamları, ağaç kullanımı ve ağaç maliyeti dördüncü terimi taşır. Yerel kanıt: örnek ve iki sözleşme sınıfı geçici, projeye bağlı bir test projesinde derlendi ve koşuldu (140 test, 0 hata; proje silindi). Paketlenmiş sürüme karşı koşum entegratörün `yayin` provasındadır |
 | `RunRecordingAgent.Notifications` — `DescendantUsage` | yalnız token kurar | değişmedi: webhook yükü girdi/çıktı token'ı ve maliyet taşır; maliyet `RunSpend.Total`'dan gelir |
 | `QuotaEnforcer` | terimleri kendisi toplamaz | değişmedi |
 
@@ -225,12 +228,17 @@ Sınıf korumaları — terim eklenir de toplanmazsa kırmızı olur:
 - `RunCostCombinerTests.Every_cost_term_of_RunCost_is_summed` — `RunCost`'un her `decimal?` terimi `Total()`'a girer.
 - `RunUsageMappingTests.Every_property_of_RunUsage_is_filled_by_the_one_mapping` — `RunUsage`'ın her özelliği tek eşleyicide dolar.
 - `CostAddendsCrossCheckTests` ve `ReadViewCostTermTests` (`Tracon.Sql.Shared.UnitTests`).
+- `RunUsageSumTests` ve `SideChannelCacheWriteRunTests` — yan kanal toplamı (`RunUsageSum.Add`) iki sayacı taşır.
 - Konsol: `lib/cost.ts` `COST_TERMS` — `RunCost`'a `*Cost` alanı eklenir de listeye girmezse `tsc` durur.
 
-Mutasyon denemesi (2026-10-27): dördüncü terim sekiz yerden sırayla çıkarıldı — `Total()`,
-`RunCostCombiner`, `ToRunUsage`, `CostAddends`, bellek içi ağaç toplamı, Anthropic halkasının `Report`'u,
-`SqlRunStore.ReadUsage` ve konsolun `COST_TERMS`'i. Her çıkarmada en az bir test kırmızı oldu. Özgün
-dosyalar sağlama toplamıyla geri kondu.
+Mutasyon denemesi (2026-10-27, denetim düzeltmesiyle 2026-10-28): dördüncü terim dokuz yerden sırayla
+çıkarıldı — `Total()`, `RunCostCombiner`, `ToRunUsage`, `CostAddends`, bellek içi ağaç toplamı, Anthropic
+halkasının `Report`'u, `SqlRunStore.ReadUsage`, konsolun `COST_TERMS`'i ve (dokuzuncu) `RunUsageSum.Add`.
+Her çıkarmada en az bir test kırmızı oldu. Özgün dosyalar sağlama toplamıyla geri kondu.
+`RunUsageSum.Add`'in iki satırı silinince 9 yeni testten 7'si düştü; üç run düzeyi testin üçü de
+`usage.CacheWriteInputTokens` üzerinde ("should be 250000 but was null"). Kalan iki test null ve "işlem yok"
+durumunu sınar, bu yüzden yeşil kalır. `RunCostCombiner`'ın agent'ın modelini adlandıran payı birleştirmesi
+çıkarılınca yalnız üçüncü run düzeyi test düştü (maliyet terimi).
 
 ## 253.5 — Depo
 
@@ -465,8 +473,24 @@ grep -rn "\.Total()\|CachedInputCost" src --include='*.cs' | grep -v Generated
 | `Tracon.Ui.E2ETests`, tam koşum | 105/105 (ikinci koşum); `ic-dongu` içinde yine 105/105. İlk koşumda yük altında 1 titreşim (bkz. "Arayüz payı") |
 | `cd src/Tracon.UI/frontend && npx tsc --noEmit && npx vitest run` | `tsc` temiz. Vitest 39 dosya, 526/526. İlk koşumda 1 test düştü (adı kaydedilmedi; makine yükü ortalaması 55); sonraki 18 koşum (yük 55–130) 526/526 |
 | PostgreSQL ve SQL Server `IntegrationTests`, tek başına | 1162 (1 atlandı) ve 1087; ikisi de 0 hata |
-| `samples/Tracon.Samples.FileRunStore` | geçici, projeye bağlı test projesiyle derlendi (0 uyarı) ve iki sözleşme sınıfı koştu: 139/139; proje silindi |
+| `samples/Tracon.Samples.FileRunStore` | geçici, projeye bağlı test projesiyle derlendi (0 uyarı) ve iki sözleşme sınıfı koştu: 139/139 (denetim düzeltmesinden önce; sonra 140/140, aşağıda); proje silindi |
 | Canlı koşum | yukarıda ("Canlı koşum sonucu") |
+
+#### Denetim düzeltmeleri sonrası (2026-10-28 · bağımsız denetim: 🔴 yok, 🟡 2, 🟢 7)
+
+| Komut | Sonuç |
+|---|---|
+| Kırmızı kanıt: `RunUsageSum.Add`'in iki satırı silindi; `kapi.py test --proje Tracon.Core.UnitTests --tfm net10.0 --sinif "*RunUsageSumTests*" "*SideChannelCacheWriteRunTests*"` | 9 testten 7'si kırmızı. Üç run düzeyi testin üçü de `usage.CacheWriteInputTokens` üzerinde düştü ("should be 250000 / 300000 but was null"). Kalan ikisi null ve "işlem yok" durumunu sınar. Özgün dosya geri kondu (SHA-256 aynı); koşum yeşil: 15 test her çerçevede |
+| Kırmızı kanıt: `RunCostCombiner`'ın agent'ın modelini adlandıran payı birleştirmesi çıkarıldı | yalnız `A_side_channel_share_that_names_the_agents_own_model_is_priced_with_the_agents_share` kırmızı; geri konuldu (SHA-256 aynı) |
+| Kırmızı kanıt: bellek içi ağaç toplamından uzun sınıf çıkarıldı (`InMemoryRunStore.Queries`) | `InMemoryRunStoreContractTests`: 1 kırmızı, `Tree_usage_sums_both_cache_write_classes_across_the_runs_of_the_tree` ("should be 25 but was null"); diğer ağaç case'leri yeşil; geri konuldu |
+| Kırmızı kanıt: SQLite ağaç sorgusunda uzun terim `NULL` yapıldı (`SqliteQueries`) | `SqliteRunStoreContractTests`: 1 kırmızı, aynı case ("should be 25 but was 20"); geri konuldu |
+| `RunStoreContract`, yeni ağaç case'leriyle | bellek içi 124 · SQLite 124 · PostgreSQL 124 · SQL Server 124 (PostgreSQL ve SQL Server heavy kilidiyle, Docker); her biri 0 hata. `FileRunStore` örneği (geçici proje): 140/140; proje silindi |
+| `Tracon.Core.UnitTests` tam, 3 TFM | 5.267 test her çerçevede, 0 hata (`ic-dongu`: 5.257; +10 = 6 + 3 + 1 sözleşme case'i) |
+| `Tracon.Sqlite.IntegrationTests` tam, 3 TFM | 1.148 test her çerçevede, 0 hata (`ic-dongu`: 1.147) |
+| `Tracon.Testing.Contracts.Xunit.UnitTests` | 14 test her çerçevede, 0 hata |
+| `dotnet format Tracon.slnx --verify-no-changes --include <dört değişen .cs dosyası>` | çıkış 0 |
+| `dokuman-bakim.py --denetle`, `--site-denetle --taban eb0341f3`, `kapi.py tarama` | çıkış 0; 5 kural tetiklendi, hedeflerin hepsi değişti (`paket-readme` için `packages.md`); `tarama` temiz |
+| docs-site (heavy kilidiyle): `npm run build`, `check:weight`, `check:links` | temiz. `check:content` yalnız `llms-full.txt` bulgusu. Ağırlık (gzip, varlıklarıyla; tavan 59.000 B): `guides/model-providers` 57.664 → 57.684 B (+20), `reference/configuration` 55.669 → 55.711 B (+42), `packages` 41.059 B; en ağır sayfa `concepts/governance` 58.195 B |
 
 ---
 
@@ -504,7 +528,7 @@ grep -rn "\.Total()\|CachedInputCost" src --include='*.cs' | grep -v Generated
    örneği (beşinci depo) · dört elle `UsageDetails` → `RunUsage` eşleyicisi · bellek içi depoda elle toplam
    kopyaları · `SqlRunStore.ReadUsage`'ın "bir şey bildirildi mi" sınaması · konsolda `lib/cost.ts`. Plan
    bunlardan yalnız `run-comparison.tsx`, bellek içi depo ve SQL'i adlandırmıştı. Sonuç: `Tracon.Testing.Contracts.Xunit`
-   değişti — yedi yeni case; `Every_cost_total_includes_the_cache_charge` beklentisi (yazma terimi toplamda) ve
+   değişti — sekiz yeni case; `Every_cost_total_includes_the_cache_charge` beklentisi (yazma terimi toplamda) ve
    karışık para birimi case'i güncellendi. Dış `IRunStore` yazarları etkilenir (CHANGELOG *Upgrading*).
 4. **`RunRecord.cs` değişmedi.** Plan dosya listesi onu andı; `RunRecord` `RunUsage` ve `RunCost`'u referansla
    taşır, alanlar kendiliğinden akar.
@@ -573,7 +597,7 @@ anahtarlar `CacheWrite`, `CacheWriteLong`). Telde: `usage`/istatistik için `cac
 `cacheWriteLongInputTokens`; `cost`/`treeCost` için `cacheWriteCost`; `cost` için
 `cacheWritePricePerMillionTokens`, `cacheWriteLongPricePerMillionTokens`; model için
 `cacheWriteCostPerMillionTokens`, `cacheWriteLongCostPerMillionTokens`. `PublicAPI.Unshipped.txt`: Abstractions
-+23, Core +4, `Tracon.Testing.Contracts.Xunit` +7 (yeni `RunStoreContract` case'leri).
++23, Core +4, `Tracon.Testing.Contracts.Xunit` +8 (yeni `RunStoreContract` case'leri).
 
 ### Entegrasyon Notları
 
@@ -604,7 +628,8 @@ Metin (İngilizce, olduğu gibi):
 - **Public types changed.** `RunUsage`, `RunCost`, `RunTreeCost`, `RunStatistics`, `ModelDescriptor` and
   `ModelPriceOverride` gain properties; the wire, the OpenAPI document and both clients gain the same fields.
   Code that adds the cost terms of a `RunCost` by hand must add `CacheWriteCost`: call `RunCost.Total()`
-  instead. A custom `IRunStore` must store the new fields and pass the new cases of `RunStoreContract`.
+  instead. A custom `IRunStore` must store the new fields and pass the new cases of `RunStoreContract` and
+  its two updated expectations.
 
 ### Added
 
@@ -658,7 +683,9 @@ Bu yüzden metinler boşluğu olan dosyalara yazıldı; bütçe aşılırsa içe
   `samples/Tracon.Samples.FileRunStore` çözümde değildir ve yalnız `kapi.py yayin`'de koşar; terim eklerken onu elle
   tara. Yeni terim eklemenin test kapıları: `Every_cost_term_of_RunCost_is_summed`,
   `Every_property_of_RunUsage_is_filled_by_the_one_mapping`, `CostAddendsCrossCheckTests`,
-  `ReadViewCostTermTests`, TS `COST_TERMS` tür kapısı."*
+  `ReadViewCostTermTests`, TS `COST_TERMS` tür kapısı. Token sayacı da bir toplayıcıdan geçer:
+  `RunUsageSum.Add` (yan kanal) iki yazma sayacını taşıyordu ama denetime kadar hiçbir test onu okumuyordu;
+  kapı `RunUsageSumTests` ve `SideChannelCacheWriteRunTests`."*
 - **`hosted-tool.md`** (Anthropic `AdditionalCounts` emsali orada; `openai-saglayici.md` dolu): *"Anthropic önbellek yazması (SDK 12.58.0, ölçüm 2026-10-27):
   yazma token'ları `InputTokenCount`'un İÇİNDEDİR; adaptör yalnız toplamı `AdditionalCounts["CacheCreationInputTokens"]`
   yazar (sıfırsa anahtar yok). TTL dökümü yalnız ham `usage.cache_creation`'dadır: akışsız `Message.RawData["usage"]`,
@@ -715,6 +742,17 @@ Bu yüzden metinler boşluğu olan dosyalara yazıldı; bütçe aşılırsa içe
    sürekli kırmızı değil; titreşim yeniden görülürse bekleme koşulu sağlamlaştırılır.
 5. **`samples/Tracon.Samples.FileRunStore` çözümde değildir:** yerel `ic-dongu` onu derlemez (aracın kendi
    uyarısı). Projeye bağlı bir test projesi yerel kanıt verir; kalıcı bir `*.slnf` ya da kapı adayı olabilir.
+6. **Migration bütünlük kapısı `MigrationsViews/*.sql`'i kapsamaz** (`scripts/kapi.py` ~482: glob yalnız
+   `src/*/Migrations/*.sql` ve `src/*/MigrationsKnowledge/*.sql`). Artık iki görünüm tanımı (`0001`, `0002`)
+   sevk ediliyor; yerinde bir düzenleme CI'da değil, yalnız kullanıcının veritabanında açılışta sağlama toplamıyla
+   yakalanır. (Denetim 🟢3.)
+7. **Anthropic halkasının "bir kez uyar"ı örnek başınadır** (derlenmiş agent başına). `AnthropicCacheWriteTests`
+   uyarının VAR olduğunu kanıtlar, "bir kez" olduğunu değil; sıfır olmayan dökümün kalan dalı yalnız dolaylı
+   kapsanır. (Denetim 🟢4.)
+8. **Katalogda yazma fiyatı yokken sağlayıcı yazma bildiriyorsa operasyonel sinyal yok.** Run sessizce düz girdi
+   fiyatında kalır (253.3 tasarımı); `UnpricedModelWarningService` gibi bir kerelik uyarı olabilir. Ayrıca SQLite
+   `SelectRuns` satır başına üç ilişkili alt sorgu ve ~0,7 KB SQL metni kazandı; `QueryRuns`'a karşı ölçülmedi.
+   (Denetim 🟢7.)
 
 #### (f) Birleştirme ve kapanış adımları (entegratöre)
 
@@ -739,14 +777,16 @@ Bu yüzden metinler boşluğu olan dosyalara yazıldı; bütçe aşılırsa içe
    `docs-site/public/screenshots/.ui-source.sha256` damgası birden çok faz değiştirdiyse birleşmeden sonra
    yeniden hesaplanır (`check:content` beklenen sayıyı söyler; damga için `node scripts/refresh-console-screenshot-stamp.mjs`,
    `docs-site` içinde).
-5. **`Tracon.Testing.Contracts.Xunit` sözleşmesi değişti** (yedi yeni case, iki beklenti güncellendi): yayın provası
+5. **`Tracon.Testing.Contracts.Xunit` sözleşmesi değişti** (sekiz yeni case, iki beklenti güncellendi): yayın provası
    (`kapi.py yayin`) koşmalıdır. `samples/Tracon.Samples.FileRunStore` yerelde projeye bağlı geçici bir test
-   projesiyle sözleşmeyi geçti (139 test, 0 hata); paketlenmiş sürüme karşı koşum provadadır.
+   projesiyle sözleşmeyi geçti (140 test, 0 hata); paketlenmiş sürüme karşı koşum provadadır.
 6. **Ortak sıcak noktalar** (çakışma beklenir): `RunSupportTypes.cs`, `RunStatistics.cs`, `ModelDescriptor.cs`,
    `ProviderRegistrationCore.BindModels`, `RunPricingResolver.cs`, `UsageBreakdown.cs`, `SqlRunStore.cs`,
    `RunOrdinals.cs`, `SqlQueriesBase.cs`, `TraconOptions.cs`, üç `PublicAPI.Unshipped.txt`,
-   `samples/Tracon.Api/appsettings.json` (yalnız Claude satırları), `docs/manuel-test/00-INDEKS.md` (06 ve 12 satırları;
-   case sayıları 48 → 50 ve 85 → 86), `scripts/dokuman-bakim.py` (`SURUM_DAMGASI_KAYDI`'na bir satır).
+   `samples/Tracon.Api/appsettings.json` (yalnız Claude satırları), `docs-site/.../packages.md` (`Tracon.Anthropic`
+   satırı), `docs-site/.../guides/model-providers.md` (sayfa 57.684 B / 59.000 B: diğer fazların eklemeleriyle tavana
+   yaklaşır), `docs/manuel-test/00-INDEKS.md` (06 ve 12 satırları; case sayıları 48 → 50 ve 85 → 86),
+   `scripts/dokuman-bakim.py` (`SURUM_DAMGASI_KAYDI`'na bir satır).
 
 ## Süreç Ölçümü
 
@@ -769,3 +809,21 @@ Bu yüzden metinler boşluğu olan dosyalara yazıldı; bütçe aşılırsa içe
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Bağımsız denetim (2026-10-28): 🔴 yok, 🟡 2, 🟢 7. Düzeltmeler `faz/253` üzerinde yeni commit'lerdir; hiçbir
+commit yeniden yazılmadı (migration ankrajı `8d9e5b11`'e bağlıdır).
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| `RunUsageSum.Add` iki yazma sayacını topluyordu ama hiçbir test onları okumuyordu; iki satır silinse yan kanallı her run sayaçsız `RunUsage` kurar (K-483 sınıfı) | 🟡 1 | düzeltildi: `347762f1` — `RunUsageSumTests` (6) ve `SideChannelCacheWriteRunTests` (3, üç çağıran yer). Kırmızı kanıt: iki satır silinince 9 testten 7'si düşer. 253.4'te dokuzuncu mutasyon yeri |
+| Ağaç toplamının uzun sınıfı hiç pozitif sınanmıyordu (kısa `ShouldBe(67)`, uzun `ShouldBeNull`) | 🟡 2 | düzeltildi: `764f8957` — kök ve iki çocukla ağaç 67 kısa / 25 uzun; "kimsenin bildirmediği sınıf `null` kalır" ayrı case (`Tree_usage_keeps_a_cache_write_class_nobody_in_the_tree_reported_null`). Kırmızı kanıt: bellek içi ve SQLite'ta uzun terim çıkarılınca düşer. Dört depo ve `FileRunStore` yeşil |
+| `src/Tracon.Anthropic/README.md` etkiyi yalnız cached-input sayaçlarında gösteriyordu | 🟢 1 | düzeltildi: `bba86569` — bir cümle, rehber bağlantısıyla. Site kuralı `paket-readme` paket README'si değişince `packages.md`'nin değişmesini ister: `Tracon.Anthropic` satırına bir yan cümle eklendi (`95e67a30`) |
+| `configuration.md` "yazmanın sınıfı sağlayıcının bildirimidir" diyordu (döküm yoksa sınıf `anthropic.promptCaching.ttl`'den gelir); `model-providers.md` özel adaptör yazarına sayının `InputTokenCount` İÇİNDE olacağını söylemiyordu | 🟢 2 | düzeltildi: `bba86569` — iki satır. Ağırlık: `model-providers` 57.664 → 57.684 B, `configuration` 55.669 → 55.711 B (tavan 59.000 B) |
+| Migration bütünlük kapısı `MigrationsViews/*.sql`'i kapsamaz | 🟢 3 | F-NN olarak devredilecek: Entegrasyon Notları (e) 6 |
+| Halkanın "bir kez uyar"ı örnek başına; test uyarının varlığını kanıtlar, "bir kez"i değil; sıfır olmayan dökümün kalan dalı yalnız dolaylı kapsanır | 🟢 4 | F-NN olarak devredilecek: (e) 7 |
+| CHANGELOG taslağı "yeni case'ler" derken iki güncellenen beklentiyi anmıyordu | 🟢 5 | düzeltildi: bu doküman, Entegrasyon Notları (a) |
+| `RunCostTotalTests` özeti ve `RunTreeCost_Total_sums_only_the_three_cost_terms` adı eski; 253.4 sayıları yanlış ("26 satır", "29'dan") | 🟢 6 | düzeltildi: `b9e37d78` (özet ve ad; assertion'lar aynı) ve bu doküman (253.4: taban 30 → 39 satır, `RunStoreContract` 9 → 15, `InMemoryRunStore.Statistics` 1 → 4) |
+| Katalogda yazma fiyatı yokken sağlayıcı yazma bildiriyorsa operasyonel sinyal yok; SQLite `SelectRuns` üç ilişkili alt sorgu ve ~0,7 KB SQL metni kazandı, `QueryRuns`'a karşı ölçülmedi | 🟢 7 | F-NN olarak devredilecek: (e) 8 |
+
+Açık kalan: `docs-site/public/llms-full.txt` bayat (`capabilities.md` değişti). Dosya bu fazın yasak listesindedir;
+entegratör üretir (Entegrasyon Notları, f-4).
