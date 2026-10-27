@@ -142,10 +142,14 @@ internal sealed class SideChannelUsageAccumulator
         private long _reasoningTokens;
         private long _audioInputTokens;
         private long _audioOutputTokens;
+        private long _cacheWriteInputTokens;
+        private long _cacheWriteLongInputTokens;
         private int _cachedInputReported;
         private int _reasoningReported;
         private int _audioInputReported;
         private int _audioOutputReported;
+        private int _cacheWriteReported;
+        private int _cacheWriteLongReported;
 
         public void Add(UsageDetails? usage)
         {
@@ -173,6 +177,8 @@ internal sealed class SideChannelUsageAccumulator
             AddReported(UsageBreakdown.ReasoningTokens(usage), ref _reasoningTokens, ref _reasoningReported);
             AddReported(UsageBreakdown.AudioInputTokens(usage), ref _audioInputTokens, ref _audioInputReported);
             AddReported(UsageBreakdown.AudioOutputTokens(usage), ref _audioOutputTokens, ref _audioOutputReported);
+            AddReported(UsageBreakdown.CacheWriteInputTokens(usage), ref _cacheWriteInputTokens, ref _cacheWriteReported);
+            AddReported(UsageBreakdown.CacheWriteLongInputTokens(usage), ref _cacheWriteLongInputTokens, ref _cacheWriteLongReported);
         }
 
         public RunUsage? ToRunUsage()
@@ -185,9 +191,12 @@ internal sealed class SideChannelUsageAccumulator
             var reasoning = ReadReported(ref _reasoningTokens, ref _reasoningReported);
             var audioInput = ReadReported(ref _audioInputTokens, ref _audioInputReported);
             var audioOutput = ReadReported(ref _audioOutputTokens, ref _audioOutputReported);
+            var cacheWrite = ReadReported(ref _cacheWriteInputTokens, ref _cacheWriteReported);
+            var cacheWriteLong = ReadReported(ref _cacheWriteLongInputTokens, ref _cacheWriteLongReported);
 
             if (input == 0 && output == 0 && total == 0 &&
-                cachedInput is null && reasoning is null && audioInput is null && audioOutput is null)
+                cachedInput is null && reasoning is null && audioInput is null && audioOutput is null &&
+                cacheWrite is null && cacheWriteLong is null)
             {
                 return null;
             }
@@ -201,6 +210,8 @@ internal sealed class SideChannelUsageAccumulator
                 ReasoningTokens = reasoning,
                 AudioInputTokens = audioInput,
                 AudioOutputTokens = audioOutput,
+                CacheWriteInputTokens = cacheWrite,
+                CacheWriteLongInputTokens = cacheWriteLong,
             };
         }
 

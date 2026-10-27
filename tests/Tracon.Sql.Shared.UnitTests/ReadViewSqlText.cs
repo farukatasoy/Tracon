@@ -17,10 +17,15 @@ namespace Tracon.SqlProviders.Tests;
 internal static class ReadViewSqlText
 {
     /// <summary>
-    /// Reads the single <c>.sql</c> resource under <paramref name="resourcePrefix"/>
-    /// and returns the text between a <c>-- {beginMarker}</c> comment and a
+    /// Reads the LATEST <c>.sql</c> resource under <paramref name="resourcePrefix"/> (the highest
+    /// number) and returns the text between a <c>-- {beginMarker}</c> comment and a
     /// <c>-- {endMarker}</c> comment.
     /// </summary>
+    /// <remarks>
+    /// The view is recreated in full by each of its migrations, so the last one is its current
+    /// definition: the one a database that applied them all holds. Reading the first would test
+    /// a definition no database has any more.
+    /// </remarks>
     /// <param name="assembly">The provider assembly the migration is embedded in.</param>
     /// <param name="resourcePrefix">
     /// The embedded resource name prefix, matching the dialect's
@@ -34,9 +39,11 @@ internal static class ReadViewSqlText
         ArgumentNullException.ThrowIfNull(assembly);
 
         var resourceName = assembly.GetManifestResourceNames()
-            .Single(name =>
+            .Where(name =>
                 name.StartsWith(resourcePrefix, StringComparison.Ordinal) &&
-                name.EndsWith(".sql", StringComparison.Ordinal));
+                name.EndsWith(".sql", StringComparison.Ordinal))
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .Last();
 
         using var stream = assembly.GetManifestResourceStream(resourceName)!;
         using var reader = new StreamReader(stream);

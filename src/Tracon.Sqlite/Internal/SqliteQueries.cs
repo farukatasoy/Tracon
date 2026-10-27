@@ -335,6 +335,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 reasoning_tokens    = @reasoning_tokens,
                 audio_input_tokens  = @audio_input_tokens,
                 audio_output_tokens = @audio_output_tokens,
+                cache_write_input_tokens      = @cache_write_input_tokens,
+                cache_write_long_input_tokens = @cache_write_long_input_tokens,
                 error_type     = @error_type,
                 error_message  = @error_message,
                 error_class    = @error_class,
@@ -345,6 +347,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 output_price_per_mtok = @output_price_per_mtok,
                 cached_input_cost = @cached_input_cost,
                 cached_input_price_per_mtok = @cached_input_price_per_mtok,
+                cache_write_cost = @cache_write_cost,
+                cache_write_price_per_mtok = @cache_write_price_per_mtok,
+                cache_write_long_price_per_mtok = @cache_write_long_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source,
                 non_token_cost      = @non_token_cost,
@@ -366,6 +371,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 output_price_per_mtok = @output_price_per_mtok,
                 cached_input_cost = @cached_input_cost,
                 cached_input_price_per_mtok = @cached_input_price_per_mtok,
+                cache_write_cost = @cache_write_cost,
+                cache_write_price_per_mtok = @cache_write_price_per_mtok,
+                cache_write_long_price_per_mtok = @cache_write_long_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -478,7 +486,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
             -- F-419: the descendants' currencies the run's own row does not carry; the
             -- reader adds the own one and leaves a mixed total out.
             (SELECT {DescendantCurrencyCount(PricedCurrency, "sub", PricedCurrency("r"))}   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT {DescendantCurrencyCount(ReportedCurrency, "sub", ReportedCurrency("r"))} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id)
+            (SELECT {DescendantCurrencyCount(ReportedCurrency, "sub", ReportedCurrency("r"))} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            -- phase 253 (F-420): what the run wrote into the prompt cache, then what its
+            -- descendants did. NOT coalesced, like the cache read; cache_write_cost is the
+            -- FOURTH addend of the tree total, not a subset of input_cost.
+            r.cache_write_input_tokens, r.cache_write_long_input_tokens, r.cache_write_cost,
+            r.cache_write_price_per_mtok, r.cache_write_long_price_per_mtok,
+            (SELECT {TreeSum("cache_write_input_tokens", "sub", false)}      FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("cache_write_long_input_tokens", "sub", false)} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT SUM(sub.cache_write_cost) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id)
             """;
 
         SelectRun = $"""
@@ -567,7 +583,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    {TreeSum("audio_input_tokens", null, true)},
                    {TreeSum("audio_output_tokens", null, true)},
                    -- Ordinal 18 (F-419): the currencies the costs above are in.
-                   {CostCurrencyCount(null)}
+                   {CostCurrencyCount(null)},
+                   -- Ordinals 19-20 (F-420): the cache writes, counted INSIDE the input total.
+                   {TreeSum("cache_write_input_tokens", null, true)},
+                   {TreeSum("cache_write_long_input_tokens", null, true)}
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval

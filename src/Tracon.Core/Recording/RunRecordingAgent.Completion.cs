@@ -379,25 +379,10 @@ public sealed partial class RunRecordingAgent
         }
     }
 
+    // The mapping lives in ONE place (UsageBreakdown.ToRunUsage): the breakdown counters are
+    // counted INSIDE the three totals and a provider that does not report one leaves it null.
     private static RunUsage? ToRunUsage(UsageDetails? usage)
-        => usage is null
-            ? null
-            : new RunUsage
-            {
-                InputTokens = usage.InputTokenCount,
-                OutputTokens = usage.OutputTokenCount,
-                TotalTokens = usage.TotalTokenCount,
-
-                // 🚨 These four are counted INSIDE the three totals above (the
-                // Microsoft.Extensions.AI contract), so they are recorded beside
-                // them, never added to them. A provider that does not report one
-                // leaves it null; writing zero would claim a measurement that was
-                // never made.
-                CachedInputTokens = UsageBreakdown.CachedInputTokens(usage),
-                ReasoningTokens = UsageBreakdown.ReasoningTokens(usage),
-                AudioInputTokens = UsageBreakdown.AudioInputTokens(usage),
-                AudioOutputTokens = UsageBreakdown.AudioOutputTokens(usage),
-            };
+        => usage is null ? null : UsageBreakdown.ToRunUsage(usage);
 
     // Tracon exceptions can carry their own stable error type name (for example
     // content_filtered). The default value is still the full name of the type, so the shape

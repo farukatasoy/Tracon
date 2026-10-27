@@ -42,6 +42,8 @@ internal static class RunUsageSum
             ReasoningTokens = AddOrNull(left.ReasoningTokens, right.ReasoningTokens),
             AudioInputTokens = AddOrNull(left.AudioInputTokens, right.AudioInputTokens),
             AudioOutputTokens = AddOrNull(left.AudioOutputTokens, right.AudioOutputTokens),
+            CacheWriteInputTokens = AddOrNull(left.CacheWriteInputTokens, right.CacheWriteInputTokens),
+            CacheWriteLongInputTokens = AddOrNull(left.CacheWriteLongInputTokens, right.CacheWriteLongInputTokens),
         };
     }
 

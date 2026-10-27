@@ -63,6 +63,13 @@ public static partial class TraconServiceCollectionExtensions
                 // does NOT take part in the "at least one value" check below.
                 var cachedInput = batch.Decimal(modelSection, "CachedInput");
 
+                // "CacheWrite" and "CacheWriteLong" are optional the same way: the
+                // provider bills a cache write by how long the entry lives, so each
+                // time-to-live class has its own rate, and a class with no rate keeps
+                // its tokens at the plain input rate.
+                var cacheWrite = batch.Decimal(modelSection, "CacheWrite");
+                var cacheWriteLong = batch.Decimal(modelSection, "CacheWriteLong");
+
                 // 🚨 The record is ADDED even when both are null (K-034): a
                 // price entry written with a key name other than
                 // "Input"/"Output" (e.g. the C# property name
@@ -76,6 +83,8 @@ public static partial class TraconServiceCollectionExtensions
                     InputCostPerMillionTokens = input,
                     OutputCostPerMillionTokens = output,
                     CachedInputCostPerMillionTokens = cachedInput,
+                    CacheWriteCostPerMillionTokens = cacheWrite,
+                    CacheWriteLongCostPerMillionTokens = cacheWriteLong,
                 };
 
                 models[modelSection.Key] = price;

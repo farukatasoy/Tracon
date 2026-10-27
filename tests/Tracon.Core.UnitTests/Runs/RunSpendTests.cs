@@ -26,6 +26,28 @@ public sealed class RunSpendTests
     }
 
     [Fact]
+    public void The_two_totals_add_the_cache_write_charge_too()
+    {
+        // The ceiling a quota or a webhook reads is this number: a write left out lets a tenant pass it.
+        var written = new RunCost
+        {
+            InputCost = 1m,
+            OutputCost = 2m,
+            CachedInputCost = 0.5m,
+            CacheWriteCost = 0.75m,
+            Currency = "USD",
+            Source = PricingSource.Configuration,
+        };
+
+        RunSpend.Total(written, Reported(4m)).ShouldBe(8.25m);
+
+        var tree = new RunTreeCost { InputCost = 1m, OutputCost = 2m, CachedInputCost = 0.5m, CacheWriteCost = 0.75m, Currency = "USD" };
+
+        RunSpend.Total(tree, Reported(4m)).ShouldBe(8.25m);
+        RunSpend.Total(tree, nonTokenCost: null).ShouldBe(4.25m);
+    }
+
+    [Fact]
     public void A_run_that_reported_nothing_is_its_token_total()
     {
         RunSpend.Total(Tokens(1m, 2m), nonTokenCost: null).ShouldBe(3m);

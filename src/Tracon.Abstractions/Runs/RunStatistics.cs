@@ -109,6 +109,23 @@ public sealed record RunStatistics
     public long CachedInputTokens { get; init; }
 
     /// <summary>
+    /// The input tokens that were written into the provider's prompt cache with the SHORT
+    /// time to live. Counted INSIDE <c>InputTokens</c>, so the two must not be added together.
+    /// </summary>
+    /// <remarks>
+    /// Runs whose provider does not report cache writes contribute nothing here, exactly as
+    /// for <see cref="CachedInputTokens"/>.
+    /// </remarks>
+    public long CacheWriteInputTokens { get; init; }
+
+    /// <summary>
+    /// The input tokens that were written into the provider's prompt cache with the LONG
+    /// time to live. Counted INSIDE <c>InputTokens</c>.
+    /// </summary>
+    /// <remarks>Same rule as <see cref="CacheWriteInputTokens"/>.</remarks>
+    public long CacheWriteLongInputTokens { get; init; }
+
+    /// <summary>
     /// The tokens spent on reasoning. Counted INSIDE <c>OutputTokens</c>.
     /// </summary>
     public long ReasoningTokens { get; init; }

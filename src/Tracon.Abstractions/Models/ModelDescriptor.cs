@@ -67,6 +67,37 @@ public sealed record ModelDescriptor
     /// unknown. Set it to <c>0</c> only to state that cache reads are free.
     /// </remarks>
     public decimal? CachedInputCostPerMillionTokens { get; init; }
+
+    /// <summary>
+    /// The cost per million input tokens that were written into the provider's prompt cache
+    /// with the SHORT time to live (Anthropic: five minutes). For reporting only.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A provider that bills the cache write apart from plain input charges more for it than
+    /// for input (Anthropic: 1.25 times the input price for five minutes). The written tokens
+    /// are counted INSIDE the input tokens; a defined price here takes them out of the input
+    /// charge and bills them at this rate.
+    /// </para>
+    /// <para>
+    /// When this is <see langword="null"/> the written tokens are priced at
+    /// <see cref="InputCostPerMillionTokens"/>, exactly as they were before the rate existed —
+    /// an undefined write rate does NOT make the run's price unknown. Set it to <c>0</c> only
+    /// to state that cache writes are free.
+    /// </para>
+    /// </remarks>
+    public decimal? CacheWriteCostPerMillionTokens { get; init; }
+
+    /// <summary>
+    /// The cost per million input tokens that were written into the provider's prompt cache
+    /// with the LONG time to live (Anthropic: one hour). For reporting only.
+    /// </summary>
+    /// <remarks>
+    /// The two time-to-live classes are priced apart because the provider bills them apart.
+    /// Same rules as <see cref="CacheWriteCostPerMillionTokens"/>; the two rates are
+    /// independent, and a class with no rate keeps its tokens at the input price.
+    /// </remarks>
+    public decimal? CacheWriteLongCostPerMillionTokens { get; init; }
 }
 
 /// <summary>A provider's definition as shown in the UI.</summary>
