@@ -4,7 +4,8 @@ namespace Tracon;
 
 /// <summary>
 /// The request fields of <see cref="ModelBinding"/> whose support depends on the
-/// provider's API surface.
+/// provider's API surface. A set is written as member names separated by commas, such as
+/// <c>Seed, StopSequences</c>; the empty set is <c>None</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -15,8 +16,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// The model catalog uses the same set for the fields a model rejects
-/// (<see cref="ModelDescriptor.RejectedSamplingFields"/>). A set is written as names
-/// in JSON and in configuration, separated by commas: <c>"Seed, StopSequences"</c>.
+/// (<see cref="ModelDescriptor.RejectedSamplingFields"/>), in JSON and in configuration.
 /// </para>
 /// </remarks>
 [Flags]

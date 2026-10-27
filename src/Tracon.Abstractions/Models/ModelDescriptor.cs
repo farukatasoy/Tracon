@@ -52,7 +52,7 @@ public sealed record ModelDescriptor
 
     /// <summary>
     /// The request fields this model rejects although its provider's API surface sends them;
-    /// <see cref="SamplingFields.None"/> when the catalog names none.
+    /// <c>None</c> when the catalog names none.
     /// </summary>
     /// <remarks>
     /// <para>
