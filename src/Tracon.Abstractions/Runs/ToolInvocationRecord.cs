@@ -14,13 +14,21 @@ namespace Tracon;
 /// without scanning the whole event stream.
 /// </para>
 /// <para>
-/// The record is written when the call <strong>settles</strong>; a call the
-/// run ended before it settled is written when the run closes, as failed. A
-/// call that went through the tool chain is recorded where it happens, so
-/// its record exists however the run ends and its duration is measured
-/// whether the run streams or not. A call outside the chain (a hosted tool,
-/// a tool of the framework) is read from the messages of the answer: a run
-/// that does not stream has no duration for it, and no record when it fails.
+/// When the record is written depends on how the run learns of the call. A run
+/// that streams writes it when the call's result arrives; a call the run ended
+/// before it settled is written when the run closes, as failed. A run that does
+/// not stream writes its records when it closes: from the messages of the
+/// answer when it answered, and, when it failed or was cancelled, from the calls
+/// the tool chain noted in memory while the run was open. Nothing is stored
+/// before the run closes in that case, so a process that stops with the run
+/// open leaves no record for those calls.
+/// </para>
+/// <para>
+/// A call that went through the tool chain has its duration measured whether the
+/// run streams or not. A call outside the chain (a hosted tool, a tool of the
+/// framework, an agent called as a tool, among others) is read only from the
+/// messages of the answer: a run that does not stream has no duration for it,
+/// and no record when it fails.
 /// </para>
 /// </remarks>
 public sealed record ToolInvocationRecord
