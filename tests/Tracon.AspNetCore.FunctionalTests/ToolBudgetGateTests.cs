@@ -70,6 +70,7 @@ public sealed class ToolBudgetGateTests
 
         // Only a model call spends tokens, and a tool that calls a model does it (K-893). The
         // first tool stands for one: it charges the tree 1000 tokens against a ceiling of 500.
+        // The tokens the turn that asks for the tools spends are the next case.
         await using var host = await StartAsync(
             tools.Run(First, () => TraconRunContext.Current!.Budget!.RecordUsage(1_000)),
             tools.Counts(Second),
@@ -84,6 +85,50 @@ public sealed class ToolBudgetGateTests
 
         refused.Error.ShouldNotBeNull().ShouldContain("token budget is exhausted", Case.Sensitive);
         refused.Error.ShouldContain("Tracon:AgentGraph:MaxTotalTokens", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_tool_does_not_start_once_the_turn_that_asked_for_it_spent_the_token_budget()
+    {
+        // F-690: the token budget through the path a real provider takes. The turn that asks for the tools reports its own
+        // usage (CallsTools with tokens), the budget ring records it as it records every model call, and the tools of that
+        // very turn are the next thing to start: both are refused, and neither body runs. No tool charges the tree here.
+        var tools = new ToolBodies();
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .ForModel(Model, cfg => cfg
+                .CallsTools(inputTokens: 400, outputTokens: 200, (First, null), (Second, null))
+                .EchoesLastToolResult("Done: ", inputTokens: 4, outputTokens: 6));
+
+        await using var host = await StartAsync(
+            provider,
+            tools.Counts(First),
+            tools.Counts(Second),
+            options => options.AgentGraph.MaxTotalTokens = 500);
+
+        await RunUntilRefusedAsync(host);
+
+        tools.Count(First).ShouldBe(0, "the first tool started although the turn that asked for it had spent the ceiling");
+        tools.Count(Second).ShouldBe(0, "the second tool started although the turn that asked for it had spent the ceiling");
+
+        var run = await RunRecordAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull().Type.ShouldBe(TraconRunBudgetExceededException.RunBudgetExceededErrorType);
+
+        var calls = await host.Services.GetRequiredService<IRunStore>().ListToolInvocationsAsync(run.Id);
+
+        calls.Count.ShouldBe(2);
+        calls.ShouldAllBe(static call => !call.Succeeded);
+
+        foreach (var call in calls)
+        {
+            call.Error.ShouldNotBeNull().ShouldContain("token budget is exhausted", Case.Sensitive);
+            call.Error.ShouldContain("Tracon:AgentGraph:MaxTotalTokens", Case.Sensitive);
+        }
+
+        // Only the turn that asked for the tools reached the provider: the next model call is refused at the same ceiling.
+        provider.Requests.Count.ShouldBe(1);
     }
 
     [Fact]

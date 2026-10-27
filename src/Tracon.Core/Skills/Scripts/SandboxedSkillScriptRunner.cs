@@ -347,10 +347,16 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
     {
         // The tree's budget comes first, before any store is read: a spent run starts no
         // script, and a sandbox can be paid (F-530). The same sentence as any tool call.
+        //
+        // A script that is refused is audited, whatever refused it: this is script.denied like every
+        // other gate below, and the reason is the budget sentence. What differs is the exception, which
+        // keeps the identity of every other budget refusal (the run ends Failed, run_budget_exceeded).
+        // The entry is best-effort, as the other denials are: a store that cannot take it is logged and
+        // counted, and the script does not start either way.
         if (BudgetGatingAIFunction.Refusal() is { } budgetRefusal)
         {
-            activity?.SetTag(TraconDiagnostics.Tags.ScriptDenialReason, budgetRefusal);
-            activity?.SetStatus(ActivityStatusCode.Error, budgetRefusal);
+            await RecordDenialAsync(request.SkillName, request.ScriptName, budgetRefusal, cancellationToken, activity)
+                .ConfigureAwait(false);
 
             throw new TraconRunBudgetExceededException(budgetRefusal);
         }
@@ -1000,6 +1006,25 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
         CancellationToken cancellationToken,
         Activity? activity = null)
     {
+        await RecordDenialAsync(skillName, scriptName, reason, cancellationToken, activity).ConfigureAwait(false);
+
+        throw new TraconException($"Script '{skillName}/{scriptName}' was not run: {reason}");
+    }
+
+    /// <summary>Closes the span with the reason and writes the <c>script.denied</c> entry; it throws nothing of its own.</summary>
+    /// <remarks>
+    /// The one place a refusal is audited, so the budget refusal and the gates below it write the same entry.
+    /// The entry is best-effort (<see cref="AuditRecorder.WriteAsync"/>): the script does not start whether or not
+    /// it is written, so a store that is down changes what the trail holds and nothing the run does. The
+    /// exception that stops the call is the caller's.
+    /// </remarks>
+    private async ValueTask RecordDenialAsync(
+        string skillName,
+        string scriptName,
+        string reason,
+        CancellationToken cancellationToken,
+        Activity? activity = null)
+    {
         activity?.SetTag(TraconDiagnostics.Tags.ScriptDenialReason, reason);
         activity?.SetStatus(ActivityStatusCode.Error, reason);
 
@@ -1018,8 +1043,6 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
                 after: JsonSerializer.Serialize(reason, TraconCoreJsonContext.Default.String),
                 cancellationToken)
             .ConfigureAwait(false);
-
-        throw new TraconException($"Script '{skillName}/{scriptName}' was not run: {reason}");
     }
 
     private sealed record ScriptRequest(

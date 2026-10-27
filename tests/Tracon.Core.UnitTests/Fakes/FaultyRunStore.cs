@@ -15,6 +15,9 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     /// <summary>Gets or sets whether appending an event fails.</summary>
     public bool FailEventAppends { get; set; }
 
+    /// <summary>Gets or sets whether writing the row of a tool invocation fails.</summary>
+    public bool FailToolInvocations { get; set; }
+
     public int ReadsRefused { get; private set; }
 
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
@@ -64,7 +67,10 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
 
     public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken cancellationToken = default) => inner.ReadEventsAsync(runId, fromSequence, cancellationToken);
 
-    public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default) => inner.RecordToolInvocationAsync(invocation, cancellationToken);
+    public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
+        => FailToolInvocations
+            ? throw new InvalidOperationException("the store is unavailable")
+            : inner.RecordToolInvocationAsync(invocation, cancellationToken);
 
     public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken cancellationToken = default) => inner.CompleteLateToolInvocationAsync(completion, cancellationToken);
 

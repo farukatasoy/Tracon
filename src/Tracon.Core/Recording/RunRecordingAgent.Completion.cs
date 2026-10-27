@@ -174,6 +174,16 @@ public sealed partial class RunRecordingAgent
             error = error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
         }
 
+        // A run that ended without an answer has no messages to read its tool calls from, so the calls the tool
+        // chain ran are written here, from the run's ledger, and the loop below closes the ones that never ended.
+        // A run that answered wrote its rows from its messages (timed from the ledger, which they claim). A call that
+        // only the ledger knows then is one that an earlier model link ran and a later link had answered again from
+        // its result: a second row for it would read as a second execution, so a run that answered writes none.
+        if (status is RunStatus.Failed or RunStatus.Canceled)
+        {
+            await WriteLedgerCallsAsync(scope, cancellationToken).ConfigureAwait(false);
+        }
+
         // Calls that end before a result arrives are closed explicitly; otherwise a tool
         // card that looks "started but not finished" would stay in the user interface.
         foreach (var unfinished in scope.Tools.DrainUnfinished("The run ended before the tool result arrived."))

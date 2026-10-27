@@ -117,6 +117,9 @@ Available scripts are:
 | `RespondsWith(params string[])` | Enqueues fixed text responses |
 | `RespondsWith(text, inputTokens, outputTokens)` | Enqueues text with reported usage for cost and metric tests |
 | `CallsTool(name, arguments)` | Enqueues one model-requested tool call |
+| `CallsTool(name, arguments, inputTokens, outputTokens)` | Enqueues a tool call whose turn reports its token usage, for budget, cost and metric tests |
+| `CallsTools(params calls)` | Enqueues one turn that asks for several tools at once |
+| `CallsTools(inputTokens, outputTokens, params calls)` | The same turn, reporting its token usage once |
 | `EchoesUserMessage()` | Uses the latest user message after the queue drains |
 | `EchoesLastToolResult(prefix, ...)` | Uses the latest real tool result after the queue drains |
 | `ForModel(modelId, configure)` | Gives one model an independent queue and fallback |

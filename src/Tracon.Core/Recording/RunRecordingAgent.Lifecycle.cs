@@ -189,6 +189,10 @@ public sealed partial class RunRecordingAgent
             NonTokenCost = new NonTokenCostAccumulator(_pricingCurrency, budget),
             ToolAuthorization = new ToolAuthorizationAccumulator(),
             ToolExplainedFailures = new ToolExplainedFailureAccumulator(),
+
+            // Made here with the rest of the scope, never by the tool chain: a layer that opened a scope in an
+            // async helper would leave this ledger empty for the recorder that reads it.
+            ToolCalls = new ToolCallLedger(_timeProvider),
             FallbackAttribution = new FallbackModelAttribution(),
             AgentVersion = agentVersion,
             ExperimentId = runOptions?.ExperimentId,
@@ -261,7 +265,8 @@ public sealed partial class RunRecordingAgent
                 start.Scope.ToolUsage,
                 start.Scope.TenantId,
                 start.Scope.ToolAuthorization,
-                start.Scope.ToolExplainedFailures),
+                start.Scope.ToolExplainedFailures,
+                start.Scope.ToolCalls),
             start.Scope.AgentName!,
             start.Scope.TenantId!,
             _timeProvider.GetTimestamp(),
@@ -277,7 +282,8 @@ public sealed partial class RunRecordingAgent
             FallbackAttribution: start.Scope.FallbackAttribution,
             UserId: start.UserId,
             NonTokenCost: start.Scope.NonTokenCost,
-            HostedCalls: start.Scope.HostedCalls);
+            HostedCalls: start.Scope.HostedCalls,
+            ToolCalls: start.Scope.ToolCalls);
 
     /// <summary>
     /// Reads the run's attribution.
@@ -336,5 +342,6 @@ public sealed partial class RunRecordingAgent
         FallbackModelAttribution? FallbackAttribution,
         string? UserId,
         NonTokenCostAccumulator? NonTokenCost,
-        HostedCallLedger? HostedCalls = null);
+        HostedCallLedger? HostedCalls = null,
+        ToolCallLedger? ToolCalls = null);
 }

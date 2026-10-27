@@ -553,15 +553,21 @@ A function node is different on the first row: its output goes to the next node,
 
 A refused call does not run. Its result is the limit and the setting to raise, followed by "The tool
 call did not start." No model reads that sentence, because the next model call is refused: it goes to
-the event stream and to the run record. A streaming run (the HTTP run is one) records the call as failed,
-with that sentence as its error. A run that does not stream records no call rows when it fails, the first
-call's included. The run itself ends as it always did: the next model call is refused, and the run is
+the event stream and to the run record. The call is recorded as failed, with that sentence as its error,
+whether the run streams or not: the tool chain notes each call where it happens and the run writes the
+rows when it closes, so a queued run that fails at its next model call still lists the calls it made, the
+refused one included
+([a failed run keeps its calls](/concepts/runs/#tool-calls-are-recorded-where-they-happen)).
+The run itself ends as it always did: the next model call is refused, and the run is
 `Failed` with error type `run_budget_exceeded`. The refusal needs no setting, and a host whose run
 never passes a ceiling sees no change. The check happens before the authorization handler, so a spent
 run does not ask it. Code tools, workspace tools, MCP tools, the knowledge search and the conversation memory search pass the check in the
 tool chain. A skill
 script is checked by the script runner when its run would start, with the same condition and the same
-sentence in the refusal.
+sentence in the refusal. The runner also writes the refusal to the audit trail as `script.denied`, the
+entry it writes for every other gate: the entry names the skill and the script, and its reason is the
+sentence. The entry is best-effort here, as for the other gates. If it cannot be written, the script
+still does not start and the run ends as above.
 
 **Two limits remain.**
 

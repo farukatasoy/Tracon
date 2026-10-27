@@ -240,11 +240,11 @@ public sealed partial class RunRecordingAgent
                     break;
 
                 case FunctionCallContent call:
-                    await WriteToolCallAsync(scope, call, cancellationToken).ConfigureAwait(false);
+                    await WriteToolCallAsync(scope, call, at: null, cancellationToken).ConfigureAwait(false);
                     break;
 
                 case FunctionResultContent result:
-                    await WriteToolResultAsync(scope, result, cancellationToken).ConfigureAwait(false);
+                    await WriteToolResultAsync(scope, result, at: null, cancellationToken).ConfigureAwait(false);
                     break;
 
                 // Recognized and accounted for elsewhere: usage is summed into the
@@ -362,9 +362,12 @@ public sealed partial class RunRecordingAgent
         await scope.Writer.AppendReservedAsync(draft, cancellationToken).ConfigureAwait(false);
     }
 
+    // `at` is the time the call really started, for a call written from the tool-call ledger after the run;
+    // null for a call a message reports, which is stamped as it is written.
     private static async ValueTask WriteToolCallAsync(
         RunScope scope,
         FunctionCallContent call,
+        DateTimeOffset? at,
         CancellationToken cancellationToken)
     {
         var arguments = FormatArguments(call);
@@ -377,13 +380,17 @@ public sealed partial class RunRecordingAgent
                 ToolName = call.Name,
                 ToolCallId = call.CallId,
                 Payload = arguments,
+                Timestamp = at,
             },
             cancellationToken).ConfigureAwait(false);
     }
 
+    // `at` is the time the call really ended, for a call written from the tool-call ledger after the run;
+    // null for a call a message reports, which is stamped as it is written.
     private async ValueTask WriteToolResultAsync(
         RunScope scope,
         FunctionResultContent result,
+        DateTimeOffset? at,
         CancellationToken cancellationToken)
     {
         var record = scope.Tools.OnResult(result);
@@ -398,6 +405,7 @@ public sealed partial class RunRecordingAgent
                 ToolCallId = result.CallId,
                 Text = record.Error,
                 Payload = ToolResultText.TryGetText(result.Result, out var text) ? text : null,
+                Timestamp = at,
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -405,6 +413,99 @@ public sealed partial class RunRecordingAgent
 
         _metrics?.RecordToolInvocation(record.ToolName, record.Succeeded, record.Duration);
     }
+
+    /// <summary>
+    /// Writes the calls the tool chain ran and no message reported, when the run closes without an answer.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A run that does not stream reads its calls from the messages of the model's answer, and a run that ended in
+    /// an exception has none: the budget refused its next model call, the provider failed, the run was cancelled.
+    /// Without this step such a run kept no row and no event for the calls it had made. A call the tool chain
+    /// recorded in the run's <see cref="ToolCallLedger"/> is written here exactly as a message would have written
+    /// it (the same code, so the same events, the same row, the same metric), stamped with the time it ran.
+    /// </para>
+    /// <para>
+    /// Only a run that closes <see cref="RunStatus.Failed"/> or <see cref="RunStatus.Canceled"/> comes here (the caller
+    /// decides). A run that answered has its rows from its messages. A call that only the ledger knows then is one
+    /// that an earlier model link ran and a later link had answered again from the recorded result
+    /// (<c>ModelBinding.Fallbacks</c>), or the first attempt of a repaired structured answer; a row for it would
+    /// read as a second execution of the call.
+    /// </para>
+    /// <para>
+    /// The calls are written in the order they happened, so a start and an end that overlap another call's are
+    /// not grouped by call. A call that had not ended when the run did (a cancellation reached it) gets its start
+    /// event here and is closed with the others by <see cref="ToolInvocationTracker.DrainUnfinished"/>, which runs
+    /// next. A call the tracker already holds as started is left to it: a streaming run saw that call's content
+    /// while it ran, wrote its start event then, and closes it the same way.
+    /// </para>
+    /// <para>
+    /// The step is observability, so a failure in it is counted and logged and the run closes. A cancellation is
+    /// not swallowed.
+    /// </para>
+    /// </remarks>
+    private async ValueTask WriteLedgerCallsAsync(RunScope scope, CancellationToken cancellationToken)
+    {
+        if (scope.ToolCalls is not { } ledger)
+        {
+            return;
+        }
+
+        // Read without claiming: a row claims its call as it is written.
+        var unwritten = ledger.Unclaimed()
+            .Where(call => !scope.Tools.IsPending(call.Call.CallId))
+            .ToList();
+
+        if (unwritten.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var step in LedgerSteps(unwritten))
+            {
+                if (step.Ends)
+                {
+                    await WriteToolResultAsync(
+                        scope,
+                        new FunctionResultContent(step.Call.Call.CallId, step.Call.Result) { Exception = step.Call.Failure },
+                        step.At,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await WriteToolCallAsync(scope, step.Call.Call, step.At, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+        {
+            _metrics?.RecordRunRecordingFailure(scope.TenantId, RunRecordingStages.ToolInvocation);
+
+            _logger.LogWarning(
+                ex,
+                "Failed to write the tool calls the tool chain recorded. Run {RunId} closes normally " +
+                "but its record may miss some of them.",
+                scope.RunId);
+        }
+    }
+
+    /// <summary>
+    /// Lays the start and the end of each call out in the order they happened: by time, a start before an end at the
+    /// same time, calls that started together in the order they started.
+    /// </summary>
+    private static IEnumerable<LedgerStep> LedgerSteps(IReadOnlyList<ToolCallSnapshot> calls)
+        => calls
+            .SelectMany(static (call, index) => call.EndedAtUtc is { } ended
+                ? new[] { new LedgerStep(call.StartedAtUtc, Ends: false, index, call), new LedgerStep(ended, Ends: true, index, call) }
+                : [new LedgerStep(call.StartedAtUtc, Ends: false, index, call)])
+            .OrderBy(static step => step.At)
+            .ThenBy(static step => step.Ends)
+            .ThenBy(static step => step.Index);
+
+    /// <summary>One event of a call written from the tool-call ledger: its start or its end.</summary>
+    private readonly record struct LedgerStep(DateTimeOffset At, bool Ends, int Index, ToolCallSnapshot Call);
 
     private static string? FormatArguments(FunctionCallContent call)
     {
