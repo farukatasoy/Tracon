@@ -110,6 +110,12 @@ internal static class ResponsesIncompleteness
 /// type cannot read passes through as MAF wrote it and <see cref="MissedTerminalFrame"/> says so, so the
 /// endpoint can log that the status stayed <c>completed</c>.
 /// </para>
+/// <para>
+/// <strong>A limit.</strong> A message item MAF closed before the source ended keeps <c>completed</c> in
+/// its own <c>response.output_item.done</c> frame: the finish reason was not known yet. It happens when
+/// another item follows the text (measured with a Gemini stream that reports its reasoning after the
+/// answer). The terminal event is the source of truth: its <c>output</c> marks the last message item.
+/// </para>
 /// <para>One instance serves one response; it is not shared.</para>
 /// </remarks>
 internal sealed class ResponsesStreamRewriter
