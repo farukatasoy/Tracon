@@ -5,8 +5,6 @@
     <PackageTags>$(CommonPackageTags);ag-ui;agui;copilotkit;frontend;sse</PackageTags>
     <!-- ASP.NET Core minimal API routing and Tracon.AspNetCore use reflection; AOT cannot be promised. -->
     <TraconAotCompatible>false</TraconAotCompatible>
-    <!-- No published baseline exists on nuget.org yet; remove after the first release (Phase 187). -->
-    <TraconPackageFirstRelease>true</TraconPackageFirstRelease>
   </PropertyGroup>
 
   <ItemGroup>
