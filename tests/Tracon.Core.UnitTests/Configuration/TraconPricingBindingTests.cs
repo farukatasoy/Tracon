@@ -51,6 +51,53 @@ public sealed class TraconPricingBindingTests
     }
 
     [Fact]
+    public void The_cache_write_prices_are_read_from_CacheWrite_and_CacheWriteLong()
+    {
+        // Phase 253: one rate per time-to-live class, bound from the short keys like Input/Output/CachedInput.
+        var options = BindOnly(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Pricing:anthropic:claude-x:Input"] = "1",
+            ["Pricing:anthropic:claude-x:CacheWrite"] = "1.25",
+            ["Pricing:anthropic:claude-x:CacheWriteLong"] = "2",
+        });
+
+        var price = options.Pricing.Providers["anthropic"]["claude-x"];
+
+        price.CacheWriteCostPerMillionTokens.ShouldBe(1.25m);
+        price.CacheWriteLongCostPerMillionTokens.ShouldBe(2m);
+        price.CachedInputCostPerMillionTokens.ShouldBeNull("the write keys must not leak into the read rate");
+    }
+
+    [Fact]
+    public void A_negative_cache_write_price_is_rejected_at_startup()
+    {
+        foreach (var key in new[] { "CacheWrite", "CacheWriteLong" })
+        {
+            using var provider = BuildTracon(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Tracon:Pricing:anthropic:claude-x:Input"] = "1",
+                [$"Tracon:Pricing:anthropic:claude-x:{key}"] = "-0.5",
+            });
+
+            Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IOptions<TraconOptions>>().Value)
+                .Message.ShouldContain("price for 'anthropic:claude-x' cannot be negative", customMessage: key);
+        }
+    }
+
+    [Fact]
+    public void A_model_priced_with_only_cache_write_rates_is_still_rejected_as_having_no_base_price()
+    {
+        // Same typo guard as CachedInput: a write rate alone is not a price.
+        using var provider = BuildTracon(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:anthropic:claude-x:CacheWrite"] = "1.25",
+        });
+
+        Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IOptions<TraconOptions>>().Value)
+            .Message.ShouldContain("contains neither 'Input' nor 'Output'");
+    }
+
+    [Fact]
     public void Price_written_with_the_wrong_key_name_is_rejected_at_startup()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -221,6 +268,8 @@ public sealed class TraconPricingBindingTests
     [InlineData("Tracon:Pricing:echo:echo-1:Input", "1,5")]
     [InlineData("Tracon:Pricing:echo:echo-1:Output", "two")]
     [InlineData("Tracon:Pricing:echo:echo-1:CachedInput", "0,1")]
+    [InlineData("Tracon:Pricing:echo:echo-1:CacheWrite", "1,25")]
+    [InlineData("Tracon:Pricing:echo:echo-1:CacheWriteLong", "two")]
     [InlineData("Tracon:Pricing:Voice:eleven:flash:PerMinute", "cheap")]
     [InlineData("Tracon:Pricing:Voice:eleven:flash:PerMillionCharacters", "1,5")]
     [InlineData("Tracon:Pricing:HostedTools:openai-responses:WebSearch:PerCall", "0,01")]
@@ -274,11 +323,15 @@ public sealed class TraconPricingBindingTests
             ["Pricing:echo:echo-1:Input"] = "0.25",
             ["Pricing:echo:echo-1:Output"] = string.Empty,
             ["Pricing:echo:echo-1:CachedInput"] = "  ",
+            ["Pricing:echo:echo-1:CacheWrite"] = string.Empty,
+            ["Pricing:echo:echo-1:CacheWriteLong"] = "  ",
         });
 
         options.Pricing.Providers["echo"]["echo-1"].InputCostPerMillionTokens.ShouldBe(0.25m);
         options.Pricing.Providers["echo"]["echo-1"].OutputCostPerMillionTokens.ShouldBeNull();
         options.Pricing.Providers["echo"]["echo-1"].CachedInputCostPerMillionTokens.ShouldBeNull();
+        options.Pricing.Providers["echo"]["echo-1"].CacheWriteCostPerMillionTokens.ShouldBeNull();
+        options.Pricing.Providers["echo"]["echo-1"].CacheWriteLongCostPerMillionTokens.ShouldBeNull();
     }
 
     /// <summary>

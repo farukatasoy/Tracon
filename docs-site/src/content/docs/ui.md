@@ -182,8 +182,9 @@ A run's detail header names the user it belongs to and shows its labels as badge
 Opening a run gives the summary and the full event stream in order: message deltas,
 tool calls with arguments and results, errors with their class. The summary names
 the provider that actually answered, next to the model, and — when pricing is
-configured — the unit price applied for input, output, and any cached input; that
-price is a snapshot of what was in effect when the run ended, unaffected by a later
+configured — the unit price applied for input, output, any cached input, and any
+cache write (a separate price for the short and for the long time to live, shown only
+for a class the run priced); that price is a snapshot of what was in effect when the run ended, unaffected by a later
 catalog or configuration change. A run priced at more than one model — a
 summarizer or a loop judge on a model of its own — shows `—` there, because one
 rate cannot describe its cost. When a reasoning
@@ -209,7 +210,8 @@ shows no panel. See
 [Report what a node spent beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
 for what adds up and what does not.
 
-Two runs can be compared side by side, and any run can be scored. The thumbs on the
+Two runs can be compared side by side, with one cost per run that adds every cost term
+(input, output, cache read and cache write), and any run can be scored. The thumbs on the
 run screen write one named score — `overall` — as the person looking at it. Every
 other score on that run, whether a second name someone wrote through the API or one
 an automatic judge produced, is listed beside them read-only, with its name and its

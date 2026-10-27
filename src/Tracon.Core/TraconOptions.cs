@@ -963,4 +963,25 @@ public sealed class ModelPriceOverride
     /// unknown. See <see cref="ModelDescriptor.CachedInputCostPerMillionTokens"/>.
     /// </remarks>
     public decimal? CachedInputCostPerMillionTokens { get; set; }
+
+    /// <summary>
+    /// Gets or sets cost per million input tokens written into the prompt cache with the
+    /// SHORT time to live.
+    /// </summary>
+    /// <remarks>
+    /// Leaving it unset keeps the written tokens at <see cref="InputCostPerMillionTokens"/>;
+    /// it never makes the price unknown. See
+    /// <see cref="ModelDescriptor.CacheWriteCostPerMillionTokens"/>.
+    /// </remarks>
+    public decimal? CacheWriteCostPerMillionTokens { get; set; }
+
+    /// <summary>
+    /// Gets or sets cost per million input tokens written into the prompt cache with the
+    /// LONG time to live.
+    /// </summary>
+    /// <remarks>
+    /// Independent of <see cref="CacheWriteCostPerMillionTokens"/>. See
+    /// <see cref="ModelDescriptor.CacheWriteLongCostPerMillionTokens"/>.
+    /// </remarks>
+    public decimal? CacheWriteLongCostPerMillionTokens { get; set; }
 }

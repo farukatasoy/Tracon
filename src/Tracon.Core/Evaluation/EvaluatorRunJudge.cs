@@ -178,18 +178,7 @@ internal sealed class EvaluatorRunJudge(
     /// <summary>Closes the judge's own run row with the usage and the cost of its model calls.</summary>
     private async ValueTask CompleteRunAsync(Guid runId, string tenantId, ModelBinding binding, UsageDetails? total, Exception? failure)
     {
-        var usage = total is null
-            ? null
-            : new RunUsage
-            {
-                InputTokens = total.InputTokenCount,
-                OutputTokens = total.OutputTokenCount,
-                TotalTokens = total.TotalTokenCount,
-                CachedInputTokens = UsageBreakdown.CachedInputTokens(total),
-                ReasoningTokens = UsageBreakdown.ReasoningTokens(total),
-                AudioInputTokens = UsageBreakdown.AudioInputTokens(total),
-                AudioOutputTokens = UsageBreakdown.AudioOutputTokens(total),
-            };
+        var usage = total is null ? null : UsageBreakdown.ToRunUsage(total);
 
         var cost = usage is null ? null : pricingResolver?.Resolve(binding.Provider, binding.Model, usage);
 

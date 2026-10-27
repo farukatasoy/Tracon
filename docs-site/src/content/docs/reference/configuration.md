@@ -309,6 +309,8 @@ Tracon:Pricing:Currency
 Tracon:Pricing:{provider}:{model}:Input
 Tracon:Pricing:{provider}:{model}:Output
 Tracon:Pricing:{provider}:{model}:CachedInput
+Tracon:Pricing:{provider}:{model}:CacheWrite
+Tracon:Pricing:{provider}:{model}:CacheWriteLong
 Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters
 Tracon:Pricing:Voice:{provider}:{model}:PerMinute
 Tracon:Pricing:Images:{provider}:{model}:PerImage
@@ -329,30 +331,42 @@ currency (an amount that names no currency is in it, and with no `Currency` set 
 an amount adds); any other is listed and counted as not added. A function node's amounts
 are the amounts the node computed, not a price table Tracon applies.
 
-The shorter configuration keys `Input`, `Output` and `CachedInput` bind to the code
-properties `InputCostPerMillionTokens`, `OutputCostPerMillionTokens` and
-`CachedInputCostPerMillionTokens`.
+The shorter configuration keys `Input`, `Output`, `CachedInput`, `CacheWrite` and
+`CacheWriteLong` bind to the code properties `InputCostPerMillionTokens`,
+`OutputCostPerMillionTokens`, `CachedInputCostPerMillionTokens`,
+`CacheWriteCostPerMillionTokens` and `CacheWriteLongCostPerMillionTokens`.
 
 `CachedInput` is the rate for input tokens the provider served from its prompt
 cache. It is optional, and its absence is not a configuration error — unlike
 `Input` and `Output`, where an entry with neither is rejected at startup as a
 likely typo.
 
-Cost is computed by **subtraction**, because a provider counts cached tokens
-*inside* the input total rather than beside it:
+`CacheWrite` and `CacheWriteLong` are the rates for input tokens the provider
+*wrote* into its prompt cache, by how long the entry lives: Anthropic bills a
+five-minute entry at 1.25 times the input price and a one-hour entry at 2 times.
+Both are optional and independent, and a negative value stops the host at start.
+Which class a write belongs to is the provider's report; a response with no per-class
+split counts the whole write under `anthropic.promptCaching.ttl` (the short class when it sets none).
+
+Cost is computed by **subtraction**, because a provider counts cached and written
+tokens *inside* the input total rather than beside it:
 
 ```text
 full_price_input = InputTokens - CachedInputTokens
-cost             = full_price_input   * Input
-                 + CachedInputTokens  * CachedInput
-                 + OutputTokens       * Output
+                   - CacheWriteInputTokens - CacheWriteLongInputTokens
+cost             = full_price_input           * Input
+                 + CachedInputTokens          * CachedInput
+                 + CacheWriteInputTokens      * CacheWrite
+                 + CacheWriteLongInputTokens  * CacheWriteLong
+                 + OutputTokens               * Output
 ```
 
 :::note
-Leave `CachedInput` unset and the whole input is priced at `Input`, exactly as
-before the rate existed. A missing cache rate never makes a run's `pricingSource`
+Leave `CachedInput`, `CacheWrite` or `CacheWriteLong` unset and the tokens of that
+kind are priced at `Input`, exactly as before the rate existed; the two write classes
+are decided one by one. A missing rate never makes a run's `pricingSource`
 `Unknown` — that value means the **model** price is missing, which is a different
-fault. Set it to `0` to state that cache reads are free.
+fault. Set a rate to `0` to state that cache reads, or writes, are free.
 :::
 
 Reasoning tokens are recorded (`reasoningTokens`) but priced at the output rate:
@@ -657,7 +671,7 @@ identity is required.
 Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
 `ContextWindowTokens`, `MaxOutputTokens`, `SupportsStreaming` (`true`),
 `SupportsTools` (`true`), `SupportsReasoning` (`false`), `SupportsStructuredOutput`
-(`false`), `SupportsSampling` (`null`), `RejectedSamplingFields` (`None`), and the three
+(`false`), `SupportsSampling` (`null`), `RejectedSamplingFields` (`None`), and the five
 `*CostPerMillionTokens` prices.
 `SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
 to compile. `RejectedSamplingFields` takes a name or a comma-separated list of request

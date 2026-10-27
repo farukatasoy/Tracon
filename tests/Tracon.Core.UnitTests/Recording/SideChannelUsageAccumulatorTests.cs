@@ -86,6 +86,91 @@ public sealed class SideChannelUsageAccumulatorTests
     }
 
     [Fact]
+    public void An_unreported_cache_write_counter_stays_null_rather_than_becoming_zero()
+    {
+        var accumulator = new SideChannelUsageAccumulator();
+
+        accumulator.Add(new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 });
+
+        var usage = accumulator.ToAgentModelUsage();
+
+        usage.ShouldNotBeNull();
+        usage!.CacheWriteInputTokens.ShouldBeNull();
+        usage.CacheWriteLongInputTokens.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Cache_write_counters_accumulate_across_calls_and_across_both_classes()
+    {
+        // A summarizer or judge on a caching provider writes the cache like any other call; its
+        // written tokens must reach the run, or they are priced as plain input.
+        var accumulator = new SideChannelUsageAccumulator();
+
+        accumulator.Add(WithWrites(input: 100, shortWrite: 60, longWrite: null));
+        accumulator.Add(WithWrites(input: 50, shortWrite: 20, longWrite: 30));
+        accumulator.Add(new UsageDetails { InputTokenCount = 5 });
+
+        var usage = accumulator.ToAgentModelUsage();
+
+        usage.ShouldNotBeNull();
+        usage!.CacheWriteInputTokens.ShouldBe(80);
+        usage.CacheWriteLongInputTokens.ShouldBe(30);
+        usage.InputTokens.ShouldBe(155, "the writes are counted INSIDE the input total, never added to it");
+    }
+
+    [Fact]
+    public void Another_models_cache_writes_stay_with_that_model()
+    {
+        var accumulator = new SideChannelUsageAccumulator();
+
+        accumulator.Add(WithWrites(input: 100, shortWrite: 10, longWrite: null));
+        accumulator.Add(WithWrites(input: 40, shortWrite: 25, longWrite: 5), "judging", "judge-model");
+
+        accumulator.ToAgentModelUsage()!.CacheWriteInputTokens.ShouldBe(10);
+
+        var share = accumulator.ToOtherModelUsages().ShouldHaveSingleItem();
+
+        share.Usage.CacheWriteInputTokens.ShouldBe(25);
+        share.Usage.CacheWriteLongInputTokens.ShouldBe(5);
+    }
+
+    [Fact]
+    public void A_reported_zero_cache_write_alone_is_enough_to_produce_a_usage_record()
+    {
+        var accumulator = new SideChannelUsageAccumulator();
+
+        accumulator.Add(WithWrites(input: null, shortWrite: 0, longWrite: null));
+
+        var usage = accumulator.ToAgentModelUsage();
+
+        usage.ShouldNotBeNull();
+        usage!.CacheWriteInputTokens.ShouldBe(0);
+        usage.CacheWriteLongInputTokens.ShouldBeNull();
+    }
+
+    private static UsageDetails WithWrites(long? input, long? shortWrite, long? longWrite)
+    {
+        var usage = new UsageDetails { InputTokenCount = input };
+
+        if (shortWrite is not null || longWrite is not null)
+        {
+            usage.AdditionalCounts = new AdditionalPropertiesDictionary<long>();
+        }
+
+        if (shortWrite is { } shortCount)
+        {
+            usage.AdditionalCounts![TraconUsageCounts.CacheWriteInputTokens] = shortCount;
+        }
+
+        if (longWrite is { } longCount)
+        {
+            usage.AdditionalCounts![TraconUsageCounts.CacheWriteLongInputTokens] = longCount;
+        }
+
+        return usage;
+    }
+
+    [Fact]
     public void A_reported_zero_alone_is_enough_to_produce_a_usage_record()
     {
         // Every total is zero, yet the provider DID measure something: a cache

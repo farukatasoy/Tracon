@@ -13854,6 +13854,26 @@
             ],
             "description": "The cost per million input tokens that were served from the provider\u0027s\nprompt cache. For reporting only.",
             "format": "double"
+          },
+          "cacheWriteCostPerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "The cost per million input tokens that were written into the provider\u0027s prompt cache\nwith the SHORT time to live (Anthropic: five minutes). For reporting only.",
+            "format": "double"
+          },
+          "cacheWriteLongCostPerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "The cost per million input tokens that were written into the provider\u0027s prompt cache\nwith the LONG time to live (Anthropic: one hour). For reporting only.",
+            "format": "double"
           }
         },
         "description": "A model\u0027s capabilities and limits."
@@ -15076,6 +15096,36 @@
             "description": "Gets the cache-read price, per million tokens, that produced\n\u0060CachedInputCost\u0060. \u0060null\u0060 when no cache rate\nwas applied \u2014 either the cache rate is undefined, or the provider\nreported no cache read at all \u2014 or when the run\u0027s tokens were priced at\nmore than one model.",
             "format": "double"
           },
+          "cacheWriteCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the cost of the input tokens that were written into the provider\u0027s prompt cache,\nboth time-to-live classes together, or \u0060null\u0060 when no cache write was\npriced.",
+            "format": "double"
+          },
+          "cacheWritePricePerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the price, per million tokens, of a cache write with the SHORT time to live that\nproduced part of \u0060CacheWriteCost\u0060. \u0060null\u0060 when no such price\nwas applied \u2014 it is undefined, or the provider reported no short-lived write \u2014 or when\nthe run\u0027s tokens were priced at more than one model.",
+            "format": "double"
+          },
+          "cacheWriteLongPricePerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the price, per million tokens, of a cache write with the LONG time to live that\nproduced part of \u0060CacheWriteCost\u0060. Same rules as \u0060CacheWritePricePerMillionTokens\u0060.",
+            "format": "double"
+          },
           "currency": {
             "type": [
               "null",
@@ -16276,6 +16326,24 @@
             "description": "The input tokens that were served from the prompt cache. Counted INSIDE\n\u0060InputTokens\u0060, so the two must not be added together.",
             "format": "int64"
           },
+          "cacheWriteInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The input tokens that were written into the provider\u0027s prompt cache with the SHORT\ntime to live. Counted INSIDE \u0060InputTokens\u0060, so the two must not be added together.",
+            "format": "int64"
+          },
+          "cacheWriteLongInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The input tokens that were written into the provider\u0027s prompt cache with the LONG\ntime to live. Counted INSIDE \u0060InputTokens\u0060.",
+            "format": "int64"
+          },
           "reasoningTokens": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -16510,6 +16578,16 @@
             "description": "Gets the total cached-input cost across the tree.",
             "format": "double"
           },
+          "cacheWriteCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the total cache-write cost across the tree.",
+            "format": "double"
+          },
           "currency": {
             "type": [
               "null",
@@ -16609,6 +16687,26 @@
               "string"
             ],
             "description": "Gets the audio output tokens. Counted INSIDE \u0060OutputTokens\u0060.",
+            "format": "int64"
+          },
+          "cacheWriteInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the input tokens the provider wrote into its prompt cache with the SHORT time to\nlive (Anthropic: five minutes). Counted INSIDE \u0060InputTokens\u0060.",
+            "format": "int64"
+          },
+          "cacheWriteLongInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the input tokens the provider wrote into its prompt cache with the LONG time to\nlive (Anthropic: one hour). Counted INSIDE \u0060InputTokens\u0060.",
             "format": "int64"
           }
         },

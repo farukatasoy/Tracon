@@ -11,7 +11,9 @@ namespace Tracon;
 /// <c>Microsoft.Extensions.AI.UsageDetails</c>, whose documentation states that
 /// cached input tokens are part of the input token count. Adding
 /// <see cref="CachedInputTokens"/> to <c>InputTokens</c> therefore
-/// counts the same tokens twice.
+/// counts the same tokens twice. The two cache-write counters
+/// (<see cref="CacheWriteInputTokens"/>, <see cref="CacheWriteLongInputTokens"/>) follow the
+/// same rule.
 /// </para>
 /// <para>
 /// A field a provider does not report stays <see langword="null"/>; it is
@@ -59,6 +61,34 @@ public sealed record RunUsage
     /// <summary>Gets the audio output tokens. Counted INSIDE <c>OutputTokens</c>.</summary>
     /// <remarks>Recorded for reporting; it carries no separate rate yet.</remarks>
     public long? AudioOutputTokens { get; init; }
+
+    /// <summary>
+    /// Gets the input tokens the provider wrote into its prompt cache with the SHORT time to
+    /// live (Anthropic: five minutes). Counted INSIDE <c>InputTokens</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A provider that bills the write apart from plain input (Anthropic) charges more for it
+    /// than for input; <see cref="ModelDescriptor.CacheWriteCostPerMillionTokens"/> is the
+    /// price of these tokens. While no price is defined they stay in the full-priced input,
+    /// which is what Tracon did before this field existed.
+    /// </para>
+    /// <para>
+    /// <see langword="null"/> when the provider reports no cache write for the call, including
+    /// a call that wrote nothing.
+    /// </para>
+    /// </remarks>
+    public long? CacheWriteInputTokens { get; init; }
+
+    /// <summary>
+    /// Gets the input tokens the provider wrote into its prompt cache with the LONG time to
+    /// live (Anthropic: one hour). Counted INSIDE <c>InputTokens</c>.
+    /// </summary>
+    /// <remarks>
+    /// The price is <see cref="ModelDescriptor.CacheWriteLongCostPerMillionTokens"/>. Same
+    /// rules as <see cref="CacheWriteInputTokens"/>.
+    /// </remarks>
+    public long? CacheWriteLongInputTokens { get; init; }
 }
 
 /// <summary>Error information for a failed run.</summary>
@@ -93,7 +123,7 @@ public sealed record RunError
 /// A run can spend tokens on more than one model: the context compaction
 /// summarizer and the <c>aiJudge</c> loop criterion's judge can run on models
 /// of their own. Each model's share is then priced at that model and the cost
-/// terms are the sum of the shares. The three <c>*PricePerMillionTokens</c>
+/// terms are the sum of the shares. The <c>*PricePerMillionTokens</c>
 /// rate fields are <see langword="null"/> on such a cost — one rate cannot
 /// describe a total that several rates produced. A share whose model has no
 /// price adds nothing; <see cref="Source"/> is <see cref="PricingSource.Unknown"/>
@@ -110,10 +140,10 @@ public sealed record RunCost
     /// when the run's tokens were priced at more than one model.
     /// </summary>
     /// <remarks>
-    /// This is not a fourth addend of <see cref="Total"/>: it is the rate, not
+    /// This is not an addend of <see cref="Total"/>: it is the rate, not
     /// an amount. Adding it to the cost total would double-count the same charge
     /// on a different scale — <see cref="Total"/> sums only <see cref="InputCost"/>,
-    /// <see cref="OutputCost"/> and <see cref="CachedInputCost"/>.
+    /// <see cref="OutputCost"/>, <see cref="CachedInputCost"/> and <see cref="CacheWriteCost"/>.
     /// </remarks>
     public decimal? InputPricePerMillionTokens { get; init; }
 
@@ -158,6 +188,43 @@ public sealed record RunCost
     /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
     public decimal? CachedInputPricePerMillionTokens { get; init; }
 
+    /// <summary>
+    /// Gets the cost of the input tokens that were written into the provider's prompt cache,
+    /// both time-to-live classes together, or <see langword="null"/> when no cache write was
+    /// priced.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The priced tokens are <strong>subtracted</strong> from <see cref="InputCost"/> and
+    /// charged here instead, like the cache read in <see cref="CachedInputCost"/>: the fields
+    /// still add up to the run's input spend and must not be double counted. This is a FOURTH
+    /// addend of <see cref="Total"/>, not a subset of <see cref="InputCost"/>.
+    /// </para>
+    /// <para>
+    /// A time-to-live class whose price is undefined does NOT push the run to
+    /// <see cref="PricingSource.Unknown"/> and is not subtracted: its tokens stay in
+    /// <see cref="InputCost"/> at the plain input rate, and the cost is exactly what it was
+    /// before cache writes were priced.
+    /// </para>
+    /// </remarks>
+    public decimal? CacheWriteCost { get; init; }
+
+    /// <summary>
+    /// Gets the price, per million tokens, of a cache write with the SHORT time to live that
+    /// produced part of <c>CacheWriteCost</c>. <see langword="null"/> when no such price
+    /// was applied — it is undefined, or the provider reported no short-lived write — or when
+    /// the run's tokens were priced at more than one model.
+    /// </summary>
+    /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
+    public decimal? CacheWritePricePerMillionTokens { get; init; }
+
+    /// <summary>
+    /// Gets the price, per million tokens, of a cache write with the LONG time to live that
+    /// produced part of <c>CacheWriteCost</c>. Same rules as <c>CacheWritePricePerMillionTokens</c>.
+    /// </summary>
+    /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
+    public decimal? CacheWriteLongPricePerMillionTokens { get; init; }
+
     /// <summary>Gets the currency, taken from <c>Tracon:Pricing:Currency</c>.</summary>
     /// <remarks>
     /// Required whenever <see cref="Source"/> is not <see cref="PricingSource.Unknown"/>:
@@ -169,7 +236,7 @@ public sealed record RunCost
     public required PricingSource Source { get; init; }
 
     /// <summary>
-    /// Gets the run's total cost — input, output and cache read together.
+    /// Gets the run's total cost — input, output, cache read and cache write together.
     /// </summary>
     /// <returns>
     /// <see langword="null"/> when the run was never priced at all. Zero would
@@ -177,19 +244,21 @@ public sealed record RunCost
     /// </returns>
     /// <remarks>
     /// Every caller that needs "what did this run cost" must use THIS, never
-    /// <c>InputCost + OutputCost</c>. <see cref="CachedInputCost"/> is a third
-    /// addend, not a subset of <see cref="InputCost"/>: the resolver subtracts
-    /// the cached tokens out of the input charge and bills them here. A hand
-    /// written two-term sum under-reports every run that hit the prompt cache —
-    /// and a quota ceiling computed that way can be exceeded.
-    /// <see cref="InputPricePerMillionTokens"/>, <see cref="OutputPricePerMillionTokens"/>
-    /// and <see cref="CachedInputPricePerMillionTokens"/> are rates, not amounts —
+    /// <c>InputCost + OutputCost</c>. <see cref="CachedInputCost"/> and
+    /// <see cref="CacheWriteCost"/> are a third and a fourth addend, not subsets of
+    /// <see cref="InputCost"/>: the resolver subtracts the cached and the written tokens out
+    /// of the input charge and bills them here. A hand written two-term sum under-reports
+    /// every run that used the prompt cache — and a quota ceiling computed that way can be
+    /// exceeded.
+    /// <see cref="InputPricePerMillionTokens"/>, <see cref="OutputPricePerMillionTokens"/>,
+    /// <see cref="CachedInputPricePerMillionTokens"/>, <see cref="CacheWritePricePerMillionTokens"/>
+    /// and <see cref="CacheWriteLongPricePerMillionTokens"/> are rates, not amounts —
     /// they must never be added here.
     /// </remarks>
     public decimal? Total()
-        => this is { InputCost: null, OutputCost: null, CachedInputCost: null }
+        => this is { InputCost: null, OutputCost: null, CachedInputCost: null, CacheWriteCost: null }
             ? null
-            : (InputCost ?? 0m) + (OutputCost ?? 0m) + (CachedInputCost ?? 0m);
+            : (InputCost ?? 0m) + (OutputCost ?? 0m) + (CachedInputCost ?? 0m) + (CacheWriteCost ?? 0m);
 }
 
 /// <summary>
@@ -218,6 +287,15 @@ public sealed record RunTreeCost
     /// </remarks>
     public decimal? CachedInputCost { get; init; }
 
+    /// <summary>Gets the total cache-write cost across the tree.</summary>
+    /// <remarks>
+    /// This is a FOURTH addend of the tree's total, not a subset of
+    /// <see cref="InputCost"/>: every run's own <see cref="RunCost.InputCost"/>
+    /// already has its priced cache-write tokens subtracted out. A total that leaves it out
+    /// under-reports every tree that wrote to the prompt cache.
+    /// </remarks>
+    public decimal? CacheWriteCost { get; init; }
+
     /// <summary>Gets the currency.</summary>
     /// <remarks><see langword="null"/> when the tree's runs are priced in more than one (<see cref="CurrencyCount"/>).</remarks>
     public string? Currency { get; init; }
@@ -230,7 +308,7 @@ public sealed record RunTreeCost
     /// <para>
     /// Amounts in two currencies are never added: a sum across currencies is not an
     /// amount. Above one, <see cref="InputCost"/>, <see cref="OutputCost"/>,
-    /// <see cref="CachedInputCost"/> and <see cref="Currency"/> are <see langword="null"/>,
+    /// <see cref="CachedInputCost"/>, <see cref="CacheWriteCost"/> and <see cref="Currency"/> are <see langword="null"/>,
     /// and so is <see cref="Total"/>; the runs keep their own costs
     /// (<see cref="RunRecord.Cost"/>). Zero when no run in the tree carries a currency.
     /// </para>
@@ -243,13 +321,13 @@ public sealed record RunTreeCost
     /// </remarks>
     public int CurrencyCount { get; init; }
 
-    /// <summary>Gets the tree's total cost — input, output and cache read together.</summary>
+    /// <summary>Gets the tree's total cost — input, output, cache read and cache write together.</summary>
     /// <returns><see langword="null"/> when no run in the tree was ever priced.</returns>
-    /// <remarks>Same rule as <see cref="RunCost.Total"/>: never add only two of the three.</remarks>
+    /// <remarks>Same rule as <see cref="RunCost.Total"/>: never add only some of the four.</remarks>
     public decimal? Total()
-        => this is { InputCost: null, OutputCost: null, CachedInputCost: null }
+        => this is { InputCost: null, OutputCost: null, CachedInputCost: null, CacheWriteCost: null }
             ? null
-            : (InputCost ?? 0m) + (OutputCost ?? 0m) + (CachedInputCost ?? 0m);
+            : (InputCost ?? 0m) + (OutputCost ?? 0m) + (CachedInputCost ?? 0m) + (CacheWriteCost ?? 0m);
 }
 
 /// <summary>Everything needed to open a new run.</summary>

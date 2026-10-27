@@ -296,6 +296,8 @@ internal static class UnreadableProviderConfiguration
             ("Models:0:InputCostPerMillionTokens", "1.5"),
             ("Models:0:OutputCostPerMillionTokens", " 2.5 "),
             ("Models:0:CachedInputCostPerMillionTokens", "0.5"),
+            ("Models:0:CacheWriteCostPerMillionTokens", "1.25"),
+            ("Models:0:CacheWriteLongCostPerMillionTokens", " 2 "),
         ]);
 
         models(bound).ShouldHaveSingleItem().ShouldBe(new ModelDescriptor
@@ -313,6 +315,8 @@ internal static class UnreadableProviderConfiguration
             InputCostPerMillionTokens = 1.5m,
             OutputCostPerMillionTokens = 2.5m,
             CachedInputCostPerMillionTokens = 0.5m,
+            CacheWriteCostPerMillionTokens = 1.25m,
+            CacheWriteLongCostPerMillionTokens = 2m,
         });
     }
 

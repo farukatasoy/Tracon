@@ -46,6 +46,11 @@ public sealed class ReadViewColumnSetTests
         "input_price_per_mtok",
         "output_price_per_mtok",
         "cached_input_price_per_mtok",
+        "cache_write_input_tokens",
+        "cache_write_long_input_tokens",
+        "cache_write_cost",
+        "cache_write_price_per_mtok",
+        "cache_write_long_price_per_mtok",
     ];
 
     /// <summary>

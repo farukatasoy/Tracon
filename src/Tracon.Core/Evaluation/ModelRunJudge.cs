@@ -119,22 +119,10 @@ internal sealed class ModelRunJudge(
                 cancellationToken)
             .ConfigureAwait(false);
 
-        var usage = response.Usage is { } responseUsage
-            ? new RunUsage
-            {
-                InputTokens = responseUsage.InputTokenCount,
-                OutputTokens = responseUsage.OutputTokenCount,
-                TotalTokens = responseUsage.TotalTokenCount,
-
-                // The judge is a normal model call and hits the same prompt cache:
-                // without these the judge's own cost is resolved as if every input
-                // token were fresh.
-                CachedInputTokens = UsageBreakdown.CachedInputTokens(responseUsage),
-                ReasoningTokens = UsageBreakdown.ReasoningTokens(responseUsage),
-                AudioInputTokens = UsageBreakdown.AudioInputTokens(responseUsage),
-                AudioOutputTokens = UsageBreakdown.AudioOutputTokens(responseUsage),
-            }
-            : null;
+        // The judge is a normal model call and hits the same prompt cache: the whole breakdown
+        // travels with the usage, or the judge's own cost is resolved as if every input token
+        // were fresh.
+        var usage = response.Usage is { } responseUsage ? UsageBreakdown.ToRunUsage(responseUsage) : null;
 
         // 🚨 This is the judge's own cost and is also emitted with the
         // `tracon.judge.cost` tag. RunRecordingAgent.CompleteAsync has already

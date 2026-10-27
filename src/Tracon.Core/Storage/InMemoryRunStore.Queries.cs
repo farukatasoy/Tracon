@@ -203,10 +203,11 @@ internal sealed partial class InMemoryRunStore
         long input = 0, output = 0, total = 0;
         var sawUsage = record.Usage is not null;
 
-        // 🚨 The four breakdown counters stay NULL-PRESERVING while the three
+        // 🚨 The breakdown counters stay NULL-PRESERVING while the three
         // totals above sum from zero: a tree in which no provider ever reported
         // cache usage must report "not measured", not "measured zero".
         long? cachedInput = null, reasoning = null, audioInput = null, audioOutput = null;
+        long? cacheWrite = null, cacheWriteLong = null;
 
         void AccumulateUsage(RunUsage usage)
         {
@@ -218,6 +219,8 @@ internal sealed partial class InMemoryRunStore
             reasoning = Accumulate(reasoning, usage.ReasoningTokens);
             audioInput = Accumulate(audioInput, usage.AudioInputTokens);
             audioOutput = Accumulate(audioOutput, usage.AudioOutputTokens);
+            cacheWrite = Accumulate(cacheWrite, usage.CacheWriteInputTokens);
+            cacheWriteLong = Accumulate(cacheWriteLong, usage.CacheWriteLongInputTokens);
         }
 
         if (record.Usage is { } ownUsage)
@@ -229,6 +232,7 @@ internal sealed partial class InMemoryRunStore
         decimal? inputCost = null;
         decimal? outputCost = null;
         decimal? cachedInputCost = null;
+        decimal? cacheWriteCost = null;
         string? costCurrency = null;
         long unknownPricing = 0;
 
@@ -275,6 +279,13 @@ internal sealed partial class InMemoryRunStore
             if (cost.CachedInputCost is { } cc)
             {
                 cachedInputCost = (cachedInputCost ?? 0) + cc;
+            }
+
+            // 🚨 The FOURTH addend, for the same reason: each run's InputCost excludes the
+            // cache-written tokens it priced at their own rate.
+            if (cost.CacheWriteCost is { } cwc)
+            {
+                cacheWriteCost = (cacheWriteCost ?? 0) + cwc;
             }
         }
 
@@ -351,6 +362,8 @@ internal sealed partial class InMemoryRunStore
                     ReasoningTokens = reasoning,
                     AudioInputTokens = audioInput,
                     AudioOutputTokens = audioOutput,
+                    CacheWriteInputTokens = cacheWrite,
+                    CacheWriteLongInputTokens = cacheWriteLong,
                 }
                 : null,
             TreeCost = sawCost
@@ -358,6 +371,7 @@ internal sealed partial class InMemoryRunStore
                     inputCost,
                     outputCost,
                     cachedInputCost,
+                    cacheWriteCost,
                     pricedCurrency ?? costCurrency,
                     costCurrencies.Count,
                     unknownPricing)

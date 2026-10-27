@@ -69,7 +69,7 @@ internal abstract class SqlQueriesBase
     /// list here silently under-reports. <c>RunCost.Total()</c>, in
     /// <c>Tracon.Core</c>, is the C# twin of this list.
     /// </summary>
-    protected static readonly string[] CostAddends = ["input_cost", "output_cost", "cached_input_cost"];
+    protected static readonly string[] CostAddends = ["input_cost", "output_cost", "cached_input_cost", "cache_write_cost"];
 
     /// <summary>Builds the null-preserving sum of <see cref="CostAddends"/> over the current aggregate.</summary>
     /// <param name="alias">The table alias to qualify each addend with, or <see langword="null"/> for none.</param>
@@ -292,6 +292,14 @@ internal abstract class SqlQueriesBase
         new("non_token_unsummed", RunColumnSource.Tree),
         new("cost_currencies", RunColumnSource.Tree),
         new("non_token_currencies", RunColumnSource.Tree),
+        new("cache_write_input_tokens", RunColumnSource.Own),
+        new("cache_write_long_input_tokens", RunColumnSource.Own),
+        new("cache_write_cost", RunColumnSource.Own),
+        new("cache_write_price_per_mtok", RunColumnSource.Own),
+        new("cache_write_long_price_per_mtok", RunColumnSource.Own),
+        new("cache_write_input_tokens", RunColumnSource.Tree),
+        new("cache_write_long_input_tokens", RunColumnSource.Tree),
+        new("cost_cache_write", RunColumnSource.Tree),
     ];
 
     /// <summary>Gets the query that inserts a tool invocation record.</summary>

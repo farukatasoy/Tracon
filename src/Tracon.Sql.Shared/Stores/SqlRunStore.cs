@@ -215,7 +215,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableInt64(command, "output_tokens", completion.Usage?.OutputTokens);
         AddNullableInt64(command, "total_tokens", completion.Usage?.TotalTokens);
 
-        // 🚨 These four are counted INSIDE the totals above (the
+        // 🚨 These are counted INSIDE the totals above (the
         // Microsoft.Extensions.AI contract) and are written beside them, never
         // added to them. A counter the provider did not report stays NULL:
         // writing zero claims a measurement that was never made.
@@ -223,6 +223,8 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableInt64(command, "reasoning_tokens", completion.Usage?.ReasoningTokens);
         AddNullableInt64(command, "audio_input_tokens", completion.Usage?.AudioInputTokens);
         AddNullableInt64(command, "audio_output_tokens", completion.Usage?.AudioOutputTokens);
+        AddNullableInt64(command, "cache_write_input_tokens", completion.Usage?.CacheWriteInputTokens);
+        AddNullableInt64(command, "cache_write_long_input_tokens", completion.Usage?.CacheWriteLongInputTokens);
         AddNullableText(command, "error_type", completion.Error?.Type);
         AddNullableText(command, "error_message", completion.Error?.Message);
         Dialect.AddInt16(command, "error_class", completion.Error?.Class is { } errorClass ? (short)errorClass : null);
@@ -233,6 +235,9 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableDecimal(command, "output_price_per_mtok", completion.Cost?.OutputPricePerMillionTokens);
         AddNullableDecimal(command, "cached_input_cost", completion.Cost?.CachedInputCost);
         AddNullableDecimal(command, "cached_input_price_per_mtok", completion.Cost?.CachedInputPricePerMillionTokens);
+        AddNullableDecimal(command, "cache_write_cost", completion.Cost?.CacheWriteCost);
+        AddNullableDecimal(command, "cache_write_price_per_mtok", completion.Cost?.CacheWritePricePerMillionTokens);
+        AddNullableDecimal(command, "cache_write_long_price_per_mtok", completion.Cost?.CacheWriteLongPricePerMillionTokens);
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
@@ -281,6 +286,9 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableDecimal(command, "output_price_per_mtok", cost?.OutputPricePerMillionTokens);
         AddNullableDecimal(command, "cached_input_cost", cost?.CachedInputCost);
         AddNullableDecimal(command, "cached_input_price_per_mtok", cost?.CachedInputPricePerMillionTokens);
+        AddNullableDecimal(command, "cache_write_cost", cost?.CacheWriteCost);
+        AddNullableDecimal(command, "cache_write_price_per_mtok", cost?.CacheWritePricePerMillionTokens);
+        AddNullableDecimal(command, "cache_write_long_price_per_mtok", cost?.CacheWriteLongPricePerMillionTokens);
         AddNullableText(command, "cost_currency", cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
 
@@ -474,6 +482,10 @@ internal sealed class SqlRunStore : IRunStore
                 var currencies = ToCurrencyCount(reader, 18);
                 var mixed = CurrencyTotals.IsMixed(currencies);
 
+                // 19-20 (F-420): the cache writes, counted INSIDE inputTokens like the cache reads.
+                var cacheWriteInputTokens = reader.GetInt64(19);
+                var cacheWriteLongInputTokens = reader.GetInt64(20);
+
                 // Second result set: the breakdown by agent.
                 var byAgent = new List<RunAgentStatistics>();
 
@@ -634,6 +646,8 @@ internal sealed class SqlRunStore : IRunStore
                     OutputTokens = outputTokens,
                     TotalTokens = totalTokens,
                     CachedInputTokens = cachedInputTokens,
+                    CacheWriteInputTokens = cacheWriteInputTokens,
+                    CacheWriteLongInputTokens = cacheWriteLongInputTokens,
                     ReasoningTokens = reasoningTokens,
                     AudioInputTokens = audioInputTokens,
                     AudioOutputTokens = audioOutputTokens,
@@ -1103,6 +1117,8 @@ internal sealed class SqlRunStore : IRunStore
             ReasoningTokens = AddTreeCounter(reader, RunOrdinals.TreeReasoningTokens, ownUsage?.ReasoningTokens),
             AudioInputTokens = AddTreeCounter(reader, RunOrdinals.TreeAudioInputTokens, ownUsage?.AudioInputTokens),
             AudioOutputTokens = AddTreeCounter(reader, RunOrdinals.TreeAudioOutputTokens, ownUsage?.AudioOutputTokens),
+            CacheWriteInputTokens = AddTreeCounter(reader, RunOrdinals.TreeCacheWriteInputTokens, ownUsage?.CacheWriteInputTokens),
+            CacheWriteLongInputTokens = AddTreeCounter(reader, RunOrdinals.TreeCacheWriteLongInputTokens, ownUsage?.CacheWriteLongInputTokens),
         };
     }
 
@@ -1124,7 +1140,8 @@ internal sealed class SqlRunStore : IRunStore
     {
         if (reader.IsDBNull(RunOrdinals.InputTokens) && reader.IsDBNull(RunOrdinals.OutputTokens) && reader.IsDBNull(RunOrdinals.TotalTokens)
             && reader.IsDBNull(RunOrdinals.CachedInputTokens) && reader.IsDBNull(RunOrdinals.ReasoningTokens)
-            && reader.IsDBNull(RunOrdinals.AudioInputTokens) && reader.IsDBNull(RunOrdinals.AudioOutputTokens))
+            && reader.IsDBNull(RunOrdinals.AudioInputTokens) && reader.IsDBNull(RunOrdinals.AudioOutputTokens)
+            && reader.IsDBNull(RunOrdinals.CacheWriteInputTokens) && reader.IsDBNull(RunOrdinals.CacheWriteLongInputTokens))
         {
             return null;
         }
@@ -1138,6 +1155,8 @@ internal sealed class SqlRunStore : IRunStore
             ReasoningTokens = reader.IsDBNull(RunOrdinals.ReasoningTokens) ? null : reader.GetInt64(RunOrdinals.ReasoningTokens),
             AudioInputTokens = reader.IsDBNull(RunOrdinals.AudioInputTokens) ? null : reader.GetInt64(RunOrdinals.AudioInputTokens),
             AudioOutputTokens = reader.IsDBNull(RunOrdinals.AudioOutputTokens) ? null : reader.GetInt64(RunOrdinals.AudioOutputTokens),
+            CacheWriteInputTokens = reader.IsDBNull(RunOrdinals.CacheWriteInputTokens) ? null : reader.GetInt64(RunOrdinals.CacheWriteInputTokens),
+            CacheWriteLongInputTokens = reader.IsDBNull(RunOrdinals.CacheWriteLongInputTokens) ? null : reader.GetInt64(RunOrdinals.CacheWriteLongInputTokens),
         };
     }
 
@@ -1165,6 +1184,12 @@ internal sealed class SqlRunStore : IRunStore
             // configured -- which is NOT the same as PricingSource.Unknown.
             CachedInputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CachedInputCost),
             CachedInputPricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CachedInputPricePerMillionTokens),
+
+            // Appended in phase 253. NULL on every row written before the columns existed,
+            // and on every run whose write was not priced (no rate, or none reported).
+            CacheWriteCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CacheWriteCost),
+            CacheWritePricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CacheWritePricePerMillionTokens),
+            CacheWriteLongPricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CacheWriteLongPricePerMillionTokens),
             Currency = DbHelpers.GetNullableString(reader, RunOrdinals.CostCurrency),
             Source = (PricingSource)reader.GetInt16(RunOrdinals.PricingSource),
         };
@@ -1207,6 +1232,14 @@ internal sealed class SqlRunStore : IRunStore
             cachedInputCost = (cachedInputCost ?? 0) + ownCached;
         }
 
+        // The descendants' cache write: a FOURTH addend, for the same reason (phase 253).
+        var cacheWriteCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.TreeCostCacheWrite);
+
+        if (ownCost?.CacheWriteCost is { } ownWritten)
+        {
+            cacheWriteCost = (cacheWriteCost ?? 0) + ownWritten;
+        }
+
         // F-419: the query counts the descendants' currencies the own row does not carry,
         // so the own one, when it carries an amount, adds exactly one.
         var currencies = ToCurrencyCount(reader, RunOrdinals.TreeCostCurrencies)
@@ -1216,6 +1249,7 @@ internal sealed class SqlRunStore : IRunStore
             inputCost,
             outputCost,
             cachedInputCost,
+            cacheWriteCost,
             DbHelpers.GetNullableString(reader, RunOrdinals.TreeCostCurrency) ?? ownCost?.Currency,
             currencies,
             unknownPricing);

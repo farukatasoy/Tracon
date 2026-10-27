@@ -24,7 +24,7 @@ namespace Tracon;
 /// rate fields included.
 /// </description></item>
 /// <item><description>
-/// Otherwise every share is priced on its own and the three cost terms are
+/// Otherwise every share is priced on its own and the four cost terms are
 /// summed. The <c>*PricePerMillionTokens</c> rate fields stay
 /// <see langword="null"/>: one rate cannot describe a total that several rates
 /// produced, and <c>runs.model_id</c> names only the agent's model.
@@ -112,7 +112,7 @@ internal static class RunCostCombiner
     /// <param name="parts">The parts, the agent's own model first when it has one.</param>
     /// <returns>The combined cost.</returns>
     /// <remarks>
-    /// Sums the SAME three terms as <see cref="RunCost.Total"/>. A fourth cost
+    /// Sums the SAME four terms as <see cref="RunCost.Total"/>. A fifth cost
     /// term on <see cref="RunCost"/> must be added here too, or every run priced
     /// at two models under-reports it; <c>RunCostCombinerTests</c> fails when it
     /// is not.
@@ -125,6 +125,7 @@ internal static class RunCostCombiner
         decimal? inputCost = null;
         decimal? outputCost = null;
         decimal? cachedInputCost = null;
+        decimal? cacheWriteCost = null;
 
         foreach (var part in parts)
         {
@@ -146,6 +147,7 @@ internal static class RunCostCombiner
             inputCost = AddOrNull(inputCost, part.InputCost);
             outputCost = AddOrNull(outputCost, part.OutputCost);
             cachedInputCost = AddOrNull(cachedInputCost, part.CachedInputCost);
+            cacheWriteCost = AddOrNull(cacheWriteCost, part.CacheWriteCost);
         }
 
         if (first is null)
@@ -158,6 +160,7 @@ internal static class RunCostCombiner
             InputCost = inputCost,
             OutputCost = outputCost,
             CachedInputCost = cachedInputCost,
+            CacheWriteCost = cacheWriteCost,
             Currency = first.Currency,
             Source = first.Source,
         };

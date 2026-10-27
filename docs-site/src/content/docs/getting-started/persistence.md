@@ -219,6 +219,13 @@ appended to the table, no backfill, and no index change. Existing rows are left
 exactly as they are and read back with a null version, so the step costs the same
 whether the table holds a thousand rows or a million.
 
+The cache-write migration is of that shape too: `0066` on PostgreSQL, `0054` on SQL Server
+and `0053` on SQLite. It appends five nullable columns to `runs`, which hold the
+tokens, the charge and the unit prices of prompt-cache writes. Rows written before it read
+back with nulls. A database that turned on `EnableReadViews` also gets a second definition
+of `runs_v1`: its `total_cost` adds the write charge and the five columns are published
+at the end of the view ([Read contract views](/reference/read-views/)).
+
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
 Tracon then verifies but does not write. The diagnostics endpoint can report
 whether the schema is current, but it is deliberately not mapped by default because

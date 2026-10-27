@@ -80,4 +80,12 @@ internal static class RunOrdinals
     public const int TreeNonTokenUnsummed = 64;
     public const int TreeCostCurrencies = 65;
     public const int TreeNonTokenCurrencies = 66;
+    public const int CacheWriteInputTokens = 67;
+    public const int CacheWriteLongInputTokens = 68;
+    public const int CacheWriteCost = 69;
+    public const int CacheWritePricePerMillionTokens = 70;
+    public const int CacheWriteLongPricePerMillionTokens = 71;
+    public const int TreeCacheWriteInputTokens = 72;
+    public const int TreeCacheWriteLongInputTokens = 73;
+    public const int TreeCostCacheWrite = 74;
 }
