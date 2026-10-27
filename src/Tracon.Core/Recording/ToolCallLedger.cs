@@ -11,8 +11,9 @@ namespace Tracon;
 /// stream has those messages only when it succeeds, so a run that ended in an exception (a budget refusal at the
 /// next model call, a provider outage, a cancellation) wrote no row and no event for the calls it had made, and a
 /// run that succeeded could not tell how long a call took. The outermost layer of the tool chain
-/// (<see cref="CallRecordingAIFunction"/>) writes each call here the moment it starts and the moment it ends; the
-/// recorder reads the ledger once, when the run closes.
+/// (<see cref="CallRecordingAIFunction"/>) notes each call here, in memory, the moment it starts and the moment it
+/// ends; the recorder reads the ledger once, when the run closes. Nothing is stored before that: a process that dies
+/// while the run is open leaves no row for the calls only this ledger knew.
 /// </para>
 /// <para>
 /// The same ambient-write/scoped-read pattern as <see cref="ToolExplainedFailureAccumulator"/>: the ledger is made
@@ -22,10 +23,12 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>A call is written once.</strong> The message path and the ledger both know a call, so whoever writes its
-/// row first claims it (<see cref="Claim"/>), and the other leaves it alone. A run that streams, or that succeeded,
-/// wrote the row from the messages; the ledger gives the row its duration and its time, and the close step finds
-/// nothing left. A run that failed has no messages, and the close step writes what the ledger holds
-/// (<see cref="Unclaimed"/>).
+/// row first claims it (<see cref="Claim"/>), and the other leaves it alone. A run that answered wrote its rows from
+/// its messages. When it does not stream, the row takes its duration and its time from the ledger; when it streams,
+/// the tracker measures the duration itself, between the two contents of the call, and only claims. The close step
+/// writes what the ledger still holds (<see cref="Unclaimed"/>) only for a run that failed or was cancelled, because
+/// only such a run has no messages. In a run that answered, an unclaimed call is one that an earlier model link ran
+/// and a later link had answered again from its result: no row is written for it, so the call is not shown twice.
 /// </para>
 /// <para>
 /// Calls that run at the same time (<see cref="ToolLoopSettings.AllowConcurrentToolCalls"/>) write concurrently, so

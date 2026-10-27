@@ -27,7 +27,7 @@ namespace Tracon;
 /// <para>
 /// <strong>Every row is written once.</strong> A call is known to the messages and
 /// to the ledger, so each method here that produces a row first claims the call in
-/// the ledger, and the run's close step writes only the calls nobody claimed.
+/// the ledger. The run's close step writes the calls nobody claimed only when the run failed or was cancelled.
 /// </para>
 /// <para>
 /// This class is <strong>not thread-safe</strong>; each run has its own

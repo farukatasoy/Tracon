@@ -415,7 +415,7 @@ public sealed partial class RunRecordingAgent
     }
 
     /// <summary>
-    /// Writes the calls the tool chain ran and no message reported, when the run closes.
+    /// Writes the calls the tool chain ran and no message reported, when the run closes without an answer.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -424,6 +424,13 @@ public sealed partial class RunRecordingAgent
     /// Without this step such a run kept no row and no event for the calls it had made. A call the tool chain
     /// recorded in the run's <see cref="ToolCallLedger"/> is written here exactly as a message would have written
     /// it (the same code, so the same events, the same row, the same metric), stamped with the time it ran.
+    /// </para>
+    /// <para>
+    /// Only a run that closes <see cref="RunStatus.Failed"/> or <see cref="RunStatus.Canceled"/> comes here (the caller
+    /// decides). A run that answered has its rows from its messages. A call that only the ledger knows then is one
+    /// that an earlier model link ran and a later link had answered again from the recorded result
+    /// (<c>ModelBinding.Fallbacks</c>), or the first attempt of a repaired structured answer; a row for it would
+    /// read as a second execution of the call.
     /// </para>
     /// <para>
     /// The calls are written in the order they happened, so a start and an end that overlap another call's are
