@@ -34,9 +34,11 @@ public sealed partial class RunRecordingStagePolicyTests
     /// the value to the counter. The input stage is recorded where it happens, outside
     /// the writer: by the agent recorder, and by the workflow runner, which records a
     /// parameterized run's final values through the same store. The agent recorder's
-    /// second site counts the tool calls it could not write from the tool-call ledger
-    /// when the run closed, under the <c>tool_invocation</c> stage: the loss is the
-    /// same row the store would have failed to take.
+    /// second site is the <c>catch</c> of the step that writes the tool calls from the
+    /// tool-call ledger when a run fails or is cancelled. It counts what escaped the
+    /// writer (a value whose <c>ToString</c> throws while the arguments are written),
+    /// under the <c>tool_invocation</c> stage: the loss is the same row the store would
+    /// have failed to take. <c>RunRecordingAgentLedgerTests</c> drives that catch.
     /// </remarks>
     private static readonly (string File, int CallSites)[] AllowedCallSites =
     [

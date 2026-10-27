@@ -12,6 +12,7 @@ namespace Tracon.Core.UnitTests.Recording;
 public sealed class RunRecordingAgentLedgerTests
 {
     private const string ToolName = "lookup";
+    private const string Counter = TraconDiagnostics.RunRecordingFailureCounterName;
 
     [Fact]
     public async Task A_run_that_fails_after_a_tool_turn_keeps_the_row_and_the_events_of_the_call_it_made()
@@ -98,16 +99,82 @@ public sealed class RunRecordingAgentLedgerTests
         failure.ErrorType.ShouldBe("upstream_error");
         ran.ShouldBe(1);
 
-        collector.LongTags(TraconDiagnostics.RunRecordingFailureCounterName)
+        collector.LongTags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
+    }
+
+    [Fact]
+    public async Task A_store_that_refuses_the_tool_row_is_counted_once_and_the_run_still_closes_with_the_models_failure()
+    {
+        // The row of a call is a store write of its own, apart from the events. The store refuses it while the close
+        // step writes the calls the chain ran. The writer counts the loss once, at the stage of the row, and stops
+        // writing to the store, which is its rule after a failure (so the run row stays open, as for any store
+        // failure). The caller still gets the model's failure, and the closing event still reaches a sink.
+        using var factory = new TestMeterFactory();
+        using var collector = new MetricCollector(factory.Meter);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
+
+        var store = new FaultyRunStore(new InMemoryRunStore(tenantContext: FixedTenantContext.Default));
+        var sink = new CollectingSink();
+
+        var agent = CreateAgent(
+            store,
+            AsksForTheToolThenFails(beforeFailing: () => store.FailToolInvocations = true),
+            AIFunctionFactory.Create(() => "sunny", ToolName),
+            metrics: metrics,
+            sinks: [sink]);
+
+        var failure = await Should.ThrowAsync<TraconException>(async () => await agent.RunAsync("go"));
+
+        failure.ErrorType.ShouldBe("upstream_error");
+
+        collector.LongTags(Counter)
+            .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
+            .ShouldBe(RunRecordingStages.ToolInvocation);
+
+        sink.Events[^1].Type.ShouldBe(RunEventType.RunFailed);
+    }
+
+    [Fact]
+    public async Task A_tool_argument_that_cannot_be_printed_does_not_escape_the_close_step_and_the_run_still_closes()
+    {
+        // 🚨 The close step formats the call's arguments to write them, and a value's ToString is code the model's
+        // answer and a tool's caller control. Whatever it throws must stay in the close step: counted and logged, never
+        // thrown out of CompleteAsync. Escaping would leave the run open in the store and hand the caller the
+        // formatter's exception in place of the model's failure.
+        using var factory = new TestMeterFactory();
+        using var collector = new MetricCollector(factory.Meter);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
+
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var ran = 0;
+
+        var agent = CreateAgent(
+            store,
+            AsksForTheToolThenFails(arguments: new Dictionary<string, object?>(StringComparer.Ordinal) { ["order"] = new Unprintable() }),
+            AIFunctionFactory.Create(() => { ran++; return "sunny"; }, ToolName),
+            metrics: metrics);
+
+        var failure = await Should.ThrowAsync<TraconException>(async () => await agent.RunAsync("go"));
+
+        failure.ErrorType.ShouldBe("upstream_error");
+        ran.ShouldBe(1);
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        run.Status.ShouldBe(RunStatus.Failed, "the run was left open by the close step");
+
+        collector.LongTags(Counter)
+            .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
+            .ShouldBe(RunRecordingStages.ToolInvocation);
     }
 
     /// <summary>
     /// A model that asks for the tool on its first turn and fails on its second, the way a provider outage does after
     /// a tool turn. <paramref name="beforeFailing"/> runs just before the second turn fails.
     /// </summary>
-    private static FakeChatClient AsksForTheToolThenFails(Action? beforeFailing = null)
+    private static FakeChatClient AsksForTheToolThenFails(Action? beforeFailing = null, IDictionary<string, object?>? arguments = null)
     {
         var turn = 0;
 
@@ -117,7 +184,7 @@ public sealed class RunRecordingAgentLedgerTests
             {
                 return new ChatResponse(new ChatMessage(
                     ChatRole.Assistant,
-                    [new FunctionCallContent("call-1", ToolName, new Dictionary<string, object?>(StringComparer.Ordinal))]));
+                    [new FunctionCallContent("call-1", ToolName, arguments ?? new Dictionary<string, object?>(StringComparer.Ordinal))]));
             }
 
             beforeFailing?.Invoke();
@@ -131,7 +198,8 @@ public sealed class RunRecordingAgentLedgerTests
         FakeChatClient client,
         AIFunction tool,
         TimeProvider? clock = null,
-        TraconMetrics? metrics = null)
+        TraconMetrics? metrics = null,
+        IReadOnlyList<IRunEventSink>? sinks = null)
     {
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry(tool));
 
@@ -142,7 +210,8 @@ public sealed class RunRecordingAgentLedgerTests
             new TraconRunRecordingOptions(),
             NullLogger<RunRecordingAgent>.Instance,
             metrics: metrics,
-            timeProvider: clock);
+            timeProvider: clock,
+            sinks: sinks);
     }
 
     private static async Task<List<RunEvent>> ReadEventsAsync(InMemoryRunStore store, Guid runId)
@@ -155,5 +224,38 @@ public sealed class RunRecordingAgentLedgerTests
         }
 
         return events;
+    }
+
+    /// <summary>A value that cannot be turned into text, the way a foreign object's formatter may fail.</summary>
+    private sealed class Unprintable
+    {
+        public override string ToString() => throw new InvalidOperationException("this value cannot be printed");
+    }
+
+    /// <summary>Keeps every event it receives, in order.</summary>
+    private sealed class CollectingSink : IRunEventSink
+    {
+        private readonly List<RunEvent> _events = [];
+
+        public IReadOnlyList<RunEvent> Events
+        {
+            get
+            {
+                lock (_events)
+                {
+                    return [.. _events];
+                }
+            }
+        }
+
+        public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        {
+            lock (_events)
+            {
+                _events.Add(runEvent);
+            }
+
+            return ValueTask.CompletedTask;
+        }
     }
 }
