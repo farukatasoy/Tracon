@@ -71,6 +71,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   write reports it by adding the tokens to `UsageDetails.AdditionalCounts` under
   `TraconUsageCounts.CacheWriteInputTokens` (and `CacheWriteLongInputTokens`, for a provider with a second time
   to live). Tracon reads them in one place, so every provider gets the same pricing.
+- **`RunEventCustomTypes.OutputFiltered` (`tracon.output.filtered`): a run records when a provider's content filter
+  stops an answer that already has text.** The run still completes with the partial answer. The payload holds the
+  `provider` and never the answer, and it survives `RecordToolPayloads = false`. The agent run stream
+  (`POST /api/agents/{name}/run`) sends the event as a `custom` frame right before `done`, next to
+  `tracon.output.truncated`, with the same data `GET /api/runs/{id}/events` serves; a structured response gets the
+  event too, and the structured-response validator still decides whether the document is usable. A filtered answer with
+  no content at all still fails the run as `content_filtered`.
+
+### Changed
+
+- **`POST /v1/responses` reports a cut-off or filtered answer as `incomplete`.** Microsoft Agent Framework wrote
+  `status: "completed"` (and `response.completed` on a stream) for every finish reason. An answer the model cut off at
+  its output token limit or its context window now has `status: "incomplete"` and
+  `incomplete_details.reason: "max_output_tokens"`; an answer a content filter stopped after it wrote text has the
+  reason `content_filter`. The message item that was cut is `incomplete` too, and a stream ends with
+  `response.incomplete` in place of `response.completed`, as OpenAI's own stream does. Only the answer's final model
+  call decides, so a tool turn or an earlier loop iteration that hit the limit changes nothing, and the status does not
+  depend on run recording. **Upgrade note:** a client that took `status == "completed"` to mean a whole answer now sees
+  the truth for these answers. The OpenAI Python SDK's `stream.get_final_response()` now raises `RuntimeError` when the
+  stream ends with `response.incomplete`, as it already does against OpenAI's own incomplete stream: read the `response`
+  of the last event of the stream instead.
+- **The `custom` frames of the agent run stream come from a list of three types.** `tracon.output.filtered` joins
+  `tracon.output.truncated` (always) and `tracon.quota.threshold` (with `PublishThresholdToRunStream`). A client that
+  reads frames by name and ignores an unknown `customType` needs no change; a client that assumed the list holds two
+  types should handle a third.
 
 ### Fixed
 
