@@ -235,17 +235,41 @@ surface sends:
   `openai-responses` column.
 - The table is what the API surface sends, not what a model accepts. A model can still reject
   a field its surface sends: some OpenAI reasoning models answer a request that carries `stop` with
-  `400 unsupported_parameter`. That error is the provider's own and comes back as the run's failure.
+  `400 unsupported_parameter`. Name such a model in the catalog with `RejectedSamplingFields`
+  (see [the model catalog](#model-catalog-is-metadata-not-permission)), and a definition that sets the
+  field fails to compile instead of failing its first run. A model the catalog does not name is not checked.
 - A definition that sets a field the provider does not send fails to compile. The error
   names the field, the provider, and the providers that send it. `POST /api/agents/validate`
   reports it as `sampling_field_unsupported` at the field's path (for example `model.seed`),
   and saving the definition returns `400`. Nothing runs without the field.
 - A `Fallbacks` link gets the request options of the primary call, so it is held to the same
   table: a fallback on a provider that drops `Seed` makes the definition invalid.
+- **A value can be outside what the surface accepts.** The provider then refuses it, or worse, changes it.
+  The definition fails to compile, `POST /api/agents/validate` reports `sampling_value_out_of_range` at the
+  field's path with the value and the range, and saving returns `400`. A `Fallbacks` link is held to the
+  range of its own provider. The shipped providers state these ranges:
+
+  | Provider | `Seed` | `StopSequences` |
+  |---|---|---|
+  | `openai` | any 64-bit number | at most 4 |
+  | `openai-responses` | not sent | not sent |
+  | `azure-openai` | any 64-bit number | at most 4 |
+  | `google` | `-2147483648` to `2147483647` | at most 5 |
+  | `anthropic` | not sent | no limit on the count (see below) |
+
+- The Gemini API takes a 32-bit seed, and its client library does not check it: a larger seed would
+  reach the model as a different number and nothing would say so. Four stop sequences is the documented
+  limit of OpenAI and of Azure OpenAI. A `UseOpenAICompatible()` server, and an `openai` provider with
+  its own `Endpoint`, state no limit: such a server can accept more. Anthropic bounds the total length of
+  all stop sequences (2,500 characters) and not their number, so Tracon cannot check it and the
+  provider's own error comes back.
 - A provider you write sends none of these fields until it states them. Implement
   `ISamplingSupport` next to `IModelProvider` and return the `SamplingFields` its surface sends.
   The table above is what the shipped adapters send; Tracon measures it again when it upgrades
-  a provider SDK.
+  a provider SDK. To state a value range, return a `SamplingLimits` (`MinSeed`, `MaxSeed`,
+  `MaxStopSequences`) from the same interface. The member has a default body: a provider that
+  never states one is not checked. State a limit only when you measured it or the provider documents it,
+  because a range that is too narrow rejects a definition that would run.
 - **`ToolMode`** `required` makes the model call a tool; `required:<tool>` makes it call that
   one, and the tool must be in the definition's `ToolNames`. The requirement holds for the first
   model call of a turn only. The tool-call loop lifts it for the calls that follow, because the
@@ -259,8 +283,8 @@ surface sends:
 - **`AllowMultipleToolCalls`** on `anthropic` travels in the request's `tool_choice`. A definition
   that sets it with no `ToolMode` sends `auto` as the mode, which is what the provider does
   without one.
-- **`StopSequences`** has a limit on the number of entries that depends on the provider.
-  Tracon does not check it; the provider's own error comes back when it is exceeded.
+- **`StopSequences`** has a limit that depends on the provider (the table above). Tracon checks
+  the count where the provider states one; the provider's own error comes back for the rest.
 - An agent extension and the options of one run cannot set these fields. See
   [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/).
 
@@ -683,12 +707,13 @@ Every provider options type has a `Models` collection. It drives the console mod
 picker, capability hints, and cost calculation. It is not an allow list. A definition
 can use a model that is absent from the catalog.
 
-The capability flags do not carry equal weight, and only two of them are gates:
+The capability flags do not carry equal weight, and only three of them are gates:
 
 | Flag | What it does |
 |---|---|
 | `SupportsStructuredOutput` | **Enforced.** An agent requesting JSON output fails compilation when the model is *found* in the catalog with this explicitly `false`. A model absent from the catalog is not checked. See [Structured output](/guides/structured-output/) |
 | `SupportsSampling` | **Enforced.** `null` (the default) means unknown and checks nothing. When it is `false`, a definition that sets `Temperature` or `TopP` fails compilation, the validation report names the field as `sampling_unsupported`, and saving returns `400`. `Fallbacks` links are checked too, because they get the same parameters |
+| `RejectedSamplingFields` | **Enforced.** A name or a comma-separated list of the request fields the model rejects although its surface sends them: `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`. The default `None` checks nothing. A definition that sets a listed field fails compilation, the validation report names it as `sampling_field_rejected_by_model`, and saving returns `400`. `Fallbacks` links are checked too. A name that does not exist stops the host at start |
 | `MaxOutputTokens` | Read by the validation report: when a binding leaves its own limit empty and the provider's default is lower, a structured or high-effort agent gets an `output_truncation_risk` warning |
 | `SupportsTools` | Advisory metadata — nothing enforces it at run time |
 | `SupportsStreaming` | Advisory metadata — nothing enforces it at run time |

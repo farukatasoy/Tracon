@@ -201,7 +201,10 @@ never returned from the API, and never shown in the user interface.
 list: OpenAI model names and prices change much faster than a NuGet package release
 cycle. The catalog is not a validation list either — a model name absent from it can
 still be used; the list only feeds the model picker screen and the cost calculation of
-the user interface.
+the user interface. Two entries are checked when an agent is built: `SupportsSampling: false`
+refuses `Temperature` and `TopP`, and `RejectedSamplingFields` (for example
+`"RejectedSamplingFields": "StopSequences"`, for a reasoning model that answers `stop` with
+`400`) refuses the request fields it names, so a definition fails at once instead of at its first run.
 
 ## Links
 
