@@ -279,7 +279,7 @@ export const trAgents: Pick<Messages, keyof typeof enAgents> = {
   "tools.unused": 'kullanılmıyor',
   "tools.unusedTitle": "Hiçbir agent bu tool'a başvurmuyor.",
   "tools.noArguments": 'Bu tool argüman almaz.',
-  "tools.durationNote": 'Süre yalnız akışlı çalıştırmada ölçülür: akışsız bir çalıştırmada bütün mesajlar aynı anda gelir, bu yüzden çağrı ile sonucu arasındaki gerçek süre okunamaz.',
+  "tools.durationNote": "Tool zincirinden geçen her çağrının süresi, çalıştırma akışlı olsun olmasın ölçülür. Zincir dışındaki bir tool'un (örneğin hosted tool) süresi yalnız akışlı çalıştırmada ölçülür: akışsız çalıştırmada bütün mesajlar aynı anda gelir, bu yüzden çağrı ile sonucu arasındaki gerçek süre okunamaz.",
   "tools.neverCalled": 'Hiç çağrılmadı.',
   "tools.calls": 'çağrı',
   "tools.failed": 'başarısız',
