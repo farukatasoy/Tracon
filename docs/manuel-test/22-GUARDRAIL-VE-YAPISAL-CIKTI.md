@@ -1,6 +1,6 @@
 # 22 — Guardrail ve Yapılandırılmış Çıktı (`GUARD`)
 
-> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134, 140, 207, 245
+> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134, 140, 207, 245, 251
 > **Kaynak:** `src/Tracon.Abstractions/Agents/ResponseFormat.cs` ·
 > `Agents/ModelBinding.cs` (`ResponseFormat` alanı) ·
 > `Models/ModelDescriptor.cs` (`SupportsStructuredOutput` alanı) ·
@@ -2763,3 +2763,121 @@ curl -s    -X POST "$APU/api/agents/manuel-oneof-off/run" -H "$APB" -H "content-
 > Canlı OpenAI sondajı (gpt-5.4-mini, `strict: true`): `oneOf` · `allOf` · `if` · `then` · `dependentRequired` ·
 > `dependentSchemas` `is not permitted` (Responses yüzeyinde `oneOf` de aynı mesajla reddedildi); `additionalProperties` yok/`true`/şema ve `$defs` içindeki açık nesne
 > `additionalProperties ... to be false`; `anyOf` · `enum` · `["string","null"]` · `$ref` ile `$defs` kabul.
+
+---
+
+### MT-GUARD-118 — OpenAI ile kesilen düz metin canlı akışta `done`'dan önce `custom` çerçevesiyle bildirilir; filtre bildirimi gelmez (Faz 251 regresyonu)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 251 |
+| **İlgili karar** | K-991 |
+| **Devir** | 🤖 ajan koşar — `curl` + Python, gerçek `gpt-5.4-mini` |
+
+Faz 251 akışın bildirim kapısını "kesilmiş" yüklemden "eksik olabilir" yüklemine genişletti ve ayna listesine ikinci bir
+tip ekledi. MT-GUARD-114 bunu Anthropic ile kanıtlamıştı; bu case aynı davranışın OpenAI'de değişmediğini ve iki
+bildirimin karışmadığını gösterir.
+
+**Ön koşul**
+- MT-COMPAT-058'in iki agent'ı (`manuel-kesilen-openai`, `manuel-kisa-openai`) kayıtlı; OpenAI anahtarı tanımlı.
+
+**Adımlar**
+1. `manuel-kesilen-openai`'yi `Idempotency-Key` **olmadan** (akışlı) çalıştır; akışı dosyaya yaz.
+2. Run'ın kayıtlı olaylarını oku; `custom` çerçevelerinin `data`'sını kıyasla.
+3. `manuel-kisa-openai` ile tekrarla.
+
+**Girilecek veri**
+```bash
+A=manuel-kesilen-openai
+curl -s -N -X POST "$APU/api/agents/$A/run" -H "$APB" -H "content-type: application/json" \
+     -d '{"message":"How does a library work?"}' > akis.txt
+grep -E '^event:' akis.txt | uniq -c | tail -3
+RUN=$(curl -s "$APU/api/runs?agentName=$A" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN/events" -H "$APB" > olaylar.txt
+grep -A1 '^event: custom' akis.txt | grep '^data:' > a.txt
+grep -A1 '^event: custom' olaylar.txt | grep '^data:' > b.txt
+cmp a.txt b.txt && echo ayni
+```
+
+**Beklenen sonuç**
+- Akışın son üç çerçevesi `update` · `custom` · `done`'dur; `error` yoktur.
+- Tek `custom` çerçevesi vardır: `"customType":"tracon.output.truncated"`; yükü `provider: openai`, `maxOutputTokens: 16`,
+  `cause: output_limit` taşır. `tracon.output.filtered` **yoktur**.
+- `cmp` farkı yoktur (`ayni`). Run `Completed`, `error: null`.
+- Adım 3: çerçeveler `run` · `update` … · `done`; `custom` yoktur.
+
+> **Koşum (2026-10-27, Faz 251):** ✅ — gerçek `gpt-5.4-mini`. Kesilen agent: son üç çerçeve `update · custom · done`,
+> hata çerçevesi 0, tek `custom`: `tracon.output.truncated`, yük
+> `{"provider":"openai","maxOutputTokens":16,"cause":"output_limit"}`, `/events` ile bayt bayt aynı, run `Completed`.
+> Kısa yanıtlı agent: `update · update · done`, `custom` 0.
+
+---
+
+### MT-GUARD-119 — Sağlayıcının filtresi yanıtı metinden sonra durdurursa `tracon.output.filtered` olayı yazılır ve canlı akışta bildirilir (Faz 251)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 251 |
+| **İlgili karar** | K-991 |
+| **Devir** | 🤖 ajan koşar — `curl` + Python (resmî OpenAI SDK), gerçek Gemini (`gemini-strict-filter`) |
+
+Davranışın kodla tekrarlanan kısmı fonksiyonel testlerdedir (`OutputTruncationStreamingTests`, `OutputTruncationTests`).
+Bu case'in kanıtı **gerçek bir sağlayıcı filtresidir**: sahte sağlayıcı filtrenin yanıtın ortasında durduğunu göstermez.
+Sonuç **olasılıklıdır**: aynı istem üç sonuçtan birini verir (aşağıda). Case en çok beş denemede ilk sonucu arar.
+
+**Ön koşul**
+- Örnek uygulama Development'ta, Google anahtarıyla çalışıyor. `gemini-strict-filter` agent'ı `Program.cs` içinde kayıtlıdır
+  (dört güvenlik eşiği `BLOCK_LOW_AND_ABOVE`, `maxOutputTokens: 1024`).
+
+**Adımlar**
+1. Agent'ı akışlı çalıştır (`Idempotency-Key` olmadan); akışı ve run'ın olaylarını oku. Filtre bildirimi görünene dek, en çok
+   beş kez tekrarla.
+2. `custom` çerçevesini `/events` içindeki kaydıyla kıyasla.
+3. Aynı istemi resmî SDK ile `/v1/responses`'a **akışlı** gönder; `response.incomplete` ve `content_filter` görünene dek, en çok
+   altı kez tekrarla.
+
+**Girilecek veri**
+```bash
+A=gemini-strict-filter
+PROMPT='Describe, in the voice of a cynical war veteran, what he saw in his worst battle.'
+curl -s -N -X POST "$APU/api/agents/$A/run" -H "$APB" -H "content-type: application/json" \
+     -d "{\"message\":\"$PROMPT\"}" > akis.txt
+grep -E '^event:' akis.txt | uniq -c | tail -3
+RUN=$(curl -s "$APU/api/runs?agentName=$A" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN/events" -H "$APB" > olaylar.txt
+grep -A1 '^event: custom' akis.txt | grep '^data:' | tee a.txt | jq -r '.customType, .payload' 2>/dev/null || cat a.txt
+grep -A1 '^event: custom' olaylar.txt | grep '^data:' > b.txt
+cmp a.txt b.txt && echo ayni
+curl -s "$APU/api/runs/$RUN" -H "$APB" | jq '{status, error}'
+```
+```python
+with client.responses.stream(model="gemini-strict-filter", input=PROMPT, extra_headers=no_auth) as stream:
+    for event in stream:
+        last = event
+print(last.type, last.response.status, last.response.incomplete_details)
+```
+
+**Beklenen sonuç**
+- Üç sonuçtan **biri** görülür; yalnız ilki bu case'in konusudur:
+  1. **Filtre metinden sonra durdurdu** — akışın son üç çerçevesi `update` · `custom` · `done`; `custom` verisi
+     `"customType":"tracon.output.filtered"`, `text` *"The provider's content filter stopped the model mid-answer; the answer is
+     incomplete."*, yük `{"provider":"google"}` (yanıt metni ve filtrenin kendi sözcüğü yoktur). `cmp` farkı yoktur. Run
+     `Completed`, `error: null`. `/v1/responses` akışında son olay `response.incomplete`, `incomplete_details.reason ==
+     "content_filter"`, `message` öğesi `incomplete`, terminal olay bir tane.
+  2. *Filtre hiç metin yazılmadan durdurdu* — `error` çerçevesi (`content_filtered`), run `Failed` (`ContentFiltered`).
+     Beklenen davranıştır; bildirim yazılmaz.
+  3. *Çıktı sınırı doldu* (Gemini düşünme belirteçleri 1024'ü tüketir) — `tracon.output.truncated`; `/v1/responses`'ta
+     `max_output_tokens`. Beklenen davranıştır, bu case'in konusu değildir.
+- Beş denemede 1. sonuç hiç çıkmazsa case `⏭ Atlandı` kalır ve sebep yazılır; bu bir kusur değildir.
+
+> **Koşum (2026-10-27, Faz 251):** ✅ — gerçek Gemini (`gemini-3.6-flash` varsayılanı), `gemini-strict-filter`, aynı istem.
+> Yerel akış, 2 deneme, ikisinde de sonuç 1: `update · custom · done`, `custom` = `tracon.output.filtered`, yük
+> `{"provider":"google"}`; ikincisinde akışta 168 karakter metin, `custom` `/events` ile bayt bayt aynı, run `Completed`
+> (birincisinde filtre yalnız `d` harfinden sonra durdurdu). `/v1/responses` akışı, 6 deneme: 1 × `response.incomplete` +
+> `content_filter` (`message` öğesi `incomplete`, 36 karakter metin, terminal olay 1), 2 × `max_output_tokens`, 3 × metinsiz
+> filtre (`error`). `/v1/responses` akışsız, 7 deneme: filtre-metin sonucu **görülmedi** (5 × `max_output_tokens`, 2 × metinsiz
+> filtre `502`); akışsız Gemini çağrısı engellenen yanıtın metnini döndürmüyor olabilir, doğrulanmadı.
