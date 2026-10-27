@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -479,6 +481,47 @@ public sealed class FinishReasonDetectingChatClientTests
     }
 
     [Fact]
+    public async Task A_store_that_cannot_take_the_filter_notice_does_not_fail_the_answer()
+    {
+        // Observability does not break functionality: the writer gives up on the run's record and the answer the
+        // user already holds is returned.
+        var refusing = DispatchProxy.Create<IRunStore, NoticeRefusingRunStore>();
+        var proxy = (NoticeRefusingRunStore)(object)refusing;
+        proxy.Inner = new InMemoryRunStore();
+
+        var runId = TraconId.NewId();
+        var writer = new RunEventWriter(refusing, new TraconRunRecordingOptions(), NullLogger.Instance, runId, metrics: null);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = runId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+
+        using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, "partial answer")],
+            FinishReason = ChatFinishReason.ContentFilter,
+        }));
+
+        TraconRunContext.SetCurrent(new AgentRunScope { RunId = runId, RootRunId = runId, Writer = writer });
+
+        try
+        {
+            var response = await chatClient.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")],
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            response.Text.ShouldBe("partial answer");
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        proxy.Attempts.ShouldBe(1);
+        writer.IsDisabled.ShouldBeTrue("the failed write switches the run's recording off, it does not throw");
+    }
+
+    [Fact]
     public async Task A_filtered_response_outside_a_run_passes_through()
     {
         // No scope, no writer: nothing to record, nothing to fail.
@@ -583,6 +626,41 @@ public sealed class FinishReasonDetectingChatClientTests
         }
 
         return events;
+    }
+
+    /// <summary>
+    /// A run store that behaves like the in-memory one except that it refuses the filter notice, the way a
+    /// store whose events table went away does.
+    /// </summary>
+    public class NoticeRefusingRunStore : DispatchProxy
+    {
+        private int _attempts;
+
+        public IRunStore Inner { get; set; } = null!;
+
+        public int Attempts => Volatile.Read(ref _attempts);
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (string.Equals(targetMethod?.Name, nameof(IRunStore.AppendEventAsync), StringComparison.Ordinal)
+                && args?[0] is RunEvent { CustomType: RunEventCustomTypes.OutputFiltered })
+            {
+                Interlocked.Increment(ref _attempts);
+
+                return new ValueTask(Task.FromException(new InvalidOperationException("the events table is unavailable")));
+            }
+
+            try
+            {
+                return targetMethod!.Invoke(Inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+
+                throw;
+            }
+        }
     }
 
     private static ModelBinding Binding => new() { Provider = "fake", Model = "fake-model" };
