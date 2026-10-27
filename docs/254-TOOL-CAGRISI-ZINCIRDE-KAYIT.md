@@ -227,7 +227,7 @@ tests/Tracon.AspNetCore.FunctionalTests/…SkillScriptBudgetTests.cs   # yeni ya
 - [x] Bütçe reddi `script.denied` yazar; istisna kimliği `run_budget_exceeded` aynen — `SandboxedSkillScriptRunnerTests.Budget` (birim) + `SkillScriptBudgetTests` (fonksiyonel); canlı: case 2
 - [x] Betik yolu uçtan uca fonksiyonel testte; token bütçesi testi gerçek kullanım yolunda — `SkillScriptBudgetTests` (model → onay → devam run'ı → betik) + `ToolBudgetGateTests.A_tool_does_not_start_once_the_turn_that_asked_for_it_spent_the_token_budget`
 - [x] `FakeModelProvider` aşırı yüklemeleri XML ve `Tracon.Testing/README.md` örneğiyle — ayrıca site `guides/testing.md` yöntem tablosu
-- [ ] Yeni `K-*` (`geri-dönüşü-pahalı`): tool satırının kayıt noktası zincirdir, reddedilen alternatif (içeride akışla koşmak) adıyla — taslak `K-NEW-1` (+ `K-NEW-2`, `K-NEW-3`) "Entegrasyon Notları"nda; defter satırını entegratör yazar
+- [x] Yeni `K-*` (`geri-dönüşü-pahalı`): tool satırının kayıt noktası zincirdir, reddedilen alternatif (içeride akışla koşmak) adıyla — `K-1110`, `K-1111`, `K-1112` işlendi (taslaklar Entegrasyon Notları b: `K-NEW-1`, `K-NEW-2`, `K-NEW-3`)
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1, 2), çıktı belgeye yazıldı — "Canlı Koşum Kanıtı" (2026-10-27, bellek içi depo, gerçek OpenAI)
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` temiz
@@ -472,10 +472,10 @@ GET  /tracon/api/runs/{id}/events           → run.started · tool.invoking(16:
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 17 sapma |
+| Düzeltme turu sayısı | 1 |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları

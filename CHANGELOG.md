@@ -88,6 +88,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `tracon.output.truncated`, with the same data `GET /api/runs/{id}/events` serves; a structured response gets the
   event too, and the structured-response validator still decides whether the document is usable. A filtered answer with
   no content at all still fails the run as `content_filtered`.
+- `FakeModelProvider.CallsTool(name, arguments, inputTokens, outputTokens)` and
+  `FakeModelProvider.CallsTools(inputTokens, outputTokens, calls)`: a turn that asks for tools reports its token usage,
+  so a test of the token budget, the usage or the cost goes through the path a real provider takes.
+- A skill script that the run tree's budget refuses writes a `script.denied` audit entry, as every other refused script
+  does. The exception and its `run_budget_exceeded` identity are unchanged.
 
 ### Changed
 
@@ -106,6 +111,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `tracon.output.truncated` (always) and `tracon.quota.threshold` (with `PublishThresholdToRunStream`). A client that
   reads frames by name and ignores an unknown `customType` needs no change; a client that assumed the list holds two
   types should handle a third.
+- `FakeModelProvider.CallsTool(string, object? = null)` is now two overloads, `CallsTool(string)` and
+  `CallsTool(string, object?)`. Existing calls compile and bind as before, and the compiled signature of the
+  two-argument call is unchanged.
+- The description of `GET /api/runs/{runId}/tools` and the documentation of `ToolInvocationRecord.Duration` no longer
+  say that a run that does not stream has no duration (no schema change).
 
 ### Fixed
 
@@ -114,6 +124,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   came back rounded and was written back the same way. The editor checks the text before it makes a number: it shows the
   error in English and Turkish, marks the field invalid, and keeps Validate, Save and the Try again button of a failed
   request off until the seed is replaced or cleared. The HTTP API still takes a 64-bit seed.
+- The tool rows and the tool events of a run that does not stream (a queued run, a run that continues an approval, an
+  agent step of a workflow, the non-streaming form of the `/v1/*` endpoints) survive a failure. Before, a run that
+  ended in an exception wrote no row and no event for the calls it had made: the budget refused its next model call,
+  the provider failed, somebody cancelled it, and `GET /api/runs/{runId}/tools` was empty exactly when the trail was
+  needed. A call that goes through the tool chain is now noted in memory where it happens, and the run writes it when
+  it closes after a failure or a cancellation. A run that answered keeps the rows its messages hold, so a call that
+  only the chain noted (a fallback model link was answered from the result of the first) gets no second row. A process
+  that stops while a run is open leaves no row for these calls. A hosted tool, the framework's own tools and an agent
+  called as a tool are still read from the messages of the answer.
+- A tool row of a run that does not stream carries its `duration`, and its `createdAt` is the moment the call settled.
+  Before, `duration` was empty and every row of the run carried the moment the run was written.
 
 ## [1.0.0-preview.6] - 2026-10-27
 

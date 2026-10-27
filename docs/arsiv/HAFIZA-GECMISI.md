@@ -1782,3 +1782,70 @@ tazele.
   onay sarmalayıcısının yerleşimiyle ilgili ilişkili not (MEAI'nin
   `ApprovalRequiredAIFunction`'ı `GetService` ile bulması):
   [`tool-onay-ve-yetkilendirme.md`](../hafiza/tool-onay-ve-yetkilendirme.md).
+
+## `docs/hafiza/tool-onay-ve-yetkilendirme.md`'den — Faz 254 (tool satırı defteri ve devam run'ı notlarına yer açmak için)
+
+- **Örnek uygulama rol denemesi için hazır bir bayrak taşıyor: `Tracon:Demo:Roles:Enabled`**
+  (2026-09-19, aynı vaka): üç politika adını kaydeder ve rolü
+  `X-Tracon-Demo-Role: reader|operator|admin` başlığından okuyan bir gösterim
+  şeması açar (`samples/Tracon.Api/Program.cs:104-125`,
+  `DemoRoleAuthentication.cs:46`). Rol davranışını ölçmek için `Program.cs`
+  değiştirmek **gerekmez** — turun "ayrı kimlik üretmenin yolu yok" tespiti bu
+  yüzden yanlıştı. Tarayıcıda başlık
+  `context.setExtraHTTPHeaders({...})` ile enjekte edilir; konsolun kendi
+  `fetch` sarmalayıcısı bu başlığı **göndermez**.
+- **Faz 243 notunun (tool bütçe kapısı) son cümlesinin eski metni; Faz 254'te yerine yenisi yazıldı** (zincirdeki araç satırları artık defterden gelir, `CallRecordingAIFunction`, K-1110): "Kayıt tuzağı: akışsız `RunAsync` bütçe reddiyle biterse hiç araç satırı yazmaz; araç satırını sınayan test `RunStreamingAsync` kullanır."
+
+## `docs/hafiza/cekirdek-calistirma.md`'den — Faz 254 (tool satırı defteri notlarına yer açmak için)
+
+- **🚨 Varsayılanı `true` olan bir kardeş alanın çalışması, yapılandırma
+  bağlamasının çalıştığını KANITLAMAZ** (2026-09-18, `HATA-S3-006`). Tur,
+  `RecordReasoningDeltas`'ın hiç kaydetmediğini gördü ve "options bağlama
+  sorununu" `RecordMessageDeltas` aynı koşuda çalıştığı için ekarte etti — ama
+  `RecordMessageDeltas` **varsayılan olarak `true`**'dur, yani bağlama hiç
+  olmasa da çalışırdı. Eleme geçersizdi ve kusur bir tur boyunca izole
+  edilemedi. **Kural:** bir ayarın gerçekten okunduğunu, varsayılanı
+  ARANAN DEĞERDEN FARKLI olan bir alanla kanıtla; ya da doğrudan yürürlükteki
+  değeri oku (bugün `/api/diagnostics` `runRecording`'i bildiriyor, K-804).
+- **🚨 Elle yazılmış bir DI fabrikası, kurucunun isteğe bağlı argümanlarını
+  sessizce atlayabilir** (2026-09-18, aynı vaka): `TraconDiagnosticsCollector`'ın
+  `TryAddSingleton(provider => new …)` fabrikası son iki parametreyi
+  (`IOptions<TraconOptions>`, `ILogger<…>`) hiç geçmiyordu. İkisi de `= null`
+  varsayılanlı olduğu için derleme ve testler yeşildi; sonuç, raporun kurulumun
+  değil **varsayılanların** ayarlarını söylemesi ve katalog okuma hatasının her
+  kurulumda sessizce yutulmasıydı. Kurucuya isteğe bağlı parametre eklerken
+  `grep -n "new <Tip>(" src/` ile fabrikayı da aç: `ActivatorUtilities` değil
+  elle yazılmış bir fabrika varsa yeni parametre **kendiliğinden** bağlanmaz.
+
+## `docs/hafiza/test-kosum-olcumleri.md`'den — Faz 253 (dördüncü vaka notuna yer açmak için)
+
+"Faz 91 taban ölçümü — 2026-08-23" bölümünün proje tablosu ve notu (tam metin):
+
+Tam testin 19 proje özeti:
+
+| Proje | Süre | Sonuç |
+|---|---:|---|
+| `Anthropic.UnitTests` | 0,244 s | 44/44 |
+| `Azure.UnitTests` | 0,222 s | 52/52 |
+| `Client.UnitTests` | 0,149 s | 3/3 |
+| `Google.UnitTests` | 0,369 s | 49/49 |
+| `Mcp.UnitTests` | 0,745 s | 30/30 |
+| `OpenAI.UnitTests` | 0,569 s | 87/87 |
+| `Embedded.Tests` | 5,717 s | 3/3 |
+| `Core.UnitTests` | 6,499 s | 1801/1801 |
+| `Cli.FunctionalTests` | 8,575 s | 15/15 |
+| `Generators.UnitTests` | 6,742 s | 156/156 |
+| `Voice.UnitTests` | 0,764 s | 43/43 |
+| `Workflows.UnitTests` | 3,504 s | 102/102 |
+| `Testing.UnitTests` | 12,152 s | 32/32 |
+| `Ui.E2ETests` | 29,811 s | 0/57 — yerel koşum altyapısı kırmızı |
+| `Sqlite.IntegrationTests` | 65,127 s | 591/592 — bir test kırmızı |
+| `PostgreSql.IntegrationTests` | 94,461 s | 638/638 |
+| `Templates.Tests` | 105,001 s | 32/32 |
+| `AspNetCore.FunctionalTests` | 155,219 s | 647/647 |
+| `SqlServer.IntegrationTests` | 156,919 s | 574/574 |
+
+Bu tablo ürün kusuru iddiası değildir. `Ui.E2ETests` için F-130 kırılganlık sınıfı
+zaten üç kez kanıtlanmıştır. SQLite kırmızı yolu Faz 91 değişiklikleriyle
+nedensel olarak ilişkili değildir; Faz 91 sonu aynı test ikinci kez izole ve
+tam koşumla ayrıştırılmalıdır.

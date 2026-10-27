@@ -23,34 +23,11 @@ süreçlerinde `MSBUILDDISABLENODEREUSE=1` ile alındı. Süreler wall-clock'tur
 | `docs-site` `npm run check` | 9,93 s · exit 1; yerel Astro koşumu Node 20.19.4'ü, Astro'nun istediği `>=22.12.0` yerine gördü |
 | Kapanış kapıları toplamı (yukarıdaki beş ayrı wall-clock koşum) | 316,05 s |
 
-Tam testin 19 proje özeti:
-
-| Proje | Süre | Sonuç |
-|---|---:|---|
-| `Anthropic.UnitTests` | 0,244 s | 44/44 |
-| `Azure.UnitTests` | 0,222 s | 52/52 |
-| `Client.UnitTests` | 0,149 s | 3/3 |
-| `Google.UnitTests` | 0,369 s | 49/49 |
-| `Mcp.UnitTests` | 0,745 s | 30/30 |
-| `OpenAI.UnitTests` | 0,569 s | 87/87 |
-| `Embedded.Tests` | 5,717 s | 3/3 |
-| `Core.UnitTests` | 6,499 s | 1801/1801 |
-| `Cli.FunctionalTests` | 8,575 s | 15/15 |
-| `Generators.UnitTests` | 6,742 s | 156/156 |
-| `Voice.UnitTests` | 0,764 s | 43/43 |
-| `Workflows.UnitTests` | 3,504 s | 102/102 |
-| `Testing.UnitTests` | 12,152 s | 32/32 |
-| `Ui.E2ETests` | 29,811 s | 0/57 — yerel koşum altyapısı kırmızı |
-| `Sqlite.IntegrationTests` | 65,127 s | 591/592 — bir test kırmızı |
-| `PostgreSql.IntegrationTests` | 94,461 s | 638/638 |
-| `Templates.Tests` | 105,001 s | 32/32 |
-| `AspNetCore.FunctionalTests` | 155,219 s | 647/647 |
-| `SqlServer.IntegrationTests` | 156,919 s | 574/574 |
-
-Bu tablo ürün kusuru iddiası değildir. `Ui.E2ETests` için F-130 kırılganlık sınıfı
-zaten üç kez kanıtlanmıştır. SQLite kırmızı yolu Faz 91 değişiklikleriyle
-nedensel olarak ilişkili değildir; Faz 91 sonu aynı test ikinci kez izole ve
-tam koşumla ayrıştırılmalıdır.
+Tam testin 19 proje özeti (taban): en uzun dört proje `SqlServer.IntegrationTests`
+156,9 s, `AspNetCore.FunctionalTests` 155,2 s, `Templates.Tests` 105,0 s ve
+`PostgreSql.IntegrationTests` 94,5 s. İki kırmızı (`Ui.E2ETests` 0/57 yerel koşum
+altyapısı, `Sqlite.IntegrationTests` 591/592) ürün kusuru iddiası değildir. Tam
+tablo ve not: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (Faz 253 turu).
 
 ## Faz 91 sonrası ölçümü — 2026-08-23
 
@@ -151,6 +128,15 @@ taban `55b8b9d5` ayrı worktree'de 47104 B ölçüldü. Kaynak, satıra eklenen 
 birimi sayım sütunu ve uzayan SQL metnidir (SQLite komut metnini her koşumda UTF-8'e
 çevirir); metin kısaltılınca +1536 B'den indi. Süre 818 → 956 µs oldu (kapı süreyi
 ölçmez; SQLite'ta her ağaç sütunu ayrı ilişkili alt sorgudur).
+
+**Dördüncü vaka (2026-10-28, Faz 253):** `QueryRuns` 48184 → 49032 B (+848 B)
+gerçekti: taban `d8579948` ayrı worktree'de 48184 B ölçüldü (taban çizgisi
+doğruydu), Faz 253'ün birleşimi tek başına (`708abd7e`) 49032 B verdi. Kaynak,
+`runs` satırının beş yazma sütunu taşımasıdır: her satır daha büyük bir `RunUsage`
+ve `RunCost` kurar (benchmark sorgusunun 50 satırında satır başına yaklaşık 17 B).
+`CacheHit` (0 B) ve `AppendEvent` (112 B) kımıldamadı. Taban
+`kapi.py performans --guncelle` ile yenilendi (`eca664b1`; süre alanları da
+değişir, yalnız bilgidir).
 
 ## Faz 178 — 🚨 `Barrier(N)` + `Task.Run`, N çekirdek sayısını aşınca kapıya ~70 sn ekler
 

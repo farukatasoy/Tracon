@@ -53,24 +53,7 @@
 - **🚨 Kiracıdan bağımsız arka plan döngüsünde ortam kiracısıyla okuma sessizce boş döner** (2026-10-12, F-344): ret olayı sırayı `ReadEventsAsync` ile arıyordu; başka kiracıda 0 buldu, claim'in `RunFailed`'ıyla çakıştı ve düştü. Sıra için `GetLastEventSequenceAsync`, okuma için `AmbientTenantScope.Begin(run.TenantId)`.
 - **🚨 K-640'ın bedeli: normalizasyon classifier'ın ÜSTÜNE konunca kümelemeyi yok eder** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-11 bütçe turu).
 
-- **🚨 Varsayılanı `true` olan bir kardeş alanın çalışması, yapılandırma
-  bağlamasının çalıştığını KANITLAMAZ** (2026-09-18, `HATA-S3-006`). Tur,
-  `RecordReasoningDeltas`'ın hiç kaydetmediğini gördü ve "options bağlama
-  sorununu" `RecordMessageDeltas` aynı koşuda çalıştığı için ekarte etti — ama
-  `RecordMessageDeltas` **varsayılan olarak `true`**'dur, yani bağlama hiç
-  olmasa da çalışırdı. Eleme geçersizdi ve kusur bir tur boyunca izole
-  edilemedi. **Kural:** bir ayarın gerçekten okunduğunu, varsayılanı
-  ARANAN DEĞERDEN FARKLI olan bir alanla kanıtla; ya da doğrudan yürürlükteki
-  değeri oku (bugün `/api/diagnostics` `runRecording`'i bildiriyor, K-804).
-- **🚨 Elle yazılmış bir DI fabrikası, kurucunun isteğe bağlı argümanlarını
-  sessizce atlayabilir** (2026-09-18, aynı vaka): `TraconDiagnosticsCollector`'ın
-  `TryAddSingleton(provider => new …)` fabrikası son iki parametreyi
-  (`IOptions<TraconOptions>`, `ILogger<…>`) hiç geçmiyordu. İkisi de `= null`
-  varsayılanlı olduğu için derleme ve testler yeşildi; sonuç, raporun kurulumun
-  değil **varsayılanların** ayarlarını söylemesi ve katalog okuma hatasının her
-  kurulumda sessizce yutulmasıydı. Kurucuya isteğe bağlı parametre eklerken
-  `grep -n "new <Tip>(" src/` ile fabrikayı da aç: `ActivatorUtilities` değil
-  elle yazılmış bir fabrika varsa yeni parametre **kendiliğinden** bağlanmaz.
+- **🚨 Varsayılanı `true` olan bir kardeş alanın çalışması bağlamanın çalıştığını KANITLAMAZ; elle yazılmış DI fabrikası isteğe bağlı kurucu argümanlarını atlayabilir** (2026-09-18, `HATA-S3-006`): ayarın okunduğunu varsayılanı ARANAN DEĞERDEN FARKLI bir alanla kanıtla ya da yürürlükteki değeri oku (`/api/diagnostics` `runRecording`, K-804). Kurucuya isteğe bağlı parametre eklerken `grep -n "new <Tip>(" src/` ile elle yazılmış fabrikayı da aç (`TraconDiagnosticsCollector`: derleme ve testler yeşildi). Tam metin: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (Faz 254 turu).
 - **🚨 Bir bekleme sınırı beklemeyi bitirir, İŞİ bitirmez — token'ı ayrıca iptal etmiyorsan hiçbir şeyi iptal etmemişsindir** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 - **🚨 Bir accumulator'a yazılan değer, onu ALAN kod çoktan koştuysa sessizce düşer** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 - **🚨 Bir istisna mesajını modele göstermeye başladığın an, biçimi de bir
@@ -82,3 +65,5 @@
 - **🚨 Kota her run'da yazılır; ağaç toplamı yalnız webhook içindir** (2026-10-14, F-418, K-990; F-383/K-913'ü değiştirdi): kök ağacı kotaya yazmaz, her run kendini yazar (çocuk `Runs = 0`, kimlik `AgentRunBudget.Account`'ta). `ReadTreeConsumptionAsync` webhook'un kapanış anı görüntüsü için kalır: kota kaydı terminal yazımdan ÖNCE koşar (Faz 146), o an kökün `usage`'ı depoda `null`dur, yani `GetRunAsync(kök).TreeUsage` = torunlar; kökün bellekteki usage'ı bir kez eklenir. Okuma yalnız `StartedRuns > 0` iken. Kapı: `BackgroundChildQuotaTests`, `AgentTreeQuotaTests`.
 - **🚨 "Tekrar aynı cevabı alır mı?" tek yerde cevaplanır: `FinalFailure`** (2026-10-14, F-429, K-982): işçi, düğüm yeniden denemesi, çevrimiçi değerlendirme okur. Karar kararlı kimlikten verilir, metinden değil: kiracı adında `timeout` geçen ret geçici sayıldı (F-442). `compilation_failed` kesin değildir: derleme ölçüt fabrikasının ve istemci kurulumunun geçici hatasını sarar. Başarısız denemeyi kaydeden yazım atarsa asıl hatayı gizler; o yazım da tekrarlanır ve atmaz.
 - **🚨 Başkasının kaynağını `SafeCancellation.TryCancel` ile iptal et** (F-564): `.Values` anlık görüntüdür; biten run kaynağı dispose eder, `Cancel()` ObjectDisposedException atar.
+- **🚨 Bir tool satırı üreten her yol önce defterde çağrıyı TALEP eder; talep unutulursa kapanışta aynı çağrı ikinci kez yazılır** (2026-10-27, Faz 254, K-1110): `ToolInvocationTracker.OnResult`/`DrainUnfinished` → `ToolCallLedger.Claim`. Kapanış adımı yalnız `Failed`/`Canceled` kapanışında koşar: başarılı run'da bir yedek bağlantının yanıtlandığı çağrı çift satır olurdu. Yeni bir satır üretme yolu eklerken `Claim` çağır.
+- **🚨 `AgentRunScope.ToolCalls` `PrepareRun`'da kurulur; zincir kapsam AÇMAZ** (2026-10-27, Faz 254, K-1110): `AsyncLocal` yazımı async yardımcıdan çağırana akmaz. Defteri `null` bırakan kapsam (workflow'un kendi kapsamı) sessizce eski yolu (mesaj) kullanır.
