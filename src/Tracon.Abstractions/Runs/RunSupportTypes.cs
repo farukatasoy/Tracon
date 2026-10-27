@@ -211,7 +211,7 @@ public sealed record RunCost
 
     /// <summary>
     /// Gets the price, per million tokens, of a cache write with the SHORT time to live that
-    /// produced part of <see cref="CacheWriteCost"/>. <see langword="null"/> when no such price
+    /// produced part of <c>CacheWriteCost</c>. <see langword="null"/> when no such price
     /// was applied — it is undefined, or the provider reported no short-lived write — or when
     /// the run's tokens were priced at more than one model.
     /// </summary>
@@ -220,8 +220,7 @@ public sealed record RunCost
 
     /// <summary>
     /// Gets the price, per million tokens, of a cache write with the LONG time to live that
-    /// produced part of <see cref="CacheWriteCost"/>. Same rules as
-    /// <see cref="CacheWritePricePerMillionTokens"/>.
+    /// produced part of <c>CacheWriteCost</c>. Same rules as <c>CacheWritePricePerMillionTokens</c>.
     /// </summary>
     /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
     public decimal? CacheWriteLongPricePerMillionTokens { get; init; }
