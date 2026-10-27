@@ -389,6 +389,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | İş |
 |---|---|---|
+| 🟠 | **F-710** · Sürüm notları sayfası sürüm başına sayfaya bölünür (`preview.7` kesiminden önce) | Ölçüldü 2026-10-27 (`preview.6` kesimi, `site-deploy.sh --dry-run`): `reference/changelog/index.html` 131 792 B gzip, tavan 110 000 B. `check-weight.mjs`'in yazılı planı bölmekti; bakımcı bu sürüm için tavanı 150 000 B'ye yükseltti (UR-014 turu, 👤). Yapılacak: `build-changelog.mjs` her sürümü kendi sayfasına yazar, `/reference/changelog/` indeks olur ve `v<sürüm>` çapalarını (`PackageReleaseNotes`, `changelog.github_release_body`) tarih ve özet paragrafıyla korur; sürüm sayfaları sidebar'a girmez. İçerik, bağlantı, SEO ve ağırlık kapıları yeni sayfaları kapsar; `PAGE_CEILINGS` sürüm sayfaları için ölçülür |
 | 🟡 | **F-625** · Karma zincirin agent düğümü ve `GetWorkflowAgentStep` tool onayını bekleyemez | Faz 230 ölçümü (2026-10-21): bu düğümler MAF host executor'ı değil `WorkflowAgentStepExecutor`'dır (`FunctionExecutor`); `agent.RunAsync` yanıtındaki `ToolApprovalRequestContent` düşer, `AddPortHandler` internal olduğundan düğüm istek yayınlayamaz. Ret sürer (K-1055, `hostsApproval` yok) | Düğüme port düğümü ve geri kenar eklemek (graf yapısı değişir → bekleyen run'ların checkpoint'i uyuşmaz; oturum geçmişi checkpoint'e taşınmalı) ya da düğümü host'a çevirmek (`TurnToken` aktarımı ölçüldü: sürmedi). Tüketici isteği olmadan açılmaz. Emsal: `WorkflowToolApprovalTests` |
 | 🟡 | **F-622** · Oturum kimliği uzunluğu SQL Server `nvarchar(200)` sınırını aşabilir | Faz 229 Açık Soru 2 (ölçülemedi, ortamda SQL Server yok): yerel run uçlarında `sessionId` uzunluğu doğrulanmıyor (`grep`: 0); 201 karakterlik kimlik SQL Server'da yazımda hata verir (beklenti: `500`). A2A bundan etkilenmez (kimlik 68 karakter) | Önce ölç: `POST /api/agents/{name}/run` 201 karakterlik `sessionId` ile SQL Server'da. `500` ise `kusur-giderme` (sınıf taraması: `conversation`, `previous_response_id`) |
 | 🟢 | **F-608** · Alt agent tool adı çakışma kuralı MAF sağlayıcılarının sabit tool adlarını görmez | Faz 228 denetimi 🟢1: `SubAgentToolNames.FindProblems` `ToolNames`, skill tool'ları, `search_knowledge` ve callable adlarına bakar. Harness'ın varsayılan açık `todos_*` ve `mode_get`/`mode_set` tool'ları ile `Memory.EnableFileMemory`'nin `file_memory_*` tool'ları `Microsoft.Agents.AI` 1.25.0'da sabit adlıdır (dize okuma; sağlayıcı-ad eşlemesi ölçülmedi). `todos-add` adlı bir callable agent sağlayıcıda iki aynı adlı tool üretir ve istek `400` ile düşer | Ad kümesini sağlayıcıdan okuyup (kod) ölç; yalnız ölçülen ad girer. Olasılık düşük |
@@ -596,7 +597,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-710**.
+numara: **F-711**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

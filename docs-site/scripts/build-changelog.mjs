@@ -149,7 +149,7 @@ description: What changed in every published Tracon version, with the entry each
 ---
 
 Every Tracon package is cut from one version line, so a release below covers
-all 20 NuGet packages and the npm client at once. Each package's release-notes
+every NuGet package of the family and the npm client at once. Each package's release-notes
 metadata links straight to the entry for the version you installed.
 
 Read [Versions and upgrades](/reference/versioning/) before you move between
