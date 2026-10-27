@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1040 kalem)
+## Arşivlenen Kararlar (1042 kalem)
 
 | K | Karar |
 |---|---|
@@ -1049,3 +1049,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1048 | `EvalCase.ExpectedTools` yerine `ExpectedToolCalls` (ad + isteğe bağlı argüman); eski HTTP anahtarı `400` alır (F-605) 👤 |
 | K-1049 | `toolCallArgsMatch` Tracon'un kendi kontrolüdür: değeri JSON anlamıyla karşılaştırır; beklenti `EvalItem`'a iki biçimde verilir (F-605) |
 | K-1050 | `eval_cases.expected_tool_calls` yeni sütun; eski `expected_tools` yazılmaz, okunur, düşürülmez; okunamayan metin vakayı düşürür (F-605) |
+| K-1051 | Workflow adımında tool onayı reddedilmez; MAF'ın dış istek portuyla workflow isteğine döner (K-103'ün workflow kapsamı) 👤 |
+| K-1052 | A2A oturum kimliği `a2a:` + SHA-256 özeti: kiracı, agent, çağıran, `contextId`; her parça uzunluk önekli (F-614, Faz 229) |

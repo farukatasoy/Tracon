@@ -16,7 +16,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
 | [251](251-KESIK-VE-FILTRELI-YANIT-SINYALI.md) | Kesik ve Filtreli Yanıtın Sinyali: Responses `incomplete` ve `tracon.output.filtered` | 📋 Planlandı |
-| [252](252-MODEL-BASINA-ISTEK-ALANI-VE-SINIRLARI.md) | Model Başına İstek Alanı Reddi ve Değer Sınırları | 📋 Planlandı |
+| [252](252-MODEL-BASINA-ISTEK-ALANI-VE-SINIRLARI.md) | Model Başına İstek Alanı Reddi ve Değer Sınırları | ✅ Tamamlandı |
 | [253](253-ONBELLEK-YAZMA-MALIYETI.md) | Önbellek Yazma Token'ı ve Fiyatı Run Maliyetine Girer | 📋 Planlandı |
 | [254](254-TOOL-CAGRISI-ZINCIRDE-KAYIT.md) | Tool Çağrısı Zincirde Kaydedilir: Başarısız Akışsız Run'ın Tool Satırları ve Betik Yolu | 📋 Planlandı |
 

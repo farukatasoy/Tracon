@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Upgrading from 1.0.0-preview.6
+
+- **A saved agent for the `google` provider with a seed outside the 32-bit range no longer builds.** The Google.GenAI
+  client library narrowed such a seed without a check (`3000000000` reached the model as `-1294967296`), so a definition
+  saved earlier ran with a seed nobody had written. `POST /api/agents/validate` now reports `sampling_value_out_of_range`
+  at `model.seed`, and a run of the stored agent fails with the compile error. Change the seed to a value from
+  -2147483648 to 2147483647, or clear it.
+
+### Added
+
+- **A catalog entry can name the request fields its model rejects: `ModelDescriptor.RejectedSamplingFields`.** A model
+  decides what it accepts, not the API surface: `openai` sends `stop`, and the three models of the OpenAI account used for
+  the measurement answer it with `400 unsupported_parameter`.
+  `Tracon:Providers:{Provider}:Models:{n}:RejectedSamplingFields` takes a name or a comma-separated list
+  (`"StopSequences"`, `"Seed, StopSequences"`); a name that does not exist, and a number with bits no field owns, stop
+  startup. A definition that sets a listed field for that model, on the primary model or on a `Fallbacks` link, does not
+  compile; `POST /api/agents/validate` reports `sampling_field_rejected_by_model` at the field's path
+  (`model.stopSequences`) and a save returns `400`. Left out (`None`), the catalog checks nothing, as before.
+  `GET /api/models` returns the value as a string of names, and `Tracon.Client` has it as
+  `ModelDescriptor.RejectedSamplingFields` (`string`). The sample catalog marks the three measured models.
+- **A provider can state the value ranges its API surface accepts: `ISamplingSupport.SamplingLimits`.** The new
+  `SamplingLimits` record (`MinSeed`, `MaxSeed`, `MaxStopSequences`) states no limit by default, and the member has a
+  default body, so an `ISamplingSupport` implementation written earlier compiles and runs unchanged. A definition whose
+  seed or number of stop sequences is outside a stated range does not compile, validation reports
+  `sampling_value_out_of_range` at the field's path, and a save returns `400`; a `Fallbacks` link is held to the range
+  of its own provider. `google` states a 32-bit seed and five stop sequences; `openai` (OpenAI's own service, not a
+  compatible server) and `azure-openai` state four stop sequences; `anthropic` and compatible servers state none. The
+  Google.GenAI client library does not check the seed: it narrowed `3000000000` to `-1294967296` and the run went on.
+  The ranges are not part of `GET /api/models`.
+
+### Fixed
+
+- **The agent editor of the console no longer rounds a seed it cannot hold exactly.** A seed above 9007199254740991 in
+  absolute value went out as another number (`9007199254740993` as `9007199254740992`), and a stored seed of that size
+  came back rounded and was written back the same way. The editor checks the text before it makes a number: it shows the
+  error in English and Turkish, marks the field invalid, and keeps Validate, Save and the Try again button of a failed
+  request off until the seed is replaced or cleared. The HTTP API still takes a 64-bit seed.
+
 ## [1.0.0-preview.6] - 2026-10-27
 
 Agents and workflows gain the controls a production host needs before the surface

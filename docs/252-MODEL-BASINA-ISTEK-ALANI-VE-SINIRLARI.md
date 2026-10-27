@@ -1,6 +1,6 @@
 # Faz 252 — Model Başına İstek Alanı Reddi ve Değer Sınırları
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** ✅ Tamamlandı (2026-10-27)
 > **Kademe:** hafif — migration yok · public API'den satır silinmez (yalnız ekleme: `ModelDescriptor`'a bir alan, `ISamplingSupport`'a varsayılan gövdeli bir üye ve bir sınır record'u, iki doğrulama kodu) · hedef framework değişmez · güvenlik/kiracı sınırı yok · geri dönüşü pahalı karar yok (`1.0.0` GA'dan önce). Emsal: Faz 245 (sağlayıcı yetenek arayüzü, hafif)
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan kararlar: model düzeyi bir **ret listesidir** — `ModelDescriptor.RejectedSamplingFields`, varsayılan `None`; değer sınırları `ISamplingSupport`'un varsayılan gövdeli bir üyesiyle beyan edilir; konsol `Seed`'i metin olarak taşır ve güvenli tamsayı dışını reddeder)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-606**, **F-607**
@@ -274,10 +274,10 @@ Başka `### Upgrading` kalemi yok: `ISamplingSupport` üyesi varsayılan gövdel
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 13 sapma |
+| Düzeltme turu sayısı | 1 |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları

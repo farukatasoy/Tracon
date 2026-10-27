@@ -77,4 +77,4 @@ ikisini de okur, **hosted önce** (bir MCP sunucusunun sonradan yayınladığı 
 | dosya arama | ✗ (hatasız düşer) | ✓ `file_search` + `vector_store_ids` | ✗ | ✗ (`Retrieval` kaynaksız; ölçülmedi) |
 
 `azure-openai` Chat Completions kurar: hiçbiri. Google için yerel sahte sunucu yoktur; satırı gerçek koşum taşır.
-`ModelDescriptor` düzeyinde ret ayrı bir adaydır (F-606 sınıfı): yüzey `✓` iken model aracı reddedebilir.
+`ModelDescriptor` düzeyinde ret ayrı bir adaydır (F-712; örnekleme alanları için aynı sınıf Faz 252'de `RejectedSamplingFields` oldu): yüzey `✓` iken model aracı reddedebilir.

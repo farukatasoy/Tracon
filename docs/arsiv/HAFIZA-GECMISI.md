@@ -1694,3 +1694,45 @@ tazele.
 
 - **🚨 Skill zinciri TEK yerde kurulur: `CreateSkillsProvider` → MAF `AgentSkillsProviderBuilder`** (2026-10-19, F-578): düz agent provider'ı `AIContextProviders`'a, harness agent da aynı provider'ı `AIContextProviders` başına alır. Harness'ta MAF'ın yerleşik skill provider'ı `DisableAgentSkillsProvider = true` ile **her zaman** kapalıdır; çalışma dizini taraması yapısal olarak imkânsızdır ve `load_skill` bir kez görünür. Builder sırası kaynaklar → Caching → Filtering → Dedup: önbellek süzülmemiş listeyi tutar. `CacheIsolationKeySelector` olmazsa iki kiracı tek listeyi paylaşır; kapı `SkillChainTests.One_compiled_agent_lists_each_tenants_own_skill` (satır çıkarılınca kırmızı, ölçüldü). Harness provider sırası: … BackgroundAgents → **Skills** → TextSearch → McpResources. Yeni bir skill kaynağı (`UseMcpSkills`, C-14) `CreateSkillsProvider`'a `UseSource` olarak girer; harness'a elle eklenmez. Onay seçenekleri aynı yerdedir (`UseOptions`, Faz 231): `Skills.DisableReadApproval` yalnız yükleme ve kaynak-okuma onayını kapatır; `DisableRunSkillScriptApproval` hiç atanmaz. Uzantı bu seçeneklere ulaşamaz (ölçüldü). Kapı: `SkillReadApprovalTests`.
 - **🚨 Agent uzantısı `CompileChatAgent`/`CompileHarnessAgent` içinde, seçenek nesnesi tamamen kurulduktan sonra ve `AsAIAgent`/`AsHarnessAgent`'tan önce koşar** (2026-10-19, Faz 222, K-1029): kayıt `Core/Extensions/AgentExtensionRegistry.cs` (ad, sıra, çift ad, hata sarmalama), korunan üye tablosu `AgentOptionsGuard.cs` — TEK liste, her uzantıdan önce ve sonra okunur. Kanca derleme önbelleğinin İÇİNDE koşar (anahtar `ExtensionNames`'i tanım parmak iziyle taşır); parametreli run her seferinde koşar. 🚨 `POST /api/agents/validate` ve kayıt tanımı derler, yani adlandırdığı uzantıyı **koşar** (liste ucu koşmaz). Replay `NoTools`/`ReplayTools`'ta `ExtensionNames` boşaltılır (K-1033). Sarmalayıcılar `context.Use` ile en içte, ilk eklenen en içte. Koruma iç içe seçenek nesnelerini üye üye karşılaştırır (`BackgroundAgentsProviderOptions`, `LoopAgentOptions`, `FileAccessProviderOptions`): referans eşitliği yerinde değişikliği kaçırırdı. 🚨 MAF'ın döngü içi katmanları (mesaj enjeksiyonu, servis çağrısı başına geçmiş) Tracon'da tool döngüsünün ÜSTÜNE düşer: Tracon'un FIC'i model istemcisinin içindedir, MAF kendi FIC'ini eklemez. Mesaj çalışan tura girmez, geçmiş tur başına yazılır (gerçek host probu + düz MAF kontrolü). İki üye ve `ChatOptions.RawRepresentationFactory` korunur (K-1038); sohbet agent'ının seam'i kalktı.
+
+## `docs/hafiza/openai-saglayici.md`'den — Faz 252 (model düzeyi ret notuna yer açmak için)
+
+- **OpenAI tip adları tahmin edilemez** (2026-08-02): `ResponsesClient` (`OpenAIResponseClient` **değil**), `OpenAIClientOptions.OrganizationId` (`Organization` değil), `NetworkTimeout` (`Timeout` değil). `GetResponsesClient()` model parametresi **almaz**; model `AsIChatClient(model)` tarafına geçer.
+- **`OpenAIClient.Endpoint` bile `OPENAI001`** (2026-08-02): testte doğrulamak için bastırma gerekir. Bunun yerine `IChatClient.GetService(typeof(ChatClientMetadata)).ProviderUri` kullan.
+- **OpenRouter model kimlikleri satıcı önekiyle gelir** (2026-08-02, Faz 8): `gpt-5.4-mini` değil `openai/gpt-5.4-mini`. Ölçüldü: `curl https://openrouter.ai/api/v1/models` ile doğrulanmadan model adı tahmin edilirse (K-032'nin aynı dersi) `model_not_found` benzeri bir hata alınır.
+- **🚨 OpenRouter'ın kredi kontrolü `max_tokens`'i "en kötü durum" maliyeti sayar** (2026-08-02, Faz 8): Varsayılan `max_tokens` (65536, MAF/OpenAI istemcisinin kendi varsayılanı) düşük bakiyeli bir anahtarla gerçek bir `HTTP 402 (insufficient credits)` üretti — Tracon'in hatası değil, hesap kısıtı. `ModelBinding.MaxOutputTokens` ile makul bir üst sınır vermek çözer.
+
+## `docs/hafiza/agent-derleme-ve-onbellek.md`'den — Faz 252 (SamplingSupportCheck notuna yer açmak için)
+
+- **🚨 Bir sürüm numarası KİMLİK değildir; store numaralandırmayı yeniden
+  başlatabiliyorsa önbellek anahtarı olamaz** (2026-09-18, `HATA-S4-004`).
+  `CompiledAgentCache` anahtarı `(kiracı, ad, **sürüm**, bağımlılık, kültür)
+  idi ve sınıfın kendi doküman yorumu bunu bir ilke diye anlatıyordu: "sürüm
+  artar, önbellek DOĞAL olarak bayatlar, bu yüzden açık geçersiz kılma
+  mantığı YOKTUR". İlke yalnız **UPDATE** için doğruydu. **DELETE + CREATE**
+  sürümü `1`'e sıfırlar; silinmiş tanım ile yeni tanım aynı anahtara düşer ve
+  silinmiş (çoğu zaman bozuk) tanım her `run`'ı cevaplamaya devam eder.
+  Belirti operatörü **yanlış yöne yönlendirir**: `GET /api/agents/{name}` YENİ
+  tanımı gösterir, veritabanında tek satır ve o satır doğrudur, yalnız
+  çalıştırma yanlıştır. **Kural:** bir önbellek anahtarındaki her bileşen için
+  "bu değer bir kaydın ömrü boyunca tekil mi, yoksa bir vekil mi?" sorusunu
+  sor. Vekilse ölçüyü vekille değil **gömülen içeriğin kendisiyle** yap.
+  K-811. Faz 248 (K-1100): DB store'lar numarayı artık yeniden vermez; anahtar yine içeriğe dayanır.
+
+## `docs/hafiza/frontend.md`'den — Faz 252 (64 bit alan ve Retry notuna yer açmak için)
+
+- **🚨 Tarayıcının "offline"ı ZATEN AÇIK bir `chunked` gövdeyi KESMEZ** (2026-09-18,
+  `HATA-S3-005` kapanışında canlı ölçüldü, Chromium/Playwright): `page.context()
+  .setOffline(true)` yürürlükteyken yeni bir `fetch` gerçekten `Failed to fetch`
+  atarken **aynı SSE akışı beş olay daha teslim etti** ve `run` tamamlandı.
+  Sonuç: `setOffline` bir "bağlantı koptu" senaryosunun **repro'su değildir** —
+  turun bununla ölçtüğü 23 saniyelik donukluk sağlıklı bir bağlantı üzerinde
+  **sessiz bir run**'dı. Gerçekten sessiz bir akışı sınamak için gövdesi hiç
+  parça üretmeyen bir `ReadableStream` kullan (bkz.
+  `packages/tracon-client/test/sse-idle.test.ts`); CDP ile ağ kesmeye çalışma.
+- **🚨 SSE'de canlılık FRAME ile ölçülemez** (aynı vaka, K-803): sunucu
+  `RunEventPollInterval`'de bir `: waiting` yorumu gönderir ama `SseDecoder`
+  yorumları düşürür — düşünen sağlıklı bir run **hiç frame üretmez**. Frame
+  sayan bir zaman aşımı onu keser. Bayt say: `readSse(response,
+  { idleTimeoutMs })` `reader.read()`'i yarıştırır.
+- **🚨 Sevk edilen shell'in inline `<script>`'i kendi CSP'si tarafından her sayfa yüklemesinde engelleniyordu ve 79 E2E testi yeşil geçiyordu** (2026-09-18, manuel kapanış Aile N, K-824): `index.html` erken tema boyaması için bir inline script taşıyor, `EmbeddedUiProvider` ise `script-src 'self'` gönderiyordu. İşlevsel kırılma yoktu — `theme.ts` aynı yazımı modül yüklenirken yapıyor — bu yüzden tek belirti konsol hatası ve tema sıçramasıydı. **Hiçbir E2E testi konsola bakmıyordu** (`grep -rn "PageError\|OnConsole" tests/Tracon.Ui.E2ETests/` → boş). İzin **hash** ile verildi ve hash `EmbeddedUiProvider.BuildShell` içinde **sevk edilen shell'in kendi metninden** hesaplanıyor: yazılan bir hash script'in ikinci kopyasıdır ve script ilk değiştiğinde kusur sessizce geri gelirdi. Nonce reddedildi (yanıt başına değişmek zorunda ⇒ istek başına render ⇒ ETag'li önbelleklenmiş doküman kaybı). Kapı iki testtir ve biri tarayıcısızdır: sunulan HTML'den hash'i **yeniden hesaplayıp** CSP'de arar, yani bayatlayamaz. **Ders: bir arayüz değişikliği konsolda hata bırakabilir ve hiçbir DOM iddiası bunu görmez.**
