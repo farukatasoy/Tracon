@@ -56,6 +56,27 @@ public sealed class ToolCallLedgerTests
     }
 
     [Fact]
+    public void A_wall_clock_corrected_backwards_during_a_call_does_not_put_its_end_before_its_start()
+    {
+        // The duration reads the monotonic clock, so a correction of the wall clock cannot make it negative; the wall
+        // time of the end is a label, and it must not read earlier than the label of the start.
+        var clock = new ManualTimeProvider();
+        var ledger = new ToolCallLedger(clock);
+
+        var started = clock.GetUtcNow();
+        var entry = ledger.Begin(Call("call-1")).ShouldNotBeNull();
+
+        clock.Advance(TimeSpan.FromSeconds(5));
+        clock.Advance(TimeSpan.FromSeconds(-30));
+        ledger.Settle(entry, "sunny");
+
+        var snapshot = ledger.Unclaimed().ShouldHaveSingleItem();
+
+        snapshot.EndedAtUtc.ShouldBe(started);
+        snapshot.Duration.ShouldBe(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public void A_call_that_has_not_ended_is_open_and_has_no_duration()
     {
         var ledger = new ToolCallLedger(new ManualTimeProvider());
