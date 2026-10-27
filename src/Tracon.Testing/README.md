@@ -76,6 +76,29 @@ var routing = new FakeModelProvider()
         .RespondsWith("research complete"));
 ```
 
+A turn that asks for a tool is a model call like any other: it spends tokens, and the
+run's token budget, usage and cost read them from the turn. Give the turn its usage the
+way you give a text turn its usage, and a test of the budget goes through the path a real
+provider takes — no tool has to charge the tree from its own body:
+
+```csharp
+var spending = new FakeModelProvider()
+    // The turn that asks for the tool reports 400 input and 100 output tokens.
+    .CallsTool("get_order_status", new { orderId = "ORD-7" }, inputTokens: 400, outputTokens: 100)
+    .RespondsWith("Shipped.", inputTokens: 10, outputTokens: 5);
+
+// Several calls in one turn: the usage is reported once for the turn.
+var parallel = new FakeModelProvider()
+    .CallsTools(inputTokens: 40, outputTokens: 20,
+        ("lookup_order", new { orderId = "ORD-7" }),
+        ("lookup_customer", null))
+    .EchoesLastToolResult("Done: ");
+```
+
+With the run tree's token ceiling (`Tracon:AgentGraph:MaxTotalTokens`) set to 500, the
+first provider's tool turn alone spends it (500 tokens), so the tool does not start and the
+run ends `Failed` with error type `run_budget_exceeded`.
+
 ## `TraconTestHost`
 
 Built on `WebApplication.CreateSlimBuilder()` + `UseTestServer()` —

@@ -272,6 +272,18 @@ public sealed record AgentRunScope
     internal ToolExplainedFailureAccumulator? ToolExplainedFailures { get; init; }
 
     /// <summary>
+    /// Gets the ledger of the tool calls that passed through the tool chain, written when each call starts and ends.
+    /// </summary>
+    /// <remarks>
+    /// The write surface is <see cref="CallRecordingAIFunction"/>, the outermost layer of the chain; the read side is
+    /// the run recorder, which writes the rows and the events of the calls no message reported when the run closes.
+    /// Same ambient-write/scoped-read pattern as <see cref="ToolExplainedFailures"/>: the ledger is made with the
+    /// scope, so a layer of the chain never opens one. <see langword="null"/> where no code records: a scope a
+    /// workflow opens for itself.
+    /// </remarks>
+    internal ToolCallLedger? ToolCalls { get; init; }
+
+    /// <summary>
     /// Gets the holder that records which model actually answered when a
     /// <see cref="ModelBinding.Fallbacks"/> link was used instead of the
     /// primary binding.

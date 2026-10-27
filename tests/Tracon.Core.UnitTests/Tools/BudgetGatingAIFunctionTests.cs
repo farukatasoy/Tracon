@@ -159,7 +159,8 @@ public sealed class BudgetGatingAIFunctionTests
         var function = Compose(AIFunctionFactory.Create(() => "spoken", "speak"), new CountingHandler());
 
         ((AITool)function).GetService<BudgetGatingAIFunction>().ShouldBeOfType<BudgetGatingAIFunction>();
-        ((AITool)function).GetType().ShouldBe(typeof(ExplainedFailureAIFunction));
+        ((AITool)function).GetService<ExplainedFailureAIFunction>().ShouldBeOfType<ExplainedFailureAIFunction>();
+        ((AITool)function).GetType().ShouldBe(typeof(CallRecordingAIFunction));
     }
 
     [Fact]

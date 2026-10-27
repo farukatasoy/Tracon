@@ -9,7 +9,7 @@ namespace Tracon.Testing;
 /// <remarks>
 /// <para>
 /// Five fluent methods (<see cref="RespondsWith(string[])"/>, <see cref="EchoesUserMessage"/>,
-/// <see cref="CallsTool"/>, <see cref="ForModel"/>, <see cref="WithModel"/>) cover
+/// <see cref="CallsTool(string, object?)"/>, <see cref="ForModel"/>, <see cref="WithModel"/>) cover
 /// all the fake provider behavior that is today duplicated across five separate
 /// files in Tracon's test suites.
 /// </para>
@@ -162,7 +162,7 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
     /// <param name="outputTokens">If given, the output token count reported with every response.</param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <remarks>
-    /// For the last step of a tool chain (set up with <see cref="CallsTool"/>),
+    /// For the last step of a tool chain (set up with <see cref="CallsTool(string, object?)"/>),
     /// where the final response must genuinely depend on the result the tool
     /// returned — e.g. a hand-off result to a sub-agent.
     /// </remarks>
@@ -179,6 +179,14 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
         return this;
     }
 
+    /// <summary>Enqueues a tool call that takes no arguments.</summary>
+    /// <param name="toolName">Name of the tool to call.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    // A separate overload and not a default value on the two-parameter one: the overload that reports token
+    // usage is the longest, and the public API rules (RS0027) keep an optional parameter on the longest
+    // overload only. Every call site that used the default compiles as it did.
+    public FakeModelProvider CallsTool(string toolName) => CallsTool(toolName, arguments: null);
+
     /// <summary>Enqueues a tool call.</summary>
     /// <param name="toolName">Name of the tool to call.</param>
     /// <param name="arguments">
@@ -186,11 +194,50 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
     /// properties are read through reflection (works for anonymous types).
     /// </param>
     /// <returns>The chain, for continued configuration.</returns>
-    public FakeModelProvider CallsTool(string toolName, object? arguments = null)
+    public FakeModelProvider CallsTool(string toolName, object? arguments)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
 
         _current.Enqueue(new FakeStep { ToolName = toolName, ToolArguments = arguments });
+
+        return this;
+    }
+
+    /// <summary>Enqueues a tool call whose turn reports a specific token usage.</summary>
+    /// <param name="toolName">Name of the tool to call.</param>
+    /// <param name="arguments">
+    /// Call arguments. If not an <see cref="IDictionary{TKey, TValue}"/>, its
+    /// properties are read through reflection (works for anonymous types).
+    /// </param>
+    /// <param name="inputTokens">Input token count the turn reports.</param>
+    /// <param name="outputTokens">Output token count the turn reports.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <remarks>
+    /// <para>
+    /// A model that asks for a tool spends tokens like one that answers, and the run's token budget, usage and cost read
+    /// them from the turn. This overload makes that turn report its usage the way the real provider does, so a test of
+    /// the token budget goes through the same path the real one does (<see cref="RespondsWith(string, int, int)"/> does
+    /// this for a text turn). The report is made when the turn is returned, before the tool-call loop runs the tool:
+    /// a ceiling this turn reaches is already spent when the tool is about to start.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var provider = new FakeModelProvider()
+    ///     .CallsTool("get_order_status", new { orderId = "ORD-7" }, inputTokens: 40, outputTokens: 12)
+    ///     .RespondsWith("Shipped.", inputTokens: 55, outputTokens: 4);
+    /// </code>
+    /// </example>
+    public FakeModelProvider CallsTool(string toolName, object? arguments, int inputTokens, int outputTokens)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+
+        _current.Enqueue(new FakeStep
+        {
+            ToolName = toolName,
+            ToolArguments = arguments,
+            Usage = new FakeUsage(inputTokens, outputTokens),
+        });
 
         return this;
     }
@@ -201,7 +248,7 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
     /// <param name="calls">The tool name and arguments for each call.</param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <remarks>
-    /// <see cref="CallsTool"/> enqueues one call per turn and can never
+    /// <see cref="CallsTool(string, object?)"/> enqueues one call per turn and can never
     /// produce more than one <c>FunctionCallContent</c> in the same response;
     /// exercising a REAL concurrent tool-call loop
     /// (<c>FunctionInvokingChatClient.AllowConcurrentInvocation</c>) needs
@@ -222,8 +269,40 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
     }
 
     /// <summary>
+    /// Enqueues a SINGLE turn that calls every given tool at once and reports a specific token usage.
+    /// </summary>
+    /// <param name="inputTokens">Input token count the turn reports.</param>
+    /// <param name="outputTokens">Output token count the turn reports.</param>
+    /// <param name="calls">The tool name and arguments for each call.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <remarks>
+    /// The usage is reported once for the turn, not once per call, the way a real provider reports it.
+    /// See <see cref="CallsTool(string, object?, int, int)"/> for why a test wants it.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var provider = new FakeModelProvider()
+    ///     .CallsTools(inputTokens: 40, outputTokens: 20, ("lookup_order", new { orderId = "ORD-7" }), ("lookup_customer", null))
+    ///     .EchoesLastToolResult("Done: ");
+    /// </code>
+    /// </example>
+    public FakeModelProvider CallsTools(int inputTokens, int outputTokens, params (string ToolName, object? Arguments)[] calls)
+    {
+        ArgumentNullException.ThrowIfNull(calls);
+
+        if (calls.Length == 0)
+        {
+            throw new ArgumentException("At least one call is required.", nameof(calls));
+        }
+
+        _current.Enqueue(new FakeStep { ToolCalls = calls, Usage = new FakeUsage(inputTokens, outputTokens) });
+
+        return this;
+    }
+
+    /// <summary>
     /// Defines a separate response queue for a specific model name. Calls to
-    /// <see cref="RespondsWith(string[])"/>/<see cref="EchoesUserMessage"/>/<see cref="CallsTool"/>
+    /// <see cref="RespondsWith(string[])"/>/<see cref="EchoesUserMessage"/>/<see cref="CallsTool(string, object?)"/>
     /// inside the <paramref name="configure"/> body affect only that model's queue.
     /// </summary>
     /// <param name="modelId">Model name.</param>

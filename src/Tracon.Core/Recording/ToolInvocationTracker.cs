@@ -15,15 +15,23 @@ namespace Tracon;
 /// their base).
 /// </para>
 /// <para>
-/// <strong>Duration is measured only in a streaming run.</strong> In a
+/// <strong>A streaming run measures the duration here.</strong> In a
 /// non-streaming run, all messages are seen at once, after the call has
 /// finished; the actual duration between the two content pieces cannot be
-/// read from there. Writing a near-zero duration would produce incorrect
-/// data, so the field is left empty.
+/// read from there, and a near-zero duration would be incorrect data. The
+/// duration of a call that passed through the tool chain comes from the
+/// <see cref="ToolCallLedger"/> instead, which the chain wrote while the call ran;
+/// a call outside the chain (a hosted tool, a tool of the framework) has none in a
+/// non-streaming run, and the field is left empty.
+/// </para>
+/// <para>
+/// <strong>Every row is written once.</strong> A call is known to the messages and
+/// to the ledger, so each method here that produces a row first claims the call in
+/// the ledger. The run's close step writes the calls nobody claimed only when the run failed or was cancelled.
 /// </para>
 /// <para>
 /// This class is <strong>not thread-safe</strong>; each run has its own
-/// instance and it is used from a single read loop.
+/// instance and it is used from a single read loop. The ledger it reads is.
 /// </para>
 /// </remarks>
 internal sealed class ToolInvocationTracker
@@ -36,10 +44,14 @@ internal sealed class ToolInvocationTracker
     private readonly string? _tenantId;
     private readonly ToolAuthorizationAccumulator? _authorization;
     private readonly ToolExplainedFailureAccumulator? _explainedFailures;
+    private readonly ToolCallLedger? _ledger;
 
     /// <summary>Creates a new tracker.</summary>
     /// <param name="runId">The run identity.</param>
-    /// <param name="measureDuration">Whether to measure duration. Only meaningful in a streaming run.</param>
+    /// <param name="measureDuration">
+    /// Whether to measure duration here. Only meaningful in a streaming run; a run that does not stream takes the
+    /// duration from <paramref name="ledger"/>.
+    /// </param>
     /// <param name="timeProvider">The time source.</param>
     /// <param name="usage">
     /// The non-token metrics reported by tools. If <see langword="null"/>,
@@ -59,6 +71,10 @@ internal sealed class ToolInvocationTracker
     /// If <see langword="null"/>, only an exception carried by the result
     /// itself marks a call as failed.
     /// </param>
+    /// <param name="ledger">
+    /// The calls the tool chain recorded. If <see langword="null"/>, a run that does not stream
+    /// has no duration for a call, and the tracker claims nothing.
+    /// </param>
     public ToolInvocationTracker(
         Guid runId,
         bool measureDuration,
@@ -66,7 +82,8 @@ internal sealed class ToolInvocationTracker
         ToolUsageAccumulator? usage = null,
         string? tenantId = null,
         ToolAuthorizationAccumulator? authorization = null,
-        ToolExplainedFailureAccumulator? explainedFailures = null)
+        ToolExplainedFailureAccumulator? explainedFailures = null,
+        ToolCallLedger? ledger = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
 
@@ -77,7 +94,13 @@ internal sealed class ToolInvocationTracker
         _tenantId = tenantId;
         _authorization = authorization;
         _explainedFailures = explainedFailures;
+        _ledger = ledger;
     }
+
+    /// <summary>Reports whether a call was recorded as started and has no result yet.</summary>
+    /// <param name="callId">The call identity.</param>
+    /// <returns><see langword="true"/> while the call waits for <see cref="OnResult"/> or <see cref="DrainUnfinished"/>.</returns>
+    public bool IsPending(string callId) => _pending.ContainsKey(callId);
 
     /// <summary>Records that a tool call started.</summary>
     /// <param name="call">The call content.</param>
@@ -113,6 +136,10 @@ internal sealed class ToolInvocationTracker
         string? source = null;
         string? arguments = null;
 
+        // The row is written now, so the ledger's copy of the call is spoken for. What it holds is read
+        // below: null for a call that did not pass through the tool chain.
+        var settled = _ledger?.Claim(result.CallId);
+
         if (_pending.Remove(result.CallId, out var call))
         {
             toolName = call.ToolName;
@@ -123,6 +150,15 @@ internal sealed class ToolInvocationTracker
             {
                 duration = _timeProvider.GetElapsedTime(call.StartedAt);
             }
+        }
+
+        // A run that does not stream reads the result after the call is long over, so the pair of content
+        // pieces measures nothing. The tool chain wrote the call while it ran: its time is the call's.
+        var settledByLedger = !_measureDuration && settled is { IsSettled: true };
+
+        if (settledByLedger)
+        {
+            duration = settled!.Duration;
         }
 
         // A call whose explanation became its RESULT carries no exception here:
@@ -142,7 +178,10 @@ internal sealed class ToolInvocationTracker
             Result = failure is null && ToolResultText.TryGetText(result.Result, out var text) ? text : null,
             Duration = duration,
             Error = ToolFailureText.Get(failure),
-            CreatedAt = _timeProvider.GetUtcNow(),
+
+            // The moment the call settled. A run that does not stream learns of the call after the run, so the
+            // time the call really ended (the ledger's) is the one that puts the rows in the order they ran.
+            CreatedAt = settledByLedger ? settled!.EndedAtUtc!.Value : _timeProvider.GetUtcNow(),
 
             // The tool may have reported its own metric under the call
             // identity. The vast majority of calls carry no metric and the
@@ -211,29 +250,39 @@ internal sealed class ToolInvocationTracker
         }
 
         var now = _timeProvider.GetUtcNow();
+        var records = new List<ToolInvocationRecord>(_pending.Count);
 
-        var records = _pending
-            .Select(pair => new ToolInvocationRecord
+        foreach (var (callId, pending) in _pending)
+        {
+            // The row is written now: the ledger's copy of the call is spoken for.
+            var held = _ledger?.Claim(callId);
+
+            records.Add(new ToolInvocationRecord
             {
                 Id = TraconId.NewId(),
                 RunId = _runId,
-                ToolName = pair.Value.ToolName,
-                ToolCallId = pair.Key,
-                Source = pair.Value.Source,
-                Arguments = pair.Value.Arguments,
-                Duration = _measureDuration ? _timeProvider.GetElapsedTime(pair.Value.StartedAt) : null,
+                ToolName = pending.ToolName,
+                ToolCallId = callId,
+                Source = pending.Source,
+                Arguments = pending.Arguments,
+
+                // Measured here in a streaming run. A run that does not stream knows when the call started only
+                // from the ledger, and a call that never ended has run until now.
+                Duration = _measureDuration
+                    ? _timeProvider.GetElapsedTime(pending.StartedAt)
+                    : held is null ? null : held.Duration ?? _timeProvider.GetElapsedTime(held.StartedAt),
                 Error = reason,
                 CreatedAt = now,
 
                 // A call that reported its measurement and then never settled
                 // (cancelled mid-flight, say) spent what it reported: the
                 // image was generated before the attachment was written.
-                Usage = _usage?.Take(pair.Key),
+                Usage = _usage?.Take(callId),
 
                 // Expected tenant stamp (K-355).
                 TenantId = _tenantId,
-            })
-            .ToList();
+            });
+        }
 
         _pending.Clear();
 

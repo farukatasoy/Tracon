@@ -2349,7 +2349,7 @@ export interface paths {
         };
         /**
          * Lists a run's tool calls in chronological order.
-         * @description Duration is measured only for streaming runs: in a non-streaming run all messages arrive at once, so the true duration between call and result cannot be read. A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.
+         * @description A call that went through the tool chain (a code tool, an MCP tool, a workspace tool, the knowledge search, the conversation memory search) is noted in memory where it happens and written when the run closes, so its row exists whether the run streams or not and whether it ends, fails or is cancelled, and its duration is measured. A process that stops while the run is open leaves no row for such a call. Some tools are outside the chain, among them a hosted tool, a tool of the framework (such as run_skill_script), an agent called as a tool, the background agents, the harness mode tools and the providers an agent extension adds: their rows come from the messages of the answer, so a run that does not stream has a duration for none of them, and has no row for them when it fails. A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.
          */
         get: operations["TraconListRunToolInvocations"];
         put?: never;
@@ -7886,7 +7886,10 @@ export interface components {
             arguments?: null | string;
             /** @description The call result. Raw text; may not be valid JSON. */
             result?: null | string;
-            /** @description The call's duration. `null` if the event pair did not match. */
+            /**
+             * @description The call's duration. `null` for a call outside the tool chain in a run that does not stream,
+             *     and if the event pair of a streaming run did not match.
+             */
             duration?: null | string;
             /** @description The error message. Populated only if the call errored. */
             error?: null | string;
