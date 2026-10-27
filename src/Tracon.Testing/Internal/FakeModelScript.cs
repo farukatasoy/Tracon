@@ -63,7 +63,10 @@ internal sealed record FakeStep
     /// </summary>
     public IReadOnlyList<(string ToolName, object? Arguments)>? ToolCalls { get; init; }
 
-    /// <summary>Token usage reported as soon as this step is returned. Empty in most steps.</summary>
+    /// <summary>
+    /// Token usage reported as soon as this step is returned, whether the step answers with text or asks for tools.
+    /// Empty in most steps.
+    /// </summary>
     public FakeUsage? Usage { get; init; }
 }
 
