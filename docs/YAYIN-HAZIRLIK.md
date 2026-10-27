@@ -5,25 +5,33 @@
 > kayıtlar burada durmaz; tam metinleri git'tedir (§7). İş kalemi buraya değil,
 > [`ADAYLAR.md`](ADAYLAR.md)'ye yazılır.
 >
-> **Son güncelleme:** 2026-10-20 (UR-002 ve UR-005 uydu paket için genişledi: K-1036, K-1037; ölçümler satırında tarihli)  
-> **Çalışma modu:** `nuget-danismani` — public API freeze programı (UR-009 B)  
-> **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.4`. Freeze yolunun ilk üç
-> ölçütü bitti: küçültme (Faz 212–213), bağımlılık yükseltmesi (Faz 214–216)
-> ve modernizasyon (Faz 217). **UR-012 = B (2026-10-19): ölçüt en iyi RC'dir;
-> `rc.1`'e kadar kırıcılık ölçüt değildir, RC'yi iyileştiren ekleyici yetenek de
-> girer.** Ölçüt 5'ten F-290 Faz 218'de kapandı (2026-10-17: son `[Obsolete]` üye ve sütun kalktı); F-559 Faz 237 (A-76: 1.x .NET kuralı, donmuş hat kapısı) ve Faz 238'de (A-67, A-68: HTTP·SSE·telemetri·yapılandırma·hata kodu·CLI için 1.x kuralı, anlık görüntüler, sürümden sürüme kapı; kiracı metrik etiketi isteğe bağlı) kapandı (2026-10-24); F-560 MAF GA'sını bekler (UR-013). Faz 212–218 `origin/main`'de yok; CI onları hiç koşmadı. GA
-> hâlâ ❌ (`NU5104`, ER-001). UR-004 = A (2026-10-17): `rc.1` de ER-001 kalkana kadar çıkmaz.
+> **Son güncelleme:** 2026-10-27 (`preview.5` etiketi yarım kaldı: BL-059, UR-014; ölçümler satırında tarihli)  
+> **Çalışma modu:** `nuget-danismani` — yayın kararı (`1.0.0-preview.5`)  
+> **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.4`. **`v1.0.0-preview.5` etiketi
+> 2026-10-17'den beri `origin`'de ama yayımlanmadı (BL-059):** etiket koşumu
+> kırılgan bir testte düştü ve "Re-run failed jobs" yapılmadı. Ata kalan etiket
+> `main`'in tabanı oldu: 2026-10-19'dan beri 25 `main` koşumu `Paketle`'de
+> kırmızı; Linux tam test, paket doğrulama, prova ve site kapıları 131 commit
+> (Faz 219–250) boyunca CI'da koşmadı. **UR-014 = A 👤 (2026-10-27):** etiket
+> koşumu yeniden başladı (`39061203012`, attempt 2); yayın `npm` ve `nuget`
+> environment onayını bekler. Freeze yolu: ölçüt 1–3 ✅ (Faz 212–217);
+> UR-012 = B (2026-10-19): ölçüt en iyi RC'dir, `rc.1`'e kadar kırıcılık ölçüt
+> değildir. Ölçüt 5'ten F-290 (Faz 218) ve F-559 (Faz 237–238) kapandı; F-560
+> MAF GA'sını bekler (UR-013). GA hâlâ ❌ (`NU5104`, ER-001). UR-004 = A:
+> `rc.1` de ER-001 kalkana kadar çıkmaz.
 
-## 1. Canlı durum (ölçüldü 2026-10-16)
+## 1. Canlı durum (ölçüldü 2026-10-16; 2026-10-27 satırları tarihli)
 
 | Ne | Değer | Kaynak |
 |---|---|---|
-| nuget.org | 20/20 paket `1.0.0-preview.4` | registration API |
-| npm | `@tracon/client`: `latest` = `next` = `1.0.0-preview.4` | `npm view @tracon/client dist-tags` |
+| nuget.org | 2026-10-27: okunan 19 kimliğin son sürümü `1.0.0-preview.4`; `preview.5` hiçbir pakette yok | flat container |
+| npm | 2026-10-27: `@tracon/client` `latest` = `next` = `1.0.0-preview.4`; `preview.5` yok | `npm view @tracon/client dist-tags` |
+| `v1.0.0-preview.5` | 2026-10-27: `1165e16f` (2026-10-17), `origin`'de. Etiket koşumu `39061203012`: ubuntu `Test et (tum projeler)` düştü (`WorkflowResponseOwnershipTests.A_client_that_goes_away…`, F-708), yayın işleri `skipped`. Aynı commit'in `main` koşumu dört işte yeşil (prova dahil) → kırılgan. Etiket commit'i bugün temiz restore olur: `dotnet restore Tracon.slnx --force-evaluate` exit 0, `NU19xx` yok | Actions API · `gh run view --log-failed` · worktree restore |
 | Deprecation — nuget.org | preview.1, .2, .3: 20/20 pakette ✅ | registration API, `deprecation` alanı |
 | Deprecation — npm | preview.1 ve .2 ✅ (mesaj preview.3'ü gösterir); **preview.3 deprecate edilmedi** | `npm view @tracon/client@<sürüm> deprecated` |
-| CI'ın gördüğü | `origin/main` 2026-10-15 tarihli; yerelde 51 commit (Faz 212–216) CI'da koşmadı | `git rev-list --count origin/main..HEAD` |
-| Bekleyen sürüm notu | `CHANGELOG.md` `[Unreleased]` dolu (Faz 212–216 daraltmaları ve yükseltmeleri) | `CHANGELOG.md` |
+| CI'ın gördüğü | 2026-10-27: `origin/main` = HEAD (0 önde). 2026-10-19'dan beri 25 `main` koşumu ubuntu `Paketle`'de kırmızı: taban `v1.0.0-preview.5` nuget.org'da yok (`NU1102`). Sonraki adımlar `skipped`; windows Docker'sız testleri yeşil. Dependabot PR'ları da kırmızı (nedeni okunmadı) | Actions API · `git rev-list --count origin/main..HEAD` |
+| Canlı site | 2026-10-27: `tracon.dev` alt bilgisi ve ilk-agent rehberi `1.0.0-preview.5` der; rehber `dotnet new install Tracon.Templates@1.0.0-preview.5` öğretir, `Tracon.Templates` nuget.org'da `preview.4`'te durur → **ilk komut bugün düşer**. Site etiket dönemindendir (AG-UI sayfası yok, 995 URL) | `curl` · `sitemap-0.xml` · flat container |
+| Bekleyen sürüm notu | 2026-10-27: `[1.0.0-preview.5] - 2026-10-17` bölümü yayımlanmadı; `[Unreleased]` Faz 219–250'yi taşır | `CHANGELOG.md` |
 | Upstream | MAF `1.25.0` + MEAI `10.11.0` pinli (Faz 214). Hosting ailesi ve `A2A.AspNetCore` için kararlı sürüm **yok** | nuget.org flat container |
 | Public yüzey | `PublicAPI.Shipped.txt` boş — yüzey donmadı | K-603 |
 | Dış geri bildirim | İnsan kaynaklı issue 0, yıldız 0 | GitHub API |
@@ -66,7 +74,8 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | Kimlik | Kalem | Seviye | Sahip |
 |---|---|---|---|
 | A-66 | `NPM_TOKEN` süreli: en geç **2026-11-26** biter (KN-021 tarihinden hesap; gerçek süre okunmadı). Bitince `npm-publish` kırmızı olur ve ona bağlı NuGet `publish` da koşmaz. Çözüm: npm trusted publishing (OIDC) | 🟡 tarihli | 👤 npm + `ci.yml` |
-| — | Faz 212–217'nin yerel commit'leri CI'da koşmadı. OP-012: CI kör noktasını `main`'i sık itmek kapatır | 🟡 | 👤 `git push` |
+| BL-059 | `v1.0.0-preview.5` yarım: etiket var, paket yok. OP-012 ihlali: düşen etiket `main`'de ata kaldı. Kalkana kadar her `main` koşumu ve sonraki her etiket `Paketle`'de düşer; 131 commit Linux CI'ı görmedi. Canlı site yayımlanmamış sürümün kurulumunu öğretir (§1) | 🔴 sonraki her yayın · canlı tüketici | 👤 UR-014 |
+| F-709 | Yarım etiket on gün görünmedi: yerel kapılar uzak CI'ı ve son `v*` etiketinin yayın durumunu okumaz. Bu arada 32 faz yeşil kapandı | 🟠 | `kusur-giderme` |
 | A-61 | Private vulnerability reporting kapalı, GHSA hattı yok. `dotnet restore` (NuGetAudit) GitHub Advisory Database'i okur; nuget.org deprecation'ı restore'da uyarı üretmez | 🟡 GA | 👤 repo ayarı + `SECURITY.md` |
 | OP-008 | npm'de `@tracon/client@1.0.0-preview.3` deprecate edilmedi (nuget.org tamam) | 🟢 | 👤 `npm deprecate` |
 | — | Anthropic .NET SDK deposuna "Native AOT'ta `IChatClient` adaptörü ilk istekte çöker (`Reflection-based serialization has been disabled`)" issue'su (K-1019 yeniden açılma koşulu; bağlantı karara yazılır) | 🟢 | 👤 |
@@ -129,6 +138,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 
 | Kimlik | Karar | Yeniden açılma ölçütü |
 |---|---|---|
+| UR-014 | **A** 👤 (2026-10-27, BL-059): `preview.5` etiket koşumu yeniden koşulur (`gh run rerun 39061203012 --failed`); `preview.5` = 2026-10-17 içeriği (Faz 212–218), Faz 219–250 `preview.6`'ya gider. Gerekçe: OP-012 kırılgan testte etiketi taşımaz; aynı commit `main`'de prova dahil yeşil; restore bugün temiz. B (etiketi silip HEAD'de yeniden kesmek) ve C (`preview.5`'i yakmak, `resolve_baseline`'ı değiştirmek) seçilmedi | Yeniden koşum bir kod kusuruyla düşerse B tartılır |
 | UR-001 | Yayın türü `preview` | UR-009 ölçütleri sağlanınca **ve** ER-001 kalkınca `rc` (UR-004 A) |
 | UR-002 | Kapsam: paketlenen her proje (bugün 20) + `@tracon/client`, tek sürüm hattı (K-602). **Genişletildi 👤 (2026-10-20, K-1037):** ön sürüm upstream'e bağlı **yeni** uydu paket ayrı ön sürüm hattında çıkar ve ailenin `rc.1`/GA'sını bekletmez. İlk uydu paketin fazı hattı kurar: `PackageFamilyAlignment` listesi dışı, `uyum-probu deneysel` sayımı dışı, ayrı yayın provası | Uydu paketin upstream'i GA olunca paket aileye katılır |
 | UR-004 | **A** 👤 (2026-10-17): upstream GA beklenir. Freeze (`1.0.0-rc.1`) de ER-001 kalkana kadar çıkmaz — Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alana kadar preview hattı sürer. B (Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayırmak) ve C (önce dondur, `rc.N` çık, yalnız GA upstream'i bekler) seçilmedi | Upstream kararlı sürüm takvimi uzar ve preview hattında bekleyen iş birikirse C yeniden tartılır |
@@ -172,7 +182,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 Önekler: `BL-` blocker · `RK-` risk · `OP-` operasyon kararı · `KG-` karar
 günlüğü · `KN-` kanıt · `UR-` ürün kararı · `ER-` ertelenen iş · `A-` dış
 denetim bulgusu (`ADAYLAR.md` ile ortak). **Sıradaki boş numara:** A-84 ·
-BL-059 · KN-036 · KG-050 · UR-014 · OP-013 · RK-016 · ER-004.
+BL-060 · KN-036 · KG-050 · UR-015 · OP-013 · RK-016 · ER-004.
 
 Kapanmış kayıt bu dosyada tutulmaz. Bir kimlik burada yoksa önce
 `grep -rn "<kimlik>" docs/` ile ara; sonra 2026-10-16 sadeleştirmesinden

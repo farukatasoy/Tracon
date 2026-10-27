@@ -90,7 +90,8 @@
   `breaking_changes.py`'nin tabanı olur (`git describe`), paketleri nuget.org'da olmadığı için sonraki her
   `main` koşumu `Paketle`'de düşer. Etiketsiz kesim ise `main` provasını düşürür (`[Unreleased]` boş) — bu
   ara hâl beklenen bir kırmızıdır, ölçüt iki bacağın build/test sonucudur. Kırılgan testte etiket taşınmaz,
-  "Re-run failed jobs" yeter.
+  "Re-run failed jobs" yeter. Ölçülmüş vaka (2026-10-17…27): `preview.5` etiket koşumu kırılgan testte düştü ve
+  yeniden koşulmadı; 25 `main` koşumu on gün `Paketle`'de kırmızı kaldı, kimse görmedi (BL-059, F-709).
 - **🚨 Sürüm notundaki çitli kod bloğu kırıcı değişiklik kapısının span eşleşmesini kaydırır** (2026-09-24, Faz 189): `breaking_changes._code_spans` çiti (```` ``` ````) ayıklamıyordu; her çitin üç backtick'i çevredeki metinle eşleşip hangi metnin span sayıldığını kaydırıyordu. Faz 188'in tek bloğu şans eseri geçti; 189'un ikinci bloğu doğru yazılmış `TraconToolRegistration` ve `ITraconBuilder` adlarını "notta yok" gösterdi. Çitler artık okunmadan önce silinir; yalnız çitin içinde geçen ad **kabul edilmez** (`test_citli_kod_blogu_span_eslesmesini_kaydirmaz`).
 
 ## Sözleşme anlık görüntüleri ve sürümden sürüme kapı (Faz 238)
