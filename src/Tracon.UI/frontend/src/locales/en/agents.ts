@@ -274,7 +274,7 @@ export const enAgents = {
   "tools.unused": 'unused',
   "tools.unusedTitle": 'No agent references this tool.',
   "tools.noArguments": 'This tool takes no arguments.',
-  "tools.durationNote": 'A duration is measured for every call that goes through the tool chain, whether the run streams or not. A tool outside the chain (a hosted tool, for example) has a duration only in a streaming run: in a run that does not stream, every message arrives at once, so the real time between its call and its result cannot be read.',
+  "tools.durationNote": 'A duration is measured for a streaming run only: in a non-streaming run every message arrives at once, so the real time between a call and its result cannot be read.',
   "tools.neverCalled": 'Never called.',
   "tools.calls": 'calls',
   "tools.failed": 'failed',
