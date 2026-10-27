@@ -122,6 +122,7 @@ export const trAgents: Pick<Messages, keyof typeof enAgents> = {
   "agentEditor.sampling": 'Örnekleme ve tool kullanımı',
   "agentEditor.samplingNotice": 'Boş bırakılırsa sağlayıcının varsayılanı kullanılır. API yüzeyi bir alanı göndermeyen sağlayıcı, agent derlenirken alanı ve sağlayıcıyı adlandıran bir hatayla reddedilir. Her yedek model için de aynısı geçerlidir.',
   "agentEditor.stopSequencesHint": 'Her satıra bir dizi.',
+  "agentEditor.seedError": "Seed, -9007199254740991 ile 9007199254740991 arasında bir tam sayı olmalıdır. Konsol daha büyük sayıları tam olarak gönderemez. Kaydetmek için seed'i değiştirin veya silin.",
   "agentEditor.toolModeHint": '"required:<tool>" modele bir turun ilk çağrısında o tool\'u çağırtır.',
   "agentEditor.allowMultipleToolCallsHint": 'Modelin bir turda birden çok tool çağrısı isteyip isteyemeyeceği.',
   "agentEditor.toolLoop": 'Tool çağrı döngüsü',

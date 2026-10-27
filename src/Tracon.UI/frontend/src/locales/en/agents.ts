@@ -117,6 +117,7 @@ export const enAgents = {
   "agentEditor.sampling": 'Sampling and tool use',
   "agentEditor.samplingNotice": 'Empty uses the provider default. A provider whose API surface does not send a field is rejected when the agent is built, with an error that names the field and the provider. The same holds for each fallback model.',
   "agentEditor.stopSequencesHint": 'One sequence per line.',
+  "agentEditor.seedError": 'Seed must be a whole number from -9007199254740991 to 9007199254740991. The console cannot send larger numbers exactly. Replace the seed or clear it to save.',
   "agentEditor.toolModeHint": '"required:<tool>" makes the model call that tool in the first call of a turn.',
   "agentEditor.allowMultipleToolCallsHint": 'Whether the model may ask for several tool calls in one turn.',
   "agentEditor.toolLoop": 'Tool-call loop',
