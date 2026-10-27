@@ -276,6 +276,132 @@ describe('AgentEditorScreen', () => {
       });
     });
 
+    // F-607: a seed the browser cannot hold exactly is refused with an error, never rounded and sent.
+    describe('seed range', () => {
+      const SEED_ERROR = /Seed must be a whole number from -9007199254740991 to 9007199254740991/;
+
+      it('refuses a typed seed outside the safe integer range, says why, and sends it nowhere', async () => {
+        let sent: Sent | undefined;
+
+        restoreFetch = installApiMock([
+          ...baseOverrides(),
+          fixture('GET', 'api/agents/:name', { descriptor: { name: 'support', origin: 'Database', sourceName: 'database' }, definition: fullDefinition }),
+          validateInto((body) => {
+            sent = body;
+          }),
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        await screen.findByTestId('agent-name');
+        await user.click(screen.getByText('Sampling and tool use'));
+
+        const seed = screen.getByTestId('agent-seed');
+
+        expect(screen.queryByText(SEED_ERROR)).toBeNull();
+
+        await user.type(seed, '9007199254740993');
+
+        expect(await screen.findByText(SEED_ERROR)).toBeTruthy();
+        expect(seed.getAttribute('aria-invalid')).toBe('true');
+        expect((screen.getByTestId('agent-validate') as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(true);
+
+        // A seed inside the range clears the error and is sent as typed.
+        await user.clear(seed);
+        await user.type(seed, '9007199254740991');
+
+        await waitFor(() => {
+          expect(screen.queryByText(SEED_ERROR)).toBeNull();
+        });
+        expect(seed.getAttribute('aria-invalid')).toBeNull();
+
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(sent?.model?.seed).toBe(9007199254740991);
+        });
+      });
+
+      it('flags a stored seed the browser read rounded, and does not save before it is replaced or cleared', async () => {
+        // The server stores 9007199254740993; JSON.parse in the browser reads it as 9007199254740992.
+        let sent: Sent | undefined;
+
+        restoreFetch = installApiMock([
+          ...baseOverrides(),
+          fixture('GET', 'api/agents/:name', {
+            descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+            definition: { ...fullDefinition, model: { ...fullDefinition.model, seed: JSON.parse('9007199254740993') as number } },
+          }),
+          validateInto((body) => {
+            sent = body;
+          }),
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        // The group opens by itself for a stored value, and the error is already on the field.
+        expect(await screen.findByText(SEED_ERROR)).toBeTruthy();
+        expect((screen.getByTestId('sampling-settings') as HTMLDetailsElement).open).toBe(true);
+        expect((screen.getByTestId('agent-seed') as HTMLInputElement).value).toBe('9007199254740992');
+        expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByTestId('agent-validate') as HTMLButtonElement).disabled).toBe(true);
+
+        // Editing another field does not let the rounded seed through.
+        await user.type(screen.getByTestId('agent-display-name'), ' Two');
+
+        expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(true);
+
+        // Replacing the seed does.
+        await user.clear(screen.getByTestId('agent-seed'));
+        await user.type(screen.getByTestId('agent-seed'), '7');
+
+        await waitFor(() => {
+          expect((screen.getByTestId('agent-save') as HTMLButtonElement).disabled).toBe(false);
+        });
+
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(sent?.model?.seed).toBe(7);
+        });
+      });
+
+      it('lets a stored seed be cleared, which sends no seed', async () => {
+        let sent: Sent | undefined;
+
+        restoreFetch = installApiMock([
+          ...baseOverrides(),
+          fixture('GET', 'api/agents/:name', {
+            descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+            definition: { ...fullDefinition, model: { ...fullDefinition.model, seed: JSON.parse('9007199254740993') as number } },
+          }),
+          validateInto((body) => {
+            sent = body;
+          }),
+        ]);
+
+        const user = userEvent.setup();
+
+        renderScreen(<AgentEditorScreen name="support" />);
+
+        await screen.findByText(SEED_ERROR);
+        await user.clear(screen.getByTestId('agent-seed'));
+        await user.click(screen.getByTestId('agent-validate'));
+
+        await waitFor(() => {
+          expect(sent?.model).toBeDefined();
+        });
+
+        expect(sent?.model?.seed).toBeNull();
+        expect(screen.queryByText(SEED_ERROR)).toBeNull();
+      });
+    });
+
     it('marks a hosted tool and does not offer it as a required tool', async () => {
       // The first matching route wins, so the screen's own fixtures come before the empty defaults.
       restoreFetch = installApiMock([

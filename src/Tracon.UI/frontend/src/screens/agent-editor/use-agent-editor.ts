@@ -15,7 +15,7 @@ import type {
   ModelProviderDescriptor,
   ToolDescriptor,
 } from '../../lib/server-types';
-import { emptyForm, emptySkills, emptyWorkspace, fromDefinition, isValidJson, toRequest, withDefaultProvider, type FormState } from './model';
+import { emptyForm, emptySkills, emptyWorkspace, fromDefinition, isValidJson, isValidSeed, toRequest, withDefaultProvider, type FormState } from './model';
 
 export interface UseAgentEditorResult {
   editing: boolean;
@@ -180,7 +180,8 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
     request.name.length > 0 &&
     request.model.provider.length > 0 &&
     request.model.model.length > 0 &&
-    schemaJsonValid;
+    schemaJsonValid &&
+    isValidSeed(form.seed);
 
   const cancel = (): void => navigate(editing ? `agents/${encodeURIComponent(name as string)}` : 'agents');
 
