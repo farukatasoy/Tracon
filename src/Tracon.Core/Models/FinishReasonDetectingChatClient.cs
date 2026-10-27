@@ -6,8 +6,9 @@ namespace Tracon;
 
 /// <summary>
 /// Reads the finish reason of a model response and turns two of them into an
-/// explicit outcome: an <strong>empty</strong> response cut off by a
-/// content/safety filter (<see cref="TraconContentFilteredException"/>), and a
+/// explicit outcome: a response cut off by a content/safety filter (an
+/// <strong>empty</strong> one is a <see cref="TraconContentFilteredException"/>, one
+/// with text a <see cref="RunEventCustomTypes.OutputFiltered"/> event), and a
 /// response stopped at the output token limit
 /// (<see cref="TraconOutputTruncatedException"/> or a
 /// <see cref="RunEventCustomTypes.OutputTruncated"/> event).
@@ -45,9 +46,12 @@ namespace Tracon;
 /// <strong>Only an empty filtered response is turned into an error.</strong> If
 /// the model produced text and was then filtered (not Gemini's common behavior,
 /// but possible), the user has a partial answer in hand; discarding it is a loss
-/// of information. An empty response left silent, on the other hand, produces the
-/// hardest case to debug: the user sees an empty answer and there is no trace in
-/// the record.
+/// of information. The answer passes through and the run records a
+/// <see cref="RunEventCustomTypes.OutputFiltered"/> event, so the record says why it
+/// ends where it does. A structured (JSON) response gets the event too; whether the
+/// document is usable stays the structured-response validator's decision. An empty
+/// response left silent, on the other hand, produces the hardest case to debug: the
+/// user sees an empty answer and there is no trace in the record.
 /// </para>
 /// <para>
 /// <strong>A truncated response fails only when it is structured.</strong> When
@@ -84,10 +88,15 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     {
         var response = await base.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
 
-        if (IsContentFilter(response.FinishReason) && !HasContent(response))
+        if (IsContentFilter(response.FinishReason))
         {
-            FoldRejectedUsage(response.Usage);
-            throw Filtered(response.FinishReason);
+            if (!HasContent(response))
+            {
+                FoldRejectedUsage(response.Usage);
+                throw Filtered(response.FinishReason);
+            }
+
+            await RecordFilteredTextAsync(cancellationToken).ConfigureAwait(false);
         }
 
         if (IsTruncated(response.FinishReason))
@@ -142,10 +151,15 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         // The decision is made at the END of the stream: the finish reason
         // arrives in the last frame for most providers, and text may have been
         // produced before it.
-        if (IsContentFilter(finishReason) && !sawContent)
+        if (IsContentFilter(finishReason))
         {
-            FoldRejectedStreamUsage(usage);
-            throw Filtered(finishReason);
+            if (!sawContent)
+            {
+                FoldRejectedStreamUsage(usage);
+                throw Filtered(finishReason);
+            }
+
+            await RecordFilteredTextAsync(cancellationToken).ConfigureAwait(false);
         }
 
         if (IsTruncated(finishReason))
@@ -160,8 +174,25 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         }
     }
 
-    private static bool IsContentFilter(ChatFinishReason? finishReason)
+    /// <summary>Tells whether a finish reason means a content or safety filter stopped the model.</summary>
+    /// <param name="finishReason">The finish reason a model call reported.</param>
+    /// <returns><see langword="true"/> for <see cref="ChatFinishReason.ContentFilter"/>.</returns>
+    internal static bool IsContentFilter(ChatFinishReason? finishReason)
         => finishReason == ChatFinishReason.ContentFilter;
+
+    /// <summary>Tells whether an answer that ends with this finish reason may be incomplete.</summary>
+    /// <param name="finishReason">The finish reason a model call reported.</param>
+    /// <returns>
+    /// <see langword="true"/> when <see cref="IsTruncated"/> or <see cref="IsContentFilter"/> is.
+    /// </returns>
+    /// <remarks>
+    /// The ONE predicate for "this run may hold a notice about the answer". The agent run endpoint
+    /// reads it to decide whether to read the run's notices back before <c>done</c>. It says "may":
+    /// a filtered answer with no content fails its run and writes no notice, and a tool turn that
+    /// hit the limit is not the final answer, so the caller still looks the notice up.
+    /// </remarks>
+    internal static bool IsIncomplete(ChatFinishReason? finishReason)
+        => IsTruncated(finishReason) || IsContentFilter(finishReason);
 
     // F-426 added the context window; phase 207 opened the predicate to the endpoints.
 
@@ -172,10 +203,11 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     /// <see cref="TraconFinishReasons.ContextWindowExceeded"/>.
     /// </returns>
     /// <remarks>
-    /// The ONE predicate for a cut-off answer. The agent run endpoint uses it to decide
-    /// whether to read the run's notices back before <c>done</c>, and the Chat
-    /// Completions endpoint uses it to report <c>"length"</c>; a second list of
-    /// reasons would drift from this one. An answer the context window cut off is
+    /// The ONE predicate for a cut-off answer. The Chat Completions endpoint uses it to
+    /// report <c>"length"</c> and the Responses endpoint <c>max_output_tokens</c>, and
+    /// <see cref="IsIncomplete"/> (this or a content filter) is what the agent run endpoint
+    /// reads to decide whether to read the run's notices back before <c>done</c>; a second
+    /// list of reasons would drift from this one. An answer the context window cut off is
     /// cut off too; only the remedy differs, so the message and the event name the
     /// cause.
     /// </remarks>
@@ -275,17 +307,15 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
 
     /// <summary>Writes the <see cref="RunEventCustomTypes.OutputTruncated"/> notice for a plain-text answer.</summary>
     /// <remarks>
-    /// Only for the agent's own model call: a side-channel call's answer is not
-    /// the run's answer, and naming it in the run's stream would point the
-    /// operator at the wrong model. The writer already keeps a store
-    /// failure from reaching the run.
+    /// Only for the agent's own model call (<see cref="NoticeWriter"/>). The writer
+    /// already keeps a store failure from reaching the run.
     /// </remarks>
     private async ValueTask RecordTruncatedTextAsync(
         ChatOptions? options,
         ChatFinishReason? finishReason,
         CancellationToken cancellationToken)
     {
-        if (TraconRunContext.Current is not { Writer: { } writer } scope || scope.SideChannelFallback is not null)
+        if (NoticeWriter() is not { } writer)
         {
             return;
         }
@@ -312,6 +342,44 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
             },
             cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Writes the <see cref="RunEventCustomTypes.OutputFiltered"/> notice for an answer that has text.</summary>
+    /// <remarks>
+    /// The same rules as <see cref="RecordTruncatedTextAsync"/>: only the agent's own call writes, and the
+    /// payload names the provider and never the answer. The provider's own filter word is not known here
+    /// (see <see cref="OutputFilteredEventPayload"/>).
+    /// </remarks>
+    private async ValueTask RecordFilteredTextAsync(CancellationToken cancellationToken)
+    {
+        if (NoticeWriter() is not { } writer)
+        {
+            return;
+        }
+
+        var payload = JsonSerializer.Serialize(
+            new OutputFilteredEventPayload { Provider = providerName },
+            TraconCoreJsonContext.Default.OutputFilteredEventPayload);
+
+        await writer.AppendReservedAsync(
+            new RunEventDraft(RunEventType.Custom)
+            {
+                CustomType = RunEventCustomTypes.OutputFiltered,
+                Text = "The provider's content filter stopped the model mid-answer; the answer is incomplete.",
+                Payload = payload,
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The writer a notice about the agent's own answer goes to, or <see langword="null"/> outside a
+    /// recorded run and in a side-channel call.
+    /// </summary>
+    /// <remarks>
+    /// A side-channel call's answer (the compaction summarizer, an <c>aiJudge</c> judge) is not the run's
+    /// answer, and a notice about it would point the operator at the wrong model.
+    /// </remarks>
+    private static RunEventWriter? NoticeWriter()
+        => TraconRunContext.Current is { Writer: { } writer, SideChannelFallback: null } ? writer : null;
 
     private TraconContentFilteredException Filtered(ChatFinishReason? finishReason)
         => new($"The '{providerName}' provider cut off the response with a content filter and returned no content. " +
