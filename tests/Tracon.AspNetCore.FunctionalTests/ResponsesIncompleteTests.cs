@@ -124,13 +124,16 @@ public sealed class ResponsesIncompleteTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task A_tool_turn_cut_at_the_limit_does_not_make_the_final_answer_incomplete(bool stream)
+    [InlineData("length", false)]
+    [InlineData("length", true)]
+    [InlineData("content_filter", false)]
+    [InlineData("content_filter", true)]
+    public async Task A_tool_turn_cut_at_the_limit_or_filtered_does_not_make_the_final_answer_incomplete(string toolTurnReason, bool stream)
     {
         // The tools run on the server; the caller never sees the tool turn, so its reason is not the answer's.
+        // The rule holds for a filter exactly as for the output limit: only the turn that ends the answer decides.
         var provider = new FinishReasonModelProvider()
-            .ToolCall("lookup_fact", ChatFinishReason.Length, inputTokens: 20, outputTokens: 10)
+            .ToolCall("lookup_fact", new ChatFinishReason(toolTurnReason), inputTokens: 20, outputTokens: 10)
             .Text("The answer is 42.", ChatFinishReason.Stop, inputTokens: 30, outputTokens: 10);
 
         await using var host = await OutputTruncationTests.StartAsync(
