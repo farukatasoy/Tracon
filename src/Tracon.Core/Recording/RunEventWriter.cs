@@ -347,8 +347,10 @@ public sealed class RunEventWriter
             Type = draft.Type,
             // Whole microseconds, the finest precision every store keeps (PostgreSQL's timestamptz stops
             // there): the event handed back here and the one the store serves later must serialize alike
-            // (the loop iteration frame of the native stream is this very event).
-            Timestamp = AuditChainHasher.TruncateToMicroseconds(_timeProvider.GetUtcNow()),
+            // (the loop iteration frame of the native stream is this very event). A draft that carries the
+            // time its event really happened keeps it: a tool call written from the ledger when the run
+            // closes is stamped with the time it ran, not with the time the run was closed.
+            Timestamp = AuditChainHasher.TruncateToMicroseconds(draft.Timestamp ?? _timeProvider.GetUtcNow()),
             Text = Truncate(draft.Text),
             ToolName = draft.ToolName,
             ToolCallId = draft.ToolCallId,
@@ -790,6 +792,16 @@ public readonly record struct RunEventDraft(RunEventType Type)
 
     /// <summary>Gets the free-form JSON payload.</summary>
     public string? Payload { get; init; }
+
+    /// <summary>
+    /// Gets the time to stamp on the event instead of the time it is appended. <see langword="null"/>, the default,
+    /// stamps the writer's clock.
+    /// </summary>
+    /// <remarks>
+    /// <c>internal</c>: only the run recorder sets it, for a tool call it writes from the tool-call ledger when the
+    /// run closes. A consumer appending its own event always gets the time of the append.
+    /// </remarks>
+    internal DateTimeOffset? Timestamp { get; init; }
 
     /// <summary>
     /// Gets the namespaced type that qualifies a <see cref="RunEventType.Custom"/>

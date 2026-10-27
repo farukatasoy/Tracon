@@ -174,6 +174,10 @@ public sealed partial class RunRecordingAgent
             error = error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
         }
 
+        // The calls the tool chain ran and no message reported (a run that ended in an exception has no
+        // messages) are written first, so the loop below also closes the ones that never ended.
+        await WriteLedgerCallsAsync(scope, cancellationToken).ConfigureAwait(false);
+
         // Calls that end before a result arrives are closed explicitly; otherwise a tool
         // card that looks "started but not finished" would stay in the user interface.
         foreach (var unfinished in scope.Tools.DrainUnfinished("The run ended before the tool result arrived."))

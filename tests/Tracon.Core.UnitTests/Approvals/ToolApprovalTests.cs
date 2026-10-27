@@ -19,9 +19,10 @@ public sealed class ToolApprovalTests
         // Every server-side tool is wrapped in AuthorizingAIFunction (F-113)
         // and TimeoutAIFunction (F-114), whether it requires approval or not
         // (docs/69, section 69.1); approval alone no longer determines the
-        // outermost type, and since HATA-S1-024 the outermost layer is
-        // ExplainedFailureAIFunction. The descriptor's RequiresApproval flag is
-        // the stable, wrapping-order-independent way to observe approval.
+        // outermost type, and the outermost layer is CallRecordingAIFunction (with
+        // ExplainedFailureAIFunction directly inside it since HATA-S1-024). The
+        // descriptor's RequiresApproval flag is the stable, wrapping-order-independent
+        // way to observe approval.
         var withApproval = new ToolRegistry(
             [
                 new TraconToolRegistration(Function("safe_tool")),
@@ -36,10 +37,10 @@ public sealed class ToolApprovalTests
             NullLogger<ValidatingAIFunction>.Instance);
 
         withApproval.TryGet("safe_tool", out var safe).ShouldBeTrue();
-        safe.ShouldBeOfType<ExplainedFailureAIFunction>();
+        safe.ShouldBeOfType<CallRecordingAIFunction>();
 
         withApproval.TryGet("dangerous_tool", out var dangerous).ShouldBeTrue();
-        dangerous.ShouldBeOfType<ExplainedFailureAIFunction>();
+        dangerous.ShouldBeOfType<CallRecordingAIFunction>();
 
         withApproval.List().Single(d => string.Equals(d.Name, "safe_tool", StringComparison.Ordinal))
             .RequiresApproval.ShouldBeFalse();
