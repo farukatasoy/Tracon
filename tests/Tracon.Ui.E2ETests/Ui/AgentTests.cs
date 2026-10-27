@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
@@ -14,6 +15,10 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// </summary>
 public sealed class AgentTests(BrowserFixture browsers)
 {
+    /// <summary>The seed error, whole: <c>Exact</c> matching holds only when the text is the whole message.</summary>
+    private const string SeedRangeError =
+        "Seed must be a whole number from -9007199254740991 to 9007199254740991. The console cannot send larger numbers exactly. Replace the seed or clear it to save.";
+
     [Fact]
     public async Task Code_defined_agent_appears_in_list_and_cannot_be_edited()
     {
@@ -340,7 +345,7 @@ public sealed class AgentTests(BrowserFixture browsers)
         await session.Page.GetByText("Sampling and tool use", new() { Exact = true }).ClickAsync();
 
         var seed = session.Page.GetByTestId("agent-seed");
-        var error = session.Page.GetByText("Seed must be a whole number from -9007199254740991 to 9007199254740991.");
+        var error = session.Page.GetByText(SeedRangeError, new() { Exact = true });
 
         await Expect(error).ToHaveCountAsync(0);
 
@@ -381,12 +386,12 @@ public sealed class AgentTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
         await WaitForDefaultProviderAsync(session.Page);
 
-        await session.Page.GetByTestId("agent-name").FillAsync("buyuk-seed-agent");
+        await session.Page.GetByTestId("agent-name").FillAsync("big-seed-agent-tr");
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
-        await session.Page.GetByText("Örnekleme ve tool kullanımı", new() { Exact = true }).ClickAsync();
+        await session.Page.GetByText(TurkishText("agentEditor.sampling"), new() { Exact = true }).ClickAsync();
         await session.Page.GetByTestId("agent-seed").FillAsync("9007199254740993");
 
-        await Expect(session.Page.GetByText("Seed, -9007199254740991 ile 9007199254740991 arasında bir tam sayı olmalıdır.")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText(TurkishText("agentEditor.seedError"), new() { Exact = true })).ToBeVisibleAsync();
         await Expect(session.Page.GetByTestId("agent-save")).ToBeDisabledAsync();
     }
 
@@ -414,7 +419,7 @@ public sealed class AgentTests(BrowserFixture browsers)
         await Expect(session.Page.GetByTestId("agent-name")).ToHaveValueAsync("stored-big-seed");
 
         var seed = session.Page.GetByTestId("agent-seed");
-        var error = session.Page.GetByText("Seed must be a whole number from -9007199254740991 to 9007199254740991.");
+        var error = session.Page.GetByText(SeedRangeError, new() { Exact = true });
 
         // The group opens by itself for a stored value; the field shows the rounded number the browser read, with the error.
         await Expect(seed).ToHaveValueAsync("9007199254740992");
@@ -437,6 +442,34 @@ public sealed class AgentTests(BrowserFixture browsers)
         var replaced = (await api.GetFromJsonAsync<JsonElement>("api/agents/stored-big-seed")).GetProperty("definition").GetProperty("model");
 
         replaced.GetProperty("seed").GetInt64().ShouldBe(7);
+    }
+
+    /// <summary>
+    /// A Turkish UI text, read from the dictionary the console ships. The source-language gate keeps Turkish out of test
+    /// code, and a sentence copied into a test would drift from the dictionary the first time a translation changes.
+    /// </summary>
+    private static string TurkishText(string key)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Tracon.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        var root = directory?.FullName ?? throw new InvalidOperationException("Tracon.slnx not found above the test binary.");
+        var dictionary = File.ReadAllText(Path.Combine(root, "src", "Tracon.UI", "frontend", "src", "locales", "tr", "agents.ts"));
+
+        // `"key": 'text',` or `"key": "text",` — a text that holds an apostrophe is written with double quotes.
+        var match = Regex.Match(
+            dictionary,
+            $"\"{Regex.Escape(key)}\":\\s*(?<quote>['\"])(?<text>.*?)\\k<quote>,",
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(5));
+
+        match.Success.ShouldBeTrue($"The Turkish dictionary has no text for '{key}'.");
+
+        return match.Groups["text"].Value;
     }
 
     private static string? EventType(string data)

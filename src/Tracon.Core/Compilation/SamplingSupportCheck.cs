@@ -192,6 +192,12 @@ internal static class SamplingSupportCheck
         }
 
         var sent = requested & descriptor.SupportedSamplingFields;
+
+        if (sent == SamplingFields.None)
+        {
+            return;
+        }
+
         var rejected = sent & (ModelCatalogLookup.Find(providers, provider, model)?.RejectedSamplingFields ?? SamplingFields.None);
 
         foreach (var field in Enum.GetValues<SamplingFields>())

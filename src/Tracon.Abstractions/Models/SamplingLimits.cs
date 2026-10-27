@@ -14,7 +14,8 @@ namespace Tracon;
 /// <para>
 /// A member left <see langword="null"/> states no limit and checks nothing. State only a limit that you
 /// measured or that the provider documents: a range that is too narrow rejects a definition that would run.
-/// The limits describe the API surface, so every tenant gets the same ones.
+/// The limits describe the provider as registered, so every tenant gets the same ones, including a tenant
+/// that brings its own credential or endpoint.
 /// </para>
 /// </remarks>
 public sealed record SamplingLimits
