@@ -124,7 +124,7 @@ public sealed class FailedRunToolRowsTests
                 (Func<CancellationToken, Task<string>>)(async cancellationToken =>
                 {
                     started.SetResult();
-                    await Task.Delay(Timeout.Infinite, cancellationToken);
+                    await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
 
                     return "never";
                 }),
