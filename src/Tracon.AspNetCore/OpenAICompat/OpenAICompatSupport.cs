@@ -152,8 +152,8 @@ internal static class OpenAICompatSupport
     /// <para>
     /// <see cref="ChatFinishReason.ToolCalls"/> is <c>"stop"</c>. The tools run on the
     /// server and the endpoint never hands a tool call to the caller, so a tool turn's
-    /// reason is never the answer's. An empty filtered answer never reaches this
-    /// method: the run fails and the endpoint answers with an error.
+    /// reason is never the answer's. A filtered answer with no content normally
+    /// fails the run, so the endpoint answers with an error instead.
     /// </para>
     /// </remarks>
     public static string ToChatFinishReason(ChatFinishReason? finishReason)

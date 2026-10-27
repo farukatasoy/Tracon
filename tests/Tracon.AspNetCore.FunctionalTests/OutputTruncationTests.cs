@@ -243,8 +243,8 @@ public sealed class OutputTruncationTests
     [Fact]
     public async Task The_filter_notice_keeps_its_payload_when_payload_recording_is_off()
     {
-        // The payload names a provider and never user data, so turning RecordToolPayloads off does not
-        // silence it (the truncation notice's rule).
+        // The payload names a provider and never carries the answer text, so turning RecordToolPayloads off
+        // does not silence it (the truncation notice's rule).
         var provider = new FinishReasonModelProvider()
             .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
 

@@ -203,10 +203,11 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     /// <see cref="TraconFinishReasons.ContextWindowExceeded"/>.
     /// </returns>
     /// <remarks>
-    /// The ONE predicate for a cut-off answer. The agent run endpoint uses it to decide
-    /// whether to read the run's notices back before <c>done</c>, and the Chat
-    /// Completions endpoint uses it to report <c>"length"</c>; a second list of
-    /// reasons would drift from this one. An answer the context window cut off is
+    /// The ONE predicate for a cut-off answer. The Chat Completions endpoint uses it to
+    /// report <c>"length"</c> and the Responses endpoint <c>max_output_tokens</c>, and
+    /// <see cref="IsIncomplete"/> (this or a content filter) is what the agent run endpoint
+    /// reads to decide whether to read the run's notices back before <c>done</c>; a second
+    /// list of reasons would drift from this one. An answer the context window cut off is
     /// cut off too; only the remedy differs, so the message and the event name the
     /// cause.
     /// </remarks>
