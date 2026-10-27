@@ -85,6 +85,38 @@ internal static class ConfigurationValueKinds
             || (!text.Contains(',', StringComparison.Ordinal) && Enum.IsDefined(value));
     }
 
+    /// <summary>
+    /// Reads an enum like <see cref="TryEnum{TEnum}"/>, and a <c>[Flags]</c> value must also hold defined
+    /// bits only. The parser takes any number, so <c>"256"</c> would otherwise become a set that names no
+    /// member and checks nothing, where the operator meant a field.
+    /// </summary>
+    /// <typeparam name="TEnum">The enum type.</typeparam>
+    /// <param name="text">The text.</param>
+    /// <param name="value">The member, or the set of members.</param>
+    /// <returns>Whether the text is readable.</returns>
+    internal static bool TryDefinedEnum<TEnum>(string text, out TEnum value)
+        where TEnum : struct, Enum
+    {
+        if (!TryEnum(text, out value))
+        {
+            return false;
+        }
+
+        if (!IsFlags<TEnum>())
+        {
+            return true;
+        }
+
+        var defined = 0L;
+
+        foreach (var member in Enum.GetValues<TEnum>())
+        {
+            defined |= Convert.ToInt64(member, CultureInfo.InvariantCulture);
+        }
+
+        return (Convert.ToInt64(value, CultureInfo.InvariantCulture) & ~defined) == 0;
+    }
+
     /// <summary>Describes the members of an enum, completing "which is not …".</summary>
     /// <typeparam name="TEnum">The enum type.</typeparam>
     /// <returns>The description.</returns>

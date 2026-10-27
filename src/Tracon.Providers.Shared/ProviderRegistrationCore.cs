@@ -127,6 +127,11 @@ internal static class ProviderRegistrationCore
                 // Nullable on purpose: an absent key means "unknown" and checks
                 // nothing; only an explicit false rejects Temperature/TopP (F-346).
                 SupportsSampling = batch.Boolean(child, nameof(ModelDescriptor.SupportsSampling)),
+
+                // A set of names: "StopSequences, Seed". An absent key rejects nothing and checks
+                // nothing; a name the enum does not have is recorded, and the host stops at start.
+                RejectedSamplingFields = batch.Enum<SamplingFields>(child, nameof(ModelDescriptor.RejectedSamplingFields))
+                    ?? SamplingFields.None,
                 InputCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
                 OutputCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
 
