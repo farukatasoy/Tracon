@@ -11,7 +11,8 @@
 > 199 (§ fonksiyon düğümünün token dışı harcaması — kalemler, toplam, kota, bütçe, webhook),
 > 210 (§ bütçe tükenince fonksiyon düğümü başlamaz — maliyet ve süre kapısı, muafiyet),
 > 238 (§ kiracı metrik etiketi — `IncludeTenantTag`, varsayılan kapalı),
-> 243 (§ bütçe tükenince tool çağrısı başlamaz — token, maliyet ve süre kapısı)
+> 243 (§ bütçe tükenince tool çağrısı başlamaz — token, maliyet ve süre kapısı),
+> 253 (§ önbellek yazma maliyeti — run maliyetinin dördüncü terimi)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -2505,3 +2506,35 @@ Bu case aynı davranışı **gerçek örnek uygulamada**, ücretli bir tool ile 
 2026-10-25 koşumu (örnek uygulama, bellek içi depo, echo modeli): (1) iki `functionResult` yukarıdaki metinlerle; (2) run `Failed`, `run_budget_exceeded`,
 `nonTokenCost.amount 0.0096`, iki araç satırı (`succeeded` True ve False; ikincide `error` ret cümlesi, `usage` yok); (3) `Completed`, `0.0199`, iki satır da `succeeded`;
 `Npgsql` satırı 0.
+
+---
+
+### MT-OBS-086 — Yazma fiyatı yazılmamış kurulumda maliyet değişmez: yazılan token girdi fiyatında kalır (Faz 253, F-420)
+
+Otomatik karşılığı: `PricingResolverCacheWriteTests.Without_a_write_rate_the_cost_is_exactly_what_it_was_before_the_write_counters_existed` (birim) ·
+`AnthropicCacheWriteTests.Without_write_rates_the_cost_is_what_it_was_before_the_write_was_priced` (tel, tüm konak). Bu case aynı kuralı **gerçek Anthropic API'sinde** okur.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 253 |
+| **İlgili karar** | K-483 |
+| **Devir** | koşuldu (2026-10-27, `🤖`, örnek uygulama, bellek içi depo, gerçek Anthropic) |
+
+Gerçek para harcar (bir küçük çağrı, ~2,4 K girdi token'ı).
+
+**Ön koşul** — MT-PROV-097'nın kurulumu; fark: yazma fiyatları katalogdan **kaldırılır** (boş ortam değişkeniyle):
+`Tracon__Providers__Anthropic__Models__1__CacheWriteCostPerMillionTokens=` ve `Tracon__Providers__Anthropic__Models__1__CacheWriteLongCostPerMillionTokens=`
+(indeks `1` = `claude-haiku-5-5`).
+
+**Adımlar**
+1. `GET /api/models` ile `claude-haiku-5-5` satırında iki yazma fiyatının `null` olduğunu doğrula.
+2. MT-PROV-097'nın ilk run'ını (benzersiz talimat, `ttl=5m`, tamponlu) bu uygulamada çalıştır; run'ı oku.
+
+**Beklenen sonuç**
+- Sayaçlar yine kaydedilir: `usage.cacheWriteInputTokens > 0`.
+- `cost.cacheWriteCost`, `cost.cacheWritePricePerMillionTokens` ve `cost.cacheWriteLongPricePerMillionTokens` `null`'dır; `cost.source` `Catalog`'dur (fiyatsızlık `Unknown` yapmaz).
+- `cost.inputCost` = `inputTokens × 0,10 / 1.000.000`: yazılan token'lar da düz girdi fiyatındadır, yani maliyet bugüne kadarki değerle bit bit aynıdır.
+
+2026-10-27 koşumu (`claude-haiku-5-5`): `inputTokens 2428`, `cacheWriteInputTokens 2424`, `inputCost 0.0002428` (= 2428 × 0,10 / 1.000.000), `cacheWriteCost null`, `source Catalog`.

@@ -32,6 +32,8 @@ public sealed class ProviderRegistrationCoreTests
             ["0:InputCostPerMillionTokens"] = "1.5",
             ["0:OutputCostPerMillionTokens"] = "2.5",
             ["0:CachedInputCostPerMillionTokens"] = "0.5",
+            ["0:CacheWriteCostPerMillionTokens"] = "1.25",
+            ["0:CacheWriteLongCostPerMillionTokens"] = "2",
         };
 
         var settable = typeof(ModelDescriptor)

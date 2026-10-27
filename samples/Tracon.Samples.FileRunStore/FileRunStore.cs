@@ -728,6 +728,7 @@ public sealed class JsonFileRunStore : IRunStore
         long total = 0, completed = 0, failed = 0, canceled = 0, running = 0, awaitingInput = 0;
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;
         long cachedInputTokens = 0, reasoningTokens = 0, audioInputTokens = 0, audioOutputTokens = 0;
+        long cacheWriteInputTokens = 0, cacheWriteLongInputTokens = 0;
         long scoredRuns = 0, binaryScores = 0, positiveBinaryScores = 0;
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
         var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
@@ -819,6 +820,8 @@ public sealed class JsonFileRunStore : IRunStore
             reasoningTokens += record.Usage?.ReasoningTokens ?? 0;
             audioInputTokens += record.Usage?.AudioInputTokens ?? 0;
             audioOutputTokens += record.Usage?.AudioOutputTokens ?? 0;
+            cacheWriteInputTokens += record.Usage?.CacheWriteInputTokens ?? 0;
+            cacheWriteLongInputTokens += record.Usage?.CacheWriteLongInputTokens ?? 0;
 
             if (record.Status == RunStatus.Failed && record.Error is { } runError)
             {
@@ -950,6 +953,8 @@ public sealed class JsonFileRunStore : IRunStore
             OutputTokens = outputTokens,
             TotalTokens = totalTokens,
             CachedInputTokens = cachedInputTokens,
+            CacheWriteInputTokens = cacheWriteInputTokens,
+            CacheWriteLongInputTokens = cacheWriteLongInputTokens,
             ReasoningTokens = reasoningTokens,
             AudioInputTokens = audioInputTokens,
             AudioOutputTokens = audioOutputTokens,
@@ -1185,8 +1190,9 @@ public sealed class JsonFileRunStore : IRunStore
         long input = 0, output = 0, total = 0;
         var sawUsage = record.Usage is not null;
         long? cachedInput = null, reasoning = null, audioInput = null, audioOutput = null;
+        long? cacheWrite = null, cacheWriteLong = null;
         var sawCost = false;
-        decimal? inputCost = null, outputCost = null, cachedInputCost = null;
+        decimal? inputCost = null, outputCost = null, cachedInputCost = null, cacheWriteCost = null;
         string? costCurrency = null;
         long unknownPricing = 0;
         var costCurrencies = new CurrencySet();
@@ -1213,6 +1219,8 @@ public sealed class JsonFileRunStore : IRunStore
             reasoning = Accumulate(reasoning, usage.ReasoningTokens);
             audioInput = Accumulate(audioInput, usage.AudioInputTokens);
             audioOutput = Accumulate(audioOutput, usage.AudioOutputTokens);
+            cacheWrite = Accumulate(cacheWrite, usage.CacheWriteInputTokens);
+            cacheWriteLong = Accumulate(cacheWriteLong, usage.CacheWriteLongInputTokens);
         }
 
         void AccumulateCost(RunCost? cost)
@@ -1244,6 +1252,11 @@ public sealed class JsonFileRunStore : IRunStore
             if (cost.CachedInputCost is { } cc)
             {
                 cachedInputCost = (cachedInputCost ?? 0) + cc;
+            }
+
+            if (cost.CacheWriteCost is { } cwc)
+            {
+                cacheWriteCost = (cacheWriteCost ?? 0) + cwc;
             }
         }
 
@@ -1309,6 +1322,8 @@ public sealed class JsonFileRunStore : IRunStore
                     ReasoningTokens = reasoning,
                     AudioInputTokens = audioInput,
                     AudioOutputTokens = audioOutput,
+                    CacheWriteInputTokens = cacheWrite,
+                    CacheWriteLongInputTokens = cacheWriteLong,
                 }
                 : null,
             TreeCost = !sawCost
@@ -1320,6 +1335,7 @@ public sealed class JsonFileRunStore : IRunStore
                         InputCost = inputCost,
                         OutputCost = outputCost,
                         CachedInputCost = cachedInputCost,
+                        CacheWriteCost = cacheWriteCost,
                         Currency = costCurrencies.First ?? costCurrency,
                         CurrencyCount = costCurrencies.Count,
                         RunsWithUnknownPricing = unknownPricing,

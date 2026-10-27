@@ -1257,6 +1257,7 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     # F-426: bitis sebebi eslemesi ve sunucu tool bloklarinin donusumu SDK
     # adaptorunun decompile okumasina dayanir; yukseltmede yeniden olculur.
     "src/Tracon.Anthropic/AnthropicStopReasonChatClient.cs": "Anthropic",
+    "src/Tracon.Anthropic/AnthropicCacheUsageChatClient.cs": "Anthropic",
     # F-598: hangi istek alanini bir API yuzeyinin tele yazdigi, SDK adaptorunun
     # decompile okumasina dayanir; ISamplingSupport tablosu yukseltmede yeniden olculur.
     "src/Tracon.Anthropic/AnthropicModelProvider.cs": "Anthropic",

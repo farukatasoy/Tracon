@@ -149,6 +149,33 @@ public sealed class RunCostCombinerTests
         cost.Total().ShouldBeNull();
     }
 
+    [Fact]
+    public void Two_models_cache_write_charges_are_summed_into_the_total()
+    {
+        // Phase 253: a judge or summarizer on a caching model writes its own cache. Its charge is a
+        // term of the combined cost, or the run under-reports it.
+        var resolver = new FakeRunPricingResolver((provider, _, usage) => new RunCost
+        {
+            InputCost = 1m,
+            CacheWriteCost = string.Equals(provider, JudgeProvider, StringComparison.Ordinal) ? 0.5m : 0.25m,
+            CacheWritePricePerMillionTokens = 12.5m,
+            Currency = "USD",
+            Source = PricingSource.Catalog,
+        });
+
+        var cost = RunCostCombiner.Resolve(
+            resolver,
+            AgentProvider,
+            AgentModel,
+            AgentUsage,
+            [new SideChannelModelUsage(JudgeProvider, JudgeModel, JudgeUsage)]).ShouldNotBeNull();
+
+        cost.CacheWriteCost.ShouldBe(0.75m);
+        cost.CacheWritePricePerMillionTokens.ShouldBeNull("one rate cannot describe a total several rates produced");
+        cost.CacheWriteLongPricePerMillionTokens.ShouldBeNull();
+        cost.Total().ShouldBe(2.75m);
+    }
+
     /// <summary>
     /// K-483's class guard: every cost term of <see cref="RunCost"/> — each
     /// <c>decimal?</c> property whose name ends in <c>Cost</c> — is summed. A

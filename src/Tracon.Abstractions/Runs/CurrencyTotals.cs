@@ -23,6 +23,7 @@ internal static class CurrencyTotals
     /// <param name="inputCost">The summed input cost.</param>
     /// <param name="outputCost">The summed output cost.</param>
     /// <param name="cachedInputCost">The summed cache-read cost.</param>
+    /// <param name="cacheWriteCost">The summed cache-write cost.</param>
     /// <param name="currency">A currency the runs carry.</param>
     /// <param name="currencyCount">How many currencies the runs carry.</param>
     /// <param name="runsWithUnknownPricing">How many runs have an unknown price.</param>
@@ -31,6 +32,7 @@ internal static class CurrencyTotals
         decimal? inputCost,
         decimal? outputCost,
         decimal? cachedInputCost,
+        decimal? cacheWriteCost,
         string? currency,
         int currencyCount,
         long runsWithUnknownPricing)
@@ -41,6 +43,7 @@ internal static class CurrencyTotals
                 InputCost = inputCost,
                 OutputCost = outputCost,
                 CachedInputCost = cachedInputCost,
+                CacheWriteCost = cacheWriteCost,
                 Currency = currency,
                 CurrencyCount = currencyCount,
                 RunsWithUnknownPricing = runsWithUnknownPricing,

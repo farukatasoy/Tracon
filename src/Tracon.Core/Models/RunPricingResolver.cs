@@ -59,9 +59,12 @@ internal sealed class RunPricingResolver : IRunPricingResolver
         if (catalogPrice is { InputCostPerMillionTokens: not null } or { OutputCostPerMillionTokens: not null })
         {
             return Compute(
-                catalogPrice!.InputCostPerMillionTokens,
-                catalogPrice.OutputCostPerMillionTokens,
-                catalogPrice.CachedInputCostPerMillionTokens,
+                new Rates(
+                    catalogPrice!.InputCostPerMillionTokens,
+                    catalogPrice.OutputCostPerMillionTokens,
+                    catalogPrice.CachedInputCostPerMillionTokens,
+                    catalogPrice.CacheWriteCostPerMillionTokens,
+                    catalogPrice.CacheWriteLongCostPerMillionTokens),
                 usage,
                 PricingSource.Catalog,
                 currency);
@@ -71,9 +74,12 @@ internal sealed class RunPricingResolver : IRunPricingResolver
         if (configuredPrice is { InputCostPerMillionTokens: not null } or { OutputCostPerMillionTokens: not null })
         {
             return Compute(
-                configuredPrice!.InputCostPerMillionTokens,
-                configuredPrice.OutputCostPerMillionTokens,
-                configuredPrice.CachedInputCostPerMillionTokens,
+                new Rates(
+                    configuredPrice!.InputCostPerMillionTokens,
+                    configuredPrice.OutputCostPerMillionTokens,
+                    configuredPrice.CachedInputCostPerMillionTokens,
+                    configuredPrice.CacheWriteCostPerMillionTokens,
+                    configuredPrice.CacheWriteLongCostPerMillionTokens),
                 usage,
                 PricingSource.Configuration,
                 currency);
@@ -131,34 +137,31 @@ internal sealed class RunPricingResolver : IRunPricingResolver
     }
 
     /// <summary>
-    /// Computes the cost, charging cached input tokens at their own rate.
+    /// Computes the cost, charging cached input tokens and cache-written input tokens at their
+    /// own rates.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The computation is SUBTRACTIVE, because <see cref="RunUsage.CachedInputTokens"/>
-    /// is counted INSIDE <see cref="RunUsage.InputTokens"/> (the
+    /// The computation is SUBTRACTIVE, because <see cref="RunUsage.CachedInputTokens"/> and the two
+    /// cache-write counters are counted INSIDE <see cref="RunUsage.InputTokens"/> (the
     /// Microsoft.Extensions.AI contract). Pricing the whole input at the full
-    /// rate and then adding a cache charge would bill the cached tokens twice.
+    /// rate and then adding a cache charge would bill those tokens twice. The four parts are
+    /// the full-priced input (input − cached − priced writes), the cache read, the cache write
+    /// (short tokens at the short rate plus long tokens at the long rate) and the output.
     /// </para>
     /// <para>
-    /// Two invariants hold here. When <paramref name="cachedRate"/> is
-    /// <see langword="null"/> NOTHING is subtracted and
-    /// <see cref="RunCost.CachedInputCost"/> stays <see langword="null"/>: the
-    /// result is byte-for-byte the value this method produced before cache
-    /// pricing existed. And the run never falls to
-    /// <see cref="PricingSource.Unknown"/> for a missing cache rate — that
+    /// Two invariants hold here. When a rate is <see langword="null"/> NOTHING is subtracted for
+    /// it and its cost field stays <see langword="null"/>: the result is byte-for-byte the value
+    /// this method produced before that rate existed. A cache write is priced class by class, so
+    /// a time to live with a rate and a time to live without one can sit in the same run. And the
+    /// run never falls to <see cref="PricingSource.Unknown"/> for a missing cache rate — that
     /// source means the MODEL price is missing, which is a different fault.
     /// </para>
     /// </remarks>
-    private RunCost Compute(
-        decimal? inputRate,
-        decimal? outputRate,
-        decimal? cachedRate,
-        RunUsage usage,
-        PricingSource source,
-        string? currency)
+    private RunCost Compute(Rates rates, RunUsage usage, PricingSource source, string? currency)
     {
         var inputTokens = usage.InputTokens ?? 0;
+        var cachedRate = rates.CachedInput;
 
         // 🚨 The provider not reporting a cache count is NOT the same as it
         // reporting zero. When nothing was measured, no cache charge is produced
@@ -190,22 +193,71 @@ internal sealed class RunPricingResolver : IRunPricingResolver
             cachedRate = null;
         }
 
-        var fullPriceInputTokens = cachedRate is null ? inputTokens : inputTokens - cachedTokens;
+        var pricedCachedTokens = cachedRate is null ? 0 : cachedTokens;
+
+        // A write is priced only when its class has a rate AND the provider reported a count:
+        // a class without a rate keeps its tokens in the full-priced input (253.3).
+        var shortWriteTokens = rates.CacheWrite is null ? null : usage.CacheWriteInputTokens;
+        var longWriteTokens = rates.CacheWriteLong is null ? null : usage.CacheWriteLongInputTokens;
+        var pricedWriteTokens = (shortWriteTokens ?? 0) + (longWriteTokens ?? 0);
+
+        // 🚨 The same data fault for writes: cached and written tokens are both INSIDE the input
+        // total, so together they cannot exceed it. The write rates are ignored, not clamped, and
+        // the written tokens stay in the full-priced input.
+        if (pricedWriteTokens > inputTokens - pricedCachedTokens)
+        {
+            _logger.LogWarning(
+                "Usage reports {WrittenTokens} cache-written input tokens and {CachedInputTokens} cached input tokens " +
+                "but only {InputTokens} input tokens in total. Both are counted INSIDE the input total, so this is " +
+                "inconsistent; the cache-write rates are ignored and the written tokens are priced at the full input rate.",
+                pricedWriteTokens,
+                pricedCachedTokens,
+                inputTokens);
+
+            shortWriteTokens = null;
+            longWriteTokens = null;
+            pricedWriteTokens = 0;
+        }
+
+        var fullPriceInputTokens = inputTokens - pricedCachedTokens - pricedWriteTokens;
+
+        decimal? cacheWriteCost = null;
+
+        if (shortWriteTokens is { } shortCount)
+        {
+            cacheWriteCost = rates.CacheWrite!.Value * shortCount / 1_000_000m;
+        }
+
+        if (longWriteTokens is { } longCount)
+        {
+            cacheWriteCost = (cacheWriteCost ?? 0m) + (rates.CacheWriteLong!.Value * longCount / 1_000_000m);
+        }
 
         return new RunCost
         {
-            InputCost = inputRate is { } inputRateValue ? inputRateValue * fullPriceInputTokens / 1_000_000m : null,
-            InputPricePerMillionTokens = inputRate,
-            OutputCost = outputRate is { } outputRateValue ? outputRateValue * (usage.OutputTokens ?? 0) / 1_000_000m : null,
-            OutputPricePerMillionTokens = outputRate,
+            InputCost = rates.Input is { } inputRateValue ? inputRateValue * fullPriceInputTokens / 1_000_000m : null,
+            InputPricePerMillionTokens = rates.Input,
+            OutputCost = rates.Output is { } outputRateValue ? outputRateValue * (usage.OutputTokens ?? 0) / 1_000_000m : null,
+            OutputPricePerMillionTokens = rates.Output,
 
             // Reasoning tokens are already inside OutputTokens and are charged at
             // the output rate; providers do not bill them separately today, and an
             // unmeasured distinction is not worth a wider price schema (K-032).
             CachedInputCost = cachedRate is { } cachedRateValue ? cachedRateValue * cachedTokens / 1_000_000m : null,
             CachedInputPricePerMillionTokens = cachedRate,
+            CacheWriteCost = cacheWriteCost,
+            CacheWritePricePerMillionTokens = shortWriteTokens is null ? null : rates.CacheWrite,
+            CacheWriteLongPricePerMillionTokens = longWriteTokens is null ? null : rates.CacheWriteLong,
             Currency = currency,
             Source = source,
         };
     }
+
+    /// <summary>The five per-million rates of one model, wherever they were read from.</summary>
+    private readonly record struct Rates(
+        decimal? Input,
+        decimal? Output,
+        decimal? CachedInput,
+        decimal? CacheWrite,
+        decimal? CacheWriteLong);
 }

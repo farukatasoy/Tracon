@@ -1,6 +1,6 @@
 # 06 — Sağlayıcı: Anthropic, Google, Azure OpenAI (`PROV`)
 
-> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214, 217, 226
+> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214, 217, 226, 252, 253
 > **Kaynak:** `src/Tracon.Anthropic` (tümü), `src/Tracon.Google` (tümü),
 > `src/Tracon.Azure` (tümü) — üç paket de `Tracon.OpenAI` ile **aynı**
 > iskeleti tekrarlar (`XxxProviderOptions*`, `XxxProviderExtensions`,
@@ -2045,3 +2045,93 @@ Faz 217 düşünme biçimini değiştirdi; akış, araç çağrısı ve önbelle
 **Koşum (2026-10-27, ajan)** — Adım 1: `-5`, `-2147483648` ve `2147483647` `200`; `3000000000` `400 TYPE_INT32`. Adım 2: `400`. Adım 3: 2500 × `"a"` ve 60 × 40 `200`; 2501 × `"a"` ve 100 × 40 `400 total length: 0..2,500`. Adım 4: canlı örnek uygulamada `sampling_value_out_of_range` (`model.seed`, `model.stopSequences`) ve `valid:true` cevapları beklendiği gibi. Google.GenAI 1.26.1 adaptörü `3000000000`'i `(int)` ile daraltır: telde `-1294967296` (`GoogleSamplingLimitsTests`, yerel sunucuya karşı gerçek adaptör).
 
 ✅ 2026-10-27.
+
+---
+
+### MT-PROV-097 — Anthropic: önbelleğe yazılan token ayrı fiyatlanır; ilk run yazar, ikincisi okur (Faz 253, F-420)
+
+Otomatik karşılığı: `AnthropicCacheWriteTests` (tel: ham kullanım nesnesi, akışlı ve akışsız, kota sayacı, webhook, istatistik, `pause_turn`) ·
+`PricingResolverCacheWriteTests` (dört parçalı hesap) · `RunStoreContract` (dört depo) · `CacheWriteMigrationTests` (üç SQL sağlayıcısı).
+Bu case aynı davranışı **gerçek Anthropic API'sinde** ve örnek uygulamada okur.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 253 |
+| **İlgili karar** | K-483 · K-976 |
+| **Devir** | koşuldu (2026-10-27, `🤖`, örnek uygulama, bellek içi depo, gerçek Anthropic) |
+
+Gerçek para harcar: üç küçük çağrı, her biri ~2,4 K girdi token'ı (`claude-haiku-5-5`, yazma eşiği 512 token; toplam ~0,001 USD).
+
+**Ön koşul**
+- Örnek uygulama `ASPNETCORE_ENVIRONMENT=Development` ile ve dört boş ortam değişkeniyle koşar
+  (`Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Sqlite__ConnectionString=` `Tracon__Ui__AuthToken=`).
+  `Tracon:Providers:Anthropic:ApiKey` user-secrets'tadır.
+- Katalogda `claude-haiku-5-5` satırı iki yazma fiyatı taşır: `CacheWriteCostPerMillionTokens=0.125` ve
+  `CacheWriteLongCostPerMillionTokens=0.20` (örnek `appsettings.json`).
+
+**Adımlar**
+1. `anthropic.promptCaching=true` ve `anthropic.promptCaching.ttl=5m` taşıyan, uzun (~2,4 K token) ve **benzersiz** bir talimatla agent kaydet
+   (talimat başındaki `Session nonce` her koşumda yeni olur; yoksa önceki koşumun önbelleği ilk run'ı okuma yapar).
+2. Aynı mesajla iki kez tamponlu çalıştır (`Idempotency-Key` ile).
+3. Başka bir benzersiz talimatla ikinci bir agent kaydet ve akışlı (SSE) bir kez çalıştır.
+4. Üç run'ı `GET /api/runs/{id}` ile oku; `GET /api/stats` oku.
+
+**Girilecek veri**
+```bash
+NONCE=$(uuidgen | tr -d '-' | head -c 12)
+TALIMAT="Session nonce $NONCE. $(python3 -c "print('You are a terse assistant. Always reply with the single word ok. ' * 120)")"
+jq -n --arg t "$TALIMAT" '{name:"manuel-cache-write-5m",instructions:$t,model:{provider:"anthropic",model:"claude-haiku-5-5",maxOutputTokens:64,providerSettings:{"anthropic.promptCaching":true,"anthropic.promptCaching.ttl":"5m"}}}' \
+  | curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d @-
+for I in 1 2; do
+  curl -s -X POST "$APU/api/agents/manuel-cache-write-5m/run" -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" -d '{"message":"Say ok."}' >/dev/null
+done
+curl -s "$APU/api/runs?agentName=manuel-cache-write-5m" -H "$APB" | jq '.[] | {usage: (.usage | {inputTokens, cachedInputTokens, cacheWriteInputTokens, cacheWriteLongInputTokens}), cost: (.cost | {inputCost, cachedInputCost, cacheWriteCost, cacheWritePricePerMillionTokens})}'
+curl -s "$APU/api/stats" -H "$APB" | jq '{totalCost, cacheWriteInputTokens, cacheWriteLongInputTokens, cachedInputTokens, inputTokens}'
+```
+
+**Beklenen sonuç**
+- İlk run `Completed`: `usage.cacheWriteInputTokens > 0` (girdi token'ının neredeyse tamamı), `usage.cacheWriteLongInputTokens` `null`,
+  `cost.cacheWriteCost` = `cacheWriteInputTokens × 0,125 / 1.000.000`, `cost.cacheWritePricePerMillionTokens` `0.125`.
+  `cost.inputCost` yalnız yazılmayan birkaç token'ı fiyatlar (`inputTokens − cacheWriteInputTokens`, her biri `0,10 / 1.000.000`).
+- İkinci run `Completed`: `usage.cachedInputTokens` ilk run'ın yazdığı sayıya eşit, `usage.cacheWriteInputTokens` `null`,
+  `cost.cacheWriteCost` `null`, `cost.cachedInputCost` = `cachedInputTokens × 0,01 / 1.000.000`.
+- Akışlı run da `usage.cacheWriteInputTokens > 0` taşır: TTL dökümü akışta yalnız `message_start` olayında gelir, `message_delta` olayı yalnız toplamı taşır.
+- `GET /api/stats`: `totalCost` run'ların `inputCost + outputCost + cachedInputCost + cacheWriteCost` toplamıdır; yazma token toplamı run'ların toplamıdır.
+- Koşum günlüğünde `Npgsql` satırı **0**; `without the per-TTL split` uyarısı **yok**.
+- 🚨 Eski kusur: yazılan token düz girdi fiyatıyla sayılırdı (`inputCost` ≈ `0,000243`), gerçek fatura 1,25 kat fazlaydı ve kota tavanı bu farkı görmezdi.
+
+2026-10-27 koşumu (`claude-haiku-5-5`, bellek içi depo): ilk run `inputTokens 2429`, `cacheWriteInputTokens 2425`, `cacheWriteCost 0.000303125`, `inputCost 4e-07`;
+ikinci run `cachedInputTokens 2425`, `cachedInputCost 2.425e-05`, `cacheWriteCost null`; akışlı run `cacheWriteInputTokens 2425`, `cacheWriteCost 0.000303125`;
+`GET /api/stats` `totalCost 0.00225087` = sekiz run'ın dört terimli toplamı; `Npgsql` satırı 0.
+
+### MT-PROV-098 — Anthropic: `ttl=1h` yazması uzun sayaca ve uzun fiyata gider (Faz 253, F-420)
+
+Otomatik karşılığı: `AnthropicCacheWriteTests` (iki sınıf, bölünme yoksa bağlamanın `ttl` ayarı) · `PricingResolverCacheWriteTests` (yalnız bir sınıfın fiyatı varken).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 253 |
+| **İlgili karar** | K-483 |
+| **Devir** | koşuldu (2026-10-27, `🤖`, örnek uygulama, bellek içi depo, gerçek Anthropic) |
+
+Gerçek para harcar (iki küçük çağrı, ~2,4 K girdi token'ı).
+
+**Ön koşul** — MT-PROV-097'nın kurulumu.
+
+**Adımlar**
+1. `anthropic.promptCaching.ttl=1h` taşıyan, uzun ve benzersiz talimatlı bir agent kaydet; tamponlu bir kez çalıştır.
+2. İkinci bir benzersiz agent ile akışlı bir kez çalıştır.
+3. İki run'ı `GET /api/runs/{id}` ile oku.
+
+**Girilecek veri** — MT-PROV-097'daki komut; `ttl` değeri `1h`, agent adları `manuel-cache-write-1h` ve `manuel-cache-write-1h-stream`.
+
+**Beklenen sonuç**
+- Her iki run `Completed`: `usage.cacheWriteLongInputTokens > 0`, `usage.cacheWriteInputTokens` `null`.
+- `cost.cacheWriteCost` = `cacheWriteLongInputTokens × 0,20 / 1.000.000`; `cost.cacheWriteLongPricePerMillionTokens` `0.2`, `cost.cacheWritePricePerMillionTokens` `null`.
+- Aynı çağrının 5 dakikalık karşılığından daha pahalıdır (uzun fiyat kısa fiyatın 1,6 katıdır).
+
+2026-10-27 koşumu (`claude-haiku-5-5`): tamponlu `cacheWriteLongInputTokens 2425`, `cacheWriteCost 0.000485`, uzun fiyat `0.2`; akışlı `2427`, `0.0004854`.

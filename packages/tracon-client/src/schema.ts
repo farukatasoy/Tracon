@@ -5626,6 +5626,18 @@ export interface components {
              *     prompt cache. For reporting only.
              */
             cachedInputCostPerMillionTokens?: null | number | string;
+            /**
+             * Format: double
+             * @description The cost per million input tokens that were written into the provider's prompt cache
+             *     with the SHORT time to live (Anthropic: five minutes). For reporting only.
+             */
+            cacheWriteCostPerMillionTokens?: null | number | string;
+            /**
+             * Format: double
+             * @description The cost per million input tokens that were written into the provider's prompt cache
+             *     with the LONG time to live (Anthropic: one hour). For reporting only.
+             */
+            cacheWriteLongCostPerMillionTokens?: null | number | string;
         };
         /** @description One link of a IReadOnlyList&lt;ModelFallback&gt; ModelBinding.Fallbacks chain. */
         ModelFallback: {
@@ -6254,6 +6266,27 @@ export interface components {
              *     more than one model.
              */
             cachedInputPricePerMillionTokens?: null | number | string;
+            /**
+             * Format: double
+             * @description Gets the cost of the input tokens that were written into the provider's prompt cache,
+             *     both time-to-live classes together, or `null` when no cache write was
+             *     priced.
+             */
+            cacheWriteCost?: null | number | string;
+            /**
+             * Format: double
+             * @description Gets the price, per million tokens, of a cache write with the SHORT time to live that
+             *     produced part of `CacheWriteCost`. `null` when no such price
+             *     was applied — it is undefined, or the provider reported no short-lived write — or when
+             *     the run's tokens were priced at more than one model.
+             */
+            cacheWritePricePerMillionTokens?: null | number | string;
+            /**
+             * Format: double
+             * @description Gets the price, per million tokens, of a cache write with the LONG time to live that
+             *     produced part of `CacheWriteCost`. Same rules as `CacheWritePricePerMillionTokens`.
+             */
+            cacheWriteLongPricePerMillionTokens?: null | number | string;
             /** @description Gets the currency, taken from `Tracon:Pricing:Currency`. */
             currency?: null | string;
             /** @description Gets where the price came from. */
@@ -6855,6 +6888,18 @@ export interface components {
             cachedInputTokens?: number | string;
             /**
              * Format: int64
+             * @description The input tokens that were written into the provider's prompt cache with the SHORT
+             *     time to live. Counted INSIDE `InputTokens`, so the two must not be added together.
+             */
+            cacheWriteInputTokens?: number | string;
+            /**
+             * Format: int64
+             * @description The input tokens that were written into the provider's prompt cache with the LONG
+             *     time to live. Counted INSIDE `InputTokens`.
+             */
+            cacheWriteLongInputTokens?: number | string;
+            /**
+             * Format: int64
              * @description The tokens spent on reasoning. Counted INSIDE `OutputTokens`.
              */
             reasoningTokens?: number | string;
@@ -6986,6 +7031,11 @@ export interface components {
              * @description Gets the total cached-input cost across the tree.
              */
             cachedInputCost?: null | number | string;
+            /**
+             * Format: double
+             * @description Gets the total cache-write cost across the tree.
+             */
+            cacheWriteCost?: null | number | string;
             /** @description Gets the currency. */
             currency?: null | string;
             /**
@@ -7038,6 +7088,18 @@ export interface components {
              * @description Gets the audio output tokens. Counted INSIDE `OutputTokens`.
              */
             audioOutputTokens?: null | number | string;
+            /**
+             * Format: int64
+             * @description Gets the input tokens the provider wrote into its prompt cache with the SHORT time to
+             *     live (Anthropic: five minutes). Counted INSIDE `InputTokens`.
+             */
+            cacheWriteInputTokens?: null | number | string;
+            /**
+             * Format: int64
+             * @description Gets the input tokens the provider wrote into its prompt cache with the LONG time to
+             *     live (Anthropic: one hour). Counted INSIDE `InputTokens`.
+             */
+            cacheWriteLongInputTokens?: null | number | string;
         };
         /** @description A user's run summary. */
         RunUserStatistics: {

@@ -112,6 +112,66 @@ describe('RunDetailScreen', () => {
     expect(await screen.findByText('finished late')).toBeTruthy();
   });
 
+  it('shows the cache write prices a run applied, and only those', async () => {
+    // Phase 253: a run that wrote to the prompt cache applied a write price per time-to-live
+    // class. The cell appears only for a class that was priced; a run that never wrote shows
+    // the three prices it always showed.
+    const withWrite = {
+      ...runRecord(),
+      status: 'Completed',
+      cost: {
+        inputCost: 0.1,
+        inputPricePerMillionTokens: 1000,
+        outputCost: 0.02,
+        outputPricePerMillionTokens: 2000,
+        cachedInputCost: null,
+        cachedInputPricePerMillionTokens: null,
+        cacheWriteCost: 0.75,
+        cacheWritePricePerMillionTokens: 1250,
+        cacheWriteLongPricePerMillionTokens: null,
+        currency: 'USD',
+        source: 'Catalog',
+      },
+    };
+
+    const common = [
+      {
+        method: 'GET' as const,
+        pattern: 'api/runs/:runId/events',
+        handler: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+      },
+      fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+      fixture('GET', 'api/runs/:runId/tree', []),
+      fixture('GET', 'api/runs/:runId/tools', []),
+    ];
+
+    restoreFetch = installApiMock([fixture('GET', 'api/runs/:runId', withWrite), ...common]);
+
+    const first = renderScreen(<RunDetailScreen id={runId} />);
+
+    expect(await screen.findByText('Cache write price (short TTL)')).toBeTruthy();
+    expect(screen.getByText('1,250.00 USD / 1M tokens')).toBeTruthy();
+
+    // The long class was not priced: no cell, rather than a permanent "—".
+    expect(screen.queryByText('Cache write price (long TTL)')).toBeNull();
+
+    first.unmount();
+    restoreFetch();
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...withWrite,
+        cost: { ...withWrite.cost, cacheWriteCost: null, cacheWritePricePerMillionTokens: null },
+      }),
+      ...common,
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    expect(await screen.findByText('Input price')).toBeTruthy();
+    expect(screen.queryByText('Cache write price (short TTL)')).toBeNull();
+  });
+
   it('sends a waiting workflow run to the workflow screen opened on that run', async () => {
     // 🚨 F-335: both links carried only the workflow name, and the workflow
     // screen showed a card only for a run it had started itself. A run started

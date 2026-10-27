@@ -101,6 +101,84 @@ public sealed class RunUsageMappingTests
         run.Usage.ReasoningTokens!.Value.ShouldBeLessThanOrEqualTo(run.Usage.OutputTokens!.Value);
     }
 
+    [Fact]
+    public async Task Cache_write_counters_in_AdditionalCounts_reach_the_record_inside_the_input_total()
+    {
+        // The write counters are not UsageDetails properties: a provider reports them under the
+        // TraconUsageCounts keys. They are counted INSIDE InputTokens, never added to it.
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var agent = CreateAgent(store, UsageOf(100, 50, usage => usage.AdditionalCounts = new AdditionalPropertiesDictionary<long>
+        {
+            [TraconUsageCounts.CacheWriteInputTokens] = 60,
+            [TraconUsageCounts.CacheWriteLongInputTokens] = 30,
+        }));
+
+        await agent.RunAsync("hello");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        run.Usage.ShouldNotBeNull();
+        run.Usage.CacheWriteInputTokens.ShouldBe(60);
+        run.Usage.CacheWriteLongInputTokens.ShouldBe(30);
+        run.Usage.InputTokens.ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task A_provider_that_reports_no_cache_write_leaves_both_write_counters_null()
+    {
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var agent = CreateAgent(store, UsageOf(100, 50, usage => usage.AdditionalCounts = new AdditionalPropertiesDictionary<long>
+        {
+            ["SomeOtherCount"] = 9,
+        }));
+
+        await agent.RunAsync("hello");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        run.Usage.ShouldNotBeNull();
+        run.Usage.CacheWriteInputTokens.ShouldBeNull();
+        run.Usage.CacheWriteLongInputTokens.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The class guard of the one mapping (K-483): every property of <see cref="RunUsage"/> is
+    /// filled from a <see cref="UsageDetails"/> that reports everything. A counter added to
+    /// <see cref="RunUsage"/> and not to <see cref="UsageBreakdown.ToRunUsage"/> would stay null
+    /// at the run recorder, the budget ring and both judges at once.
+    /// </summary>
+    [Fact]
+    public void Every_property_of_RunUsage_is_filled_by_the_one_mapping()
+    {
+        var details = new UsageDetails
+        {
+            InputTokenCount = 1_000,
+            OutputTokenCount = 500,
+            TotalTokenCount = 1_500,
+            CachedInputTokenCount = 400,
+            ReasoningTokenCount = 200,
+            AdditionalCounts = new AdditionalPropertiesDictionary<long>
+            {
+                [TraconUsageCounts.CacheWriteInputTokens] = 300,
+                [TraconUsageCounts.CacheWriteLongInputTokens] = 100,
+            },
+        };
+#pragma warning disable MEAI001 // Evaluation-only members; production reads are consolidated in UsageBreakdown.
+        details.InputAudioTokenCount = 50;
+        details.OutputAudioTokenCount = 25;
+#pragma warning restore MEAI001
+
+        var mapped = UsageBreakdown.ToRunUsage(details);
+
+        foreach (var property in typeof(RunUsage).GetProperties())
+        {
+            property.GetValue(mapped).ShouldNotBeNull($"UsageBreakdown.ToRunUsage does not fill {property.Name}");
+        }
+
+        mapped.CacheWriteInputTokens.ShouldBe(300);
+        mapped.CacheWriteLongInputTokens.ShouldBe(100);
+    }
+
     private static RunRecordingAgent CreateAgent(IRunStore store, UsageDetails usage)
     {
         var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"))

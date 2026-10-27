@@ -79,6 +79,79 @@ public sealed class ReadViewContractTests(SqliteFixture fixture) : IAsyncLifetim
         viewTotalCost.ShouldBe((double?)stats.TotalCost);
     }
 
+    /// <summary>
+    /// Phase 253: the cache-write charge is the fourth term of <c>total_cost</c>, and the view publishes
+    /// the write columns beside the read ones -- a consumer reading the view directly must see the same
+    /// number the store's own statistics report.
+    /// </summary>
+    [Fact]
+    public async Task Total_cost_in_the_view_includes_the_cache_write_charge_and_the_view_publishes_the_write_columns()
+    {
+        const string tenant = "tenant-view-cache-write";
+        const string agentName = "read-view-cache-write-agent";
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow;
+
+        await _context.Runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = agentName,
+            StartedAt = startedAt,
+            TenantId = tenant,
+        });
+
+        await _context.Runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = startedAt.AddSeconds(1),
+            Usage = new RunUsage
+            {
+                InputTokens = 1_000,
+                OutputTokens = 50,
+                CachedInputTokens = 100,
+                TotalTokens = 1_050,
+                CacheWriteInputTokens = 600,
+                CacheWriteLongInputTokens = 300,
+            },
+            Cost = new RunCost
+            {
+                InputCost = 0.5m,
+                OutputCost = 0.25m,
+                CachedInputCost = 0.125m,
+                CacheWriteCost = 0.0625m,
+                CacheWritePricePerMillionTokens = 1.25m,
+                CacheWriteLongPricePerMillionTokens = 2m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+            TenantId = tenant,
+        });
+
+        // The charge is TEXT affinity like input_cost: the view CASTs every addend to REAL, so the
+        // amounts are exactly representable in binary floating point.
+        var viewTotalCost = await _context.ScalarAsync<double?>(
+            $"SELECT total_cost FROM {_context.TablePrefix}runs_v1 WHERE run_id = '{SqlGuid(runId)}';");
+
+        var stats = await _context.Runs.GetStatisticsAsync(new RunStatisticsQuery
+        {
+            TenantId = tenant,
+            AgentName = agentName,
+        });
+
+        // A three-term sum would read 0.875.
+        viewTotalCost.ShouldBe(0.5 + 0.25 + 0.125 + 0.0625);
+        viewTotalCost.ShouldBe((double?)stats.TotalCost);
+
+        (await _context.ScalarAsync<long?>(
+            $"SELECT cache_write_input_tokens FROM {_context.TablePrefix}runs_v1 WHERE run_id = '{SqlGuid(runId)}';")).ShouldBe(600);
+        (await _context.ScalarAsync<long?>(
+            $"SELECT cache_write_long_input_tokens FROM {_context.TablePrefix}runs_v1 WHERE run_id = '{SqlGuid(runId)}';")).ShouldBe(300);
+        (await _context.ScalarAsync<string>(
+            $"SELECT cache_write_cost FROM {_context.TablePrefix}runs_v1 WHERE run_id = '{SqlGuid(runId)}';"))
+            .ShouldNotBeNull().ShouldBe("0.0625");
+    }
+
     [Fact]
     public async Task Total_cost_is_null_not_zero_when_pricing_is_undefined()
     {

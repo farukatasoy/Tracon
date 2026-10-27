@@ -119,21 +119,9 @@ internal sealed class RunBudgetChatClient(
         // is the budget's meter less what the tree wrote, and a meter that left model
         // calls out would make a running tree look cheaper than it is.
         var cost = budget.MeasuresCost
-            ? pricingResolver?.Resolve(provider, model, ToRunUsage(usage))?.Total()
+            ? pricingResolver?.Resolve(provider, model, UsageBreakdown.ToRunUsage(usage))?.Total()
             : null;
 
         budget.RecordUsage(tokens, cost);
     }
-
-    private static RunUsage ToRunUsage(UsageDetails usage)
-        => new()
-        {
-            InputTokens = usage.InputTokenCount,
-            OutputTokens = usage.OutputTokenCount,
-            TotalTokens = usage.TotalTokenCount,
-            CachedInputTokens = UsageBreakdown.CachedInputTokens(usage),
-            ReasoningTokens = UsageBreakdown.ReasoningTokens(usage),
-            AudioInputTokens = UsageBreakdown.AudioInputTokens(usage),
-            AudioOutputTokens = UsageBreakdown.AudioOutputTokens(usage),
-        };
 }

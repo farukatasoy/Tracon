@@ -372,7 +372,9 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             {
                 if (price.InputCostPerMillionTokens is < 0
                     || price.OutputCostPerMillionTokens is < 0
-                    || price.CachedInputCostPerMillionTokens is < 0)
+                    || price.CachedInputCostPerMillionTokens is < 0
+                    || price.CacheWriteCostPerMillionTokens is < 0
+                    || price.CacheWriteLongCostPerMillionTokens is < 0)
                 {
                     (failures ??= []).Add(
                         $"{nameof(TraconPricingOptions)}: price for '{providerName}:{modelName}' cannot be negative.");
@@ -382,9 +384,10 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 // values are empty. This explicitly rejects a price written with
                 // a key other than Input or Output, such as the C# property name
                 // InputCostPerMillionTokens, rather than silently discarding it.
-                // 🚨 CachedInput is DELIBERATELY absent from this condition: a model
-                // priced with only a cache rate has no base price at all, which is
-                // the same silent-typo fault this check exists to catch.
+                // 🚨 CachedInput, CacheWrite and CacheWriteLong are DELIBERATELY absent
+                // from this condition: a model priced with only a cache rate has no
+                // base price at all, which is the same silent-typo fault this check
+                // exists to catch.
                 if (price.InputCostPerMillionTokens is null && price.OutputCostPerMillionTokens is null)
                 {
                     (failures ??= []).Add(

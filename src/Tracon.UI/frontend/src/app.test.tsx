@@ -22,6 +22,8 @@ const emptyRunStatistics = {
   outputTokens: 0,
   totalTokens: 0,
   cachedInputTokens: 0,
+  cacheWriteInputTokens: 0,
+  cacheWriteLongInputTokens: 0,
   reasoningTokens: 0,
   audioInputTokens: 0,
   audioOutputTokens: 0,

@@ -140,6 +140,12 @@ internal static class ProviderRegistrationCore
                 // WINS over the configured one, so a model priced here would
                 // silently charge every cached token at the full input rate.
                 CachedInputCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.CachedInputCostPerMillionTokens)),
+
+                // The same trap as the line above, once per time-to-live class: left
+                // out here, the catalog price WINS over a configured one and every
+                // written token would silently stay at the full input rate.
+                CacheWriteCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.CacheWriteCostPerMillionTokens)),
+                CacheWriteLongCostPerMillionTokens = batch.Decimal(child, nameof(ModelDescriptor.CacheWriteLongCostPerMillionTokens)),
             };
 
             models.Add(descriptor);
