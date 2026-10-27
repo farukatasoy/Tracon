@@ -93,6 +93,55 @@ public sealed class OutputTruncationToolTurnTests
     }
 
     [Fact]
+    public async Task An_intermediate_tool_turn_stopped_by_a_content_filter_records_no_notice_for_a_run_whose_final_turn_completes()
+    {
+        // The filter twin of the cases above: the tool turn's reason is an intermediate one. The detector judges
+        // only the turn that ends the loop, so the run records neither the filter notice nor a truncation notice.
+        var provider = new FinishReasonModelProvider()
+            .ToolCall(ToolName, ChatFinishReason.ContentFilter, inputTokens: 20, outputTokens: 100)
+            .Text("The answer is 42.", ChatFinishReason.Stop, inputTokens: 30, outputTokens: 10);
+
+        await using var host = await StartAsync(
+            provider, PlainText(maxOutputTokens: 100, toolNames: [ToolName]), configureTracon: AddTool);
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        run.Error.ShouldBeNull();
+        provider.Calls.ShouldBe(2);
+        await AssertNoNoticeAsync(host, run.Id);
+    }
+
+    [Fact]
+    public async Task Streamed_plain_text_run_whose_intermediate_tool_turn_was_stopped_by_a_content_filter_sends_no_notice()
+    {
+        // The streaming loop forwards the tool turn's update with that turn's own reason: the scan the endpoint
+        // opens on it finds no event, because the detector reads the LAST reason, which is the final turn's.
+        var provider = new FinishReasonModelProvider()
+            .ToolCall(ToolName, ChatFinishReason.ContentFilter, inputTokens: 20, outputTokens: 100)
+            .Text("The answer is 42.", ChatFinishReason.Stop, inputTokens: 30, outputTokens: 10);
+
+        await using var host = await StartAsync(
+            provider, PlainText(maxOutputTokens: 100, toolNames: [ToolName]), configureTracon: AddTool);
+
+        var frames = await PostStreamingAsync(host);
+
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        OutputTruncationStreamingTests.CustomFrames(frames).ShouldBeEmpty();
+        frames[^1].Event.ShouldBe("done");
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        provider.Calls.ShouldBe(2);
+        await AssertNoNoticeAsync(host, run.Id);
+    }
+
+    [Fact]
     public async Task A_streamed_plain_text_final_turn_at_the_limit_after_a_tool_turn_sends_one_notice()
     {
         var provider = new FinishReasonModelProvider()
@@ -156,6 +205,14 @@ public sealed class OutputTruncationToolTurnTests
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error!.Class.ShouldBe(RunErrorClass.OutputTruncated);
         run.Usage!.OutputTokens.ShouldBe(110);
+    }
+
+    private static async Task AssertNoNoticeAsync(TraconTestHost host, Guid runId)
+    {
+        var events = await EventsAsync(host, runId);
+
+        events.ShouldNotContain(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal));
+        events.ShouldNotContain(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputTruncated, StringComparison.Ordinal));
     }
 
     private static void AddTool(ITraconBuilder builder)
