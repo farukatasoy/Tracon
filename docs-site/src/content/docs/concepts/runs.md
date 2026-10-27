@@ -173,9 +173,9 @@ OpenAI-compatible endpoints use the OpenAI wire format.
 
 The live stream's `custom` frames are the one place the two contracts meet. Right
 before `done`, the stream sends the run's own recorded notices from a fixed list —
-`tracon.output.truncated` always, `tracon.quota.threshold` when it is published to the
-run stream — and each frame's data is the same recorded event `/events` serves, byte
-for byte. The [HTTP API](/http-api/#streaming) page lists the rules. The
+`tracon.output.truncated` and `tracon.output.filtered` always, `tracon.quota.threshold`
+when it is published to the run stream — and each frame's data is the same recorded
+event `/events` serves, byte for byte. The [HTTP API](/http-api/#streaming) page lists the rules. The
 `loop.iteration-completed` frame of an agent with a loop is the other: it has the name
 and the data of the recorded `LoopIterationCompleted` event, and it arrives between two
 iterations, not before `done`.
@@ -232,6 +232,7 @@ every store. The `tracon.` prefix is reserved, so a built-in
 custom type can never collide with your own. Tracon writes these:
 `tracon.quota.threshold` (the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits)),
 `tracon.output.truncated` (see [Truncated output](#truncated-output)),
+`tracon.output.filtered` (see [Filtered output](#filtered-output)),
 `tracon.content` and `tracon.workflow.event` (see
 [Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
 `tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
@@ -614,6 +615,28 @@ An online-evaluation judge asks for a structured answer too. When its answer is 
 off, the judge fails with `judge_failed` and the job does not retry it: the next
 attempt would send the same limit. Raise the `MaxOutputTokens` of the judge's own
 binding.
+
+### Filtered output
+
+A provider's content filter can stop a model in the middle of an answer: Anthropic
+reports a `refusal`, Gemini a safety block. Tracon reads every provider's report as
+one finish reason, and the outcome depends on what the model had written:
+
+| The model had written | Outcome |
+|---|---|
+| Nothing | The run fails with error type `content_filtered`, class `ContentFiltered`. Nothing is left to keep |
+| Text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.filtered`. Its payload names the provider — never the answer text. The provider's own word for the filter is not in it |
+
+A structured response (`Json` or `JsonSchema`) a filter stopped after it wrote text
+gets the event too. The structured-response validator, when it is on, still decides
+whether that document is usable. As with truncation, only the turn that ends the run
+decides, and the event keeps its payload when `RecordToolPayloads` is off.
+
+A client streaming the run receives the event as a `custom` frame right before `done`,
+the way it receives `tracon.output.truncated`, with the same data the run's events
+carry. No event, and no frame, is written while run recording is off
+(`Tracon:RunRecording:Enabled`). On `/v1/responses` the same answer is `incomplete`
+with the reason `content_filter` (see [OpenAI-compatible API](/guides/openai-api/)).
 
 ### The error message is safe to display, not safe to debug from
 

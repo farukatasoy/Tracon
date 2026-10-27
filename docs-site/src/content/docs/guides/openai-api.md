@@ -70,7 +70,8 @@ status, and usage when the underlying provider reports it. Errors use the OpenAI
 ### Stream Responses events
 
 Set `stream=true`. The server returns SSE with OpenAI event names, including
-`response.created`, `response.output_text.delta`, and `response.completed`:
+`response.created`, `response.output_text.delta`, and `response.completed` (or
+`response.incomplete` when the answer was [cut off or filtered](#compatibility-matrix)):
 
 ```python
 stream = client.responses.create(
@@ -278,7 +279,8 @@ for await (const frame of readSse(response)) {
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
-| Cut-off answer | no: `status` stays `completed` | `finish_reason: "length"` | See below |
+| Cut-off answer | `status: "incomplete"`, `incomplete_details.reason: "max_output_tokens"` | `finish_reason: "length"` | See below |
+| Answer a content filter stopped after it wrote text | `status: "incomplete"`, `incomplete_details.reason: "content_filter"` | `finish_reason: "content_filter"` | See below |
 | Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
@@ -296,10 +298,27 @@ response and on the last chunk of a stream (`data: [DONE]` still follows). An an
 the model cut off at its output token limit or its context window is `"length"`; an
 answer a content filter cut off after it produced text is `"content_filter"`; anything
 else is `"stop"`. Tools run on the server, so a tool turn's `tool_calls` reason is never
-reported. The value does not depend on run recording. The Responses endpoint does not
-mark a cut-off answer `incomplete` yet: its `status` reads `completed`, and the run's
-`tracon.output.truncated` event is the only signal there
-(see [Truncated output](/concepts/runs/#truncated-output)).
+reported. The value does not depend on run recording.
+
+The Responses endpoint marks the same answers `incomplete`, the way OpenAI's own API
+does. `status` is `"incomplete"` and `incomplete_details.reason` is `"max_output_tokens"`
+for an answer cut off at its output token limit or its context window (OpenAI has no
+separate reason for a full window) and `"content_filter"` for an answer a content filter
+stopped after it wrote text. The message item that was cut reads `"incomplete"` too. On
+a stream the last event is `response.incomplete` in place of `response.completed`, as on
+OpenAI's own stream, and it carries the final `response`. The `response.output_item.done`
+event of the cut message carries the same status, except when the message was closed
+before the stream ended (a reasoning item that follows the text, for one); the final
+`response` is always complete and right. The OpenAI Python SDK's
+`stream.get_final_response()` returns only after `response.completed`, against OpenAI
+itself too, so read the `response` of the last event instead. A complete answer keeps
+`completed` and has no `incomplete_details`. The same rules as `finish_reason` apply:
+only the answer's final model call decides, a tool turn or an earlier loop iteration that
+hit the limit does not count, and the status does not depend on run recording. A filter
+that stopped the model before it wrote anything is an error, not an `incomplete` answer.
+The run's own `tracon.output.truncated` and `tracon.output.filtered` events stay on
+the run (see [Truncated output](/concepts/runs/#truncated-output) and
+[Filtered output](/concepts/runs/#filtered-output)).
 
 A field that carries no model setting can be accepted without becoming a Tracon
 feature. Do not assume every OpenAI storage flag, service tier, or retrieval surface
