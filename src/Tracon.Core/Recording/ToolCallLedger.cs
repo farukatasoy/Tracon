@@ -135,8 +135,13 @@ internal sealed class ToolCallLedger
                 return;
             }
 
+            // The duration comes from the monotonic timestamp. The wall time of the end is a label for the record, and
+            // a wall clock can be corrected backwards while a call runs: the end never reads earlier than the start,
+            // so the run record never shows a call that ended before it began.
+            var endedUtc = _timeProvider.GetUtcNow();
+
             entry.EndedAt = _timeProvider.GetTimestamp();
-            entry.EndedAtUtc = _timeProvider.GetUtcNow();
+            entry.EndedAtUtc = endedUtc < entry.StartedAtUtc ? entry.StartedAtUtc : endedUtc;
             entry.Result = result;
             entry.Failure = failure;
         }
