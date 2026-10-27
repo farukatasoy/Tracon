@@ -193,10 +193,162 @@ public sealed class OutputTruncationStreamingTests
         frames[^1].Event.ShouldBe("done");
     }
 
+    [Fact]
+    public async Task A_streamed_plain_text_response_stopped_by_a_content_filter_completes_and_records_the_notice()
+    {
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(provider, PlainText(maxOutputTokens: 50));
+
+        var frames = await PostStreamingAsync(host);
+
+        // The run does not fail: the partial text streamed and the stream closed normally.
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        frames.ShouldContain(static frame => string.Equals(frame.Event, "done", StringComparison.Ordinal));
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        (await EventsAsync(host, run.Id))
+            .Where(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task A_streamed_filter_notice_is_the_recorded_event_sent_before_done()
+    {
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(provider, PlainText(maxOutputTokens: 50));
+
+        var frames = await PostStreamingAsync(host);
+
+        var notice = CustomFrames(frames).ShouldHaveSingleItem();
+        frames.IndexOf(notice).ShouldBe(frames.FindIndex(static frame => string.Equals(frame.Event, "done", StringComparison.Ordinal)) - 1);
+
+        using (var data = JsonDocument.Parse(notice.Data))
+        {
+            data.RootElement.GetProperty("type").GetString().ShouldBe("Custom");
+            data.RootElement.GetProperty("customType").GetString().ShouldBe(RunEventCustomTypes.OutputFiltered);
+
+            var payload = data.RootElement.GetProperty("payload").GetString()!;
+            payload.ShouldNotContain("long ans", Case.Sensitive, "the notice never carries the response text");
+
+            using var parsed = JsonDocument.Parse(payload);
+            parsed.RootElement.GetProperty("provider").GetString().ShouldBe("scripted");
+        }
+
+        // Byte for byte: the live frame is the recorded event read back, not a second copy built on its own.
+        var run = await SingleRunAsync(host);
+        var replayed = CustomFrames(await EventFramesAsync(host, run.Id)).ShouldHaveSingleItem();
+
+        notice.Data.ShouldBe(replayed.Data);
+    }
+
+    [Fact]
+    public async Task The_last_update_frame_carries_the_content_filter_finish_reason()
+    {
+        // The gate and the Responses status depend on MAF copying the model's reason onto the update.
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(provider, PlainText(maxOutputTokens: 50));
+
+        var frames = await PostStreamingAsync(host);
+
+        LastUpdateFinishReason(frames).ShouldBe("content_filter");
+    }
+
+    [Fact]
+    public async Task A_filtered_stream_without_run_recording_ends_with_done_and_no_notice()
+    {
+        // With recording off there is no writer, so the detector writes no event and the mirror finds nothing to send.
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(
+            provider,
+            PlainText(maxOutputTokens: 50),
+            configureServices: static services => services.Configure<TraconOptions>(
+                static options => options.RunRecording.Enabled = false));
+
+        var frames = await PostStreamingAsync(host);
+
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        CustomFrames(frames).ShouldBeEmpty();
+        frames[^1].Event.ShouldBe("done");
+    }
+
+    [Fact]
+    public async Task A_store_failure_while_reading_the_filter_notice_still_ends_the_stream_with_done()
+    {
+        // Observability does not break functionality: the run completed, so a store that cannot serve its
+        // notice must not turn the stream into an 'error'.
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(
+            provider,
+            PlainText(maxOutputTokens: 50),
+            configureTracon: static builder => builder.Services.ThrowFrom<IRunStore>(
+                nameof(IRunStore.ReadEventsAsync),
+                static () => new InvalidOperationException("the events table is unavailable")));
+
+        var frames = await PostStreamingAsync(host);
+
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        CustomFrames(frames).ShouldBeEmpty();
+        frames[^1].Event.ShouldBe("done");
+
+        host.Logs.Entries.ShouldContain(static entry =>
+            entry.StartsWith("Warning", StringComparison.Ordinal)
+            && entry.Contains("the events table is unavailable", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_harness_loop_with_a_cut_and_a_filtered_iteration_sends_both_notices_in_record_order()
+    {
+        var provider = new FinishReasonModelProvider()
+            .Text("still working", ChatFinishReason.Length, inputTokens: 10, outputTokens: 50)
+            .Text("ALL DONE", ChatFinishReason.ContentFilter, inputTokens: 10, outputTokens: 50);
+
+        await using var host = await StartAsync(
+            provider,
+            PlainText(maxOutputTokens: 50) with
+            {
+                Harness = new HarnessSettings
+                {
+                    Loop = new LoopSettings
+                    {
+                        Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "ALL DONE" }],
+                        MaxIterations = 4,
+                    },
+                },
+            });
+
+        var frames = await PostStreamingAsync(host);
+
+        provider.Calls.ShouldBe(2);
+
+        var sent = new List<string?>();
+
+        foreach (var frame in CustomFrames(frames))
+        {
+            using var data = JsonDocument.Parse(frame.Data);
+            sent.Add(data.RootElement.GetProperty("customType").GetString());
+        }
+
+        sent.ShouldBe([RunEventCustomTypes.OutputTruncated, RunEventCustomTypes.OutputFiltered]);
+        frames[^1].Event.ShouldBe("done");
+    }
+
     [Theory]
     [InlineData("length", 1)]
+    [InlineData("content_filter", 1)]
     [InlineData("stop", 0)]
-    public async Task The_stream_reads_the_run_events_only_after_an_update_reported_a_cut(string finishReason, int expectedReads)
+    public async Task The_stream_reads_the_run_events_only_after_an_update_reported_a_cut_or_a_filter(string finishReason, int expectedReads)
     {
         // The gate: a normal run must not pay a store read for a notice it cannot
         // have. The quota option is off (the default), so only the finish reason

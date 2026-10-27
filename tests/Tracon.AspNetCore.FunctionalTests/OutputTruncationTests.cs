@@ -185,6 +185,143 @@ public sealed class OutputTruncationTests
     }
 
     [Fact]
+    public async Task A_plain_text_response_stopped_by_a_content_filter_completes_and_records_the_notice()
+    {
+        // The filter stopped the model after it produced text: the user holds a partial answer, so the run keeps
+        // its status and the record says why the answer ends where it does.
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(provider, PlainText(maxOutputTokens: 50));
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        run.Error.ShouldBeNull();
+        run.Usage!.OutputTokens.ShouldBe(50);
+
+        var events = await EventsAsync(host, run.Id);
+        var notice = events
+            .Where(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+
+        notice.Type.ShouldBe(RunEventType.Custom);
+        notice.Text.ShouldBe("The provider's content filter stopped the model mid-answer; the answer is incomplete.");
+
+        using var payload = JsonDocument.Parse(notice.Payload!);
+        payload.RootElement.EnumerateObject().Select(static property => property.Name).ShouldBe(["provider"]);
+        payload.RootElement.GetProperty("provider").GetString().ShouldBe("scripted");
+        notice.Payload!.ShouldNotContain("long ans", Case.Sensitive, "the notice never carries the response text");
+
+        events.ShouldNotContain(
+            static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputTruncated, StringComparison.Ordinal),
+            "a filtered answer is not a truncated one");
+    }
+
+    [Fact]
+    public async Task A_complete_response_writes_no_filter_notice()
+    {
+        var provider = new FinishReasonModelProvider()
+            .Text("A full answer.", ChatFinishReason.Stop, inputTokens: 30, outputTokens: 5);
+
+        await using var host = await StartAsync(provider, PlainText(maxOutputTokens: 50));
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var run = await SingleRunAsync(host);
+
+        (await EventsAsync(host, run.Id)).ShouldNotContain(
+            static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task The_filter_notice_keeps_its_payload_when_payload_recording_is_off()
+    {
+        // The payload names a provider and never user data, so turning RecordToolPayloads off does not
+        // silence it (the truncation notice's rule).
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.ContentFilter, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(
+            provider,
+            PlainText(maxOutputTokens: 50),
+            configureServices: static services => services.Configure<TraconOptions>(
+                static options => options.RunRecording.RecordToolPayloads = false));
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var run = await SingleRunAsync(host);
+        var notice = (await EventsAsync(host, run.Id))
+            .Where(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+
+        notice.Payload.ShouldNotBeNull();
+        notice.Payload.ShouldContain("scripted");
+    }
+
+    [Fact]
+    public async Task A_structured_response_stopped_by_a_content_filter_records_the_notice_and_the_run_completes()
+    {
+        // Structured validation is off by default: the document is returned as the model wrote it, and the
+        // notice says the answer is incomplete.
+        var provider = new FinishReasonModelProvider()
+            .Text("{\"title\": \"A whole document\"}", ChatFinishReason.ContentFilter, inputTokens: 40, outputTokens: 20);
+
+        await using var host = await StartAsync(provider, Structured(maxOutputTokens: 200));
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        (await EventsAsync(host, run.Id))
+            .Where(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task A_structured_response_stopped_by_a_content_filter_is_still_judged_by_the_validator()
+    {
+        // The notice does not change the validator's verdict: a document that does not parse still fails
+        // the run, and the notice stays in the record to say why it ends where it does.
+        var provider = new FinishReasonModelProvider()
+            .Text("{\"title\": \"An unfinish", ChatFinishReason.ContentFilter, inputTokens: 40, outputTokens: 20);
+
+        await using var host = await StartAsync(
+            provider,
+            Structured(maxOutputTokens: 200),
+            services => services.Configure<TraconStructuredResponseOptions>(static options =>
+            {
+                options.Enabled = true;
+                options.MaxRepairAttempts = 0;
+            }));
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error!.Class.ShouldBe(RunErrorClass.StructuredResponseInvalid);
+        provider.Calls.ShouldBe(1);
+
+        (await EventsAsync(host, run.Id))
+            .Where(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+    }
+
+    [Fact]
     public async Task A_filtered_empty_response_still_records_the_tokens_it_spent()
     {
         // The same fold as a truncated response, found while measuring it: the
@@ -204,6 +341,10 @@ public sealed class OutputTruncationTests
         run.Error!.Class.ShouldBe(RunErrorClass.ContentFiltered);
         run.Usage.ShouldNotBeNull();
         run.Usage.InputTokens.ShouldBe(900);
+
+        // Nothing to keep, so no notice: the failure is the signal.
+        (await EventsAsync(host, run.Id)).ShouldNotContain(
+            static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal));
     }
 
     internal static AgentDefinition Structured(int? maxOutputTokens, IReadOnlyList<string>? toolNames = null) => new()

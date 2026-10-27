@@ -15,6 +15,7 @@ public sealed class ReservedPayloadPolicyTests
     [Theory]
     [InlineData(RunEventCustomTypes.QuotaThreshold)]
     [InlineData(RunEventCustomTypes.OutputTruncated)]
+    [InlineData(RunEventCustomTypes.OutputFiltered)]
     public async Task A_notice_whose_payload_is_the_function_keeps_it_with_payloads_off(string customType)
     {
         var writer = await CreateStartedWriterAsync(recordToolPayloads: false);

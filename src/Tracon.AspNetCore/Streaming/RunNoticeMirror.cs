@@ -21,8 +21,9 @@ namespace Tracon;
 /// built on its own.
 /// </para>
 /// <para>
-/// <strong>The list is closed.</strong> Only two types are sent:
-/// <see cref="RunEventCustomTypes.OutputTruncated"/> always, and
+/// <strong>The list is closed.</strong> Only three types are sent:
+/// <see cref="RunEventCustomTypes.OutputTruncated"/> and
+/// <see cref="RunEventCustomTypes.OutputFiltered"/> always, and
 /// <see cref="RunEventCustomTypes.QuotaThreshold"/> only while
 /// <see cref="TraconQuotaOptions.PublishThresholdToRunStream"/> is on. A consumer's
 /// own <see cref="RunEventType.Custom"/> event, and every other reserved type, stays
@@ -31,14 +32,16 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>The store is read only when a notice can exist.</strong> The quota notice
-/// can exist only while its option is on. The truncation notice can exist only when
-/// an update the endpoint forwarded reported a cut-off finish reason
-/// (<see cref="FinishReasonDetectingChatClient.IsTruncated"/>, the one predicate).
+/// can exist only while its option is on. The truncation and the filter notice can exist only when
+/// an update the endpoint forwarded reported a finish reason that may leave an incomplete answer
+/// (<see cref="FinishReasonDetectingChatClient.IsIncomplete"/>, the one predicate: a cut-off
+/// or a content filter).
 /// Microsoft Agent Framework copies each model call's finish reason onto the update,
 /// and the detector writes the event from the same reason. A tool
 /// turn cut at the limit opens the scan too, but the detector judges only the final
-/// turn and writes nothing; that false positive costs one read. A run that reported
-/// no cut and has the quota option off does not read the store at all.
+/// turn and writes nothing; that false positive costs one read. (A filtered answer with
+/// no content fails the run, so the stream ends in an <c>error</c> and never reaches this type.)
+/// A run that reported neither and has the quota option off does not read the store at all.
 /// </para>
 /// <para>
 /// <strong>A store failure does not fail the stream.</strong> The run already
@@ -80,8 +83,9 @@ internal static class RunNoticeMirror
     /// <param name="runId">The run the stream belongs to.</param>
     /// <param name="writer">The stream's writer.</param>
     /// <param name="sequence">The id of the next frame.</param>
-    /// <param name="sawTruncation">
-    /// Whether an update the endpoint forwarded reported a cut-off finish reason.
+    /// <param name="sawIncomplete">
+    /// Whether an update the endpoint forwarded reported a cut-off or content-filter finish reason
+    /// (<see cref="FinishReasonDetectingChatClient.IsIncomplete"/>).
     /// </param>
     /// <param name="cancellationToken">The request's cancellation token.</param>
     /// <returns>The id of the frame after the last one written.</returns>
@@ -90,13 +94,13 @@ internal static class RunNoticeMirror
         Guid runId,
         SseWriter writer,
         long sequence,
-        bool sawTruncation,
+        bool sawIncomplete,
         CancellationToken cancellationToken)
     {
         var quotaNotices = httpContext.RequestServices
             .GetService<IOptionsMonitor<TraconQuotaOptions>>()?.CurrentValue.PublishThresholdToRunStream is true;
 
-        if (!quotaNotices && !sawTruncation)
+        if (!quotaNotices && !sawIncomplete)
         {
             return sequence;
         }
@@ -123,6 +127,7 @@ internal static class RunNoticeMirror
         => runEvent.Type == RunEventType.Custom && runEvent.CustomType switch
         {
             RunEventCustomTypes.OutputTruncated => true,
+            RunEventCustomTypes.OutputFiltered => true,
             RunEventCustomTypes.QuotaThreshold => quotaNotices,
             _ => false,
         };

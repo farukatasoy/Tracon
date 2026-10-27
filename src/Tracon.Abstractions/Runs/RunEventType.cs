@@ -22,14 +22,16 @@ namespace Tracon;
 /// With it off the event still appears in the stream and <c>Text</c> still
 /// carries its summary, but <c>Payload</c> is <see langword="null"/> — so a
 /// payload described below is what the field holds when it is written, not a
-/// promise that it is always there. Two exceptions always carry theirs,
+/// promise that it is always there. Three exceptions always carry theirs,
 /// because there the payload is the function rather than an observability
 /// detail: <see cref="WorkflowRequest"/>, which is the only place a pending
 /// human request can be read from, <see cref="WorkflowResponseApplied"/>, which
 /// is the only link from an answer's run back to the run it answered, and
-/// <see cref="Custom"/> of the two notice types <c>RunEventCustomTypes.QuotaThreshold</c>
-/// and <c>RunEventCustomTypes.OutputTruncated</c>, whose payload carries the dedup
-/// key a client needs to act on the frame. A consumer's OWN <see cref="Custom"/>
+/// <see cref="Custom"/> of the reserved notice types <c>RunEventCustomTypes.QuotaThreshold</c>,
+/// <c>RunEventCustomTypes.OutputTruncated</c>, <c>RunEventCustomTypes.OutputFiltered</c>
+/// and <c>RunEventCustomTypes.ToolInputDeclined</c>, whose payload names what happened
+/// (the dedup key a client acts on, the provider, a reason code) and never carries user
+/// data or the answer. A consumer's OWN <see cref="Custom"/>
 /// event is not exempt, and neither are the other reserved types
 /// (<c>RunEventCustomTypes.Content</c>, <c>RunEventCustomTypes.WorkflowEvent</c>).
 /// </para>
@@ -297,8 +299,10 @@ public enum RunEventType
     /// follows the general rule in the type's remarks: with
     /// <c>TraconRunRecordingOptions.RecordToolPayloads</c> off it still
     /// appears in the stream but <c>Payload</c> is <see langword="null"/>. Only
-    /// <see cref="RunEventCustomTypes.QuotaThreshold"/> and
-    /// <see cref="RunEventCustomTypes.OutputTruncated"/> are exempt.
+    /// <see cref="RunEventCustomTypes.QuotaThreshold"/>,
+    /// <see cref="RunEventCustomTypes.OutputTruncated"/>,
+    /// <see cref="RunEventCustomTypes.OutputFiltered"/> and
+    /// <see cref="RunEventCustomTypes.ToolInputDeclined"/> are exempt.
     /// </summary>
     /// <remarks>
     /// The escape hatch for the otherwise closed set of event types above.
