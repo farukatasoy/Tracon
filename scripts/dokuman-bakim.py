@@ -1230,6 +1230,9 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     "src/Tracon.Mcp/Internal/McpTransportFactory.cs": "ModelContextProtocol.Core",
     "src/Tracon.SqlServer/TraconSqlServerOptions.cs": "Microsoft.Data.SqlClient",
     "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs": "Microsoft.Agents.AI.Hosting.OpenAI",
+    # Faz 251: MAF'in Responses yaziciyi bitis sebebini okumaz ve son ogeyi `updates` bittikten SONRA kapatir;
+    # yeniden yazim bu iki olcume dayanir, yukseltmede yeniden olculur (ResponsesIncompleteTests kayma kapisidir).
+    "src/Tracon.AspNetCore/OpenAICompat/ResponsesIncompleteness.cs": "Microsoft.Agents.AI.Hosting.OpenAI",
     "src/Tracon.Core/Models/FallbackChatClient.cs": "OpenAI",
     "src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs": "Microsoft.Agents.AI",
     "src/Tracon.Core/Diagnostics/AggregatedResponseGuard.cs": "Microsoft.Agents.AI",
