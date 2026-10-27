@@ -221,17 +221,17 @@ tests/Tracon.AspNetCore.FunctionalTests/…SkillScriptBudgetTests.cs   # yeni ya
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Bütçe reddiyle ya da model hatasıyla biten akışsız run'da `GET /api/runs/{id}/tools` her çağrıyı tam bir kez listeler
-- [ ] Akışsız başarılı run'da satır sayısı değişmez ve `duration` doludur
-- [ ] Zincir dışı kaynakların satırları regresyonsuz
-- [ ] Bütçe reddi `script.denied` yazar; istisna kimliği `run_budget_exceeded` aynen
-- [ ] Betik yolu uçtan uca fonksiyonel testte; token bütçesi testi gerçek kullanım yolunda
-- [ ] `FakeModelProvider` aşırı yüklemeleri XML ve `Tracon.Testing/README.md` örneğiyle
-- [ ] Yeni `K-*` (`geri-dönüşü-pahalı`): tool satırının kayıt noktası zincirdir, reddedilen alternatif (içeride akışla koşmak) adıyla
+- [x] Bütçe reddiyle ya da model hatasıyla biten akışsız run'da `GET /api/runs/{id}/tools` her çağrıyı tam bir kez listeler — `FailedRunToolRowsTests` (bütçe reddi, sağlayıcı kesintisi, iptal, eşzamanlı çağrı); canlı: aşağıdaki "Canlı Koşum Kanıtı"
+- [x] Akışsız başarılı run'da satır sayısı değişmez ve `duration` doludur — `A_queued_run_that_succeeds_writes_one_row_and_one_pair_of_events_per_call_and_measures_the_duration`
+- [x] Zincir dışı kaynakların satırları regresyonsuz — mevcut `HostedToolRunTests`, `SubAgentToolModeTests`, `SkillScriptExecutorRoutingTests`, `StreamingTests` aynen yeşil; tam fonksiyonel koşum 2880/2880 ("Regresyon koşumları")
+- [x] Bütçe reddi `script.denied` yazar; istisna kimliği `run_budget_exceeded` aynen — `SandboxedSkillScriptRunnerTests.Budget` (birim) + `SkillScriptBudgetTests` (fonksiyonel); canlı: case 2
+- [x] Betik yolu uçtan uca fonksiyonel testte; token bütçesi testi gerçek kullanım yolunda — `SkillScriptBudgetTests` (model → onay → devam run'ı → betik) + `ToolBudgetGateTests.A_tool_does_not_start_once_the_turn_that_asked_for_it_spent_the_token_budget`
+- [x] `FakeModelProvider` aşırı yüklemeleri XML ve `Tracon.Testing/README.md` örneğiyle — ayrıca site `guides/testing.md` yöntem tablosu
+- [ ] Yeni `K-*` (`geri-dönüşü-pahalı`): tool satırının kayıt noktası zincirdir, reddedilen alternatif (içeride akışla koşmak) adıyla — taslak `K-NEW-1` (+ `K-NEW-2`, `K-NEW-3`) "Entegrasyon Notları"nda; defter satırını entegratör yazar
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1, 2), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/16-…` ve `14-…` içinde ve koşuldu
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1, 2), çıktı belgeye yazıldı — "Canlı Koşum Kanıtı" (2026-10-27, bellek içi depo, gerçek OpenAI)
+- [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` temiz
+- [x] `🤖` case'ler `docs/manuel-test/16-…` ve `14-…` içinde ve koşuldu — `MT-JOB-154`, `MT-SKILL-087` (2026-10-27)
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi; `npm run check` temiz
 
@@ -268,12 +268,182 @@ curl -s "http://localhost:5081/tracon/api/audit?action=script.denied" -H "Author
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+**Önce ölçülen yapısal iddialar** (`faz-uygulama` Adım 1). Hepsi koddan okundu veya grep'lendi:
+
+| Plan iddiası | Ölçüm | Sonuç |
+|---|---|---|
+| Zincir sırası `ToolWrapperChain.cs:18-19`'daki gibidir | `Compose` gövdesi: ExplainedFailure → BudgetGating → Authorizing → [Validating] → Timeout → [ApprovalRequired] → Truncating → işlev | Doğru |
+| Sarmalayıcılar `CallId`'yi `FunctionInvokingChatClient.CurrentContext`'ten okur | `grep -rn "FunctionInvokingChatClient.CurrentContext" src/`: yedi okuyucu (ExplainedFailure, Authorizing, Timeout, Truncating, `TraconToolUsage`, `RecordedToolPlayback`, `McpElicitingTool`) | Doğru |
+| Defter "`CreateScope`'ta önceden kurulur" | `TraconRunContext` yalnız `AsyncLocal` tutucusudur. Kapsam iki yerde kurulur: `RunRecordingAgent.PrepareRun` public `AgentRunScope`'u kurar (biriktiriciler bu başlatıcıdadır), `CreateScope` özel `RunScope`'u. Defter `PrepareRun`'da yaratılır, ikisine de verilir | **Konum yanlış, niyet doğru** — katman kapsam açmaz, yalnız `TraconRunContext.Current.ToolCalls`'u okur ve yazar |
+| Hosted ve istemci tool'ları zincir dışıdır | `ToolSourceGovernanceTests.Outside` + `Compose` istemci bildirimini değiştirmeden döndürür | Doğru. **Eksik**: zincir dışı kümede ayrıca alt agent (Tool kipi), `load_skill`/`read_skill_resource`/`run_skill_script`, dosya belleği, todo, harness ve uzantı sağlayıcıları var. Site tam listeyi söyler |
+| Akışsız süre bugün boş (`ToolInvocationTracker.cs:17-22`) | Kod okundu; canlı koşum da `duration` boş verirdi | Doğru |
+| Alt agent kendi kapsamını açar | `RunRecordingAgent.RunCoreAsync` gövdesinde `SetCurrent(start.Scope)`; çocuk kendi `PrepareRun`'ını koşar | Doğru — çocuğun tool'u çocuğun defterine yazar (`A_call_made_in_a_child_run_belongs_to_the_child_run_and_not_to_its_parent`) |
+
+**Sapmalar**
+
+1. **Kayıt katmanı: yeni ince katman, `ExplainedFailureAIFunction` genişlemedi.** Plan ikisini de açık bıraktı ("uygulamada ölçülür"). Karar: `CallRecordingAIFunction`, `ExplainedFailureAIFunction`'ın **dışında**, zincirin en dış katmanı. Sebepler: (a) `ExplainedFailureAIFunction`'ın sözleşmesi "başka hiçbir şey yakalanmaz" (`Any_other_exception_still_travels`); defterin başarısız çağrıyı görmesi için `catch (Exception)` + yeniden fırlatma gerekir — bir sınıfta iki sorumluluk; (b) defter modelin okuduğu sonucu tutar: dışarıda olunca açıklanmış hata cümlesi sonuç olarak görünür, içeride olsaydı istisna görünürdü ve sonucu yeniden kurmak gerekirdi; (c) maliyet: "en dış katman" assert'i taşıyan yedi satır `CallRecordingAIFunction`'a çevrildi (`ToolWrapperChainTests` ×2, `BudgetGatingAIFunctionTests`, `SessionWorkspaceProviderTests`, `ToolApprovalTests` ×2, `AgentDefinitionCompilerTests`). Ölçüt ("ret ve hata dahil her çağrı tam bir kez"): `CallRecordingAIFunctionTests` (birim, gerçek tool-call döngüsüyle) ve `FailedRunToolRowsTests` (fonksiyonel).
+2. **Yetki reddi satırı `Succeeded=false` DEĞİL.** Plan tablosu "ret satırı `Succeeded=false`" der. `ToolInvocationRecord.AuthorizationDenied` sözleşmesi (Faz 69) ret'in hata olmadığını söyler: `Error` boş, `AuthorizationDenied=true`. Defter yolu aynı izleyiciyi kullandığı için ret satırı iki yolda birebir aynıdır. Sözleşme korundu; test bunu sabitler (`b.AuthorizationDenied` true, `b.Succeeded` true). Bütçe reddi ise gerçek bir hatadır (`Succeeded=false`, "The tool call did not start.").
+3. **Satırın `CreatedAt`'ı.** Plan söylemiyordu. Alan sözleşmesi "çağrının bittiği an"dır, ama akışsız run satırı run sonunda yazar ve tüm satırlar aynı anı taşırdı (sıra belirsiz). Akışsız yolda satır artık defterin bitiş zamanını taşır. Akışlı yol değişmedi.
+4. **Olay damgası (Açık Soru 1 A).** `RunEventDraft`'a `internal DateTimeOffset? Timestamp` girdi (public API değişmez); `RunEventWriter.AppendInOrderAsync` `draft.Timestamp ?? clock` damgalar. Kapanışta olaylar **zamana göre** yazılır (başlangıç, aynı anda bitişten önce): eşzamanlı çağrılarda olay sırası gerçek sırayı izler. **Sınır:** kapanışta yazılan olayların sıra numarası, run sürerken canlı yazılmış olaylardan (alt run olayları, uyarılar) sonradır; zamanı ise öncedir. Okuyucu sıra numarasına güvenir. Başarılı akışsız run'ın olayları eskisi gibi yazım anını taşır (plan: "mesaj yolu bugünkü gibi").
+5. **`FakeModelProvider.CallsTool` ikiye bölündü.** Public API kuralı RS0027 (`hafiza/analyzer-tanilari.md`) en uzun aşırı yüklemede opsiyonel parametre ister; plan `CallsTool(string, object?, int, int)` ekleyince eski `CallsTool(string, object? = null)` kırmızı oldu. Çözüm: `CallsTool(string)` + `CallsTool(string, object?)`. Kaynak ve ikili uyum korunur (eski çağrı noktaları iki argümanı derleme anında gömer). Taslak imza bölümü aşağıda.
+6. **Devam run'ında bütçe tüketme (F-690 test boşluğu).** Plan: "bütçesi tükenmiş devam run'ında betik başlamaz". Ölçüm: (i) onay devam run'ı (`ApprovalResumeJobHandler`) yeni bir kök run'dır ve bütçesi sıfırdan başlar; yalnız workflow devamı önceki harcamayı devralır (F-531); (ii) devam run'ının ilk işi onaylanan çağrıdır, model çağrısı sonra gelir; (iii) aynı turun kardeş tool'u onaylanan betikten ÖNCE koşmaz — **iki yönde ve üç düzenle ölçüldü** (kardeş onaysız; kardeş kullanıcı onaylı + betik kalıcı kuralla onaylı; çağrı sırası ters): betik hep ilk koştu, kardeş sonra. Sonuç: gerçek yolda devam run'ının bütçesini betikten önce harcayan tek şey run'ın önüne konan paralı bir adımdır. Test (`SkillScriptBudgetTests`) ve canlı case bunu bir `IAgentDecorator` ile kurar (`ChargesTheContinuation`); gerekçe sınıf yorumundadır. Sıra ölçümü bir söz değildir (MEAI sürümüyle değişebilir) — bu yüzden test sıraya dayanmaz.
+7. **Uç açıklaması ve üretilen sözleşme dosyaları.** Plan "tel şeması aynı" der; şema gerçekten aynı. Ama `GET /api/runs/{id}/tools` açıklaması "Duration is measured only for streaming runs" diyordu ve `ToolInvocationRecord.Duration` XML'i buna yaslanıyordu — yanlış kalamazdı. İki açıklama düzeltildi; üç commit'li kopya yenilendi: `docs/openapi/tracon.json` (`TRACON_OPENAPI_REFRESH=1`), `packages/tracon-client/src/schema.ts` (`npm run generate`), `src/Tracon.Client/Generated/TraconApiClient.g.cs` (NSwag dizisi). Her birinde yalnız bu iki açıklama satırı değişti.
+8. **Mimari kapı sayısı.** `RunRecordingStagePolicyTests`: `RunRecordingAgent.Persistence.cs` için izinli çağrı yeri 1 → 2. Defter adımı, yazamadığı çağrıyı `tool_invocation` aşamasıyla sayar ("gözlemlenebilirlik işlevselliği bozmaz": kapanışı düşürmez, sayar ve loglar).
+9. **`TestDelayClassificationTests`.** İki yeni sahte "asılı tool gövdesi" `// delay: simulated` etiketi aldı.
+10. **Site senkron kapısı (`paket-readme`).** `src/Tracon.Testing/README.md` değişti; kural `packages.md`'yi ister. `packages.md` paketi tek satırla anlatır ("You write tests against agents — fakes, not mocks") ve bu satır değişmedi: README'ye bir örnek eklendi, paketin ne için seçildiği değişmedi. Yöntem tablosu `guides/testing.md`'de güncellendi. Kapı `--site-gerekce-yazildi` ile geçilir.
+11. **Duvar saati geri düzeltilirse.** Plan söylemiyordu. Defterin bitiş zamanı başlangıç zamanından önce okunmaz: `ToolCallLedger.End` bitişi başlangıca kıstırır. Süre monotonik saatten gelir ve negatif olamaz; kıstırma yalnız kayıttaki damgayı korur. Kıstırma olmasa kapanış adımı bitiş olayını başlangıç olayından önce sıralar, izleyici sonucu çağrıdan önce görür ve satırı `unknown` adıyla yazardı. Test: `ToolCallLedgerTests.A_wall_clock_corrected_backwards_during_a_call_does_not_put_its_end_before_its_start` (ve kaydedici düzeyinde `RunRecordingAgentLedgerTests`).
+12. **Konsol dipnotu.** Plan "Arayüz payı: Yok" der. Ölçüm: `Tools` ekranının altındaki dipnot (`tools.durationNote`, `locales/en/agents.ts` ve `locales/tr/agents.ts`) "süre yalnız akışlı çalıştırmada ölçülür" diyordu. Faz 254'ten sonra bu yalnız zincir dışı tool'lar için doğrudur; metin yanlış kalamazdı. İki dilde yalnız bu metin düzeltildi, başka arayüz değişikliği yok. Doğrulama: `npx tsc --noEmit` çıkış 0 · `npx vitest run src/locales src/screens` 196/196 · `SourceLanguageTests` 7/7. Arayüzün tam derlemesi (`dotnet build` içindeki `npm run build`) ve `Tracon.Ui.E2ETests` bu çalışma ağacında koşulmadı; `kapanis` ikisini de kapsar. Metin hiçbir testte geçmez (`grep`).
+13. **Plandaki "Kayıt deposu hatası tool çağrısını bozar" satırı.** Plan satırı "defter yazımı bellekte; depo yazımı kapanışta, hata loglanır" der. `WriteLedgerCallsAsync` depo hatasını sayar ve loglar, run'ı bozmaz. Yazıcı ilk depo hatasında kendini kapatır ve sayar (`RunRecordingFailureMetricTests`); kapanış adımının kendi `catch`'i yazıcıdan kaçan hata içindir (örn. argüman değerinin `ToString()`'i). Test: `RunRecordingAgentLedgerTests.A_store_that_refuses_the_events_while_the_calls_are_written_does_not_change_the_failure_the_caller_gets` — arayana model hatası döner, kayıp `event` aşamasında bir kez sayılır. Kapanış adımının kendi `catch`'i için ayrı bir test yoktur: onu tetiklemek, `ToString()`'i atan bilerek bozuk bir argüman nesnesi ister; depo kaynaklı hata ise yukarıdaki testle kapsanır.
+
+### Gerçekleşen public API
+
+`Tracon.Testing` (yalnız bu paket büyür; `Tracon.Core` değişiklikleri `internal`):
+
+```csharp
+public FakeModelProvider CallsTool(string toolName);                                               // yeni; eski opsiyonel parametre aşırı yüklemeye bölündü
+public FakeModelProvider CallsTool(string toolName, object? arguments);                            // eski imza, opsiyonelsiz
+public FakeModelProvider CallsTool(string toolName, object? arguments, int inputTokens, int outputTokens);
+public FakeModelProvider CallsTools(int inputTokens, int outputTokens, params (string ToolName, object? Arguments)[] calls);
+```
+
+`internal` yüzey: `ToolCallLedger`, `ToolCallSnapshot`, `CallRecordingAIFunction`, `AgentRunScope.ToolCalls`, `ToolInvocationTracker.IsPending` ve `ledger` parametresi, `RunEventDraft.Timestamp`. Tel şeması aynı; yalnız iki açıklama metni değişti.
+
+### Gerçekleşen dosya listesi
+
+```
+src/Tracon.Core/Recording/ToolCallLedger.cs                 # yeni, internal
+src/Tracon.Core/Tools/CallRecordingAIFunction.cs            # yeni, internal (en dış katman)
+src/Tracon.Core/Tools/ToolWrapperChain.cs                   # sıra yorumu + katman
+src/Tracon.Core/Recording/TraconRunContext.cs               # AgentRunScope.ToolCalls
+src/Tracon.Core/Recording/RunRecordingAgent.Lifecycle.cs    # PrepareRun/CreateScope/RunScope
+src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs  # WriteLedgerCallsAsync, olay zamanı
+src/Tracon.Core/Recording/RunRecordingAgent.Completion.cs   # kapanışta defter adımı
+src/Tracon.Core/Recording/ToolInvocationTracker.cs          # claim, süre, CreatedAt
+src/Tracon.Core/Recording/RunEventWriter.cs                 # RunEventDraft.Timestamp
+src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs
+src/Tracon.Testing/FakeModelProvider.cs · Internal/FakeChatClient.cs · Internal/FakeModelScript.cs · PublicAPI.Unshipped.txt · README.md
+src/Tracon.AspNetCore/Endpoints/ObservabilityEndpoints.cs · src/Tracon.Abstractions/Runs/ToolInvocationRecord.cs   # açıklamalar
+docs/openapi/tracon.json · packages/tracon-client/src/schema.ts · src/Tracon.Client/Generated/TraconApiClient.g.cs   # üretilen
+tests/…/FailedRunToolRowsTests.cs · SkillScriptBudgetTests.cs · ToolBudgetGateTests.cs (yeni test)
+tests/Tracon.Core.UnitTests/{Recording/ToolCallLedgerTests, Recording/ToolInvocationTrackerLedgerTests, Recording/RunRecordingAgentLedgerTests, Recording/RunEventTimestampTests, Tools/CallRecordingAIFunctionTests, Skills/SandboxedSkillScriptRunnerTests.Budget}.cs
+tests/Tracon.Testing.UnitTests/FakeModelProviderToolUsageTests.cs
+docs-site: concepts/runs.md · concepts/governance.md · guides/reliability.md · guides/testing.md
+src/Tracon.UI/frontend/src/locales/{en,tr}/agents.ts        # yalnız tools.durationNote metni (Plandan Sapmalar, madde 12)
+docs/manuel-test: 14-…md (MT-SKILL-087) · 16-…md (MT-JOB-154) · 00-INDEKS.md (iki satır)
+```
+
+## Canlı Koşum Kanıtı
+
+> `samples/Tracon.Api`, derlenmiş DLL'den, port 5184, bellek içi depo (`/api/meta` → `persistent: false`),
+> `ASPNETCORE_ENVIRONMENT=Development`, `Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=`
+> `Tracon__Sqlite__ConnectionString=` `Tracon__Ui__AuthToken=` boş. Uygulama günlüğünde `Npgsql` satırı: **0**.
+> Gerçek model: `openai` / `gpt-5.4-mini` (her case birkaç yüz token). Koşum sonunda uygulama durduruldu.
+
+**Case 1 — `MT-JOB-154`** (`Tracon__AgentGraph__MaxTotalCost=0.005`; agent `live-narrator` HTTP ile oluşturuldu, `toolNames: ["narrate"]`):
+
+```
+POST /tracon/api/agents/live-narrator/run   Prefer: respond-async   → 202
+GET  /tracon/api/runs/{id}                  → status Failed, isStreaming false
+      error.type run_budget_exceeded — "The run tree's cost budget is exhausted (0.007009/0.005000). ..."
+GET  /tracon/api/runs/{id}/tools            → 2 satır (Faz 254'ten önce: [])
+  narrate  error=null                                                         duration 00:00:00.0177485
+  narrate  error="... Raise Tracon:AgentGraph:MaxTotalCost to allow more. The tool call did not start."   duration 00:00:00.0007126
+GET  /tracon/api/runs/{id}/events           → run.started · tool.invoking(16:16:40.566992) · tool.invoked(.584752)
+                                              · tool.invoking(.585009) · tool.failed(.585722) · run.failed
+```
+
+**Case 2 — `MT-SKILL-087`** (`Tracon__AgentGraph__MaxTotalCost=0.05`; geçici kod: `UseSkillScripts` + `IAgentDecorator` `Faz254ChargesTheContinuation`, ikisi de koşum sonunda geri alındı; skill `budget-skill` + `hello` script'i + grant HTTP ile kuruldu):
+
+```
+2a  live-script          sessionId live-a → AwaitingApproval → POST approvals/{id}/decide {approved:true}
+                         → devam run'ı Completed;  GET audit → script.run  budget-skill/hello
+2b  live-script-charged  sessionId live-b → AwaitingApproval → decide
+                         → devam run'ı Failed  run_budget_exceeded  "(5.000000/0.050000)"
+    GET /tracon/api/audit?action=script.denied → 1 giriş
+      { "action":"script.denied", "entity":"budget-skill/hello",
+        "after":"\"The run tree's cost budget is exhausted (5.000000/0.050000). Raise Tracon:AgentGraph:MaxTotalCost to allow more. The tool call did not start.\"" }
+    GET /tracon/api/audit?action=script.run → 1 giriş (yalnız 2a)
+```
+
+**Temel sürüme karşı kırmızı** (`git worktree add --detach … eb0341f3`, yeni test dosyaları kopyalandı):
+`FailedRunToolRowsTests` 9 senaryodan **7'si düştü** (bütçe reddi, sağlayıcı kesintisi, iptal, eşzamanlı çağrı + ret, başarılı run süresi, kiracı, workflow adımı); akışlı run ve alt run senaryoları temelde de yeşildi (regresyon bekçisi). `SkillScriptBudgetTests` 3'ten **1'i düştü** (`script.denied` yok); onaylı betik ve kontrol temelde yeşil. `SandboxedSkillScriptRunnerTests.Budget` temel çalıştırıcıda `script.denied` testi düştü. İlk kırmızı (düzeltmeden önce): `rows.Count should be 2 but was 0`.
+
+**Kıstırma için kırmızı** (Plandan Sapmalar, madde 11): `ToolCallLedger.End` içindeki kıstırma geçici olarak kaldırıldı. `ToolCallLedgerTests.A_wall_clock_corrected_backwards_during_a_call_does_not_put_its_end_before_its_start` düştü; `RunRecordingAgentLedgerTests.A_wall_clock_corrected_backwards_while_the_tool_runs_still_writes_the_start_before_the_end` düştü (`should have single item but had` — `unknown` satırı ve ikinci satır). Kıstırma geri konunca ikisi de yeşil.
+
+**Regresyon koşumları** (`python3 scripts/kapi.py test`, Release, bu çalışma ağacında, son kod `8b5dc752`):
+
+| Proje | Sonuç |
+|---|---|
+| `Tracon.AspNetCore.FunctionalTests` — tüm proje (`--sinif "*"`) | 2880 geçti · 0 düştü · 0 atlandı (net10.0, 15 dk 8 sn). Bu koşum kıstırmadan ÖNCE derlenen kodla yapıldı; kıstırmadan sonra defterle ilgili altı sınıf yeniden koşuldu: `FailedRunToolRows` · `SkillScriptBudget` · `ToolBudgetGate` · `HostedToolRun` · `SubAgentToolMode` · `Streaming` — 87/87 |
+| `Tracon.Core.UnitTests` — tüm proje | 5254 geçti × 3 hedef (net8.0 · net9.0 · net10.0) |
+| `Tracon.Testing.UnitTests` | 40/40 |
+| `Tracon.Workflows.UnitTests` | 563/563 |
+| `Tracon.Client.UnitTests` · `Tracon.Generators.UnitTests` · `Tracon.Mcp.UnitTests` | 28/28 · 340/340 · 98/98 |
+
+`python3 scripts/kapi.py tarama` temiz. `dotnet format --verify-no-changes` bu fazın dokunduğu her projede sıfır (Abstractions · Core · AspNetCore · Testing · Core.UnitTests · Testing.UnitTests · AspNetCore.FunctionalTests). `python3 scripts/dokuman-bakim.py --denetle` yalnız `reference/changelog` bağlantısı için kırmızıdır: o sayfa `npm run generate` ile üretilir ve çalışma ağacında yoktur; bu fazdan değil.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+**Açık Sorular** (planın önerisi uygulandı; ölçüm gerektiren yoktu):
+
+| # | Seçim | Uygulama |
+|---|---|---|
+| 1 | **A** — olaylar da defterden | Kapanışta, defterin `t0`/`t1`'iyle, zamana göre sıralı. Damga `RunEventDraft.Timestamp` (internal) ile taşınır; `RunEventTimestampTests` üç durumu sabitler |
+| 2 | **B** — akışlı yol bugünkü gibi | Akışlı yolda defter yalnız tekrarı önler: `OnResult`/`DrainUnfinished` çağrıyı talep eder. Süre ve `CreatedAt` akışlı yolda izleyicinin kendi ölçümüdür (`A_run_that_streams_keeps_its_own_measurement`) |
+| 3 | **B** — defter boyutu sınırsız | Sınır eklenmedi. Defter run kapsamındadır ve run bitince atılır; çağrı sayısı tool döngüsü ve ağaç bütçesiyle zaten sınırlı |
+
+**Karar özeti.** Tool satırının kayıt noktası artık mesaj gözlemi değil, tool zincirinin en dış katmanıdır (`CallRecordingAIFunction`); kaydedici kapanışta defteri okur ve mesaj yoluyla aynı kodla yazar. Mesaj yolu zincir dışı tool'lar için kalır. Reddedilen alternatifler: akışsız run'ı içeride akışla koşturmak (plan karşı görüş 1), `ExplainedFailureAIFunction`'ı genişletmek (Plandan Sapmalar, madde 1).
+
+### Entegrasyon Notları
+
+> Entegratör içindir. Bu fazın kodu bu dosyalara dokunmadı (CHANGELOG, KARARLAR, hafıza, MIMARI).
+
+**(a) CHANGELOG — `[Unreleased]`**
+
+*Fixed:*
+
+- The tool rows and the tool events of a run that does not stream (a queued run, a run that continues an approval, an agent step of a workflow, the `/v1/*` endpoints) survive a failure. Before, a run that ended in an exception wrote no row and no event for the calls it had made: the budget refused its next model call, the provider failed, somebody cancelled it, and `GET /api/runs/{runId}/tools` was empty exactly when the trail was needed. A call that goes through the tool chain is now recorded where it happens and read when the run closes. A hosted tool, the framework's own skill tools and an agent called as a tool are still read from the messages of the answer.
+- A tool row of a run that does not stream carries its `duration`, and its `createdAt` is the moment the call settled. Before, `duration` was empty and every row of the run carried the moment the run was written.
+
+*Added:*
+
+- `FakeModelProvider.CallsTool(name, arguments, inputTokens, outputTokens)` and `FakeModelProvider.CallsTools(inputTokens, outputTokens, calls)`: a turn that asks for tools reports its token usage, so a test of the token budget, the usage or the cost goes through the path a real provider takes.
+- A skill script that the run tree's budget refuses writes a `script.denied` audit entry, as every other refused script does. The exception and its `run_budget_exceeded` identity are unchanged.
+
+*Changed:*
+
+- `FakeModelProvider.CallsTool(string, object? = null)` is now two overloads, `CallsTool(string)` and `CallsTool(string, object?)`. Existing calls compile and bind as before, and the compiled signature of the two-argument call is unchanged.
+- The description of `GET /api/runs/{runId}/tools` and the documentation of `ToolInvocationRecord.Duration` no longer say that a run that does not stream has no duration (no schema change).
+
+**(b) K-* taslakları** (`docs/KARARLAR.md` §2, `K-NEW-n` yerine numara yazılır; başlık ≤ 160 B, satır ≤ 600 B ölçüldü):
+
+```
+| **K-NEW-1 — Tool satırının kayıt noktası tool zincirinin en dış katmanıdır; kaydedici kapanışta defteri okur (F-689)** *(kategori: geri-dönüşü-pahalı)* | 2026-10-27 | Alternatif: akışsız run'ı içeride akışla koşturmak — sağlayıcıya giden istek türü değişir, yapılandırılmış çıktı ve kullanım her sağlayıcıda yeniden ölçülürdü; `ExplainedFailureAIFunction`'ı genişletmek — "başka hiçbir şey yakalanmaz" sözleşmesi bozulurdu. | Zincir dışı bir kaynak zincire girerse ya da akışsız yol akışla birleşirse |
+| **K-NEW-2 — Bütçe yüzünden reddedilen betik `script.denied` yazar; istisna ve `run_budget_exceeded` kimliği aynı kalır (F-690)** *(kategori: güvenlik)* | 2026-10-27 | Alternatif: bütçe reddini denetlememek — bakımcı kararı: her betik reddi tek kuralla denetlenir; girdiyi fail-closed yazmak — ret betiği zaten durdurur, depo hatası run'ı ikinci bir hatayla bozardı (K-089 betiği ÇALIŞTIRAN yola özgüdür). | Bütçe reddi ayrı bir denetim eylemine ayrılırsa |
+| **K-NEW-3 — `FakeModelProvider` tool turunun kullanımını bildirir: `CallsTool`/`CallsTools` aşırı yüklemeleri; opsiyonel parametre bölündü (F-690)** *(kategori: public-api)* | 2026-10-27 | Alternatif: yeni adlı yöntemler (`CallsToolWithUsage`) — `RespondsWith(text, in, out)` emsali aşırı yüklemedir; RS0027'yi bastırmak — kalıcı muafiyet olurdu. Kaynak ve ikili uyum korunur. | GA'dan sonra aşırı yükleme eklemek ikili uyumu bozarsa |
+```
+
+**(c) Hafıza notları**
+
+1. **`docs/hafiza/tool-onay-ve-yetkilendirme.md`, 15. madde (Faz 243 notu) BAYAT.** Sonundaki cümle ("Kayıt tuzağı: akışsız `RunAsync` bütçe reddiyle biterse hiç araç satırı yazmaz; araç satırını sınayan test `RunStreamingAsync` kullanır.") Faz 254 ile yanlıştır. Yerine: "Kayıt: zincirdeki araç her çağrıyı en dış katmanda (`CallRecordingAIFunction`) run'ın `ToolCallLedger`'ına yazar; akışsız run bütçe reddiyle bitse de satırlar kalır (Faz 254). `run_skill_script` ve diğer zincir dışı araçlar hâlâ mesajdan okunur."
+2. **`docs/hafiza/tool-onay-ve-yetkilendirme.md`, yeni madde.** "🚨 Onay devam run'ı yeni bir KÖK run'dır ve bütçesi sıfırdan başlar (yalnız workflow devamı önceki harcamayı devralır, F-531); ilk işi onaylanan çağrıdır. Aynı turun kardeş tool'u onaylanan betikten ÖNCE koşmaz — onaylı çağrılar önce koşar (kalıcı kuralla onaylı betik de ilk koşar; çağrı sırası ters olsa da). Bu yüzden 'devam run'ında betik bütçeye takılır' testi bütçeyi run'ın önüne konan bir adımla (`IAgentDecorator`) harcar; sıra MEAI sürümüyle değişebilir, teste gömme (Faz 254)."
+3. **`docs/hafiza/cekirdek-calistirma.md` (dolu: 15 999/16 000 B — yer açılmalı).** "🚨 Bir tool satırı üreten her yol önce defterde çağrıyı TALEP eder (`ToolInvocationTracker.OnResult`/`DrainUnfinished` → `ToolCallLedger.Claim`); talep unutulursa kapanışta aynı çağrı ikinci kez yazılır. Yeni bir satır üretme yolu eklerken `Claim` çağır (Faz 254)." ve "🚨 `AgentRunScope.ToolCalls` `PrepareRun`'da kurulur; zincir kapsam AÇMAZ (`AsyncLocal` yazımı async yardımcıdan çağırana akmaz). Defteri `null` bırakan kapsam (workflow'un kendi kapsamı) sessizce eski yolu (mesaj) kullanır."
+4. **`docs/hafiza/test-altyapisi.md` (ya da `test-kosum-tuzaklari.md`).** "🚨 Kuyruklu run'da süreyi sabitlemek için DI'ya donmuş bir `TimeProvider` kaydetme: işçi işi kiralayamaz (iş gerçek saatle damgalanır, işçi donmuş saate bakar) ve run sonsuza dek `Queued` kalır. Duvar saatini gerçek saat + kaydırma, monoton saati (`GetTimestamp`) yalnız tool gövdesinin kaydırdığı bir saat yap; zamanlayıcılar sistemin kalsın (`FailedRunToolRowsTests.SteppedClock`, Faz 254)."
+
+**(d) MIMARI / MAF-GENISLEME-NOKTALARI.** Değişiklik gerekmez: zincir sırası ne `MIMARI*.md`'de ne `MAF-*.md`'de yazılı (grep: yalnız kod yorumu ve hafıza notu). MAF'ın hiçbir genişleme noktası değişmedi. `docs/hafiza/tool-onay-ve-yetkilendirme.md` ve `ToolWrapperChain.cs` yorumu sırayı taşır.
+
+**(e) 🟢 aday bulgular** (uygulanmadı; yalnız rapor)
+
+1. **Akışlı yolu da defterden beslemek (tek kaynak).** Q2 B ile bilerek ertelendi. Ek kanıt: akışlı bir run'da çağrının sonucu tüketiciye ulaşmadan tüketici erken bırakılırsa (`DisposeAsync`), çağrı "ended before the tool result" ile kapanır; defter gerçek sonucu bilir.
+2. **Zincir dışı çerçeve tool'ları için satır.** `run_skill_script`, `load_skill`, `read_skill_resource`, dosya belleği, todo ve alt agent (Tool kipi) çağrıları başarısız akışsız run'da satır bırakmaz. Çalıştırılan betik kendi `skill_script` satırını yazar; reddedilen betik denetim izine düşer; ama model-yüzlü çağrının kendisi yoktur. Bu araçları sarmak (örn. `AgentSkillsProvider` çıktısını `BuiltInToolGovernance` gibi bir katmandan geçirmek) onlara bütçe kapısını da getirirdi.
+3. **Olayları canlı yazmak.** Kapanışta yazılan olayların sıra numarası canlı olaylardan (alt run olayları) sonradır. `CallRecordingAIFunction` olayları `scope.Writer` ile çağrı anında yazsaydı (mesaj yolu atlanır), `GET /api/runs/{id}/events` kuyruklu run sürerken de araç olayını gösterir ve sıra tam doğru olurdu; bedeli mesaj yoluyla çift yazımı önlemek için başka bir talep kuralı.
+4. **Oynatma ile yanıtlanan çağrı.** `RecordedToolPlayback` zincirin DIŞINDADIR; yeniden oynatılan çağrı defterde yoktur. Başarısız bir devam/yeniden oynatma run'ında oynatılan çağrılar satır bırakmaz (eskisi gibi). Gerekirse oynatma sarmalayıcısı kendi çağrısını deftere yazabilir.
+5. **Ortak saat.** `FailedRunToolRowsTests`'in `SteppedClock`'ı (monotonik saat yalnız ilerler, duvar saati gerçek saat artı ilerleme, sistem zamanlayıcıları gerçek) başka fonksiyonel testlerde de işe yarar; şu an dosyaya özeldir ve `Infrastructure/` altına alınabilir.
 
 ## Süreç Ölçümü
 
