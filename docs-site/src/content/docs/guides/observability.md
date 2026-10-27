@@ -296,8 +296,8 @@ query dimension — break costs down with `GET /api/stats` instead, which return
 :::
 
 `tracon.tokens` reports only two `direction` values, `input` and `output`.
-The finer counters a provider may report — prompt-cache hits, reasoning tokens,
-audio tokens — are counted **inside** those two totals and are recorded on the
+The finer counters a provider may report — prompt-cache hits, prompt-cache writes,
+reasoning tokens, audio tokens — are counted **inside** those two totals and are recorded on the
 `runs` row rather than emitted as extra metric series, for the same reason:
 adding them would double count every token on the dashboard.
 

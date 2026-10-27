@@ -57,12 +57,13 @@ its database.
 | `started_at`, `completed_at` | timestamp | UTC; `completed_at` is `NULL` while a run is in progress |
 | `is_streaming` | boolean | |
 | `input_tokens`, `output_tokens`, `cached_input_tokens`, `reasoning_tokens`, `total_tokens` | bigint | `cached_input_tokens` is counted **inside** `input_tokens`, not in addition to it |
-| `input_cost`, `output_cost`, `cached_input_cost` | decimal | The raw priced terms; `NULL` when pricing is undefined |
+| `cache_write_input_tokens`, `cache_write_long_input_tokens` | bigint | Input tokens the provider wrote into its prompt cache, by the entry's time to live (short, long). Counted **inside** `input_tokens`; `NULL` when no write was reported, and on every row written before these columns existed |
+| `input_cost`, `output_cost`, `cached_input_cost`, `cache_write_cost` | decimal | The raw priced terms; `NULL` when pricing is undefined |
 | `total_cost` | decimal | See [Reading `total_cost`](#reading-total_cost) below |
 | `cost_currency` | text | Populated whenever `total_cost` is |
 | `error_type` | text | The raw error type string; `NULL` for a run that has not failed |
 | `model_provider` | text | The provider that actually answered; `NULL` for a row written before this column existed |
-| `input_price_per_mtok`, `output_price_per_mtok`, `cached_input_price_per_mtok` | decimal | The unit price (per million tokens) applied when the run completed — a price snapshot, `NULL` when the price was unknown or when the run's tokens were priced at more than one model. Rates, not amounts: they are never part of `total_cost` |
+| `input_price_per_mtok`, `output_price_per_mtok`, `cached_input_price_per_mtok`, `cache_write_price_per_mtok`, `cache_write_long_price_per_mtok` | decimal | The unit price (per million tokens) applied when the run completed — a price snapshot, `NULL` when the price was unknown or when the run's tokens were priced at more than one model. Rates, not amounts: they are never part of `total_cost` |
 
 Everything here is metadata or a value derived from metadata. No conversation
 content, tool argument, tool result, or file content is ever in scope for this or
@@ -72,12 +73,15 @@ through the HTTP API and `IRunStore`.
 ## Reading `total_cost`
 
 `total_cost` sums every priced term (`input_cost`, `output_cost`,
-`cached_input_cost`) with one rule that matters: **`NULL` is not zero.**
+`cached_input_cost`, `cache_write_cost`) with one rule that matters: **`NULL` is not zero.**
 
 - If pricing was never resolved for the run (an unpriced code agent, for example),
-  all three terms are `NULL` and `total_cost` is `NULL` — the run has no known cost,
+  all four terms are `NULL` and `total_cost` is `NULL` — the run has no known cost,
   which is a different fact than "this run cost nothing."
 - If at least one term is populated, `total_cost` sums the populated terms.
+- `cached_input_cost` and `cache_write_cost` are terms of their own, not parts of
+  `input_cost`: the charge for cached and for written tokens is taken out of the input
+  charge and billed there. Add all four, never only the first two.
 
 This is the exact value `IRunStore.GetStatisticsAsync` reports for the same run —
 querying the view and reading the API give you the same number, because both read
@@ -115,11 +119,14 @@ public sealed class TraconRun
     public long? InputTokens { get; set; }
     public long? OutputTokens { get; set; }
     public long? CachedInputTokens { get; set; }
+    public long? CacheWriteInputTokens { get; set; }
+    public long? CacheWriteLongInputTokens { get; set; }
     public long? ReasoningTokens { get; set; }
     public long? TotalTokens { get; set; }
     public decimal? InputCost { get; set; }
     public decimal? OutputCost { get; set; }
     public decimal? CachedInputCost { get; set; }
+    public decimal? CacheWriteCost { get; set; }
     public decimal? TotalCost { get; set; }
     public string? CostCurrency { get; set; }
     public string? ErrorType { get; set; }

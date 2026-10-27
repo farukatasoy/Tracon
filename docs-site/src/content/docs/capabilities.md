@@ -68,7 +68,7 @@ stable provider name.
 |---|---|---|---|
 | `Tracon.OpenAI` | `UseOpenAI()` | `openai`, `openai-responses` | Chat Completions and Responses clients |
 | `Tracon.OpenAI` | `UseOpenAICompatible(name, ...)` | `name`, and optionally `name-responses` | OpenRouter, Groq, Ollama, LM Studio, vLLM, and other compatible endpoints |
-| `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, with effort, adaptive or budgeted thinking, and prompt caching (TTL, breakpoint placement) settings |
+| `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, with effort, adaptive or budgeted thinking, prompt caching (TTL, breakpoint placement) settings, and cache writes priced by TTL |
 | `Tracon.Google` | `UseGoogle()` | `google` | Gemini safety thresholds and thinking settings |
 | `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure deployments with an API key or a consumer-supplied Entra credential |
 | Any package | `AddModelProvider()` | Chosen by the implementation | A custom `IModelProvider` without a provider package |

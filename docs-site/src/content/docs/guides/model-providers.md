@@ -369,6 +369,15 @@ agent sends the same request as before:
   costs more to write and pays off when the same prefix returns more than five
   minutes apart. `ttl` and `placement` without `anthropic.promptCaching = true` are
   an error, not a silent no-op.
+- **Pricing a cache write.** Anthropic bills a write apart from plain input, by the
+  entry's time to live. Give the catalog entry `CacheWriteCostPerMillionTokens` for
+  five-minute entries and `CacheWriteLongCostPerMillionTokens` for one-hour entries
+  (or `CacheWrite` and `CacheWriteLong` under
+  [`Tracon:Pricing`](/reference/configuration/#pricing)). A run then records
+  `cacheWriteInputTokens`, `cacheWriteLongInputTokens` and `cacheWriteCost`, and its
+  total cost adds the write. With no write rate the written tokens stay in the input
+  charge, as before. A provider adapter of your own reports writes under the keys of
+  `TraconUsageCounts` in `UsageDetails.AdditionalCounts`.
 - **Thinking tokens count against the output limit.** At `high` effort or above,
   set `MaxOutputTokens` explicitly. Without it, the request goes out with
   `DefaultMaxOutputTokens` (4096), and the validation report warns when the
