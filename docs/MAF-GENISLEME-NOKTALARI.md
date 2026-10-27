@@ -238,6 +238,8 @@ public static class OpenAIResponses
     static JsonElement WriteResponse(AgentResponse response, string responseId, string? conversationId = null);
     static IAsyncEnumerable<string> WriteResponseStreamAsync(                // HAZIR SSE cerceveleri
         IAsyncEnumerable<AgentResponseUpdate> updates, string responseId, string? conversationId = null, CancellationToken ct = default);
+    // 🚨 `WriteResponse` / `WriteResponseStreamAsync` bitiş sebebini okumaz; Tracon sonradan yeniden yazar
+    // (`ResponsesIncompleteness`, K-1108). MAF `incomplete` yazmaya başlarsa yeniden yazım etkisiz kalır.
 }
 
 public sealed class OpenAIResponsesRunRequest

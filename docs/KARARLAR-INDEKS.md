@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1045 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1047 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1097 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1099 kalem)
 
 | K | Karar |
 |---|---|
-| K-1056 | `ToolApproval` cevabı yalnız karar taşır; araç çağrısı kayıtlı istekten gelir, `data` reddedilir |
-| K-1057 | Onay kuralı ve denetim satırı tek `ToolApprovalDecisionRecorder`'dan; ajan adı executor kimliğinden çözülür |
 | K-1058 | Cevaplanmayan istek süresi dolunca bekleyen adım run'ı workflow'la `Failed` kapanır; cevaplanan `AwaitingApproval` kalır |
 | K-1059 | `ToolApproval` isteği workflow hangi cevap kipinde olursa olsun tek cevap alır; ikinci aynı karar ilkini izler, farklısı `409` (F-615, Faz 230) |
 | K-1060 | Magentic katılımcısı tool onayını workflow isteği olarak bekler; yöneticinin onayı reddi sürdürür (K-1055 daraltması) |
@@ -62,3 +60,5 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1105 | Önbellek yazması run maliyetinin DÖRDÜNCÜ terimidir: TTL'e göre iki sayaç ve iki fiyat; fiyatsız yazma girdide kalır (F-420, Faz 253) |
 | K-1106 | Önbellek yazması sağlayıcıdan bağımsız iki anahtarla bildirilir: `TraconUsageCounts`; Core yalnız bu anahtarları okur (F-420, Faz 253) |
 | K-1107 | Eski `runs` satırları yazma sütunlarında NULL kalır ve "ayrı fiyatlanmadı" demektir; geri doldurma yok (F-420, Faz 253) |
+| K-1108 | `/v1/responses` kesik ya da filtreli yanıtı `incomplete` bildirir; akışta son olay `response.incomplete` (F-503, Faz 251) |
+| K-1109 | İçerikli filtre yanıtı `tracon.output.filtered` yazar; ajan akışı onu `done`'dan önce verir, K-991 kapısı genişler (F-505, Faz 251) |

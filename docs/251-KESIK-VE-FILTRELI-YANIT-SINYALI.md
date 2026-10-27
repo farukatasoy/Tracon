@@ -307,7 +307,7 @@ testleri onu kullanır. Konumu: `grep -rn "class FinishReasonModelProvider" test
 - [x] İçerikli filtre yanıtı: run `Completed`, `/events`'te `tracon.output.filtered`, ajan akışında `done`'dan önce `custom` çerçevesi, Responses'ta `content_filter` — `OutputTruncation*Tests`, `ResponsesIncompleteTests`; canlı: gerçek Gemini (yerel akış 2/2, `/v1/responses` akışı 1/6)
 - [x] Ara tool turu ve erken harness iterasyonu kesilmesi ya da filtrelenmesi sonucu değiştirmez — `A_tool_turn_cut_at_the_limit_or_filtered_…` (`length` · `content_filter`) · `An_earlier_cut_harness_iteration_…` (akışsız/akışlı) · `OutputTruncationToolTurnTests` filtre ikizleri
 - [x] `RunEventCustomTypes.OutputFiltered` XML'i ve run ucu açıklaması yeni tipi anar; OpenAPI ve iki istemci yenilendi — `tracon.json` (`OpenApiSnapshotTests` yenilendi), `schema.ts` (`npm run generate`, Vitest `schema-drift` yeşil), `TraconApiClient.g.cs` (NSwag zinciri; `ClientCoverageTests` yeşil)
-- [ ] Yeni `K-*` (`public-api`): ayna listesi `tracon.output.filtered` ile genişledi, alternatifler adıyla — taslak `K-NEW-1` / `K-NEW-2` hazır (Entegrasyon Notları b); `docs/KARARLAR.md`'yi entegratör yazar
+- [x] Yeni `K-*` (`public-api`): ayna listesi `tracon.output.filtered` ile genişledi, alternatifler adıyla — `K-1108`, `K-1109` işlendi (taslaklar Entegrasyon Notları b: `K-NEW-1`, `K-NEW-2`)
 - [ ] Dört doğrulama kapısı sıfır uyarı verir — entegratör `kapanis` koşar. Bu dalda koşulanlar (düzeltme turundan sonra yeniden): `ic-dongu` çıkış 0 (build 0 uyarı, 0 hata; AGUI 62 · AspNetCore.Functional 2935 · Azure 238 × 3 · Client 28 · Core 5233 × 3 · Generators 338 · Google 237 × 3 · Sql.Shared 90 × 3 TFM; hepsi yeşil, ilk koşumda), `dotnet format --verify-no-changes` çıkış 0 (değişen `.cs` dosyaları), `kapi.py tarama` temiz, `dokuman-bakim.py --denetle` temiz (site derlemesinden sonra; öncesinde taze bir çalışma ağacında tabandaki gibi `reference/changelog` bağlantıları kırık görünür), `dokuman-bakim.py --site-denetle --taban eb0341f3` yalnız `paket-readme` kuralında kırmızı (Sapma 9)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1 ve 2), çıktı belgeye yazıldı — "Canlı Koşum Kaydı"
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`: temiz; canlı koşumda anahtarlar yalnız user-secrets'tan okundu, hiçbir çıktıya ya da dosyaya yazılmadı
@@ -639,10 +639,10 @@ ister (Sapma 9); `--site-gerekce-yazildi` ile geç. Hand-written sayfalar deği�
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 12 sapma |
+| Düzeltme turu sayısı | 1 |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları

@@ -1753,3 +1753,32 @@ tazele.
 - **Skill kalıcılığı migration 0003'tedir** (2026-08-02, Faz 10): `agent_skills` + cascade bağlı `agent_skill_resources`; PostgreSQL store explicit `tenantId` parametresi alır. `UsePostgreSql()` kaydı `PostgresAgentSkillStore` ile değiştirir.
 - **`run scope` tek yerde** (2026-08-02, Faz 12): `Core/Recording/TraconRunContext.cs` → `AgentRunScope` (RunId, RootRunId, Depth, AgentName, TenantId, Budget, Writer). `RunRecordingAgent` yayimlar; skill script calistiricisi ve alt agent sarmalayicisi okur. `SetCurrentRunId` KALDIRILDI, yerine `SetCurrent(scope)`.
 - **Agac toplamlari SQL'de, okumada hesaplanir** (Faz 12): `SqlQueries.treeJoin` iki `LEFT JOIN LATERAL`; `RunRecord.ChildRunCount`/`TreeUsage` oradan gelir, saklanmaz. 🚨 Sutun indeksleri `ReadRun` icinde sabittir — sorguya sutun eklerken ikisini birlikte guncelleyin. Ayrinti: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## `docs/hafiza/run-olay-sozlesmesi.md`'den — Faz 251 (filtre bildirimi notuna yer açmak için)
+
+- **🚨 Uretilemeyen bir `enum` uyesi sessiz bir YANLIS BEYANDIR ve tum sevk
+  edilen yuzeye yayilir** (2026-08-26, K-627, olculdu). `RunErrorClass.BudgetExceeded`
+  "tree veya context budget asildi" diye ilan ediliyordu; hicbir kod yolu onu
+  uretemiyordu — `DefaultRunErrorClassifier` hicbir exception'i ona eslemiyor ve
+  tree budget tukendiginde `ChildAgentInvoker` **bilerek** exception atmiyor,
+  modele metin donduruyor (run basarili biter). Uye yine de OpenAPI belgesine,
+  TypeScript semasina, generated istemciye ve **iki dil dosyasina** ulasmisti.
+  Ders: bir hata sinifi/durum uyesi eklerken "kim uretiyor" sorusunu kodla
+  yanitla — `grep -rn "RunErrorClass.<Uye>" src/` sifir donuyorsa uye yanlistir.
+  Kaldirirken sayisal degeri **bosalt, yeniden numaralandirma**: kayitli run'lar
+  ve eski istemciler eski anlami tasir. Kapi: `RunErrorClassContractTests`.
+- **🚨 `RunEventWriter.CompleteAsync`'in kapanış olayı switch'i yalnız
+  `Completed`/`Failed`/`AwaitingInput`'u eşliyordu; `RunStatus.AwaitingApproval`
+  default kola düşüp HER onay-bekleyen kökü `RunFailed` + "The run was
+  canceled." metniyle yayımlıyordu** (2026-09-04, Faz 142). Kusur
+  `RunRecordingAgentOutcomeMatrixTests`'in kendi yorumunda BİLEREK PIN'lenmişti
+  ("bu quirk'u iki yoldan biri düzeltmeden diğerini unutursa burada görünür")
+  — testi yeşil tutmak asıl hatayı gizliyordu, yalnız yorumu okuyan biri fark
+  ederdi. Yeni bir terminal `RunStatus` değeri eklerken switch'in HER dalını
+  say: `_ => RunFailed` gibi bir varsayılan kol, adı "iptal" olan bir metni
+  ALAKASIZ bir duruma yapıştırabilir. Kapı:
+  `RunRecordingAgentOutcomeMatrixTests.AwaitingApproval_run_reaches_the_same_outcome_on_both_paths`
+  artık gerçek `RunEventType.RunAwaitingInput`'u ve `Payload`'ı ölçüyor. Tool
+  onay sarmalayıcısının yerleşimiyle ilgili ilişkili not (MEAI'nin
+  `ApprovalRequiredAIFunction`'ı `GetService` ile bulması):
+  [`tool-onay-ve-yetkilendirme.md`](../hafiza/tool-onay-ve-yetkilendirme.md).

@@ -43,6 +43,12 @@
 - **`timeout` macOS'ta yoktur** (çıkış 127). Süreci arka planda koş, çıkış
   kodunu dosyaya yaz.
 
+- **🚨 Boş-token koşumunda resmî OpenAI SDK'sı `401` alır** (2026-10-27, Faz 251):
+  örnek uygulama `Tracon:Ui:AuthToken` boşken açıktır, ama başlık taşıyan her
+  istek API anahtarı sayılıp `401` alır. SDK `api_key` zorunlu tuttuğundan
+  boş-token koşumunda her çağrıya `extra_headers={"Authorization": Omit()}` ver
+  (`TraconEndpointFilter`: başlıksız istek loopback'te yerel operatördür).
+
 ## Yanıtı okuma
 
 - **Alanlar kökte değil:** `usage.totalTokens` · `response.messages[0].contents[0].text`
@@ -80,6 +86,12 @@
 - **Model adı `gpt-5.4-mini`.** Rastgele bir OpenAI modeli `403
   model_not_found` verir. **Azure kimliği yoktur**; Azure isteyen case
   `⏭ Atlandı` kalır ve bu bir kusur değildir.
+- **Gemini `gemini-strict-filter` yanıtın ortasında filtre bildirimini OLASILIKLA
+  verir** (2026-10-27, Faz 251): 2/2 yerel akışta, 1/6 `/v1/responses` akışında
+  (`MT-GUARD-119`); akışsız yolda 7 denemede görülmedi (aday F-732). Aynı istemle
+  `tracon.output.truncated` (düşünme belirteçleri 1024 bütçesini doldurdu) ya da
+  metinden ÖNCE süzülünce `content_filtered` hatası da çıkar; ikisi de beklenen
+  davranıştır, filtre denemesi birkaç kez tekrarlanır.
 
 ## `secret` hijyeni
 

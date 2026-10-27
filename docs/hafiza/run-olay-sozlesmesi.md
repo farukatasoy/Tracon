@@ -34,32 +34,7 @@ maliyeti ve metriği yazar. Doğru dikiş, durum yazılmadan hemen önce koşan 
 kancadır — `TraconRunOptions.BeforePendingApprovalIsPublished`. Kanca akışlı
 yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamalıdır.
 
-- **🚨 Uretilemeyen bir `enum` uyesi sessiz bir YANLIS BEYANDIR ve tum sevk
-  edilen yuzeye yayilir** (2026-08-26, K-627, olculdu). `RunErrorClass.BudgetExceeded`
-  "tree veya context budget asildi" diye ilan ediliyordu; hicbir kod yolu onu
-  uretemiyordu — `DefaultRunErrorClassifier` hicbir exception'i ona eslemiyor ve
-  tree budget tukendiginde `ChildAgentInvoker` **bilerek** exception atmiyor,
-  modele metin donduruyor (run basarili biter). Uye yine de OpenAPI belgesine,
-  TypeScript semasina, generated istemciye ve **iki dil dosyasina** ulasmisti.
-  Ders: bir hata sinifi/durum uyesi eklerken "kim uretiyor" sorusunu kodla
-  yanitla — `grep -rn "RunErrorClass.<Uye>" src/` sifir donuyorsa uye yanlistir.
-  Kaldirirken sayisal degeri **bosalt, yeniden numaralandirma**: kayitli run'lar
-  ve eski istemciler eski anlami tasir. Kapi: `RunErrorClassContractTests`.
-- **🚨 `RunEventWriter.CompleteAsync`'in kapanış olayı switch'i yalnız
-  `Completed`/`Failed`/`AwaitingInput`'u eşliyordu; `RunStatus.AwaitingApproval`
-  default kola düşüp HER onay-bekleyen kökü `RunFailed` + "The run was
-  canceled." metniyle yayımlıyordu** (2026-09-04, Faz 142). Kusur
-  `RunRecordingAgentOutcomeMatrixTests`'in kendi yorumunda BİLEREK PIN'lenmişti
-  ("bu quirk'u iki yoldan biri düzeltmeden diğerini unutursa burada görünür")
-  — testi yeşil tutmak asıl hatayı gizliyordu, yalnız yorumu okuyan biri fark
-  ederdi. Yeni bir terminal `RunStatus` değeri eklerken switch'in HER dalını
-  say: `_ => RunFailed` gibi bir varsayılan kol, adı "iptal" olan bir metni
-  ALAKASIZ bir duruma yapıştırabilir. Kapı:
-  `RunRecordingAgentOutcomeMatrixTests.AwaitingApproval_run_reaches_the_same_outcome_on_both_paths`
-  artık gerçek `RunEventType.RunAwaitingInput`'u ve `Payload`'ı ölçüyor. Tool
-  onay sarmalayıcısının yerleşimiyle ilgili ilişkili not (MEAI'nin
-  `ApprovalRequiredAIFunction`'ı `GetService` ile bulması):
-  [`tool-onay-ve-yetkilendirme.md`](tool-onay-ve-yetkilendirme.md).
+- **🚨 Yeni bir `enum` üyesi eklerken iki soru: kim üretiyor, switch'in her dalı ne yapıyor?** (2026-08-26, K-627 · 2026-09-04, Faz 142): üretilemeyen üye sessiz bir YANLIŞ BEYANDIR ve OpenAPI'den iki dil dosyasına kadar yayılır — `grep -rn "RunErrorClass.<Üye>" src/` sıfır dönüyorsa üye yanlıştır; kaldırırken sayısal değeri boşalt, yeniden numaralandırma (kapı `RunErrorClassContractTests`). `RunEventWriter.CompleteAsync`'in kapanış switch'inde `AwaitingApproval` default kola düşüp her onay-bekleyen kökü `RunFailed` yaptı: terminal `RunStatus` eklerken HER dalı say (kapı `RunRecordingAgentOutcomeMatrixTests`). Tool onay sarmalayıcısı notu: [`tool-onay-ve-yetkilendirme.md`](tool-onay-ve-yetkilendirme.md). Tam metin: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (Faz 251 turu).
 - **🚨 Parmak izi normalleştirmesinde her sayı gürültü DEĞİLDİR**
   (2026-09-18, `HATA-S1-020` kapanışında ölçüldu). `ErrorFingerprint`'in
   `NumberPattern`'ı (`\d+`) her sayı dizisini `{n}` yapıyordu; ayrı edici bir
@@ -144,10 +119,10 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   `SessionlessApprovalRun`'dan geçer (öğe/vaka hatası + run `Failed`). Açık sınıf
   üyesi: `/v1/chat/completions` oturumsuz onayda `200` + boş içerik döner (F-448).
   Kanıt fonksiyonel testtir: iş durumu ile run satırı iki ayrı yerde yazılır.
-- **🚨 Yeni ayrılmış `CustomType` canlı ajan akışına kendiliğinden girmez** (2026-10-14, Faz 207, K-991): `RunNoticeMirror.IsMirrored` kapalı bir listedir ve depo yalnız kota seçeneği açıksa ya da bir `update` kesilme sebebi taşıdıysa okunur. Yeni bildirim listeye ve kapıya birlikte girer; yalnız listeye eklenen tip kapı açılmayan run'da hiç okunmaz. Liste değişikliği tel sözleşmesidir (uç açıklaması + dört üretilmiş yapıt).
+- **🚨 Yeni ayrılmış `CustomType` canlı ajan akışına kendiliğinden girmez** (2026-10-14, Faz 207, K-991): `RunNoticeMirror.IsMirrored` kapalı bir listedir ve depo yalnız kota seçeneği açıksa ya da bir `update` kesilme sebebi taşıdıysa okunur. Yeni bildirim listeye ve kapıya birlikte girer; yalnız listeye eklenen tip kapı açılmayan run'da hiç okunmaz. Liste değişikliği tel sözleşmesidir (uç açıklaması + dört üretilmiş yapıt). Faz 251 (K-1109): ikinci tip `tracon.output.filtered`; kapı "kesilmiş" yerine `IsIncomplete` (kesilme ya da filtre) okur.
 - **"Bildirim yok" iddiası yalnız bildirimi üretebilen yapılandırmada bir şey kanıtlar** (Faz 207 denetimi 🟡1): yapılandırılmış agent kesilmede istisna atar, olay yazmaz; "ara tool turu çerçeve üretmez" iddiası orada hiç kırmızı olamazdı. Düz metin ikizi mutasyonla (dedektör "ilk kesilme sebebi kalır") kırmızıya döndü.
 - **🚨 Run'ın KENDİ token'ıyla olay yazmak, durduğu an istisna fırlatır** (2026-10-15, F-550): `WorkflowRunner.PumpAsync` olayı `writer.AppendAsync(draft, linked.Token)` ile yazıyordu. Süre sınırı olay okunduktan sonra ve yazılmadan önce dolunca (MAF kanalı olayı, iptal gözlenmeden önce verir) `_appendGate.WaitAsync` `TaskCanceledException` attı ve akıştan çıktı; kayıt `Canceled` kapandı ama akış kapanış olayı vermedi. CI etiket koşumunda bir kez, yerelde yük altında 200'de 26. Düzeltme adım sınırıyla aynı kural: iptali yakala, `CancelAsync`, `FromCancellation`. Deterministik test kurulamadı (sıra MAF'tadır); bekçi `WorkflowDefinitionRunTimeoutTests`'in yük altında koşumudur.
 - **🚨 `switch` vakasının `when` koşulu başarısızsa içerik `default`'a düşer** (2026-10-20, Faz 223). `WriteContentsAsync`'in `default`'u "tanınmayanı `tracon.content` yaz"dır; `case TextContent when RecordMessageDeltas` kapalıyken her metni oraya düşürürdü. Seçeneği vaka GÖVDESİNDE denetle. Kapı: `ContentEventClassificationTests`.
-- **🚨 Ayrılmış `Custom` tipin yük muafiyeti AÇIK LİSTEDİR** (aynı faz): `RunEventWriter.KeepsPayloadWithPayloadsOff` yalnız `quota.threshold` ve `output.truncated`'ı sayar; `tracon.content` ve `tracon.workflow.event` `RecordToolPayloads` kapalıyken `null` yazar. `RunEventPayloadSuppressionTests` yalnız `RunEventType.X` sayar, tip adlarını sayamaz: listeyi değiştirirsen `RunEventType` önsözünü elle düzelt.
+- **🚨 Ayrılmış `Custom` tipin yük muafiyeti AÇIK LİSTEDİR** (aynı faz): `RunEventWriter.KeepsPayloadWithPayloadsOff` yalnız `quota.threshold`, `output.truncated`, `output.filtered` ve `tool.input.declined`'ı sayar; `tracon.content` ve `tracon.workflow.event` `RecordToolPayloads` kapalıyken `null` yazar. `RunEventPayloadSuppressionTests` yalnız `RunEventType.X` sayar, tip adlarını sayamaz: listeyi değiştirirsen `RunEventType` önsözünü elle düzelt.
 - **🚨 Writer bir olayda devre dışı kalınca run `Running`'de kalır ve `GET /api/runs/{id}/events` BİTMEZ** (aynı faz, store hatası testi 10 dk asıldı): hata testi olayları `IRunStore.ReadEventsAsync`'ten okur (`NodeUsageStoreFailureTests`).
 - **Yük JSON'unda serbest metin içeriden kesilir** (aynı faz): yazıcı yükü şekline bakmadan keser. `ContentEventPayload.CapText` hata metnini ve workflow metin verisini 2048 karakterde keser.
