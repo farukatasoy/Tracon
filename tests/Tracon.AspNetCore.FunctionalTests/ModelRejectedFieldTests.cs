@@ -112,11 +112,19 @@ public sealed class ModelRejectedFieldTests
     [Fact]
     public async Task A_field_the_model_does_not_reject_stays_valid_next_to_one_it_does()
     {
+        // The definition sets two fields and the model rejects one of them: the report names that one and no other.
         await using var host = await StartAsync();
 
-        using var response = await host.Client.PostAsJsonAsync(ValidateUri, Definition("gpt-no-stop", seed: 7));
+        using var response = await host.Client.PostAsJsonAsync(ValidateUri, Definition("gpt-no-stop", stop: ["END"], seed: 7));
 
-        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("valid").GetBoolean().ShouldBeTrue();
+        var report = await TraconTestHost.ReadJsonAsync(response);
+
+        report.GetProperty("valid").GetBoolean().ShouldBeFalse();
+
+        var finding = report.GetProperty("messages").EnumerateArray().ShouldHaveSingleItem();
+
+        finding.GetProperty("code").GetString().ShouldBe("sampling_field_rejected_by_model");
+        finding.GetProperty("path").GetString().ShouldBe("model.stopSequences");
     }
 
     [Fact]
