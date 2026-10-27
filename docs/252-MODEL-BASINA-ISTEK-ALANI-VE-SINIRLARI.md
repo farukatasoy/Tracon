@@ -150,6 +150,43 @@ Plan iki ölçümü bu oturuma bıraktı. Gerçek çağrılar küçük istemlerl
 | `ISamplingSupport` ikili uyumu | Base commit'in `Tracon.Abstractions.dll`'ine (tek üyeli arayüz) karşı derlenmiş bir sağlayıcı yeni `Tracon.Abstractions.dll`'in yanında yüklendi: `SamplingLimits` varsayılan gövdeden `SamplingLimits.None` döndü, istisna yok | Tek seferlik prob (iki küçük proje, scratchpad). Kalıcı karşılığı kaynak uyumu: `SamplingSupportCheckTests.A_provider_written_before_the_limits_member_existed_still_works_and_states_none` |
 | `gpt-5.4-mini` + `stop`, örnek uygulama | Satır varken `validate` reddeder, kayıt `400` döner; satır yokken kayıt `201`, run `Failed` ve günlükte `HTTP 400 (invalid_request_error: unsupported_parameter)` | `MT-OAI-098` (bkz. DoD kanıtı) |
 
+### Canlı koşum kanıtı (2026-10-27)
+
+`samples/Tracon.Api` derlenmiş DLL'den, `ASPNETCORE_ENVIRONMENT=Development`, port `5182`, dört boş ortam değişkeniyle (bellek içi depo); `Npgsql` günlük satırı `0`. Çıktılar kısaltıldı.
+
+Satır varken (`gpt-5.4-mini` → `RejectedSamplingFields: "StopSequences"`):
+
+```text
+GET  /tracon/api/models           openai: [('gpt-5.4-mini','StopSequences'), ('gpt-5.6-luna','None'), ('gpt-5.6-terra','None')]
+POST /tracon/api/agents/validate  {"valid": false, "messages": [{"severity": "Error", "code": "sampling_field_rejected_by_model",
+                                    "message": "ModelBinding.StopSequences is set, but the model catalog states that model 'gpt-5.4-mini' of the
+                                    'openai' provider rejects it (the provider would answer the request with 400). Remove it from the definition
+                                    or use another model.", "path": "model.stopSequences"}]}
+POST /tracon/api/agents           HTTP 400 | title: Definition invalid | detail: <aynı mesaj>
+GET  /tracon/api/agents/stop-probe HTTP 404
+fallback gpt-5.4-mini (birincil gpt-5.6-luna)  -> INVALID [('sampling_field_rejected_by_model', 'model.stopSequences')]
+```
+
+Aralıklar (aynı örnek uygulama, `validate`):
+
+```text
+google  seed 3000000000          -> sampling_value_out_of_range @ model.seed
+        "ModelBinding.Seed is 3000000000, but the 'google' provider accepts only values from -2147483648 to 2147483647."
+google  6 stopSequences          -> sampling_value_out_of_range @ model.stopSequences ("has 6 entries ... at most 5")
+google  seed 2147483647 + 5 stop -> valid          openai seed 3000000000 -> valid (64 bit)
+openai  5 stopSequences          -> sampling_value_out_of_range ("has 5 entries ... at most 4")
+anthropic 50 stopSequences       -> valid
+```
+
+Satır boşaltılıp (`Tracon__Providers__OpenAI__Models__0__RejectedSamplingFields=`) uygulama yeniden başlatıldığında: katalogda `gpt-5.4-mini` → `None`; `validate` `valid: true`; kayıt `201`; `POST /api/agents/stop-probe/run` (tek gerçek çağrı):
+
+```text
+event: error
+data: {"type":"ProviderInvocationException","message":"The model provider request failed. Provider: 'openai', fault: 'ClientResultException' (HTTP 400)."}
+run 01a17e14-… status Failed, error class ProviderError
+konak günlüğü: HTTP 400 (invalid_request_error: unsupported_parameter) — Unsupported parameter: 'stop' is not supported with this model.
+```
+
 ### Tüketici Yüzeyi Envanteri
 
 1. **`docs-site/` — elle yazılan:** `guides/model-providers.md` (§ *Sampling and tool-use fields*, katalog tablosu), `reference/configuration.md` (katalog anahtarı), `ui.md` (*Editor boundaries*), `concepts/agents.md` (*Compiling a definition*). **Üretilen, dokunulmadı:** `api/` (DocFX; yeni `///` blokları üretir), `http-api/` (OpenAPI'den). `capabilities.md` değişmedi (Plandan Sapma 10). `llms.txt`, `llms-full.txt` ve `Tracon.AgentMap.md` entegrasyonda `kapi.py uret` ile yenilenir.
