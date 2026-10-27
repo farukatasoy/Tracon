@@ -390,7 +390,8 @@ Google supports five `google.safety.*` thresholds plus
 budget range is `-1..65535`; `-1` lets the model decide and `0` disables thinking.
 Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
-failed run with error type `content_filtered`.
+failed run with error type `content_filtered`; one that already has text completes with a
+`tracon.output.filtered` run event.
 
 OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
 other key:

@@ -40,7 +40,7 @@ namespace Tracon;
 /// and the detector writes the event from the same reason. A tool
 /// turn cut at the limit opens the scan too, but the detector judges only the final
 /// turn and writes nothing; that false positive costs one read. (A filtered answer with
-/// no content fails the run, so the stream ends in an <c>error</c> and never reaches this type.)
+/// no content normally fails the run, so the stream ends in an <c>error</c> and never reaches this type.)
 /// A run that reported neither and has the quota option off does not read the store at all.
 /// </para>
 /// <para>
