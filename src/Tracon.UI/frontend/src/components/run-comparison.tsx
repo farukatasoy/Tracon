@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
+import { runCostTotal } from '../lib/cost';
 import { count, money } from '../lib/format';
 import { DiffView, FieldDiffTable } from './diff-view';
 import { ErrorNote, Loading, Panel } from './ui';
@@ -79,26 +80,18 @@ export function RunComparison({ left, right }: { left: string; right: string }):
  * separate rows that always move together.
  */
 function flatten(side: RunComparisonSide): Record<string, unknown> {
+  const costTotal = runCostTotal(side.cost);
+
   return {
     status: side.status,
     agentVersion: side.agentVersion,
     modelId: side.modelId,
     durationMs: side.durationMs,
     totalTokens: side.usage?.totalTokens,
-    // 🚨 All THREE terms. `cachedInputCost` is a third addend, not a subset of
-    // `inputCost`: the server already subtracts the cached tokens out of the
-    // input charge. A two-term sum under-reports every run that hit the cache.
-    cost:
-      side.cost?.inputCost == null &&
-      side.cost?.outputCost == null &&
-      side.cost?.cachedInputCost == null
-        ? null
-        : money(
-            (side.cost.inputCost ?? 0) +
-              (side.cost.outputCost ?? 0) +
-              (side.cost.cachedInputCost ?? 0),
-            side.cost.currency,
-          ),
+    // 🚨 The one sum of the cost terms (`runCostTotal`): the cache read and the cache
+    // write are addends, not subsets of `inputCost`. Summing the terms here by hand
+    // under-reports every run that used the cache.
+    cost: costTotal === null ? null : money(costTotal, side.cost?.currency),
     toolCallCount: side.toolCallCount,
     errorClass: side.errorClass,
     scoreCount: side.scores.length,
