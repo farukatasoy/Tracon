@@ -244,7 +244,7 @@ surface sends:
   and saving the definition returns `400`. Nothing runs without the field.
 - A `Fallbacks` link gets the request options of the primary call, so it is held to the same
   table: a fallback on a provider that drops `Seed` makes the definition invalid.
-- **A value can be outside what the surface accepts.** The provider then refuses it, or worse, changes it.
+- **A value can be outside what the surface accepts.** The provider then refuses it, or a client library changes it.
   The definition fails to compile, `POST /api/agents/validate` reports `sampling_value_out_of_range` at the
   field's path with the value and the range, and saving returns `400`. A `Fallbacks` link is held to the
   range of its own provider. The shipped providers state these ranges:
