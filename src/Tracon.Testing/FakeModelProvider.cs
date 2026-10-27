@@ -182,11 +182,9 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
     /// <summary>Enqueues a tool call that takes no arguments.</summary>
     /// <param name="toolName">Name of the tool to call.</param>
     /// <returns>The chain, for continued configuration.</returns>
-    /// <remarks>
-    /// A separate overload and not a default value on <see cref="CallsTool(string, object?)"/>: the overload that
-    /// reports token usage (<see cref="CallsTool(string, object?, int, int)"/>) is the longest, and an optional
-    /// parameter on a shorter overload would be refused by the public API rules (RS0027).
-    /// </remarks>
+    // A separate overload and not a default value on the two-parameter one: the overload that reports token
+    // usage is the longest, and the public API rules (RS0027) keep an optional parameter on the longest
+    // overload only. Every call site that used the default compiles as it did.
     public FakeModelProvider CallsTool(string toolName) => CallsTool(toolName, arguments: null);
 
     /// <summary>Enqueues a tool call.</summary>
