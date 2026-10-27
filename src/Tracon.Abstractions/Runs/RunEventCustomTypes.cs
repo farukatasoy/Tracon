@@ -81,8 +81,9 @@ public static partial class RunEventCustomTypes
     /// for any other response.
     /// </para>
     /// <para>
-    /// The payload is a JSON object with <c>provider</c>, the name of the provider whose
-    /// filter stopped the answer. It never carries the response text. The filter's own
+    /// The payload is a JSON object with <c>provider</c>, the provider of the agent's model
+    /// binding (behind a fallback chain this is the binding's own provider, not necessarily
+    /// the link that answered). It never carries the response text. The filter's own
     /// word (Anthropic <c>refusal</c>, Gemini <c>SAFETY</c>) is not in it: the provider
     /// adapters report every filter stop as the one common finish reason before Tracon sees
     /// it. Written only for the agent's own model calls, not for a side-channel call such

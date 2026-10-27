@@ -8,6 +8,6 @@ namespace Tracon;
 /// </remarks>
 internal sealed record OutputFilteredEventPayload
 {
-    /// <summary>Gets the provider whose content filter stopped the answer.</summary>
+    /// <summary>Gets the provider of the model binding whose call the content filter stopped.</summary>
     public required string Provider { get; init; }
 }

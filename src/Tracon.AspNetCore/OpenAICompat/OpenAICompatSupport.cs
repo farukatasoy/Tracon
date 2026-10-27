@@ -184,7 +184,7 @@ internal static class OpenAICompatSupport
     /// <c>max_output_tokens</c> and <c>content_filter</c> is <c>content_filter</c>. OpenAI has no
     /// separate reason for a full context window, so
     /// <see cref="TraconFinishReasons.ContextWindowExceeded"/> is <c>max_output_tokens</c> here too.
-    /// An empty filtered answer never reaches this method: the run fails and the endpoint answers with an error.
+    /// A filtered answer with no content normally fails the run, so the endpoint answers with an error instead.
     /// </para>
     /// </remarks>
     public static string? ToResponsesIncompleteReason(ChatFinishReason? finishReason)
