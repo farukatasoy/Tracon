@@ -140,6 +140,54 @@ public sealed class RunBudgetAccountingTests
         resolver.CallCount.ShouldBe(2);
     }
 
+    /// <summary>
+    /// Phase 253, K-483's class: the ring builds the usage it hands to the resolver with the same
+    /// mapping as the run recorder. A write that reached the run's cost but not this meter would
+    /// let a tree pass its cost cap.
+    /// </summary>
+    [Fact]
+    public async Task The_budget_prices_each_call_with_its_cache_write_counters()
+    {
+        var budget = new AgentRunBudget { MaxTotalCost = 100m };
+        var seen = new List<RunUsage>();
+
+        var resolver = new FakeRunPricingResolver((_, _, usage) =>
+        {
+            seen.Add(usage!);
+
+            return new RunCost { Source = PricingSource.Catalog, InputCost = 0.10m, CacheWriteCost = 0.25m };
+        });
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IRunPricingResolver>(resolver);
+
+        var written = new UsageDetails
+        {
+            InputTokenCount = 100,
+            OutputTokenCount = 10,
+            TotalTokenCount = 110,
+            AdditionalCounts = new AdditionalPropertiesDictionary<long>
+            {
+                [TraconUsageCounts.CacheWriteInputTokens] = 60,
+                [TraconUsageCounts.CacheWriteLongInputTokens] = 30,
+            },
+        };
+
+        var client = new ModelProviderRegistry(
+            [new FakeModelProvider(new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")) { Usage = written }))],
+            services: services.BuildServiceProvider()).CreateChatClient(TestData.Binding());
+
+        SetScope(budget);
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "go")], cancellationToken: TestContext.Current.CancellationToken);
+
+        var usage = seen.ShouldHaveSingleItem();
+        usage.CacheWriteInputTokens.ShouldBe(60);
+        usage.CacheWriteLongInputTokens.ShouldBe(30);
+
+        // The cost the resolver answered is the call's whole cost: the write term included.
+        budget.ConsumedCost.ShouldBe(0.35m);
+    }
+
     [Fact]
     public async Task Unknown_pricing_falls_back_to_the_token_cap_and_never_cuts_on_cost_alone()
     {

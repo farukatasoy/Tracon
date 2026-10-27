@@ -124,6 +124,10 @@ Tracon.LiveVoiceBuilderExtensions
 Tracon.ModelPriceOverride
 Tracon.ModelPriceOverride.CachedInputCostPerMillionTokens.get -> decimal?
 Tracon.ModelPriceOverride.CachedInputCostPerMillionTokens.set -> void
+Tracon.ModelPriceOverride.CacheWriteCostPerMillionTokens.get -> decimal?
+Tracon.ModelPriceOverride.CacheWriteCostPerMillionTokens.set -> void
+Tracon.ModelPriceOverride.CacheWriteLongCostPerMillionTokens.get -> decimal?
+Tracon.ModelPriceOverride.CacheWriteLongCostPerMillionTokens.set -> void
 Tracon.ModelPriceOverride.InputCostPerMillionTokens.get -> decimal?
 Tracon.ModelPriceOverride.InputCostPerMillionTokens.set -> void
 Tracon.ModelPriceOverride.ModelPriceOverride() -> void

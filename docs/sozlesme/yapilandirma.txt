@@ -100,6 +100,8 @@ Tracon:Pricing:HostedTools:*:*:PerCall
 Tracon:Pricing:Images:*:*:OutputCostPerMillionTokens
 Tracon:Pricing:Images:*:*:PerImage
 Tracon:Pricing:Images:*:*:SizeMultipliers:*
+Tracon:Pricing:Providers:*:*:CacheWriteCostPerMillionTokens
+Tracon:Pricing:Providers:*:*:CacheWriteLongCostPerMillionTokens
 Tracon:Pricing:Providers:*:*:CachedInputCostPerMillionTokens
 Tracon:Pricing:Providers:*:*:InputCostPerMillionTokens
 Tracon:Pricing:Providers:*:*:OutputCostPerMillionTokens
@@ -110,6 +112,8 @@ Tracon:Providers:Anthropic:DefaultMaxOutputTokens
 Tracon:Providers:Anthropic:DefaultModel
 Tracon:Providers:Anthropic:Endpoint
 Tracon:Providers:Anthropic:MaxRetries
+Tracon:Providers:Anthropic:Models:*:CacheWriteCostPerMillionTokens
+Tracon:Providers:Anthropic:Models:*:CacheWriteLongCostPerMillionTokens
 Tracon:Providers:Anthropic:Models:*:CachedInputCostPerMillionTokens
 Tracon:Providers:Anthropic:Models:*:ContextWindowTokens
 Tracon:Providers:Anthropic:Models:*:DisplayName
@@ -127,6 +131,8 @@ Tracon:Providers:AzureOpenAI:ApiKey
 Tracon:Providers:AzureOpenAI:Audience
 Tracon:Providers:AzureOpenAI:DefaultDeployment
 Tracon:Providers:AzureOpenAI:Endpoint
+Tracon:Providers:AzureOpenAI:Models:*:CacheWriteCostPerMillionTokens
+Tracon:Providers:AzureOpenAI:Models:*:CacheWriteLongCostPerMillionTokens
 Tracon:Providers:AzureOpenAI:Models:*:CachedInputCostPerMillionTokens
 Tracon:Providers:AzureOpenAI:Models:*:ContextWindowTokens
 Tracon:Providers:AzureOpenAI:Models:*:DisplayName
@@ -144,6 +150,8 @@ Tracon:Providers:Google:ApiKey
 Tracon:Providers:Google:ApiVersion
 Tracon:Providers:Google:DefaultModel
 Tracon:Providers:Google:Endpoint
+Tracon:Providers:Google:Models:*:CacheWriteCostPerMillionTokens
+Tracon:Providers:Google:Models:*:CacheWriteLongCostPerMillionTokens
 Tracon:Providers:Google:Models:*:CachedInputCostPerMillionTokens
 Tracon:Providers:Google:Models:*:ContextWindowTokens
 Tracon:Providers:Google:Models:*:DisplayName
@@ -166,6 +174,8 @@ Tracon:Providers:OpenAI:Live:MaxAppendCharacters
 Tracon:Providers:OpenAI:Live:Model
 Tracon:Providers:OpenAI:Live:Timeout
 Tracon:Providers:OpenAI:Live:Voice
+Tracon:Providers:OpenAI:Models:*:CacheWriteCostPerMillionTokens
+Tracon:Providers:OpenAI:Models:*:CacheWriteLongCostPerMillionTokens
 Tracon:Providers:OpenAI:Models:*:CachedInputCostPerMillionTokens
 Tracon:Providers:OpenAI:Models:*:ContextWindowTokens
 Tracon:Providers:OpenAI:Models:*:DisplayName

@@ -1891,6 +1891,10 @@ Tracon.ModelDescriptor
 Tracon.ModelDescriptor.<Clone>$() -> Tracon.ModelDescriptor!
 Tracon.ModelDescriptor.CachedInputCostPerMillionTokens.get -> decimal?
 Tracon.ModelDescriptor.CachedInputCostPerMillionTokens.init -> void
+Tracon.ModelDescriptor.CacheWriteCostPerMillionTokens.get -> decimal?
+Tracon.ModelDescriptor.CacheWriteCostPerMillionTokens.init -> void
+Tracon.ModelDescriptor.CacheWriteLongCostPerMillionTokens.get -> decimal?
+Tracon.ModelDescriptor.CacheWriteLongCostPerMillionTokens.init -> void
 Tracon.ModelDescriptor.ContextWindowTokens.get -> int?
 Tracon.ModelDescriptor.ContextWindowTokens.init -> void
 Tracon.ModelDescriptor.DisplayName.get -> string?
@@ -2256,6 +2260,12 @@ Tracon.RunCost.CachedInputCost.get -> decimal?
 Tracon.RunCost.CachedInputCost.init -> void
 Tracon.RunCost.CachedInputPricePerMillionTokens.get -> decimal?
 Tracon.RunCost.CachedInputPricePerMillionTokens.init -> void
+Tracon.RunCost.CacheWriteCost.get -> decimal?
+Tracon.RunCost.CacheWriteCost.init -> void
+Tracon.RunCost.CacheWriteLongPricePerMillionTokens.get -> decimal?
+Tracon.RunCost.CacheWriteLongPricePerMillionTokens.init -> void
+Tracon.RunCost.CacheWritePricePerMillionTokens.get -> decimal?
+Tracon.RunCost.CacheWritePricePerMillionTokens.init -> void
 Tracon.RunCost.Currency.get -> string?
 Tracon.RunCost.Currency.init -> void
 Tracon.RunCost.Equals(Tracon.RunCost? other) -> bool
@@ -2784,6 +2794,10 @@ Tracon.RunStatistics.ByVersion.get -> System.Collections.Generic.IReadOnlyList<T
 Tracon.RunStatistics.ByVersion.init -> void
 Tracon.RunStatistics.CachedInputTokens.get -> long
 Tracon.RunStatistics.CachedInputTokens.init -> void
+Tracon.RunStatistics.CacheWriteInputTokens.get -> long
+Tracon.RunStatistics.CacheWriteInputTokens.init -> void
+Tracon.RunStatistics.CacheWriteLongInputTokens.get -> long
+Tracon.RunStatistics.CacheWriteLongInputTokens.init -> void
 Tracon.RunStatistics.CanceledRuns.get -> long
 Tracon.RunStatistics.CanceledRuns.init -> void
 Tracon.RunStatistics.CompletedRuns.get -> long
@@ -2884,6 +2898,8 @@ Tracon.RunTreeCost
 Tracon.RunTreeCost.<Clone>$() -> Tracon.RunTreeCost!
 Tracon.RunTreeCost.CachedInputCost.get -> decimal?
 Tracon.RunTreeCost.CachedInputCost.init -> void
+Tracon.RunTreeCost.CacheWriteCost.get -> decimal?
+Tracon.RunTreeCost.CacheWriteCost.init -> void
 Tracon.RunTreeCost.Currency.get -> string?
 Tracon.RunTreeCost.Currency.init -> void
 Tracon.RunTreeCost.Equals(Tracon.RunTreeCost? other) -> bool
@@ -2905,6 +2921,10 @@ Tracon.RunUsage.AudioOutputTokens.get -> long?
 Tracon.RunUsage.AudioOutputTokens.init -> void
 Tracon.RunUsage.CachedInputTokens.get -> long?
 Tracon.RunUsage.CachedInputTokens.init -> void
+Tracon.RunUsage.CacheWriteInputTokens.get -> long?
+Tracon.RunUsage.CacheWriteInputTokens.init -> void
+Tracon.RunUsage.CacheWriteLongInputTokens.get -> long?
+Tracon.RunUsage.CacheWriteLongInputTokens.init -> void
 Tracon.RunUsage.Equals(Tracon.RunUsage? other) -> bool
 Tracon.RunUsage.InputTokens.get -> long?
 Tracon.RunUsage.InputTokens.init -> void
@@ -5595,6 +5615,9 @@ static Tracon.RunSpend.Total(Tracon.RunCost? cost, Tracon.RunNonTokenCost? nonTo
 static Tracon.RunSpend.Total(Tracon.RunTreeCost? cost, Tracon.RunNonTokenCost? nonTokenCost) -> decimal?
 Tracon.TraconFinishReasons
 static Tracon.TraconFinishReasons.ContextWindowExceeded.get -> Microsoft.Extensions.AI.ChatFinishReason
+const Tracon.TraconUsageCounts.CacheWriteInputTokens = "Tracon.CacheWriteInputTokens" -> string!
+const Tracon.TraconUsageCounts.CacheWriteLongInputTokens = "Tracon.CacheWriteLongInputTokens" -> string!
+Tracon.TraconUsageCounts
 const Tracon.TraconTenantProviderRefusedException.TenantProviderRefusedErrorType = "tenant_provider_refused" -> string!
 override Tracon.TraconTenantProviderRefusedException.ErrorType.get -> string!
 Tracon.TraconTenantProviderRefusedException

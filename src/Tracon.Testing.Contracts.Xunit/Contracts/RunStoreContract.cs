@@ -853,6 +853,166 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task The_cache_write_counters_round_trip_and_stay_null_when_they_were_never_reported()
+    {
+        // Phase 253 (F-420): the written tokens are INSIDE input_tokens, reported beside them.
+        var written = TraconId.NewId();
+        var silent = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(written));
+        await Store.StartRunAsync(TestData.Run(silent));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = written,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage
+            {
+                InputTokens = 1_000,
+                OutputTokens = 50,
+                TotalTokens = 1_050,
+                CacheWriteInputTokens = 600,
+                CacheWriteLongInputTokens = 300,
+            },
+        });
+
+        // An old-shaped row: every column added by this feature is NULL, as on a row written before it.
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = silent,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 100, OutputTokens = 50, TotalTokens = 150, CachedInputTokens = 10 },
+            Cost = new RunCost { InputCost = 1m, OutputCost = 2m, CachedInputCost = 0.5m, Currency = "USD", Source = PricingSource.Catalog },
+        });
+
+        var reported = (await Store.GetRunAsync(written))!.Usage.ShouldNotBeNull();
+        reported.CacheWriteInputTokens.ShouldBe(600);
+        reported.CacheWriteLongInputTokens.ShouldBe(300);
+        reported.InputTokens.ShouldBe(1_000);
+
+        // 🚨 NOT reported must read back as null, never 0 -- and must not break the listing that carries it.
+        var rows = await Store.QueryRunsAsync(new RunQuery());
+        rows.Count.ShouldBe(2);
+
+        var old = rows.Single(row => row.Id == silent);
+        old.Usage.ShouldNotBeNull().CacheWriteInputTokens.ShouldBeNull();
+        old.Usage.CacheWriteLongInputTokens.ShouldBeNull();
+        old.TreeUsage.ShouldNotBeNull().CacheWriteInputTokens.ShouldBeNull();
+        old.Cost.ShouldNotBeNull().CacheWriteCost.ShouldBeNull();
+        old.Cost.CacheWritePricePerMillionTokens.ShouldBeNull();
+        old.Cost.CacheWriteLongPricePerMillionTokens.ShouldBeNull();
+        old.TreeCost.ShouldNotBeNull().CacheWriteCost.ShouldBeNull();
+        old.Cost.Total().ShouldBe(3.5m);
+    }
+
+    [Fact]
+    public async Task A_run_that_reports_only_a_cache_write_count_still_produces_a_usage_record()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { CacheWriteLongInputTokens = 0 },
+        });
+
+        var usage = (await Store.GetRunAsync(runId))!.Usage.ShouldNotBeNull();
+        usage.CacheWriteLongInputTokens.ShouldBe(0);
+        usage.CacheWriteInputTokens.ShouldBeNull();
+        usage.InputTokens.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task The_cache_write_charge_round_trips_with_its_unit_prices_and_counts_toward_every_total()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage
+            {
+                InputTokens = 1_000_000,
+                OutputTokens = 1_000_000,
+                TotalTokens = 2_000_000,
+                CacheWriteInputTokens = 400_000,
+                CacheWriteLongInputTokens = 100_000,
+            },
+            Cost = new RunCost
+            {
+                InputCost = 1m,
+                OutputCost = 2m,
+                CacheWriteCost = 0.75m,
+                CacheWritePricePerMillionTokens = 1.25m,
+                CacheWriteLongPricePerMillionTokens = 2m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.Cost.ShouldNotBeNull();
+        record.Cost.CacheWriteCost.ShouldBe(0.75m);
+        record.Cost.CacheWritePricePerMillionTokens.ShouldBe(1.25m);
+        record.Cost.CacheWriteLongPricePerMillionTokens.ShouldBe(2m);
+
+        // The unit prices are RATES, not addends: the total is 1 + 2 + 0.75, never 1 + 2 + 0.75 + 1.25 + 2.
+        record.Cost.Total().ShouldBe(3.75m);
+
+        // 🚨 The FOURTH addend of the tree and of the statistics. Omitting it under-reports every
+        // tree and window that wrote to the prompt cache.
+        record.TreeCost.ShouldNotBeNull();
+        record.TreeCost.CacheWriteCost.ShouldBe(0.75m);
+        record.TreeCost.Total().ShouldBe(3.75m);
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+        statistics.TotalCost.ShouldBe(3.75m);
+
+        // Counted INSIDE the input total; a caller that adds them double counts.
+        statistics.InputTokens.ShouldBe(1_000_000);
+        statistics.CacheWriteInputTokens.ShouldBe(400_000);
+        statistics.CacheWriteLongInputTokens.ShouldBe(100_000);
+    }
+
+    [Fact]
+    public async Task UpdateRunCostAsync_writes_the_cache_write_charge_and_its_unit_prices()
+    {
+        // The cost recalculation endpoint rewrites a run's cost from its usage; it carries the fourth term too.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
+
+        await Store.UpdateRunCostAsync(
+            runId,
+            new RunCost
+            {
+                InputCost = 1m,
+                CacheWriteCost = 0.5m,
+                CacheWritePricePerMillionTokens = 1.25m,
+                CacheWriteLongPricePerMillionTokens = 2m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+            tenantId: null);
+
+        var cost = (await Store.GetRunAsync(runId))!.Cost.ShouldNotBeNull();
+
+        cost.CacheWriteCost.ShouldBe(0.5m);
+        cost.CacheWritePricePerMillionTokens.ShouldBe(1.25m);
+        cost.CacheWriteLongPricePerMillionTokens.ShouldBe(2m);
+        cost.Total().ShouldBe(1.5m);
+    }
+
+    [Fact]
     public async Task Applied_unit_prices_round_trip_and_do_not_enter_the_total()
     {
         // Phase 132, F-175: the price snapshot carries the RATE that produced
@@ -1039,6 +1199,38 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Statistics_total_the_cache_writes_of_every_run_beside_the_input_total()
+    {
+        var first = TraconId.NewId();
+        var second = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(first));
+        await Store.StartRunAsync(TestData.Run(second));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = first,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 100, OutputTokens = 5, TotalTokens = 105, CacheWriteInputTokens = 60, CacheWriteLongInputTokens = 10 },
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = second,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 50, OutputTokens = 5, TotalTokens = 55, CacheWriteInputTokens = 20 },
+        });
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        statistics.InputTokens.ShouldBe(150);
+        statistics.CacheWriteInputTokens.ShouldBe(80);
+        statistics.CacheWriteLongInputTokens.ShouldBe(10);
+    }
+
+    [Fact]
     public async Task Tree_usage_sums_the_breakdown_across_child_runs()
     {
         // 🚨 The phase 20 lesson applied to four new fields at once: a field can
@@ -1104,6 +1296,65 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Tree_usage_sums_the_cache_writes_across_child_runs_and_keeps_an_unreported_class_null()
+    {
+        var rootId = TraconId.NewId();
+        var childId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId) with { ParentRunId = rootId, RootRunId = rootId, Depth = 1 });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = rootId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 100, OutputTokens = 50, TotalTokens = 150, CacheWriteInputTokens = 60 },
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = childId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 10, OutputTokens = 5, TotalTokens = 15, CacheWriteInputTokens = 7 },
+        });
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.TreeUsage.ShouldNotBeNull();
+        root.TreeUsage.InputTokens.ShouldBe(110);
+        root.TreeUsage.CacheWriteInputTokens.ShouldBe(67);
+
+        // Nobody in the tree reported a long-lived write: "not measured", not "measured zero".
+        root.TreeUsage.CacheWriteLongInputTokens.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Tree_cost_adds_the_cache_write_charge_of_every_run_in_the_tree()
+    {
+        var rootId = TraconId.NewId();
+        var childId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId) with { ModelId = "m" });
+        await Store.StartRunAsync(TestData.Run(childId) with { ModelId = "m", ParentRunId = rootId, RootRunId = rootId, Depth = 1 });
+
+        await CompleteWithCostAsync(rootId, input: 1m, output: 2m, cached: 0.5m, cacheWrite: 0.25m);
+        await CompleteWithCostAsync(childId, input: 0.25m, output: 0.25m, cached: 0.25m, cacheWrite: 0.5m);
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.TreeCost.ShouldNotBeNull();
+
+        // 🚨 The fourth addend. Its absence would silently under-report the tree.
+        root.TreeCost.CacheWriteCost.ShouldBe(0.75m);
+        root.TreeCost.Total().ShouldBe(1.25m + 2.25m + 0.75m + 0.75m);
+        root.Cost!.Total().ShouldBe(3.75m);
+    }
+
+    [Fact]
     public async Task Tree_cost_adds_the_cache_charge_of_every_run_in_the_tree()
     {
         var rootId = TraconId.NewId();
@@ -1132,7 +1383,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         root.TreeCost.CachedInputCost.ShouldBe(0.75m);
     }
 
-    private async Task CompleteWithCostAsync(Guid runId, decimal input, decimal output, decimal cached)
+    private async Task CompleteWithCostAsync(Guid runId, decimal input, decimal output, decimal cached, decimal? cacheWrite = null)
         => await Store.CompleteRunAsync(new RunCompletion
         {
             RunId = runId,
@@ -1144,6 +1395,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
                 InputCost = input,
                 OutputCost = output,
                 CachedInputCost = cached,
+                CacheWriteCost = cacheWrite,
                 Currency = "USD",
                 Source = PricingSource.Catalog,
             },
@@ -1180,13 +1432,14 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
                 InputCost = 1m,
                 OutputCost = 2m,
                 CachedInputCost = 0.5m,
+                CacheWriteCost = 0.25m,
                 Currency = "USD",
                 Source = PricingSource.Catalog,
             },
         });
 
-        // A two-term sum would answer 3 everywhere below; the right answer is 3.5.
-        const decimal Expected = 3.5m;
+        // A two-term sum would answer 3 everywhere below and a three-term one 3.5; the right answer is 3.75.
+        const decimal Expected = 3.75m;
 
         (await Store.GetStatisticsAsync(new RunStatisticsQuery())).TotalCost.ShouldBe(Expected);
 
@@ -1257,6 +1510,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         root.TreeCost.InputCost.ShouldBeNull();
         root.TreeCost.OutputCost.ShouldBeNull();
         root.TreeCost.CachedInputCost.ShouldBeNull();
+        root.TreeCost.CacheWriteCost.ShouldBeNull();
         root.TreeCost.Currency.ShouldBeNull();
         root.TreeCost.Total().ShouldBeNull();
         root.TreeCost.CurrencyCount.ShouldBe(2);
@@ -1267,7 +1521,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         root.TreeNonTokenCost.CurrencyCount.ShouldBe(2);
 
         // The runs keep their own costs; only the sum across them is left out.
-        root.Cost.ShouldNotBeNull().Total().ShouldBe(1.75m);
+        root.Cost.ShouldNotBeNull().Total().ShouldBe(2m);
         root.NonTokenCost.ShouldNotBeNull().CurrencyCount.ShouldBe(1);
         RunSpend.Total(root.TreeCost, root.TreeNonTokenCost).ShouldBeNull();
 
@@ -1276,7 +1530,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         child.ShouldNotBeNull();
         child.TreeCost.ShouldNotBeNull();
-        child.TreeCost.Total().ShouldBe(1.75m);
+        child.TreeCost.Total().ShouldBe(2m);
         string.Equals(child.TreeCost.Currency, "EUR", StringComparison.Ordinal).ShouldBeTrue();
         child.TreeCost.CurrencyCount.ShouldBe(1);
         child.TreeNonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.5m);
@@ -1320,6 +1574,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
                 InputCost = 1m,
                 OutputCost = 0.5m,
                 CachedInputCost = 0.25m,
+                CacheWriteCost = 0.25m,
                 Currency = currency,
                 Source = PricingSource.Catalog,
             },

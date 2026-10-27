@@ -288,6 +288,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 reasoning_tokens    = @reasoning_tokens,
                 audio_input_tokens  = @audio_input_tokens,
                 audio_output_tokens = @audio_output_tokens,
+                cache_write_input_tokens      = @cache_write_input_tokens,
+                cache_write_long_input_tokens = @cache_write_long_input_tokens,
                 error_type     = @error_type,
                 error_message  = @error_message,
                 error_class    = @error_class,
@@ -298,6 +300,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 output_price_per_mtok = @output_price_per_mtok,
                 cached_input_cost = @cached_input_cost,
                 cached_input_price_per_mtok = @cached_input_price_per_mtok,
+                cache_write_cost = @cache_write_cost,
+                cache_write_price_per_mtok = @cache_write_price_per_mtok,
+                cache_write_long_price_per_mtok = @cache_write_long_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source,
                 non_token_cost      = @non_token_cost,
@@ -321,6 +326,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 output_price_per_mtok = @output_price_per_mtok,
                 cached_input_cost = @cached_input_cost,
                 cached_input_price_per_mtok = @cached_input_price_per_mtok,
+                cache_write_cost = @cache_write_cost,
+                cache_write_price_per_mtok = @cache_write_price_per_mtok,
+                cache_write_long_price_per_mtok = @cache_write_long_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -397,6 +405,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        SUM(sub.input_cost)                         AS cost_input,
                        SUM(sub.output_cost)                        AS cost_output,
                        SUM(sub.cached_input_cost)                  AS cost_cached_input,
+                       -- phase 253 (F-420): what the descendants wrote into the prompt cache.
+                       -- NOT coalesced, like the cache read above; cache_write_cost is the
+                       -- FOURTH addend of the tree total, not a subset of input_cost.
+                       {TreeSum("cache_write_input_tokens", "sub", false)}::bigint      AS cache_write_input_tokens,
+                       {TreeSum("cache_write_long_input_tokens", "sub", false)}::bigint AS cache_write_long_input_tokens,
+                       SUM(sub.cache_write_cost)                   AS cost_cache_write,
                        {CostCurrencyLabel("sub")}                  AS cost_currency,
                        COUNT(*) FILTER (WHERE sub.pricing_source = 2)::bigint AS unknown_pricing_rows,
                        COUNT(sub.pricing_source)::bigint           AS pricing_rows,
@@ -459,7 +473,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
             r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
             tree.non_token_cost, tree.non_token_currency, tree.non_token_estimated_rows, tree.non_token_unsummed,
-            tree.cost_currencies, tree.non_token_currencies
+            tree.cost_currencies, tree.non_token_currencies,
+            r.cache_write_input_tokens, r.cache_write_long_input_tokens, r.cache_write_cost,
+            r.cache_write_price_per_mtok, r.cache_write_long_price_per_mtok,
+            tree.cache_write_input_tokens, tree.cache_write_long_input_tokens, tree.cost_cache_write
             """;
 
         SelectRun = $"""
@@ -569,7 +586,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    {TreeSum("audio_input_tokens", null, true)}::bigint,
                    {TreeSum("audio_output_tokens", null, true)}::bigint,
                    -- Ordinal 18 (F-419): the currencies the costs above are in.
-                   {CostCurrencyCount(null)}::bigint
+                   {CostCurrencyCount(null)}::bigint,
+                   -- Ordinals 19-20 (F-420): the cache writes, counted INSIDE the input total.
+                   {TreeSum("cache_write_input_tokens", null, true)}::bigint,
+                   {TreeSum("cache_write_long_input_tokens", null, true)}::bigint
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval

@@ -19,6 +19,7 @@ internal sealed partial class InMemoryRunStore
         long total = 0, completed = 0, failed = 0, canceled = 0, running = 0, awaitingInput = 0;
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;
         long cachedInputTokens = 0, reasoningTokens = 0, audioInputTokens = 0, audioOutputTokens = 0;
+        long cacheWriteInputTokens = 0, cacheWriteLongInputTokens = 0;
         long scoredRuns = 0, binaryScores = 0, positiveBinaryScores = 0;
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
         var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
@@ -141,6 +142,8 @@ internal sealed partial class InMemoryRunStore
             reasoningTokens += record.Usage?.ReasoningTokens ?? 0;
             audioInputTokens += record.Usage?.AudioInputTokens ?? 0;
             audioOutputTokens += record.Usage?.AudioOutputTokens ?? 0;
+            cacheWriteInputTokens += record.Usage?.CacheWriteInputTokens ?? 0;
+            cacheWriteLongInputTokens += record.Usage?.CacheWriteLongInputTokens ?? 0;
 
             if (record.Cost is { } cost)
             {
@@ -149,21 +152,12 @@ internal sealed partial class InMemoryRunStore
                     runsWithUnknownPricing++;
                 }
 
-                if (cost.InputCost is { } ic)
+                // RunCost.Total() is the one sum: the run's own InputCost already has its cached and
+                // written tokens subtracted out, so the cache read and the cache write are the third
+                // and the fourth addend. Summing the terms here by hand is how a new one is missed.
+                if (cost.Total() is { } runTotal)
                 {
-                    costSum = (costSum ?? 0) + ic;
-                }
-
-                if (cost.OutputCost is { } oc)
-                {
-                    costSum = (costSum ?? 0) + oc;
-                }
-
-                // The run's own InputCost already has its cached tokens subtracted
-                // out, so the cache charge is a third addend of the total.
-                if (cost.CachedInputCost is { } cc)
-                {
-                    costSum = (costSum ?? 0) + cc;
+                    costSum = (costSum ?? 0) + runTotal;
                 }
 
                 currency ??= cost.Currency;
@@ -285,6 +279,8 @@ internal sealed partial class InMemoryRunStore
             OutputTokens = outputTokens,
             TotalTokens = totalTokens,
             CachedInputTokens = cachedInputTokens,
+            CacheWriteInputTokens = cacheWriteInputTokens,
+            CacheWriteLongInputTokens = cacheWriteLongInputTokens,
             ReasoningTokens = reasoningTokens,
             AudioInputTokens = audioInputTokens,
             AudioOutputTokens = audioOutputTokens,
@@ -358,10 +354,7 @@ internal sealed partial class InMemoryRunStore
     /// <see langword="null"/> when the run was never priced — writing zero would
     /// make "no price is known" look like "it cost nothing".
     /// </returns>
-    private static decimal? RunCostTotal(RunCost? cost)
-        => cost is { InputCost: not null } or { OutputCost: not null } or { CachedInputCost: not null }
-            ? (cost!.InputCost ?? 0) + (cost.OutputCost ?? 0) + (cost.CachedInputCost ?? 0)
-            : null;
+    private static decimal? RunCostTotal(RunCost? cost) => cost?.Total();
 
     /// <summary>Accumulated counters for an agent. Used only in summary computation.</summary>
     [StructLayout(LayoutKind.Auto)]

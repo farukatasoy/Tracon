@@ -404,6 +404,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    reasoning_tokens    = @reasoning_tokens,
                    audio_input_tokens  = @audio_input_tokens,
                    audio_output_tokens = @audio_output_tokens,
+                   cache_write_input_tokens      = @cache_write_input_tokens,
+                   cache_write_long_input_tokens = @cache_write_long_input_tokens,
                    error_type     = @error_type,
                    error_message  = @error_message,
                    error_class    = @error_class,
@@ -414,6 +416,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    output_price_per_mtok = @output_price_per_mtok,
                    cached_input_cost = @cached_input_cost,
                    cached_input_price_per_mtok = @cached_input_price_per_mtok,
+                   cache_write_cost = @cache_write_cost,
+                   cache_write_price_per_mtok = @cache_write_price_per_mtok,
+                   cache_write_long_price_per_mtok = @cache_write_long_price_per_mtok,
                    cost_currency  = @cost_currency,
                    pricing_source = @pricing_source,
                    non_token_cost      = @non_token_cost,
@@ -435,6 +440,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    output_price_per_mtok = @output_price_per_mtok,
                    cached_input_cost = @cached_input_cost,
                    cached_input_price_per_mtok = @cached_input_price_per_mtok,
+                   cache_write_cost = @cache_write_cost,
+                   cache_write_price_per_mtok = @cache_write_price_per_mtok,
+                   cache_write_long_price_per_mtok = @cache_write_long_price_per_mtok,
                    cost_currency  = @cost_currency,
                    pricing_source = @pricing_source
              WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -504,6 +512,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                        SUM(sub.input_cost)                                 AS cost_input,
                        SUM(sub.output_cost)                                AS cost_output,
                        SUM(sub.cached_input_cost)                          AS cost_cached_input,
+                       -- phase 253 (F-420): what the descendants wrote into the prompt cache.
+                       -- NOT coalesced, like the cache read above; cache_write_cost is the
+                       -- FOURTH addend of the tree total, not a subset of input_cost.
+                       CAST({TreeSum("cache_write_input_tokens", "sub", false)} AS bigint)      AS cache_write_input_tokens,
+                       CAST({TreeSum("cache_write_long_input_tokens", "sub", false)} AS bigint) AS cache_write_long_input_tokens,
+                       SUM(sub.cache_write_cost)                           AS cost_cache_write,
                        {CostCurrencyLabel("sub")}                          AS cost_currency,
                        CAST(COALESCE(SUM(CASE WHEN sub.pricing_source = 2 THEN 1 ELSE 0 END), 0) AS bigint) AS unknown_pricing_rows,
                        CAST(COUNT(sub.pricing_source) AS bigint)           AS pricing_rows,
@@ -573,7 +587,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
             r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
             tree.non_token_cost, tree.non_token_currency, tree.non_token_estimated_rows, tree.non_token_unsummed,
-            tree.cost_currencies, tree.non_token_currencies
+            tree.cost_currencies, tree.non_token_currencies,
+            r.cache_write_input_tokens, r.cache_write_long_input_tokens, r.cache_write_cost,
+            r.cache_write_price_per_mtok, r.cache_write_long_price_per_mtok,
+            tree.cache_write_input_tokens, tree.cache_write_long_input_tokens, tree.cost_cache_write
             """;
 
         SelectRun = $"""
@@ -668,7 +685,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    CAST({TreeSum("audio_input_tokens", null, true)} AS bigint),
                    CAST({TreeSum("audio_output_tokens", null, true)} AS bigint),
                    -- Ordinal 18 (F-419): the currencies the costs above are in.
-                   CAST({CostCurrencyCount(null)} AS bigint)
+                   CAST({CostCurrencyCount(null)} AS bigint),
+                   -- Ordinals 19-20 (F-420): the cache writes, counted INSIDE the input total.
+                   CAST({TreeSum("cache_write_input_tokens", null, true)} AS bigint),
+                   CAST({TreeSum("cache_write_long_input_tokens", null, true)} AS bigint)
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
