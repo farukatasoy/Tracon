@@ -30,8 +30,8 @@ namespace Tracon;
 /// <see cref="Custom"/> of the reserved notice types <c>RunEventCustomTypes.QuotaThreshold</c>,
 /// <c>RunEventCustomTypes.OutputTruncated</c>, <c>RunEventCustomTypes.OutputFiltered</c>
 /// and <c>RunEventCustomTypes.ToolInputDeclined</c>, whose payload names what happened
-/// (the dedup key a client acts on, the provider, a reason code) and never carries user
-/// data or the answer. A consumer's OWN <see cref="Custom"/>
+/// (the dedup key a client acts on, the provider, a reason code) and never carries a
+/// tool's input or output or the answer text. A consumer's OWN <see cref="Custom"/>
 /// event is not exempt, and neither are the other reserved types
 /// (<c>RunEventCustomTypes.Content</c>, <c>RunEventCustomTypes.WorkflowEvent</c>).
 /// </para>

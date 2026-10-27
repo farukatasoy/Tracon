@@ -93,8 +93,9 @@ public sealed class TraconContentFilteredException : TraconException
     public string? ProviderName { get; init; }
 
     /// <summary>
-    /// Gets the finish reason the provider reported. For example Anthropic
-    /// <c>refusal</c> or Gemini <c>SAFETY</c>. <strong>Carries no secret.</strong>
+    /// Gets the finish reason that stopped the response: <c>content_filter</c>, the common reason
+    /// every provider adapter reports for a filter stop. The provider's own word (Anthropic
+    /// <c>refusal</c>, Gemini <c>SAFETY</c>) is not kept. <strong>Carries no secret.</strong>
     /// </summary>
     public string? FinishReason { get; init; }
 
