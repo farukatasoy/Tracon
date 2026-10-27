@@ -21,9 +21,10 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>It records and changes nothing.</strong> The result, the exception and their order reach the loop exactly
-/// as they would without this layer; the layer adds no wait and no catch of its own. A call that is cancelled
-/// stays open in the ledger on purpose: the run ended before the result, and the run record says so. A cancellation
-/// is told from a failure by the call's own token, the way the run recorder does (the same rule as
+/// as they would without this layer; the layer adds no wait. Its one <c>catch</c> notes an exception in the ledger
+/// and throws it again as it is, so the exception travels on unchanged. A call that is cancelled stays open in the
+/// ledger on purpose: the run ended before the result, and the run record says so. A cancellation is told from a
+/// failure by the call's own token, the way the run recorder does (the same rule as
 /// <see cref="OperationCancellation.IsFailure"/>).
 /// </para>
 /// <para>

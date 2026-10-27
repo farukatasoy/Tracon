@@ -95,9 +95,9 @@ var parallel = new FakeModelProvider()
     .EchoesLastToolResult("Done: ");
 ```
 
-With a token ceiling of 500 on the agent, the first provider's tool turn alone spends it
-(500 tokens), so the tool does not start and the run ends `Failed` with error type
-`run_budget_exceeded`.
+With the run tree's token ceiling (`Tracon:AgentGraph:MaxTotalTokens`) set to 500, the
+first provider's tool turn alone spends it (500 tokens), so the tool does not start and the
+run ends `Failed` with error type `run_budget_exceeded`.
 
 ## `TraconTestHost`
 
