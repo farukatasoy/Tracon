@@ -25,6 +25,9 @@ namespace Tracon;
 /// </remarks>
 internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport, IResponseSchemaSupport
 {
+    // Chat Completions: "up to 4 sequences" (documented for the stop parameter).
+    private static readonly SamplingLimits ChatCompletionsLimits = new() { MaxStopSequences = 4 };
+
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
     private readonly OpenAIProviderHealthCheck? _healthCheck;
@@ -128,6 +131,23 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             | SamplingFields.PresencePenalty
             | SamplingFields.ToolMode
             | SamplingFields.AllowMultipleToolCalls,
+    };
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Chat Completions accepts at most four stop sequences, as OpenAI documents for <c>stop</c>. The seed
+    /// is a 64-bit integer on the wire, so no seed range is stated. The limit is stated for OpenAI's own
+    /// service only: a compatible server or a gateway behind another address can accept more, and a limit
+    /// that is too narrow would reject a definition that runs there (the same reason the strict-schema
+    /// refusals are measured against <c>api.openai.com</c> alone). The Responses API sends no stop
+    /// sequences, so it states nothing. Not provoked with a real <c>400</c>: every model of the account that
+    /// measured the table rejects <c>stop</c> itself (<c>unsupported_parameter</c>, 2026-10-27), and that
+    /// answer comes before any check of the count.
+    /// </remarks>
+    public SamplingLimits SamplingLimits => ApiSurface switch
+    {
+        OpenAIApiSurface.Responses => SamplingLimits.None,
+        _ => IsOpenAIService ? ChatCompletionsLimits : SamplingLimits.None,
     };
 
     /// <inheritdoc />
