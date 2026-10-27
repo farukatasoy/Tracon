@@ -2,9 +2,9 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// K-483's class guard at the type level: <see cref="RunCost.Total"/> and
-/// <see cref="RunTreeCost.Total"/> sum only the three cost terms — the applied
-/// unit-price fields added in phase 132 (F-175) are RATES, not amounts, and
-/// must never enter the sum.
+/// <see cref="RunTreeCost.Total"/> sum the four cost terms (input, output, cache
+/// read and cache write) — the applied unit-price fields added in phase 132 (F-175)
+/// are RATES, not amounts, and must never enter the sum.
 /// </summary>
 public sealed class RunCostTotalTests
 {
@@ -85,7 +85,7 @@ public sealed class RunCostTotalTests
     }
 
     [Fact]
-    public void RunTreeCost_Total_sums_only_the_three_cost_terms()
+    public void RunTreeCost_Total_without_a_cache_write_charge_is_the_sum_of_the_other_three_terms()
     {
         var treeCost = new RunTreeCost
         {
