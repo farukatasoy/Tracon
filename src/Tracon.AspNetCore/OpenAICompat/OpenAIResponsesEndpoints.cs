@@ -106,7 +106,14 @@ internal static class OpenAIResponsesEndpoints
                 "registered IRunAuthorizationHandler denies the caller, the response is 403. When " +
                 "session ownership is turned on, a 'conversation' or 'previous_response_id' that " +
                 "belongs to another user is refused the same way, and so is opening a NEW " +
-                "conversation when no authenticated identity can be resolved to own it.")
+                "conversation when no authenticated identity can be resolved to own it. An answer " +
+                "the model cut off at its output token limit or its context window is incomplete: " +
+                "'status' is 'incomplete', 'incomplete_details.reason' is 'max_output_tokens' and the " +
+                "message item that was cut is 'incomplete' too. An answer with text that the provider's " +
+                "content filter stopped is incomplete with the reason 'content_filter'; an answer with no " +
+                "content at all fails the request instead. On a stream the last event is " +
+                "'response.incomplete' in place of 'response.completed'. Only the final model call of the " +
+                "answer decides: a tool turn that hit the limit before the answer does not count.")
             // One of two shapes, depending on the 'stream' flag in the body:
             // a JSON body (raw JsonElement, the schema comes from MAF's
             // OpenAIResponses.WriteResponse and is not typed at compile time)
@@ -297,7 +304,7 @@ internal static class OpenAIResponsesEndpoints
             var responseJson = OpenAIResponses.WriteResponse(response, responseId, runRequest.ConversationId);
 
             return Results.Json(
-                AppendPendingApprovalOutputItems(responseJson, response.Messages),
+                PatchResponse(responseJson, response.Messages, response.FinishReason),
                 statusCode: StatusCodes.Status200OK);
         }
         // 🚨 A provider timeout arrives as an OperationCanceledException while
@@ -365,6 +372,62 @@ internal static class OpenAIResponsesEndpoints
     }
 
     /// <summary>
+    /// Patches the JSON MAF wrote: appends the tool calls pending approval and marks a cut-off or filtered
+    /// answer <c>incomplete</c>, with ONE parse for both.
+    /// </summary>
+    /// <param name="responseJson">The body <c>OpenAIResponses.WriteResponse</c> wrote.</param>
+    /// <param name="messages">The messages of the run's response.</param>
+    /// <param name="finishReason">The finish reason of the answer's final model call.</param>
+    /// <returns>The same body when there is nothing to patch; the patched body otherwise.</returns>
+    /// <remarks>
+    /// The status follows <see cref="OpenAICompatSupport.ToResponsesIncompleteReason"/> (see
+    /// <see cref="ResponsesIncompleteness"/>). A response pending approval ended on its tool call, whose finish
+    /// reason is never a cut-off, so it keeps <c>completed</c>.
+    /// </remarks>
+    private static JsonElement PatchResponse(JsonElement responseJson, IEnumerable<ChatMessage> messages, ChatFinishReason? finishReason)
+    {
+        var pending = PendingApprovalCalls(messages);
+        var incompleteReason = OpenAICompatSupport.ToResponsesIncompleteReason(finishReason);
+
+        if (pending is null && incompleteReason is null)
+        {
+            return responseJson;
+        }
+
+        var root = JsonNode.Parse(responseJson.GetRawText())!.AsObject();
+
+        if (pending is not null)
+        {
+            AppendPendingApprovalOutputItems(root, pending);
+        }
+
+        if (incompleteReason is not null)
+        {
+            ResponsesIncompleteness.Mark(root, incompleteReason);
+        }
+
+        return JsonSerializer.SerializeToElement(root);
+    }
+
+    private static List<FunctionCallContent>? PendingApprovalCalls(IEnumerable<ChatMessage> messages)
+    {
+        List<FunctionCallContent>? pending = null;
+
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                if (content is ToolApprovalRequestContent { ToolCall: FunctionCallContent call })
+                {
+                    (pending ??= []).Add(call);
+                }
+            }
+        }
+
+        return pending;
+    }
+
+    /// <summary>
     /// Appends tool calls pending approval to the <c>output</c> array as
     /// <c>function_call</c> items.
     /// </summary>
@@ -407,7 +470,7 @@ internal static class OpenAIResponsesEndpoints
     /// (<c>POST /api/approvals/{id}/decide</c>).
     /// </para>
     /// <para>
-    /// The <c>status</c> field is <em>not changed</em> (still
+    /// The <c>status</c> field is <em>not changed</em> by this step (still
     /// <c>"completed"</c>) — this is consistent with the value MAF uses for
     /// EVERY function_call item (whether the tool ACTUALLY ran or not), and
     /// the real OpenAI Responses API represents a pending function call this
@@ -415,27 +478,8 @@ internal static class OpenAIResponsesEndpoints
     /// complete.
     /// </para>
     /// </remarks>
-    private static JsonElement AppendPendingApprovalOutputItems(JsonElement responseJson, IEnumerable<ChatMessage> messages)
+    private static void AppendPendingApprovalOutputItems(JsonObject root, List<FunctionCallContent> pending)
     {
-        List<FunctionCallContent>? pending = null;
-
-        foreach (var message in messages)
-        {
-            foreach (var content in message.Contents)
-            {
-                if (content is ToolApprovalRequestContent { ToolCall: FunctionCallContent call })
-                {
-                    (pending ??= []).Add(call);
-                }
-            }
-        }
-
-        if (pending is null)
-        {
-            return responseJson;
-        }
-
-        var root = JsonNode.Parse(responseJson.GetRawText())!.AsObject();
         var output = root["output"]?.AsArray() ?? [];
         root["output"] = output;
 
@@ -451,8 +495,6 @@ internal static class OpenAIResponsesEndpoints
                 ["arguments"] = JsonSerializer.Serialize(call.Arguments, OpenAICompatSupport.JsonOptions),
             });
         }
-
-        return JsonSerializer.SerializeToElement(root);
     }
 
     /// <summary>
@@ -462,7 +504,8 @@ internal static class OpenAIResponsesEndpoints
     /// Frames are already produced in the full SSE format by
     /// <see cref="OpenAIResponses.WriteResponseStreamAsync"/> (<c>event:</c> +
     /// <c>data:</c> + a blank line); re-framing them would cause corruption,
-    /// so they are written as is.
+    /// so they are written as is. The one exception is the closing frames of an
+    /// answer the run says is incomplete (<see cref="ResponsesStreamRewriter"/>).
     /// </remarks>
     private sealed class ResponsesStream(
         AIAgent agent,
@@ -492,15 +535,29 @@ internal static class OpenAIResponsesEndpoints
                     request.Options,
                     cancellationToken);
 
+                // MAF never reads the finish reason; the rewriter marks the closing frames of an incomplete
+                // answer (F-503) and passes every other frame through as the same string.
+                var rewriter = new ResponsesStreamRewriter();
+
                 var frames = OpenAIResponses.WriteResponseStreamAsync(
-                    updates,
+                    rewriter.Observe(updates, cancellationToken),
                     responseId,
                     request.ConversationId,
                     cancellationToken);
 
                 await foreach (var frame in frames.ConfigureAwait(false))
                 {
-                    await writer.WriteRawAsync(frame, cancellationToken).ConfigureAwait(false);
+                    await writer.WriteRawAsync(rewriter.Patch(frame), cancellationToken).ConfigureAwait(false);
+                }
+
+                if (rewriter.MissedTerminalFrame)
+                {
+                    httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("Tracon.OpenAICompat")
+                        .LogWarning(
+                            "Streaming Responses run {ResponseId} ended incomplete, but no response.completed frame was found to mark it; " +
+                            "the stream says it completed. The framework's closing frames may have changed.",
+                            responseId);
                 }
 
                 await sessionStore.SaveSessionAsync(agent, new AgentSessionStoreKey(saveId), session, cancellationToken).ConfigureAwait(false);
