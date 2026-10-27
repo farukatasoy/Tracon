@@ -13,6 +13,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   saved earlier ran with a seed nobody had written. `POST /api/agents/validate` now reports `sampling_value_out_of_range`
   at `model.seed`, and a run of the stored agent fails with the compile error. Change the seed to a value from
   -2147483648 to 2147483647, or clear it.
+- **Migrations.** PostgreSQL `0066`, SQL Server `0054` and SQLite `0053`. With `AutoApplyMigrations`
+  (the default) they run at startup. Each adds five nullable columns to `runs`: `cache_write_input_tokens`,
+  `cache_write_long_input_tokens`, `cache_write_cost`, `cache_write_price_per_mtok` and
+  `cache_write_long_price_per_mtok`. No column is dropped and no row is backfilled: a run recorded before the
+  upgrade keeps `NULL` in all five, which reads as "the write was not priced apart". A database that turned on
+  `EnableReadViews` also gets a second definition of `runs_v1`: its `total_cost` adds the write charge and the
+  five columns come last.
+- **A prompt-cache write can raise the cost of a run.** With a write price set (see Added), the tokens Anthropic
+  wrote into its cache leave the plain input charge and are billed at the write price. A run that wrote
+  therefore costs more than it did before, and the cost quota ceiling, the webhook total and the statistics
+  follow. With no write price nothing changes.
+- **Public types changed.** `RunUsage`, `RunCost`, `RunTreeCost`, `RunStatistics`, `ModelDescriptor` and
+  `ModelPriceOverride` gain properties; the wire, the OpenAPI document and both clients gain the same fields.
+  Code that adds the cost terms of a `RunCost` by hand must add `CacheWriteCost`: call `RunCost.Total()`
+  instead. A custom `IRunStore` must store the new fields and pass the new cases of `RunStoreContract` and
+  its two updated expectations.
 
 ### Added
 
@@ -35,6 +51,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   compatible server) and `azure-openai` state four stop sequences; `anthropic` and compatible servers state none. The
   Google.GenAI client library does not check the seed: it narrowed `3000000000` to `-1294967296` and the run went on.
   The ranges are not part of `GET /api/models`.
+- **A prompt-cache write is priced: it is the fourth term of a run's cost.** Anthropic bills a write to its
+  prompt cache apart from plain input, by how long the entry lives (1.25 times the input price for five
+  minutes, 2 times for one hour), and Tracon counted the written tokens at the plain input price.
+  `RunUsage.CacheWriteInputTokens` and `RunUsage.CacheWriteLongInputTokens` now hold the tokens written with the
+  short and the long time to live (both inside `InputTokens`, like `CachedInputTokens`), and
+  `RunCost.CacheWriteCost` holds the charge, with the prices that produced it
+  (`CacheWritePricePerMillionTokens`, `CacheWriteLongPricePerMillionTokens`). `RunCost.Total()` and
+  `RunTreeCost.Total()` add four terms, and so do the cost quota, the webhook total, the statistics, the run
+  tree, the read view `runs_v1` and the console. Set the prices with `CacheWriteCostPerMillionTokens` and
+  `CacheWriteLongCostPerMillionTokens` on a catalog row (`Tracon:Providers:Anthropic:Models:*`) or a
+  `Tracon:Pricing` entry (short keys `CacheWrite` and `CacheWriteLong`). A class with no price keeps its
+  tokens in the full-price input charge, so a setup that sets none computes the cost it computed before, to the
+  last digit, and no run falls to `Unknown`. `RunStatistics` gains the totals `CacheWriteInputTokens` and
+  `CacheWriteLongInputTokens`. `Tracon.Anthropic` reads the split by time to live from the raw usage of every
+  call, streamed or not; when an SDK or API leaves it out, the whole write counts under the time to live of
+  `anthropic.promptCaching.ttl` (the short one when it sets none) and a warning is logged once.
+- **`TraconUsageCounts`: provider-independent keys for cache writes.** A model provider that bills a cache
+  write reports it by adding the tokens to `UsageDetails.AdditionalCounts` under
+  `TraconUsageCounts.CacheWriteInputTokens` (and `CacheWriteLongInputTokens`, for a provider with a second time
+  to live). Tracon reads them in one place, so every provider gets the same pricing.
 
 ### Fixed
 
