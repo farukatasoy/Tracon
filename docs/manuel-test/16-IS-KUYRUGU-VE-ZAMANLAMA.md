@@ -3491,7 +3491,7 @@ Otomatik karşılık: `JobStoreContract.Lease_with_a_tenant_cap_*` (dört depoda
 
 ### MT-JOB-154 — Bütçe reddiyle biten kuyruklu run'ın tool satırları ve olayları kalır; satırlar süre taşır (Faz 254, F-689)
 
-Otomatik karşılık: `FailedRunToolRowsTests` (dokuz senaryo) · `ToolBudgetGateTests` · `ToolCallLedgerTests` · `CallRecordingAIFunctionTests` · `ToolInvocationTrackerLedgerTests`.
+Otomatik karşılık: `FailedRunToolRowsTests` (dokuz senaryo) · `FallbackToolSideEffectTests` (başarıdan sonra tek satır; başarısızlıktan sonra çalışan çağrının tek satırı) · `ToolBudgetGateTests` · `ToolCallLedgerTests` · `RunRecordingAgentLedgerTests` · `CallRecordingAIFunctionTests` · `ToolInvocationTrackerLedgerTests`.
 
 | | |
 |---|---|
