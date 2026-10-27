@@ -96,9 +96,10 @@ namespace Tracon;
 /// exception at this layer. The correct signal is an ordinary
 /// <see cref="Microsoft.Extensions.AI.ChatResponse"/> carrying
 /// <see cref="Microsoft.Extensions.AI.ChatFinishReason.ContentFilter"/>; the
-/// registry's outermost ring turns that into
-/// <c>TraconContentFilteredException</c>. Throwing instead makes the
-/// circuit breaker count a healthy provider as failing.
+/// registry's outermost ring turns an empty one into
+/// <c>TraconContentFilteredException</c> and lets one that already has text through
+/// with a <see cref="RunEventCustomTypes.OutputFiltered"/> run event. Throwing instead
+/// makes the circuit breaker count a healthy provider as failing.
 /// </para>
 /// <para>
 /// A response the model stopped at its output token limit is not an exception

@@ -144,7 +144,8 @@ debug.
 
 Detection lives in a shared decorator inside `Tracon.Core`; if the model produced
 text before being cut off (a partial response), no error is thrown — there is a
-usable answer in hand.
+usable answer in hand. The run completes and records a `tracon.output.filtered` event,
+so the record says why the answer ends where it does.
 
 ## Known behavioral differences
 
