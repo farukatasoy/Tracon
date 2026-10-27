@@ -554,8 +554,9 @@ A function node is different on the first row: its output goes to the next node,
 A refused call does not run. Its result is the limit and the setting to raise, followed by "The tool
 call did not start." No model reads that sentence, because the next model call is refused: it goes to
 the event stream and to the run record. The call is recorded as failed, with that sentence as its error,
-whether the run streams or not: the tool chain writes each call where it happens, so a queued run that
-fails at its next model call still lists the calls it made, the refused one included
+whether the run streams or not: the tool chain notes each call where it happens and the run writes the
+rows when it closes, so a queued run that fails at its next model call still lists the calls it made, the
+refused one included
 ([a failed run keeps its calls](/concepts/runs/#tool-calls-are-recorded-where-they-happen)).
 The run itself ends as it always did: the next model call is refused, and the run is
 `Failed` with error type `run_budget_exceeded`. The refusal needs no setting, and a host whose run

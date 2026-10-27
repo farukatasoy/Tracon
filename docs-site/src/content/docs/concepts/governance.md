@@ -267,11 +267,6 @@ written *before* the change is applied, and a write failure aborts the change:
 | An answer to a workflow's pending request that starts a run, [in either response mode](/concepts/workflow-answers/) | The answer is refused with `500`; no run starts and nothing is recorded |
 | An answer to a tool's request for user input ([MCP elicitation](/concepts/tools/#a-server-asks-the-user-for-input)) | The answer is refused; the tool call does not run again. The entry names the fields, never a value |
 
-A script that is refused writes `script.denied`, with the skill and the script as the `entity` and
-the reason in `after`: no grant, a script that changed since the grant, an interpreter that is not
-allowed, arguments over the limit, or a run tree whose budget is spent. That entry is best-effort,
-and the script does not start whether or not it is written.
-
 **Best-effort — the operation continues and the record can be missing.** Every other
 audit write takes this path: the failure is logged as a warning, and the call carries
 on. Either way the failure increments `tracon.audit.write_failures`, tagged `refused`
