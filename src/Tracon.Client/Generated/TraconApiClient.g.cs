@@ -22974,6 +22974,20 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("cachedInputCostPerMillionTokens")]
         public double? CachedInputCostPerMillionTokens { get; set; } = default!;
 
+        /// <summary>
+        /// The cost per million input tokens that were written into the provider's prompt cache
+        /// <br/>with the SHORT time to live (Anthropic: five minutes). For reporting only.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteCostPerMillionTokens")]
+        public double? CacheWriteCostPerMillionTokens { get; set; } = default!;
+
+        /// <summary>
+        /// The cost per million input tokens that were written into the provider's prompt cache
+        /// <br/>with the LONG time to live (Anthropic: one hour). For reporting only.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteLongCostPerMillionTokens")]
+        public double? CacheWriteLongCostPerMillionTokens { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -24155,6 +24169,30 @@ namespace Tracon.Client.Generated
         public double? CachedInputPricePerMillionTokens { get; set; } = default!;
 
         /// <summary>
+        /// Gets the cost of the input tokens that were written into the provider's prompt cache,
+        /// <br/>both time-to-live classes together, or `null` when no cache write was
+        /// <br/>priced.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteCost")]
+        public double? CacheWriteCost { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the price, per million tokens, of a cache write with the SHORT time to live that
+        /// <br/>produced part of `CacheWriteCost`. `null` when no such price
+        /// <br/>was applied — it is undefined, or the provider reported no short-lived write — or when
+        /// <br/>the run's tokens were priced at more than one model.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWritePricePerMillionTokens")]
+        public double? CacheWritePricePerMillionTokens { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the price, per million tokens, of a cache write with the LONG time to live that
+        /// <br/>produced part of `CacheWriteCost`. Same rules as `CacheWritePricePerMillionTokens`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteLongPricePerMillionTokens")]
+        public double? CacheWriteLongPricePerMillionTokens { get; set; } = default!;
+
+        /// <summary>
         /// Gets the currency, taken from `Tracon:Pricing:Currency`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("currency")]
@@ -25289,6 +25327,20 @@ namespace Tracon.Client.Generated
         public long CachedInputTokens { get; set; } = default!;
 
         /// <summary>
+        /// The input tokens that were written into the provider's prompt cache with the SHORT
+        /// <br/>time to live. Counted INSIDE `InputTokens`, so the two must not be added together.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteInputTokens")]
+        public long CacheWriteInputTokens { get; set; } = default!;
+
+        /// <summary>
+        /// The input tokens that were written into the provider's prompt cache with the LONG
+        /// <br/>time to live. Counted INSIDE `InputTokens`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteLongInputTokens")]
+        public long CacheWriteLongInputTokens { get; set; } = default!;
+
+        /// <summary>
         /// The tokens spent on reasoning. Counted INSIDE `OutputTokens`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("reasoningTokens")]
@@ -25508,6 +25560,12 @@ namespace Tracon.Client.Generated
         public double? CachedInputCost { get; set; } = default!;
 
         /// <summary>
+        /// Gets the total cache-write cost across the tree.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteCost")]
+        public double? CacheWriteCost { get; set; } = default!;
+
+        /// <summary>
         /// Gets the currency.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("currency")]
@@ -25577,6 +25635,20 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("audioOutputTokens")]
         public long? AudioOutputTokens { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the input tokens the provider wrote into its prompt cache with the SHORT time to
+        /// <br/>live (Anthropic: five minutes). Counted INSIDE `InputTokens`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteInputTokens")]
+        public long? CacheWriteInputTokens { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the input tokens the provider wrote into its prompt cache with the LONG time to
+        /// <br/>live (Anthropic: one hour). Counted INSIDE `InputTokens`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cacheWriteLongInputTokens")]
+        public long? CacheWriteLongInputTokens { get; set; } = default!;
 
     }
 
