@@ -92,15 +92,15 @@ internal static class SamplingSupportCheck
     /// <param name="Provider">The provider name.</param>
     /// <param name="Value">What the binding sets, such as <c>is 3000000000</c> or <c>has 5 entries</c>.</param>
     /// <param name="Accepted">What the provider accepts, such as <c>only values from 0 to 9</c> or <c>at most 4</c>.</param>
-    internal sealed record OutOfRange(SamplingFields Field, string Provider, string Value, string Accepted) : Finding(Field, Provider)
+    /// <param name="Remedy">What to do about it, such as <c>Use a seed inside that range.</c>.</param>
+    internal sealed record OutOfRange(SamplingFields Field, string Provider, string Value, string Accepted, string Remedy) : Finding(Field, Provider)
     {
         /// <inheritdoc />
         public override string Code => ValidationCodes.SamplingValueOutOfRange;
 
         /// <inheritdoc />
         public override string Describe()
-            => $"{nameof(ModelBinding)}.{Member} {Value}, but the '{Provider}' provider accepts {Accepted}. " +
-               $"Use a value the provider accepts.";
+            => $"{nameof(ModelBinding)}.{Member} {Value}, but the '{Provider}' provider accepts {Accepted}. {Remedy}";
     }
 
     /// <summary>
@@ -223,7 +223,8 @@ internal static class SamplingSupportCheck
                 SamplingFields.Seed,
                 descriptor.Name,
                 $"is {seed.ToString(CultureInfo.InvariantCulture)}",
-                DescribeSeedRange(limits)));
+                DescribeSeedRange(limits),
+                "Use a seed inside that range."));
         }
 
         if ((checkable & SamplingFields.StopSequences) != SamplingFields.None
@@ -236,7 +237,8 @@ internal static class SamplingSupportCheck
                 SamplingFields.StopSequences,
                 descriptor.Name,
                 $"has {stops.Count.ToString(CultureInfo.InvariantCulture)} {(stops.Count == 1 ? "entry" : "entries")}",
-                $"at most {maximum.ToString(CultureInfo.InvariantCulture)}"));
+                $"at most {maximum.ToString(CultureInfo.InvariantCulture)}",
+                "Remove entries from the list."));
         }
     }
 
