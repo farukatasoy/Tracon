@@ -307,12 +307,13 @@ separate reason for a full window) and `"content_filter"` for an answer a conten
 stopped after it wrote text. The message item that was cut reads `"incomplete"` too. On
 a stream the last event is `response.incomplete` in place of `response.completed`, as on
 OpenAI's own stream, and it carries the final `response`. The `response.output_item.done`
-event of the cut message carries the same status, except when the message was closed
-before the stream ended (a reasoning item that follows the text, for one); the final
-`response` is always complete and right. The OpenAI Python SDK's
-`stream.get_final_response()` returns only after `response.completed`, against OpenAI
-itself too, so read the `response` of the last event instead. A complete answer keeps
-`completed` and has no `incomplete_details`. The same rules as `finish_reason` apply:
+event of the cut message carries the same status, unless that item was already closed
+before the stream ended (a reasoning item that follows the text does it). A closed item
+keeps `completed` in its own event; the final `response` is whole and accurate.
+The OpenAI Python SDK's `stream.get_final_response()` raises `RuntimeError` when a
+stream ends in `response.incomplete`, against OpenAI itself too, so read the `response`
+of the last event instead. A complete answer keeps `completed` and has no
+`incomplete_details`. The same rules as `finish_reason` apply:
 only the answer's final model call decides, a tool turn or an earlier loop iteration that
 hit the limit does not count, and the status does not depend on run recording. A filter
 that stopped the model before it wrote anything is an error, not an `incomplete` answer.

@@ -894,8 +894,8 @@ the output limit and set temperature to `1` or leave it out.
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes
 with a `tracon.output.truncated` run event, which a streaming client also receives as a
-`custom` frame before `done`, and `/v1/chat/completions` reports
-`finish_reason: "length"`. Raise `MaxOutputTokens`. When the message
+`custom` frame before `done`. `/v1/chat/completions` reports `finish_reason: "length"`
+and `/v1/responses` reports `incomplete`. Raise `MaxOutputTokens`. When the message
 and the event's `cause` name the **context window** instead (Anthropic's
 `model_context_window_exceeded`), the conversation filled the window: shorten it with
 context compaction or use a model with a larger window.

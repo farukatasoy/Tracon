@@ -112,7 +112,9 @@ internal static class OpenAIResponsesEndpoints
                 "message item that was cut is 'incomplete' too. An answer with text that the provider's " +
                 "content filter stopped is incomplete with the reason 'content_filter'; an answer with no " +
                 "content at all fails the request instead. On a stream the last event is " +
-                "'response.incomplete' in place of 'response.completed'. Only the final model call of the " +
+                "'response.incomplete' in place of 'response.completed' and its 'response' is the truth: a " +
+                "message item that was already closed before the stream ended keeps 'completed' in its own " +
+                "'response.output_item.done' event. Only the final model call of the " +
                 "answer decides: a tool turn that hit the limit before the answer does not count.")
             // One of two shapes, depending on the 'stream' flag in the body:
             // a JSON body (raw JsonElement, the schema comes from MAF's

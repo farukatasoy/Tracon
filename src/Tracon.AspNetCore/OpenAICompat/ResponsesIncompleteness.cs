@@ -111,10 +111,12 @@ internal static class ResponsesIncompleteness
 /// endpoint can log that the status stayed <c>completed</c>.
 /// </para>
 /// <para>
-/// <strong>A limit.</strong> A message item MAF closed before the source ended keeps <c>completed</c> in
-/// its own <c>response.output_item.done</c> frame: the finish reason was not known yet. It happens when
-/// another item follows the text (measured with a Gemini stream that reports its reasoning after the
-/// answer). The terminal event is the source of truth: its <c>output</c> marks the last message item.
+/// <strong>A limit.</strong> A message item MAF had already closed before the source ended keeps
+/// <c>completed</c> in its own <c>response.output_item.done</c> frame: the finish reason was not known
+/// yet, and a frame written earlier is never touched. MAF closes an item when it starts the next one; the
+/// measured case is another kind of content that follows the text (a Gemini stream that reports its
+/// reasoning after the answer). The terminal event is the source of truth: its <c>output</c> marks the
+/// last message item.
 /// </para>
 /// <para>One instance serves one response; it is not shared.</para>
 /// </remarks>
