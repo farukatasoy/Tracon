@@ -5,15 +5,15 @@
 > kayıtlar burada durmaz; tam metinleri git'tedir (§7). İş kalemi buraya değil,
 > [`ADAYLAR.md`](ADAYLAR.md)'ye yazılır.
 >
-> **Son güncelleme:** 2026-10-27 (`preview.5` yayımlandı, BL-059 kapandı; `preview.6` kesildi; ölçümler satırında tarihli)  
-> **Çalışma modu:** `nuget-danismani` — yayın kararı (`1.0.0-preview.6`)  
-> **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.5` (2026-10-27). Etiket koşumu
-> 2026-10-17'de kırılgan bir testte düşmüş ve on gün yeniden koşulmamıştı; ata
-> kalan etiket 25 `main` koşumunu `Paketle`'de durdurdu (BL-059, kapandı). Yeniden
-> koşum (UR-014 A) yayımladı; `main` taban restore'u yeniden geçer. **`1.0.0-preview.6`
-> kesildi** (Faz 219–250, `Tracon.AGUI` ilk yayın): yerel prova yeşil; etiket,
-> 131 commit'in ilk Linux koşumundan (`40349718059` attempt 2) sonra itilir.
-> Freeze yolu: ölçüt 1–3 ✅ (Faz 212–217);
+> **Son güncelleme:** 2026-10-27 (`preview.5` ve `preview.6` yayımlandı, site yayında; ölçümler satırında tarihli)  
+> **Çalışma modu:** `nuget-danismani` — yayın sonrası (`1.0.0-preview.6`)  
+> **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.6` (2026-10-27; Faz 219–250,
+> `Tracon.AGUI` ilk yayın). Aynı gün `preview.5` de çıktı: etiketi 2026-10-17'de
+> kırılgan bir testte düşmüş, on gün yeniden koşulmamış ve 25 `main` koşumunu
+> durdurmuştu (BL-059, kapandı). `tracon.dev` `preview.6`'yı anlatır. Sıradaki
+> işler: F-710 (sürüm notları sayfası `preview.7`'den önce bölünür), F-709 (yarım
+> etiketi yerel kapı görmez), F-708 (kırılgan test), A-71 (sürüm metni kapısı),
+> A-66 (`NPM_TOKEN` en geç 2026-11-26). Freeze yolu: ölçüt 1–3 ✅ (Faz 212–217);
 > UR-012 = B (2026-10-19): ölçüt en iyi RC'dir, `rc.1`'e kadar kırıcılık ölçüt
 > değildir. Ölçüt 5'ten F-290 (Faz 218) ve F-559 (Faz 237–238) kapandı; F-560
 > MAF GA'sını bekler (UR-013). GA hâlâ ❌ (`NU5104`, ER-001). UR-004 = A:
@@ -23,14 +23,15 @@
 
 | Ne | Değer | Kaynak |
 |---|---|---|
-| nuget.org | 2026-10-27: 20/20 paket `1.0.0-preview.5` (flat container push'tan 574 sn sonra listeledi). `Tracon.AGUI` yok; ilk yayını `preview.6` | flat container |
-| npm | 2026-10-27: `@tracon/client` `latest` = `next` = `1.0.0-preview.5` | `npm view @tracon/client dist-tags` |
-| `v1.0.0-preview.5` | 2026-10-27: yayımlandı. Etiket koşumu `39061203012` attempt 2: yedi işin yedisi yeşil (kırılgan F-708 bu kez geçti); GitHub release pre-release. İçerik `1165e16f` (2026-10-17, Faz 212–218) | Actions API · `gh release view` |
+| nuget.org | 2026-10-27: 21/21 paket `1.0.0-preview.6`, `Tracon.AGUI` dahil (flat container push'tan 501 sn sonra listeledi); `preview.5` 20/20 | flat container |
+| npm | 2026-10-27: `@tracon/client` `latest` = `next` = `1.0.0-preview.6` | `npm view @tracon/client dist-tags` |
+| `v1.0.0-preview.6` | 2026-10-27: `0e68a61c`. Etiket koşumu `40512645256`: yedi işin yedisi yeşil; GitHub release pre-release. Etiketten önce aynı kodun Linux tam testi `40349718059` attempt 2'de yeşil (24 dk) | Actions API · `gh release view` |
+| `v1.0.0-preview.5` | 2026-10-27: yayımlandı. Etiket koşumu `39061203012` attempt 2: yedi işin yedisi yeşil (kırılgan F-708 bu kez geçti). İçerik `1165e16f` (2026-10-17, Faz 212–218) | Actions API · `gh release view` |
 | Deprecation — nuget.org | preview.1, .2, .3: 20/20 pakette ✅ | registration API, `deprecation` alanı |
 | Deprecation — npm | preview.1 ve .2 ✅ (mesaj preview.3'ü gösterir); **preview.3 deprecate edilmedi** | `npm view @tracon/client@<sürüm> deprecated` |
-| CI'ın gördüğü | 2026-10-27: `origin/main` = `af816fc6`. Yeniden koşum `40349718059` attempt 2 `Paketle`'yi geçti (taban `preview.5` restore olur); Linux tam test o koşumda. Kesim ve üç kayıt commit'i etiketle tek push'u bekler. Dependabot PR'ları kırmızıydı (nedeni okunmadı) | Actions API |
-| Canlı site | 2026-10-27: `tracon.dev` `1.0.0-preview.5` der; kurulum komutu artık çözülür. `preview.6` sitesi etiket yayımlandıktan sonra `scripts/site-deploy.sh` ile çıkar; changelog sayfası 131 792 B gzip, tavan 150 000 B (F-710) | `curl` · `site-deploy.sh --dry-run` |
-| Bekleyen sürüm notu | 2026-10-27: `[1.0.0-preview.6] - 2026-10-27` kesildi. Yerel prova (`kapi.py yayin --kuru --surum 1.0.0-preview.6`, 432 sn) yeşil: 21 paket, 27 kırıcı tip ve 27 contract testi notta, HTTP'de 6 kırılma notta, 7 sample + 2 AOT smoke. SSE, telemetri, yapılandırma, hata kodu ve CLI anlık görüntülerinin ilk kaydıdır: taban etikette yoklar, karşılaştırma `preview.7`'de başlar | `CHANGELOG.md` · prova çıktısı |
+| CI'ın gördüğü | 2026-10-27: etiket sonrası `main` iki kez kırmızı oldu, ikisi de yayın sonrası adımdı: site ağırlık kapısı (CI, aynı commit'i yerelden ~56 B ağır ölçer; üç sayfa bölündü, `eb0341f3`) ve `Tracon.AGUI`'nin bayat `TraconPackageFirstRelease` bayrağı (kaldırıldı). Dependabot PR'ları kırmızıydı (nedeni okunmadı) | Actions API |
+| Canlı site | 2026-10-27: `tracon.dev` `1.0.0-preview.6` der; kurulum komutu çözülür; AG-UI ve üç bölünmüş sayfa yayında. Changelog sayfası 131 792 B gzip, tavan 150 000 B (F-710) | `curl` · `site-deploy.sh` |
+| Son sürüm notu | `[1.0.0-preview.6] - 2026-10-27`: 21 paket, 27 kırıcı tip ve 27 contract testi notta, HTTP'de 6 kırılma notta. SSE, telemetri, yapılandırma, hata kodu ve CLI anlık görüntülerinin ilk kaydıdır; karşılaştırma `preview.7`'de başlar | `CHANGELOG.md` · prova çıktısı |
 | Upstream | MAF `1.25.0` + MEAI `10.11.0` pinli (Faz 214). Hosting ailesi ve `A2A.AspNetCore` için kararlı sürüm **yok** | nuget.org flat container |
 | Public yüzey | `PublicAPI.Shipped.txt` boş — yüzey donmadı | K-603 |
 | Dış geri bildirim | İnsan kaynaklı issue 0, yıldız 0 | GitHub API |
@@ -164,9 +165,13 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
    koşumu: build ×2 → prova → npm → NuGet → GitHub release. Koşum düşerse:
    kırılgan test → "Re-run failed jobs"; kod kusuru → etiketi sil, düzelt,
    etiketi yeni commit'e at.
-4. **Doğrula:** nuget.org 20/20 (flat container), npm dist-tag, release
-   sayfası, `MT-PKG-160`.
-5. 👤 **Site:** `scripts/site-deploy.sh` etiketten **sonra**.
+4. **Doğrula:** nuget.org'da paket kümesinin tamamı (flat container; indeksleme
+   push'tan ~10 dk sürer), npm dist-tag, release sayfası, `MT-PKG-160`. İlk kez
+   yayımlanan paketin `TraconPackageFirstRelease` bayrağı **hemen** kaldırılır:
+   taban artık bu etikettir ve bayat bayrak sonraki her `main` koşumunu
+   `Paketle`'de durdurur (2026-10-27, `Tracon.AGUI`).
+5. 👤 **Site:** `scripts/site-deploy.sh` paketler nuget.org'da göründükten **sonra**;
+   önce yayımlanırsa site var olmayan bir sürümün kurulumunu öğretir.
 6. **Güvenlik içerikli sürümse:** OP-008 deprecation — nuget.org arayüzden
    (herkese açık API yok), npm `npm deprecate` ile.
 7. **İlk 72 saat:** restore/build sorunu, issue ve advisory izlenir; 48–72
