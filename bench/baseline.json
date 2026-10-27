@@ -1,17 +1,17 @@
 {
-  "measuredAt": "2026-10-14T00:46:06Z",
+  "measuredAt": "2026-10-27T22:51:40Z",
   "benchmarks": {
     "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.CacheHit": {
       "allocatedBytes": 0,
-      "meanNanoseconds": 31.847131427257292
+      "meanNanoseconds": 29.22759382213865
     },
     "Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
       "allocatedBytes": 112,
-      "meanNanoseconds": 76.98031955498915
+      "meanNanoseconds": 80.53496107459068
     },
     "Tracon.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
-      "allocatedBytes": 48184,
-      "meanNanoseconds": 955813.5096197019
+      "allocatedBytes": 49032,
+      "meanNanoseconds": 1013827.8371394231
     }
   }
 }
