@@ -581,9 +581,11 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 /**
  * One recorded tool call.
  *
- * Duration is only measured for streaming runs: in a non-streaming run every
- * message arrives at once, so the real time between the call and its result
- * cannot be read. Writing a near-zero number would be worse than writing none.
+ * Duration is measured for every call that went through the tool chain, whether
+ * the run streams or not. A call outside the chain (a hosted tool, for example)
+ * has one only in a streaming run: in a non-streaming run every message arrives
+ * at once, so the real time between the call and its result cannot be read.
+ * Writing a near-zero number would be worse than writing none.
  */
 function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
   const t = useT();
