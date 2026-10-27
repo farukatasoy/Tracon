@@ -100,19 +100,117 @@ Beş soru: iptal — yeni yol yok · eşzamanlılık — tanımlayıcılar deği
 
 ## Açık Sorular
 
-| # | Soru | Seçenekler | Öneri |
+Üçü de uygulamada kapandı (2026-10-27): her soruda **önerilen** seçenek alındı.
+
+| # | Soru | Seçenekler | Karar |
 |---|---|---|---|
-| 1 | Shipped katalog örneği (`samples/Tracon.Api` `appsettings`) `gpt-5.4-mini` için `RejectedSamplingFields: "StopSequences"` yazsın mı? | A: evet, ölçülen tek ret · B: hayır, katalog tüketicinin | **A** — örnek, ölçülen gerçeği gösterir; K-032 kodda liste yasaklar, örnek yapılandırma yasak değildir |
-| 2 | Sınırlar `GET /api/models` yanıtında (`ModelProviderDescriptor`) görünsün mü? | A: evet, konsol sınırı ipucu olarak gösterir · B: yalnız doğrulama bulgusu | **B** bu fazda — yüzeyi büyütmeden; konsol ihtiyacı ölçülürse aday |
-| 3 | `MinSeed` gerekli mi (negatif tohum)? | A: `MinSeed` + `MaxSeed` · B: yalnız `MaxSeed` | **A** — Google `int` aralığı negatif değeri de sınırlar |
+| 1 | Shipped katalog örneği (`samples/Tracon.Api` `appsettings`) `gpt-5.4-mini` için `RejectedSamplingFields: "StopSequences"` yazsın mı? | A: evet, ölçülen tek ret · B: hayır, katalog tüketicinin | **A** — yalnız o satır değişti. Gerçek OpenAI'de ölçüldü: üç hesap modeli de `stop`'u `unsupported_parameter` ile reddeder |
+| 2 | Sınırlar `GET /api/models` yanıtında (`ModelProviderDescriptor`) görünsün mü? | A: evet, konsol sınırı ipucu olarak gösterir · B: yalnız doğrulama bulgusu | **B** — `ModelProviderDescriptor.SamplingLimits` `internal`'dır. `ModelRejectedFieldTests.The_model_list_carries_the_rejected_fields_as_names_and_no_limits` yanıtta sınır anahtarı olmadığını kilitler |
+| 3 | `MinSeed` gerekli mi (negatif tohum)? | A: `MinSeed` + `MaxSeed` · B: yalnız `MaxSeed` | **A** — Google için ölçüldü: `-2147483648` ve `-5` kabul edilir, `-2147483649` adaptörde sarar |
 
 ## Plandan Sapmalar
 
 > Çalışırken dolar; kapanışta commit mesajına taşınır.
 
+1. **Bayrak enum'unun tel biçimi planda yoktu.** Plan "`ModelDescriptor` ile kendiliğinden serileşir" dedi. `SamplingFields` tip düzeyinde `JsonStringEnumConverter<SamplingFields>` taşımazsa `GET /api/models` sayı yazar (`4`). Öznitelik eklendi. Bayrak enum'unun şeması `type: string`'dir (kapalı değer listesi yoktur); değer `"Seed, StopSequences"`, boş küme `"None"` olur. `Tracon.Client`'ta alan `string`'dir. Mutasyonla kanıtlandı: öznitelik kalkınca `The_model_list_carries_the_rejected_fields_as_names_and_no_limits` düşer.
+2. **Katalog okuyucusu tanımsız bitleri reddeder.** Plan "`Enum<SamplingFields>` ile okur" dedi; `ConfigurationValueBatch`'te bu okuyucu yoktu, eklendi. `ConfigurationValueKinds.TryEnum` bayrak enum'unda her sayıyı kabul eder: `"256"` hiçbir alan adlandırmayan bir küme olurdu ve hiçbir şeyi denetlemezdi. Katalog yolunda tanımsız bit okunamaz sayılır ve açılış durur (`TryDefinedEnum`). `TryEnum` değişmedi; virgüllü liste ve "okunamayan değer açılışı durdurur" kuralı aynı.
+3. **Üç bulgu türü, tek kural.** `SamplingSupportCheck.Unsupported` → `Find`. `Unsupported`, `RejectedByModel` ve `OutOfRange` ortak tabandan türer ve kendi kodunu taşır; doğrulayıcı `Code = finding.Code` yazar (`SamplingFieldUnsupportedCode` sabiti kalktı). Öncelik planda yoktu: yüzeyin düşürdüğü alan model reddi olarak ayrıca raporlanmaz; model reddi olan alan değer sınırı için ayrıca raporlanmaz. Çare tektir (alanı kaldır); ikinci bulgu yazarı yanlış çareye gönderirdi. `ModelCatalogLookup.Find`'a sağlayıcı listesi alan aşırı yükleme eklendi.
+4. **OpenAI sınırı yalnız OpenAI'nin kendi hizmeti için bildirilir.** Plan "diğer sağlayıcıların `StopSequences` adedi ölçülmeli" dedi. `UseOpenAICompatible()` sunucusu ya da özel `Endpoint`'li `openai` dört diziden fazlasını kabul edebilir; dar sınır çalışan tanımı reddederdi. Faz 245'in `IsOpenAIService` emsali kullanıldı. Sağlayıcı kiracıdan bağımsızdır; BYOK kiracının uç nokta geçersiz kılması da aynı sınıra tabidir (tasarım kabulü).
+5. **Anthropic sınır bildirmez.** Ölçüm: `stop_sequences` sınırı sayı değil **toplam karakter uzunluğudur** (2.500). `MaxStopSequences` sayıdır ve bunu söyleyemez; sınırsız bırakıldı. Sınıf aday olarak yazıldı (🟢 Entegrasyon Notları).
+6. **OpenAI'nin dört dizi sınırı gerçek `400` ile kanıtlanamadı.** Hesabın üç modeli (`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`) `stop`'u önce reddeder; model düzeyindeki ret dizi sayısı denetiminden önce gelir. Sınır belgelenmiş değerdir (OpenAI SDK XML'i ve OpenAI/Azure OpenAI v1 OpenAPI şeması: "Up to 4 sequences"). Plan bu yolu açıkça verdi ("belgelenmiş değer"). Azure için gerçek çağrı yoktur (kimlik yok).
+7. **Google için gerçek-adaptör wire testi eklendi.** Plan "Google için yerel sahte sunucu yok" diyen Faz 225 notuna dayanıyordu. Paylaşılan `StubHttpServer` yeter: `GoogleSamplingLimitsTests` gerçek Google.GenAI 1.26.1 adaptörünü yerel sunucuya karşı koşar ve gövdeyi okur (`3000000000` telde `-1294967296`). Faz 225 denetimi 🟢9 (decompile) böylece telden de doğrulandı.
+8. **Konsol: gönderim `Number` olarak kalır, yalnız güvenli aralıkta.** Plan "`Seed`'i JS `Number`'a çevirmeden metin olarak taşır" dedi. Form `seed`'i zaten metin tutuyordu; kusur gönderimdeki `Number(text)`'ti. Sunucu JSON sayısı bekler; `"9007199254740993"` dizisi göndermek sözleşmeyi değiştirirdi. Karar: metin önce doğrulanır, yalnız `Number.isSafeInteger` geçen metin sayıya çevrilir, geçmeyen hiçbir yolla gönderilmez. Yüklenen kayıtlı `seed` tarayıcının `JSON.parse`'ında zaten yuvarlanır; formun elindeki sayı kayıtlı değer **değildir**. Yuvarlanmış değer aynı denetimden geçip düşer, ayrı bir "yüklendi" bayrağı gerekmedi.
+9. **Ekran görüntüleri yeniden üretilmedi; kaynak damgası yenilendi.** UI kaynağı değişti, bu yüzden `docs-site/public/screenshots/.ui-source.sha256` değişti. Yakalanan hiçbir ekran değişmedi: yeni hata yalnız geçersiz `seed`'de çıkar ve alan kapalı `<details>` grubunun içindedir. Entegrasyonda diğer fazlar da UI kaynağını değiştirirse damga yeniden hesaplanır (`node docs-site/scripts/refresh-console-screenshot-stamp.mjs`).
+10. **`capabilities.md` değişmedi.** Agent haritası bütçenin içinde ama sınırda (`Tracon.AgentMap.md` 11.256 / 11.264 B); "Request fields" satırına eklenecek bir cümle bütçeyi aşar, bütçeyi yükseltmek ayrı bir ölçümlü karardır. Mevcut satır yeni kuralla çelişmez. 🟢 aday olarak yazıldı.
+11. **`PublicSurfaceBaselineTests` tabanı `Tracon.Abstractions` 408 → 409** (`SamplingLimits`). Tip sayısı ratchet'inin bilinçli artışıdır.
+12. **`docs-site` senkron denetiminde üç kural çıktı.** `arayuz` → `ui.md` ("Editor boundaries": seed sınırı) ve `cekirdek-kavram` → `concepts/agents.md` ("Compiling a definition": istek alanı denetimi) güncellendi. `paket-readme` → `packages.md` **değişmedi**: `packages.md` her paketin ne işe yaradığını yazar; OpenAI README'sine eklenen cümle bir katalog anahtarını anlatır ve `guides/model-providers.md` ile `reference/configuration.md` onu karşılar. Bir paketin rolü değişmedi.
+
 ## Bu Fazda Verilen Kararlar
 
 > Dört kategoriden biri `docs/KARARLAR.md`'ye; gerisi kapanış commit mesajına.
+
+- **Açık Sorular 1–3:** önerilen seçenekler alındı (A · B · A); ayrıntı "Açık Sorular" bölümündedir.
+- **Model reddi katalogdadır, değer sınırı sağlayıcıdadır.** Model reddi `ModelDescriptor.RejectedSamplingFields` (varsayılan `None`, denetlenmez); değer sınırı `ISamplingSupport.SamplingLimits` (varsayılan gövdeli üye, varsayılan sınırsız). İkisi de `SamplingSupportCheck`'in bulgusudur ve derleyici ile doğrulayıcı aynı kuralı okur.
+- **Yalnız ölçülmüş ya da belgelenmiş sınır bildirilir.** `google`: 32 bit `seed`, beş `stop`. `openai` (yalnız OpenAI'nin kendi hizmeti) ve `azure-openai`: dört `stop`. `anthropic` ve uyumlu sunucular: sınır yok.
+- **Sınır tele açılmaz** (Açık Soru 2 B). `GET /api/models` yalnız `rejectedSamplingFields` taşır.
+- **Konsol güvenli aralık dışı `seed`'i hiçbir yolla göndermez** ve yuvarlanmış okunan kayıtlı değerle kaydetmez; çare `seed`'i değiştirmek ya da silmektir. 64 bit `seed` HTTP API'den hâlâ kabul edilir.
+
+### Ölçümler (uygulama oturumu, 2026-10-27)
+
+Plan iki ölçümü bu oturuma bıraktı. Gerçek çağrılar küçük istemlerle yapıldı; `secret` hiçbir yere yazılmadı.
+
+| Ölçüm | Sonuç | Kanıt |
+|---|---|---|
+| Google.GenAI 1.26.1 `ChatOptions.Seed`'i nasıl daraltır | Denetimsiz `(int)` dönüşümü (`GoogleGenAIChatClient` decompile): `3000000000` telde `-1294967296`, `int.MaxValue + 1` → `int.MinValue`, `int.MinValue - 1` → `int.MaxValue` | `GoogleSamplingLimitsTests` — gerçek adaptör, yerel `StubHttpServer`, gövdeyi okur |
+| Gemini API `seed` | int32: `-5`, `-2147483648`, `2147483647` → `200`; `3000000000` → `400 Invalid value at 'generation_config.seed' (TYPE_INT32)` | 4 gerçek çağrı (`gemini-3.6-flash`, `maxOutputTokens: 8`) |
+| Gemini `stopSequences` | beş kabul; altı → `400 the number of stop_sequences must not exceed 5` | 1 gerçek çağrı (istek reddedildi, token üretilmedi) |
+| OpenAI Chat `stop` sayısı | Belgelenmiş: dört (OpenAI SDK XML'i ve OpenAI/Azure OpenAI v1 şeması: "Up to 4 sequences"). Gerçek `400` **kanıtlanamadı**: hesabın üç modeli `stop`'u hiç kabul etmez ve ret dizi sayısı denetiminden önce gelir | 3 gerçek çağrı (`400 unsupported_parameter`, token yok) |
+| Azure OpenAI `stop` sayısı | Belgelenmiş: dört (`azure-v1-v1-generated.json`, `OpenAI.StopConfiguration`). Gerçek çağrı yok (kimlik yok) | spec |
+| Anthropic `stop_sequences` | Sınır **toplam karakter uzunluğudur**, sayı değil: 10.000 öğe, 2.500 × 40 karakter, 2.501 × 5 karakter, 100 × 40 karakter ve 2.501 × 1 karakter → `400 stop_sequences: total length: 0..2,500`; 2.500 × 1 karakter ve 60 × 40 karakter → `200` | 7 gerçek çağrı (`claude-haiku-4-5-20251001`, `max_tokens: 1`) |
+| `ISamplingSupport` ikili uyumu | Base commit'in `Tracon.Abstractions.dll`'ine (tek üyeli arayüz) karşı derlenmiş bir sağlayıcı yeni `Tracon.Abstractions.dll`'in yanında yüklendi: `SamplingLimits` varsayılan gövdeden `SamplingLimits.None` döndü, istisna yok | Tek seferlik prob (iki küçük proje, scratchpad). Kalıcı karşılığı kaynak uyumu: `SamplingSupportCheckTests.A_provider_written_before_the_limits_member_existed_still_works_and_states_none` |
+| `gpt-5.4-mini` + `stop`, örnek uygulama | Satır varken `validate` reddeder, kayıt `400` döner; satır yokken kayıt `201`, run `Failed` ve günlükte `HTTP 400 (invalid_request_error: unsupported_parameter)` | `MT-OAI-098` (bkz. DoD kanıtı) |
+
+### Tüketici Yüzeyi Envanteri
+
+1. **`docs-site/` — elle yazılan:** `guides/model-providers.md` (§ *Sampling and tool-use fields*, katalog tablosu), `reference/configuration.md` (katalog anahtarı), `ui.md` (*Editor boundaries*), `concepts/agents.md` (*Compiling a definition*). **Üretilen, dokunulmadı:** `api/` (DocFX; yeni `///` blokları üretir), `http-api/` (OpenAPI'den). `capabilities.md` değişmedi (Plandan Sapma 10). `llms.txt`, `llms-full.txt` ve `Tracon.AgentMap.md` entegrasyonda `kapi.py uret` ile yenilenir.
+2. **Sevk edilen metin:** `SamplingLimits` (yeni), `ISamplingSupport.SamplingLimits`, `ModelDescriptor.RejectedSamplingFields` ve `SamplingFields` özetinin `///` blokları; `src/Tracon.OpenAI/README.md` (katalog cümlesi); `docs/openapi/tracon.json`, `packages/tracon-client/src/schema.ts`, `src/Tracon.Client/Generated/TraconApiClient.g.cs`; `docs/sozlesme/dogrulama-kodlari.txt` (iki kod) ve `yapilandirma.txt` (dört anahtar).
+3. **Yerel referans ve agent haritası:** yeni `Add*`/`Use*`/`Map*` giriş noktası yok, `<example>` gerekmedi; `buildTransitive` dosyaları değişmedi.
+
+### Entegrasyon Notları
+
+Aşağıdakiler entegratörün elle işleyeceği kalemlerdir (bu fazın yasak dosyaları).
+
+**(a) CHANGELOG — `[Unreleased]`**
+
+`### Added` altına:
+
+- **A catalog entry can name the request fields its model rejects: `ModelDescriptor.RejectedSamplingFields`.** A model decides what it accepts, not the API surface: `openai` sends `stop`, and the three models of the OpenAI account used for the measurement answer it with `400 unsupported_parameter`. `Tracon:Providers:{Provider}:Models:{n}:RejectedSamplingFields` takes a name or a comma-separated list (`"StopSequences"`, `"Seed, StopSequences"`); a name that does not exist, and a number with bits no field owns, stop startup. A definition that sets a listed field for that model, on the primary model or on a `Fallbacks` link, does not compile; `POST /api/agents/validate` reports `sampling_field_rejected_by_model` at the field's path (`model.stopSequences`) and a save returns `400`. Left out (`None`), the catalog checks nothing, as before. `GET /api/models` returns the value as a string of names, and `Tracon.Client` has it as `ModelDescriptor.RejectedSamplingFields` (`string`). The sample catalog marks `gpt-5.4-mini`.
+- **A provider can state the value ranges its API surface accepts: `ISamplingSupport.SamplingLimits`.** The new `SamplingLimits` record (`MinSeed`, `MaxSeed`, `MaxStopSequences`) states no limit by default, and the member has a default body, so an `ISamplingSupport` implementation written earlier compiles and runs unchanged. A definition whose seed or number of stop sequences is outside a stated range does not compile, validation reports `sampling_value_out_of_range` at the field's path, and a save returns `400`; a `Fallbacks` link is held to the range of its own provider. `google` states a 32-bit seed and five stop sequences; `openai` (OpenAI's own service, not a compatible server) and `azure-openai` state four stop sequences; `anthropic` and compatible servers state none. The Google.GenAI client library does not check the seed: it narrowed `3000000000` to `-1294967296` and the run went on. The ranges are not part of `GET /api/models`.
+
+`### Fixed` altına:
+
+- **The agent editor of the console no longer rounds a seed it cannot hold exactly.** A seed above 9007199254740991 in absolute value went out as another number (`9007199254740993` as `9007199254740992`), and a stored seed of that size came back rounded and was written back the same way. The editor checks the text before it makes a number: it shows the error in English and Turkish, marks the field invalid, and keeps Validate and Save off until the seed is replaced or cleared. The HTTP API still takes a 64-bit seed.
+
+`### Upgrading`: kalem yok (ekleme; `ISamplingSupport` üyesi varsayılan gövdelidir, kaynak ve ikili uyum korunur — `SamplingSupportCheckTests.A_provider_written_before_the_limits_member_existed_still_works_and_states_none`).
+
+**(b) K-* taslakları** (`docs/KARARLAR.md` §2, şablon §3; numarayı entegratör verir)
+
+| **K-NEW-1 — Model reddi katalogda `RejectedSamplingFields` ile yazılır; denetim yüzey desteği − model reddidir (F-606)** *(kategori: public-api)* | 2026-10-27 | Alternatif: kodda model adı listesi (K-032 yasaklar) · alan başına `bool?` bayrağı (her alan yeni public üye ister) · sağlayıcının `400`'üne bırakmak (tanım ilk run'da düşer). Ölçüldü: üç hesap modeli `stop`'u `400 unsupported_parameter` ile reddeder. Telde küme `"Seed, StopSequences"`, şema `type: string`. | Sağlayıcı model başına yetenek ucu sunarsa |
+| **K-NEW-2 — Değer sınırı `ISamplingSupport.SamplingLimits` ile bildirilir; yalnız ölçülmüş ya da belgelenmiş sınır yazılır (F-607)** *(kategori: public-api)* | 2026-10-27 | Alternatif: sınırı her sağlayıcının kendi içinde atması (üçüncü taraf yol kalmaz; kayıt defteri reddi maskeler — bakımcı kararı) · `IModelProvider`'a üye (kırıcı). Ölçüldü: Google.GenAI 1.26.1 `Seed`'i `(int)` ile daraltır (`3000000000` → `-1294967296`); Anthropic sayıyı değil toplam uzunluğu (2.500) sınırlar. | SDK daraltmayı kaldırırsa |
+
+**(c) Hafıza notları** (alan dosyasına; her biri kısa)
+
+- `docs/hafiza/aspnetcore-json.md` — *🚨 Bayrak (`[Flags]`) enum'u telde de `JsonStringEnumConverter<T>` ister ve şema `type: string` çıkar* (Faz 252): `SamplingFields` `ModelDescriptor.RejectedSamplingFields` ile telde public oldu. Tip düzeyinde öznitelik yoksa `GET /api/models` sayı yazar (`4`) ve typed C# testleri bunu görmez. Değer `"Seed, StopSequences"`; bayrak enum'unun OpenAPI şeması kapalı `enum` listesi taşımaz, istemcilerde `string` olur. Kapı: `ModelRejectedFieldTests` ham JSON okur; öznitelik kaldırılınca düşer (mutasyonla ölçüldü).
+- `docs/hafiza/secenek-baglama-ve-gizlilik.md` — *Katalog okuyucusu bayrak enum'unda tanımsız biti reddeder* (Faz 252): `ConfigurationValueKinds.TryEnum` bayrak enum'unda her sayıyı kabul eder (`"256"` boş bir küme olurdu). `ConfigurationValueBatch.Enum<T>` `TryDefinedEnum` kullanır. `ConfigurationValueReader<T>.Enum<T>` (seçenek bağlayıcıları) hâlâ yalnız `TryEnum` kullanır; iki yol aynı kurala bağlanabilir (🟢 aday).
+- `docs/hafiza/openai-saglayici.md` — *🚨 OpenAI'de model düzeyi `unsupported_parameter` dizi sayısı denetiminden ÖNCE gelir* (2026-10-27, Faz 252): hesabın üç modeli beş `stop` ile de aynı `400 unsupported_parameter` verdi; dört dizi sınırı gerçek `400` ile kanıtlanamadı, belgelenmiş değerdir. `stop` kabul eden bir model erişilirse `MT-OAI-098`'in yanına eklenir. Sınır yalnız `api.openai.com` için bildirilir: uyumlu sunucu daha fazlasını kabul edebilir (`IsOpenAIService`).
+- `docs/hafiza/model-boru-hatti.md` — *🚨 Bir SDK adaptörü sayıyı denetimsiz daraltabilir* (Faz 252): Google.GenAI 1.26.1 `ChatOptions.Seed`'i (`long?`) `(int)` ile daraltır; `3000000000` telde `-1294967296` olur ve run başarıyla biter. Gemini API `seed`'i int32 ister. Gerçek adaptör gövdesi yerel `StubHttpServer`'a karşı okunur (`GoogleSamplingLimitsTests`); bir SDK yükseltmesi daralmayı kaldırırsa ilk test düşer. Anthropic `stop_sequences` sayıyı değil toplam uzunluğu (2.500 karakter) sınırlar.
+- `docs/hafiza/agent-derleme-ve-onbellek.md` — *`SamplingSupportCheck` üç bulgunun tek kuralıdır* (Faz 252): `Unsupported` (yüzey düşürür) > `RejectedByModel` (katalog) > `OutOfRange` (`SamplingLimits`). Bir alan yalnız en temel bulguyu alır. Yeni bir tür bulgu kendi `Code`'unu `ValidationCodes`'ta ve `ValidationCodeSnapshotTests` dosyasında ister; doğrulayıcı `finding.Code` yazar.
+- `docs/hafiza/frontend.md` — *🚨 Sunucunun 64 bit alanı tarayıcıda `JSON.parse`'ta yuvarlanır* (Faz 252): `seed` `long?`; `9007199254740993` yanıtta `9007199254740992` olur ve form onu kayıtlı değer sanır. Gönderimdeki `Number(text)` aynı yuvarlamayı yapar. `isValidSeed` metni `Number.isSafeInteger` ile denetler; yuvarlanmış yüklenen değer aynı denetimden düşer, ayrı bayrak gerekmez. Konsola başka bir `long` alanı girerse aynı sınıf.
+
+**(d) MIMARI / MAF dokümanları**
+
+- `MIMARI*.md`: değişiklik gerekmez (`ISamplingSupport`, katalog ve doğrulama kodları orada anılmıyor; `git grep ISamplingSupport docs/MIMARI*.md` boş).
+- `docs/MAF-KAPSAMA.md` §5 "`ChatOptions` alanları" satırı: "sağlayıcı desteği `ISamplingSupport`" cümlesine "; model reddi `ModelDescriptor.RejectedSamplingFields`, değer sınırı `SamplingLimits`" eklenir.
+- `docs/MAF-GENISLEME-NOKTALARI.md` § *Sürüm damgası*: Google.GenAI 1.26.1 satırına "`Seed` `(int)` ile denetimsiz daraltılır (2026-10-27, wire testi `GoogleSamplingLimitsTests`)" eklenir.
+
+**(e) 🟢 Aday bulgular** (yalnız rapor; uygulanmadı)
+
+1. **Anthropic toplam uzunluk sınırı:** `stop_sequences` toplam 2.500 karakterle sınırlıdır; `SamplingLimits` bunu söyleyemez. Bir `MaxStopSequenceCharacters` üyesi eklenebilir.
+2. **Hosted tool'un model düzeyi reddi:** `ModelDescriptor`'a `RejectedHostedTools` (ya da `IHostedToolSupport` ile uyumlu bir küme) — plan zaten kapanışta aday dedi (`hafiza/hosted-tool.md:80`).
+3. **Konsol ipucu:** `rejectedSamplingFields` artık telde. Editör, seçili modelin reddettiği alanı önceden gösterebilir; ihtiyaç ölçülürse sınırlar da `GET /api/models`'e açılır (Açık Soru 2).
+4. **Agent haritası bütçesi sınırda** (11.256 / 11.264 B): `capabilities.md` bir cümle bile büyütemez. Bütçe kararı ya da satır kısaltması gerekir.
+5. **İki enum okuyucusu iki kural:** `ConfigurationValueReader<T>.Enum<T>` bayrak enum'unda tanımsız biti hâlâ kabul eder (doğrulayıcıya bırakılmış), `ConfigurationValueBatch.Enum<T>` reddeder.
+6. **64 bit alanlar konsolda:** `seed` dışında konsolun okuduğu 64 bit alanlar (sayaçlar, tutarlar) `JSON.parse`'ta güvenli aralık dışında yuvarlanır; ölçülmedi.
+7. **OpenAI dört dizi sınırının gerçek kanıtı:** `stop` kabul eden bir model erişilirse `array too long` `400`'ü ile kanıtlanır.
+8. **`dokuman-bakim.py --denetle` taban commit'te de kırmızı:** `reference/versioning.md` → `/reference/changelog/` dört kırık bağlantı (sayfa üretilir); bu faz değiştirmedi.
+
+**(f) Birleştirme ve üretim notları**
+
+- `src/Tracon.Abstractions/PublicAPI.Unshipped.txt`: üç yerel ekleme (`ISamplingSupport.SamplingLimits`, `ModelDescriptor.RejectedSamplingFields`, `SamplingLimits` bloğu; `override`/`static` satırları `RunVersionStatistics` komşuluğunda). `tests/Tracon.Core.UnitTests/Architecture/public-surface-baseline.txt` `Tracon.Abstractions=409`: diğer fazlar tip eklerse sayıyı `TRACON_PUBLIC_SURFACE_REFRESH=1` ile yeniden hesapla.
+- Üretilen dosyalar birleştirmeden sonra aynı zincirle yenilenir: `docs/openapi/tracon.json` (`TRACON_OPENAPI_REFRESH=1`), `packages/tracon-client/src/schema.ts` (`npm run generate`), `TraconApiClient.g.cs` (NSwag zinciri), `docs/sozlesme/dogrulama-kodlari.txt` ve `yapilandirma.txt` (`TRACON_SOZLESME_REFRESH=1`).
+- `docs-site/public/screenshots/.ui-source.sha256`: UI kaynağını başka faz da değiştirdiyse `node docs-site/scripts/refresh-console-screenshot-stamp.mjs` ile yeniden hesapla.
+- `docs-site/public/llms.txt`, `llms-full.txt` ve `Tracon.AgentMap.md`: `kapi.py uret` (site sayfalarım değişti, `llms-full.txt` bayat kalır).
+- Sıcak dosyalar: `ModelDescriptor.cs` (yalnız `SupportsSampling`'in altı), `ProviderRegistrationCore.BindModels` (yalnız `SupportsSampling`'in altı), `ProviderRegistrationCoreTests` ve `UnreadableProviderConfiguration.AValidCatalogEntryBindsEveryField` (aynı komşuluk), `samples/Tracon.Api/appsettings.json` (yalnız `gpt-5.4-mini` satırı), `docs/manuel-test/00-INDEKS.md` (yalnız `OAI`, `PROV`, `UIAG` satırları).
 
 ## Süreç Ölçümü
 
