@@ -22956,6 +22956,13 @@ namespace Tracon.Client.Generated
         public bool? SupportsSampling { get; set; } = default!;
 
         /// <summary>
+        /// The request fields this model rejects although its provider's API surface sends them;
+        /// <br/>`None` when the catalog names none.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("rejectedSamplingFields")]
+        public string RejectedSamplingFields { get; set; } = default!;
+
+        /// <summary>
         /// The cost per million input tokens. For reporting only.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("inputCostPerMillionTokens")]

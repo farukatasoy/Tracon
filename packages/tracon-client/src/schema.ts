@@ -5606,6 +5606,11 @@ export interface components {
              */
             supportsSampling?: null | boolean;
             /**
+             * @description The request fields this model rejects although its provider's API surface sends them;
+             *     `None` when the catalog names none.
+             */
+            rejectedSamplingFields?: components["schemas"]["SamplingFields"];
+            /**
              * Format: double
              * @description The cost per million input tokens. For reporting only.
              */
@@ -7084,6 +7089,12 @@ export interface components {
              */
             totalTokens?: number | string;
         };
+        /**
+         * @description The request fields of ModelBinding whose support depends on the
+         *     provider's API surface. A set is written as member names separated by commas, such as
+         *     `Seed, StopSequences`; the empty set is `None`.
+         */
+        SamplingFields: string;
         /** @description A semantic search hit. */
         SearchKnowledgeHit: {
             /** @description Identifier of the source the chunk belongs to. */
@@ -9152,6 +9163,7 @@ export type RunTreeCost = components['schemas']['RunTreeCost'];
 export type RunUsage = components['schemas']['RunUsage'];
 export type RunUserStatistics = components['schemas']['RunUserStatistics'];
 export type RunVersionStatistics = components['schemas']['RunVersionStatistics'];
+export type SamplingFields = components['schemas']['SamplingFields'];
 export type SearchKnowledgeHit = components['schemas']['SearchKnowledgeHit'];
 export type SearchKnowledgeRequest = components['schemas']['SearchKnowledgeRequest'];
 export type SessionBranchRequest = components['schemas']['SessionBranchRequest'];

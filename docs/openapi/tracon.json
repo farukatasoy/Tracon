@@ -13821,6 +13821,10 @@
             ],
             "description": "Whether the model accepts the sampling parameters \u0060temperature\u0060 and\n\u0060topP\u0060; \u0060null\u0060 when the catalog does not say."
           },
+          "rejectedSamplingFields": {
+            "description": "The request fields this model rejects although its provider\u0027s API surface sends them;\n\u0060None\u0060 when the catalog names none.",
+            "$ref": "#/components/schemas/SamplingFields"
+          },
           "inputCostPerMillionTokens": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
@@ -16713,6 +16717,10 @@
           }
         },
         "description": "A definition version\u0027s run summary."
+      },
+      "SamplingFields": {
+        "type": "string",
+        "description": "The request fields of ModelBinding whose support depends on the\nprovider\u0027s API surface. A set is written as member names separated by commas, such as\n\u0060Seed, StopSequences\u0060; the empty set is \u0060None\u0060."
       },
       "SearchKnowledgeHit": {
         "required": [
