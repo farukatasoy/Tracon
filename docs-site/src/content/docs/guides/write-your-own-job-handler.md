@@ -4,7 +4,7 @@ description: Implement a safe IJobHandler for the durable job queue and verify i
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 

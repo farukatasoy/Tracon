@@ -30,7 +30,7 @@ playground, then read the recorded run event by event.
 Or start from the template, which writes a working application for you:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.5
+dotnet new install Tracon.Templates@1.0.0-preview.6
 dotnet new tracon-api -o MyAgents
 ```
 

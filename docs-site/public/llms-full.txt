@@ -5857,7 +5857,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.5`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.6`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -5875,7 +5875,7 @@ Install the published template, then create a project. The template pins every
 Tracon package to the same version as the template package.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.5
+dotnet new install Tracon.Templates@1.0.0-preview.6
 dotnet new tracon-api -n MyAgents
 cd MyAgents
 ```
@@ -6015,7 +6015,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.5`. The
+Packages and templates are published as `1.0.0-preview.6`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
@@ -9017,7 +9017,7 @@ pointer file, set `TraconWriteLocalReference` to `false`.
 Source: https://tracon.dev/guides/cli/
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 
@@ -9425,7 +9425,7 @@ credential meant for exactly this.
 Source: https://tracon.dev/guides/coding-agents/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -9553,7 +9553,7 @@ every page — three sizes for three questions, published on the documentation s
   what**: one line per hand-written page, with its title, address, and subject. About
   24 KB.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 1250 KB.
+  page concatenated, about 1520 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -16525,7 +16525,7 @@ and still reject a fenced payload at the application boundary.
 Source: https://tracon.dev/guides/testing/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -16797,7 +16797,7 @@ mistake instead of hiding it.
 Source: https://tracon.dev/guides/typescript-client/
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.5`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.6`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 
@@ -16993,7 +16993,7 @@ sync.
 Source: https://tracon.dev/guides/voice/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -18349,7 +18349,7 @@ and `429`) is never retried, whatever class you return.
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -18582,7 +18582,7 @@ handler actually receives a queued job.
 Source: https://tracon.dev/guides/write-your-own-judge/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -18727,7 +18727,7 @@ timeouts, persistence, or HTTP responses.
 Source: https://tracon.dev/guides/write-your-own-script-executor/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -18929,7 +18929,7 @@ a new contract in a later package version does not go untested.
 Source: https://tracon.dev/guides/write-your-own-store/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19031,7 +19031,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.5` is extracted into your
+by package id and version, so once `1.0.0-preview.6` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -19847,7 +19847,7 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.5`. The command below selects it from
+The current release is `1.0.0-preview.6`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
@@ -20098,6 +20098,732 @@ previews: it carries the pinning rules and the upgrade sequence this page's
 entries assume.
 
 ## Releases
+
+<a id="v1.0.0-preview.6"></a>
+
+### 1.0.0-preview.6 — 2026-10-27
+
+Agents and workflows gain the controls a production host needs before the surface
+freezes. The new `Tracon.AGUI` package lets a front end that speaks the AG-UI protocol
+run a Tracon agent. An agent keeps files in a workspace for each session and remembers
+what its user said in earlier sessions, a tool can ask the user for input in the middle
+of a call (MCP elicitation), and a workflow waits for a tool approval that a person
+answers. A callable agent can be pinned to a version, and a version number is never
+given twice for one name. A spent call-tree budget or tenant cost quota now stops a tool
+call, a function node or an agent step before it starts; a workflow continuation keeps
+the budget of the runs before it; and a configuration value Tracon cannot read stops the
+host at startup. The release adds three migrations to each SQL provider and breaks
+source in several places: read Upgrading from 1.0.0-preview.5 first.
+
+#### Upgrading from 1.0.0-preview.5
+
+- **Migrations.** PostgreSQL `0063`–`0065`, SQL Server `0051`–`0053` and SQLite `0050`–`0052`.
+  With `AutoApplyMigrations` (the default) they run at startup. They add the `expected_tool_calls`
+  column of an eval case, an index on the agent files of a tenant by path, and the
+  `agent_definition_version_counters` table, which starts the counter of each agent at the version
+  it holds today. No column is dropped. An agent that was deleted and created again before the
+  upgrade keeps only the numbers it holds now (see the `IAgentDefinitionStore` entry, Changed).
+- **Public types changed.** Each entry below (Changed) says what to do:
+  - `AgentDefinition.CallableAgentNames` and `AgentDefinitionRequest.CallableAgentNames` are
+    `CallableAgents`, a list of `CallableAgentReference`; a body that still carries
+    `callableAgentNames` is refused with `400`.
+  - `ModelBinding.AllowConcurrentToolCalls` is `ModelBinding.ToolLoop.AllowConcurrentToolCalls`; a
+    body that still carries the old key is refused with `400`.
+  - `EvalCase.ExpectedTools` and `EvalCaseDraft.ExpectedTools` are `ExpectedToolCalls`; a body that
+    still carries `expectedTools` is refused with `400`.
+  - `IJobStore.LeaseAsync` takes one `JobLeaseRequest`.
+  - A custom `IAgentDefinitionStore`, `IRunStore` or `IJobStore` must pass the new cases of
+    `AgentDefinitionStoreContract`, `RunStoreContract` and `JobStoreContract`.
+  - `AddSpeechSynthesizer(name, null)` and `AddSpeechTranscriber(name, null)` no longer compile.
+- **Behavior changes most likely to reach an upgrade**, each described in its entry below:
+  - A configuration value Tracon cannot read stops startup, and so does a list or map key that
+    holds one value. Start the application once: the keys it names were ignored until now.
+  - The eight `tracon.*` metrics that carried `tracon.tenant.id` carry it only when
+    `Tracon:Observability:IncludeTenantTag` is `true`.
+  - A tool call, a workflow function node or an agent step does not start once the call-tree budget
+    or the cost quota of the tenant is spent, and a workflow continuation starts from what the runs
+    before it spent.
+  - An `IToolAuthorizationHandler` that denies `ToolEffect.External` now also closes
+    `search_knowledge` and `search_conversation_memory`.
+  - `/v1/chat/completions` refuses a model setting the agent owns, tool-call history and unknown
+    roles with `400`.
+  - With strict session ownership, an A2A message needs a caller identity to own the conversation.
+  - `agentReview` and `toolCallArgsMatch` are built-in names; a criterion or check registered in
+    code under either name is refused.
+  - An `IAgentDecorator` with an `Order` above 0 no longer sees `TraconRunOptions`.
+- Pin every Tracon package to the same exact version. The pre-release Microsoft Agent Framework
+  hosting packages stay pinned at `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI` at
+  `1.25.0-alpha.261014.1` and `A2A.AspNetCore` at `1.0.0-preview3`. The Model Context Protocol SDK
+  moves to `2.3.0`.
+
+#### Added
+
+- **A callable agent can be pinned to a version of the callee: `CallableAgentReference.Version`.** An entry of
+  `AgentDefinition.CallableAgents` with a version runs that stored version in every call mode (background tasks, one tool
+  for each agent), its child run row records that version, and, for an agent kept in the database, the description the model reads comes from it. An entry with
+  no version runs the callee's current version, as before. A caller that a workflow step or an approval resumption pins to
+  a version of its own now runs the callee versions *that version* names: a parent pinned to version 1 no longer calls a
+  child at version 3 unless version 1 says so. A new version of a pinned callee leaves the compiled caller as
+  it is. A name converts to a reference without a version (`CallableAgents = ["editor"]`), so a list of names stays a list of
+  names. A save, `POST /api/agents/validate` and the compile refuse a version below 1, a version the callee does not have, a
+  pin on an agent defined in code and a name listed twice: the codes are `callable_agent_version_invalid`,
+  `callable_agent_version_not_found` and `callable_agent_duplicate`, each with the path of the entry. A pin that stopped
+  holding after the save fails the caller by name before its first model call. The agent editor of the console shows a
+  *Version of … to run* select under each checked agent that has versions and keeps a pin it saved; the version compare
+  shows a change of pin. The OpenAPI document and both generated clients carry the new schema.
+- **`WorkflowAgentStepOptions.AgentVersionParameter` lets a run choose the version of an agent step in a graph built in code.**
+  Set it to the name of a run parameter declared in `WorkflowRegistrationOptions.Parameters`. The step reads the value
+  each time it runs: empty or absent runs the agent's current version, a whole number from 1 runs that version and the
+  step's run row records it. A value that is not a whole number from 1, a name the workflow does not declare, a version the
+  agent does not have and an agent defined in code fail the step by name before its model call; the error for a value that
+  is not a number never repeats it. It cannot be set together with `AgentVersion` (`GetWorkflowAgentStep` throws
+  `ArgumentException`). A run that continues after an answer reads the value the run started with: a number keeps its
+  version through the wait, an empty value still means the current version when each step runs.
+- **`openai.strictJsonSchema` and `azure-openai.strictJsonSchema` ask OpenAI to enforce the response schema while the
+  model generates.** Set either to `true` in `ModelBinding.ProviderSettings` (`OpenAIProviderNames.StrictJsonSchemaSetting`,
+  `AzureOpenAIProviderNames.StrictJsonSchemaSetting`; `SupportedSettings` is no longer empty). The request then carries
+  `strict: true` on the response format of an agent whose `ResponseFormat` is a JSON schema. It reaches the response
+  format only: the tools of the agent stay non-strict, and a fallback link, which receives no provider settings, is not
+  strict. The setting is off by default. `openai` reads it on both API surfaces and on every `UseOpenAICompatible()`
+  registration; a server that does not know strict mode can refuse the request.
+- **`POST /api/agents/validate` returns the response schema each provider's client sends.** The report has a new field
+  `responseSchemas`, one entry per binding and per fallback link (`provider`, `model`, `strict`, `schema`), for providers
+  that implement the new `IResponseSchemaSupport` (`OpenAI` and `Azure`). Three warnings name what differs from the schema you
+  wrote, each with JSON Pointers into it: `response_schema_optional_required` (an optional property that does not allow
+  `null` is sent as required), `response_schema_keyword_not_enforced` (a bound such as `maxLength` or `pattern` is sent
+  as description text) and `response_schema_strict_unsupported` (strict mode only: the parts OpenAI refuses with HTTP 400,
+  which are `oneOf`, `allOf`, `if`, `then`, `dependentRequired`, `dependentSchemas` and an object without
+  `additionalProperties: false`). The last one is reported for `openai` and `openai-responses` on `api.openai.com`, the
+  only service measured, and it is a warning so that it never stops a definition from being saved. The OpenAPI
+  document and both generated clients carry the new field and the three codes.
+- **`IResponseSchemaSupport` and `ResponseSchemaShape`.** An optional interface of an `IModelProvider`: given a binding and
+  the author's schema, it returns the schema the provider's client sends (`EffectiveSchema`), whether the request is strict,
+  and the three lists above. A provider that does not implement it adds nothing to the report.
+
+- **`UseGoogleSpeech` registers a Gemini text-to-speech model as the named provider `gemini`,** with
+  `GoogleSpeechOptions` (`Model`, `Name`, `MaxCharactersPerRequest`, `MaxDialogueCharactersPerRequest`,
+  `DialogueSpeakerMode`, `Voices`, `UseAsDefault`). One instance speaks one voice (`POST /api/voice/speak` with
+  `"provider": "gemini"` answers a WAV file) and voices a dialogue of exactly two voices through
+  `GetDialogueSynthesizerAsync`. It shares the client of `UseGoogle` and the provider name `google`, so one egress rule
+  covers chat, images and speech, and a tenant with its own Google key is served with that key on the client its chat
+  requests use. The speaker format of a dialogue depends on the model generation, and the wrong one answers `400`: set
+  `DialogueSpeakerMode` to `PartMetadata` (the `gemini-3.8` models, the default) or `TextLabels` (`gemini-2.5-flash-preview-tts`,
+  `gemini-3.1-flash-tts-preview`). The audio is a WAV file or raw 16-bit PCM (`OutputFormat` `wav` or `pcm`); a stream
+  is raw PCM. Character timing is refused, and billing is an estimate.
+- **`SpeechProviderDescriptor.Dialogue` and `GET /api/voice/providers` report whether a speech provider can voice a
+  dialogue.** The value is the provider's `SpeechDialogueCapabilities` (most voices, most characters, whether it reports
+  timing) or `null`. A caller no longer learns it from the failure of `GetDialogueSynthesizerAsync`. The OpenAPI document
+  and both generated clients carry the new field.
+- **`SpeechDialogueCapabilities.Check(request, providerName)` is the rule a dialogue implementation applies before it calls
+  its service.** The built-in ElevenLabs client and the Gemini synthesizer use it, with the same messages; a
+  synthesizer of your own calls it to refuse an empty turn, a turn without a voice, too many voices or too many
+  characters, and never to split or cut the dialogue.
+
+- **A front end that speaks the AG-UI protocol can run a Tracon agent.** The new package `Tracon.AGUI` adds
+  `MapTraconAGUI()` (`POST /tracon/agui/{agentName}`, after `MapTracon()`): the body is an AG-UI `RunAgentInput`, the
+  answer is the AG-UI event stream. It is a Tracon run: recorded, tenant-scoped, role-, key-scope- and
+  session-owner-checked, counted against the quota and priced, with the same protection as `MapTracon`. The thread is the
+  session, and only the messages after the last assistant message are new input. A tool the front end declares never
+  becomes a tool the model can call: a client-side tool registered with `AddClientTool` and named in the agent runs on the
+  front end with the schema from the code, a carried client-side tool the request does not declare is `400`, and a
+  declared tool the agent does not carry is ignored and recorded on the run (`RunEventCustomTypes.AGUIToolsIgnored`). A
+  tool that waits for approval, and an MCP server's request for input, end the run with an interrupt; the answer is the
+  next request's `resume`. The approval is audited as `approval.decision` with `"surface": "ag-ui"`, before it is
+  applied. The first event after `RUN_STARTED` is a `CUSTOM` event named `tracon.run` that carries the Tracon run id. The
+  package takes the AG-UI SDK (`AGUI.Server`, `AGUI.Abstractions`) and is not part of the `Tracon` meta package. See
+  [AG-UI front ends](/guides/ag-ui/).
+
+- **A tool can ask the user for information in the middle of a call (MCP elicitation).** Tracon now tells
+  every MCP server it connects to that it can answer such a request, with form fields only. In a run started with
+  `POST /api/agents/{name}/run` (or over the AG-UI endpoint) and a `sessionId`, the request stops the run as `AwaitingInput`: the stream sends an
+  `inputs` event right before `done` (a response with `Idempotency-Key` carries `inputs` in its body), one entry per
+  request with `requestId`, `toolName`, `serverName`, `message` and `requestedSchema`. Answer in the next request of the
+  session with `AgentRunRequest.InputResponses` (`ToolInputResponse`: `RequestId`, `Action` of `ToolInputAction`
+  `Accept`, `Decline` or `Cancel`, and `Content` for `Accept`). The tool call then runs again from its start with the
+  answer, so a server must take the same call twice; the replay asks no second approval. Every other request gets
+  an explicit `decline` and, inside a run, a `tracon.tool.input.declined` run event (`RunEventCustomTypes.ToolInputDeclined`)
+  that names the reason: a run without a session, an OpenAI-compatible call, an A2A task, an MCP tool call, a queued run, an
+  agent called by another agent, a request to open an address (`url` mode), and a server on the earlier protocol. A tool
+  call stops for input at most once: if the server asks something else the second time, it gets `decline`, never the
+  old answer. A wrong answer is `400` (unknown or repeated `requestId`, a field the server did not ask for, a required
+  field left out, a value of the wrong type) or `409` (already answered); another user's session is `403`, as for every
+  run. The values go to the server and nowhere else. The audit entry `tool_input.answer` names the request, the server,
+  the tool, the action and the names of the fields, never a value, and it is written before the call runs again: it is the
+  **eighth fail-closed audit operation** (the published set of seven grows by one), so an answer that cannot be recorded
+  is not applied. The playground shows a form made from the requested schema and says which server the answer goes to.
+  `RunStatus.AwaitingInput` now also appears on the root agent run of a suspended call, and its `RunAwaitingInput` event
+  carries `requestId`, `toolName` and `serverName`.
+
+- **An agent can keep files in a private workspace for each session.** Set `AgentDefinition.Workspace`
+  (`WorkspaceSettings`: `Enabled`, `ReadOnly`, `DisableReadApproval`; also `AgentDefinitionRequest.Workspace`,
+  `AgentDescriptor.Workspace` and `workspace` in the HTTP body). The agent then lists, reads, searches, writes,
+  edits and deletes files with the eight `file_access_*` tools of the Microsoft Agent Framework, in an area that
+  belongs to one session of one agent: another session does not see the files, and they are not the agent's file
+  memory. Tracon runs each tool through the same chain as a tool registered in code: your
+  `IToolAuthorizationHandler`, argument validation, the tool timeout and the approval step. The tools that change a
+  file (write, replace, replace lines, delete) always ask for approval; `DisableReadApproval` only reaches the
+  tools that read, and `ReadOnly` offers the tools that read and nothing else. `Tracon:Workspace`
+  (`TraconWorkspaceOptions`) limits a file (256 KiB), the files of a session (5 MiB) and the workspaces of a tenant
+  (500 MiB), and a file also counts 1 KiB for its row; a write past a limit is refused, the model reads "Workspace quota reached", and the run goes on. The
+  files go with their session: `DELETE /api/sessions/{id}`, a data subject erasure (its preview, export and delete
+  include them under `session_workspace`) and the `sessions` retention target delete them. A run with no session,
+  a workflow run and a replay have no workspace. A host that exposes an agent over A2A or MCP must make its
+  workspace read-only with `DisableReadApproval`, or the host refuses to open the agent. The console has three
+  boxes for it, and the sample has a `workspace-drafter` agent. A tool of your own cannot take the name of one of the eight file tools,
+  an agent that has a workspace cannot have a `/` in its name, and an agent with file memory cannot be named
+  `~workspace…`. The automatic continuation of an interrupted run refuses an agent that has a workspace. The
+  default file store is in memory and loses the files at a restart: use a SQL provider. SQL Server counts the
+  UTF-16 bytes it stores, so a limit there holds half as many ASCII characters. Migration `0064` (PostgreSQL),
+  `0052` (SQL Server) and `0051` (SQLite) add an index on `agent_files (tenant_id, path)`; the queries behind
+  the limits and the deletion would otherwise read the whole table.
+
+- **An agent remembers what its user said in earlier sessions.** Set `MemorySettings.EnableConversationMemory`
+  on a definition, call `UseConversationMemory(options => options.VectorDimensions = …)` once, and register a
+  `Microsoft.Extensions.VectorData.VectorStore`. The agent then finds what the same user told it in an earlier
+  session and gets it as context, before each turn (`ConversationMemorySearch.BeforeEachTurn`, the default) or
+  through a `search_conversation_memory` tool the model calls (`OnDemand`). A record carries the tenant, the
+  agent, the user and the session; a search looks at tenant, agent and user, so a user is remembered across
+  sessions and never seen by another user, agent or tenant. A run with no user or no session neither reads nor
+  writes. Only user and assistant text is stored, not tool results. The records go with their session:
+  `DELETE /api/sessions/{id}`, a data subject erasure (its preview, export and delete include them under
+  `conversation_memory`) and the `sessions` retention target delete them first. The store embeds the text, so
+  that model call is not on the run's usage. The console has one box and one choice for it.
+  Check the connector first: the `Microsoft.SemanticKernel.Connectors.*` packages (1.74 preview) call a member that
+  `Microsoft.Extensions.VectorData.Abstractions` 10.7 removed, and fail at search time without a build warning;
+  `CommunityToolkit.VectorData.*` 1.0 works. A workflow run, and the agent steps below it, remember nothing: the
+  workflow's session id never gets a session record, so nothing could delete what they kept. The records hold the
+  message text in plain text, in your store, outside content protection.
+
+- **A definition can turn the approval of the two skill read tools off.** Microsoft Agent Framework asks for
+  approval before `load_skill`, `read_skill_resource` and `run_skill_script`, so an agent with skills could
+  not run where nobody can answer: an A2A or MCP call, a run with no session, a scheduled run. The new
+  `SkillSettings` record (`AgentDefinition.Skills`, `AgentDefinitionRequest.Skills`, `AgentDescriptor.Skills`,
+  and `skills` in the HTTP body) has one member, `DisableReadApproval`. With `true`, `load_skill` and
+  `read_skill_resource` run without approval. `run_skill_script` keeps its approval: it runs code, so no member
+  of the definition turns that off (a standing approval rule can still approve it). The default is unchanged, a definition stored before this release reads back with all three
+  tools asking, and the console's skills section has one box for it. A definition that sets `Skills` but
+  names no skill gets the validation warning `skill_settings_without_skills`. Skill text reaches the model as
+  instructions, so turn the box on only for skills that a tenant administrator writes.
+
+- **A workflow waits for a tool that needs approval, and a person answers it.** Before, an agent step
+  whose tool needs approval failed the whole workflow unless an auto-approval rule existed. Where a
+  Microsoft Agent Framework pattern hosts the agent (a stored `Sequential`, `Concurrent`, `Handoff`, `GroupChat` or `Magentic` workflow
+  defined with `agentNames`, and a code graph that binds the agent with `GetWorkflowAgent`), the workflow now stops: the step's run
+  closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the new form
+  `WorkflowRequestForm.ToolApproval`, whose prompt names the tool and adds what your
+  `IToolApprovalPresenter` says about the call (the arguments are not copied). Answer it with
+  `POST /api/workflows/runs/{runId}/respond`: `approved`, an optional reason in `text` that the agent
+  reads, and `remember` (new on `WorkflowRespondRequest`) to save a rule for that agent and tool. The
+  answer carries a decision only: the tool call comes from the request the workflow recorded, so a
+  `data` value is refused with `400`, and so is `remember` with `approved: false` or on any other
+  form. The decision is written to the audit trail as `approval.decision` before the workflow
+  continues; an entry that cannot be written refuses the answer. The tool runs once, in the new run the
+  answer opens, in whichever process takes the answer. A request nobody answers closes the step that
+  waited with the workflow when its time limit passes. The console's workflow card asks for the
+  decision, a reason and the rule. An agent node of a `Sequential` node list and a step bound with
+  `GetWorkflowAgentStep` run the agent in a plain function node that cannot wait, so a tool that needs
+  approval still fails the run there, and so does a tool of the `Magentic` manager; an agent that a
+  step's agent calls as a sub-agent still cannot ask. A tool approval is answered once, whatever the
+  workflow's response mode: the same decision again follows the run the first one started, and a
+  different one is `409`.
+
+- **An A2A conversation keeps its history, and it belongs to the caller that started it.** A message
+  that carries a `contextId` now continues a conversation: Tracon stores the session and the agent sees
+  the earlier turns. Before, the reply carried the `contextId` back but the agent saw one message, so
+  a caller believed it was in a conversation that did not exist. A conversation is stored under the
+  tenant, the agent, the caller and the `contextId`, and a caller that sends the `contextId` of another
+  caller starts a new conversation. The caller is the signed-in user (`Tracon:Audit:ActorClaimType`
+  applies), the API key, the static `AuthToken`, or, with no identity at all, the local operator; all
+  callers without an identity share one conversation space, and a signed-in user whose identity cannot
+  be read is refused. The session identity is `a2a:` followed by a SHA-256 digest of the four parts, so
+  a `contextId` of any length fits the session identity column. Each turn re-sends the history to the
+  model, so the tokens per message grow with the conversation. `UseA2A()` registers the store for each
+  exposed agent and an `AgentIsolationKeyProvider`; a store or a provider the application registers
+  itself wins. A message without a `contextId` is still a single turn, but Tracon stores a session for it too (it makes up a `contextId` and the reply carries it), and session retention is off by default; set a maximum age for the `sessions` target to bound the table. The change adds no migration.
+
+- **An eval case lists the tool calls it expects, with their arguments, and `toolCallArgsMatch` checks
+  them.** `EvalCase.ExpectedToolCalls` is a list of `EvalExpectedToolCall`: a tool `Name` and optional
+  `Arguments`. The new check kind `toolCallArgsMatch` passes a case when, for every entry, the agent
+  called a tool of that name and one such call carried every listed argument. The listed arguments are
+  a subset (the call may carry others) and a value compares by its JSON meaning: `2` equals `2.0`, an
+  object equals one with the same members in any order, and a `null` value means "absent or null".
+  Microsoft Agent Framework's own `ToolCallArgsMatch` compares a number by its .NET type and an object
+  by its text, so an expected `2` never matched; Tracon's check does not use it. The reason of a failed
+  case names each entry (`not called`, `args mismatch`) and never repeats an argument value. A custom
+  evaluator receives the same calls on `EvalItem.ExpectedToolCalls`, as Microsoft Agent Framework
+  reads them. The console's case editor takes a tool name and a JSON object of arguments for each call
+  and refuses an argument text that is not a JSON object. Promoting a reference run writes the names
+  of the tools the run called, without arguments. The change adds `eval_cases.expected_tool_calls`
+  (migration `0063` PostgreSQL, `0051` SQL Server, `0050` SQLite). A cell of that column that SQL
+  Server or SQLite holds as text and that is no longer the array Tracon writes reads as an entry no run
+  can call, so the case fails instead of passing with nothing to check, and the listing still works.
+  A custom `IEvalStore` meets this in `Tracon.Testing.Contracts.Xunit`: `EvalStoreContract` adds
+  `EvalStoreContract.ReplaceCasesAsync_round_trips_an_expected_argument_of_every_json_kind`,
+  `EvalStoreContract.ReplaceCasesAsync_reads_back_an_empty_list_for_a_case_that_expects_no_tool_call` and
+  `EvalStoreContract.A_row_written_before_expected_tool_calls_existed_reads_back_its_names`, and renames
+  `ReplaceCasesAsync_stores_expected_tools_and_context` to
+  `EvalStoreContract.ReplaceCasesAsync_stores_expected_tool_calls_and_context`. The last one needs three
+  hooks a store on SQL overrides (`SupportsRawSql`, `ExecuteRawAsync`, `QualifiedEvalCasesTable`, and
+  `FormatIdForRawSql` when it spells an id otherwise); a store without SQL skips it.
+
+- **A host registers a tool the model provider runs, and a definition selects it by name.**
+  `AddHostedTool(name, kind, factory)` registers a web search, a code interpreter or a file search
+  (`HostedToolKind`); the factory receives a `HostedToolContext` with the tenant, the provider of the
+  agent's model and the services, and builds the Microsoft.Extensions.AI tool for that tenant. A
+  definition lists the name in `ToolNames`, the same list as a function tool. The provider runs the
+  tool inside the model call, so no approval, permission or timeout applies. A provider states which
+  kinds its API surface runs through the new `IHostedToolSupport` (`HostedToolKinds`); a definition
+  that selects a kind the provider would drop, on the primary model or on a fallback, is refused when
+  the agent is built and by `POST /api/agents/validate` (`hosted_tool_unsupported`, with the path of
+  the tool name), instead of running without the tool. Measured against the request each adapter
+  writes: `openai-responses` runs all three kinds, `anthropic` and `google` run the web search and
+  the code interpreter, `openai` (Chat Completions) and `azure-openai` run none. An agent selects at
+  most one hosted tool of each kind; the cached compiled agent follows what the factory builds, so a
+  tenant that replaces its vector store reaches the next run. `GET /api/tools` lists hosted tools with
+  `ToolDescriptor.HostedKind`, the console shows a badge, and the sample has `hosted-openai`,
+  `hosted-claude` and `hosted-gemini`.
+- **A hosted tool call is priced.** `Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall` sets the price
+  of one call. The amount joins the run's non-token cost, so the budget, the quota and the
+  `run.completed` webhook count it once, and a budget the call used up stops the next model turn. A
+  kind with no price is listed on the run and not added to its cost (the run's
+  `UnsummedItemCount`); it is never priced at zero, and the host logs one warning. The code
+  interpreter is billed by container and its price per call is an estimate. When Anthropic bills more
+  searches than the response shows, the difference is added. The harness's own web search is priced
+  the same way; before, no hosted call had a cost. `ToolUsageUnits.Calls` names the unit.
+- **An agent calls a callable agent with one tool call.** `SubAgentSettings.CallMode`
+  (`SubAgentCallMode.Background`, the default, or `Tool`) picks what the model sees. With `Tool`,
+  each agent in `CallableAgentNames` is one tool named after the agent (each run of characters
+  other than letters and digits becomes one underscore), instead of Microsoft Agent Framework's
+  background task tools. The sample `router` agent asked one question took 5 model calls and about
+  3,600 input tokens with background tasks, and 2 model calls and about 410 input tokens with
+  `Tool` (real OpenAI `gpt-5.4-mini`, three runs each); for work that runs in parallel,
+  background tasks stay the better choice. The depth limit, the budget of the tree, the tenant
+  check, the wait limits and the refusal of a sub-agent that needs tool approval apply in both
+  modes. A callable agent whose tool name another tool of the agent already has (`ToolNames`, a
+  skill tool, `search_knowledge`, another callable agent) is refused by validation and save
+  (`sub_agent_tool_name_conflict`, `400`) and by the compiler. The agent editor has a control for
+  the mode and the version compare shows it. A sub-agent that fails because its model provider
+  is down, or because it no longer exists, answers the parent with the reason as the tool result,
+  as a background task does. A row saved before this setting reads as background tasks.
+- **A definition sets the model's request fields and the tool-call loop.** `ModelBinding` gains
+  `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode` (`auto`,
+  `none`, `required` or `required:<tool>`), `AllowMultipleToolCalls` and `ReasoningOutput`
+  (`None`, `Summary` or `Full`), and `ToolLoop` (`ToolLoopSettings`: `AllowConcurrentToolCalls`,
+  `MaximumConsecutiveErrors`, `TerminateOnUnknownCalls`). They are part of the definition, so a
+  version, an experiment variant and a replay carry them; before, only an agent extension could
+  set most of them and `Reasoning.Output` could not be set at all. A provider states which of the
+  fields its API surface sends through the new `ISamplingSupport` (`SamplingFields`). A definition
+  that sets a field the provider would drop, on the primary model or on a fallback, is refused
+  when the agent is built and by `POST /api/agents/validate` (`sampling_field_unsupported`, with
+  the path of the field), instead of running without it. The shipped providers state what the
+  model adapters send; the table is in Model providers. `Tracon.Testing`'s `FakeModelProvider`
+  accepts every field, and the agent editor has controls for all of them.
+- **Model content and workflow events Tracon has no type for are recorded, not dropped.**
+  A hosted tool call or result (web search, code interpreter, image generation, hosted MCP),
+  a provider `ErrorContent`, generated or attached data, a file reference, and any content
+  type Tracon does not know yet are written as a `Custom` run event of type `tracon.content`
+  (`RunEventCustomTypes.Content`). A `WorkflowEvent` that the workflow stream does not map,
+  such as an event of your own that an executor of a code workflow raises, is written as
+  `tracon.workflow.event` (`RunEventCustomTypes.WorkflowEvent`); its warning in the log is
+  now a debug entry. The payload holds no data bytes, no URI, no tool inputs or outputs;
+  its free text is the provider's error message and the text of a string workflow payload,
+  cut at 2 048 characters, and any other workflow payload is named by its type only. Both
+  payloads follow `RecordToolPayloads`. Unlike the quota and truncation notices,
+  `tracon.content` is not sent on the live `POST /api/agents/{name}/run` stream; a workflow
+  run's stream sends `tracon.workflow.event` like every recorded event.
+  Plain text with `RecordMessageDeltas` off, reasoning with `RecordReasoningDeltas` off,
+  usage and approval content stay as they were. Read the events from
+  `GET /api/runs/{id}/events`.
+- **A named agent extension reaches Microsoft Agent Framework options on a compiled agent.**
+  `AddAgentExtension(name, configure)`, `AddAgentExtension<T>()`, and an instance overload
+  register code that sets a framework option, adds an `AIContextProvider`, or wraps the
+  agent with `context.Use`. A definition selects it with the new `ExtensionNames` list, in
+  call order, and the agent editor offers the registered names (`GET /api/agent-extensions`).
+  The agent still goes through the definition compiler, so it keeps the model rings, the
+  tenant's own provider key, the egress policy, and cost. The compiler refuses a change to
+  an option the definition or a tenant and security decision owns, and names the extension
+  and the option. `AgentDefinition`, `AgentDescriptor`, and `AgentDefinitionRequest` gain
+  `ExtensionNames`. A provider an extension adds can add tools, and those skip the tool
+  chain; a replay that plays tools back does not run extensions.
+- **Any `Microsoft.Extensions.AI` speech client serves a named Tracon speech provider.**
+  `AddSpeechSynthesizer(name, TextToSpeechClientBinding)` and
+  `AddSpeechTranscriber(name, SpeechToTextClientBinding)` take the client from the container,
+  by service key or unkeyed. Every call passes the tenant's egress policy against the binding's
+  provider name; a tenant with its own key for that provider is refused; the host stops at
+  startup when the client is missing or has no provider name. The binding declares the
+  character limit and the voice list, which the client cannot report. Billing is an
+  estimate, character timing and dialogue are refused. No public member names a
+  `Microsoft.Extensions.AI` speech type.
+- **`UseOpenAISpeech` registers OpenAI text-to-speech and speech-to-text** as the named
+  providers `openai`, with `OpenAISpeechOptions` (`SynthesisModel`, `TranscriptionModel`,
+  names, `MaxCharactersPerRequest`, `Voices`, `UseAsDefault`). Each name is bound to one model.
+  The clients run on the shared OpenAI client's pipeline and not on `AudioClient`, so a host
+  publishes with Native AOT.
+- **A factory agent built outside the model registry logs one warning.** When the chat client
+  of an `AddAgent(name, factory)` agent did not come from `IModelProviderRegistry`, the catalog
+  writes a warning the first time it resolves that agent name, because its model calls skip
+  the model rings. An agent that exposes no chat client gets no warning, and a resolve never
+  fails because of the check. The guide "Use any Microsoft Agent Framework feature" compares
+  the decorator, the factory agent, and the custom agent source by what each keeps, and
+  `samples/Tracon.Samples.MafFeatures` builds all three.
+
+- **`TraconErrorTypes` lists the error codes of runs, jobs and OpenAI-compatible errors.** One class holds them in one
+  place: the type of a failed run (`tool_timeout`, `content_blocked`, `run_budget_exceeded`, …), the codes of a job the
+  queue failed (`tracon.job.attempts-exhausted`, …) and the `error.type` of the OpenAI-compatible endpoints
+  (`model_not_found`, …). The `*ErrorType` constants of the exception classes
+  (`TraconToolTimeoutException.ToolTimeoutErrorType` and the others) and `JobErrorCodes` stay, and they carry the same
+  values; no value changed, so no stored run record and no client that matches a code is affected. The codes of the
+  findings that `POST /api/agents/validate` returns (`unknown_tool`, `cycle`, …) are listed the same way and are not
+  public members. A code never changes inside a major version.
+- **The release check compares HTTP, SSE, telemetry, configuration keys, error codes and the CLI with the last published
+  version.** Until now only the .NET API had a check against the last release. From `1.0.0-rc.1` a removed or renamed
+  endpoint, response field, event name, instrument, attribute, configuration key, error code, CLI command or option
+  stops the release, and so does a change that the rules do not name. A patch release does not add to any of them.
+  See [What 1.x promises for HTTP, telemetry, configuration, error codes and the
+  CLI](/reference/versioning/#what-1x-promises-for-http-telemetry-configuration-error-codes-and-the-cli).
+
+- **One tenant can no longer take every workflow slot of a process, or the front of the job queue.** The new
+  `Tracon:Workflows:MaxConcurrentRunsPerTenant` (`TraconWorkflowOptions.MaxConcurrentRunsPerTenant`, off by default, from
+  `1` to `MaxConcurrentRuns`) limits how many workflow runs one tenant has going at the same time, in two places. In a
+  process, a run beyond the tenant's limit waits for a tenant slot **before** it takes a shared slot, so it holds nothing
+  while it waits and never delays another tenant. In the job queue, a worker does not lease a queued workflow job
+  (`tracon.workflow`, `tracon.workflow-run`) of a tenant that already holds that many leased, and leases the oldest job
+  of another tenant instead; this count covers every process that shares the store, and it is read, not locked, so
+  workers that lease at the same moment can take a tenant past the limit by up to their own number. The wait for a tenant
+  slot counts toward `RunTimeout`, as the wait for a shared slot does. The setting is checked at startup, and a value that
+  is not a number stops the host. See [workflow
+  concurrency](/guides/background-work/#limit-workflow-runs-per-tenant).
+
+- **Another agent can be the stop criterion of a loop: `agentReview`.** A `LoopCriterion` with `Kind = "agentReview"` names
+  a reviewer agent of the catalog in the new `ReviewerAgent`, and optionally a version in the new `ReviewerAgentVersion`.
+  After each iteration the reviewer reads the request, the iteration number and the draft (the last assistant message),
+  and answers with `{"approved": true|false, "feedback": "..."}`: `true` stops the loop, `false` sends the feedback to
+  the agent as the next input. The reviewer runs as a child run of the run under review, through the same door every
+  sub-agent call uses, so the tenant check, the depth limit, the run and token budget, the quota, the wait limit and the
+  refusal of a tool that waits for approval all apply. A refused call, a failed call and an answer that is not that
+  object are failures of the criterion, and `OnCriterionError` decides what follows; an answer that cannot be read is
+  never an approval. The shape is the reviewer agent's own response format, not an option the loop sets on the call.
+  Validation reports `loop_reviewer_missing`, `loop_reviewer_self`, `loop_reviewer_version_invalid` and
+  `loop_reviewer_not_found`, and warns with `loop_reviewer_verdict_unknown` when the reviewer has no JSON schema with a
+  boolean `approved` and a string `feedback`. The console's Loop panel lists the agents and takes the version.
+  `GET /api/loop-criteria` lists the kind. See [Another agent as the reviewer](/concepts/agents/#another-agent-as-the-reviewer).
+
+- **The `LoopIterationCompleted` event says who decided.** Its payload has a new `criteria` list: every criterion
+  evaluated in that iteration, in order, with its `kind` and `decision` (`stop`, `continue` or `failed`). An `aiJudge`
+  entry names the `judge` (`provider` and `model` of the call, the fallback model when the judge's own model failed over),
+  and an `agentReview` entry names the `reviewer` (`agentName`, `agentVersion` and the `runId` of its child run). The event
+  text names the reviewer too. The judge's reasoning, the reviewer's answer, the draft and the feedback are not written.
+  The `loop.iteration-completed` frame of the native stream carries the same data. A reader that ignores a field it does
+  not know needs no change.
+
+- **The run stream of an agent with a loop says where each iteration ends.** `POST /api/agents/{name}/run` already
+  streamed every iteration, but nothing in the `update` frames marked the border, so a client that read the stream
+  could take the first draft for the answer. After each iteration the loop evaluated, the stream now sends a
+  `loop.iteration-completed` frame, between the last `update` of that iteration and the first of the next. Its data is
+  the recorded `LoopIterationCompleted` event, byte for byte what `GET /api/runs/{id}/events` serves. The answer is the
+  iteration the last frame closes when it has `continued: false`; when it has `ceilingReached: true`, the answer is the
+  iteration after it, because the turn at the ceiling is not evaluated. The `update` after a frame with `continued: true`
+  is the loop's feedback to the model (`role` `user`), not the model's text. The event's `payload` is `null` when
+  `RecordToolPayloads` is off. An agent without a loop, an event the store could not record and a sub-agent's loop send
+  no frame. Recorded event timestamps now have whole microseconds, so the frame and `/events` agree on every store. The console playground draws a divider at each frame. A client that
+  ignores a frame name it does not know needs no change. See [Streaming](/http-api/#streaming).
+
+#### Changed
+
+- **`AgentDefinition.CallableAgentNames` is now `CallableAgents`, a list of `CallableAgentReference` (breaking).** Rename the
+  initializer; a name converts to a reference, so `CallableAgentNames = ["support"]` becomes `CallableAgents = ["support"]`.
+  `AgentDefinitionRequest.CallableAgentNames` is `CallableAgents` too, and over HTTP the field is `callableAgents`, a list of
+  `{ "name": ..., "version": ... }` objects. A request body that still carries `callableAgentNames` is refused with `400`
+  and names the new field, so it cannot drop the callable agents in silence. The validation path of a tool name that another
+  tool already has moved from `callableAgentNames[i]` to `callableAgents[i].name`. `AgentDescriptor.CallableAgentNames` (the
+  catalog's list of names) is unchanged. **Upgrade note:** no migration. A stored definition that holds the old key reads back
+  as entries with no version, and takes the new shape the next time it is saved; a custom `IAgentDefinitionStore` must keep
+  the version of each entry (`AgentDefinitionStoreContract` now checks it).
+
+- **`IAgentDefinitionStore` never gives a version number twice for one name.** `SaveAsync` returns one more than the highest
+  version the name ever had, including the versions of a definition that was deleted; `DeleteAsync` still removes the
+  definition and every one of its versions and keeps only the number. A custom `IAgentDefinitionStore` must keep that number
+  too: `AgentDefinitionStoreContract` has eight more cases (`SaveAsync_after_DeleteAsync_continues_the_numbering` and seven
+  around it: a second delete, a delete of a name that never existed, a rollback after a recreate, a rollback of a deleted
+  agent, two tenants, and concurrent saves, with and without a delete before them) that a store which restarts at 1 now fails. The PostgreSQL, SQL Server and SQLite
+  migrations add the `agent_definition_version_counters` table (`0065`, `0053` and `0052`), one row of name and number per
+  agent and no agent content, and start each existing agent's counter at the version it holds today. **Upgrade note:** an
+  agent that was deleted and created again before the upgrade cannot be recovered; its earlier numbers were never kept, so its
+  counter starts at the highest number it holds now. During a rolling upgrade an older process may still save an agent without
+  touching the counter: the next number is one more than the larger of the counter and the agent's own version, so such a
+  save never collides with the history it wrote.
+
+- **A configuration value that cannot be read stops the host at startup.** A key that held text its type could not read
+  (`Tracon:Tools:DefaultMaxOutputBytes = "10MB"`, `Tracon:RunRecording:RecordToolPayloads = "nope"`,
+  `Tracon:RateLimit:Enabled = "yes"`) was skipped and the shipped default stayed, with no message. 25 of those defaults are
+  the loose side, so a typo left a limit open or a protection off. Now every number, flag, time span and enum name in the
+  `Tracon:*` sections and in the package sections (`Mcp`, `Voice`, `Voice:Live`, `Voice:Conversation`, the providers, the
+  SQL stores) must be readable, and so must the numbers of a model catalog entry and of a price. The host refuses to start
+  and the message names the full key and quotes the text: `Tracon:Tools:DefaultMaxOutputBytes is '10MB', which is not a
+  32-bit whole number.` Every unreadable key of the same options type is listed in one message. **Empty text, or only white
+  space, is still "not given"** and keeps the default. Code that assigns the option after binding still wins, so a typo you
+  have overridden in a `Configure` callback does not stop the host. **Upgrade check:** start the application once; the
+  keys it names are the ones that were ignored until now.
+- **A list key that holds one value is refused.** `Tracon:Skills:Scripts:EnvironmentAllowList=PATH` was ignored and the
+  default list stayed. The message now says to write `…:EnvironmentAllowList:0`. A JSON `[]` and a key with no text keep
+  the default list, as before; to empty a list, clear it in code. This covers every list key (`Lanes`,
+  `HttpSchedulableHandlerKeys`, `DeniedTerms`, `AgentNames`, `AllowedMediaTypes`, `ThresholdPercents`, `RetryDelays`,
+  `Columns`).
+- **An entry of a list or a map that cannot be read is left out and named by its position or name** (`Quotas:ThresholdPercents:1`,
+  `Scheduling:MaxConcurrentJobsPerLane:media`). It used to be bound as `0` (or as an undefined value) so that the options
+  validator would complain about the stand-in; the message now quotes what you wrote.
+- **A decimal no longer takes a thousands separator.** `Tracon:Pricing:…:Input = "1,5"` was read as fifteen. It is now an
+  unreadable value; write `1.5`.
+- **`Tracon:Voice:Live:DelegationMode` is refused by the same rule** instead of throwing while the options are bound:
+  the host stops at startup with an `OptionsValidationException` that names the key and the one mode, `Client`.
+- **An address key that is not an absolute address is refused by the same rule.** `Tracon:Voice:Endpoint`,
+  `Tracon:Providers:OpenAI:Live:Endpoint` and `Tracon:Mcp:OAuthCallbackBaseUri` ignored text such as
+  `gateway.example.com/v1` and kept the default, so speech and live sessions went to the provider's public address. The
+  host now stops and names the key: `… is 'gateway.example.com/v1', which is not an absolute address such as
+  https://example.com/.`
+- **A map key that holds one value is refused.** `Tracon:Scheduling:MaxConcurrentJobsPerLane=5`,
+  `…:MaxDurationByHandlerKey=00:10:00` and `…:LaneByHandlerKey=media` name no lane or handler and were ignored. The
+  message now says to write `…:MaxConcurrentJobsPerLane:<name>`.
+
+- **The knowledge search and the on-demand conversation memory search run through the tool chain.** `search_knowledge`
+  (`MemorySettings.EnableVectorSearch`) and `search_conversation_memory` (`ConversationMemorySearch.OnDemand`) were added
+  to a run as bare functions, so your `IToolAuthorizationHandler`, your `IToolArgumentsValidator`, the tool timeout and
+  output limit, and the tree budget never saw them, and the refusal of a tenant's egress policy reached the model as "Error:
+  Function failed." Now both pass the chain a tool registered in code passes. **An authorization handler that denies
+  `ToolEffect.External` calls now also closes both searches:** it is asked with the tool name and `Effect = External`,
+  because the text of the query leaves the process, and the model reads your reason as the result. A validator that
+  rejects a tool it does not know rejects them too. Neither tool is in `IToolRegistry`, so `GET /api/tools` does not list
+  them; write their names in your policy as fixed text. A spent budget stops the search before the query is embedded; the
+  whole call, the embedding included, ends at `Tracon:Tools:DefaultTimeout` (30 seconds by default); and a hit reaches the model as text, trimmed at
+  `Tracon:Tools:DefaultMaxOutputBytes` like any tool result. The call line of `search_knowledge` in
+  `GET /api/runs/{id}/tools` now has a `usage`: unit `tokens`, the input token count of the embedded query as the provider
+  reported it, and no `cost`, so it adds to no budget, quota or webhook total; the run's `nonTokenCost` counts it under
+  `unsummedItemCount`. An embedding has no price in Tracon yet. See
+  [Embedding Tracon](/guides/embedding/#which-tools-reach-the-tool-authorization-handler).
+- **A tool call does not start once the call tree's budget is spent.** The budget (`Tracon:AgentGraph:MaxTotalTokens`,
+  `MaxTotalCost`, `MaxDuration`) already refused the next model call, a new agent step and a workflow function node. A tool
+  call was the one start it did not read, so when one model turn asked for two paid tools and the first passed the ceiling,
+  the second still ran: its money and its side effect were gone, and the model call that would have read its result was
+  refused. Now the second tool does not run. Its result is the limit, the setting to raise and "The tool call did not
+  start."; a streaming run (the HTTP run is one) records the call as failed; and the run ends at its next model call as
+  before (`Failed`, `run_budget_exceeded`). All three limits stop a tool call, `MaxTotalTokens` included, since a model reads its
+  result; a function node is still stopped by cost and time only. The check covers tools registered in code, session
+  workspace tools, MCP tools, the knowledge and conversation memory searches and skill scripts, and it runs before
+  your `IToolAuthorizationHandler`. A tool that has started
+  is never stopped, so the call that crosses the ceiling is the last one that starts; with
+  `ToolLoop.AllowConcurrentToolCalls` on, the tools of one turn start together and all of them start. A hosted tool runs
+  inside the model call and is not checked. A host that sets no ceiling still has the default `MaxTotalTokens` of 200,000:
+  a tool that a turn asks for after the tree has passed it no longer runs. See
+  [Bound multi-agent trees](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting).
+- **`agentReview` is now a built-in loop criterion kind, so a criterion registered in code under that name is refused.**
+  `AddLoopEvaluator("agentReview", ...)` (in any casing) throws `TraconException` at startup, the way the other four
+  built-in names do. A definition that named such a kind now means the built-in one; rename your criterion
+  before you update.
+- **A workflow run that waits for a concurrency slot is `Queued`, not `Running`.** The run's record still opens before
+  the wait, but it reads `Queued` while the run waits for a slot of `MaxConcurrentRuns` or of
+  `MaxConcurrentRunsPerTenant`, and `Running` once it has them. A run that finds a slot free opens `Running` as before.
+  `GET /api/runs`, the run's detail and the console show it (the `queued` badge was already there). A dashboard that
+  counted `Running` rows as "using a slot" now counts only the runs that have one. `POST /api/runs/{id}/cancel` reaches a
+  waiting run (`202`, closed `Canceled`); until now it sent every `Queued` run to the job queue.
+- **A `Queued` run row can be closed by run reconciliation.** `IRunStore.TouchHeartbeatAsync` now marks `Queued` rows as
+  well as `Running` ones, and `IRunStore.ClaimOrphanedRunsAsync` closes a `Queued` row whose heartbeat is older than the
+  threshold as `Failed` (`orphaned`). A process writes a heartbeat for the runs it executes, and for a workflow run that waits
+  in it for a slot, so a `Queued` row with a heartbeat is a run whose process is gone. A `Queued` row that never sent
+  one is still the job queue's and is never closed by reconciliation. **An `IRunStore` you implement must do the same:**
+  the shared contract tests (`RunStoreContract`) have three new cases.
+- **Breaking for implementers (preview):** `IJobStore.LeaseAsync(owner, leaseDuration, lanes, cancellationToken)` is now
+  `IJobStore.LeaseAsync(JobLeaseRequest request, cancellationToken)`. `JobLeaseRequest` carries `Owner`, `LeaseDuration`,
+  `Lanes` and the new `TenantCap` (`JobTenantCap`: the handler keys and `MaxLeasedPerTenant`); a new option is a new
+  property, not a new parameter. An `IJobStore` you implement takes the request and, when `TenantCap` is set, skips a ready
+  job of a handler key in the cap while its tenant holds that many live leases on those keys (an expired lease does not
+  count). A caller reads `request.Lanes` where it read `lanes`. `JobStoreContract` has eleven new cases for the cap.
+
+- **`tracon.tenant.id` is no longer on metrics by default.** The metrics `tracon.runs`, `tracon.run.cost`,
+  `tracon.judge.cost`, `tracon.judge.score`, `tracon.model.cache`, `tracon.audit.write_failures`,
+  `tracon.run.recording_failures` and `tracon.job.executions` carried the tenant on every series, which multiplies each
+  series by the number of tenants. They now carry it only when `Tracon:Observability:IncludeTenantTag`
+  (`TraconObservabilityOptions.IncludeTenantTag`) is `true`; it is `false` by default. Spans and the quota gauges
+  (`tracon.quota.usage`, `tracon.quota.limit`) carry `tracon.tenant.id` as before. **A dashboard or an alert rule that
+  filters or groups one of the eight metrics by `tracon.tenant.id` shows no series until you set the key.** A value that
+  is not `true` or `false` stops the application at startup. See [the tenant tag on
+  metrics](/guides/observability/#the-tenant-tag-on-metrics).
+- **A workflow run that continues an earlier run no longer starts with a budget of zero.** A person's answer to a
+  request, an operator's resume (`POST /api/workflows/runs/{runId}/resume`) and a recovery after an interruption each
+  start a new run row, and each used to build a new call-tree budget: a workflow with an approval loop got the whole
+  `Tracon:AgentGraph` ceiling again with every answer, and a run that failed for its budget was resumed into the node
+  that had been refused. The ceiling is now the logical run's. The new run starts from what the runs before it spent
+  (tokens, cost and child runs), and the time limit counts the time the chain's runs were **executing**, not the time
+  the workflow waited for a person. A workflow that stayed under its ceiling only because every answer got a new one now
+  fails at the node that crosses it, with `run_budget_exceeded`: raise `MaxTotalCost`, `MaxTotalTokens`, `MaxTotalRuns` or
+  `MaxDuration` to the size of the whole review, not of one round. A chain that cannot be read (the run store does not
+  answer, or it is longer than 128 runs) ends the run `Failed` before its first node. A run that an interruption closed
+  holds what its function nodes reported only in its items, and Tracon reads them from there. A nested sub-agent call is
+  spent but not counted as a started run. See
+  [the ceiling of a workflow](/guides/reliability/#the-ceiling-of-a-workflow-is-the-logical-run).
+- **An operator's resume of a workflow run records the run it resumes in `continuedFromRunId`.** Until now only a
+  recovery wrote the link, so the resume run looked unrelated to its source and `GET /api/runs?continuedFromRunId=`
+  did not list it. A run that answers a person's request still does not carry it; the answer names the run that waited
+  in its own history. A continuation that a recovery opened keeps the link the recovery wrote. The resume run joins the
+  chain the recovery and the response gate read, so a repeated answer follows it, and a resume of a run whose queued job
+  may still recover it is recovered with that job: resume a run only after its job has ended.
+- **A workflow function node or an agent step is refused once the tenant's cost quota is spent.** The quota was read
+  at the door only (`429`), so a workflow that waited for a person, or ran for hours, passed a quota that was spent in its
+  first minutes. Before a function node or an agent step starts, the tree asks the tenant's quota: the **cost** limit
+  stops a function node, and the **token** and **cost** limits stop an agent step or one agent's call to another. The run
+  ends `Failed` with the new error type `tenant_quota_exceeded` (`TraconTenantQuotaExceededException`, class
+  `QuotaExceeded`); when one agent calls another, the refusal comes back to the model as a tool result, as a spent call-tree
+  budget does. Only a start is refused, and the check counts what the run has spent that its counter has not seen yet, so
+  the nodes it already finished count. The run limit stays at the door. A node registered with
+  `options.StartsWhenBudgetIsSpent = true` is exempt from the quota as it is from the budget, and a refusal is never retried
+  by a node's retry policy. The check reads the tenant's rules (one read; two when the tenant has a rule) each time a node
+  or step starts, and follows `Quotas:AllowOnStoreFailure` when the store cannot be read. With `Quotas:Enabled = false`
+  nothing is read. Quotas are on by default, so a model call is priced in every installation that has not turned them off:
+  `AgentRunBudget.ConsumedCost` now holds the cost of the model calls even when `AgentGraph.MaxTotalCost` is not set.
+  The price lookup costs about 1 microsecond per model call (24 models in the catalog). See
+  [A quota also stops work that has not started](/concepts/governance/#a-quota-also-stops-work-that-has-not-started).
+- **A data subject erasure deletes the copies of a session outside the SQL rows before it opens its
+  transaction.** The copies are the records of conversation memory in your vector store and the files of a session
+  workspace. They used to go after the rows were deleted and before the commit. The files live in the same
+  database, and SQLite lets one connection write at a time: a delete on a second connection, while the erasure
+  held its writes, waited for the busy timeout and failed. A copy that cannot be deleted still fails the call with
+  every row in place, and repeating the call finishes the work. If a later step fails after the copies are gone, the
+  repeat call deletes the rest and its audit entry counts only what was left. The `sessions` retention target now always reads the
+  expired batch and deletes the files of each session before the rows (an installation with no workspace deletes
+  nothing extra, and the delete is answered from the new index).
+- **Model Context Protocol SDK `2.3.0`** (`ModelContextProtocol.Core`, `.AspNetCore`, `.Extensions.Tasks`).
+  No public member was removed. A published agent's `tools/call` from a client on the `2026-07-28`
+  revision now gets its response headers with the result: a proxy with a time-to-first-byte limit
+  cuts a long call. Use `EnableTasks` for long calls, or raise that limit.
+- **An A2A message is refused before the model is called when session ownership is strict and the
+  caller has no identity to own the conversation.** With `Tracon:SessionOwnership:Enabled` and
+  `RequireAuthenticatedOwner` on, a conversation needs an owner. A2A wrote no session until now, so the
+  rule never reached it. The caller receives a JSON-RPC internal error (`-32603`) and the cause is in
+  the server log at `Error` level. A message that resumes a conversation another user owns is refused the
+  same way, which matters when one API key speaks for several users. Bind `IRunAttributionContext` to the
+  identity pipeline, or turn `RequireAuthenticatedOwner` off, before you upgrade an installation that
+  publishes an agent over A2A.
+
+- **`EvalCase.ExpectedTools` and `EvalCaseDraft.ExpectedTools` are replaced by `ExpectedToolCalls`.**
+  This breaks source and the JSON of a case. The old field held tool names and no check read it, so a
+  case that filled it asserted nothing; a name-only entry of the new field is checked. `PUT
+  /api/evals/{name}/cases` answers `400` (`Removed field`) to a body that still carries
+  `expectedTools` and names `expectedToolCalls`; the `expectedTools` of the case list is gone. A case
+  stored by an earlier build keeps its names: they read back as entries without arguments, the old
+  column stays in the table and is never written, and the next save of the case writes the new
+  column. A custom check can no longer be registered under the name `toolCallArgsMatch`; it is a
+  built-in kind now.
+
+- **A call of a registered hosted tool is a pair of tool events, not a `tracon.content` event.**
+  The calls of a tool added with `AddHostedTool` are `ToolInvoking` and `ToolInvoked` events under
+  the registered name, with the provider's call identifier and no payload, and a tool invocation
+  record that carries the call's measurement (unit `calls`, quantity `1`). A hosted call that no
+  registered tool owns, such as the harness's web search, stays a `tracon.content` event as before. A
+  streamed call that the provider shows in several pieces is written once. A replay that plays
+  tools back (`ReplayTools`) or runs none (`NoTools`) removes a hosted tool, so it does not search
+  and bill again.
+- **`ModelBinding.AllowConcurrentToolCalls` moved to `ModelBinding.ToolLoop.AllowConcurrentToolCalls`.**
+  This breaks source and the JSON of a definition. A definition stored by an earlier build is read
+  with the old key moved, so no migration runs and the setting is kept; the next save writes the
+  new place only, and so does a rollback. `POST /api/agents`, `PUT /api/agents/{name}` and
+  `POST /api/agents/validate` refuse the old key with `400` (`Removed field`) and name the new
+  path. A fallback link now takes the whole `ToolLoop` of the primary model.
+- **An agent extension and the options of one run can no longer set `Seed`, `TopK`, `StopSequences`,
+  `FrequencyPenalty`, `PresencePenalty`, `ToolMode` or `AllowMultipleToolCalls`.** The definition
+  owns them now; an extension that changes one fails the compilation and names the option, and
+  `ChatClientAgentRunOptions` that sets one throws `ArgumentException`. One exception: a run may
+  set `AllowMultipleToolCalls` to `false`, which a handoff step does to hand off to one agent.
+- **`/v1/chat/completions` refuses a model setting the agent owns with `400`.** `temperature`,
+  `top_p`, `max_tokens`, `max_completion_tokens`, `frequency_penalty`, `presence_penalty`,
+  `seed`, `stop`, `logit_bias`, `reasoning_effort`, `response_format`, `tools`, `tool_choice`,
+  `functions`, `function_call`, `n`, `logprobs`, `top_logprobs`, `modalities`, `audio`, and
+  `web_search_options` were read by nothing: a client that asked for JSON, three choices, or its
+  own tool got none of them and no error. A value that asks for the default passes. `/v1/responses`
+  already refused its own setting fields. `POST /v1/conversations` refuses initial `items`, which
+  it used to drop.
+- **Agents inside run recording receive a plain `AgentRunOptions`.** An `IAgentDecorator` with an
+  `Order` above 0 no longer sees `TraconRunOptions`; read the run through `TraconRunContext`.
+  Microsoft Agent Framework's function-invocation middleware (`AIAgentBuilder.Use` with a
+  `FunctionInvocationContext` callback) rejects any other options type, so it threw
+  `NotSupportedException` on every run started by a Tracon endpoint. It now runs.
+- **`/v1/chat/completions` refuses tool-call history and unknown roles with `400`.** A `tool` or
+  `function` message, an assistant message with `tool_calls` or `function_call`, and a role other
+  than `system`, `developer`, `user` or `assistant` used to pass: the assistant turn was dropped,
+  the tool result went on as plain text without its call id, and an unknown role became `user`.
+  Tracon runs the agent's tools on the server, and `/v1/responses` refuses `function_call` items
+  the same way. A content part Tracon cannot hand to the model is refused by name, too.
+- `AddSpeechSynthesizer(name, null)` and `AddSpeechTranscriber(name, null)` with a literal `null`
+  no longer compile: the call is ambiguous between the factory and the binding overloads. Cast the
+  `null`, or pass the factory.
+- A harness agent that names skills and also calls other agents lists the skill tools after the
+  background-agent tools, and puts the skill section of its instructions after the
+  background-agents section. They were in the other order. A plain agent, and a harness agent
+  that uses only one of the two, does not change.
+
+#### Fixed
+
+- **A run's events and its end are stamped with the `TimeProvider` its start came from.** A run's start came from the
+  registered `TimeProvider` and its end and events from the system clock. With your own `TimeProvider` registered (a test
+  clock, for example) a run seemed to last from the fake start to today, and the time a workflow continuation inherited
+  from the run it continues was that gap. With the default clock nothing changes.
+- **A version number of a stored agent could name another content after the agent was deleted and created again.** The
+  numbering restarted at 1, so a pin to version 3 (a workflow step's `agentVersion`, a loop reviewer, an experiment arm) or
+  a tool approval that waited on version 2 reached the new agent's third or second save a few edits later, and ran its
+  text instead of failing. A run on an approval, for example, was resumed with the new agent's instructions and completed.
+  The numbering now continues, so the old number names no version and the run stops before any step with `pins agent 'x' to
+  version N, but the agent has no version N` (a workflow) or fails (an approval resume). Version numbers a run recorded
+  before the delete are not reachable any more, as they were not before. Needs the migration of the **Changed** entry above.
+
+- **A data subject erasure (`DELETE /api/data-subjects/{id}?dryRun=false`) did not return on SQLite.** The audit
+  entry is written before the erasure commits, from inside its transaction. On SQLite that transaction holds the
+  database's single write lock, so the audit write from a second connection waited until its command timed out,
+  and the audit log retried the wait up to 50 times. On SQLite the audit entry is now written on the erasure's own
+  transaction, and the two commit or roll back together. PostgreSQL and SQL Server are not changed. An `IAuditLog`
+  you register in place of Tracon's own still writes on its own connection.
+
+- **OpenAI and Azure OpenAI never received the response schema as written, and nothing showed it.** The Microsoft.Extensions.AI
+  client rewrites the schema on every request, strict or not: it closes every object, lists every property in `required`
+  (an optional property becomes required and its type does not gain `null`), and moves 22 keywords (`maxLength`, `pattern`,
+  `minimum`, `minItems` and others) out of the schema into the property's `description`. An optional `nickname` the model did
+  not know came back as `""`. The behavior is not changed; the validation report now shows it (see above).
+
+- **The A2A and MCP exposure check refuses an agent whose skill tools ask for approval.** The check read only
+  the tool registry, and the skill tools are not in it, so an agent with skills was exposed and its first
+  `load_skill` call closed the run `Failed` with `approval_unanswerable` (`-32603` over A2A). The host now
+  refuses the agent when it starts, names the agent and the way out (`Skills.DisableReadApproval`, or remove
+  the skills), and opens it when the definition turns the read approval off. A host that exposed such an
+  agent and relied on every call failing must set `Skills.DisableReadApproval` on the definition, or take the
+  agent off the allow list. The check reads the catalog once, when the host starts: an agent saved later is not
+  checked, and a model that calls `run_skill_script` still ends the run at the call unless a standing approval
+  rule covers it.
+
+- **A tool that Microsoft Agent Framework already wrapped for approval reports that it needs approval.**
+  `AddTool(new ApprovalRequiredAIFunction(fn))` — the default shape of `DockerShellExecutor.AsAIFunction()` —
+  asked for approval at run time, but `/api/tools` said `requiresApproval: false`. The A2A and MCP exposure
+  check read that flag, so such an agent was exposed and every call failed with `-32603`. The startup check
+  now refuses it, and replay sees the approval.
+- **The .NET client reads a nullable enum property.** `ToolDescriptor.HostedKind`, `RunComparisonSide.ErrorClass`,
+  `RunError.Class`, `WorkflowDescriptor.Kind`, `EvalCase.SourceKind` and `VoiceSession.EndReason` were generated as an
+  empty class named after the property in place of the enum, so the client threw `JsonException` when the host sent a
+  value (`The JSON value could not be converted to ...ErrorClass`). They are the enum types now. A property the host
+  always sends (`WorkflowDefinition.Kind`, `WorkflowSaveRequest.Kind`, `RunErrorStatistics.Class`) is no longer
+  nullable in the client. The TypeScript client was not affected.
+- **A stored definition written before a list member existed no longer breaks the catalog.**
+  The SQL payload read `mcpResourceUris`, `parameters`, and the new `extensionNames` as
+  `null` when a row had no such key, and the catalog listing failed with
+  `ArgumentNullException` for every agent. The three lists now read as empty.
+- A harness agent completes the turn that answers a pending approval. The approved (or rejected)
+  tool ran, and then the next model call failed with `InvalidOperationException`: the harness
+  reloads the session history on every model call, and the history still held the approval
+  request while the response had been consumed. A plain agent was not affected.
+- `UseOpenAIImages` and `UseAzureOpenAIImages` publish with Native AOT. The image generator now
+  runs on the shared client's pipeline instead of `ImageClient`, whose members name a
+  `System.ClientModel` type that version 1.16 renamed; `ilc` stopped with "Failed to load type".
+- `/v1/chat/completions` hands image, audio and file parts to the model. It kept only the `text`
+  parts, so the model answered as if the user had sent no image, and a message with only an image
+  answered `400` "'messages' cannot be empty." Embedded data passes the attachment type check and
+  is stored as an attachment, as on `/v1/responses`.
+- An image's `detail` and a file's name now reach the model on `/v1/responses` and on
+  `POST /api/agents/{name}/run` attachments. The attachment reference dropped both.
 
 <a id="v1.0.0-preview.5"></a>
 
@@ -22780,7 +23506,7 @@ package, and the surface may still be reduced before 1.0.
 Source: https://tracon.dev/reference/compatibility/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -24776,7 +25502,7 @@ unbounded retention.
 Source: https://tracon.dev/reference/versioning/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -25306,11 +26032,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.5` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.6` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.5
+dotnet new install Tracon.Templates@1.0.0-preview.6
 ```
 
 ### The generated project rejects a template option

@@ -5,7 +5,7 @@ slug: guides/coding-agents
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.6`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -133,7 +133,7 @@ every page — three sizes for three questions, published on the documentation s
   what**: one line per hand-written page, with its title, address, and subject. About
   24 KB.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 1250 KB.
+  page concatenated, about 1520 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
