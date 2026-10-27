@@ -106,6 +106,8 @@ public sealed class ResponsesIncompleteTests
         cut.Events.SkipLast(1).ShouldBe(complete.Events.SkipLast(1));
         complete.Events[^1].ShouldBe("response.completed");
         cut.Events[^1].ShouldBe("response.incomplete");
+        complete.MessageItemDoneStatuses.ShouldBe(["completed"]);
+        cut.MessageItemDoneStatuses.ShouldBe(["incomplete"]);
 
         cut.SequenceNumbers.ShouldBe([.. Enumerable.Range(0, cut.Events.Count)]);
         complete.SequenceNumbers.ShouldBe([.. Enumerable.Range(0, complete.Events.Count)]);
@@ -148,6 +150,30 @@ public sealed class ResponsesIncompleteTests
         {
             answer.TerminalEvents.ShouldBe(["response.completed"]);
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_final_answer_cut_after_a_tool_turn_is_incomplete(bool stream)
+    {
+        // The other direction of the rule above: the tool turn completed, the answer that follows it was cut off.
+        var provider = new FinishReasonModelProvider()
+            .ToolCall("lookup_fact", ChatFinishReason.ToolCalls, inputTokens: 20, outputTokens: 10)
+            .Text("The answer is 4", ChatFinishReason.Length, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await OutputTruncationTests.StartAsync(
+            provider,
+            OutputTruncationTests.PlainText(maxOutputTokens: 50, toolNames: ["lookup_fact"]),
+            configureTracon: static builder => builder.AddTool(
+                (Func<string>)(static () => "42"), name: "lookup_fact", description: "Returns a fact."));
+
+        var answer = await AskAsync(host, stream);
+
+        answer.Status.ShouldBe("incomplete");
+        answer.IncompleteReason.ShouldBe("max_output_tokens");
+        answer.MessageStatuses.ShouldBe(["incomplete"]);
+        provider.Calls.ShouldBe(2);
     }
 
     [Theory]
@@ -206,6 +232,61 @@ public sealed class ResponsesIncompleteTests
 
         answer.Status.ShouldBe("incomplete");
         answer.IncompleteReason.ShouldBe("max_output_tokens");
+    }
+
+    [Theory]
+    [InlineData("length", "tracon.output.truncated", false)]
+    [InlineData("length", "tracon.output.truncated", true)]
+    [InlineData("content_filter", "tracon.output.filtered", false)]
+    [InlineData("content_filter", "tracon.output.filtered", true)]
+    public async Task The_run_behind_an_incomplete_answer_still_records_its_notice(string modelReason, string customType, bool stream)
+    {
+        // The stream passes through the rewriter's layer before MAF reads it; the detector's notice is written
+        // from inside the model call, so it must still reach the run on this surface.
+        var provider = new FinishReasonModelProvider()
+            .Text("Part of an answer", new ChatFinishReason(modelReason), inputTokens: 30, outputTokens: 50);
+
+        await using var host = await OutputTruncationTests.StartAsync(provider, OutputTruncationTests.PlainText(maxOutputTokens: 50));
+
+        await AskAsync(host, stream);
+
+        var run = await OutputTruncationTests.SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        (await OutputTruncationTests.EventsAsync(host, run.Id))
+            .Where(e => string.Equals(e.CustomType, customType, StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task A_message_closed_before_the_stream_ends_keeps_its_own_status_but_the_final_response_is_incomplete()
+    {
+        // MAF closes a message item as soon as another kind of item follows its text (measured with a reasoning part),
+        // which is before the finish reason is known. The terminal event, with the whole output, is the source of truth.
+        await using var host = await TraconTestHost.StartAsync(static builder => builder
+            .AddModelProvider(new ReasoningAfterTextModelProvider())
+            .AddAgent(new AgentDefinition
+            {
+                Name = OutputTruncationTests.AgentName,
+                DisplayName = "Truncation Agent",
+                Description = "An agent used by the Responses incomplete tests.",
+                Instructions = "Reply briefly.",
+                Model = new ModelBinding
+                {
+                    Provider = ReasoningAfterTextModelProvider.ProviderName,
+                    Model = ReasoningAfterTextModelProvider.ModelName,
+                    MaxOutputTokens = 50,
+                },
+                Origin = AgentDefinitionOrigin.Code,
+            }));
+
+        var answer = await AskAsync(host, stream: true);
+
+        answer.Status.ShouldBe("incomplete");
+        answer.IncompleteReason.ShouldBe("max_output_tokens");
+        answer.TerminalEvents.ShouldBe(["response.incomplete"]);
+        answer.MessageStatuses.ShouldBe(["incomplete"]);
+        answer.MessageItemDoneStatuses.ShouldBe(["completed"]);
     }
 
     [Fact]
@@ -361,6 +442,10 @@ public sealed class ResponsesIncompleteTests
 
         frames.ShouldNotBeEmpty();
 
+        // A stream the rewriter understood never logs its "terminal frame not found" warning.
+        host.Logs.Entries.ShouldNotContain(
+            static entry => entry.Contains("no response.completed frame was found", StringComparison.Ordinal));
+
         using var terminal = JsonDocument.Parse(frames[^1].Data);
 
         return Describe(terminal.RootElement.GetProperty("response"), frames);
@@ -423,6 +508,58 @@ public sealed class ResponsesIncompleteTests
         IReadOnlyList<int> SequenceNumbers);
 
     /// <summary>
+    /// A provider whose stream yields a text update, then a reasoning part, then the usage with a cut-off finish
+    /// reason: the order that makes MAF close the message item while the update source is still open.
+    /// </summary>
+    private sealed class ReasoningAfterTextModelProvider : IModelProvider
+    {
+        internal const string ProviderName = "reasoning-after-text";
+        internal const string ModelName = "reasoning-after-text-1";
+
+        public string Name => ProviderName;
+
+        public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = ModelName }];
+
+        public IChatClient CreateChatClient(ModelBinding binding) => new Client();
+
+        private sealed class Client : IChatClient
+        {
+            public Task<ChatResponse> GetResponseAsync(
+                IEnumerable<ChatMessage> messages,
+                ChatOptions? options = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException("The test only streams.");
+
+            public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+                IEnumerable<ChatMessage> messages,
+                ChatOptions? options = null,
+                [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                await Task.Yield();
+                yield return new ChatResponseUpdate(ChatRole.Assistant, "Part of an answer");
+
+                await Task.Yield();
+                yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextReasoningContent("weighing the next sentence")]);
+
+                await Task.Yield();
+                yield return new ChatResponseUpdate(
+                    ChatRole.Assistant,
+                    [new UsageContent(new UsageDetails { InputTokenCount = 30, OutputTokenCount = 50, TotalTokenCount = 80 })])
+                {
+                    FinishReason = ChatFinishReason.Length,
+                };
+            }
+
+            public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+            public void Dispose()
+            {
+                // Nothing to release.
+            }
+        }
+    }
+
+    /// <summary>
     /// A provider whose stream yields one text update and then waits for the caller to go away,
     /// so a disconnect can be made while the answer is still forming.
     /// </summary>
@@ -459,7 +596,7 @@ public sealed class ResponsesIncompleteTests
 
                 try
                 {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
                 }
                 finally
                 {
