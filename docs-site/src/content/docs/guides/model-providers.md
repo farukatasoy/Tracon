@@ -377,7 +377,8 @@ agent sends the same request as before:
   `cacheWriteInputTokens`, `cacheWriteLongInputTokens` and `cacheWriteCost`, and its
   total cost adds the write. With no write rate the written tokens stay in the input
   charge, as before. A provider adapter of your own reports writes under the keys of
-  `TraconUsageCounts` in `UsageDetails.AdditionalCounts`.
+  `TraconUsageCounts` in `UsageDetails.AdditionalCounts`, counted inside `InputTokenCount`
+  like cached tokens.
 - **Thinking tokens count against the output limit.** At `high` effort or above,
   set `MaxOutputTokens` explicitly. Without it, the request goes out with
   `DefaultMaxOutputTokens` (4096), and the validation report warns when the

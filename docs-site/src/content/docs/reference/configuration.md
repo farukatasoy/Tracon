@@ -345,7 +345,8 @@ likely typo.
 *wrote* into its prompt cache, by how long the entry lives: Anthropic bills a
 five-minute entry at 1.25 times the input price and a one-hour entry at 2 times.
 Both are optional and independent, and a negative value stops the host at start.
-Which class a write belongs to is the provider's report, not a setting of yours.
+Which class a write belongs to is the provider's report; a response with no per-class
+split counts the whole write under `anthropic.promptCaching.ttl` (the short class when it sets none).
 
 Cost is computed by **subtraction**, because a provider counts cached and written
 tokens *inside* the input total rather than beside it:

@@ -126,6 +126,9 @@ var binding = new ModelBinding
   document or question writes a new entry. The `system` placement caches only up
   to the end of the instructions, which requests with different documents share.
   The effect is visible in the cached-input token counters of the run's usage.
+  Prompt-cache writes are counted and priced separately, as cache write tokens and a
+  write price for the short and the long TTL: see the guide,
+  <https://tracon.dev/guides/model-providers/>.
 - **Provider settings do not reach a fallback link.** A `Fallbacks` link gets the
   binding's portable fields only.
 - **The system message is a separate field.** Anthropic carries the `system`
