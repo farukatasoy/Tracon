@@ -66,7 +66,11 @@ const CEILING = 59_000;
 // the page per release would not bring that release under CEILING either. Ceiling
 // 110 000 B, about 13% headroom. When a release crosses it, the notes move to one
 // page per release with this page as the index; the anchors then stay on the index.
-const PAGE_CEILINGS = new Map([['reference/changelog/index.html', 110_000]]);
+//
+// The 1.0.0-preview.6 cut crossed it on 2026-10-27: 131 792 B gzip. The maintainer
+// chose to raise the ceiling for that release and to split the page before the next
+// one (F-710). Ceiling 150 000 B, about 14% headroom.
+const PAGE_CEILINGS = new Map([['reference/changelog/index.html', 150_000]]);
 
 if (!existsSync(dist)) {
   console.error('dist/ is missing; run `npm run build` before checking page weight.');
