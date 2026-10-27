@@ -225,10 +225,11 @@ provider is down, somebody cancels the run: the calls are there.
 
 A call is one row, and its duration is measured whether the run streams or not. A call
 that the chain denied for lack of permission is an ordinary result, not an error: the row
-has `authorizationDenied` set and no error. A run that fails or is cancelled has no
-messages, so it writes the calls the chain noted. A run that answered keeps the rows its
-messages hold, and each row takes its duration and its time from what the chain noted. A
-call that the chain noted and the answer does not hold gets no row of its own: a model link
+has `authorizationDenied` set and no error. A run that does not stream and fails or is
+cancelled has no messages, so it writes the calls the chain noted. A run that answered keeps
+the rows its messages hold; when it does not stream, each row takes its duration and its
+time from what the chain noted. A call that the chain noted and the answer does not hold
+gets no row of its own: a model link
 ran it, the provider failed over, and the next link was answered from its result, so the
 call is not listed twice. When a run fails or is cancelled, the events of its calls carry
 the times the calls really ran.
