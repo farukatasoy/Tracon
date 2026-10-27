@@ -82,6 +82,8 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "runDetail.unitPrice.input": 'Girdi fiyatı',
   "runDetail.unitPrice.output": 'Çıktı fiyatı',
   "runDetail.unitPrice.cached": 'Önbellek girdi fiyatı',
+  "runDetail.unitPrice.cacheWrite": 'Önbellek yazma fiyatı (kısa TTL)',
+  "runDetail.unitPrice.cacheWriteLong": 'Önbellek yazma fiyatı (uzun TTL)',
   "runDetail.unitPrice.perMillionTokens": '{price} / 1M token',
   "runDetail.unitPrice.hint": 'Bu run bittiğinde uygulanan birim fiyat. Bir snapshottur; sonraki katalog veya yapılandırma değişikliği bunu etkilemez.',
   "runDetail.awaiting.title": 'Bir kişiyi bekliyor',

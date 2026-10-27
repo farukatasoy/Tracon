@@ -77,6 +77,8 @@ export const enRuns = {
   "runDetail.unitPrice.input": 'Input price',
   "runDetail.unitPrice.output": 'Output price',
   "runDetail.unitPrice.cached": 'Cached input price',
+  "runDetail.unitPrice.cacheWrite": 'Cache write price (short TTL)',
+  "runDetail.unitPrice.cacheWriteLong": 'Cache write price (long TTL)',
   "runDetail.unitPrice.perMillionTokens": '{price} / 1M tokens',
   "runDetail.unitPrice.hint": 'The unit price applied when this run completed — a price snapshot, unaffected by later catalog or configuration changes.',
   "runDetail.awaiting.title": 'Waiting on a person',

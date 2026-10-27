@@ -393,6 +393,22 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
             value={unitPrice(t, record.cost.cachedInputPricePerMillionTokens, record.cost.currency)}
             hint={t('runDetail.unitPrice.hint')}
           />
+          {/* The write prices appear only when the run priced a cache write: most runs never
+              write, and two permanent "—" cells would be noise on every one of them. */}
+          {record.cost.cacheWritePricePerMillionTokens != null && (
+            <Stat
+              label={t('runDetail.unitPrice.cacheWrite')}
+              value={unitPrice(t, record.cost.cacheWritePricePerMillionTokens, record.cost.currency)}
+              hint={t('runDetail.unitPrice.hint')}
+            />
+          )}
+          {record.cost.cacheWriteLongPricePerMillionTokens != null && (
+            <Stat
+              label={t('runDetail.unitPrice.cacheWriteLong')}
+              value={unitPrice(t, record.cost.cacheWriteLongPricePerMillionTokens, record.cost.currency)}
+              hint={t('runDetail.unitPrice.hint')}
+            />
+          )}
         </div>
       )}
 
