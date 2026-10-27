@@ -184,7 +184,9 @@ A client written against one contract will not decode the other; pick the endpoi
 that matches what you are building — a live turn, or a run's full recorded history.
 
 Tool calls are also written individually — name, arguments, result, duration, error —
-so "which tool failed and with what input" is a query, not a log search.
+so "which tool failed and with what input" is a query, not a log search. A call is
+[recorded where it happens](#tool-calls-are-recorded-where-they-happen), so the row is
+there when the run fails too.
 
 A reasoning model's thinking is a separate event type, `ReasoningDelta`, never merged
 into `MessageDelta`. It is off by default — reasoning output can run far longer than
@@ -197,6 +199,38 @@ services.Configure<TraconOptions>(options =>
 
 With it off, a reasoning model still streams its thinking to the caller in real time —
 this setting only controls whether it is **recorded**.
+
+### Tool calls are recorded where they happen
+
+A tool call that goes through the tool chain is written when it starts and when it ends,
+inside the run. The chain holds the layers every such tool passes: the budget check, the
+authorization handler, argument validation, the timeout, the approval and the output
+limit. Code tools, MCP tools, the session workspace, the knowledge search and the
+conversation memory search go through it. The run reads what the chain wrote when it
+closes.
+
+That keeps the trail when a run does not end well. A queued run, a run that continues an
+answer, an agent step of a workflow and the `/v1/*` endpoints do not stream, so they have
+no messages to read their calls from until the model answers. A run that fails before that
+still has the row and the events of every call it made. The budget refuses its next model
+call, the provider is down, somebody cancels the run: the calls are there.
+
+| What happened to the call | What `GET /api/runs/{runId}/tools` and the events show |
+|---|---|
+| It ended | One row with the result and the duration; a `tool.invoking` and a `tool.invoked` event |
+| The tool failed, or the chain refused it (budget, validation, timeout) | One row with the error; a `tool.failed` event |
+| The run was cancelled while it ran | One row with the error *The run ended before the tool result arrived.*; a `tool.invoking` event |
+
+A call is one row, and its duration is measured whether the run streams or not. A call
+that the chain denied for lack of permission is an ordinary result, not an error: the row
+has `authorizationDenied` set and no error. When the run closes without messages, the
+events of its calls carry the times the calls really ran.
+
+Some tools are outside the chain: a hosted tool, the framework's own `load_skill`,
+`read_skill_resource` and `run_skill_script`, the file memory and to-do tools, and an
+agent called as a tool. The messages of the answer are the only record of such a call. A
+run that does not stream has a row for it when the run succeeds, with no duration, and has
+none when the run fails.
 
 ### Writing your own event
 

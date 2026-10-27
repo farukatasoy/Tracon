@@ -2373,3 +2373,37 @@ Regresyon. Katalog ve doğrulayıcı adı yalnız kodda ve `store`'da arıyordu;
 **Beklenen sonuç**
 - Adım 1: kutu işaretsiz; altındaki metin `run_skill_script`'in her zaman onay istediğini söyler. Dil `tr` iken metin Türkçedir.
 - Adım 3: `version` `2`, `definition.skills` `{"disableReadApproval": true}`; run `200`.
+
+---
+
+### MT-SKILL-087 — Onaylanan betik devam run'ında koşar; bütçesi tükenmiş devam run'ında betik başlamaz ve `script.denied` yazılır (Faz 254, F-690)
+
+Otomatik karşılık: `SkillScriptBudgetTests` (üç senaryo) · `SandboxedSkillScriptRunnerTests.A_spent_budget_stops_a_script_and_the_refusal_is_audited_as_script_denied_with_the_budget_sentence`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 254 |
+| **İlgili karar** | K-1089, K-089 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (bellek içi depo), geçici kod, `curl`, gerçek OpenAI · ➜ CI: `SkillScriptBudgetTests` |
+
+**Ön koşul**
+- §6'nın 1. adımındaki geçici kod uygulanır (`UseSkillScripts` + `AllowStoredScripts` + `Interpreters["sh"] = "/bin/sh"`). Commit edilmez.
+- Geçici bir `IAgentDecorator` (`Order = 10`) eklenir. Yalnız `live-script-charged` agent'ı için, girdisinde `ToolApprovalResponseContent` taşıyan run'ın başında `TraconRunContext.Current?.Budget?.RecordUsage(0, 5m)` çağırır. Commit edilmez.
+- 🚨 Sebep: devam run'ının bütçesi sıfırdan başlar ve ilk işi onaylanan çağrıdır. Agent run'ının devamı önceki run'ın harcamasını devralmaz. Aynı turdaki kardeş bir tool betikten önce koşmaz: onaylanan çağrılar önce koşar. Bütçeyi betikten önce harcayan şey, run'ın önüne konan paralı bir adımdır.
+- Uygulama depo olmadan başlar: `Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Sqlite__ConnectionString=` `Tracon__Ui__AuthToken=` (hepsi boş) ve `Tracon__AgentGraph__MaxTotalCost=0.05`. Gerçek model (`openai` / `gpt-5.4-mini`).
+
+**Adımlar**
+1. `PUT $APU/api/skills/budget-skill` ile bir script'li skill kaydet (`scripts: [{"name":"hello","extension":"sh","content":"echo hello-from-script"}]`). `GET $APU/api/skills/budget-skill` yanıtındaki `scriptSetHash` ile `POST $APU/api/skill-script-grants` isteğini gönder (`expectedContentHash`).
+2. `POST $APU/api/agents` ile iki agent oluştur: `live-script` ve `live-script-charged`. İkisinde de `skillNames: ["budget-skill"]`, `skills: {"disableReadApproval": true}`, model `openai`/`gpt-5.4-mini`; talimat: "Kullanıcı selamı basmanı isterse `budget-skill` skill'inin `hello` script'ini `run_skill_script` ile çalıştır, bastığını tek cümleyle yaz."
+3. `live-script` için `POST $APU/api/agents/live-script/run` isteğini `Prefer: respond-async` başlığı ve `sessionId: "live-a"` ile gönder. `AwaitingApproval` olunca `GET $APU/api/approvals/pending` oku ve kararı `POST $APU/api/approvals/{id}/decide` (`{"approved": true}`) ile ver. Aynı oturumun devam run'ı bitene kadar bekle.
+4. Aynısını `live-script-charged` ile, `sessionId: "live-b"` kullanarak yap.
+5. `GET $APU/api/audit?action=script.denied` ve `GET $APU/api/audit?action=script.run` oku.
+
+**Beklenen sonuç**
+- Adım 3: ilk run `AwaitingApproval`. Karardan sonra devam run'ı `Completed`. `script.run` girişi `budget-skill/hello` için yazılır.
+- Adım 4: devam run'ı `Failed`, `error.type` `run_budget_exceeded`.
+- Adım 5: `script.denied` bir giriş taşır. `entity` `budget-skill/hello`. `after`, bütçe cümlesini JSON dizesi olarak taşır: `The run tree's cost budget is exhausted (5.000000/0.050000). ... The tool call did not start.` `script.run` yalnız adım 3'ün girişidir.
+- 🚨 Betik adım 4'te hiç başlamadı: `script.run` girişi ve çalıştırıcı satırı yoktur.
+- Ölçülen (2026-10-27, bellek içi depo, `gpt-5.4-mini`, geçici kod): adım 3 `Completed`, `script.run` 1 giriş; adım 4 `Failed` `run_budget_exceeded`, `script.denied` 1 giriş. Uygulama günlüğünde `Npgsql` satırı sıfır.

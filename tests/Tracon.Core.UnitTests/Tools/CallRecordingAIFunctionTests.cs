@@ -65,7 +65,7 @@ public sealed class CallRecordingAIFunctionTests
             async (CancellationToken token) =>
             {
                 started.SetResult();
-                await Task.Delay(Timeout.Infinite, token);
+                await Task.Delay(Timeout.Infinite, token); // delay: simulated
 
                 return "never";
             },

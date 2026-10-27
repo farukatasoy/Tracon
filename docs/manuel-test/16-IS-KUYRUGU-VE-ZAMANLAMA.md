@@ -3486,3 +3486,40 @@ Otomatik karşılık: `JobStoreContract.Lease_with_a_tenant_cap_*` (dört depoda
 - (2) `acme`: en eski iş `Running` (`attempt 1`), kalan dört iş `Pending` (`attempt 0`). `globex`: işi `Running`. `acme`'nin dört eski işi, `globex`'in daha yeni işinden önce kiralanmadı.
 - 🚨 Sınır olmasaydı worker iki slotunu `acme`'nin ilk iki işine verirdi ve `globex` beklerdi.
 - Ölçülen (2026-10-24, SQLite): `acme` bir iş `Running`, dört iş `Pending`; `globex` `Running`.
+
+---
+
+### MT-JOB-154 — Bütçe reddiyle biten kuyruklu run'ın tool satırları ve olayları kalır; satırlar süre taşır (Faz 254, F-689)
+
+Otomatik karşılık: `FailedRunToolRowsTests` (dokuz senaryo) · `ToolBudgetGateTests` · `ToolCallLedgerTests` · `CallRecordingAIFunctionTests` · `ToolInvocationTrackerLedgerTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 254 |
+| **İlgili karar** | K-1089 — yeni karar kaydı Faz 254 kapanışında |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (bellek içi depo), `curl`, gerçek OpenAI · ➜ CI: `FailedRunToolRowsTests` |
+
+**Ön koşul** — Örnek uygulama depo olmadan ve küçük bir maliyet tavanıyla başlar. Gerçek model (`openai` / `gpt-5.4-mini`). `APU`, bu adresin `/tracon` ekini taşır. Uygulama günlüğünde `Npgsql` satırı olmamalıdır.
+```bash
+ASPNETCORE_ENVIRONMENT=Development \
+Tracon__PostgreSql__ConnectionString= Tracon__SqlServer__ConnectionString= \
+Tracon__Sqlite__ConnectionString= Tracon__Ui__AuthToken= \
+Tracon__AgentGraph__MaxTotalCost=0.005 \
+dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll \
+  --contentRoot "$PWD/artifacts/bin/Tracon.Api/release" --urls http://127.0.0.1:5199
+```
+
+**Adımlar**
+1. `POST $APU/api/agents` ile `canli-anlatici` agent'ını oluştur: `toolNames: ["narrate"]`, model `openai`/`gpt-5.4-mini`, talimat "Kullanıcı iki cümle verir. Her cümle için `narrate` tool'unu aynı turda bir kez çağır. Sonuçlar gelince yalnız `done` yaz."
+2. `POST $APU/api/agents/canli-anlatici/run` isteğini `Prefer: respond-async` başlığıyla ve iki cümleyle gönder. Dönen `runId`'yi al.
+3. `GET $APU/api/runs/{runId}` yanıtında `status` `Failed` olana kadar bekle.
+4. `GET $APU/api/runs/{runId}/tools` ve `GET $APU/api/runs/{runId}/events` oku.
+
+**Beklenen sonuç**
+- Adım 3: `status` `Failed`, `isStreaming` `false`, `error.type` `run_budget_exceeded`.
+- Adım 4 (`tools`): iki `narrate` satırı. Birincide `error` boş, `duration` dolu. İkincide `error` `The tool call did not start.` ile biter ve `duration` dolu.
+- Adım 4 (`events`): iki `tool.invoking`, bir `tool.invoked`, bir `tool.failed`. Zaman damgaları çağrının gerçek zamanıdır ve sırayla artar.
+- 🚨 Faz 254'ten önce aynı senaryo boş liste verirdi: akışsız run hata ile bitince tool satırı yazılmıyordu. Kanıt: aynı senaryonun fonksiyonel testi temel sürümde `0` satır gördü.
+- Ölçülen (2026-10-27, bellek içi depo, `gpt-5.4-mini`): ilk satırın süresi `00:00:00.0177485`, ikincinin `00:00:00.0007126`; hata `run_budget_exceeded` (`0.007009/0.005000`).
