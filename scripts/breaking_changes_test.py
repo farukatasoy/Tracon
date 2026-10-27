@@ -288,8 +288,8 @@ class IlkYayinBayragiTestleri(unittest.TestCase):
 
     # Packages that have no published baseline yet. The flag is required for them (yeni-paket.md): nuget.org has nothing
     # to restore for a rehearsal. `kapi.py yayin` calls the flag stale once the package is in the latest v* tag, and
-    # then the entry goes from here too. Tracon.AGUI: Phase 236, first release not cut.
-    NEW_SINCE_LAST_RELEASE = ["Tracon.AGUI.csproj"]
+    # then the entry goes from here too. Tracon.AGUI (Phase 236) left with 1.0.0-preview.6.
+    NEW_SINCE_LAST_RELEASE: list[str] = []
 
     def test_depoda_bayrak_yalniz_yayinlanmamis_pakette_var(self):
         """Every other csproj existed in v1.0.0-preview.2 (measured 2026-09-23) and must not carry the flag."""
