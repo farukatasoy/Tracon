@@ -167,7 +167,8 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
    etiketi yeni commit'e at.
 4. **Doğrula:** nuget.org'da paket kümesinin tamamı (flat container; indeksleme
    push'tan ~10 dk sürer), npm dist-tag, release sayfası, `MT-PKG-160`. İlk kez
-   yayımlanan paketin `TraconPackageFirstRelease` bayrağı **hemen** kaldırılır:
+   yayımlanan paketin `TraconPackageFirstRelease` bayrağı **hemen** kaldırılır,
+   hem csproj'dan hem `breaking_changes_test.py` `NEW_SINCE_LAST_RELEASE`'ten:
    taban artık bu etikettir ve bayat bayrak sonraki her `main` koşumunu
    `Paketle`'de durdurur (2026-10-27, `Tracon.AGUI`).
 5. 👤 **Site:** `scripts/site-deploy.sh` paketler nuget.org'da göründükten **sonra**;
