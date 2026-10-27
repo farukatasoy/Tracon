@@ -123,7 +123,8 @@ public sealed class SessionWorkspaceProviderTests : IDisposable
             tool.GetService<AuthorizingAIFunction>().ShouldNotBeNull(tool.Name);
             tool.GetService<TimeoutAIFunction>().ShouldNotBeNull(tool.Name);
             tool.GetService<TruncatingAIFunction>().ShouldNotBeNull(tool.Name);
-            tool.ShouldBeOfType<ExplainedFailureAIFunction>(tool.Name);
+            tool.GetService<ExplainedFailureAIFunction>().ShouldNotBeNull(tool.Name);
+            tool.ShouldBeOfType<CallRecordingAIFunction>(tool.Name);
         }
 
         await InvokeAsync(context, "file_access_write", new Dictionary<string, object?>(StringComparer.Ordinal) { ["fileName"] = "a.md", ["content"] = "alpha" });

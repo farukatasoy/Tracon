@@ -54,11 +54,16 @@ public sealed class ToolWrapperChainTests
         var codeChain = ((AITool)codeFunction).GetType();
         var mcpChain = ((AITool)mcpFunction).GetType();
 
-        // ExplainedFailureAIFunction is the outermost layer since HATA-S1-024:
-        // it covers every layer beneath it, so a rejected argument, a denial and
-        // a timeout all reach the model with the sentence Tracon wrote.
-        codeChain.ShouldBe(typeof(ExplainedFailureAIFunction));
-        mcpChain.ShouldBe(typeof(ExplainedFailureAIFunction));
+        // CallRecordingAIFunction is the outermost layer: it sees every call that
+        // reaches the chain and the result the model reads, and changes neither.
+        // ExplainedFailureAIFunction is directly inside it (since HATA-S1-024 it covers
+        // every layer beneath it, so a rejected argument, a denial and a timeout all
+        // reach the model with the sentence Tracon wrote).
+        codeChain.ShouldBe(typeof(CallRecordingAIFunction));
+        mcpChain.ShouldBe(typeof(CallRecordingAIFunction));
+
+        ((AITool)codeFunction).GetService<ExplainedFailureAIFunction>().ShouldBeOfType<ExplainedFailureAIFunction>();
+        ((AITool)mcpFunction).GetService<ExplainedFailureAIFunction>().ShouldBeOfType<ExplainedFailureAIFunction>();
 
         ((AITool)codeFunction).GetService<AuthorizingAIFunction>().ShouldBeOfType<AuthorizingAIFunction>();
         ((AITool)mcpFunction).GetService<AuthorizingAIFunction>().ShouldBeOfType<AuthorizingAIFunction>();
@@ -104,7 +109,7 @@ public sealed class ToolWrapperChainTests
 
         var function = Compose(registration, Descriptor("validated_tool"), validator: new AllowingValidator());
 
-        ((AITool)function).GetType().ShouldBe(typeof(ExplainedFailureAIFunction));
+        ((AITool)function).GetType().ShouldBe(typeof(CallRecordingAIFunction));
         ((AITool)function).GetService<AuthorizingAIFunction>().ShouldBeOfType<AuthorizingAIFunction>();
         ((AITool)function).GetService<ValidatingAIFunction>().ShouldBeOfType<ValidatingAIFunction>();
     }

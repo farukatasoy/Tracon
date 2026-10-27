@@ -532,7 +532,7 @@ public sealed class AgentDefinitionCompilerTests
         options.ChatOptions.Tools!.ShouldContain(static tool => tool.Name == "search_knowledge");
 
         // F-688: the tool the model sees is the one the tool chain built, not the bare function.
-        options.ChatOptions.Tools!.Single(static tool => string.Equals(tool.Name, "search_knowledge", StringComparison.Ordinal)).ShouldBeOfType<ExplainedFailureAIFunction>();
+        options.ChatOptions.Tools!.Single(static tool => string.Equals(tool.Name, "search_knowledge", StringComparison.Ordinal)).ShouldBeOfType<CallRecordingAIFunction>();
     }
 
     [Fact]

@@ -15,8 +15,12 @@ namespace Tracon;
 /// miss the other.
 /// </summary>
 /// <remarks>
-/// Composition order (outermost first): ExplainedFailure -&gt; BudgetGating -&gt; Authorizing -&gt;
-/// Validating -&gt; Timeout -&gt; ApprovalRequired -&gt; Truncating -&gt; the real function.
+/// Composition order (outermost first): CallRecording -&gt; ExplainedFailure -&gt; BudgetGating -&gt;
+/// Authorizing -&gt; Validating -&gt; Timeout -&gt; ApprovalRequired -&gt; Truncating -&gt; the real function.
+/// CallRecording gates and changes nothing: it writes the call into the run's ledger when it starts and
+/// when it ends, and hands the result or the exception on as it received it. It sits outside ExplainedFailure
+/// so that it sees every call that reaches the chain, a refused one included, and the result the model reads.
+/// The ledger is how a run that does not stream keeps the rows of its calls when it fails.
 /// Budget gating runs first among the layers that decide: a tree whose budget is spent
 /// starts no tool, so there is no handler to ask, no argument to validate and no
 /// approval to wait for. Its refusal is an exception that ExplainedFailure, just
@@ -131,9 +135,13 @@ internal static class ToolWrapperChain
         // ask it. Inside ExplainedFailure, which carries the refusal to the model.
         wrapped = new BudgetGatingAIFunction(wrapped);
 
-        // Outermost, so it covers every layer beneath it: a rejected argument,
-        // a denied call, a timeout and the tool's own body all reach the model
-        // with the sentence Tracon wrote instead of "Error: Function failed."
-        return new ExplainedFailureAIFunction(wrapped);
+        // Covers every layer beneath it: a rejected argument, a denied call, a
+        // timeout and the tool's own body all reach the model with the sentence
+        // Tracon wrote instead of "Error: Function failed."
+        wrapped = new ExplainedFailureAIFunction(wrapped);
+
+        // Outermost, so the ledger holds every call that reaches the chain and the
+        // result the model reads. It changes neither (see CallRecordingAIFunction).
+        return new CallRecordingAIFunction(wrapped);
     }
 }
