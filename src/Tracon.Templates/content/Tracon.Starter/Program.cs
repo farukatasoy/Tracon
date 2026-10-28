@@ -1,7 +1,8 @@
 // Tracon starter template — generated with `dotnet new tracon-api`.
 //
 // Before running, follow the `dotnet user-secrets` steps in README.md.
-// Secrets are NEVER written to this file; appsettings.json carries only empty placeholders.
+// Secrets are NEVER written to this file; appsettings.json carries only empty
+// secret placeholders and the model name.
 
 using Tracon;
 
@@ -88,31 +89,44 @@ if (!string.IsNullOrWhiteSpace(azureOpenAI["Endpoint"]) && !string.IsNullOrWhite
 tracon.UseUI();
 #endif
 
-// A single declarative sample agent in code. The model name is deliberately
-// NOT PINNED — Tracon ships no model list, so take today's model name from
-// the provider's own docs and
-// replace the placeholder below, or read it from the
-// `Tracon:Providers:*:DefaultModel` setting in appsettings.json.
-const string ModelName = "WRITE_MODEL_NAME_HERE";
+// The model name is configuration, not code. `dotnet new tracon-api --model <name>`
+// writes it to appsettings.json as the provider's `DefaultModel` (Azure OpenAI:
+// `DefaultDeployment`); user secrets and environment variables override it.
+// Tracon ships no model list, so the name comes from the provider's own docs.
+#if (UseOpenAI)
+var modelSetting = $"{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.DefaultModel)}";
+#endif
+#if (UseAnthropic)
+var modelSetting = $"{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.DefaultModel)}";
+#endif
+#if (UseGoogle)
+var modelSetting = $"{GoogleProviderOptions.SectionName}:{nameof(GoogleProviderOptions.DefaultModel)}";
+#endif
+#if (UseAzure)
+var modelSetting = $"{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.DefaultDeployment)}";
+#endif
+var modelName = builder.Configuration[modelSetting];
 
-// Left in place, the placeholder is a model no provider serves, and the first
-// run comes back as "The model provider request failed." — the provider's own
-// 404 names the model, but that text is a foreign SDK message and is redacted
-// before it reaches the client, so the first five minutes go on an error that
-// names nothing. This stops at startup instead, and names the line to edit.
+// With a provider configured and no model name, the first run comes back as
+// "The model provider request failed." — the provider's own error names the
+// model, but that text is a foreign SDK message and is redacted before it
+// reaches the client, so the first five minutes go on an error that names
+// nothing. This stops at startup instead, and names the setting.
 //
 // Only when a provider is actually configured: with no API key the agent can
-// never reach a model, so an unedited template still starts up and still
-// answers, which is the "zero surprise" rule above and what
-// TemplateRunTests measures.
-if (providerConfigured && ModelName.StartsWith("WRITE_", StringComparison.Ordinal))
+// never reach a model, so a template generated without `--model` still starts
+// up and still answers, which is the "zero surprise" rule above.
+if (providerConfigured && string.IsNullOrWhiteSpace(modelName))
 {
     throw new InvalidOperationException(
-        $"Program.cs still carries the model-name placeholder ('{ModelName}'). Replace it with a " +
-        "model your provider serves today — Tracon ships no model list, so the name comes from the " +
-        "provider's own documentation.");
+        $"No model name is set. Set '{modelSetting}' in appsettings.json, in user secrets or in the " +
+        "environment, or generate the project again with `dotnet new tracon-api --model <name>`. " +
+        "Tracon ships no model list, so the name comes from the provider's own documentation.");
 }
 
+// A single declarative sample agent in code. The model is bound explicitly:
+// cost and the model catalog read the name from this binding, not from the
+// provider's default.
 tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
@@ -133,7 +147,7 @@ tracon.AddAgent(new AgentDefinition
 #if (UseAzure)
         Provider = AzureOpenAIProviderNames.AzureOpenAI,
 #endif
-        Model = ModelName,
+        Model = modelName ?? string.Empty,
     },
     ToolNames = ["get_order_status"],
 });

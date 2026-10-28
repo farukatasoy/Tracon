@@ -25,11 +25,14 @@ pin the exact version when you need a reproducible build.
 ## Create the host
 
 Install the published template, then create a project. The template pins every
-Tracon package to the same version as the template package.
+Tracon package to the same version as the template package. Pass the chat model
+your account serves today with `--model`: Tracon ships no model list, so the name
+comes from the provider's own documentation. The template writes it to
+`appsettings.json`; you do not edit any code.
 
 ```bash
 dotnet new install Tracon.Templates@1.0.0-preview.6
-dotnet new tracon-api -n MyAgents
+dotnet new tracon-api -n MyAgents --model gpt-5.4-mini
 cd MyAgents
 ```
 
@@ -38,7 +41,8 @@ Run `dotnet new tracon-api -h` to see the available values. The console is
 embedded in the host; no separate console server is needed.
 
 Store your provider key in the application's development secrets. The key never
-enters the project; `appsettings.json` carries only an empty placeholder.
+enters the project; `appsettings.json` carries only an empty placeholder. The
+project file already carries its secrets ID, so there is no `init` step.
 
 ```bash
 dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
@@ -49,13 +53,32 @@ dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
 ## Choose the model
 
 The generated `Program.cs` already registers an agent named `support` and one tool,
-`get_order_status`, from `Tools/OrderTools.cs`. Tracon ships no model list, so the
-model name is the one line you edit: replace `WRITE_MODEL_NAME_HERE` with a chat
-model your account serves today.
+`get_order_status`, from `Tools/OrderTools.cs`. The agent runs with the model you
+passed to `--model`. That name is a setting, not code: it sits in
+`appsettings.json` next to the empty key placeholder, and `Program.cs` reads it.
 
-```csharp title="Program.cs (excerpt)"
-const string ModelName = "WRITE_MODEL_NAME_HERE"; // your chat model
+```json
+{
+  "Tracon": {
+    "Providers": {
+      "OpenAI": { "ApiKey": "", "DefaultModel": "gpt-5.4-mini" }
+    }
+  }
+}
+```
 
+To change the model later, change `DefaultModel` in `appsettings.json`, or
+override it with a user secret or an environment variable. Azure OpenAI names a
+deployment, so its setting is `DefaultDeployment`.
+
+With an API key set and no model name, the host stops at startup and names
+`Tracon:Providers:OpenAI:DefaultModel`, instead of failing on the first model
+call. With no key at all, the host still starts, and only a run that calls the
+model fails.
+
+The agent definition in `Program.cs` binds that setting to the agent explicitly:
+
+```csharp
 tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
@@ -65,14 +88,11 @@ tracon.AddAgent(new AgentDefinition
     Model = new ModelBinding
     {
         Provider = OpenAIProviderNames.ChatCompletions,
-        Model = ModelName,
+        Model = modelName, // Tracon:Providers:OpenAI:DefaultModel
     },
     ToolNames = ["get_order_status"],
 });
 ```
-
-With an API key set and the placeholder still in place, the host stops at startup
-and names this line, instead of failing on the first model call.
 
 This first agent uses a chat model only. To let a later agent generate stored image
 attachments, add `UseOpenAIImages(...)`, set `Tracon:Images:Enabled`, and choose
@@ -80,6 +100,8 @@ an image model explicitly — one the provider serves for image generation, whic
 not always the same family as its chat models. An image model is not inferred from
 this agent's chat model; see
 [image generation providers](/guides/model-providers/#image-generation-providers).
+
+Start the host:
 
 ```bash
 dotnet run --urls http://localhost:5081

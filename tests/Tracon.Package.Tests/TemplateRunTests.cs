@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Tracon.Package.Tests.Infrastructure;
 
 namespace Tracon.Package.Tests;
@@ -20,82 +19,30 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
         var newResult = await fixture.NewAsync(ProjectName, dir.Path, "--persistence memory --ui false");
         newResult.ExitCode.ShouldBe(0, newResult.Combined);
 
-        var buildResult = await ProcessRunner.RunAsync("dotnet", "build -c Release", dir.Path, TimeSpan.FromMinutes(5));
-        buildResult.ExitCode.ShouldBe(0, buildResult.Combined);
+        var assembly = await GeneratedHost.BuildAsync(dir.Path, ProjectName);
 
-        var dllPath = Directory.EnumerateFiles(dir.Path, $"{ProjectName}.dll", SearchOption.AllDirectories)
-                .FirstOrDefault(p => p.Contains(Path.Combine("bin", "Release"), StringComparison.Ordinal))
-            ?? throw new InvalidOperationException(
-                $"'{ProjectName}.dll' was not found in the build output.{Environment.NewLine}{buildResult.Combined}");
+        await using var host = await GeneratedHost.StartAsync(assembly, dir.Path, Port);
+        using var httpClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{Port}/") };
 
-        var startInfo = new ProcessStartInfo("dotnet", $"\"{dllPath}\"")
-        {
-            WorkingDirectory = dir.Path,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-        startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port}";
+        using var response = await httpClient.GetAsync("tracon/api/agents");
 
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Process.Start returned null for 'dotnet'.");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, host.Output);
 
-        try
-        {
-            using var httpClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{Port}/") };
-
-            HttpResponseMessage? response = null;
-            var deadline = DateTime.UtcNow.AddSeconds(30);
-
-            while (DateTime.UtcNow < deadline)
-            {
-                try
-                {
-                    response = await httpClient.GetAsync("tracon/api/agents");
-                    break;
-                }
-                catch (HttpRequestException ex)
-                {
-                    if (process.HasExited)
-                    {
-                        var stdOut = await process.StandardOutput.ReadToEndAsync();
-                        var stdErr = await process.StandardError.ReadToEndAsync();
-                        throw new InvalidOperationException(
-                            $"The application exited unexpectedly (code {process.ExitCode}).{Environment.NewLine}{stdOut}{Environment.NewLine}{stdErr}",
-                            ex);
-                    }
-
-                    await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: retry
-                }
-            }
-
-            if (response is null)
-            {
-                throw new InvalidOperationException("The application did not respond within 30 seconds.");
-            }
-
-            response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
-        }
-        finally
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit(10_000);
-            }
-        }
+        // The model is bound explicitly and the template carries none: with no provider the agent's
+        // model name is empty, and the catalog must still list it.
+        (await response.Content.ReadAsStringAsync()).ShouldContain("\"support\"");
     }
 
     /// <summary>
-    /// With a provider key set and the model-name placeholder still in place,
-    /// the generated app stops at startup and names the file to edit.
+    /// With a provider key set and no model name, the generated app stops at
+    /// startup and names the setting to fill in, and the flag that fills it.
     /// </summary>
     /// <remarks>
-    /// The placeholder is deliberate, but a provider cannot serve it, so the
-    /// first run used to come back as "The model provider request failed." -
-    /// the provider's own 404 names the model and that text is a foreign SDK
-    /// message, redacted before it reaches the client. The consumer was left
-    /// with an error naming nothing on their very first run.
+    /// A provider cannot serve an empty model, so the first run used to come
+    /// back as "The model provider request failed." - the provider's own error
+    /// names the model and that text is a foreign SDK message, redacted before it
+    /// reaches the client. The consumer was left with an error naming nothing on
+    /// their very first run.
     /// <para>
     /// The guard is conditional on a provider being configured, and the test
     /// above is the other half of the contract: with no key the same app still
@@ -103,50 +50,70 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
     /// </para>
     /// </remarks>
     [Fact]
-    public async Task Unedited_model_placeholder_stops_startup_once_a_provider_is_configured()
+    public async Task Missing_model_name_stops_startup_once_a_provider_is_configured()
     {
+        const string projectName = "Run.NoModel";
+
         using var dir = new TempDirectory();
 
         var newResult = await fixture.NewAsync(
-            "Run.Placeholder",
+            projectName,
             dir.Path,
             "--persistence memory --ui false --provider openai");
         newResult.ExitCode.ShouldBe(0, newResult.Combined);
 
-        var buildResult = await ProcessRunner.RunAsync("dotnet", "build -c Release", dir.Path, TimeSpan.FromMinutes(5));
-        buildResult.ExitCode.ShouldBe(0, buildResult.Combined);
-
-        var dllPath = Directory.EnumerateFiles(dir.Path, "Run.Placeholder.dll", SearchOption.AllDirectories)
-                .FirstOrDefault(path => path.Contains(Path.Combine("bin", "Release"), StringComparison.Ordinal))
-            ?? throw new InvalidOperationException(
-                $"'Run.Placeholder.dll' was not found in the build output.{Environment.NewLine}{buildResult.Combined}");
-
-        var startInfo = new ProcessStartInfo("dotnet", $"\"{dllPath}\"")
-        {
-            WorkingDirectory = dir.Path,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-
-        startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port + 1}";
+        var assembly = await GeneratedHost.BuildAsync(dir.Path, projectName);
 
         // A syntactically valid key that is never sent anywhere: startup stops
         // before the first model call.
-        startInfo.Environment["Tracon__Providers__OpenAI__ApiKey"] = "sk-not-a-real-key";
+        var environment = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port + 1}",
+            ["Tracon__Providers__OpenAI__ApiKey"] = "sk-not-a-real-key",
+        };
 
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Process.Start returned null for 'dotnet'.");
+        var result = await ProcessRunner.RunAsync(
+            "dotnet",
+            $"\"{assembly}\"",
+            dir.Path,
+            TimeSpan.FromMinutes(1),
+            environment);
 
-        var stdOut = await process.StandardOutput.ReadToEndAsync();
-        var stdErr = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
+        result.ExitCode.ShouldNotBe(0, result.Combined);
+        result.Combined.ShouldContain("Tracon:Providers:OpenAI:DefaultModel");
+        result.Combined.ShouldContain("--model");
+    }
 
-        process.ExitCode.ShouldNotBe(0, $"{stdOut}{Environment.NewLine}{stdErr}");
+    /// <summary>
+    /// The same app with the model name given at generation time starts with a
+    /// provider key set: the name is read from <c>appsettings.json</c>, and no
+    /// edit of any file is needed.
+    /// </summary>
+    [Fact]
+    public async Task Model_name_from_the_template_lets_a_configured_provider_start()
+    {
+        const string projectName = "Run.WithModel";
 
-        var output = stdOut + stdErr;
+        using var dir = new TempDirectory();
 
-        output.ShouldContain("Program.cs");
-        output.ShouldContain("placeholder");
+        var newResult = await fixture.NewAsync(
+            projectName,
+            dir.Path,
+            "--persistence memory --ui false --provider openai --model m-1");
+        newResult.ExitCode.ShouldBe(0, newResult.Combined);
+
+        var assembly = await GeneratedHost.BuildAsync(dir.Path, projectName);
+
+        await using var host = await GeneratedHost.StartAsync(
+            assembly,
+            dir.Path,
+            Port + 2,
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["Tracon__Providers__OpenAI__ApiKey"] = "sk-not-a-real-key" });
+        using var httpClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{Port + 2}/") };
+
+        using var response = await httpClient.GetAsync("tracon/api/agents");
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, host.Output);
+        (await response.Content.ReadAsStringAsync()).ShouldContain("\"m-1\"");
     }
 }

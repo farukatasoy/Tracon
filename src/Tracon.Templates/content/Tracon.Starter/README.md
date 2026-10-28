@@ -4,11 +4,7 @@ Generated with `dotnet new tracon-api`. This is a working [Tracon](https://traco
 
 ## 1. Set your secrets
 
-The connection string and API key **never** enter this repository. `appsettings.json` carries only empty placeholders. Use `dotnet user-secrets`:
-
-```bash
-dotnet user-secrets init
-```
+The connection string and API key **never** enter this repository. `appsettings.json` carries only empty placeholders. Use `dotnet user-secrets`. The project file already carries its `UserSecretsId`, so there is no `init` step.
 
 **Persistence** — set only the *one* matching the `--persistence` value you chose at generation time:
 
@@ -34,7 +30,11 @@ If the API key is not set, the app still starts; only runs that actually call th
 
 ## 2. Choose the model name
 
-Tracon **carries no built-in model list** — model names and pricing change faster than any NuGet package's release cadence. Replace the `WRITE_MODEL_NAME_HERE` placeholder in [`Program.cs`](Program.cs) with the real model name from the provider's current documentation (for example, `gpt-5.4-mini` for OpenAI).
+Tracon **carries no built-in model list** — model names and pricing change faster than any NuGet package's release cadence. Take the model name from the provider's current documentation (for example, `gpt-5.4-mini` for OpenAI).
+
+If you generated the project with `--model`, there is nothing to do: `dotnet new tracon-api --model <name>` already wrote the name to `appsettings.json` as the provider's `DefaultModel` (Azure OpenAI: `DefaultDeployment`). If you did not, fill that setting in — it is not a secret, so `appsettings.json` is the right place. `Program.cs` needs no edit.
+
+With an API key set and no model name, the app stops at startup and names the setting, instead of failing on the first model call.
 
 ## 3. Run it
 

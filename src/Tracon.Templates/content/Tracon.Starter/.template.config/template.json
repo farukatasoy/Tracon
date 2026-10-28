@@ -9,7 +9,7 @@
   ],
   "name": "Tracon control plane (ASP.NET Core)",
   "generatorVersions": "[1.0.0.0-*)",
-  "description": "A working Tracon control plane: AddTracon + MapTracon, a sample tool, an empty appsettings.json placeholder.",
+  "description": "A working Tracon control plane: AddTracon + MapTracon, a sample tool, an appsettings.json with empty secret placeholders and the model name you pass.",
   "groupIdentity": "Tracon.Api.CSharp",
   "precedence": "100",
   "identity": "Tracon.Api.CSharp",
@@ -47,6 +47,18 @@
       ],
       "defaultValue": "openai",
       "description": "The model provider."
+    },
+    "model": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "",
+      "description": "The chat model the sample agent runs with, written to appsettings.json as the provider's DefaultModel (Azure OpenAI: DefaultDeployment). Tracon carries no model list: take today's name from the provider's own documentation. Left empty, the app still starts without a provider key, and stops at startup, naming the setting, once a key is set."
+    },
+    "modelJson": {
+      "type": "derived",
+      "valueSource": "model",
+      "valueTransform": "jsonEncode",
+      "replaces": "TRACON_TEMPLATE_MODEL_NAME"
     },
     "ui": {
       "type": "parameter",

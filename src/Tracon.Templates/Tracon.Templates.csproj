@@ -10,7 +10,7 @@
       compile anyway, so a TFM has no meaning here).
     -->
     <TargetFrameworks></TargetFrameworks>
-    <Description>The `dotnet new tracon-api` template. Generates a working Tracon control plane: Program.cs, a sample tool, an empty appsettings.json placeholder, a README.</Description>
+    <Description>The `dotnet new tracon-api` template. Generates a working Tracon control plane: Program.cs, a sample tool, an appsettings.json with empty secret placeholders and the model name you pass, a README.</Description>
     <PackageTags>$(CommonPackageTags);template;dotnet-new</PackageTags>
     <PackageType>Template</PackageType>
     <TemplateAffinityPackageId>Tracon</TemplateAffinityPackageId>
