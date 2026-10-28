@@ -265,6 +265,7 @@
 | 249 | Kod Grafında Agent Sürümünü Run Parametresi Seçer | hafif | ✅ | 2026-10-26 | F-545 | `ad0c91ba:docs/249-RUN-PARAMETRESIYLE-AGENT-SURUMU.md` |
 | 250 | Alt Agent Sürüm Sabiti | tam | ✅ | 2026-10-26 | F-409 | `ec8d34fa:docs/250-ALT-AGENT-SURUM-SABITI.md` |
 | 252 | Model Başına İstek Alanı Reddi ve Değer Sınırları | hafif | ✅ | 2026-10-28 | F-606 · F-607 | `be963d73:docs/252-MODEL-BASINA-ISTEK-ALANI-VE-SINIRLARI.md` |
+| 253 | Önbellek Yazma Token'ı ve Fiyatı Run Maliyetine Girer | tam | ✅ | 2026-10-28 | F-420 | `beeb1fde:docs/253-ONBELLEK-YAZMA-MALIYETI.md` |
 
 ## Süreç Ölçümü
 
@@ -357,3 +358,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 249 | 0 | 1 | 1 / 0 / 0 | 0 | ölçülmedi |
 | 250 | 0 | 1 | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
 | 252 | 13 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 253 | 9 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
