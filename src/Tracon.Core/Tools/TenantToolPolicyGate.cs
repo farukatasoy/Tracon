@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>
-/// The per-tenant tool policy check that runs in front of <see cref="IToolAuthorizationHandler"/> (phase 261).
+/// The per-tenant tool policy check that runs in front of <see cref="IToolAuthorizationHandler"/>.
 /// </summary>
 /// <remarks>
 /// <para>

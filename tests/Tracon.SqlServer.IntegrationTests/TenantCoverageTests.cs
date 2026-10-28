@@ -100,6 +100,7 @@ public sealed class TenantCoverageTests
         ["SqlTenantProviderBindingStore"] = ["GetAsync", "ListAsync", "UpsertAsync", "DeleteAsync"],
         ["SqlInboundTriggerStore"] = ["GetAsync", "ListAsync", "UpsertAsync", "DeleteAsync"],
         ["SqlTenantEgressPolicyStore"] = ["GetAsync", "UpsertAsync", "DeleteAsync"],
+        ["SqlTenantToolPolicyStore"] = ["GetAsync", "UpsertAsync", "DeleteAsync"],
         ["SqlWorkflowCheckpointStore"] = ["CreateAsync", "ReadAsync", "ListAsync", "ListByRunAsync", "DeleteAsync"],
         ["SqlWorkflowDefinitionStore"] = ["GetAsync", "ListAsync", "SaveAsync", "DeleteAsync", "ListVersionsAsync", "GetVersionAsync", "RollbackAsync"],
         ["SqlTenantStore"] = [],

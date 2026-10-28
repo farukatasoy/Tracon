@@ -339,6 +339,19 @@ public sealed class SqliteTenantEgressPolicyStoreContractTests(SqliteSchemaFixtu
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteTenantToolPolicyStoreContractTests(SqliteSchemaFixture schema)
+    : TenantToolPolicyStoreContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantToolPolicyStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantToolPolicies;
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteVoiceSessionStoreContractTests(SqliteSchemaFixture schema)
     : VoiceSessionStoreContract, IClassFixture<SqliteSchemaFixture>
 {

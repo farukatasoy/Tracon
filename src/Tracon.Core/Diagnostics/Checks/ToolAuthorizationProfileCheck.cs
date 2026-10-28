@@ -14,7 +14,7 @@ namespace Tracon;
 /// tool it has, and the built-in handler is the one that allows all of them.
 /// </para>
 /// <para>
-/// Two answers satisfy it (phase 261). A handler the container bound that is not Tracon's built-in one, which
+/// Two answers satisfy it. A handler the container bound that is not Tracon's built-in one, which
 /// is the deployment's own code rule. Or <see cref="TraconToolOptions.RequireTenantPolicy"/>, which makes a tenant
 /// with no tool policy run no tool, so no tenant runs a tool nobody allowed. The first answer needs no
 /// policy; the second needs a policy per tenant and no code.

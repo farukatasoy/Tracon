@@ -91,6 +91,7 @@ public sealed class AuditCoverageTests
         [typeof(IRetentionPolicyStore)] = "endpoint-audited: RetentionEndpoints calls AuditRecorder",
         [typeof(ITenantEgressPolicyStore)] = "endpoint-audited: GovernanceEndpoints calls AuditRecorder",
         [typeof(ITenantProviderBindingStore)] = "endpoint-audited: TenantProviderEndpoints calls AuditRecorder",
+        [typeof(ITenantToolPolicyStore)] = "endpoint-audited: TenantToolPolicyEndpoints calls AuditRecorder",
         [typeof(IInboundTriggerStore)] = "endpoint-audited: TriggerEndpoints calls AuditRecorder",
         [typeof(IWebhookStore)] = "endpoint-audited: WebhookEndpoints calls AuditRecorder",
         [typeof(IDataSubjectStore)] = "endpoint-audited: the erasure operation is audited, not each row",

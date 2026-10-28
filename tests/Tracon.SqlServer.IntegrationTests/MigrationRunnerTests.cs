@@ -48,7 +48,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         // Phase 208 added the `workflow_responses` table: 50 -> 51.
         // Phase 209 added the `workflow_requests` table: 51 -> 52.
         // Phase 248 added the `agent_definition_version_counters` table: 52 -> 53.
-        tableCount.ShouldBe(53);
+        // Phase 261 added the `tenant_tool_policies` table: 53 -> 54.
+        tableCount.ShouldBe(54);
     }
 
     [Fact]

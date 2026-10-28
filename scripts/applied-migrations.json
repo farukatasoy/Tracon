@@ -48,6 +48,9 @@
     "src/Tracon.Sqlite/Migrations/0052_agent_definition_version_counters.sql": "c570094c212ea6b5b025defbbdf966dce4398faa",
     "src/Tracon.PostgreSql/Migrations/0066_cache_write_cost.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
     "src/Tracon.SqlServer/Migrations/0054_cache_write_cost.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
-    "src/Tracon.Sqlite/Migrations/0053_cache_write_cost.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf"
+    "src/Tracon.Sqlite/Migrations/0053_cache_write_cost.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
+    "src/Tracon.PostgreSql/Migrations/0068_tenant_tool_policies.sql": "12be0ae96abdcd7e51fa3f6a00650a120419fc2a",
+    "src/Tracon.SqlServer/Migrations/0056_tenant_tool_policies.sql": "12be0ae96abdcd7e51fa3f6a00650a120419fc2a",
+    "src/Tracon.Sqlite/Migrations/0055_tenant_tool_policies.sql": "12be0ae96abdcd7e51fa3f6a00650a120419fc2a"
   }
 }

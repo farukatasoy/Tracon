@@ -331,6 +331,19 @@ public sealed class PostgresTenantEgressPolicyStoreContractTests(PostgresSchemaF
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresTenantToolPolicyStoreContractTests(PostgresSchemaFixture schema)
+    : TenantToolPolicyStoreContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantToolPolicyStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantToolPolicies;
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresVoiceSessionStoreContractTests(PostgresSchemaFixture schema)
     : VoiceSessionStoreContract, IClassFixture<PostgresSchemaFixture>
 {

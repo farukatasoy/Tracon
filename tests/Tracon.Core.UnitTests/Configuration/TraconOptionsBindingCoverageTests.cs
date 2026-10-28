@@ -133,6 +133,22 @@ public sealed class TraconOptionsBindingCoverageTests
         failure.Message.ShouldContain("'10MB'");
     }
 
+    /// <summary>
+    /// <c>RequireTenantPolicy</c> is a fail-closed switch: a typo such as "yes" must stop the host and not read as
+    /// the default "off", which would leave a deployment that wrote the key believing tenants without a policy run
+    /// no tool.
+    /// </summary>
+    [Fact]
+    public void RequireTenantPolicy_text_that_is_not_a_boolean_fails_at_startup()
+    {
+        var failure = SectionBinding.FailsAtStartup(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Tools:RequireTenantPolicy"] = "yes",
+        });
+
+        failure.Message.ShouldContain("Tracon:Tools:RequireTenantPolicy");
+    }
+
     private static void Collect(
         object instance,
         string configPrefix,

@@ -331,6 +331,19 @@ public sealed class SqlServerTenantEgressPolicyStoreContractTests(SqlServerSchem
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerTenantToolPolicyStoreContractTests(SqlServerSchemaFixture schema)
+    : TenantToolPolicyStoreContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantToolPolicyStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantToolPolicies;
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerVoiceSessionStoreContractTests(SqlServerSchemaFixture schema)
     : VoiceSessionStoreContract, IClassFixture<SqlServerSchemaFixture>
 {

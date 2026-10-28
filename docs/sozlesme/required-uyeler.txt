@@ -408,6 +408,10 @@ Tracon.TenantProviderBinding.ApiKeyConfigurationName
 Tracon.TenantProviderBinding.ProviderName
 Tracon.TenantProviderBinding.TenantId
 Tracon.TenantProviderBinding.UpdatedAt
+Tracon.TenantToolPolicy.AllowedTools
+Tracon.TenantToolPolicy.GrantedPermissions
+Tracon.TenantToolPolicy.TenantId
+Tracon.TenantToolPolicy.UpdatedAt
 Tracon.Testing.FakeModelRequest.Messages
 Tracon.TextToSpeechClientBinding.MaxCharactersPerRequest
 Tracon.TimeSeriesPoint.Bucket

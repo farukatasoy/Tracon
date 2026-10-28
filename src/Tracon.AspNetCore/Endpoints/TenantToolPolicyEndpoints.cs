@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>
-/// Per-tenant tool policy endpoints (phase 261): which tools a tenant may run.
+/// Per-tenant tool policy endpoints: which tools a tenant may run.
 /// </summary>
 /// <remarks>
 /// The tenant is taken from the ROUTE, like <see cref="TenantProviderEndpoints"/>: an operator of the installation

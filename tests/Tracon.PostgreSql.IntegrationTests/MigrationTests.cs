@@ -84,7 +84,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // Phase 208 added the `workflow_responses` table: 51 -> 52.
         // Phase 209 added the `workflow_requests` table: 52 -> 53.
         // Phase 248 added the `agent_definition_version_counters` table: 53 -> 54.
-        tableCount.ShouldBe(54);
+        // Phase 261 added the `tenant_tool_policies` table: 54 -> 55.
+        tableCount.ShouldBe(55);
     }
 
     [Fact]

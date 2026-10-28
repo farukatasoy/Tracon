@@ -50,6 +50,9 @@ public sealed class AuditContentPolicyTests
         "src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/TenantProviderEndpoints.cs",
+        // Reviewed (phase 261): tenant_tool_policy.save and .delete write the two lists of tool NAMES and
+        // permission strings an administrator typed - configuration, never conversation content.
+        "src/Tracon.AspNetCore/Endpoints/TenantToolPolicyEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/WebhookEndpoints.cs",
 

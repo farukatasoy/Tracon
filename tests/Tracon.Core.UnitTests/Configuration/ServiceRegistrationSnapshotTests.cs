@@ -155,6 +155,8 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.ITenantContext | Singleton | Factory",
         "Tracon.IRunAttributionContext | Singleton | Factory",
         "Tracon.IToolAuthorizationHandler | Singleton | Tracon.AllowAllToolAuthorizationHandler",
+        "Tracon.ITenantToolPolicyStore | Singleton | Tracon.InMemoryTenantToolPolicyStore",
+        "Tracon.TenantToolPolicyGate | Singleton | Factory",
         "Tracon.IRunAuthorizationHandler | Singleton | Tracon.AllowAllRunAuthorizationHandler",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.RequiredBindingValidator",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.PreservedStoreRegistrationWarningService",

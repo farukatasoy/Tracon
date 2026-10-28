@@ -2,10 +2,27 @@ namespace Tracon;
 
 /// <summary>The store for per-tenant tool policies.</summary>
 /// <remarks>
+/// <para>
 /// Tracon reads the policy before every tool call that runs through its tool chain (see
 /// <see cref="TenantToolPolicy"/> for the rule). A store that reads a stale or wrong tenant's row decides
 /// which tool a tenant may run, so a custom store must apply <see cref="AmbientTenantScope.Normalize"/> to the
 /// tenant it writes and reads with.
+/// </para>
+/// <para>
+/// <strong>Lifetime:</strong> registered as a singleton and called from many threads at once, so an
+/// implementation must be thread-safe.
+/// </para>
+/// <para>
+/// <strong>Tenant mode:</strong> expected tenant. Every method takes the tenant as an argument; the store never
+/// reads an ambient tenant, because the policy of one tenant is written from the route of another tenant's
+/// administrator.
+/// </para>
+/// <para>
+/// <strong>Delivery:</strong> no delivery guarantee applies. A save is visible to the next read once
+/// <see cref="UpsertAsync"/> returns; Tracon keeps no copy, so a read returns what the store holds now. A store
+/// that caches must not serve a policy older than the last save: a stale policy lets a tenant run a tool its
+/// administrator removed.
+/// </para>
 /// </remarks>
 public interface ITenantToolPolicyStore
 {

@@ -124,6 +124,61 @@ public sealed class McpTenantToolsTests
     }
 
     [Fact]
+    public async Task An_mcp_tool_the_tenant_policy_refuses_does_not_run_and_never_asks_the_handler()
+    {
+        // The MCP tool set is the second place that builds the chain: a gate that only the code registry
+        // passed would leave every MCP tool open for every tenant.
+        var policies = new InMemoryTenantToolPolicyStore();
+        await policies.UpsertAsync("acme", ["another_tool"], [], TestContext.Current.CancellationToken);
+
+        var ran = false;
+        var handler = new CountingHandler();
+
+        var registration = new TraconToolRegistration(
+            AIFunctionFactory.Create(() => { ran = true; return "should never run"; }, "remote_tool"))
+        {
+            Source = "github-mcp",
+        };
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            handler,
+            McpToolPolicyTestGates.For(policies),
+            NoOpToolArgumentsValidator.Instance,
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
+
+        tools.TryGet("remote_tool", out var tool).ShouldBeTrue();
+
+        // Set in the body of the test: an AsyncLocal assigned in a helper does not flow back to the caller.
+        TraconRunContext.SetCurrent(new AgentRunScope { RunId = Guid.NewGuid(), RootRunId = Guid.NewGuid(), TenantId = "acme" });
+
+        try
+        {
+            var result = await ((AIFunction)tool!).InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+            result?.ToString().ShouldBe("This tool is not enabled for this tenant.");
+            ran.ShouldBeFalse();
+            handler.Calls.ShouldBe(0, "the handler was asked for a call the policy refused");
+
+            await policies.UpsertAsync("acme", ["remote_tool"], [], TestContext.Current.CancellationToken);
+
+            var allowed = await ((AIFunction)tool).InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+            ran.ShouldBeTrue("the control: a listed MCP tool runs");
+            handler.Calls.ShouldBe(1);
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+    }
+
+    [Fact]
     public async Task An_mcp_tools_output_is_truncated_the_same_way_a_code_defined_tools_is()
     {
         // 🚨 MCP tools go through a SECOND, separate wrapping chain
@@ -369,6 +424,21 @@ public sealed class McpTenantToolsTests
         protected override ValueTask<object?> InvokeCoreAsync(
             AIFunctionArguments arguments, CancellationToken cancellationToken)
             => new(result);
+    }
+
+    private sealed class CountingHandler : IToolAuthorizationHandler
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public ValueTask<ToolAuthorizationResult> AuthorizeAsync(
+            ToolAuthorizationRequest request, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _calls);
+
+            return ValueTask.FromResult(ToolAuthorizationResult.Allow());
+        }
     }
 
     private sealed class DenyingHandler(string reason) : IToolAuthorizationHandler

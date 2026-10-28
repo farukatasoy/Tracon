@@ -76,6 +76,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         ApiKeys = new SqlApiKeyStore(wrapped);
         TenantProviderBindings = new SqlTenantProviderBindingStore(wrapped);
         TenantEgressPolicies = new SqlTenantEgressPolicyStore(wrapped);
+        TenantToolPolicies = new SqlTenantToolPolicyStore(wrapped);
         InboundTriggers = new SqlInboundTriggerStore(wrapped);
         RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
         RetentionData = new SqlRetentionStore(wrapped);
@@ -184,6 +185,9 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
 
     /// <summary>Tenant egress policy store (Phase 65, F-119).</summary>
     public SqlTenantEgressPolicyStore TenantEgressPolicies { get; }
+
+    /// <summary>Tenant tool policy store (Phase 261, F-759).</summary>
+    public SqlTenantToolPolicyStore TenantToolPolicies { get; }
 
     /// <summary>Inbound trigger definition store (Phase 66).</summary>
     public SqlInboundTriggerStore InboundTriggers { get; }

@@ -154,6 +154,31 @@ public sealed class SessionWorkspaceProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_tool_the_tenant_policy_refuses_changes_no_file_and_never_asks_the_handler()
+    {
+        // The workspace tools reach the tool chain through BuiltInToolGovernance, not through the registry:
+        // a gate that only the registry passed would leave them open for every tenant.
+        var policies = new InMemoryTenantToolPolicyStore();
+        await policies.UpsertAsync("acme", ["file_access_read"], [], TestContext.Current.CancellationToken);
+
+        var handler = new RecordingHandler();
+        var provider = Provider(handler: handler, policyGate: TestData.ToolPolicyGate(policies));
+        TraconRunContext.SetCurrent(WorkspaceTestSupport.Run("acme", "drafter", "session-1"));
+        var context = await provider.InvokingAsync(new AIContextProvider.InvokingContext(_agent, session: null, new AIContext()));
+
+        var refused = await InvokeAsync(context, "file_access_write", new Dictionary<string, object?>(StringComparer.Ordinal) { ["fileName"] = "a.md", ["content"] = "alpha" });
+
+        refused?.ToString().ShouldBe("This tool is not enabled for this tenant.");
+        (await _raw.ReadAsync(SessionWorkspacePaths.AgentRoot("acme", "session-1", "drafter") + "/a.md")).ShouldBeNull();
+        handler.Seen.ShouldBeEmpty("the handler was asked for a call the policy refused");
+
+        // The control: a tool the policy lists runs, and only then is the handler asked.
+        await InvokeAsync(context, "file_access_read", new Dictionary<string, object?>(StringComparer.Ordinal) { ["fileName"] = "a.md" });
+
+        handler.Seen.ShouldBe([("file_access_read", ToolEffect.Read)]);
+    }
+
+    [Fact]
     public async Task A_call_that_passes_the_quota_is_explained_to_the_model_and_the_run_goes_on()
     {
         var provider = Provider(limits: WorkspaceTestSupport.Limits(file: 10));
@@ -232,7 +257,8 @@ public sealed class SessionWorkspaceProviderTests : IDisposable
         RecordingHandler? handler = null,
         Microsoft.Extensions.Options.IOptionsMonitor<TraconWorkspaceOptions>? limits = null,
         AgentFileStore? store = null,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        TenantToolPolicyGate? policyGate = null)
     {
         var options = new TraconOptions();
 
@@ -243,7 +269,7 @@ public sealed class SessionWorkspaceProviderTests : IDisposable
 
         var governance = new BuiltInToolGovernance(
             handler ?? new RecordingHandler(),
-            TestData.OpenToolPolicy(),
+            policyGate ?? TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             new StaticOptionsMonitor<TraconOptions>(options),
             attribution: null,

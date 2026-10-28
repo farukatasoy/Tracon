@@ -186,6 +186,14 @@ public sealed class InMemoryTenantEgressPolicyStoreContractTests : TenantEgressP
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryTenantToolPolicyStoreContractTests : TenantToolPolicyStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<ITenantToolPolicyStore> CreateStoreAsync()
+        => ValueTask.FromResult<ITenantToolPolicyStore>(new InMemoryTenantToolPolicyStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryInboundTriggerStoreContractTests : InboundTriggerStoreContract
 {
     /// <inheritdoc />
