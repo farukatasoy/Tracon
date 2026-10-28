@@ -168,6 +168,8 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(TenantProviderBindingRequest))]
 [JsonSerializable(typeof(TenantProviderBindingResponse))]
 [JsonSerializable(typeof(TenantRequest))]
+[JsonSerializable(typeof(TenantToolPolicyRequest))]
+[JsonSerializable(typeof(TenantToolPolicyResponse))]
 [JsonSerializable(typeof(ToolApprovalRule))]
 [JsonSerializable(typeof(ToolApprovalRuleRequest))]
 [JsonSerializable(typeof(TraconDiagnosticsReport))]

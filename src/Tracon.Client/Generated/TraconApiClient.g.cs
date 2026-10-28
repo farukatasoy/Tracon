@@ -11142,6 +11142,253 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Returns a tenant's tool policy.
+        /// </summary>
+        /// <remarks>
+        /// 'allowedTools: null' and 'grantedPermissions: null' mean no policy is saved: the tenant is UNRESTRICTED by the policy, unless Tracon:Tools:RequireTenantPolicy is on ('requirePolicy: true'), which makes it run NO tool; two arrays, empty or populated, mean the tenant may run only the tools they name. A call passes when its tool name is in 'allowedTools' or its tool declares a permission that is in 'grantedPermissions'. The policy is a gate in front of IToolAuthorizationHandler, not a replacement: a call needs both to allow it. A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<TenantToolPolicyResponse> TraconGetTenantToolPolicyAsync(string tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (tenantId == null)
+                throw new System.ArgumentNullException("tenantId");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/tenants/{tenantId}/tools"
+                    urlBuilder_.Append("api/tenants/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/tools");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<TenantToolPolicyResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Creates or replaces a tenant's tool policy.
+        /// </summary>
+        /// <remarks>
+        /// Saving a policy is a RESTRICTION: a tenant with no policy is unrestricted (or, with Tracon:Tools:RequireTenantPolicy on, may run no tool), and this call is the way that changes. A missing or empty list is an empty list: two empty lists allow NO tool. That is not the same as having no policy; use DELETE to remove the policy. Each entry is trimmed, must not be empty, must not hold a control character and must be at most 64 characters; a list holds at most 200 entries and a repeated entry is saved once. Names and permissions are compared exactly, with letter case. The policy covers the tools IToolAuthorizationHandler is asked about: a tool registered in code, an MCP tool, the file_access_* tools of a session workspace, search_knowledge and search_conversation_memory. A hosted tool, an agent called as a tool, a skill tool, the file memory, todo and harness tools are not covered. The 'tenantId' route value is folded to lower case before the policy is saved. A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<TenantToolPolicyResponse> TraconSaveTenantToolPolicyAsync(string tenantId, TenantToolPolicyRequest body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (tenantId == null)
+                throw new System.ArgumentNullException("tenantId");
+
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    var json_ = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(body, JsonSerializerSettings);
+                    var content_ = new System.Net.Http.ByteArrayContent(json_);
+                    content_.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+                    request_.Content = content_;
+                    request_.Method = new System.Net.Http.HttpMethod("PUT");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/tenants/{tenantId}/tools"
+                    urlBuilder_.Append("api/tenants/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/tools");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<TenantToolPolicyResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Deletes a tenant's tool policy.
+        /// </summary>
+        /// <remarks>
+        /// After deletion the tenant has no policy again: unrestricted by the policy, or, with Tracon:Tools:RequireTenantPolicy on, able to run no tool. A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// </remarks>
+        /// <returns>No Content</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task TraconDeleteTenantToolPolicyAsync(string tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (tenantId == null)
+                throw new System.ArgumentNullException("tenantId");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("DELETE");
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/tenants/{tenantId}/tools"
+                    urlBuilder_.Append("api/tenants/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/tools");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 204)
+                        {
+                            return;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Lists a tenant's inbound triggers.
         /// </summary>
         /// <remarks>
@@ -26502,6 +26749,70 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// The request body for creating or replacing a tenant's tool policy.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class TenantToolPolicyRequest
+    {
+
+        /// <summary>
+        /// Gets the closed set of tool names the tenant may run. A missing or empty list names no tool.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("allowedTools")]
+        public System.Collections.Generic.ICollection<string>? AllowedTools { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the closed set of permissions granted to the tenant: a tool whose required permission is in
+        /// <br/>this set may run. A missing or empty list grants none.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("grantedPermissions")]
+        public System.Collections.Generic.ICollection<string>? GrantedPermissions { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The response describing a tenant's tool policy.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class TenantToolPolicyResponse
+    {
+
+        /// <summary>
+        /// Gets the tenant this policy belongs to.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("tenantId")]
+        public string TenantId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the closed set of tool names the tenant may run, or `null`
+        /// <br/>when no policy is saved (unrestricted, unless `requirePolicy` is `true`).
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("allowedTools")]
+        public System.Collections.Generic.ICollection<string>? AllowedTools { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the closed set of permissions granted to the tenant: a tool whose required permission is in
+        /// <br/>this set may run. `null` when no policy is saved.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("grantedPermissions")]
+        public System.Collections.Generic.ICollection<string>? GrantedPermissions { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the time the policy was last written; `null` when no policy is saved.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("updatedAt")]
+        public System.DateTimeOffset? UpdatedAt { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether `Tracon:Tools:RequireTenantPolicy` is on, so a tenant with no policy runs no tool.
+        /// <br/>The flag is a setting of the host, not of the tenant.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("requirePolicy")]
+        public bool RequirePolicy { get; set; } = default!;
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<TimeSeriesBucket>))]
     public enum TimeSeriesBucket
@@ -27251,7 +27562,7 @@ namespace Tracon.Client.Generated
         public ToolCallUsage? Usage { get; set; } = default!;
 
         /// <summary>
-        /// Whether IToolAuthorizationHandler denied this call before it ran.
+        /// Whether the tenant's tool policy or IToolAuthorizationHandler denied this call before it ran.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("authorizationDenied")]
         public bool AuthorizationDenied { get; set; } = default!;

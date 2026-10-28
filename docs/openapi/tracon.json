@@ -5029,6 +5029,104 @@
         }
       }
     },
+    "/tracon/api/tenants/{tenantId}/tools": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "TenantProviders"
+        ],
+        "summary": "Returns a tenant\u0027s tool policy.",
+        "description": "\u0027allowedTools: null\u0027 and \u0027grantedPermissions: null\u0027 mean no policy is saved: the tenant is UNRESTRICTED by the policy, unless Tracon:Tools:RequireTenantPolicy is on (\u0027requirePolicy: true\u0027), which makes it run NO tool; two arrays, empty or populated, mean the tenant may run only the tools they name. A call passes when its tool name is in \u0027allowedTools\u0027 or its tool declares a permission that is in \u0027grantedPermissions\u0027. The policy is a gate in front of IToolAuthorizationHandler, not a replacement: a call needs both to allow it. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "operationId": "TraconGetTenantToolPolicy",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantToolPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tracon",
+          "TenantProviders"
+        ],
+        "summary": "Creates or replaces a tenant\u0027s tool policy.",
+        "description": "Saving a policy is a RESTRICTION: a tenant with no policy is unrestricted (or, with Tracon:Tools:RequireTenantPolicy on, may run no tool), and this call is the way that changes. A missing or empty list is an empty list: two empty lists allow NO tool. That is not the same as having no policy; use DELETE to remove the policy. Each entry is trimmed, must not be empty, must not hold a control character and must be at most 64 characters; a list holds at most 200 entries and a repeated entry is saved once. Names and permissions are compared exactly, with letter case. The policy covers the tools IToolAuthorizationHandler is asked about: a tool registered in code, an MCP tool, the file_access_* tools of a session workspace, search_knowledge and search_conversation_memory. A hosted tool, an agent called as a tool, a skill tool, the file memory, todo and harness tools are not covered. The \u0027tenantId\u0027 route value is folded to lower case before the policy is saved. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "operationId": "TraconSaveTenantToolPolicy",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantToolPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantToolPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tracon",
+          "TenantProviders"
+        ],
+        "summary": "Deletes a tenant\u0027s tool policy.",
+        "description": "After deletion the tenant has no policy again: unrestricted by the policy, or, with Tracon:Tools:RequireTenantPolicy on, able to run no tool. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "operationId": "TraconDeleteTenantToolPolicy",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/tracon/api/triggers": {
       "get": {
         "tags": [
@@ -17587,6 +17685,78 @@
         },
         "description": "Request to create/update a tenant record."
       },
+      "TenantToolPolicyRequest": {
+        "type": "object",
+        "properties": {
+          "allowedTools": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the closed set of tool names the tenant may run. A missing or empty list names no tool."
+          },
+          "grantedPermissions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the closed set of permissions granted to the tenant: a tool whose required permission is in\nthis set may run. A missing or empty list grants none."
+          }
+        },
+        "description": "The request body for creating or replacing a tenant\u0027s tool policy."
+      },
+      "TenantToolPolicyResponse": {
+        "required": [
+          "tenantId",
+          "requirePolicy"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Gets the tenant this policy belongs to."
+          },
+          "allowedTools": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the closed set of tool names the tenant may run, or \u0060null\u0060\nwhen no policy is saved (unrestricted, unless \u0060requirePolicy\u0060 is \u0060true\u0060)."
+          },
+          "grantedPermissions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the closed set of permissions granted to the tenant: a tool whose required permission is in\nthis set may run. \u0060null\u0060 when no policy is saved."
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the time the policy was last written; \u0060null\u0060 when no policy is saved.",
+            "format": "date-time"
+          },
+          "requirePolicy": {
+            "type": "boolean",
+            "description": "Gets whether \u0060Tracon:Tools:RequireTenantPolicy\u0060 is on, so a tenant with no policy runs no tool.\nThe flag is a setting of the host, not of the tenant."
+          }
+        },
+        "description": "The response describing a tenant\u0027s tool policy."
+      },
       "TimeSeriesBucket": {
         "enum": [
           "Hour",
@@ -18363,7 +18533,7 @@
           },
           "authorizationDenied": {
             "type": "boolean",
-            "description": "Whether IToolAuthorizationHandler denied this call before it ran."
+            "description": "Whether the tenant\u0027s tool policy or IToolAuthorizationHandler denied this call before it ran."
           },
           "timedOut": {
             "type": "boolean",

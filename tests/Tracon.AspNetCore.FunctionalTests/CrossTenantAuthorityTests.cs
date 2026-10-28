@@ -127,6 +127,8 @@ public sealed class CrossTenantAuthorityTests
         { "DELETE", "/tracon/api/tenants/globex/providers/openai" },
         { "GET", "/tracon/api/tenants/globex/egress" },
         { "DELETE", "/tracon/api/tenants/globex/egress" },
+        { "GET", "/tracon/api/tenants/globex/tools" },
+        { "DELETE", "/tracon/api/tenants/globex/tools" },
     };
 
     [Fact]
@@ -154,6 +156,47 @@ public sealed class CrossTenantAuthorityTests
         using var response = await host.Client.SendAsync(request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Tenant_bound_key_cannot_write_another_tenants_tool_policy()
+    {
+        // The tool policy decides which tool another tenant's runs may call: writing it is the same reach as
+        // pointing that tenant's provider binding at an address of the caller's choosing.
+        await using var host = await StartWithHeaderTenancyAsync();
+        var key = await CreateKeyAsync(host, "acme", "SecurityAdmin");
+
+        using var request = WithKey(
+            Request(HttpMethod.Put, "/tracon/api/tenants/globex/tools", new { allowedTools = new[] { "refund_order" } }),
+            key);
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await host.Services.GetRequiredService<ITenantToolPolicyStore>().GetAsync("globex")).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Tenant_bound_key_manages_its_own_tool_policy_with_security_admin_alone_and_not_without_it()
+    {
+        await using var host = await StartWithHeaderTenancyAsync();
+        var admin = await CreateKeyAsync(host, "acme", "SecurityAdmin");
+        var reader = await CreateKeyAsync(host, "acme", "RunsRead");
+
+        using (var own = WithKey(
+                   Request(HttpMethod.Put, "/tracon/api/tenants/acme/tools", new { allowedTools = new[] { "refund_order" } }),
+                   admin))
+        {
+            (await host.Client.SendAsync(own)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var withoutScope = WithKey(
+            Request(HttpMethod.Put, "/tracon/api/tenants/acme/tools", new { allowedTools = new[] { "get_order" } }),
+            reader);
+        using var refused = await host.Client.SendAsync(withoutScope);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await host.Services.GetRequiredService<ITenantToolPolicyStore>().GetAsync("acme"))
+            .ShouldNotBeNull().AllowedTools.ShouldBe(["refund_order"]);
     }
 
     [Theory]

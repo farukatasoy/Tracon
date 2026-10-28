@@ -1836,6 +1836,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tenants/{tenantId}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns a tenant's tool policy.
+         * @description 'allowedTools: null' and 'grantedPermissions: null' mean no policy is saved: the tenant is UNRESTRICTED by the policy, unless Tracon:Tools:RequireTenantPolicy is on ('requirePolicy: true'), which makes it run NO tool; two arrays, empty or populated, mean the tenant may run only the tools they name. A call passes when its tool name is in 'allowedTools' or its tool declares a permission that is in 'grantedPermissions'. The policy is a gate in front of IToolAuthorizationHandler, not a replacement: a call needs both to allow it. A tenant other than the caller's own requires platform authority (403 otherwise).
+         */
+        get: operations["TraconGetTenantToolPolicy"];
+        /**
+         * Creates or replaces a tenant's tool policy.
+         * @description Saving a policy is a RESTRICTION: a tenant with no policy is unrestricted (or, with Tracon:Tools:RequireTenantPolicy on, may run no tool), and this call is the way that changes. A missing or empty list is an empty list: two empty lists allow NO tool. That is not the same as having no policy; use DELETE to remove the policy. Each entry is trimmed, must not be empty, must not hold a control character and must be at most 64 characters; a list holds at most 200 entries and a repeated entry is saved once. Names and permissions are compared exactly, with letter case. The policy covers the tools IToolAuthorizationHandler is asked about: a tool registered in code, an MCP tool, the file_access_* tools of a session workspace, search_knowledge and search_conversation_memory. A hosted tool, an agent called as a tool, a skill tool, the file memory, todo and harness tools are not covered. The 'tenantId' route value is folded to lower case before the policy is saved. A tenant other than the caller's own requires platform authority (403 otherwise).
+         */
+        put: operations["TraconSaveTenantToolPolicy"];
+        post?: never;
+        /**
+         * Deletes a tenant's tool policy.
+         * @description After deletion the tenant has no policy again: unrestricted by the policy, or, with Tracon:Tools:RequireTenantPolicy on, able to run no tool. A tenant other than the caller's own requires platform authority (403 otherwise).
+         */
+        delete: operations["TraconDeleteTenantToolPolicy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/triggers": {
         parameters: {
             query?: never;
@@ -7547,6 +7575,41 @@ export interface components {
             /** @description Name shown in the UI. If left empty, the key is used. */
             displayName?: null | string;
         };
+        /** @description The request body for creating or replacing a tenant's tool policy. */
+        TenantToolPolicyRequest: {
+            /** @description Gets the closed set of tool names the tenant may run. A missing or empty list names no tool. */
+            allowedTools?: null | string[];
+            /**
+             * @description Gets the closed set of permissions granted to the tenant: a tool whose required permission is in
+             *     this set may run. A missing or empty list grants none.
+             */
+            grantedPermissions?: null | string[];
+        };
+        /** @description The response describing a tenant's tool policy. */
+        TenantToolPolicyResponse: {
+            /** @description Gets the tenant this policy belongs to. */
+            tenantId: string;
+            /**
+             * @description Gets the closed set of tool names the tenant may run, or `null`
+             *     when no policy is saved (unrestricted, unless `requirePolicy` is `true`).
+             */
+            allowedTools?: null | string[];
+            /**
+             * @description Gets the closed set of permissions granted to the tenant: a tool whose required permission is in
+             *     this set may run. `null` when no policy is saved.
+             */
+            grantedPermissions?: null | string[];
+            /**
+             * Format: date-time
+             * @description Gets the time the policy was last written; `null` when no policy is saved.
+             */
+            updatedAt?: null | string;
+            /**
+             * @description Gets whether `Tracon:Tools:RequireTenantPolicy` is on, so a tenant with no policy runs no tool.
+             *     The flag is a setting of the host, not of the tenant.
+             */
+            requirePolicy: boolean;
+        };
         /** @enum {unknown} */
         TimeSeriesBucket: "Hour" | "Day" | null;
         /**
@@ -7899,7 +7962,7 @@ export interface components {
              */
             createdAt: string;
             usage?: null | components["schemas"]["ToolCallUsage"];
-            /** @description Whether IToolAuthorizationHandler denied this call before it ran. */
+            /** @description Whether the tenant's tool policy or IToolAuthorizationHandler denied this call before it ran. */
             authorizationDenied?: boolean;
             /**
              * @description Whether the call ended because its execution timeout elapsed
@@ -9253,6 +9316,8 @@ export type TenantEgressPolicyResponse = components['schemas']['TenantEgressPoli
 export type TenantProviderBindingRequest = components['schemas']['TenantProviderBindingRequest'];
 export type TenantProviderBindingResponse = components['schemas']['TenantProviderBindingResponse'];
 export type TenantRequest = components['schemas']['TenantRequest'];
+export type TenantToolPolicyRequest = components['schemas']['TenantToolPolicyRequest'];
+export type TenantToolPolicyResponse = components['schemas']['TenantToolPolicyResponse'];
 export type TimeSeriesBucket = components['schemas']['TimeSeriesBucket'];
 export type TimeSeriesPoint = components['schemas']['TimeSeriesPoint'];
 export type ToolApprovalDecision = components['schemas']['ToolApprovalDecision'];
@@ -12541,6 +12606,74 @@ export interface operations {
         };
     };
     TraconDeleteTenantEgressPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TraconGetTenantToolPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantToolPolicyResponse"];
+                };
+            };
+        };
+    };
+    TraconSaveTenantToolPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantToolPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantToolPolicyResponse"];
+                };
+            };
+        };
+    };
+    TraconDeleteTenantToolPolicy: {
         parameters: {
             query?: never;
             header?: never;

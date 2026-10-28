@@ -652,6 +652,39 @@ public sealed class ProductionProfileStartupTests
         exception.Message.ShouldContain(nameof(AllowAllToolAuthorizationHandler));
     }
 
+    [Fact]
+    public async Task Requiring_a_tenant_tool_policy_answers_the_tool_decision_without_a_handler_of_the_applications_own()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, TraconProductionRisk.UncheckedToolCalls);
+                builder.Services.Configure<TraconOptions>(static options => options.Tools.RequireTenantPolicy = true);
+                builder.RequireProductionProfile();
+            });
+
+        // The handler is still Tracon's built-in one: the switch is the answer, and the log names the setting.
+        host.Services.GetRequiredService<IToolAuthorizationHandler>().ShouldBeOfType<AllowAllToolAuthorizationHandler>();
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.UncheckedToolCalls)} is satisfied", StringComparison.Ordinal)
+                     && entry.Contains("Tracon:Tools:RequireTenantPolicy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task The_tool_decision_failure_names_both_ways_to_answer_it()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, TraconProductionRisk.UncheckedToolCalls);
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain("register your own IToolAuthorizationHandler");
+        exception.Message.ShouldContain("Tracon:Tools:RequireTenantPolicy");
+    }
+
     private static void AnswerAllExcept(ITraconBuilder builder, TraconProductionRisk? left)
         => AnswerAllExceptThese(builder, left is { } one ? [one] : []);
 

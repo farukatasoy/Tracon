@@ -101,7 +101,7 @@ public sealed record ToolInvocationRecord
     public string? TenantId { get; init; }
 
     /// <summary>
-    /// Whether <see cref="IToolAuthorizationHandler"/> denied this call before it ran.
+    /// Whether the tenant's tool policy or <see cref="IToolAuthorizationHandler"/> denied this call before it ran.
     /// </summary>
     /// <remarks>
     /// A denied call is <strong>not</strong> an error: <see cref="Error"/>
