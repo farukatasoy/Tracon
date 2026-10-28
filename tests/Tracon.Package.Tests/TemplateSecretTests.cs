@@ -34,6 +34,28 @@ public sealed class TemplateSecretTests(TemplateFixture fixture)
         }
     }
 
+    // The guide and the template README say there is no `dotnet user-secrets init` step: the project
+    // file already carries the id, and the template engine gives every generated project its own.
+    [Fact]
+    public async Task Generated_project_carries_its_own_UserSecretsId()
+    {
+        using var first = new TempDirectory();
+        using var second = new TempDirectory();
+
+        (await fixture.NewAsync("Secrets.First", first.Path)).ExitCode.ShouldBe(0);
+        (await fixture.NewAsync("Secrets.Second", second.Path)).ExitCode.ShouldBe(0);
+
+        var firstId = ReadUserSecretsId(Path.Combine(first.Path, "Secrets.First.csproj"));
+        var secondId = ReadUserSecretsId(Path.Combine(second.Path, "Secrets.Second.csproj"));
+
+        firstId.ShouldNotBeNullOrWhiteSpace("Without a UserSecretsId, `dotnet user-secrets set` fails on the first step the guide gives.");
+        firstId.ShouldNotContain("10000000-0000-0000-0000-000000000001", Case.Sensitive, "The template's own GUID must be replaced on every generation.");
+        string.Equals(firstId, secondId, StringComparison.Ordinal).ShouldBeFalse("Two generated projects share one user-secrets store.");
+    }
+
+    private static string ReadUserSecretsId(string projectPath)
+        => System.Xml.Linq.XDocument.Load(projectPath).Descendants("UserSecretsId").Single().Value;
+
     [Fact]
     public async Task AppSettings_carries_only_empty_placeholders()
     {
@@ -56,5 +78,11 @@ public sealed class TemplateSecretTests(TemplateFixture fixture)
         var azureOpenAi = tracon.GetProperty("Providers").GetProperty("AzureOpenAI");
         azureOpenAi.GetProperty("Endpoint").GetString().ShouldBe(string.Empty);
         azureOpenAi.GetProperty("ApiKey").GetString().ShouldBe(string.Empty);
+
+        // The model name is configuration but not a secret: with no --model it is an empty
+        // placeholder too, and nothing else sits next to the secrets.
+        azureOpenAi.GetProperty("DefaultDeployment").GetString().ShouldBe(string.Empty);
+        azureOpenAi.EnumerateObject().Select(property => property.Name)
+            .ShouldBe(["Endpoint", "ApiKey", "DefaultDeployment"], ignoreOrder: true);
     }
 }
