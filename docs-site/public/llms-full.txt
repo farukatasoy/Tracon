@@ -275,7 +275,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-177-operation HTTP reference.
+180-operation HTTP reference.
 
 ## Embedding points
 
@@ -283,7 +283,7 @@ conditional or separately mapped, so they are not all represented by the generat
 |---|---|---|---|
 | Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request |
 | Run attribution | Attributes a run to your own user and job labels | `IRunAttributionContext` | Unset by default; the columns stay `NULL` until you register one |
-| Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler` | Allows every call by default; a thrown exception denies the call |
+| Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler`; per tenant, a [tool policy](/concepts/governance/#per-tenant-tool-policy) in front of it | Allows every call by default; a thrown exception denies the call. A tenant with no policy passes the policy unless `Tracon:Tools:RequireTenantPolicy` is on |
 | Run and session authorization | Decides whether a caller may start a run, reach an existing run's resources, or read/list/delete/branch/speak into a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call and is logged as an error. Called explicitly at all six run-starting endpoints and at every run-resource endpoint, not one shared filter |
 | Run event bridge | Bridges run events to your own channel or message bus | `IRunEventSink` | Queue the event and return; a slow sink degrades on its own, never the model stream |
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
@@ -1955,7 +1955,7 @@ for the full HTTP contract.
 
 Who changed what, when, and from what to what. Agent definitions, skills, MCP
 servers, tenants, approval rules, API keys, quotas, retention policies, egress
-policies, provider bindings, triggers, webhooks, and approval decisions all land in
+policies, tool policies, provider bindings, triggers, webhooks, and approval decisions all land in
 it.
 
 Skills are in that list for the same reason agent definitions are: a skill carries
@@ -2223,6 +2223,56 @@ checked before approval and before the call's timeout even starts. A denied call
 fail the run: the model gets the reason as an ordinary tool result and continues its
 turn. See [Tools, skills, and MCP](/concepts/tools/#authorization-validation-and-timeout)
 for the interface and an example.
+
+### Per-tenant tool policy
+
+`IToolAuthorizationHandler` is your code: one rule for every tenant, changed by a
+deployment. When each tenant should run a different set of tools, and an administrator
+should change that without a deployment, save a **tool policy** for the tenant. The
+policy is two closed lists:
+
+- `allowedTools`: the tool names the tenant may run;
+- `grantedPermissions`: the permissions the tenant holds. A tool that declares a
+  `RequiredPermission` passes when that permission is listed.
+
+A call passes when its tool name is in `allowedTools` **or** its permission is in
+`grantedPermissions`. A tool that declares no permission and is not named is refused,
+and two empty lists refuse every tool: an empty policy is not the same as having none.
+Names and permissions are compared exactly, with letter case.
+
+The policy is a gate **in front of** your handler, not a replacement for it. A call needs both
+to allow it, and a call the policy refuses never reaches your handler. A refusal is not
+a failure: the model reads `This tool is not enabled for this tenant.` as the tool's
+result and the run goes on, and the call is recorded with `authorizationDenied`. The
+policy covers exactly the tools your handler is
+[asked about](/guides/embedding/#which-tools-reach-the-tool-authorization-handler): tools
+registered in code, MCP tools, the `file_access_*` tools of a session workspace,
+`search_knowledge` and `search_conversation_memory`. Hosted tools, agents called as tools,
+skill tools, the file memory, todo and harness tools are not covered. An MCP tool declares no
+permission, so only its name can allow it: list it as `{server}_{tool}`, the name `GET /api/tools`
+does not show. A name the server renames drops out of the list and the tool is refused, never
+allowed by accident.
+
+A tenant with no saved policy is unrestricted by the policy, so a host that never saves one
+behaves as before. A multi-tenant deployment can close that gap with
+`Tracon:Tools:RequireTenantPolicy` (default `false`): turned on, a tenant with no policy runs
+**no** tool, and the default tenant needs a policy row like any other. Saving a policy is never
+blocked by the switch. The switch is read when the host starts. It is one of the two answers to
+the `UncheckedToolCalls` decision of
+[`RequireProductionProfile()`](/guides/embedding/#make-a-production-decision-required); the
+other is a handler of your own.
+
+The policy is read from the store on every tool call and kept in no cache, so a saved
+policy applies to the next call, even of an agent that is already running. The cost is one
+store read per call; a store that cannot be read refuses the call and logs an error, because
+a gate that read a failure as "no policy" would open exactly when the store is down.
+
+The policy is managed under `/api/tenants/{tenantId}/tools` (`GET`, `PUT`, `DELETE`), guarded
+by the `SecurityAdmin` API key scope; a tenant other than the caller's own also requires
+platform authority, as for [egress](#per-tenant-provider-credentials-and-egress). Every save and
+delete lands in the audit trail as `tenant_tool_policy.save` and `tenant_tool_policy.delete`
+with both lists. The console shows the policy under the egress policy in the tenant panel of
+the settings screen.
 
 ## Quotas and rate limits
 
@@ -3984,6 +4034,12 @@ services.AddSingleton<IToolAuthorizationHandler, MyAuthorizationHandler>();
 A denied call does not fail the run: the model receives the reason text as an ordinary
 tool result and continues its turn — the same way a search that finds nothing is not an
 error. If your handler throws, the call is denied (fail-closed), never allowed.
+
+The authorization layer asks two gates, in this order, and a call needs both. First the
+tenant's [tool policy](/concepts/governance/#per-tenant-tool-policy), which an administrator
+writes as data (which tool names and permissions the tenant holds); then your handler, which is
+your code. A call the policy refuses never reaches your handler. A tenant with no policy passes
+the first gate, so a host that saves none behaves as before.
 
 The chain does not stop at tools you register. The `file_access_*` tools of a session workspace
 and the two search tools Tracon adds itself, `search_knowledge` and the on-demand
@@ -6206,7 +6262,7 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 177 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 180 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -7024,7 +7080,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Endpoint access | An unauthenticated or unauthorized caller | [The layers](#the-layers) |
 | Tenant isolation | Reading or writing another tenant's rows | [Multi-tenancy](/concepts/governance/#multi-tenancy) |
 | Session ownership | Continuing a conversation the caller does not own | [Session ownership](/concepts/governance/#below-the-tenant-session-ownership) |
-| Tool authorization | A tool call the caller is not entitled to make | [Tool authorization](/concepts/governance/#tool-authorization) |
+| Tool authorization | A tool call the caller is not entitled to make, or a tool the tenant's tool policy does not name | [Tool authorization](/concepts/governance/#tool-authorization), [Per-tenant tool policy](/concepts/governance/#per-tenant-tool-policy) |
 | Tool approval | An unapproved tool call, until a human decides | [Approvals](/concepts/governance/#approvals) |
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
@@ -7061,7 +7117,9 @@ model](/reference/threat-model/).
 - [ ] `Tracon:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
-      by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout)
+      by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout) —
+      or, in a multi-tenant host, `Tracon:Tools:RequireTenantPolicy` is on and each tenant has a
+      [tool policy](/concepts/governance/#per-tenant-tool-policy)
 - [ ] `RequireProductionProfile()` is called, so the production decisions (tenant
       separation, role policies, tool authorization, tenant egress and the rest) cannot be
       skipped in silence — see
@@ -10852,6 +10910,9 @@ agent called as a tool, the skill tools, the file memory, todo and harness tools
 that an agent extension adds brings with it. The two search tools are not in the tool registry, so `GET /api/tools` does
 not list them: write their names in your policy as fixed text.
 
+The same list is what a tenant's [tool policy](/concepts/governance/#per-tenant-tool-policy) covers: the policy is
+checked first, and a call it refuses is not shown to your handler.
+
 ### 4 — Run event bridge
 
 Bridges every run event to your own queue or bus, in addition to the run store —
@@ -11180,7 +11241,7 @@ repeat it:
 | `UnlimitedRequestRate` | One caller can take the whole model budget | `Tracon:RateLimit:Enabled` |
 | `UnboundedRetention` | Nothing is ever deleted | `Tracon:Retention:Enabled`, or a policy per target |
 | `UnregisteredRolePolicies` | At least one of the `Tracon.Reader`, `Tracon.Operator` and `Tracon.Admin` policies is not registered, so the endpoints it guards get no role check | Define the three policies in `AddAuthorization(...)` with `TraconPolicies.Reader`, `Operator` and `Admin`, and set `TraconEndpointOptions.RequireRolePolicies` so a missing one stops `MapTracon` too |
-| `UncheckedToolCalls` | The built-in tool authorization handler allows every call for every caller | Register your own `IToolAuthorizationHandler` |
+| `UncheckedToolCalls` | The built-in tool authorization handler allows every call for every caller | Register your own `IToolAuthorizationHandler`, or set `Tracon:Tools:RequireTenantPolicy` to `true` and save a [tool policy](/concepts/governance/#per-tenant-tool-policy) for each tenant, the default tenant included |
 | `UnrestrictedTenantEgress` | A tenant with no egress policy may call every provider | `Tracon:TenantProviders:RequireEgressPolicy`, then save a policy for each tenant |
 | `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
 | `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
@@ -15532,6 +15593,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
 | Tenant egress policy | A tenant with no egress policy may call every provider the deployment has | In a multi-tenant host set `Tracon:TenantProviders:RequireEgressPolicy` to `true` and save a policy for each tenant, the default tenant included: a tenant without one then calls no provider, and a provider binding cannot be saved for it. A tenant with a policy is judged by its list alone |
+| Tool authorization | The built-in handler allows every tool call for every caller, and a tenant with no tool policy runs every tool | Register your own `IToolAuthorizationHandler`, or in a multi-tenant host set `Tracon:Tools:RequireTenantPolicy` to `true` and save a [tool policy](/concepts/governance/#per-tenant-tool-policy) for each tenant, the default tenant included: a tenant without one then runs no tool. A tenant with a policy is judged by its two lists alone, and the policy comes in front of your handler |
 
 Several of these rows — multi-tenancy, session ownership, at-rest content encryption,
 content inspection, request rate limiting, retention defaults, the workflow runs per
@@ -20148,7 +20210,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-177 operations across 139 paths. This page is the shape they all share; the groups in
+180 operations across 140 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -24413,6 +24475,12 @@ at-rest content protection, content inspection, request rate limiting and retent
 each. The current list is the one table in [Make a production decision
 required](/guides/embedding/#make-a-production-decision-required).
 
+A decision can also gain a second answer without the set growing. `UncheckedToolCalls` was
+answered only by a handler of your own; it is now answered as well by
+`Tracon:Tools:RequireTenantPolicy` with a [tool policy](/concepts/governance/#per-tenant-tool-policy) for each
+tenant. A host that already answers it with a handler keeps starting, and no host that
+started before stops: this widens what satisfies the decision.
+
 Read that cost before adopting the method. A deployment that wants its production
 decisions pinned rather than re-asked should pin the package version, not avoid the
 gate: the alternative is a new decision arriving in silence, which is the thing the
@@ -24420,7 +24488,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 177 management and OpenAI-compatible
+The generated HTTP reference contains 180 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -24621,6 +24689,7 @@ script.
 | `UtilityModel` | `null` | Optional model binding for compaction summarization. `Provider` and `Model` are both required, or no binding is built. A `Temperature`, `TopP` or `MaxOutputTokens` that is not a number stops the host at startup; an empty one means the provider default |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
+| `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/governance/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
 
 Non-positive graph token, cost, or run limits remove that limit. See
 [`TraconAgentGraphOptions`](/api/tracon.traconagentgraphoptions/)

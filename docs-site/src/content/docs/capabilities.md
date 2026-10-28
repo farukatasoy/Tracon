@@ -264,7 +264,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-177-operation HTTP reference.
+180-operation HTTP reference.
 
 ## Embedding points
 
