@@ -1,8 +1,8 @@
 # Faz 256 — Meta Paketten Deponun Ayrılması
 
-> **Durum:** 📋 Planlandı (2026-10-28)
+> **Durum:** ✅ Tamamlandı (2026-10-28)
 > **Kademe:** tam — geri dönüşü pahalı karar (meta paketin bileşimi `rc.1`'de kilitlenir; K-185 yerine yeni karar) · yayınlanmış preview'a göre kırıcı (`Tracon` tek başına artık `UsePostgreSql` getirmez; tüketicide `CS1061`)
-> **Plan onayı:** onaylanmadı — uygulama başlamaz. Bileşim kararı 👤 2026-10-28 (farukatasoy): "yalnız depo çıkar" (meta = `AspNetCore` + `Mcp` + `OpenAI` + `UI` + `Workflows`)
+> **Plan onayı:** onaylandı (2026-10-28, kullanıcı: "fazı geliştir"). Bileşim kararı 👤 2026-10-28 (farukatasoy): "yalnız depo çıkar" (meta = `AspNetCore` + `Mcp` + `OpenAI` + `UI` + `Workflows`)
 > **Kaynak:** [RC-KALITE-DALGALARI.md](RC-KALITE-DALGALARI.md) Q-14 · **F-748** (meta paket PostgreSQL kullanmayan tüketiciye Npgsql taşır)
 > **Genellik:** PostgreSQL kullanmayan her tüketici: SQL Server, SQLite ve bellek deposu. Şablonun varsayılan çıktısı da bu sınıftadır (`--persistence memory`, `template.json:36`). İş tüketici kodunda kalamaz: bir meta paketin geçişli bağımlılığı tüketici tarafından çıkarılamaz; tek yol meta paketi bırakmaktır ve o zaman meta paket bu sınıf için değersizdir. İkinci kanıt: Tracon'un kendi tasarım kuralı ("PostgreSQL kullanmayan tüketici `Npgsql`'i çekmez", `MT-PKG-030`) meta paketin kendisi tarafından çiğneniyor.
 > **Karşı görüş:** "Tek paketle başlamak kolaydır; depo seçimi bir adım ekler." **Cevap:** gerçek, ama adım yalnız PostgreSQL kullanana eklenir ve tek satırdır (`dotnet add package Tracon.PostgreSql`). Şablon bu satırı `--persistence postgres` seçiminde kendisi yazar. Bellek deposu `Tracon.Core`'dadır; `Tracon` tek başına yine agent koşturur. Sağlayıcı (`Tracon.OpenAI`) meta pakette kalır, çünkü onu çıkarmanın üçüncü taraf kazancı ölçüldü ve küçük çıktı (§256.1).
@@ -317,21 +317,21 @@ sayaç satırı aynı değişiklikte düzelir.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `grep -c "Tracon.PostgreSql" src/Tracon/Tracon.csproj` → `0`
-- [ ] `TransitiveDependencyTests` yeşil; `git diff` tabanın `# Tracon` bölümünden yalnız `Npgsql` ve `Tracon.PostgreSql` satırlarının silindiğini gösterir
-- [ ] `DependencyDirectionTests.The_meta_package_reaches_no_storage_package` yeşil; meta'ya `Tracon.PostgreSql` geri eklenince kırmızı (bir kez denendi, sonuç faz dokümanına yazıldı)
-- [ ] `TemplateInstantiationTests`: `memory` ve `sqlserver` çıktısında `Npgsql/` yok; `postgres` çıktısı sıfır uyarıyla derlenir ve `Npgsql/` içerir
-- [ ] `TemplateRunTests` yeşil (PostgreSQL derlemesi olmadan host başlar)
-- [ ] Kapasite host'u paketlenmiş feed'e karşı derlenir (komut aşağıda, çıktı faz dokümanına yazıldı)
-- [ ] `CHANGELOG.md` *Upgrading from 1.0.0-preview.6* maddesi `CS1061`'i ve düzeltme komutunu adıyla yazar
-- [ ] Sevk edilen metin ve site taraması boş döner (komut aşağıda)
-- [ ] Yeni `K-*` kaydı `Alternatif:` ile yazıldı; K-185 satırında `yerini aldı` notu var; `RC-KALITE-DALGALARI.md` Q-14 `✅ Faz 256`
-- [ ] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 5d615e0e` ya da fazın gerçek taban commit'i)
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (PostgreSQL bağlantısıyla), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `MT-PKG-030` ve `MT-TEST-008` güncellendi (`➜ CI`); yeni kabul case'i yok
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
+- [x] `grep -c "Tracon.PostgreSql" src/Tracon/Tracon.csproj` → `0` (ölçüldü)
+- [x] `TransitiveDependencyTests` yeşil; `git diff` tabanın `# Tracon` bölümünden yalnız `Npgsql` ve `Tracon.PostgreSql` satırlarının silindiğini gösterir (artı tarihli bir açıklama satırı)
+- [x] `DependencyDirectionTests.The_meta_package_reaches_no_storage_package` yeşil; meta'ya `Tracon.PostgreSql` geri eklenince kırmızı. Denendi: meta csproj değişmeden önce `DependencyDirectionTests` 8 testten 2'si düştü (`Each_package_references_only_allowed_packages` ve yeni test; mesaj `'Tracon.PostgreSql' is in the closure of the 'Tracon' meta package…`), csproj değişince 8/8 yeşil
+- [x] `TemplateInstantiationTests`: `memory` ve `sqlserver` çıktısında `Npgsql/` yok; `postgres` çıktısı sıfır uyarıyla derlenir ve `Npgsql/` içerir. Şablondan `Tracon.PostgreSql` satırı çıkarılınca `Postgres_combination…` `CS1061` ile düştü (`'ITraconBuilder' does not contain a definition for 'UsePostgreSql'`), satır geri konunca yeşil
+- [x] `TemplateRunTests` yeşil (PostgreSQL derlemesi olmadan host başlar)
+- [x] Kapasite host'u paketlenmiş feed'e karşı derlenir. Çıktı: repo dışı kopya + yerel feed (`1.0.0-preview.6.34`), `Tracon.CapacityHost -> …/bin/Release/net10.0/Tracon.CapacityHost.dll`, `Build succeeded. 0 Warning(s) 0 Error(s)`. Referans satırı yokken `CS1061` verirdi (aynı mekanizma, ayrıca koşulmadı)
+- [x] `CHANGELOG.md` *Upgrading from 1.0.0-preview.6* maddesi `CS1061`'i ve düzeltme komutunu adıyla yazar
+- [x] Sevk edilen metin ve site taraması boş döner (komut aşağıda; deseni Sapma 6 düzeltti)
+- [x] Yeni `K-*` kaydı (K-1116) `Alternatif:` ile yazıldı; K-185 satırında `yerini aldı` notu var; `RC-KALITE-DALGALARI.md` Q-14 `✅ Faz 256`
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban 5d615e0e` çıkış 0, 30 108 test, 0 düştü (üçüncü koşum; ilki `ConsumerSurfaceTests`'te düştü, ikincisi bütçe denetiminde — Sapma 8 ve denetim tablosu)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (tek kullanımlık `pgvector/pgvector:pg18` container'ı, 127.0.0.1:55433; kapatıldı ve silindi). `GET /tracon/api/meta` → `storage.persistent: true`, `runStore: SqlRunStore`; `GET /api/diagnostics` → `persistenceProvider: PostgreSQL`, `canConnect: true`, `migrationsUpToDate: true`, `pendingMigrations: []`; `POST /api/agents/f256-probe/run` (echo) iki kez SSE ile döndü ve `runs` tablosunda iki satır (`status` 1) oluştu
+- [x] `secret` taraması boş döndü (`kapi.py tarama`: temiz; bağlantı parolası yalnız ortam değişkeniyle verildi, dosyaya yazılmadı)
+- [x] `MT-PKG-030` ve `MT-TEST-008` güncellendi (`➜ CI`); yeni kabul case'i yok. Denetim iki case daha buldu ve düzeltti: `MT-PKG-073`, `MT-TEST-061`
+- [x] `faz-denetim` koşuldu; 🔴 bulgu yoktu, 🟡 üçü kapandı (Denetim Bulguları)
+- [x] `docs-site/` güncellendi; `npm run check` (içerik, derleme, bağlantı, ağırlık) temiz: 1054 sayfa, 187 376 iç referans, sıfır kırık
 
 ### Doğrulama komutları
 
@@ -454,10 +454,10 @@ sayfa, bağlantı 187376 referans, sıfır kırık; ağırlık tavanı altında)
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan yeniden yazılmadı; 8 sapma kaydı) |
+| Düzeltme turu sayısı | 3 (denetim bulguları · `ConsumerSurfaceTests` regresyonu · bütçe aşımı) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (🟡: 3 gerçek) |
+| Fazın ürettiği regresyon | 1 (`ConsumerSurfaceTests` `MigrationRunner` vakası; kapanış kapısı yakaladı, kapanıştan önce düzeldi) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
