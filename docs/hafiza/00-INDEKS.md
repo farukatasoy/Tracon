@@ -35,6 +35,7 @@
 | Analyzer/lint TANI kodu (RS/MA/CA) | [analyzer-tanilari](analyzer-tanilari.md) |
 | Analyzer/üreteç **yazımı** (`APG*`) | [analyzer-yazimi](analyzer-yazimi.md) |
 | `dotnet pack`, `buildTransitive/`, şablon, feed | [paketleme-ve-dagitim](paketleme-ve-dagitim.md) |
+| Meta paketin bileşimi, depo neden meta pakette yok | [meta-paket-bilesimi](meta-paket-bilesimi.md) |
 | MinVer, repo dışı tüketici, tek derleme zinciri | [yayin-ve-surumleme](yayin-ve-surumleme.md) |
 | Etiket, push sırası, registry | [yayin-turu](yayin-turu.md) |
 | Üçüncü taraf lisans, ön sürüm üst akış aralığı | [tedarik-zinciri](tedarik-zinciri.md) |

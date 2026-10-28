@@ -13,6 +13,8 @@
 > MinVer surumleme ve repo disi tuketiciyi yerel feed'e baglama BESINCI bir
 > dosyadadir: [`yayin-ve-surumleme.md`](yayin-ve-surumleme.md) (Faz 156)
 > (2026-09-03, Faz 136 denetimi — dosya bütçesini asti, ayrildi).
+> Meta paketin BILESIMI (hangi paketi tasir, depo neden yok) ALTINCI bir
+> dosyadadir: [`meta-paket-bilesimi.md`](meta-paket-bilesimi.md) (Faz 256).
 
 ## `IncludeBuildOutput=false` paketleri (Templates, meta) — pack tuzaklari
 
@@ -172,18 +174,3 @@ sabit dizge değil, `Tracon.Client`'ın tablodaki lisansından **türetilir**.
 - **🚨 `$TMPDIR` altındaki worktree'de `.editorconfig` uygulanmaz**
   (`/var` → `/private/var`); MA0048 gibi susturulmuş tanılar hata olur.
   Worktree'yi `pwd -P` ile gerçek yola aç.
-
-## Meta paket depo içermez (Faz 256, K-1116)
-
-- **🚨 Meta paketin bileşimini değiştirirsen `Tracon.Package.Tests` projesinin TAMAMINI koş,
-  üç sınıfı değil.** Faz 256'da graf, şablon ve çalıştırma sınıfları yeşildi; `ConsumerSurfaceTests`
-  `MigrationRunner` vakası yalnız kapanışın tam testinde düştü. `MigrationRunner` depo paketlerinde
-  `internal`'dır; meta paket depoyu getirmeyince tip grafta hiç yoktu ve derleme beklenen `CS0122`
-  yerine `CS0246` verdi. Yapısal kural: bir tüketici yüzey sondası, daraltılmış tipin **sahibi
-  paketi** açıkça referanslar (`SurfaceProbeProject.WriteAsync(…, owningPackage)`).
-- Bileşimi üç kapı kilitler: `DependencyDirectionTests.The_meta_package_reaches_no_storage_package`
-  (proje grafı), `transitive-dependencies.txt` `# Tracon` bölümü (paket grafı) ve
-  `TemplateInstantiationTests` (şablon çıktısında `Npgsql/` anahtarı: `memory`/`sqlserver` yok,
-  `postgres` var). Biri tek başına yetmez.
-- Meta paketten depo isteyen repo içi proje (örnek, kapasite host'u) açık referans alır. Kapasite
-  host'u kapanış kapısında **derlenmez**; `scripts/capacity.py` `prepare_consumer` yolunu elle koş.

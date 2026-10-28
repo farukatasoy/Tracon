@@ -424,7 +424,7 @@ sayfa, bağlantı 187376 referans, sıfır kırık; ağırlık tavanı altında)
    `capabilities.md:328` ve üretilen `api/` sayfaları paketin kendi işini anlatır, meta paketi anmaz. Sıfıra ulaşılamazdı.
    Desen iddianın kendisine daraltıldı (`PostgreSQL persistence, the OpenAI` · `with PostgreSQL support` · `instead of
    PostgreSQL`) ve `api/` dışarıda bırakıldı; sonuç sıfırdır. `capabilities.md:328` bilerek değişmedi: satır agent
-   haritasına girer ve harita 11256 / 11264 B'tedir (F-714); F-751'e yazıldı.
+   haritasına girer ve harita 11256 / 11264 B'tedir (F-714); F-749'a yazıldı.
 7. **İki manuel case'in beklenen sonucu daha yanlış çıktı** (denetim 🟡-2): `MT-PKG-073` (`postgres` varyantı "yalnız
    `Tracon`") ve `MT-TEST-061` (meta paketin altı bileşeni). Plan tablosunda yoklardı; ikisi de düzeltildi.
 8. **Kapanış kapısı gerçek bir regresyon yakaladı.** `ConsumerSurfaceTests.Internal_type_is_not_visible_to_a_package_consumer`
@@ -473,6 +473,4 @@ Denetçi taze bağlamlı `faz-denetcisi`; aralık `5d615e0e..b5de3141`. 🔴 yok
 | DoD'deki sevk edilen metin taraması taban commit'te de eşleşiyordu, sıfır olamazdı | 🟡 | Düzeltildi: desen iddiaya daraltıldı, `api/` dışarıda (Sapma 6) |
 | `MT-PKG-073` ve `MT-TEST-061` eski bileşimi yazıyordu | 🟡 | Düzeltildi (Sapma 7); `MT-PKG-073`'e `➜ CI` işareti eklendi |
 | `proje-sablonu → getting-started/index.md` site kapısı kırmızı | 🟡 | Gerekçelendi ve `--site-gerekce-yazildi` ile geçildi (Sapma 5); denetçi koşumundan sonra yazıldı |
-| `UsePostgreSql` kullanan README ve rehber örnekleri yalnız `Tracon` ile derlenmez | 🟢 | F-749 |
-| `README.md:174` "everything with one reference" | 🟢 | F-750 |
-| Bilgi hata metinleri ve agent haritası paketi anmaz | 🟢 | F-751 |
+| `UsePostgreSql` kullanan README ve rehber örnekleri yalnız `Tracon` ile derlenmez; `README.md:174` "everything with one reference"; bilgi hata metinleri ve agent haritası paketi anmaz | 🟢 | Tek aday: F-749 |
