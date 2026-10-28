@@ -2067,7 +2067,7 @@ export interface paths {
         put?: never;
         /**
          * Uploads a document to the knowledge base.
-         * @description The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.
+         * @description The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: the Tracon.PostgreSql package, UsePostgreSql(), and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.
          */
         post: operations["TraconUploadKnowledgeDocument"];
         delete?: never;

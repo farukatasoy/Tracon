@@ -19,8 +19,7 @@ public static class AzureOpenAIImageBuilderExtensions
     /// <code>
     /// builder.AddTracon()
     ///        .UseAzureOpenAI(
-    ///            new Uri(builder.Configuration["AzureOpenAI:Endpoint"]!),
-    ///            builder.Configuration["AzureOpenAI:ApiKey"]!)
+    ///            builder.Configuration.GetSection(AzureOpenAIProviderOptions.SectionName))
     ///        .UseAzureOpenAIImages(options =&gt;
     ///        {
     ///            options.Enabled = true;

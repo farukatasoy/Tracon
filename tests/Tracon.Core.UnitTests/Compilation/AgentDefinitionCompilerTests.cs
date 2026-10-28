@@ -489,6 +489,9 @@ public sealed class AgentDefinitionCompilerTests
 
         exception.AgentName.ShouldBe("test-agent");
         exception.Message.ShouldContain("IVectorSearchStore");
+
+        // The store comes from a package the meta package does not carry: the message names it.
+        exception.Message.ShouldContain("Tracon.PostgreSql");
     }
 
     [Fact]

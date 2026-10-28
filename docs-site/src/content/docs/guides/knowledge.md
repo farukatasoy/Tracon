@@ -65,6 +65,8 @@ builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
         .AsIEmbeddingGenerator());
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 A third setting is required: `TraconPostgreSqlOptions.EnableKnowledge` is `false`
 by default (a managed PostgreSQL instance without permission to install extensions
 should never see `pgvector` unless it asked for it). Turn it on wherever

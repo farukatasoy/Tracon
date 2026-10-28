@@ -35,7 +35,7 @@ public static class OpenAISpeechBuilderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    ///        .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     ///        .UseOpenAISpeech(options =&gt;
     ///        {
     ///            options.SynthesisModel = "gpt-4o-mini-tts";

@@ -46,6 +46,8 @@ app.MapTracon("/tracon");
 app.Run();
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 A deployment whose module order can leave an authorization handler on Tracon's
 permissive default should say so out loud, so the mistake is a failed startup rather
 than an allowed request:

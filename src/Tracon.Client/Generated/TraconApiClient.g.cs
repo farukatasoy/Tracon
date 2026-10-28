@@ -12302,7 +12302,7 @@ namespace Tracon.Client.Generated
         /// Uploads a document to the knowledge base.
         /// </summary>
         /// <remarks>
-        /// The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.
+        /// The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: the Tracon.PostgreSql package, UsePostgreSql(), and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>

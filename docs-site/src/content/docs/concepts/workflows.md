@@ -381,6 +381,8 @@ builder.Services.AddTracon()
     });
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 ```mermaid
 flowchart LR
     accTitle: Workflow recovery after a process stops

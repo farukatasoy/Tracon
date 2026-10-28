@@ -33,6 +33,8 @@ builder.AddTracon()
        });
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 The equivalent setting exists on `TraconSqlServerOptions.EnableReadViews` and
 `TraconSqliteOptions.EnableReadViews`. It defaults to `false`<!-- claim:option TraconSqliteOptions.EnableReadViews=false -->: a deployment
 that never turns it on pays nothing for it, and never sees a `runs_v1` object in

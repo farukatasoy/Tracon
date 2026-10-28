@@ -10,7 +10,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <TargetFrameworks></TargetFrameworks>
     <OutputType>Exe</OutputType>
-    <Description>The `tracon` global tool: applies pending migrations as a separate deployment step (`migrate`, `migrate status`), reports read-only whether this build can still read the stored state before an upgrade (`state-check`), reads the health endpoint through Tracon.Client (`health`), runs an eval suite as a CI quality gate (`eval`), and writes the gate skill a coding agent loads before it touches a Tracon surface (`agent-skill`).</Description>
+    <Description>The `tracon` global tool. It applies pending migrations as a separate deployment step (`migrate`, `migrate status`), reports read-only whether this build can still read the stored state before an upgrade (`state-check`), reads the health endpoint through Tracon.Client (`health`), runs an eval suite as a CI quality gate (`eval`), and writes the gate skill a coding agent loads before it touches a Tracon surface (`agent-skill`).</Description>
     <PackageTags>$(CommonPackageTags);cli;tool;migrate;eval;upgrade;agents</PackageTags>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>tracon</ToolCommandName>

@@ -13,6 +13,8 @@ builder.AddTracon()
        .UseWorkflows();
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package; add it with `dotnet add package Tracon.PostgreSql --prerelease`. Without a storage package every store is in memory.
+
 ## Workflows defined from the UI
 
 A workflow definition is a **graph**, not code: it only carries the names of

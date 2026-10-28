@@ -35,7 +35,7 @@ public static class GoogleImageBuilderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseGoogle(builder.Configuration["Google:ApiKey"]!)
+    ///        .UseGoogle(builder.Configuration.GetSection(GoogleProviderOptions.SectionName))
     ///        .UseGoogleImages(options =&gt;
     ///        {
     ///            options.Enabled = true;

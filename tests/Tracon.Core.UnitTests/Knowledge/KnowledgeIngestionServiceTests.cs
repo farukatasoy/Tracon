@@ -35,6 +35,18 @@ public sealed class KnowledgeIngestionServiceTests
     }
 
     [Fact]
+    public async Task The_not_supported_message_names_the_package_that_supplies_the_store()
+    {
+        var service = CreateService(withStore: false, withEmbeddings: true);
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            () => service.SearchAsync("kb", "query").AsTask());
+
+        exception.Message.ShouldContain("Tracon.PostgreSql");
+        exception.Message.ShouldContain("UsePostgreSql()");
+    }
+
+    [Fact]
     public async Task Text_is_chunked_and_embedded_when_given()
     {
         var store = new FakeVectorSearchStore();

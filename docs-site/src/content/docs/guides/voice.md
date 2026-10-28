@@ -355,7 +355,7 @@ shares the client of `UseOpenAI`, so call that first:
 
 ```csharp
 builder.AddTracon()
-    .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UseOpenAISpeech(options =>
     {
         options.SynthesisModel = "gpt-4o-mini-tts";

@@ -29,7 +29,7 @@ flowchart LR
 
 ```csharp
 builder.AddTracon()
-    .UseGoogle(builder.Configuration["Google:ApiKey"]!)
+    .UseGoogle(builder.Configuration.GetSection(GoogleProviderOptions.SectionName))
     .UseGoogleSpeech(options =>
     {
         options.Model = "gemini-3.8-flash-tts";

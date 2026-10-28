@@ -30,8 +30,8 @@ public static class AzureOpenAIProviderExtensions
     /// <code>
     /// builder.AddTracon()
     ///        .UseAzureOpenAI(
-    ///            new Uri(builder.Configuration["AzureOpenAI:Endpoint"]!),
-    ///            builder.Configuration["AzureOpenAI:ApiKey"]!);
+    ///            new Uri(builder.Configuration["Tracon:Providers:AzureOpenAI:Endpoint"]!),
+    ///            builder.Configuration["Tracon:Providers:AzureOpenAI:ApiKey"]!);
     /// </code>
     /// </example>
     /// </remarks>

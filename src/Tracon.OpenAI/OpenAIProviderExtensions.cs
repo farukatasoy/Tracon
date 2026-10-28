@@ -23,7 +23,7 @@ public static class OpenAIProviderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!);
+    ///        .UseOpenAI(builder.Configuration["Tracon:Providers:OpenAI:ApiKey"]!);
     /// </code>
     /// </example>
     /// </remarks>

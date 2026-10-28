@@ -9,6 +9,8 @@ builder.AddTracon()
        .UseMcp();
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package; add it with `dotnet add package Tracon.PostgreSql --prerelease`. Without a storage package every store is in memory.
+
 Servers are defined not in code but in the **database**; they are added from
 the UI or via the `PUT {prefix}/api/mcp-servers/{name}` endpoint. Discovery
 happens in the background, and the tools found are listed alongside the
