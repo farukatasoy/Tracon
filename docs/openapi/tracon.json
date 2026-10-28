@@ -5524,7 +5524,7 @@
           "Knowledge"
         ],
         "summary": "Uploads a document to the knowledge base.",
-        "description": "The body carries either \u0027text\u0027 (the server chunks and embeds it) or \u0027chunks\u0027 (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant\u0027s provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.",
+        "description": "The body carries either \u0027text\u0027 (the server chunks and embeds it) or \u0027chunks\u0027 (pre-chunked). PostgreSQL only: the Tracon.PostgreSql package, UsePostgreSql(), and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant\u0027s provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.",
         "operationId": "TraconUploadKnowledgeDocument",
         "parameters": [
           {

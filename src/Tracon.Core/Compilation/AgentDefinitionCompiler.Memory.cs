@@ -166,7 +166,7 @@ public sealed partial class AgentDefinitionCompiler
         {
             throw new TraconCompilationException(
                 $"Agent '{definition.Name}' wants semantic search, but IVectorSearchStore is not " +
-                "registered (today only PostgreSQL: UsePostgreSql()).")
+                "registered (today only the Tracon.PostgreSql package: UsePostgreSql()).")
             {
                 AgentName = definition.Name,
             };

@@ -24,7 +24,7 @@ public static class TraconPostgreSqlBuilderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    ///        .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     ///        .UsePostgreSql(builder.Configuration.GetConnectionString("Tracon")!);
     /// </code>
     /// </example>

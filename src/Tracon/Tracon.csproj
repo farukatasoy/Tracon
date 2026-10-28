@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Tracon meta package. A production-oriented agent control plane built on Microsoft Agent Framework, with an embedded management UI. One reference brings the common set: runtime, HTTP API, the OpenAI provider, workflows, MCP, and the embedded management UI. Storage engines and other providers are separate packages.</Description>
+    <Description>Tracon meta package without a store. A production-oriented agent control plane built on Microsoft Agent Framework, with an embedded management UI. One reference brings the common set: runtime, HTTP API, the OpenAI provider, workflows, MCP, and the embedded management UI. Storage engines and other providers are separate packages.</Description>
     <PackageTags>$(CommonPackageTags);meta;all-in-one</PackageTags>
     <!-- The meta package carries no code; the build output is not packed, to avoid an empty assembly. -->
     <TraconAotCompatible>false</TraconAotCompatible>

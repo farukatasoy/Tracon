@@ -83,8 +83,9 @@ internal sealed class NonPersistentStorageWarningService(
             "Tracon is running in the Production environment with storage that is not " +
             "persistent: {NonPersistentStores}. The data lives as long as this process does; " +
             "a restart loses it and a second instance does not see it. Register a persistence " +
-            "package to keep it - for example UsePostgreSql(connectionString), UseSqlServer(...) " +
-            "or UseSqlite(...). In-memory storage is a supported mode; this message reports the " +
+            "package to keep it - for example UsePostgreSql(connectionString) from Tracon.PostgreSql, " +
+            "UseSqlServer(...) from Tracon.SqlServer or UseSqlite(...) from Tracon.Sqlite. " +
+            "In-memory storage is a supported mode; this message reports the " +
             "environment, it does not report a broken setup.",
             string.Join(", ", nonPersistent));
 

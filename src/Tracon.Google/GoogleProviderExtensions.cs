@@ -20,7 +20,7 @@ public static class GoogleProviderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseGoogle(builder.Configuration["Google:ApiKey"]!);
+    ///        .UseGoogle(builder.Configuration["Tracon:Providers:Google:ApiKey"]!);
     /// </code>
     /// </example>
     /// </remarks>

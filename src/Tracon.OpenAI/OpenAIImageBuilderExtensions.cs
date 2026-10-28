@@ -26,7 +26,7 @@ public static class OpenAIImageBuilderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    ///        .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     ///        .UseOpenAIImages(options =&gt;
     ///        {
     ///            options.Enabled = true;

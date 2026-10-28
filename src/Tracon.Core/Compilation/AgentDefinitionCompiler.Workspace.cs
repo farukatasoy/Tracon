@@ -69,7 +69,7 @@ public sealed partial class AgentDefinitionCompiler
         {
             logger.LogWarning(
                 "Agent {Agent} has a session workspace, but the file store is the in-memory one: the files are lost when the process restarts. " +
-                "Use a SQL provider (UseSqlite, UsePostgreSql, UseSqlServer) or register your own AgentFileStore.",
+                "Use a SQL provider (UseSqlite from Tracon.Sqlite, UsePostgreSql from Tracon.PostgreSql, UseSqlServer from Tracon.SqlServer) or register your own AgentFileStore.",
                 definition.Name);
         }
 

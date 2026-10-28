@@ -35,6 +35,9 @@ public sealed class NonPersistentStorageWarningTests
         matches[0].ShouldStartWith($"{LogLevel.Warning} {nameof(Tracon)}.{nameof(NonPersistentStorageWarningService)}");
         matches[0].ShouldContain("agent definitions, runs, sessions");
         matches[0].ShouldContain("UsePostgreSql");
+
+        // A host that references only the meta package has no such call until it adds the package.
+        matches[0].ShouldContain("Tracon.PostgreSql");
     }
 
     [Fact]

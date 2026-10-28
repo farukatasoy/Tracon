@@ -332,6 +332,8 @@ builder.AddTracon()
        .UsePostgreSql(connectionString);
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 `Keys` never holds a key's raw material — it maps a key id to the **name** of
 another configuration key, the same indirection Tracon uses for provider
 credentials. The raw 32-byte, base64-encoded key lives only in `dotnet user-secrets`

@@ -29,7 +29,7 @@ internal static class KnowledgeEndpoints
             .Accepts<UploadDocumentRequest>("application/json")
             .WithDescription(
                 "The body carries either 'text' (the server chunks and embeds it) or 'chunks' " +
-                "(pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered. " +
+                "(pre-chunked). PostgreSQL only: the Tracon.PostgreSql package, UsePostgreSql(), and an IEmbeddingGenerator must be registered. " +
                 "Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy " +
                 "does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own " +
                 "credential for it, gets 403 and nothing is embedded.")
@@ -250,7 +250,7 @@ internal static class KnowledgeEndpoints
     private static ProblemHttpResult NotSupported()
         => TypedResults.Problem(
             title: "Knowledge base not supported",
-            detail: "An IVectorSearchStore (today only PostgreSQL: UsePostgreSql()) AND an " +
+            detail: "An IVectorSearchStore (today only the Tracon.PostgreSql package: UsePostgreSql()) AND an " +
                     "IEmbeddingGenerator<string, Embedding<float>> must both be registered.",
             statusCode: StatusCodes.Status501NotImplemented);
 }

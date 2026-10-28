@@ -44,6 +44,8 @@ var tracon = builder.AddTracon()
     });
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 Create server records through the console or management API. Only the configuration
 key name is persisted; the credential value stays in your secret provider:
 

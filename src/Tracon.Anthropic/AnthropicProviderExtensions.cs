@@ -20,7 +20,7 @@ public static class AnthropicProviderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseAnthropic(builder.Configuration["Anthropic:ApiKey"]!);
+    ///        .UseAnthropic(builder.Configuration["Tracon:Providers:Anthropic:ApiKey"]!);
     /// </code>
     /// </example>
     /// </remarks>

@@ -49,6 +49,8 @@ var tracon = builder.AddTracon()
     .UsePostgreSql(builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName));
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 The order above — bindings first, `AddTracon()` second — is the only order that
 works. `AddTracon()` calls `TryAdd*` for all six; called first, it claims every
 slot and your registrations that follow do nothing.

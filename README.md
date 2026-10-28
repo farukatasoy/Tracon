@@ -29,6 +29,11 @@ You write the AI harness; you operate it at `/tracon`. Start with
 > The **coding agent** integrating the package learns from build-time diagnostics and
 > an opt-in `AGENTS.md` capability map.
 
+```bash
+dotnet add package Tracon --prerelease
+dotnet add package Tracon.PostgreSql --prerelease
+```
+
 ```csharp
 builder.AddTracon()
        .UsePostgreSql(connectionString)
@@ -39,9 +44,9 @@ builder.AddTracon()
 app.MapTracon("/tracon");
 ```
 
-Two lines: durable sessions, the registered tool, and a control plane at
-`http://localhost:5080/tracon`, where you create an agent that calls it. To define the
-agent in code instead, follow [Your first agent](https://tracon.dev/getting-started/first-agent/).
+That gives durable sessions, the registered tool, and a control plane at `/tracon`,
+where you create an agent that calls it. To define the agent in code instead, follow
+[Your first agent](https://tracon.dev/getting-started/first-agent/).
 
 ### The console
 
@@ -112,7 +117,7 @@ builder.AddTracon()
            Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "gpt-5.4-mini" },
            ToolNames = ["get_order_status", "cancel_order"],
        })
-       .UsePostgreSql(connectionString)       // optional
+       .UsePostgreSql(connectionString)       // optional; needs the Tracon.PostgreSql package
        .UseMcp()                              // remote MCP tools, optional
        .UseUI();                              // embedded console
 
@@ -171,7 +176,7 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 
 | Package | Licence | What it does |
 |---------|---------|--------------|
-| `Tracon` | PolyForm | Meta package — everything with one reference |
+| `Tracon` | PolyForm | Meta package — the common set with one reference; storage is a second reference |
 | `Tracon.Abstractions` | MIT | Contracts; enough on its own if you write your own implementations |
 | `Tracon.Core` | PolyForm | Runtime, catalog, definition compiler, tool registry, sessions. **No database required.** |
 | `Tracon.PostgreSql` | PolyForm | Embedded SQL migrations, separate `tracon` schema. **Not in the meta package.** The only built-in vector-search store |

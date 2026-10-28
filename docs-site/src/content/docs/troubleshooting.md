@@ -346,7 +346,8 @@ reconciliation rather than an in-process signal.
 
 No SQL provider is active. `AddTracon()` deliberately supplies in-memory stores.
 Add exactly the provider you intend to own the data path with `UsePostgreSql()`,
-`UseSqlServer()`, or `UseSqlite()`.
+`UseSqlServer()`, or `UseSqlite()`. Each comes from its own package (`Tracon.PostgreSql`,
+`Tracon.SqlServer`, `Tracon.Sqlite`), which the `Tracon` meta package does not include.
 
 ### SQLite reports `no such table` with `Data Source=:memory:`
 
@@ -398,8 +399,8 @@ usually clears on its own.
 
 All three dependencies must exist:
 
-- `UsePostgreSql()` with `EnableKnowledge = true` supplies `IVectorSearchStore` and
-  pgvector storage. It is off by default; with it off, `IVectorSearchStore` never
+- `UsePostgreSql()` (the `Tracon.PostgreSql` package) with `EnableKnowledge = true` supplies
+  `IVectorSearchStore` and pgvector storage. It is off by default; with it off, `IVectorSearchStore` never
   resolves.
 - The application registers `IEmbeddingGenerator<string, Embedding<float>>`.
 

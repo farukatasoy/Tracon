@@ -15,7 +15,7 @@ dotnet add package Tracon.PostgreSql --prerelease   # or Tracon.SqlServer, Traco
 
 ```csharp
 builder.AddTracon()
-       .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+       .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
        .UsePostgreSql(builder.Configuration.GetConnectionString("Tracon")!)
        .AddTool(GetOrderStatus)
        .UseUI();
@@ -33,8 +33,10 @@ Or start from the template, which writes a working application for you:
 
 ```bash
 dotnet new install Tracon.Templates@1.0.0-preview.6
-dotnet new tracon-api -o MyAgents
+dotnet new tracon-api -o MyAgents --model <chat-model>
 ```
+
+`--model` is the chat model your provider serves today; the template writes it to `appsettings.json`, and no code is edited.
 
 Check [nuget.org](https://www.nuget.org/packages/Tracon.Templates) before pinning a
 newer preview.

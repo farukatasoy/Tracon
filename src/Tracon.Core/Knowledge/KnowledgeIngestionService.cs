@@ -273,8 +273,8 @@ internal sealed partial class KnowledgeIngestionService
         if (!IsSupported)
         {
             throw new TraconException(
-                "Knowledge base not supported: an IVectorSearchStore (today only PostgreSQL, " +
-                "UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>> must both " +
+                "Knowledge base not supported: an IVectorSearchStore (today only the Tracon.PostgreSql " +
+                "package, UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>> must both " +
                 "be registered.");
         }
     }

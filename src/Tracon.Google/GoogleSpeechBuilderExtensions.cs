@@ -46,7 +46,7 @@ public static class GoogleSpeechBuilderExtensions
     /// <example>
     /// <code>
     /// builder.AddTracon()
-    ///        .UseGoogle(builder.Configuration["Google:ApiKey"]!)
+    ///        .UseGoogle(builder.Configuration.GetSection(GoogleProviderOptions.SectionName))
     ///        .UseGoogleSpeech(options =&gt;
     ///        {
     ///            options.Model = "gemini-3.8-flash-tts";

@@ -82,6 +82,8 @@ app.MapTracon("/tracon");
 app.Run();
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 The same values can come from configuration:
 
 ```json

@@ -5728,6 +5728,8 @@ builder.Services.AddTracon()
     });
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 ```mermaid
 flowchart LR
     accTitle: Workflow recovery after a process stops
@@ -5999,11 +6001,14 @@ pin the exact version when you need a reproducible build.
 ## Create the host
 
 Install the published template, then create a project. The template pins every
-Tracon package to the same version as the template package.
+Tracon package to the same version as the template package. Pass the chat model
+your account serves today with `--model`: Tracon ships no model list, so the name
+comes from the provider's own documentation. The template writes it to
+`appsettings.json`; you do not edit any code.
 
 ```bash
 dotnet new install Tracon.Templates@1.0.0-preview.6
-dotnet new tracon-api -n MyAgents
+dotnet new tracon-api -n MyAgents --model gpt-5.4-mini
 cd MyAgents
 ```
 
@@ -6012,7 +6017,8 @@ Run `dotnet new tracon-api -h` to see the available values. The console is
 embedded in the host; no separate console server is needed.
 
 Store your provider key in the application's development secrets. The key never
-enters the project; `appsettings.json` carries only an empty placeholder.
+enters the project; `appsettings.json` carries only an empty placeholder. The
+project file already carries its secrets ID, so there is no `init` step.
 
 ```bash
 dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
@@ -6023,13 +6029,32 @@ dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
 ## Choose the model
 
 The generated `Program.cs` already registers an agent named `support` and one tool,
-`get_order_status`, from `Tools/OrderTools.cs`. Tracon ships no model list, so the
-model name is the one line you edit: replace `WRITE_MODEL_NAME_HERE` with a chat
-model your account serves today.
+`get_order_status`, from `Tools/OrderTools.cs`. The agent runs with the model you
+passed to `--model`. That name is a setting, not code: it sits in
+`appsettings.json` next to the empty key placeholder, and `Program.cs` reads it.
 
-```csharp title="Program.cs (excerpt)"
-const string ModelName = "WRITE_MODEL_NAME_HERE"; // your chat model
+```json
+{
+  "Tracon": {
+    "Providers": {
+      "OpenAI": { "ApiKey": "", "DefaultModel": "gpt-5.4-mini" }
+    }
+  }
+}
+```
 
+To change the model later, change `DefaultModel` in `appsettings.json`, or
+override it with a user secret or an environment variable. Azure OpenAI names a
+deployment, so its setting is `DefaultDeployment`.
+
+With an API key set and no model name, the host stops at startup and names
+`Tracon:Providers:OpenAI:DefaultModel`, instead of failing on the first model
+call. With no key at all, the host still starts, and only a run that calls the
+model fails.
+
+The agent definition in `Program.cs` binds that setting to the agent explicitly:
+
+```csharp
 tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
@@ -6039,14 +6064,11 @@ tracon.AddAgent(new AgentDefinition
     Model = new ModelBinding
     {
         Provider = OpenAIProviderNames.ChatCompletions,
-        Model = ModelName,
+        Model = modelName, // Tracon:Providers:OpenAI:DefaultModel
     },
     ToolNames = ["get_order_status"],
 });
 ```
-
-With an API key set and the placeholder still in place, the host stops at startup
-and names this line, instead of failing on the first model call.
 
 This first agent uses a chat model only. To let a later agent generate stored image
 attachments, add `UseOpenAIImages(...)`, set `Tracon:Images:Enabled`, and choose
@@ -6054,6 +6076,8 @@ an image model explicitly — one the provider serves for image generation, whic
 not always the same family as its chat models. An image model is not inferred from
 this agent's chat model; see
 [image generation providers](/guides/model-providers/#image-generation-providers).
+
+Start the host:
 
 ```bash
 dotnet run --urls http://localhost:5081
@@ -6917,6 +6941,8 @@ builder.AddTracon()
        })
        .UsePostgreSql(connectionString);
 ```
+
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
 
 `Keys` never holds a key's raw material — it maps a key id to the **name** of
 another configuration key, the same indirection Tracon uses for provider
@@ -8025,6 +8051,8 @@ var app = builder.Build();
 app.MapTracon("/tracon");
 app.Run();
 ```
+
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
 
 The same values can come from configuration:
 
@@ -10652,6 +10680,8 @@ var tracon = builder.AddTracon()
     .UsePostgreSql(builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName));
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 The order above — bindings first, `AddTracon()` second — is the only order that
 works. `AddTracon()` calls `TryAdd*` for all six; called first, it claims every
 slot and your registrations that follow do nothing.
@@ -11196,6 +11226,8 @@ var tracon = builder.AddTracon()
     });
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 Create server records through the console or management API. Only the configuration
 key name is persisted; the credential value stays in your secret provider:
 
@@ -11509,7 +11541,7 @@ flowchart LR
 
 ```csharp
 builder.AddTracon()
-    .UseGoogle(builder.Configuration["Google:ApiKey"]!)
+    .UseGoogle(builder.Configuration.GetSection(GoogleProviderOptions.SectionName))
     .UseGoogleSpeech(options =>
     {
         options.Model = "gemini-3.8-flash-tts";
@@ -12070,6 +12102,8 @@ builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
         .GetEmbeddingClient("text-embedding-3-small")
         .AsIEmbeddingGenerator());
 ```
+
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
 
 A third setting is required: `TraconPostgreSqlOptions.EnableKnowledge` is `false`
 by default (a managed PostgreSQL instance without permission to install extensions
@@ -14917,6 +14951,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapTracon("/tracon");
 app.Run();
 ```
+
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
 
 A deployment whose module order can leave an authorization handler on Tracon's
 permissive default should say so out loud, so the mistake is a failed startup rather
@@ -17802,7 +17838,7 @@ shares the client of `UseOpenAI`, so call that first:
 
 ```csharp
 builder.AddTracon()
-    .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UseOpenAISpeech(options =>
     {
         options.SynthesisModel = "gpt-4o-mini-tts";
@@ -25441,6 +25477,8 @@ builder.AddTracon()
        });
 ```
 
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
+
 The equivalent setting exists on `TraconSqlServerOptions.EnableReadViews` and
 `TraconSqliteOptions.EnableReadViews`. It defaults to `false`<!-- claim:option TraconSqliteOptions.EnableReadViews=false -->: a deployment
 that never turns it on pays nothing for it, and never sees a `runs_v1` object in
@@ -26647,7 +26685,8 @@ reconciliation rather than an in-process signal.
 
 No SQL provider is active. `AddTracon()` deliberately supplies in-memory stores.
 Add exactly the provider you intend to own the data path with `UsePostgreSql()`,
-`UseSqlServer()`, or `UseSqlite()`.
+`UseSqlServer()`, or `UseSqlite()`. Each comes from its own package (`Tracon.PostgreSql`,
+`Tracon.SqlServer`, `Tracon.Sqlite`), which the `Tracon` meta package does not include.
 
 ### SQLite reports `no such table` with `Data Source=:memory:`
 
@@ -26699,8 +26738,8 @@ usually clears on its own.
 
 All three dependencies must exist:
 
-- `UsePostgreSql()` with `EnableKnowledge = true` supplies `IVectorSearchStore` and
-  pgvector storage. It is off by default; with it off, `IVectorSearchStore` never
+- `UsePostgreSql()` (the `Tracon.PostgreSql` package) with `EnableKnowledge = true` supplies
+  `IVectorSearchStore` and pgvector storage. It is off by default; with it off, `IVectorSearchStore` never
   resolves.
 - The application registers `IEmbeddingGenerator<string, Embedding<float>>`.
 
