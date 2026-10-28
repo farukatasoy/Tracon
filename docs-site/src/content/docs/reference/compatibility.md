@@ -279,7 +279,7 @@ required](/guides/embedding/#make-a-production-decision-required).
 
 A decision can also gain a second answer without the set growing. `UncheckedToolCalls` was
 answered only by a handler of your own; it is now answered as well by
-`Tracon:Tools:RequireTenantPolicy` with a [tool policy](/concepts/governance/#per-tenant-tool-policy) for each
+`Tracon:Tools:RequireTenantPolicy` with a [tool policy](/concepts/tools/#per-tenant-tool-policy) for each
 tenant. A host that already answers it with a handler keeps starting, and no host that
 started before stops: this widens what satisfies the decision.
 

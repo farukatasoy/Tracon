@@ -508,55 +508,8 @@ fail the run: the model gets the reason as an ordinary tool result and continues
 turn. See [Tools, skills, and MCP](/concepts/tools/#authorization-validation-and-timeout)
 for the interface and an example.
 
-### Per-tenant tool policy
-
-`IToolAuthorizationHandler` is your code: one rule for every tenant, changed by a
-deployment. When each tenant should run a different set of tools, and an administrator
-should change that without a deployment, save a **tool policy** for the tenant. The
-policy is two closed lists:
-
-- `allowedTools`: the tool names the tenant may run;
-- `grantedPermissions`: the permissions the tenant holds. A tool that declares a
-  `RequiredPermission` passes when that permission is listed.
-
-A call passes when its tool name is in `allowedTools` **or** its permission is in
-`grantedPermissions`. A tool that declares no permission and is not named is refused,
-and two empty lists refuse every tool: an empty policy is not the same as having none.
-Names and permissions are compared exactly, with letter case.
-
-The policy is a gate **in front of** your handler, not a replacement for it. A call needs both
-to allow it, and a call the policy refuses never reaches your handler. A refusal is not
-a failure: the model reads `This tool is not enabled for this tenant.` as the tool's
-result and the run goes on, and the call is recorded with `authorizationDenied`. The
-policy covers exactly the tools your handler is
-[asked about](/guides/embedding/#which-tools-reach-the-tool-authorization-handler): tools
-registered in code, MCP tools, the `file_access_*` tools of a session workspace,
-`search_knowledge` and `search_conversation_memory`. Hosted tools, agents called as tools,
-skill tools, the file memory, todo and harness tools are not covered. An MCP tool declares no
-permission, so only its name can allow it: list it as `{server}_{tool}`, the name `GET /api/tools`
-does not show. A name the server renames drops out of the list and the tool is refused, never
-allowed by accident.
-
-A tenant with no saved policy is unrestricted by the policy, so a host that never saves one
-behaves as before. A multi-tenant deployment can close that gap with
-`Tracon:Tools:RequireTenantPolicy` (default `false`): turned on, a tenant with no policy runs
-**no** tool, and the default tenant needs a policy row like any other. Saving a policy is never
-blocked by the switch. The switch is read when the host starts. It is one of the two answers to
-the `UncheckedToolCalls` decision of
-[`RequireProductionProfile()`](/guides/embedding/#make-a-production-decision-required); the
-other is a handler of your own.
-
-The policy is read from the store on every tool call and kept in no cache, so a saved
-policy applies to the next call, even of an agent that is already running. The cost is one
-store read per call; a store that cannot be read refuses the call and logs an error, because
-a gate that read a failure as "no policy" would open exactly when the store is down.
-
-The policy is managed under `/api/tenants/{tenantId}/tools` (`GET`, `PUT`, `DELETE`), guarded
-by the `SecurityAdmin` API key scope; a tenant other than the caller's own also requires
-platform authority, as for [egress](#per-tenant-provider-credentials-and-egress). Every save and
-delete lands in the audit trail as `tenant_tool_policy.save` and `tenant_tool_policy.delete`
-with both lists. The console shows the policy under the egress policy in the tenant panel of
-the settings screen.
+A tenant can also have its own [tool policy](/concepts/tools/#per-tenant-tool-policy): the tools its
+runs may call, as data an administrator changes without a deployment, checked in front of your handler.
 
 ## Quotas and rate limits
 

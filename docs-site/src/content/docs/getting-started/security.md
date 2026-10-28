@@ -380,7 +380,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Endpoint access | An unauthenticated or unauthorized caller | [The layers](#the-layers) |
 | Tenant isolation | Reading or writing another tenant's rows | [Multi-tenancy](/concepts/governance/#multi-tenancy) |
 | Session ownership | Continuing a conversation the caller does not own | [Session ownership](/concepts/governance/#below-the-tenant-session-ownership) |
-| Tool authorization | A tool call the caller is not entitled to make, or a tool the tenant's tool policy does not name | [Tool authorization](/concepts/governance/#tool-authorization), [Per-tenant tool policy](/concepts/governance/#per-tenant-tool-policy) |
+| Tool authorization | A tool call the caller is not entitled to make, or a tool the tenant's tool policy does not name | [Tool authorization](/concepts/governance/#tool-authorization), [Per-tenant tool policy](/concepts/tools/#per-tenant-tool-policy) |
 | Tool approval | An unapproved tool call, until a human decides | [Approvals](/concepts/governance/#approvals) |
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
@@ -419,7 +419,7 @@ model](/reference/threat-model/).
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout) —
       or, in a multi-tenant host, `Tracon:Tools:RequireTenantPolicy` is on and each tenant has a
-      [tool policy](/concepts/governance/#per-tenant-tool-policy)
+      [tool policy](/concepts/tools/#per-tenant-tool-policy)
 - [ ] `RequireProductionProfile()` is called, so the production decisions (tenant
       separation, role policies, tool authorization, tenant egress and the rest) cannot be
       skipped in silence — see
