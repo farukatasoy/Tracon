@@ -264,6 +264,7 @@
 | 248 | Agent Sürüm Numarası Silmede Yeniden Kullanılmaz | tam | ✅ | 2026-10-26 | F-409 | `b04dac53:docs/248-AGENT-SURUM-NUMARASI-KIMLIGI.md` |
 | 249 | Kod Grafında Agent Sürümünü Run Parametresi Seçer | hafif | ✅ | 2026-10-26 | F-545 | `ad0c91ba:docs/249-RUN-PARAMETRESIYLE-AGENT-SURUMU.md` |
 | 250 | Alt Agent Sürüm Sabiti | tam | ✅ | 2026-10-26 | F-409 | `ec8d34fa:docs/250-ALT-AGENT-SURUM-SABITI.md` |
+| 251 | Kesik ve Filtreli Yanıtın Sinyali: Responses `incomplete` ve `tracon.output.filtered` | tam | ✅ | 2026-10-28 | F-503 · F-505 | `d2be0d24:docs/251-KESIK-VE-FILTRELI-YANIT-SINYALI.md` |
 | 252 | Model Başına İstek Alanı Reddi ve Değer Sınırları | hafif | ✅ | 2026-10-28 | F-606 · F-607 | `be963d73:docs/252-MODEL-BASINA-ISTEK-ALANI-VE-SINIRLARI.md` |
 | 253 | Önbellek Yazma Token'ı ve Fiyatı Run Maliyetine Girer | tam | ✅ | 2026-10-28 | F-420 | `beeb1fde:docs/253-ONBELLEK-YAZMA-MALIYETI.md` |
 
@@ -357,5 +358,6 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 248 | 9 sapma | 2 | 1 / 0 / 0 | 0 | ölçülmedi |
 | 249 | 0 | 1 | 1 / 0 / 0 | 0 | ölçülmedi |
 | 250 | 0 | 1 | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
+| 251 | 12 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 252 | 13 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 253 | 9 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
