@@ -1318,7 +1318,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // --- Audit trail ---
 
         SelectAuditLog = $"""
-            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash
+            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash, key_id
             FROM {Schema}.audit_log
             WHERE tenant_id = @tenant_id
               AND (@actor          IS NULL OR actor  = @actor)
@@ -1334,14 +1334,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // --- Audit hash chain (Phase 64) ---
 
         SelectLastAuditHash = $"""
-            SELECT TOP (1) hash
+            SELECT TOP (1) hash, key_id
             FROM {Schema}.audit_log
             WHERE tenant_id = @tenant_id
             ORDER BY chain_seq DESC;
             """;
 
         SelectAuditChain = $"""
-            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash
+            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash, key_id
             FROM {Schema}.audit_log
             WHERE tenant_id = @tenant_id
               AND hash IS NOT NULL

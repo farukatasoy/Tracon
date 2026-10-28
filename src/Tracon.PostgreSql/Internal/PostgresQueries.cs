@@ -1162,7 +1162,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // --- Audit log (Phase 9) ---
 
         SelectAuditLog = $"""
-            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash
+            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash, key_id
             FROM {Schema}.audit_log
             WHERE tenant_id = @tenant_id
               AND (@actor      IS NULL OR actor  = @actor)
@@ -1177,7 +1177,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // --- Audit hash chain (Phase 64) ---
 
         SelectLastAuditHash = $"""
-            SELECT hash
+            SELECT hash, key_id
             FROM {Schema}.audit_log
             WHERE tenant_id = @tenant_id
             ORDER BY chain_seq DESC
@@ -1185,7 +1185,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         SelectAuditChain = $"""
-            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash
+            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash, key_id
             FROM {Schema}.audit_log
             WHERE tenant_id = @tenant_id
               AND hash IS NOT NULL

@@ -79,6 +79,14 @@ public sealed class InMemoryAuditLogContractTests : AuditLogContract
     /// <inheritdoc />
     protected override ValueTask<IAuditLog> CreateStoreAsync()
         => ValueTask.FromResult<IAuditLog>(new InMemoryAuditLog(AmbientTenant));
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A second in-memory log does not share the first one's entries, so <c>KeyedLogsShareStorage</c> stays off:
+    /// the scenarios that build a signed chain from scratch run here, the ones that mix histories do not.
+    /// </remarks>
+    protected override ValueTask<IAuditLog?> CreateKeyedLogAsync(string? signingKeyId, IReadOnlyDictionary<string, byte[]> keys)
+        => ValueTask.FromResult<IAuditLog?>(new InMemoryAuditLog(AmbientTenant, AuditChainKeyRing.Create(signingKeyId, keys)));
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />

@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace Tracon.Testing.Contracts.Storage;
@@ -338,6 +341,381 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         result.Status.ShouldBe(AuditChainStatus.Valid, $"chain forked or broke under {WriterCount} concurrent writers");
         result.EntriesChecked.ShouldBe(WriterCount);
     }
+
+    // --- Signed chain (phase 260, F-758) ---
+    // A log built with a signing key writes an HMAC-SHA256 hash and the key's id; the key value itself never
+    // reaches the store. The scenarios below need a SECOND log over the same storage (a different key set, or
+    // none), which only an implementation backed by shared storage can offer: it overrides the two members below.
+
+    private static readonly byte[] KeyOne = Enumerable.Range(1, 32).Select(static i => (byte)i).ToArray();
+    private static readonly byte[] KeyTwo = Enumerable.Range(101, 32).Select(static i => (byte)i).ToArray();
+
+    /// <summary>
+    /// Builds a log of the implementation under test that signs new entries with the key named
+    /// <paramref name="signingKeyId"/> (or writes them unsigned when it is <see langword="null"/>) and checks
+    /// entries with <paramref name="keys"/>. Return <see langword="null"/> when the implementation cannot be
+    /// built with keys; the signed-chain scenarios then do nothing.
+    /// </summary>
+    /// <param name="signingKeyId">The id of the signing key, or <see langword="null"/> for none.</param>
+    /// <param name="keys">Every key the log holds, by id. Each value is 32 bytes.</param>
+    /// <returns>The log, or <see langword="null"/>.</returns>
+    protected virtual ValueTask<IAuditLog?> CreateKeyedLogAsync(string? signingKeyId, IReadOnlyDictionary<string, byte[]> keys)
+        => ValueTask.FromResult<IAuditLog?>(null);
+
+    /// <summary>
+    /// Whether a log built by <see cref="CreateKeyedLogAsync"/> reads and writes the SAME storage as
+    /// <see cref="Log"/> (SQL providers). The scenarios that mix unsigned and signed history, or change the key
+    /// set between two verifications, run only then.
+    /// </summary>
+    protected virtual bool KeyedLogsShareStorage => false;
+
+    [Fact]
+    public async Task A_keyed_chain_verifies_as_valid()
+    {
+        const string Tenant = "tenant-key-valid";
+
+        if (await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        for (var i = 0; i < 5; i++)
+        {
+            await signed.WriteAsync(Entry(Tenant, "agent.update", $"agent:{i}"));
+        }
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Valid);
+        result.EntriesChecked.ShouldBe(5);
+        result.UnkeyedEntries.ShouldBe(0);
+
+        var entries = await signed.QueryAsync(new AuditQuery { TenantId = Tenant });
+
+        entries.ShouldAllBe(static entry => entry.KeyId == "k1" && !string.IsNullOrEmpty(entry.Hash));
+    }
+
+    [Fact]
+    public async Task The_write_path_sets_the_key_id_and_ignores_a_caller_supplied_one()
+    {
+        const string Tenant = "tenant-key-ignored";
+
+        // The log under test has no key: a key id the caller hands in must not reach the row.
+        await Log.WriteAsync(Entry(Tenant, "agent.update", "agent:plain") with { KeyId = "forged" });
+
+        var unsigned = (await Log.QueryAsync(new AuditQuery { TenantId = Tenant })).ShouldHaveSingleItem();
+
+        unsigned.KeyId.ShouldBeNull();
+
+        if (await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        const string SignedTenant = "tenant-key-ignored-signed";
+
+        await signed.WriteAsync(Entry(SignedTenant, "agent.update", "agent:signed") with { KeyId = "forged" });
+
+        var written = (await signed.QueryAsync(new AuditQuery { TenantId = SignedTenant })).ShouldHaveSingleItem();
+
+        written.KeyId.ShouldBe("k1");
+    }
+
+    [Fact]
+    public async Task Two_tenants_keyed_chains_verify_independently()
+    {
+        if (await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        await signed.WriteAsync(Entry("tenant-key-x", "agent.update", "agent:x1"));
+        await signed.WriteAsync(Entry("tenant-key-x", "agent.update", "agent:x2"));
+        await signed.WriteAsync(Entry("tenant-key-y", "agent.update", "agent:y1"));
+
+        var resultX = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = "tenant-key-x" });
+        var resultY = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = "tenant-key-y" });
+
+        resultX.Status.ShouldBe(AuditChainStatus.Valid);
+        resultX.EntriesChecked.ShouldBe(2);
+        resultY.Status.ShouldBe(AuditChainStatus.Valid);
+        resultY.EntriesChecked.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Concurrent_keyed_writes_for_one_tenant_produce_a_single_valid_chain()
+    {
+        // The same race as the unsigned scenario: every retry re-reads the last hash and re-derives its own
+        // HMAC from it, so the signed chain must converge to one chain too.
+        const string Tenant = "tenant-key-concurrent";
+        const int WriterCount = 20;
+
+        if (await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        var writers = Enumerable.Range(0, WriterCount)
+            .Select(i => signed.WriteAsync(Entry(Tenant, "agent.update", $"agent:{i}")).AsTask());
+
+        await Task.WhenAll(writers);
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Valid, $"signed chain forked or broke under {WriterCount} concurrent writers");
+        result.EntriesChecked.ShouldBe(WriterCount);
+    }
+
+    [Fact]
+    public async Task Unkeyed_history_before_the_first_keyed_entry_stays_valid_and_is_counted()
+    {
+        const string Tenant = "tenant-key-history";
+
+        if (!KeyedLogsShareStorage || await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        for (var i = 0; i < 3; i++)
+        {
+            await Log.WriteAsync(Entry(Tenant, "agent.update", $"agent:old-{i}"));
+        }
+
+        for (var i = 0; i < 2; i++)
+        {
+            await signed.WriteAsync(Entry(Tenant, "agent.update", $"agent:new-{i}"));
+        }
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Valid);
+        result.EntriesChecked.ShouldBe(5);
+        result.UnkeyedEntries.ShouldBe(3);
+
+        // A host that never had the key cannot check the signed rows, and says so instead of calling them forged.
+        var withoutKey = await Log.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        withoutKey.Status.ShouldBe(AuditChainStatus.UnknownKey);
+    }
+
+    [Fact]
+    public async Task A_chain_signed_by_two_keys_verifies_after_rotation()
+    {
+        const string Tenant = "tenant-key-rotation";
+
+        if (!KeyedLogsShareStorage
+            || await CreateKeyedLogAsync("old", Keys(("old", KeyOne))) is not { } beforeRotation
+            || await CreateKeyedLogAsync("new", Keys(("old", KeyOne), ("new", KeyTwo))) is not { } afterRotation
+            || await CreateKeyedLogAsync("new", Keys(("new", KeyTwo))) is not { } oldKeyRemoved)
+        {
+            return;
+        }
+
+        await beforeRotation.WriteAsync(Entry(Tenant, "agent.update", "agent:1"));
+        await beforeRotation.WriteAsync(Entry(Tenant, "agent.update", "agent:2"));
+        await afterRotation.WriteAsync(Entry(Tenant, "agent.update", "agent:3"));
+        await afterRotation.WriteAsync(Entry(Tenant, "agent.update", "agent:4"));
+
+        var result = await afterRotation.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Valid);
+        result.EntriesChecked.ShouldBe(4);
+        result.UnkeyedEntries.ShouldBe(0);
+
+        var entries = await afterRotation.QueryAsync(new AuditQuery { TenantId = Tenant });
+
+        entries.OrderBy(static entry => entry.Entity, StringComparer.Ordinal).Select(static entry => entry.KeyId)
+            .ShouldBe(["old", "old", "new", "new"]);
+
+        // Removing the old key from configuration is an operations failure, not a forgery.
+        var removed = await oldKeyRemoved.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        removed.Status.ShouldBe(AuditChainStatus.UnknownKey);
+        removed.FirstFailingEntryId.ShouldNotBeNull();
+        entries.Single(entry => entry.Id == removed.FirstFailingEntryId).Entity.ShouldBe("agent:1");
+    }
+
+    [Fact]
+    public async Task Turning_the_key_off_keeps_the_entry_and_the_walk_reports_the_downgrade()
+    {
+        const string Tenant = "tenant-key-off";
+
+        if (!KeyedLogsShareStorage || await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:1"));
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:2"));
+
+        // The key is turned off and the host restarts: the audit entry is still written (an audit trail must
+        // not lose a record), unsigned.
+        await Log.WriteAsync(Entry(Tenant, "agent.update", "agent:3-unsigned"));
+
+        var entries = await signed.QueryAsync(new AuditQuery { TenantId = Tenant });
+        var unsignedRow = entries.Single(static entry => string.Equals(entry.Entity, "agent:3-unsigned", StringComparison.Ordinal));
+
+        entries.Count.ShouldBe(3);
+        unsignedRow.KeyId.ShouldBeNull();
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Broken);
+        result.FirstFailingEntryId.ShouldBe(unsignedRow.Id);
+    }
+
+    [Fact]
+    public async Task Downgrading_a_keyed_entry_is_detected_as_broken()
+    {
+        // 🚨 The attack the key exists to stop. An actor with write access to the table and no key rewrites
+        // the last signed row: new content, `key_id` dropped, and a plain SHA-256 recomputed over the same
+        // canonical form (public, and reimplemented below on purpose: this scenario must not trust the code
+        // under test to define what a valid unsigned hash is). The row is now self-consistent and linked, and
+        // only the order (unsigned after signed) gives it away.
+        const string Tenant = "tenant-key-downgrade";
+
+        if (!SupportsRawTamper || await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:first"));
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:second"));
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:third"));
+
+        var entries = await signed.QueryAsync(new AuditQuery { TenantId = Tenant });
+        var target = entries.Single(static e => string.Equals(e.Entity, "agent:third", StringComparison.Ordinal));
+        const string Tampered = "{\"tampered\":true}";
+        var plainHash = PlainSha256(target with { After = Tampered });
+
+        await ExecuteRawAsync(
+            $"UPDATE {QualifiedAuditLogTable} SET after = '{Tampered}', key_id = NULL, hash = '{plainHash}' " +
+            $"WHERE id = '{FormatIdForRawSql(target.Id)}';");
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Broken);
+        result.FirstFailingEntryId.ShouldBe(target.Id);
+    }
+
+    [Fact]
+    public async Task Recomputing_a_keyed_row_without_the_key_is_detected_as_broken()
+    {
+        // 🚨 The promise of the key. An actor with write access to the table and NO key changes the last row,
+        // keeps its `key_id` and recomputes the hash the only way open to them: a plain SHA-256 over the same
+        // canonical form (which now names the key id). Before keys existed this exact edit was invisible.
+        const string Tenant = "tenant-key-recompute";
+
+        if (!SupportsRawTamper || await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:first"));
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:second"));
+
+        var entries = await signed.QueryAsync(new AuditQuery { TenantId = Tenant });
+        var target = entries.Single(static e => string.Equals(e.Entity, "agent:second", StringComparison.Ordinal));
+        const string Tampered = "{\"tampered\":true}";
+        var forgedHash = PlainSha256(target with { After = Tampered }, keyId: "k1");
+
+        await ExecuteRawAsync(
+            $"UPDATE {QualifiedAuditLogTable} SET after = '{Tampered}', hash = '{forgedHash}' " +
+            $"WHERE id = '{FormatIdForRawSql(target.Id)}';");
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Broken);
+        result.FirstFailingEntryId.ShouldBe(target.Id);
+    }
+
+    [Fact]
+    public async Task Re_signing_under_another_key_id_is_detected_as_broken()
+    {
+        // The key id is inside the signed text: pointing a row at the other KNOWN id breaks the row even when
+        // both ids hold the same key bytes (an operator who registered one value twice), so the label cannot
+        // be moved without a new signature over the new text.
+        const string Tenant = "tenant-key-relabel";
+
+        if (!SupportsRawTamper || await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne), ("k2", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:first"));
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:second"));
+
+        var entries = await signed.QueryAsync(new AuditQuery { TenantId = Tenant });
+        var target = entries.Single(static e => string.Equals(e.Entity, "agent:second", StringComparison.Ordinal));
+
+        await ExecuteRawAsync(
+            $"UPDATE {QualifiedAuditLogTable} SET key_id = 'k2' WHERE id = '{FormatIdForRawSql(target.Id)}';");
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Broken);
+        result.FirstFailingEntryId.ShouldBe(target.Id);
+    }
+
+    [Fact]
+    public async Task Tampering_a_keyed_row_directly_is_detected_as_broken()
+    {
+        const string Tenant = "tenant-key-tamper";
+
+        if (!SupportsRawTamper || await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
+        {
+            return;
+        }
+
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:first"));
+        await signed.WriteAsync(Entry(Tenant, "agent.update", "agent:second"));
+
+        var entries = await signed.QueryAsync(new AuditQuery { TenantId = Tenant });
+        var target = entries.Single(static e => string.Equals(e.Entity, "agent:first", StringComparison.Ordinal));
+
+        await ExecuteRawAsync(
+            $"UPDATE {QualifiedAuditLogTable} SET after = '{{\"tampered\":true}}' WHERE id = '{FormatIdForRawSql(target.Id)}';");
+
+        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        result.Status.ShouldBe(AuditChainStatus.Broken);
+        result.FirstFailingEntryId.ShouldBe(target.Id);
+    }
+
+    private static Dictionary<string, byte[]> Keys(params (string Id, byte[] Value)[] keys)
+        => keys.ToDictionary(static key => key.Id, static key => key.Value, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The plain SHA-256 hash of an entry's unsigned canonical form, computed independently of the code under
+    /// test: the fixed field order, the four escaped characters and the microsecond timestamp are the on-disk contract.
+    /// </summary>
+    private static string PlainSha256(AuditEntry entry, string? keyId = null)
+    {
+        var ticks = entry.CreatedAt.UtcTicks - (entry.CreatedAt.UtcTicks % 10);
+        var createdAt = new DateTimeOffset(ticks, TimeSpan.Zero).ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ", CultureInfo.InvariantCulture);
+
+        var canonical =
+            "{\"prevHash\":" + JsonText(entry.PreviousHash)
+            + ",\"tenantId\":" + JsonText(entry.TenantId)
+            + ",\"actor\":" + JsonText(entry.Actor)
+            + ",\"action\":" + JsonText(entry.Action)
+            + ",\"entity\":" + JsonText(entry.Entity)
+            + ",\"before\":" + JsonText(entry.Before)
+            + ",\"after\":" + JsonText(entry.After)
+            + ",\"createdAt\":\"" + createdAt + "\""
+            + (keyId is null ? string.Empty : ",\"keyId\":" + JsonText(keyId))
+            + "}";
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+    }
+
+    private static string JsonText(string? value)
+        => value is null
+            ? "null"
+            : "\"" + value.Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal)
+                .Replace("\n", "\\n", StringComparison.Ordinal)
+                .Replace("\r", "\\r", StringComparison.Ordinal) + "\"";
 
     private static void JsonSemanticallyEquals(string? actual, string? expected)
     {

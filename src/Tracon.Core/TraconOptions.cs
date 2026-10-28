@@ -548,6 +548,28 @@ public sealed class TraconAuditOptions
     /// <c>ClaimTypes.Name</c> → <c>sub</c>.
     /// </summary>
     public string? ActorClaimType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the id of the key that signs the audit trail's hash chain. When <see langword="null"/>
+    /// or empty, new entries are written without a key.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The key VALUE is not an option. It is read at host start from the configuration key
+    /// <c>Tracon:AuditChainKeys:&lt;id&gt;</c>, as base64 that decodes to at least 32 bytes, and it is
+    /// never written to the database, a log or a response. The id is 1 to 64 characters of lowercase
+    /// letters, digits, <c>.</c>, <c>_</c> and <c>-</c>. A host whose id has no value does not start.
+    /// </para>
+    /// <para>
+    /// To rotate, add the new key under a new id, set this option to that id and restart. Keep the old
+    /// value in configuration: the entries it signed are checked with it for as long as they exist.
+    /// </para>
+    /// <para>
+    /// The key protects against an actor who can write to the audit table but cannot read this host's
+    /// configuration. An actor who can read both can still forge entries.
+    /// </para>
+    /// </remarks>
+    public string? ChainKeyId { get; set; }
 }
 
 /// <summary>

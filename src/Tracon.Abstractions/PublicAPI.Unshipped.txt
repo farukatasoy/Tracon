@@ -370,6 +370,7 @@ Tracon.AuditChainQuery.TenantId.init -> void
 Tracon.AuditChainStatus
 Tracon.AuditChainStatus.Broken = 1 -> Tracon.AuditChainStatus
 Tracon.AuditChainStatus.Gap = 2 -> Tracon.AuditChainStatus
+Tracon.AuditChainStatus.UnknownKey = 3 -> Tracon.AuditChainStatus
 Tracon.AuditChainStatus.Valid = 0 -> Tracon.AuditChainStatus
 Tracon.AuditChainVerification
 Tracon.AuditChainVerification.<Clone>$() -> Tracon.AuditChainVerification!
@@ -381,6 +382,8 @@ Tracon.AuditChainVerification.FirstFailingEntryId.get -> System.Guid?
 Tracon.AuditChainVerification.FirstFailingEntryId.init -> void
 Tracon.AuditChainVerification.Status.get -> Tracon.AuditChainStatus
 Tracon.AuditChainVerification.Status.init -> void
+Tracon.AuditChainVerification.UnkeyedEntries.get -> int
+Tracon.AuditChainVerification.UnkeyedEntries.init -> void
 Tracon.AuditEntry
 Tracon.AuditEntry.<Clone>$() -> Tracon.AuditEntry!
 Tracon.AuditEntry.Action.get -> string!
@@ -401,6 +404,8 @@ Tracon.AuditEntry.Hash.get -> string?
 Tracon.AuditEntry.Hash.init -> void
 Tracon.AuditEntry.Id.get -> System.Guid
 Tracon.AuditEntry.Id.init -> void
+Tracon.AuditEntry.KeyId.get -> string?
+Tracon.AuditEntry.KeyId.init -> void
 Tracon.AuditEntry.PreviousHash.get -> string?
 Tracon.AuditEntry.PreviousHash.init -> void
 Tracon.AuditEntry.TenantId.get -> string!
@@ -3777,6 +3782,7 @@ Tracon.TraconProductionRisk.UnboundedRetention = 5 -> Tracon.TraconProductionRis
 Tracon.TraconProductionRisk.UncheckedToolCalls = 7 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnencryptedContentAtRest = 2 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UninspectedContent = 3 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnkeyedAuditChain = 11 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnlimitedRequestRate = 4 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnlimitedTenantWorkflows = 10 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnownedSessions = 1 -> Tracon.TraconProductionRisk

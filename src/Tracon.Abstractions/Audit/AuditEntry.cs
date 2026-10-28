@@ -64,10 +64,28 @@ public sealed record AuditEntry
     public string? PreviousHash { get; init; }
 
     /// <summary>
-    /// Gets the hash of this entry: a SHA-256 over a canonical form of its
+    /// Gets the hash of this entry: a hash over a canonical form of its
     /// fields that also includes the previous entry's hash, so changing an
-    /// earlier entry breaks every later link. The write path computes this
-    /// value; a caller-supplied value is ignored.
+    /// earlier entry breaks every later link. It is an HMAC-SHA256 when
+    /// <see cref="KeyId"/> is set and a plain SHA-256 when it is not. The write
+    /// path computes this value; a caller-supplied value is ignored.
     /// </summary>
     public string? Hash { get; init; }
+
+    /// <summary>
+    /// Gets the id of the key that signed this entry, or <see langword="null"/>
+    /// for an entry written without a key.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The id is a name, never the key: the key value lives in configuration
+    /// (<c>Tracon:AuditChainKeys:&lt;id&gt;</c>) and is not written to the audit
+    /// trail or to the database. The id is part of the signed text, so changing
+    /// it on a stored row breaks the entry's hash.
+    /// </para>
+    /// <para>
+    /// The write path sets this value; a caller-supplied value is ignored.
+    /// </para>
+    /// </remarks>
+    public string? KeyId { get; init; }
 }

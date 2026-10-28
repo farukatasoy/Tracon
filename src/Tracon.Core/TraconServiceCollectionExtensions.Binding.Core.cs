@@ -116,6 +116,11 @@ public static partial class TraconServiceCollectionExtensions
         {
             options.ActorClaimType = claimType;
         }
+
+        if (section[nameof(TraconAuditOptions.ChainKeyId)] is { Length: > 0 } chainKeyId)
+        {
+            options.ChainKeyId = chainKeyId;
+        }
     }
 
     private static void BindSkills(IConfigurationSection section, TraconSkillOptions options, TraconOptions root)

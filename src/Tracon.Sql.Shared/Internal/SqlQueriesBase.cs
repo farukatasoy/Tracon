@@ -509,7 +509,7 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads the audit log records with a filter.</summary>
     public string SelectAuditLog { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that reads the hash of a tenant's newest audit log record.</summary>
+    /// <summary>Gets the query that reads the hash and the signing key id of a tenant's newest audit log record.</summary>
     public string SelectLastAuditHash { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that reads a tenant's audit log records, oldest first, for hash chain verification.</summary>
@@ -1898,8 +1898,8 @@ internal abstract class SqlQueriesBase
             """;
 
         InsertAuditEntry = $"""
-            INSERT INTO {Table("audit_log")} (id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash)
-            VALUES (@id, @tenant_id, @actor, @action, @entity, @before, @after, @created_at, @prev_hash, @hash);
+            INSERT INTO {Table("audit_log")} (id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash, key_id)
+            VALUES (@id, @tenant_id, @actor, @action, @entity, @before, @after, @created_at, @prev_hash, @hash, @key_id);
             """;
 
         SelectJobSchedule = $"""

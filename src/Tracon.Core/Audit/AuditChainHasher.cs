@@ -18,6 +18,13 @@ namespace Tracon;
 /// afterward and makes an already-written chain unverifiable.
 /// </para>
 /// <para>
+/// An entry written WITHOUT a key keeps the form above and a plain SHA-256, byte for byte,
+/// so every chain written before keys existed still verifies. An entry written WITH a key
+/// adds <c>,"keyId":"&lt;id&gt;"</c> before the closing brace and is hashed with
+/// HMAC-SHA256 under that key. The id is inside the signed text, so pointing a stored row at
+/// another known key breaks its hash too.
+/// </para>
+/// <para>
 /// <c>createdAt</c> is rounded down to microsecond precision before it is
 /// hashed. PostgreSQL's <c>timestamptz</c> stores only microsecond precision (it
 /// drops the last digit of a .NET 100ns tick); without this rounding, a value
@@ -44,7 +51,12 @@ internal static class AuditChainHasher
     /// <param name="before">The state before the change, as JSON text.</param>
     /// <param name="after">The state after the change, as JSON text.</param>
     /// <param name="createdAt">The time the record was written.</param>
-    /// <returns>The hash, as a lowercase 64-character hex string (SHA-256).</returns>
+    /// <param name="key">
+    /// The key that signs the entry, or <see langword="null"/> for an entry written without one.
+    /// </param>
+    /// <returns>
+    /// The hash, as a lowercase 64-character hex string: SHA-256 without a key, HMAC-SHA256 with one.
+    /// </returns>
     public static string ComputeHash(
         string? previousHash,
         string tenantId,
@@ -53,14 +65,16 @@ internal static class AuditChainHasher
         string entity,
         string? before,
         string? after,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        AuditChainKey? key = null)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(action);
         ArgumentNullException.ThrowIfNull(entity);
 
-        var canonical = BuildCanonicalForm(previousHash, tenantId, actor, action, entity, before, after, createdAt);
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
+        var canonical = BuildCanonicalForm(previousHash, tenantId, actor, action, entity, before, after, createdAt, key?.Id);
+        var bytes = Encoding.UTF8.GetBytes(canonical);
+        var hash = key is { } signing ? HMACSHA256.HashData(signing.Value, bytes) : SHA256.HashData(bytes);
 
         // Convert.ToHexStringLower arrived with .NET 9; net8.0 is also targeted.
         return Convert.ToHexString(hash).ToLowerInvariant();
@@ -100,7 +114,8 @@ internal static class AuditChainHasher
         string entity,
         string? before,
         string? after,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        string? keyId = null)
     {
         var rounded = TruncateToMicroseconds(createdAt);
 
@@ -121,7 +136,15 @@ internal static class AuditChainHasher
         AppendJsonString(builder, after);
         builder.Append(",\"createdAt\":\"");
         builder.Append(rounded.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ", CultureInfo.InvariantCulture));
-        builder.Append("\"}");
+        builder.Append('"');
+
+        if (keyId is not null)
+        {
+            builder.Append(",\"keyId\":");
+            AppendJsonString(builder, keyId);
+        }
+
+        builder.Append('}');
 
         return builder.ToString();
     }

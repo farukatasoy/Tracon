@@ -41,6 +41,16 @@ public sealed class ConfigurationKeySnapshotTests
     ];
 
     /// <summary>
+    /// Keys a consumer writes that are read straight from <c>IConfiguration</c> and bound to no options type, so the
+    /// public API text cannot list them. The audit chain key VALUES are the case: they are a <c>secret</c> (K-059) and
+    /// are not bound to an options object, so nothing that prints an options object can print one.
+    /// </summary>
+    private static readonly string[] ReadWithoutAnOptionsType =
+    [
+        "Tracon:AuditChainKeys:*",
+    ];
+
+    /// <summary>
     /// Members that are options on the type and not keys in configuration. The shipped documentation promises that
     /// script execution "can only be turned on in code": binding these from configuration would let an
     /// environment variable widen what the server may execute (the binder says so beside the code that leaves
@@ -257,6 +267,7 @@ public sealed class ConfigurationKeySnapshotTests
             Walk(api, type, path, keys, ImmutableHashSet<string>.Empty);
         }
 
+        keys.UnionWith(ReadWithoutAnOptionsType);
         keys.ExceptWith(NotBoundByDesign);
         keys.RemoveWhere(static key => key.StartsWith("Tracon:UtilityModel:", StringComparison.Ordinal)
             && !UtilityModelBoundKeys.Contains(key, StringComparer.Ordinal));

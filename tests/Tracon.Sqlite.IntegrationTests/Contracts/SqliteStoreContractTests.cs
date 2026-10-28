@@ -45,6 +45,16 @@ public sealed class SqliteAuditLogContractTests(SqliteSchemaFixture schema)
     protected override bool SupportsRawTamper => true;
 
     /// <inheritdoc />
+    protected override bool KeyedLogsShareStorage => true;
+
+    /// <inheritdoc />
+    protected override ValueTask<IAuditLog?> CreateKeyedLogAsync(string? signingKeyId, IReadOnlyDictionary<string, byte[]> keys)
+        => ValueTask.FromResult<IAuditLog?>(new SqlAuditLog(
+            schema.Context.StoreContext,
+            schema.Context.TenantContext,
+            AuditChainKeyRing.Create(signingKeyId, keys)));
+
+    /// <inheritdoc />
     protected override string QualifiedAuditLogTable => $"{schema.Context.TablePrefix}audit_log";
 
     /// <inheritdoc />
