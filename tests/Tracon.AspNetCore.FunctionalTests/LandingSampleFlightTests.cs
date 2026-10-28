@@ -399,7 +399,9 @@ public sealed class LandingSampleFlightTests
     /// </summary>
     private static Task<TraconTestHost> StartFlightHostAsync()
         => TraconTestHost.StartAsync(
-            static builder => builder
+            static builder =>
+            {
+                builder
                 .UseTenancy(static options =>
                 {
                     options.Enabled = true;
@@ -416,14 +418,15 @@ public sealed class LandingSampleFlightTests
                     Instructions = "You help customers with their orders.",
                     Model = new ModelBinding { Provider = "fake", Model = "fake-model" },
                     ToolNames = ["get_order_status", "cancel_order"],
-                }),
+                });
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services
                     .AddAuthentication(SignInHandler.SchemeName)
                     .AddScheme<AuthenticationSchemeOptions, SignInHandler>(SignInHandler.SchemeName, configureOptions: null);
 
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
     private static async Task<JsonElement> WaitForRunAsync(

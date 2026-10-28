@@ -64,7 +64,9 @@ public sealed class ConcurrentToolInvocationTests
         using var barrier = new Barrier(3);
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("concurrent-model")
                     .CallsTools(("tool_a", null), ("tool_b", null), ("tool_c", null))
                     .RespondsWith("all done"))
@@ -86,8 +88,9 @@ public sealed class ConcurrentToolInvocationTests
                     TraconToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 3 });
                     return "result_c";
                 })), name: "tool_c")
-                .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true)),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-concurrent-1" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -134,18 +137,21 @@ public sealed class ConcurrentToolInvocationTests
         using var barrier = new Barrier(2);
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("concurrent-model")
                     .CallsTools(("tool_a", null), ("tool_b", null), ("tool_c", null))
                     .RespondsWith("all done"))
                 .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_a"; })), name: "tool_a")
                 .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_b"; })), name: "tool_b")
                 .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_c"; })), name: "tool_c")
-                .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true)),
+                .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services.AddSingleton<IToolAuthorizationHandler>(new DenyingHandler("tool_b"));
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-concurrent-2" });
@@ -205,7 +211,7 @@ public sealed class ConcurrentToolInvocationTests
                     Timeout = TimeSpan.FromMilliseconds(200),
                 });
 
-                builder.Services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-concurrent-timeout" });
@@ -255,15 +261,18 @@ public sealed class ConcurrentToolInvocationTests
         }
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("concurrent-model")
                     .CallsTools(("tool_a", null), ("tool_b", null), ("tool_c", null))
                     .RespondsWith("all done"))
                 .AddTool((Func<string>)(() => RunExclusively("result_a")), name: "tool_a")
                 .AddTool((Func<string>)(() => RunExclusively("result_b")), name: "tool_b")
                 .AddTool((Func<string>)(() => RunExclusively("result_c")), name: "tool_c")
-                .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: false)),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: false));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-sequential" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();

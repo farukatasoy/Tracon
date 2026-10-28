@@ -147,7 +147,9 @@ public sealed class EvalToolCallArgsTests
     private static async Task<JsonElement> RunAsync(object modelArguments, string expectedToolCalls)
     {
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("order-provider")
                     .WithModel(new ModelDescriptor { Name = "order-model" })
                     .CallsTool(ToolName, modelArguments)
@@ -163,12 +165,13 @@ public sealed class EvalToolCallArgsTests
                     Model = new ModelBinding { Provider = "order-provider", Model = "order-model" },
                     ToolNames = [ToolName],
                     Origin = AgentDefinitionOrigin.Code,
-                }),
-            configureServices: static services => services.UseScheduling(static options =>
-            {
-                options.RunWorker = true;
-                options.PollInterval = TimeSpan.FromMilliseconds(20);
-            }));
+                });
+                builder.UseScheduling(static options =>
+                {
+                    options.RunWorker = true;
+                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                });
+            });
 
         using (var suite = await host.Client.PutAsJsonAsync(
                    $"/tracon/api/evals/{Suite}",

@@ -18,7 +18,7 @@ public sealed class EvalTests(BrowserFixture browsers)
     public async Task Eval_suite_is_created_case_added_and_run_passes()
     {
         await using var host = await UiHost.StartAsync(
-            configureServices: services => services.UseScheduling(options =>
+            configureTracon: tracon => tracon.UseScheduling(options =>
             {
                 // The test does not need to wait in real time; the worker polls immediately.
                 options.PollInterval = TimeSpan.FromMilliseconds(200);

@@ -63,9 +63,14 @@ adds the same model rings a compiled agent gets. Set `AgentDescriptor.Model` in
 run has no cost. Do not cache an agent whose client carries a tenant's own key
 across tenants; `HasTenantProviderOverrideAsync` tells you when it does.
 `samples/Tracon.Samples.MafFeatures` builds such a source, and its tests show the
-tenant's key reach the chat client and the cost reach the run record. [Use any
-Microsoft Agent Framework feature](/guides/any-maf-feature/) says when to choose this
-shape over a factory agent.
+tenant's key reach the chat client and the cost reach the run record.
+
+Write an agent source for agents that do not live in your code: a repository, a
+database of your own, or another runtime. An agent that code builds and that talks to
+a model through Tracon needs no source. `AddAgent(name, model, factory)` hands the
+factory the same chat client, with the tenant's key and egress policy, and names the
+model for the run record. [Use any Microsoft Agent Framework
+feature](/guides/any-maf-feature/) says when each shape fits.
 
 ```csharp
 public async ValueTask<AIAgent?> ResolveAsync(string name, string? culture = null, CancellationToken ct = default)

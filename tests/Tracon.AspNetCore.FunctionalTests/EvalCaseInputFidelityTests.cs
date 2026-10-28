@@ -231,7 +231,9 @@ public sealed class EvalCaseInputFidelityTests
 
     private static Task<TraconTestHost> StartAsync(FakeModelProvider provider, bool recordRunInput = true)
         => TraconTestHost.StartAsync(
-            configureTracon: builder => builder
+            configureTracon: builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(new AgentDefinition
                 {
@@ -247,14 +249,15 @@ public sealed class EvalCaseInputFidelityTests
                     Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }],
                     Model = new ModelBinding { Provider = "fidelity-provider", Model = ModelName },
                     Origin = AgentDefinitionOrigin.Code,
-                }),
-            configureServices: services =>
-            {
-                services.UseScheduling(static options =>
+                });
+                builder.UseScheduling(static options =>
                 {
                     options.RunWorker = true;
                     options.PollInterval = TimeSpan.FromMilliseconds(20);
                 });
+            },
+            configureServices: services =>
+            {
 
                 services.Configure<TraconOptions>(options => options.RunRecording.RecordRunInput = recordRunInput);
             });

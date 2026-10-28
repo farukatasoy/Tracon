@@ -49,8 +49,8 @@ public sealed class SessionWorkspaceErasureTests
                     Workspace = new WorkspaceSettings { Enabled = true },
                     Origin = AgentDefinitionOrigin.Code,
                 });
-            },
-            configureServices: static services => services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
         var tree = (IAgentFileTree)host.Services.GetRequiredService<AgentFileStore>();
 
         foreach (var session in new[] { "session-1", "session-2" })

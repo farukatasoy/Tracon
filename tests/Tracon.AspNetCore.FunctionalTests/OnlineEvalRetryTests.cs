@@ -19,12 +19,13 @@ public sealed class OnlineEvalRetryTests
         var flakyJudge = new FlakyRunJudge("flaky", failuresBeforeSuccess: 1, score: 55);
 
         await using var host = await TraconTestHost.StartAsync(
+            configureTracon: tracon =>
+            tracon.UseScheduling(static options => options.RunWorker = false),
             configureServices: services =>
             {
                 // The worker's own poll/backoff loop is not exercised here: this
                 // test drives the queue directly so the retry backoff (30s+)
                 // does not make the test slow or flaky.
-                services.UseScheduling(static options => options.RunWorker = false);
                 services.AddSingleton<IRunJudge>(goodJudge);
                 services.AddSingleton<IRunJudge>(flakyJudge);
             });
@@ -89,9 +90,10 @@ public sealed class OnlineEvalRetryTests
         var flakyJudge = new FlakyRunJudge("flaky", failuresBeforeSuccess: 1, score: 55);
 
         await using var host = await TraconTestHost.StartAsync(
+            configureTracon: tracon =>
+            tracon.UseScheduling(static options => options.RunWorker = false),
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.RunWorker = false);
                 services.AddSingleton<IRunJudge>(goodJudge);
                 services.AddSingleton<IRunJudge>(flakyJudge);
             });
@@ -189,15 +191,18 @@ public sealed class OnlineEvalRetryTests
             .Text("{\"score\": 7", ChatFinishReason.Length, inputTokens: 50, outputTokens: 16);
 
         await using var host = await TraconTestHost.StartAsync(
-            configureTracon: builder => builder
+            configureTracon: builder =>
+            {
+                builder
                 .AddModelProvider(judgeModel)
                 .AddModelRunJudge(static options => options.Model = new ModelBinding
                 {
                     Provider = "judge-model",
                     Model = "judge-model-1",
                     MaxOutputTokens = 16,
-                }),
-            configureServices: static services => services.UseScheduling(static options => options.RunWorker = false));
+                });
+                builder.UseScheduling(static options => options.RunWorker = false);
+            });
 
         var jobStore = host.Services.GetRequiredService<IJobStore>();
         var jobHandler = host.Services.GetRequiredService<OnlineEvalJobHandler>();

@@ -29,7 +29,8 @@ namespace Tracon;
 /// </para>
 /// <example>
 /// <code>
-/// builder.Services.AddJobHandler&lt;NightlyReportJobHandler&gt;("contoso.nightly-report");
+/// builder.AddTracon()
+///        .AddJobHandler&lt;NightlyReportJobHandler&gt;("contoso.nightly-report");
 /// </code>
 /// </example>
 /// </remarks>

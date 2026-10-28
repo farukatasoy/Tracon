@@ -253,12 +253,12 @@ public sealed class AgentParameterPathTests
                 {
                     builder.AddAgent(Definition(Required, required: true));
                 }
-            },
-            configureServices: services => services.UseScheduling(options =>
-            {
-                options.RunWorker = queueWorker;
-                options.PollInterval = TimeSpan.FromMilliseconds(20);
-            }));
+                builder.UseScheduling(options =>
+                {
+                    options.RunWorker = queueWorker;
+                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                });
+            });
 
         if (!inCode)
         {

@@ -29,7 +29,7 @@ public sealed class SchedulableHandlerKeyTests
     {
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: static builder =>
-                builder.Services.AddJobHandler<ProbeHandler>("contoso.probe"));
+                builder.AddJobHandler<ProbeHandler>("contoso.probe"));
 
         using var response = await host.Client.PutAsJsonAsync(Schedule, Request("contoso.probe"));
 
@@ -68,9 +68,12 @@ public sealed class SchedulableHandlerKeyTests
     {
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: static builder =>
-                builder.Services.AddJobHandler<ProbeHandler>("contoso.probe"),
-            configureServices: static services => services.UseScheduling(static options =>
-                options.HttpSchedulableHandlerKeys.Add("contoso.probe")));
+
+            {
+                builder.AddJobHandler<ProbeHandler>("contoso.probe");
+                builder.UseScheduling(static options =>
+                options.HttpSchedulableHandlerKeys.Add("contoso.probe"));
+            });
 
         using var response = await host.Client.PutAsJsonAsync(Schedule, Request("contoso.probe"));
 
@@ -84,9 +87,12 @@ public sealed class SchedulableHandlerKeyTests
         // surface, so naming only a consumer key turns the built-in keys off.
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: static builder =>
-                builder.Services.AddJobHandler<ProbeHandler>("contoso.probe"),
-            configureServices: static services => services.UseScheduling(static options =>
-                options.HttpSchedulableHandlerKeys.Add("contoso.probe")));
+
+            {
+                builder.AddJobHandler<ProbeHandler>("contoso.probe");
+                builder.UseScheduling(static options =>
+                options.HttpSchedulableHandlerKeys.Add("contoso.probe"));
+            });
 
         using var response = await host.Client.PutAsJsonAsync(Schedule, Request(JobHandlerKeys.AgentBatch));
 
@@ -135,7 +141,7 @@ public sealed class SchedulableHandlerKeyTests
     public async Task The_queued_workflow_run_key_is_refused_even_when_an_allow_list_names_it()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureServices: static services => services.UseScheduling(static options =>
+            configureTracon: static tracon => tracon.UseScheduling(static options =>
                 options.HttpSchedulableHandlerKeys.Add(JobHandlerKeys.WorkflowRun)));
 
         using var response = await host.Client.PutAsJsonAsync(Schedule, Request(JobHandlerKeys.WorkflowRun));
@@ -152,7 +158,7 @@ public sealed class SchedulableHandlerKeyTests
     public async Task The_key_list_endpoint_follows_the_configured_allow_list()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureServices: static services => services.UseScheduling(static options =>
+            configureTracon: static tracon => tracon.UseScheduling(static options =>
                 options.HttpSchedulableHandlerKeys.Add("contoso.probe")));
 
         using var response = await host.Client.GetAsync(HandlerKeys);
@@ -183,8 +189,8 @@ public sealed class SchedulableHandlerKeyTests
             () => TraconTestHost.StartAsync(
                 configureTracon: static builder =>
                 {
-                    builder.Services.AddJobHandler<ProbeHandler>("contoso.probe");
-                    builder.Services.AddJobHandler<SecondProbeHandler>("contoso.probe");
+                    builder.AddJobHandler<ProbeHandler>("contoso.probe");
+                    builder.AddJobHandler<SecondProbeHandler>("contoso.probe");
                 }));
 
         exception.Message.ShouldContain("contoso.probe");

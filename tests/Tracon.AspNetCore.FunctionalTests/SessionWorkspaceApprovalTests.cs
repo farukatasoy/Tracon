@@ -191,7 +191,9 @@ public sealed class SessionWorkspaceApprovalTests
 
     private static Task<TraconTestHost> StartAsync(FakeModelProvider provider, WorkspaceSettings workspace)
         => TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(new AgentDefinition
                 {
@@ -200,8 +202,9 @@ public sealed class SessionWorkspaceApprovalTests
                     Model = new ModelBinding { Provider = ProviderName, Model = "files-1" },
                     Workspace = workspace,
                     Origin = AgentDefinitionOrigin.Code,
-                }),
-            configureServices: static services => services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+                });
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
     private static async Task RunAsync(TraconTestHost host, string sessionId)
     {

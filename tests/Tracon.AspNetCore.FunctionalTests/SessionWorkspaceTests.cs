@@ -317,10 +317,10 @@ public sealed class SessionWorkspaceTests
                 {
                     builder.AddAgent(Agent(extraAgent, new WorkspaceSettings { Enabled = true, DisableReadApproval = true }));
                 }
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             },
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 configureServices?.Invoke(services);
             });
 

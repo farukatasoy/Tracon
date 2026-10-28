@@ -259,7 +259,11 @@ public sealed class StructuredResponseRepairEndpointTests
         var provider = new BlockingOnSecondCallProvider("not valid json");
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder.AddModelProvider(provider).AddAgent(JsonSchemaAgent()),
+            builder =>
+            {
+                builder.AddModelProvider(provider).AddAgent(JsonSchemaAgent());
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: services =>
             {
                 services.Configure<TraconStructuredResponseOptions>(options =>
@@ -267,7 +271,6 @@ public sealed class StructuredResponseRepairEndpointTests
                     options.Enabled = true;
                     options.MaxRepairAttempts = 1;
                 });
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Run)

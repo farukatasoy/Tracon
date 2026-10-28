@@ -626,7 +626,7 @@ public sealed class SessionOwnershipTests
         await using var host = await StartAsync(
             enabled: true,
             out var identity,
-            configureServices: static services => services.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            configureTracon: static tracon => tracon.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
         identity.UserId = "a";
 
@@ -648,7 +648,7 @@ public sealed class SessionOwnershipTests
         await using var host = await StartAsync(
             enabled: true,
             out var identity,
-            configureServices: static services => services.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            configureTracon: static tracon => tracon.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
         identity.UserId = "a";
 
@@ -1656,13 +1656,18 @@ public sealed class SessionOwnershipTests
         out SwitchableAttribution identity,
         bool requireAuthenticatedOwner = true,
         bool refuseUnownedSessions = false,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        Action<ITraconBuilder>? configureTracon = null)
     {
         var attribution = new SwitchableAttribution();
         identity = attribution;
 
         return TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
+            builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                configureTracon?.Invoke(builder);
+            },
             configureServices: services =>
             {
                 Configure(services, enabled, requireAuthenticatedOwner, refuseUnownedSessions);

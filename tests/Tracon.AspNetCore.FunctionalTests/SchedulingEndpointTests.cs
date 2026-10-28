@@ -99,7 +99,7 @@ public sealed class SchedulingEndpointTests
     public async Task Save_is_rejected_when_item_count_exceeds_the_limit()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureServices: static services => services.UseScheduling(o => o.MaxItemsPerJob = 1));
+            configureTracon: static tracon => tracon.UseScheduling(o => o.MaxItemsPerJob = 1));
 
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/tracon/api/schedules/gece-raporu", UriKind.Relative),

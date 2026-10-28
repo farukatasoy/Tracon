@@ -340,12 +340,12 @@ public sealed class SessionlessApprovalTests
                     });
 
                 configureTracon?.Invoke(builder);
+                builder.UseScheduling(static options =>
+                {
+                    options.RunWorker = true;
+                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                });
             },
-            configureServices: static services => services.UseScheduling(static options =>
-            {
-                options.RunWorker = true;
-                options.PollInterval = TimeSpan.FromMilliseconds(20);
-            }),
             configureAfterMap: configureAfterMap);
 
     private static string RefundOrder(string orderId) => $"refunded {orderId}";

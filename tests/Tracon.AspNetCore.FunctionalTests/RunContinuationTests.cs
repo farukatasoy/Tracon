@@ -1023,10 +1023,10 @@ public sealed class RunContinuationTests
             {
                 ConfigureAgent(builder, provider);
                 configureTracon?.Invoke(builder);
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             },
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.Configure<RunReconciliationOptions>(static options =>
                 {
                     options.Enabled = true;

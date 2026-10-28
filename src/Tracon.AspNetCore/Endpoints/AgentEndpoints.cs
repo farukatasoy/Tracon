@@ -378,8 +378,9 @@ internal static class AgentEndpoints
         {
             return Results.Problem(
                 title: "Agent has no model binding",
-                detail: $"'{name}' has no resolvable model binding (a code agent built from a factory, " +
-                         "for example); its context window cannot be estimated.",
+                detail: $"'{name}' has no resolvable model binding (a code agent built from a factory that declares " +
+                         "no model, for example); its context window cannot be estimated. Declare the model with " +
+                         "AddAgent(name, model, factory).",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -450,20 +451,32 @@ internal static class AgentEndpoints
             {
                 definition = codeDefinition;
             }
-            else if (registration?.Factory is { } factory)
+            else if (registration is not null)
             {
                 // Best-effort only: the caller fully controls how a factory agent
                 // is built (CodeAgentRegistration.FromFactory), so invoking it here
                 // to peek at 'Instructions' must not turn a read-only detail view
                 // into a 500 when the factory throws.
+                //
+                // The same helper as the catalog calls, so a factory that declares its model
+                // is recognized here too. This view never calls the model: it builds the client
+                // without the tenant's key and egress check, for the factory to hold and nothing more.
                 try
                 {
-                    if (factory(httpContext.RequestServices) is Microsoft.Agents.AI.ChatClientAgent chatClientAgent)
+                    var models = httpContext.RequestServices.GetRequiredService<IModelProviderRegistry>();
+                    var built = await registration
+                        .BuildFactoryAgentAsync(
+                            httpContext.RequestServices,
+                            (binding, _) => new ValueTask<IChatClient>(models.CreateChatClient(binding)),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (built.Agent is Microsoft.Agents.AI.ChatClientAgent chatClientAgent)
                     {
                         factoryInstructions = chatClientAgent.Instructions;
                     }
                 }
-                catch (Exception exception)
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
                 {
                     httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
                         .CreateLogger("Tracon.AgentEndpoints")

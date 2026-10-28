@@ -39,11 +39,14 @@ public sealed class FailClosedAuditTests
         var audit = new SwitchableAuditLog();
 
         await using var host = await TraconTestHost.StartAsync(
-            ConfigureApprovalAgent,
+            tracon =>
+            {
+                ConfigureApprovalAgent(tracon);
+                tracon.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: services =>
             {
                 services.AddSingleton<IAuditLog>(audit);
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         var approvalId = await CreatePendingApprovalAsync(host);
@@ -73,11 +76,14 @@ public sealed class FailClosedAuditTests
         var audit = new SwitchableAuditLog();
 
         await using var host = await TraconTestHost.StartAsync(
-            ConfigureApprovalAgent,
+            tracon =>
+            {
+                ConfigureApprovalAgent(tracon);
+                tracon.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: services =>
             {
                 services.AddSingleton<IAuditLog>(audit);
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         var approvalId = await CreatePendingApprovalAsync(host);

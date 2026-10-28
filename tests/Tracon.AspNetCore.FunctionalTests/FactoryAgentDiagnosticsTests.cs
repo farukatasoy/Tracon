@@ -8,9 +8,10 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A factory agent whose chat client did not come from
-/// <see cref="IModelProviderRegistry"/> loses the model rings. The catalog says so,
-/// once per agent name.
+/// A factory agent whose model calls do not match what it declared loses something: the model rings
+/// (a client from outside the registry), the tenant's key, the egress policy and the cost (a model
+/// it did not declare, or a client other than <see cref="AgentFactoryContext.ChatClient"/>). The
+/// catalog says so, once per agent name.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -126,8 +127,10 @@ public sealed class FactoryAgentDiagnosticsTests
     }
 
     [Fact]
-    public async Task A_factory_agent_with_a_registry_client_does_not_warn()
+    public async Task A_factory_without_a_model_that_calls_a_model_is_named_once()
     {
+        // The agent builds its client from the registry with the synchronous call: no tenant key, no egress
+        // check, no model in the run record. It declared nothing, so Tracon says what the declaration buys.
         await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(
             "registry-agent",
             static services => services.GetRequiredService<IModelProviderRegistry>()
@@ -137,15 +140,19 @@ public sealed class FactoryAgentDiagnosticsTests
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         (await catalog.ResolveAsync("registry-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("registry-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
-        Warnings(host).ShouldBeEmpty();
+        var warning = Warnings(host).ShouldHaveSingleItem();
+        warning.ShouldContain("registry-agent");
+        warning.ShouldContain("declares none");
+        warning.ShouldContain("AddAgent(name, model, factory)");
     }
 
     [Fact]
-    public async Task A_factory_agent_wrapped_in_agent_middleware_still_reaches_the_registry_client()
+    public async Task A_factory_without_a_model_wrapped_in_agent_middleware_is_still_named()
     {
-        // The detection must walk through an AIAgentBuilder wrapper; a consumer who
-        // adds middleware around a registry-built agent has lost nothing.
+        // The detection must walk through an AIAgentBuilder wrapper; a consumer who adds middleware
+        // around a registry-built agent is told the same thing, and not that the client is outside.
         await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(
             "wrapped-agent",
             static services => services.GetRequiredService<IModelProviderRegistry>()
@@ -158,6 +165,157 @@ public sealed class FactoryAgentDiagnosticsTests
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         (await catalog.ResolveAsync("wrapped-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        var warning = Warnings(host).ShouldHaveSingleItem();
+        warning.ShouldContain("declares none");
+        warning.ShouldNotContain("did not come from");
+    }
+
+    [Fact]
+    public async Task Parallel_first_resolves_of_a_factory_without_a_model_warn_once()
+    {
+        const int names = 20;
+        const int callers = 8;
+        var barriers = Enumerable.Range(0, names).ToDictionary(static index => $"registry-{index}", static _ => new Barrier(callers), StringComparer.Ordinal);
+
+        try
+        {
+            await using var host = await TraconTestHost.StartAsync(
+                builder =>
+                {
+                    foreach (var (name, barrier) in barriers)
+                    {
+                        builder.AddAgent(name, services =>
+                        {
+                            var agent = services.GetRequiredService<IModelProviderRegistry>()
+                                .CreateChatClient(TestData.Model())
+                                .AsAIAgent(name: name);
+                            barrier.SignalAndWait(TimeSpan.FromSeconds(30)).ShouldBeTrue();
+
+                            return agent;
+                        });
+                    }
+                },
+                configureServices: static services => services.AddSingleton<ILoggerProvider, SlowWarningLoggerProvider>());
+
+            var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+            foreach (var name in barriers.Keys)
+            {
+                await Task.WhenAll(Enumerable.Range(0, callers).Select(_ => Task.Factory.StartNew(
+                    () => catalog.ResolveAsync(name, culture: null, TestContext.Current.CancellationToken).AsTask(),
+                    TestContext.Current.CancellationToken,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default).Unwrap()));
+            }
+
+            var warnings = Warnings(host);
+
+            warnings.Count.ShouldBe(names);
+
+            foreach (var name in barriers.Keys)
+            {
+                warnings.Count(line => line.Contains($"'{name}'", StringComparison.Ordinal)).ShouldBe(1, name);
+            }
+        }
+        finally
+        {
+            foreach (var barrier in barriers.Values)
+            {
+                barrier.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task A_factory_that_declares_its_model_and_uses_the_context_client_does_not_warn()
+    {
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(
+            "declared-agent",
+            TestData.Model(),
+            static context => context.ChatClient.AsAIAgent(instructions: "Reply briefly.", name: context.AgentName)));
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+        (await catalog.ResolveAsync("declared-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        Warnings(host).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_declared_agent_wrapped_in_agent_middleware_still_holds_the_context_client()
+    {
+        // The identity of the registry's outermost ring is the proof, and middleware around the agent
+        // or a wrapper around the client leaves it where it was.
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(
+            "declared-wrapped-agent",
+            TestData.Model(),
+            static context => context.ChatClient
+                .AsBuilder()
+                .Use(static (messages, options, next, cancellationToken) => next(messages, options, cancellationToken))
+                .Build()
+                .AsAIAgent(name: context.AgentName)
+                .AsBuilder()
+                .Use(static (messages, session, options, next, cancellationToken) => next(messages, session, options, cancellationToken))
+                .Build()));
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+        (await catalog.ResolveAsync("declared-wrapped-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        Warnings(host).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_factory_that_declares_its_model_but_builds_another_registry_client_is_named_once()
+    {
+        // The cost would be written to the declared model while another client answered.
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(
+            "mismatched-agent",
+            TestData.Model(),
+            static context => context.Services.GetRequiredService<IModelProviderRegistry>()
+                .CreateChatClient(context.Model)
+                .AsAIAgent(name: context.AgentName)));
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+        (await catalog.ResolveAsync("mismatched-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("mismatched-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        var warning = Warnings(host).ShouldHaveSingleItem();
+        warning.ShouldContain("mismatched-agent");
+        warning.ShouldContain("AgentFactoryContext.ChatClient");
+    }
+
+    [Fact]
+    public async Task A_factory_that_declares_its_model_but_uses_a_client_from_outside_the_registry_is_named_once()
+    {
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(
+            "declared-outside-agent",
+            TestData.Model(),
+            static context => OutsideRegistryClient().AsAIAgent(name: context.AgentName)));
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+        (await catalog.ResolveAsync("declared-outside-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        var warning = Warnings(host).ShouldHaveSingleItem();
+        warning.ShouldContain("declared-outside-agent");
+        warning.ShouldContain("AgentFactoryContext.ChatClient");
+    }
+
+    [Fact]
+    public async Task A_declared_agent_that_exposes_no_chat_client_does_not_warn()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(
+                "declared-clientless-agent",
+                TestData.Model(),
+                static (AgentFactoryContext _) => new ClientlessAgent(throwsOnGetService: false)));
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+        (await catalog.ResolveAsync("declared-clientless-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         Warnings(host).ShouldBeEmpty();
     }

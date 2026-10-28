@@ -37,10 +37,13 @@ public sealed class PinnedVersionDescriptorTests
             .EchoesUserMessage();
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder.AddModelProvider(provider),
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.UseScheduling(options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
-                services.UseScheduling(options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.Configure<TraconStructuredResponseOptions>(options => options.Enabled = true);
             });
 

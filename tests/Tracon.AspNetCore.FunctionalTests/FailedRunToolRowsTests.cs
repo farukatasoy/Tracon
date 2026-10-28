@@ -168,7 +168,9 @@ public sealed class FailedRunToolRowsTests
         var provider = new ToolThenOutageProvider(Provider, Model, "tool_a", "tool_b", "tool_c");
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddTool(
                     (Func<Task<string>>)(() => Task.Run(() =>
@@ -189,11 +191,12 @@ public sealed class FailedRunToolRowsTests
                         return "result_c";
                     })),
                     name: "tool_c")
-                .AddAgent(AgentDefinitionFor(["tool_a", "tool_b", "tool_c"], allowConcurrentToolCalls: true)),
+                .AddAgent(AgentDefinitionFor(["tool_a", "tool_b", "tool_c"], allowConcurrentToolCalls: true));
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services.AddSingleton<IToolAuthorizationHandler>(new DenyingHandler("tool_b"));
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         var runId = await QueueAsync(host);
@@ -388,8 +391,8 @@ public sealed class FailedRunToolRowsTests
                 });
                 builder.AddModelProvider(new ToolThenOutageProvider(Provider, Model, First));
                 tools.Counts(First)(builder).AddAgent(AgentDefinitionFor(First));
-            },
-            configureServices: static services => services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         Guid runId;
 
@@ -488,10 +491,10 @@ public sealed class FailedRunToolRowsTests
             {
                 builder.AddModelProvider(provider);
                 second(first(builder)).AddAgent(AgentDefinitionFor([First, Second]));
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             },
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.Configure<TraconOptions>(options =>
                 {
                     options.Pricing.Currency = "USD";

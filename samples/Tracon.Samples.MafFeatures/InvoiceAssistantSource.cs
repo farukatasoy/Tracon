@@ -10,10 +10,12 @@ namespace Tracon.Samples.MafFeatures;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A factory registered with <c>AddAgent(name, factory)</c> is synchronous, so it cannot
-/// call <see cref="IModelProviderRegistry.CreateChatClientAsync"/>, and its descriptor
-/// names no model. A source can do both: <see cref="ResolveAsync"/> is asynchronous, and
-/// <see cref="ListAsync"/> publishes the model, which the catalog hands to run recording.
+/// A factory registered with <c>AddAgent(name, factory)</c> declares no model and builds its
+/// client without the tenant. <c>AddAgent(name, model, factory)</c> gets the tenant key, the
+/// egress policy, and cost without a source, so write a source when the agents do not
+/// live in code: a repository, or another runtime. A source gets all three because
+/// <see cref="ResolveAsync"/> is asynchronous and <see cref="ListAsync"/> publishes the model,
+/// which the catalog hands to run recording.
 /// </para>
 /// <para>
 /// This source does not use the definition compiler, so it owns the agent's whole shape.

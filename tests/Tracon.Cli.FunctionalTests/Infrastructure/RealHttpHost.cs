@@ -34,9 +34,9 @@ internal sealed class RealHttpHost : IAsyncDisposable
 
     /// <param name="prefix">The path prefix.</param>
     /// <param name="configureServices">
-    /// Registers additional services BEFORE <c>AddTracon()</c> runs, for
-    /// example <c>services.UseScheduling(...)</c> to speed up or pause the
-    /// background job worker.
+    /// Registers additional services BEFORE <c>AddTracon()</c> runs. To speed up
+    /// or pause the background job worker, call <c>UseScheduling(...)</c> on
+    /// <paramref name="configureTracon"/> instead.
     /// </param>
     /// <param name="configureTracon">
     /// Changes the Tracon chain, for example to register a model

@@ -145,7 +145,7 @@ public sealed class EvalEndpointTests
     public async Task Run_is_triggered_produces_a_job_and_can_be_listed()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            configureTracon: static tracon => tracon.UseScheduling(o => o.RunWorker = false));
 
         await host.Client.PutAsJsonAsync(Suite, Request());
         await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "question" } });
@@ -220,7 +220,7 @@ public sealed class EvalEndpointTests
     public async Task Run_is_triggered_with_a_specific_version()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            configureTracon: static tracon => tracon.UseScheduling(o => o.RunWorker = false));
 
         await CreateVersionedAgentAsync(host);
         await host.Client.PutAsJsonAsync(Suite, Request());
@@ -235,7 +235,7 @@ public sealed class EvalEndpointTests
     public async Task Run_with_a_nonexistent_version_is_rejected()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            configureTracon: static tracon => tracon.UseScheduling(o => o.RunWorker = false));
 
         await CreateVersionedAgentAsync(host);
         await host.Client.PutAsJsonAsync(Suite, Request());
@@ -250,8 +250,11 @@ public sealed class EvalEndpointTests
     public async Task Version_cannot_be_selected_for_a_code_based_agent()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition(name: "customer-support-agent")),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition(name: "customer-support-agent"));
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         await host.Client.PutAsJsonAsync(Suite, Request());
         await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "question" } });

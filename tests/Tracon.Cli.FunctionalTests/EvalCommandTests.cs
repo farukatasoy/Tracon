@@ -22,22 +22,25 @@ public sealed class EvalCommandTests
     /// <summary>Starts a host with a fast job worker and an echoing agent, ready to run a suite.</summary>
     private static Task<RealHttpHost> StartHostAsync(string agentName = AgentName)
         => RealHttpHost.StartAsync(
-            configureServices: static services => services.UseScheduling(options =>
+            configureTracon: builder =>
             {
-                // The server's own job poll interval (default 10 s) would make
-                // every test wait that long for the queued run to be picked up;
-                // shortening it here is a test-only concern and has nothing to
-                // do with the CLI's own --poll-interval.
-                options.PollInterval = TimeSpan.FromMilliseconds(50);
-            }),
-            configureTracon: builder => builder
+                builder
                 .AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage())
                 .AddAgent(new AgentDefinition
                 {
                     Name = agentName,
                     Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
                     Origin = AgentDefinitionOrigin.Code,
-                }));
+                });
+                builder.UseScheduling(options =>
+                {
+                    // The server's own job poll interval (default 10 s) would make
+                    // every test wait that long for the queued run to be picked up;
+                    // shortening it here is a test-only concern and has nothing to
+                    // do with the CLI's own --poll-interval.
+                    options.PollInterval = TimeSpan.FromMilliseconds(50);
+                });
+            });
 
     /// <returns>The saved cases' identifiers, in the given order.</returns>
     private static async Task<IReadOnlyList<Guid>> CreateSuiteAsync(
@@ -224,15 +227,18 @@ public sealed class EvalCommandTests
         // RunWorker: false keeps the job Pending forever, exercising the
         // "polling never sees a terminal state" branch deterministically.
         await using var host = await RealHttpHost.StartAsync(
-            configureServices: static services => services.UseScheduling(options => options.RunWorker = false),
-            configureTracon: builder => builder
+            configureTracon: builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage())
                 .AddAgent(new AgentDefinition
                 {
                     Name = AgentName,
                     Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
                     Origin = AgentDefinitionOrigin.Code,
-                }));
+                });
+                builder.UseScheduling(options => options.RunWorker = false);
+            });
         await CreateSuiteAsync(host, SuiteName, AgentName, ("hello", "hello"));
 
         var result = await CliRunner.RunAsync(
@@ -357,15 +363,18 @@ public sealed class EvalCommandTests
         // (RunWorker: false), and the token is canceled long before the
         // generous --timeout would ever fire on its own.
         await using var host = await RealHttpHost.StartAsync(
-            configureServices: static services => services.UseScheduling(options => options.RunWorker = false),
-            configureTracon: builder => builder
+            configureTracon: builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage())
                 .AddAgent(new AgentDefinition
                 {
                     Name = AgentName,
                     Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
                     Origin = AgentDefinitionOrigin.Code,
-                }));
+                });
+                builder.UseScheduling(options => options.RunWorker = false);
+            });
         await CreateSuiteAsync(host, SuiteName, AgentName, ("hello", "hello"));
 
         using var cancellation = new CancellationTokenSource();

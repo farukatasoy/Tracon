@@ -51,25 +51,6 @@ public sealed class NightlyReportJobHandlerRegistrationTests
     }
 
     [Fact]
-    public async Task Registration_order_does_not_change_the_outcome()
-    {
-        // The SAME assertion as above, with the consumer's registration moved
-        // BEFORE AddTracon(). Under the old enum dispatch these two orders
-        // gave opposite results; under key dispatch they must not differ.
-        using var host = BuildHost(registerFirst: true);
-
-        await host.StartAsync(TestContext.Current.CancellationToken);
-
-        var job = await EnqueueAsync(host, TestContext.Current.CancellationToken);
-        var finished = await WaitForTerminalAsync(host, job.Id, TestContext.Current.CancellationToken);
-
-        finished.Status.ShouldBe(JobStatus.Completed);
-        finished.DoneItems.ShouldBe(2);
-
-        await host.StopAsync(TestContext.Current.CancellationToken);
-    }
-
-    [Fact]
     public async Task A_job_whose_key_nobody_registered_fails_without_leaking_the_key()
     {
         using var host = BuildHost(configure: null);
@@ -109,10 +90,10 @@ public sealed class NightlyReportJobHandlerRegistrationTests
     [Fact]
     public void A_consumer_cannot_register_inside_the_reserved_namespace()
     {
-        var services = new ServiceCollection();
+        var builder = new ServiceCollection().AddTracon();
 
         var exception = Should.Throw<ArgumentException>(
-            () => services.AddJobHandler<NightlyReportJobHandler>(JobHandlerKeys.Retention));
+            () => builder.AddJobHandler<NightlyReportJobHandler>(JobHandlerKeys.Retention));
 
         exception.Message.ShouldContain(JobHandlerKeys.Retention);
     }
@@ -123,7 +104,7 @@ public sealed class NightlyReportJobHandlerRegistrationTests
         using var host = BuildHost(builder =>
         {
             builder.AddNightlyReportJobHandler();
-            builder.Services.AddJobHandler<SecondHandler>(
+            builder.AddJobHandler<SecondHandler>(
                 NightlyReportJobHandlerRegistrationExtensions.HandlerKey);
         });
 
@@ -134,29 +115,19 @@ public sealed class NightlyReportJobHandlerRegistrationTests
     }
 
     private static IHost BuildHost(
-        Action<ITraconBuilder>? configure = null,
-        bool registerFirst = false)
+        Action<ITraconBuilder>? configure = null)
         => new HostBuilder()
             .ConfigureServices(services =>
             {
-                if (registerFirst)
-                {
-                    services.AddJobHandler<NightlyReportJobHandler>(
-                        NightlyReportJobHandlerRegistrationExtensions.HandlerKey);
-                }
-
                 var builder = services.AddTracon();
 
-                if (!registerFirst)
-                {
-                    configure?.Invoke(builder);
-                }
-
-                services.UseScheduling(static options =>
+                builder.UseScheduling(static options =>
                 {
                     options.RunWorker = true;
                     options.PollInterval = TimeSpan.FromMilliseconds(25);
                 });
+
+                configure?.Invoke(builder);
             })
             .Build();
 

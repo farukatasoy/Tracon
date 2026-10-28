@@ -15,15 +15,13 @@ public static class NightlyReportJobHandlerRegistrationExtensions
     /// <param name="builder">The Tracon builder.</param>
     /// <returns>The builder.</returns>
     /// <remarks>
-    /// This call may come before or after <c>AddTracon()</c>: dispatch is
-    /// an exact key match, so registration order does not change which handler
-    /// runs.
+    /// Dispatch is an exact key match, so the order of registrations on the
+    /// chain does not change which handler runs.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     public static ITraconBuilder AddNightlyReportJobHandler(this ITraconBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.AddJobHandler<NightlyReportJobHandler>(HandlerKey);
-        return builder;
+        return builder.AddJobHandler<NightlyReportJobHandler>(HandlerKey);
     }
 }

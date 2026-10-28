@@ -215,10 +215,10 @@ public sealed class SessionWorkspaceGovernanceTests
                         Origin = AgentDefinitionOrigin.Code,
                     });
                 configureTracon?.Invoke(builder);
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             },
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 configureServices?.Invoke(services);
             });
 

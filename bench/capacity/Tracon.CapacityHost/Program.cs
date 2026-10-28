@@ -109,7 +109,7 @@ tracon.UseTenancy(options =>
     options.AllowedTenants.Add(CapacityContract.TenantB);
 });
 
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     options.Enabled = true;
 
@@ -191,7 +191,7 @@ static IHost BuildBackgroundHost(
     var probe = new CapacityProbeTool(settings.Workload, counters);
 
     host.Services.AddSingleton(counters);
-    host.Services.AddTracon()
+    var chain = host.Services.AddTracon()
         .AddModelProvider(new CapacityModelProvider(settings.Workload, counters, log, settings.Name))
         .AddTool(probe.CreateFunction())
         .AddAgent(new AgentDefinition
@@ -218,7 +218,7 @@ static IHost BuildBackgroundHost(
     // Migrating and seeding must not lease: a worker started there would begin
     // draining a queue the measurement has not opened yet. A worker NODE does
     // exactly the opposite, which is the whole point of the axis.
-    host.Services.UseScheduling(options =>
+    chain.UseScheduling(options =>
     {
         options.Enabled = true;
         options.RunWorker = runWorker;

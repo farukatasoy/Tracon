@@ -46,11 +46,11 @@ public sealed class NightlyReportJobHandler(ILogger<NightlyReportJobHandler>? lo
 Register it with the key it answers to:
 
 ```csharp
-builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
+tracon.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
 ```
 
-The worker looks the key up by exact match, so **this call may come before or
-after `AddTracon()`** — registration order never decides which handler
+`tracon` is the chain `builder.AddTracon()` returns. The worker looks the key up by exact
+match, so **the order of the calls on the chain** never decides which handler
 runs, and no handler can shadow another. The handler is registered *scoped*
 and resolved from a fresh scope for every execution, so it may take scoped
 dependencies in its constructor: two jobs running in parallel, and two attempts
@@ -121,7 +121,7 @@ allow-list can also narrow the surface. To keep the built-in keys as well, name
 them alongside your own:
 
 ```csharp
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     foreach (var key in JobHandlerKeys.BuiltIn)
     {

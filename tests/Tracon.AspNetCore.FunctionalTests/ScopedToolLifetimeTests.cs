@@ -87,8 +87,8 @@ public sealed class ScopedToolLifetimeTests
                             return $"{orderId} found via scope {repository.Id}.";
                         },
                         "get_order"));
-            },
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "look up the order", SessionId = "s-scoped-1" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -139,8 +139,8 @@ public sealed class ScopedToolLifetimeTests
                             return $"{orderId} found.";
                         },
                         "get_order"));
-            },
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "look up two orders", SessionId = "s-scoped-2" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -203,8 +203,8 @@ public sealed class ScopedToolLifetimeTests
                             }),
                             name));
                 }
-            },
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run both", SessionId = "s-scoped-concurrent" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();

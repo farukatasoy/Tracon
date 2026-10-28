@@ -73,8 +73,11 @@ public sealed class IdempotencyTests
         // HATA-S3-008 / MT-JOB-083: replay only preserved the body — the
         // 'Location' and 'Preference-Applied' HTTP headers were not stored.
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         var key = Guid.NewGuid().ToString("N");
         var body = new AgentRunRequest { Message = "hello" };

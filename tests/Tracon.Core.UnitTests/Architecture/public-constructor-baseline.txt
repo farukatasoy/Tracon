@@ -17,6 +17,7 @@ Tracon.Abstractions:Tracon.SpeechDialogueAudio | A consumer's ISpeechProvider im
 Tracon.Abstractions:Tracon.ToolApprovalContext | A consumer's approval policy or IToolApprovalPresenter is unit-tested with a context built by object initializer (required init properties).
 Tracon.Abstractions:Tracon.TraconToolAttribute | A consumer writes the attribute on a method; the compiler builds it, so the constructor must be public.
 Tracon.Abstractions:Tracon.TraconToolRegistration | A consumer builds the registration it adds to DI (guides/write-your-own-tool.md, samples/Tracon.Samples.CustomTool).
+Tracon.Core:Tracon.AgentFactoryContext | A consumer unit-tests an AddAgent factory with a context built by object initializer (required init properties); Tracon builds the real one.
 Tracon.Core:Tracon.DefaultRunErrorClassifier | guides/write-your-own-error-classifier.md wraps it: a consumer's classifier decorates new DefaultRunErrorClassifier().
 Tracon.Core:Tracon.FixedTenantContext | A consumer that builds a store outside DI passes it as the tenant context (samples/Tracon.Samples.FileRunStore).
 Tracon.Core:Tracon.HostedToolPriceOverride | A consumer fills TraconOptions hosted tool prices in code; the type is the options element, not a service the container builds.

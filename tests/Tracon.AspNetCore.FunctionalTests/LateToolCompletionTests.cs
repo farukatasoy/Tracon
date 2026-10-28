@@ -99,6 +99,7 @@ public sealed class LateToolCompletionTests
                 });
 
             builder.Services.AddSingleton(registration);
+            builder.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20));
         };
 
     [Fact]
@@ -126,8 +127,7 @@ public sealed class LateToolCompletionTests
                 finished.TrySetResult(true);
 
                 return "report R-1 produced";
-            })),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            })));
 
         var runId = await StartAsync(host, "s-late-success");
 
@@ -173,8 +173,7 @@ public sealed class LateToolCompletionTests
                 await release.Task;
 
                 return "report R-1 produced";
-            })),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            })));
 
         var runId = await StartAsync(host, "s-late-count");
 
@@ -217,8 +216,7 @@ public sealed class LateToolCompletionTests
 
                     throw;
                 }
-            })),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            })));
 
         var runId = await StartAsync(host, "s-late-cooperative");
 
@@ -251,8 +249,7 @@ public sealed class LateToolCompletionTests
                 faulted.TrySetResult(true);
 
                 throw new InvalidOperationException("the provider rejected it");
-            })),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            })));
 
         var runId = await StartAsync(host, "s-late-fault");
 
@@ -532,7 +529,6 @@ public sealed class LateToolCompletionTests
 
     private static void ConfigureQuotaHost(IServiceCollection services, EntryRecordingQuotaStore quota)
     {
-        services.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20));
         services.Configure<TraconOptions>(static options => options.Pricing.Currency = "USD");
         services.AddSingleton<IQuotaStore>(quota);
     }

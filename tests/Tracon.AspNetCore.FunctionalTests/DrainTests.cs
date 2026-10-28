@@ -44,10 +44,13 @@ public sealed class DrainTests
     public async Task Draining_rejects_a_new_queued_run_with_503()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(static options => options.RunWorker = false);
+            },
             configureServices: static services =>
             {
-                services.UseScheduling(static options => options.RunWorker = false);
                 services.AddSingleton<ITraconDrainState>(new FixedDrainState(isDraining: true));
             });
 
@@ -68,10 +71,13 @@ public sealed class DrainTests
         var drainState = new MutableDrainState();
 
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.AddSingleton<ITraconDrainState>(drainState);
             });
 
@@ -297,13 +303,16 @@ public sealed class DrainTests
 
     private static Task<TraconTestHost> StartWorkflowHostAsync(MutableDrainState drainState, bool runWorker = true)
         => TraconTestHost.StartAsync(
-            static builder => builder
-                .AddAgent(TestData.Definition("writer"))
-                .AddAgent(TestData.Definition("editor"))
-                .UseWorkflows(),
+            builder =>
+            {
+                builder
+                    .AddAgent(TestData.Definition("writer"))
+                    .AddAgent(TestData.Definition("editor"))
+                    .UseWorkflows();
+                builder.UseScheduling(options => options.RunWorker = runWorker);
+            },
             configureServices: services =>
             {
-                services.UseScheduling(options => options.RunWorker = runWorker);
                 services.AddSingleton<ITraconDrainState>(drainState);
             });
 

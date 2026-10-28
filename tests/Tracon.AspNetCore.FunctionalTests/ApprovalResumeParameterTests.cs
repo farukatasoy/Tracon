@@ -75,16 +75,19 @@ public sealed class ApprovalResumeParameterTests
     private static async Task<TraconTestHost> StartAsync(FakeModelProvider provider, bool recordRunInput)
     {
         var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddTool(
                     (Func<string, string>)(orderId => $"{orderId} canceled."),
                     name: "cancel_order",
                     description: "Cancels an order.",
-                    configure: options => options.RequiresApproval = true),
+                    configure: options => options.RequiresApproval = true);
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.Configure<TraconOptions>(options => options.RunRecording.RecordRunInput = recordRunInput);
             });
 

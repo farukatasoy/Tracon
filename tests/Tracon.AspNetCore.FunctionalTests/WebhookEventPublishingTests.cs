@@ -206,15 +206,18 @@ public sealed class WebhookEventPublishingTests
 
     private static Task<TraconTestHost> StartWorkerAsync(RecordingPublisher publisher)
         => TraconTestHost.StartAsync(
-            configureTracon: static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: services =>
+            configureTracon: static builder =>
             {
-                services.AddSingleton<IWebhookPublisher>(publisher);
-                services.UseScheduling(static options =>
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(static options =>
                 {
                     options.RunWorker = true;
                     options.PollInterval = TimeSpan.FromMilliseconds(50);
                 });
+            },
+            configureServices: services =>
+            {
+                services.AddSingleton<IWebhookPublisher>(publisher);
             });
 
     private static async Task<Guid> TriggerBatchAsync(TraconTestHost host, string agentName)

@@ -11,6 +11,11 @@ namespace Tracon;
 /// </summary>
 internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
 {
+    // The provider whose registry this thread is building, or null. Thread-static: the container resolves a
+    // singleton factory on the thread that asked, and another thread waits on the singleton lock.
+    [ThreadStatic]
+    private static IServiceProvider? _buildingFor;
+
     private readonly Dictionary<string, AIFunctionDeclaration> _tools;
     private readonly List<ToolDescriptor> _descriptors;
 
@@ -31,6 +36,33 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     {
         ArgumentNullException.ThrowIfNull(provider);
 
+        // 🚨 A tool factory (AddTool(provider => ...)) runs inside GetServices below. One that asks for
+        // IToolRegistry, or for a service that needs it, resolves this same singleton again before it exists;
+        // the container does not see through a factory delegate, so it recurses until the process dies
+        // with a stack overflow. The flag turns that into an error that names the cause.
+        if (ReferenceEquals(_buildingFor, provider))
+        {
+            throw new TraconException(
+                "A tool factory registered with AddTool asked for IToolRegistry, or for a service that depends on it, " +
+                "while the tool registry was being built from the result of that factory. A factory builds a tool; " +
+                "take the dependencies the tool needs, not the registry.");
+        }
+
+        var previous = _buildingFor;
+        _buildingFor = provider;
+
+        try
+        {
+            return CreateCore(provider);
+        }
+        finally
+        {
+            _buildingFor = previous;
+        }
+    }
+
+    private static ToolRegistry CreateCore(IServiceProvider provider)
+    {
         var registrations = provider.GetServices<TraconToolRegistration>().ToList();
         var images = provider.GetRequiredService<IOptions<TraconImageOptions>>().Value;
 

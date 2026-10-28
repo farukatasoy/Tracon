@@ -1,20 +1,21 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Tracon.Testing;
 
 namespace Tracon.Samples.MafFeatures.Tests;
 
 /// <summary>
-/// Runs the three doors of the sample through the full <c>AddTracon()</c> pipeline, using
+/// Runs the doors of the sample through the full <c>AddTracon()</c> pipeline, using
 /// only published Tracon packages.
 /// </summary>
 /// <remarks>
 /// The guide "Use any Microsoft Agent Framework feature" quotes this sample's code and
 /// makes claims about what each door keeps. These tests check them: the middleware sees
 /// every tool call of every door; an extension adds a context provider and a chat client
-/// ring to a data agent, and the ring sees every model call; and the door that is
-/// asynchronous and names its model gets the tenant's key, a cost, and the egress policy,
-/// while the synchronous factory door gets none of the three.
+/// ring to a data agent, and the ring sees every model call; a factory agent that declares
+/// its model and a custom source get the tenant's key, a cost, and the egress policy; and
+/// a factory agent that declares no model gets none of the three, and Tracon says so once.
 /// </remarks>
 public sealed class MafFeaturesSampleTests
 {
@@ -24,6 +25,7 @@ public sealed class MafFeaturesSampleTests
     [Theory]
     [InlineData(MafFeaturesRegistration.SupportAgentName)]
     [InlineData(OrderAssistantRegistration.AgentName)]
+    [InlineData(PlainOrderAssistantRegistration.AgentName)]
     [InlineData(InvoiceAssistantSource.AgentName)]
     public async Task Tool_middleware_in_a_decorator_sees_the_tool_call_of_every_door(string agentName)
     {
@@ -127,7 +129,7 @@ public sealed class MafFeaturesSampleTests
     }
 
     [Fact]
-    public async Task A_factory_agent_run_uses_the_setup_key_and_records_no_cost()
+    public async Task A_factory_agent_that_declares_its_model_uses_the_tenants_key_and_records_cost()
     {
         var provider = new CredentialRecordingProvider("byok", PricedModel);
         await using var host = BuildHost(
@@ -135,7 +137,6 @@ public sealed class MafFeaturesSampleTests
             new ModelBinding { Provider = "byok", Model = "fake-model" },
             withTenantKey: true);
 
-        // The tenant has its own key for this provider. The factory agent cannot use it.
         await BindTenantKeyAsync(host, "byok");
 
         var agent = await host.GetRequiredService<IAgentCatalog>()
@@ -144,15 +145,56 @@ public sealed class MafFeaturesSampleTests
 
         await agent.RunAsync("Is order 1042 open?", cancellationToken: TestContext.Current.CancellationToken);
 
-        provider.Keys.ShouldBe([CredentialRecordingProvider.SetupKey]);
+        provider.Keys.ShouldBe([TenantKey]);
 
         var run = await SingleRunAsync(host, OrderAssistantRegistration.AgentName);
-        run.ModelId.ShouldBeNull();
-        run.Cost.ShouldBeNull();
+        run.ModelId.ShouldBe("fake-model");
+        run.Cost.ShouldNotBeNull();
+        run.Cost.InputCost.ShouldNotBeNull().ShouldBeGreaterThan(0m);
+        run.Cost.OutputCost.ShouldNotBeNull().ShouldBeGreaterThan(0m);
     }
 
     [Fact]
-    public async Task The_egress_policy_refuses_a_custom_source_agent_but_does_not_reach_a_factory_agent()
+    public async Task A_factory_agent_that_declares_no_model_uses_the_setup_key_records_no_cost_and_is_named_once()
+    {
+        var provider = new CredentialRecordingProvider("byok", PricedModel);
+        var logs = new CapturingLoggerProvider();
+        await using var host = BuildHost(
+            provider,
+            new ModelBinding { Provider = "byok", Model = "fake-model" },
+            withTenantKey: true,
+            logs);
+
+        // The tenant has its own key for this provider. The agent cannot use it.
+        await BindTenantKeyAsync(host, "byok");
+
+        var catalog = host.GetRequiredService<IAgentCatalog>();
+
+        foreach (var attempt in new[] { 1, 2 })
+        {
+            _ = attempt;
+
+            var agent = await catalog.ResolveAsync(PlainOrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken);
+            agent.ShouldNotBeNull();
+            await agent.RunAsync("Is order 1042 open?", cancellationToken: TestContext.Current.CancellationToken);
+        }
+
+        provider.Keys.ShouldBe([CredentialRecordingProvider.SetupKey, CredentialRecordingProvider.SetupKey]);
+
+        var run = (await host.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { AgentName = PlainOrderAssistantRegistration.AgentName }, TestContext.Current.CancellationToken))
+            .ToList();
+        run.Count.ShouldBe(2);
+        run.ShouldAllBe(static record => record.ModelId == null && record.Cost == null);
+
+        // Tracon names the loss, once for the agent, and names the overload that removes it.
+        var warning = logs.Warnings.Where(static line => line.Contains(PlainOrderAssistantRegistration.AgentName, StringComparison.Ordinal)).ShouldHaveSingleItem();
+        warning.ShouldContain("declares none");
+        warning.ShouldContain("AddAgent(name, model, factory)");
+    }
+
+    [Fact]
+    public async Task The_egress_policy_refuses_a_custom_source_agent_and_a_factory_agent_that_declares_its_model()
     {
         var provider = new CredentialRecordingProvider("byok", PricedModel);
         await using var host = BuildHost(provider, new ModelBinding { Provider = "byok", Model = "fake-model" });
@@ -165,16 +207,33 @@ public sealed class MafFeaturesSampleTests
 
         var catalog = host.GetRequiredService<IAgentCatalog>();
 
-        // The custom source builds its client with the asynchronous call, which checks the policy.
+        // Both build the client with the asynchronous call, which checks the policy.
         await Should.ThrowAsync<TraconTenantProviderRefusedException>(async () =>
             await catalog.ResolveAsync(InvoiceAssistantSource.AgentName, culture: null, TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<TraconTenantProviderRefusedException>(async () =>
+            await catalog.ResolveAsync(OrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken));
+
+        provider.Keys.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_egress_policy_does_not_reach_a_factory_agent_that_declares_no_model()
+    {
+        var provider = new CredentialRecordingProvider("byok", PricedModel);
+        await using var host = BuildHost(provider, new ModelBinding { Provider = "byok", Model = "fake-model" });
+
+        await host.GetRequiredService<ITenantEgressPolicyStore>().UpsertAsync(
+            host.GetRequiredService<ITenantContext>().TenantId,
+            ["allowed-provider"],
+            TestContext.Current.CancellationToken);
 
         // The factory's synchronous call does not check it: the agent runs against a provider
         // the tenant may not use. This is the loss the guide names.
-        var factoryAgent = await catalog.ResolveAsync(OrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken);
-        factoryAgent.ShouldNotBeNull();
+        var plainAgent = await host.GetRequiredService<IAgentCatalog>()
+            .ResolveAsync(PlainOrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken);
+        plainAgent.ShouldNotBeNull();
 
-        await factoryAgent.RunAsync("Is order 1042 open?", cancellationToken: TestContext.Current.CancellationToken);
+        await plainAgent.RunAsync("Is order 1042 open?", cancellationToken: TestContext.Current.CancellationToken);
 
         provider.Keys.ShouldBe([CredentialRecordingProvider.SetupKey]);
     }
@@ -188,9 +247,18 @@ public sealed class MafFeaturesSampleTests
         OutputCostPerMillionTokens = 15m,
     };
 
-    private static ServiceProvider BuildHost(IModelProvider provider, ModelBinding model, bool withTenantKey = false)
+    private static ServiceProvider BuildHost(
+        IModelProvider provider,
+        ModelBinding model,
+        bool withTenantKey = false,
+        ILoggerProvider? logs = null)
     {
         var services = new ServiceCollection();
+
+        if (logs is not null)
+        {
+            services.AddLogging(logging => logging.AddProvider(logs));
+        }
 
         if (withTenantKey)
         {

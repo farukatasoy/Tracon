@@ -134,7 +134,6 @@ public sealed class SkillScriptBudgetTests
             configureServices: services =>
             {
                 services.AddSingleton<ISkillScriptExecutor>(executor);
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.Configure<TraconOptions>(options =>
                 {
                     options.Pricing.Currency = "USD";
@@ -146,7 +145,9 @@ public sealed class SkillScriptBudgetTests
                     services.AddSingleton<IAgentDecorator, ChargesTheContinuation>();
                 }
             },
-            configureTracon: builder => builder
+            configureTracon: builder =>
+            {
+                builder
                 .UseSkillScripts(options =>
                 {
                     options.PlatformIsolationAcknowledged = true;
@@ -162,7 +163,9 @@ public sealed class SkillScriptBudgetTests
                     Instructions = "Run the script.",
                     Model = new ModelBinding { Provider = Provider, Model = Model },
                     SkillNames = [SkillName],
-                }));
+                });
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         var saved = await host.Services.GetRequiredService<IAgentSkillStore>().SaveAsync(new AgentSkillDefinition
         {

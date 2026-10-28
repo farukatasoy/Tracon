@@ -147,26 +147,36 @@ The catalog merges registered sources, in priority order:
 flowchart LR
     accTitle: Agent catalog sources
     accDescr: Code registrations, database definitions, and custom sources merge into one catalog, with lower priority values winning name collisions.
-    C["Code<br/>AddAgent(definition) or AddAgent(name, factory)"] --> CAT["IAgentCatalog"]
+    C["Code<br/>AddAgent(definition) or AddAgent(name, model, factory)"] --> CAT["IAgentCatalog"]
     D["Database<br/>definitions written through the API"] --> CAT
     X["Custom<br/>IAgentSource registration"] --> CAT
     CAT --> R["ResolveAsync(name)"]
 ```
 
-`AddAgent(name, factory)` is a code registration too — the factory returns a MAF
+`AddAgent(name, model, factory)` is a code registration too — the factory returns a MAF
 `AIAgent` directly, built however you want, and the catalog still applies Tracon's
 decorators (recording, telemetry, approval) when it resolves the agent. The factory
-runs on every resolve, and its agent does not pass through the compiler. It keeps
-the model rings (run budget, circuit breaker, fallback, response cache, content
-guards, the `chat` span) only when it builds its chat client with
-`IModelProviderRegistry.CreateChatClient`. That synchronous call applies no tenant
-provider key and no egress policy, and the run records no model, so it has no cost.
-An agent source that returns its own agent can apply all three: it builds the client
-with `CreateChatClientAsync` and names the model in its `AgentDescriptor`.
-If the chat client of a factory agent does not come from that registry, Tracon writes
-one warning for the agent name. [Use any Microsoft Agent Framework
-feature](/guides/any-maf-feature/) compares this door with the decorator and the custom
-source.
+runs on every resolve, and its agent does not pass through the compiler. You declare
+the model, and Tracon builds the chat client for it and hands it to the factory as
+`context.ChatClient`. That client carries the model rings (run budget, circuit
+breaker, fallback, response cache, content guards, the `chat` span), the tenant's own
+provider key, and the tenant's egress policy. The model you declared is the model of
+the agent in the catalog, so the run record names it and prices the run, a cost quota
+stops the agent, and `POST /api/agents/{name}/estimate` answers.
+
+The factory builds its own `ChatOptions`, so a request field on the binding
+(`Temperature`, `MaxOutputTokens`, `ResponseFormat` and the rest) is refused when you
+register: Tracon would ignore it. Set the field in the factory.
+
+`AddAgent(name, factory)` declares no model. A client that factory builds with
+`IModelProviderRegistry.CreateChatClient` keeps the model rings, but that synchronous
+call applies no tenant provider key and no egress policy, and the run records no
+model, so it has no cost. Tracon writes one warning for the agent name when it sees
+this, and when the chat client does not come from the registry at all. Use that form
+for an agent that does not call a model through Tracon. [Use any Microsoft Agent
+Framework feature](/guides/any-maf-feature/) compares the doors, and [Move an agent
+from AddAIAgent to Tracon](/guides/from-maf-hosting/) maps the MAF hosting calls to
+them.
 
 An application can add an `IAgentSource` for definitions stored outside Tracon or
 for agents owned by another runtime. Custom-source agents are visible in the console

@@ -104,7 +104,9 @@ public sealed class RunDeadlineTests
         // REAL (short) tool delay exercises the same cutoff without freezing
         // the host's own background machinery.
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("deadline-model")
                     .CallsTool(ToolName)
                     .RespondsWith("final answer"))
@@ -113,11 +115,12 @@ public sealed class RunDeadlineTests
                     await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: simulated
                     return "tool result";
                 }), name: ToolName)
-                .AddAgent(DeadlineAgent()),
+                .AddAgent(DeadlineAgent());
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: services =>
             {
                 services.Configure<TraconOptions>(o => o.AgentGraph.MaxDuration = TimeSpan.FromMilliseconds(200));
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Run) { Content = JsonContent.Create(new AgentRunRequest { Message = "do it" }) };

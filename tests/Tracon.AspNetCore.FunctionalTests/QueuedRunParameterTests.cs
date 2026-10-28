@@ -320,7 +320,9 @@ public sealed class QueuedRunParameterTests
 
     private static Task<TraconTestHost> StartAsync(FakeModelProvider provider)
         => TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(Definition(
                     Required,
@@ -330,12 +332,13 @@ public sealed class QueuedRunParameterTests
                     DefaultsOnly,
                     "Hello {{customer}}, how can I help?",
                     new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, DefaultValue = "friend" }))
-                .AddAgent(Definition(Plain, "Reply briefly.")),
-            configureServices: services => services.UseScheduling(options =>
-            {
-                options.RunWorker = true;
-                options.PollInterval = TimeSpan.FromMilliseconds(20);
-            }));
+                .AddAgent(Definition(Plain, "Reply briefly."));
+                builder.UseScheduling(options =>
+                {
+                    options.RunWorker = true;
+                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                });
+            });
 
     private static async Task<HttpResponseMessage> PostQueuedAsync(TraconTestHost host, string agentName, AgentRunRequest body)
     {

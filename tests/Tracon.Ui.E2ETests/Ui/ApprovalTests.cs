@@ -76,7 +76,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
     public async Task Approvals_screen_shows_pending_request_and_run_completes_once_approved()
     {
         await using var host = await UiHost.StartAsync(
-            configureServices: services => services.UseScheduling(options =>
+            configureTracon: tracon => tracon.UseScheduling(options =>
             {
                 // The test does not need to wait in real time; the worker polls immediately.
                 options.PollInterval = TimeSpan.FromMilliseconds(200);

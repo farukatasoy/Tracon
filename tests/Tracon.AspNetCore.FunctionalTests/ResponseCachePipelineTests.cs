@@ -42,7 +42,9 @@ public sealed class ResponseCachePipelineTests
             .RespondsWith("The time is now.");
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 // The returned text is FIXED on purpose: a tool result that
                 // changes between calls (a live timestamp, for example) would
@@ -61,11 +63,12 @@ public sealed class ResponseCachePipelineTests
                         ResponseCache = new ResponseCacheSettings { Enabled = true, Lifetime = TimeSpan.FromMinutes(10) },
                     },
                     ToolNames = ["get_time"],
-                }),
+                });
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services.AddDistributedMemoryCache();
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var first = await PostQueuedAsync(host, new AgentRunRequest { Message = "what time is it?", SessionId = "s-cache-1" });
@@ -104,7 +107,9 @@ public sealed class ResponseCachePipelineTests
             .RespondsWith("4", inputTokens: 100, outputTokens: 20);
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(new AgentDefinition
                 {
@@ -116,11 +121,12 @@ public sealed class ResponseCachePipelineTests
                         Model = "cached-1",
                         ResponseCache = new ResponseCacheSettings { Enabled = true, Lifetime = TimeSpan.FromMinutes(10) },
                     },
-                }),
+                });
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services.AddDistributedMemoryCache();
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var first = await PostQueuedAsync(host, new AgentRunRequest { Message = "what is 2+2?", SessionId = "s-usage-1" });
@@ -152,7 +158,9 @@ public sealed class ResponseCachePipelineTests
         var provider = new FakeModelProvider("cached-model").RespondsWith("answer");
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(new AgentDefinition
                 {
@@ -164,13 +172,14 @@ public sealed class ResponseCachePipelineTests
                         Model = "cached-1",
                         ResponseCache = new ResponseCacheSettings { Enabled = true, Lifetime = TimeSpan.FromMinutes(10) },
                     },
-                }),
+                });
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 // A store that fails every call, registered through DI like a
                 // real one - not constructed directly against the client.
                 services.AddSingleton<IDistributedCache, ThrowingDistributedCache>();
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "hi", SessionId = "s-store-failure" });
@@ -189,15 +198,18 @@ public sealed class ResponseCachePipelineTests
             .RespondsWith("answer two");
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(new AgentDefinition
                 {
                     Name = AgentName,
                     Instructions = "Give a short answer.",
                     Model = new ModelBinding { Provider = "uncached-model", Model = "uncached-1" },
-                }),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                });
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var first = await PostQueuedAsync(host, new AgentRunRequest { Message = "hi", SessionId = "s-nocache-1" });
         var firstRunId = (await TraconTestHost.ReadJsonAsync(first)).GetProperty("runId").GetGuid();
@@ -282,11 +294,11 @@ public sealed class ResponseCachePipelineTests
                             ResponseCache = new ResponseCacheSettings { Enabled = true, Lifetime = TimeSpan.FromMinutes(10) },
                         },
                     });
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             },
             configureServices: static services =>
             {
                 services.AddDistributedMemoryCache();
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         async Task<Guid> RunAsAsync(string tenant, string sessionId)

@@ -47,9 +47,8 @@ public sealed class ApprovalResumeHandoffTests
             {
                 ConfigureApprovalAgent(builder);
                 queue.Install(builder.Services);
-            },
-            configureServices: static services =>
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest
         {

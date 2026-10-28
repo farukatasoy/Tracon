@@ -62,20 +62,19 @@ changes its settings:
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.UseScheduling(options =>
-{
-    options.RunWorker = true;
-    options.MaxConcurrentJobs = 4;
-    options.PollInterval = TimeSpan.FromSeconds(5);
-    options.LeaseDuration = TimeSpan.FromMinutes(5);
-    options.MaxAttempts = 3;
-    options.MaxItemsPerJob = 1_000;
-});
-
 var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UsePostgreSql(
-        builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName));
+        builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName))
+    .UseScheduling(options =>
+    {
+        options.RunWorker = true;
+        options.MaxConcurrentJobs = 4;
+        options.PollInterval = TimeSpan.FromSeconds(5);
+        options.LeaseDuration = TimeSpan.FromMinutes(5);
+        options.MaxAttempts = 3;
+        options.MaxItemsPerJob = 1_000;
+    });
 
 var app = builder.Build();
 app.MapTracon("/tracon");
@@ -486,7 +485,7 @@ instances. Start one or more worker instances with the same storage, provider, a
 and handler registrations:
 
 ```csharp
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     options.RunWorker = builder.Configuration.GetValue<bool>("Worker:Enabled");
 });
@@ -507,7 +506,7 @@ budget, or scope a worker to specific lanes, to stop one kind of work from block
 another:
 
 ```csharp
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     // This process only leases "default" and "media" work.
     options.Lanes = ["default", "media"];

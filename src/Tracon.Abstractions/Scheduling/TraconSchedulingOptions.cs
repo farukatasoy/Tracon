@@ -3,7 +3,7 @@ namespace Tracon;
 /// <summary>Batch and scheduled run settings.</summary>
 /// <remarks>
 /// Read from the <c>Tracon:Scheduling</c> configuration section. See
-/// <c>TraconServiceCollectionExtensions.UseScheduling</c>.
+/// <c>TraconBuilderExtensions.UseScheduling</c>.
 /// </remarks>
 public sealed class TraconSchedulingOptions
 {

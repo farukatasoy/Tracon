@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -78,6 +79,35 @@ public static partial class TraconBuilderExtensions
         return builder;
     }
 
+    // Two overloads instead of an optional description on one: the model-declaring forms below come in
+    // pairs too, and RS0026 refuses more than one overload with optional parameters (see AddLoopEvaluator).
+
+    /// <summary>
+    /// Defines a factory-based agent in code. How the agent is built is
+    /// entirely up to the caller.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The agent name.</param>
+    /// <param name="factory">The factory that produces the agent.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// The agent declares no model, so Tracon does not know which model it calls. The run record carries
+    /// no model and no cost, the cost quota does not apply, and a model client the factory builds
+    /// from <see cref="IModelProviderRegistry"/> uses the key you set up at start, not the key of the tenant
+    /// of the run, and skips the tenant's egress policy. Tracon writes one warning for the agent when it
+    /// finds this. Use this overload for an agent that does not call a model through Tracon, such as a
+    /// wrapper of another runtime.
+    /// </para>
+    /// <para>
+    /// To keep the tenant's key, the egress policy and the cost, declare the model with
+    /// <see cref="AddAgent(ITraconBuilder, string, ModelBinding, Func{AgentFactoryContext, AIAgent})"/>.
+    /// </para>
+    /// </remarks>
+    public static ITraconBuilder AddAgent(this ITraconBuilder builder, string name, Func<IServiceProvider, AIAgent> factory)
+        => builder.AddAgent(name, factory, description: null);
+
     /// <summary>
     /// Defines a factory-based agent in code. How the agent is built is
     /// entirely up to the caller.
@@ -88,13 +118,170 @@ public static partial class TraconBuilderExtensions
     /// <param name="description">A short description.</param>
     /// <returns>The chain, for further configuration.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
-    public static ITraconBuilder AddAgent(this ITraconBuilder builder, string name, Func<IServiceProvider, AIAgent> factory, string? description = null)
+    /// <remarks>
+    /// See <see cref="AddAgent(ITraconBuilder, string, Func{IServiceProvider, AIAgent})"/>.
+    /// </remarks>
+    public static ITraconBuilder AddAgent(this ITraconBuilder builder, string name, Func<IServiceProvider, AIAgent> factory, string? description)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(factory);
 
         builder.Services.AddSingleton(CodeAgentRegistration.FromFactory(name, factory, description));
+        return builder;
+    }
+
+    /// <summary>
+    /// Defines a factory-based agent in code and declares its model. Tracon builds the chat client for
+    /// the model and passes it to the factory.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The agent name.</param>
+    /// <param name="model">
+    /// The model the agent calls. Set the provider and the model name (and, if you need them,
+    /// <see cref="ModelBinding.ProviderSettings"/>, <see cref="ModelBinding.Fallbacks"/>,
+    /// <see cref="ModelBinding.ResponseCache"/> and <see cref="ModelBinding.ToolLoop"/>). A request field such as
+    /// <see cref="ModelBinding.Temperature"/> is refused: the factory builds the options of each call, so
+    /// set the field there.
+    /// </param>
+    /// <param name="factory">Builds the agent around <see cref="AgentFactoryContext.ChatClient"/>.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/>, <paramref name="model"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty, <paramref name="model"/> has no provider or model name, or it sets a request field.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The agent keeps what a definition agent has. The client is built with the tenant's own provider key
+    /// and the tenant's egress policy, and carries the model rings. The run record names the model and
+    /// prices the run, so the cost quota applies and <c>POST /api/agents/{name}/estimate</c> answers.
+    /// </para>
+    /// <para>
+    /// The factory runs on every resolve. Tracon keeps neither the agent nor the client, because the
+    /// client holds the key of one tenant. Do not keep them in a field. The response validator of
+    /// <see cref="ModelBinding.ResponseFormat"/> runs for definition agents only.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddAgent(
+    ///            "order-assistant",
+    ///            new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+    ///            context => context.ChatClient.AsAIAgent(
+    ///                instructions: "Answer questions about orders.",
+    ///                name: context.AgentName));
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddAgent(
+        this ITraconBuilder builder,
+        string name,
+        ModelBinding model,
+        Func<AgentFactoryContext, AIAgent> factory)
+        => builder.AddAgent(name, model, factory, description: null);
+
+    /// <summary>
+    /// Defines a factory-based agent in code and declares its model, with a description.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The agent name.</param>
+    /// <param name="model">The model the agent calls.</param>
+    /// <param name="factory">Builds the agent around <see cref="AgentFactoryContext.ChatClient"/>.</param>
+    /// <param name="description">A short description.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/>, <paramref name="model"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty, <paramref name="model"/> has no provider or model name, or it sets a request field.
+    /// </exception>
+    /// <remarks>
+    /// See <see cref="AddAgent(ITraconBuilder, string, ModelBinding, Func{AgentFactoryContext, AIAgent})"/>.
+    /// </remarks>
+    public static ITraconBuilder AddAgent(
+        this ITraconBuilder builder,
+        string name,
+        ModelBinding model,
+        Func<AgentFactoryContext, AIAgent> factory,
+        string? description)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        return builder.AddAgent(
+            name,
+            model,
+            (context, _) => ValueTask.FromResult(factory(context)),
+            description);
+    }
+
+    /// <summary>
+    /// Defines a factory-based agent in code, declares its model, and builds the agent asynchronously.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The agent name.</param>
+    /// <param name="model">The model the agent calls. See the other overload for the fields it accepts.</param>
+    /// <param name="factory">Builds the agent around <see cref="AgentFactoryContext.ChatClient"/>.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/>, <paramref name="model"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty, <paramref name="model"/> has no provider or model name, or it sets a request field.
+    /// </exception>
+    /// <remarks>
+    /// The token is the token of the resolve. Pass it to what the factory awaits, so a canceled request
+    /// stops the work. A factory that throws fails the resolve in the same way as a factory that does not
+    /// await.
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddAgent(
+    ///            "policy-assistant",
+    ///            new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+    ///            async (context, cancellationToken) =>
+    ///            {
+    ///                var orders = context.Services.GetRequiredService&lt;IOrderRepository&gt;();
+    ///                var policy = await orders.GetAsync("refund-policy").WaitAsync(cancellationToken);
+    ///                return context.ChatClient.AsAIAgent(instructions: policy, name: context.AgentName);
+    ///            });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddAgent(
+        this ITraconBuilder builder,
+        string name,
+        ModelBinding model,
+        Func<AgentFactoryContext, CancellationToken, ValueTask<AIAgent>> factory)
+        => builder.AddAgent(name, model, factory, description: null);
+
+    /// <summary>
+    /// Defines a factory-based agent in code, declares its model, and builds the agent asynchronously, with a description.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The agent name.</param>
+    /// <param name="model">The model the agent calls.</param>
+    /// <param name="factory">Builds the agent around <see cref="AgentFactoryContext.ChatClient"/>.</param>
+    /// <param name="description">A short description.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/>, <paramref name="model"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty, <paramref name="model"/> has no provider or model name, or it sets a request field.
+    /// </exception>
+    /// <remarks>
+    /// See <see cref="AddAgent(ITraconBuilder, string, ModelBinding, Func{AgentFactoryContext, CancellationToken, ValueTask{AIAgent}})"/>.
+    /// </remarks>
+    public static ITraconBuilder AddAgent(
+        this ITraconBuilder builder,
+        string name,
+        ModelBinding model,
+        Func<AgentFactoryContext, CancellationToken, ValueTask<AIAgent>> factory,
+        string? description)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        builder.Services.AddSingleton(CodeAgentRegistration.FromModelFactory(name, model, factory, description));
         return builder;
     }
 

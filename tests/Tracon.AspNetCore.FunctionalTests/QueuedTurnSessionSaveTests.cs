@@ -295,10 +295,7 @@ public sealed class QueuedTurnSessionSaveTests
                 }
 
                 inject?.Invoke(builder.Services);
-            },
-            configureServices: services =>
-            {
-                services.UseScheduling(options =>
+                builder.UseScheduling(options =>
                 {
                     options.PollInterval = TimeSpan.FromMilliseconds(20);
 
@@ -307,6 +304,9 @@ public sealed class QueuedTurnSessionSaveTests
                         options.LeaseDuration = lease;
                     }
                 });
+            },
+            configureServices: services =>
+            {
 
                 services.Configure<TraconAsyncRunOptions>(options => options.MaxAttempts = maxAttempts);
             });

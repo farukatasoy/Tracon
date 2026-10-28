@@ -127,7 +127,7 @@ not optional. A job names the handler it needs, so the handler is registered
 against that name:
 
 ```csharp
-builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
+tracon.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
 ```
 
 Writing `services.AddSingleton<IJobHandler, NightlyReportJobHandler>()` instead

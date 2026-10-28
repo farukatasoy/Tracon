@@ -57,7 +57,7 @@ public sealed class MafFunctionMiddlewareTests
         var middleware = new CountingFunctionMiddleware();
         await using var host = await StartAsync(
             middleware,
-            static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            static tracon => tracon.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Run)
         {
@@ -74,22 +74,25 @@ public sealed class MafFunctionMiddlewareTests
 
     private static Task<TraconTestHost> StartAsync(
         CountingFunctionMiddleware middleware,
-        Action<IServiceCollection>? configureServices = null)
+        Action<ITraconBuilder>? configureTracon = null)
         => TraconTestHost.StartAsync(
-            builder => builder
-                .AddModelProvider(new FakeModelProvider("middleware-model")
-                    .CallsTools(("lookup", null))
-                    .RespondsWith("found it"))
-                .AddTool((Func<string>)(static () => "42"), name: "lookup")
-                .AddAgent(new AgentDefinition
-                {
-                    Name = AgentName,
-                    Instructions = "Look the answer up.",
-                    Model = new ModelBinding { Provider = "middleware-model", Model = "middleware-1" },
-                    ToolNames = ["lookup"],
-                })
-                .AddAgentDecorator(middleware),
-            configureServices: configureServices);
+            builder =>
+            {
+                builder
+                    .AddModelProvider(new FakeModelProvider("middleware-model")
+                        .CallsTools(("lookup", null))
+                        .RespondsWith("found it"))
+                    .AddTool((Func<string>)(static () => "42"), name: "lookup")
+                    .AddAgent(new AgentDefinition
+                    {
+                        Name = AgentName,
+                        Instructions = "Look the answer up.",
+                        Model = new ModelBinding { Provider = "middleware-model", Model = "middleware-1" },
+                        ToolNames = ["lookup"],
+                    })
+                    .AddAgentDecorator(middleware);
+                configureTracon?.Invoke(builder);
+            });
 
     /// <summary>
     /// Records the name of every tool call the MAF middleware sees. Order 100

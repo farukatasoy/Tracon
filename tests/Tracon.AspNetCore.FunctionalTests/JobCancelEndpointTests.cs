@@ -105,7 +105,7 @@ public sealed class JobCancelEndpointTests
         => TraconTestHost.StartAsync(
             builder =>
             {
-                builder.Services.AddJobHandler<SlowHandler>(Key);
+                builder.AddJobHandler<SlowHandler>(Key);
 
                 if (tenancy)
                 {

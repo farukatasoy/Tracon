@@ -51,7 +51,7 @@ public sealed class OrderFulfillmentToolRunTests
             });
 
         builder.Services.AddScoped<IOrderRepository, FakeOrderRepository>();
-        builder.Services.AddOrderFulfillmentTool();
+        builder.AddOrderFulfillmentTool();
 
         await using var provider = services.BuildServiceProvider();
         var agent = await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(

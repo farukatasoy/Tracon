@@ -56,7 +56,9 @@ public sealed class ToolGovernanceEndpointTests
         // ToolFailed - the same conversion TimeoutAIFunction's thrown
         // exception already produces.
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("gov-model")
                     .CallsTool("cancel_order", new { orderId = "ORD-8" })
                     .EchoesLastToolResult())
@@ -69,11 +71,12 @@ public sealed class ToolGovernanceEndpointTests
                     Instructions = "Give a short answer.",
                     Model = new ModelBinding { Provider = "gov-model", Model = "gov-1" },
                     ToolNames = ["cancel_order"],
-                }),
+                });
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services.AddSingleton<IToolArgumentsValidator>(new RejectingValidator("The order id is not recognized."));
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "s-rejected" });
@@ -112,7 +115,9 @@ public sealed class ToolGovernanceEndpointTests
     public async Task Denied_call_completes_the_run_and_marks_the_record_denied()
     {
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("gov-model")
                     .CallsTool("cancel_order", new { orderId = "ORD-7" })
                     .EchoesLastToolResult())
@@ -125,11 +130,12 @@ public sealed class ToolGovernanceEndpointTests
                     Instructions = "Give a short answer.",
                     Model = new ModelBinding { Provider = "gov-model", Model = "gov-1" },
                     ToolNames = ["cancel_order"],
-                }),
+                });
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services.AddSingleton<IToolAuthorizationHandler>(new DenyingHandler("Not authorized to cancel orders."));
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "s-denied" });
@@ -185,8 +191,8 @@ public sealed class ToolGovernanceEndpointTests
                 {
                     Timeout = TimeSpan.FromMilliseconds(300),
                 });
-            },
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -249,8 +255,8 @@ public sealed class ToolGovernanceEndpointTests
                 {
                     Timeout = TimeSpan.FromMilliseconds(200),
                 });
-            },
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         // TraconCircuitBreakerOptions.FailureThreshold defaults to 5; six
         // runs is one more than that threshold.
@@ -296,8 +302,8 @@ public sealed class ToolGovernanceEndpointTests
                     RequiresApproval = true,
                     Timeout = TimeSpan.FromMilliseconds(200),
                 });
-            },
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "s-approval-timeout" });
         var originalRunId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();

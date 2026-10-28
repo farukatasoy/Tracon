@@ -126,16 +126,17 @@ public static class VoiceBuilderExtensions
         // take their dependencies from the provider at setup time. Resolving
         // at call time is NOT POSSIBLE — Microsoft Agent Framework passes the
         // tool an EmptyServiceProvider (measured, see VoiceToolBase).
-        services.AddSingleton(provider =>
-            new TraconToolRegistration(new SpeakTool(provider)) { RequiresApproval = requireApproval });
+        builder.AddTool(
+            static provider => new SpeakTool(provider),
+            options => options.RequiresApproval = requireApproval);
 
-        services.AddSingleton(provider =>
-            new TraconToolRegistration(new TranscribeTool(provider)) { RequiresApproval = requireApproval });
+        builder.AddTool(
+            static provider => new TranscribeTool(provider),
+            options => options.RequiresApproval = requireApproval);
 
         // Listing incurs no cost and has no side effect; the approval setting
         // does not apply to it.
-        services.AddSingleton(provider =>
-            new TraconToolRegistration(new ListVoicesTool(provider)));
+        builder.AddTool(static provider => new ListVoicesTool(provider));
 
         return builder;
     }

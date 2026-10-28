@@ -45,7 +45,7 @@ var tracon = builder.Services.AddTracon()
         options.AutoApplyMigrations = false;
     });
 
-builder.Services.AddJobHandler<LongRunningJobHandler>(WorkerHarnessContract.HandlerKey);
+tracon.AddJobHandler<LongRunningJobHandler>(WorkerHarnessContract.HandlerKey);
 
 // Phase 197: the two-step workflow a test kills in its second step. The first
 // step returns at once, so its checkpoint exists before the kill; the second
@@ -56,7 +56,7 @@ if (settings.Workflow)
     HarnessWorkflow.Register(tracon, settings);
 }
 
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     options.Enabled = true;
     options.RunWorker = settings.Mode == WorkerHarnessMode.Worker;

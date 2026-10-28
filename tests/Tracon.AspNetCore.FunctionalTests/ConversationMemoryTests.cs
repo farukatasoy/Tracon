@@ -709,6 +709,7 @@ public sealed class ConversationMemoryTests
                     options.AllowHeaderResolution = true;
                 });
                 configure(builder);
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             },
             configureServices: services =>
             {
@@ -717,7 +718,6 @@ public sealed class ConversationMemoryTests
                 services.AddSingleton<IRunAttributionContext>(static provider =>
                     new HeaderAttribution(provider.GetRequiredService<IHttpContextAccessor>()));
                 services.AddSingleton<IDataSubjectResolver>(new SessionPrefixResolver());
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 configureServices?.Invoke(services);
             });
 

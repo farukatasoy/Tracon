@@ -19,8 +19,9 @@ public sealed class JobHandlerRegistryTests
     public void Registering_the_same_type_under_the_same_key_twice_is_a_no_op()
     {
         var services = new ServiceCollection();
-        services.AddJobHandler<AHandler>("contoso.a");
-        services.AddJobHandler<AHandler>("contoso.a");
+        var builder = new TraconBuilder(services);
+        builder.AddJobHandler<AHandler>("contoso.a");
+        builder.AddJobHandler<AHandler>("contoso.a");
 
         using var provider = services.BuildServiceProvider();
         var registry = JobHandlerRegistry.Create(provider.GetServices<JobHandlerRegistration>());
@@ -51,8 +52,9 @@ public sealed class JobHandlerRegistryTests
     public void Two_different_types_under_one_key_throw_and_name_both()
     {
         var services = new ServiceCollection();
-        services.AddJobHandler<AHandler>("contoso.a");
-        services.AddJobHandler<BHandler>("contoso.a");
+        var builder = new TraconBuilder(services);
+        builder.AddJobHandler<AHandler>("contoso.a");
+        builder.AddJobHandler<BHandler>("contoso.a");
 
         using var provider = services.BuildServiceProvider();
 
@@ -67,10 +69,10 @@ public sealed class JobHandlerRegistryTests
     [Fact]
     public void A_reserved_key_is_refused_by_the_public_registration_itself()
     {
-        var services = new ServiceCollection();
+        var builder = new TraconBuilder(new ServiceCollection());
 
         var exception = Should.Throw<ArgumentException>(
-            () => services.AddJobHandler<AHandler>(JobHandlerKeys.Retention));
+            () => builder.AddJobHandler<AHandler>(JobHandlerKeys.Retention));
 
         exception.Message.ShouldContain(JobHandlerKeys.ReservedPrefix);
     }
@@ -81,7 +83,7 @@ public sealed class JobHandlerRegistryTests
     [InlineData(".leading-dot")]
     [InlineData("has space")]
     public void A_malformed_key_is_refused(string key)
-        => Should.Throw<ArgumentException>(() => new ServiceCollection().AddJobHandler<AHandler>(key));
+        => Should.Throw<ArgumentException>(() => new TraconBuilder(new ServiceCollection()).AddJobHandler<AHandler>(key));
 
     [Fact]
     public void A_128_character_key_is_accepted_and_129_is_not()
@@ -93,16 +95,16 @@ public sealed class JobHandlerRegistryTests
     [Fact]
     public async Task Registration_order_does_not_change_which_handler_a_key_resolves_to()
     {
-        var forward = await ResolveAsync(services =>
+        var forward = await ResolveAsync(builder =>
         {
-            services.AddJobHandler<AHandler>("contoso.a");
-            services.AddJobHandler<BHandler>("contoso.b");
+            builder.AddJobHandler<AHandler>("contoso.a");
+            builder.AddJobHandler<BHandler>("contoso.b");
         });
 
-        var reversed = await ResolveAsync(services =>
+        var reversed = await ResolveAsync(builder =>
         {
-            services.AddJobHandler<BHandler>("contoso.b");
-            services.AddJobHandler<AHandler>("contoso.a");
+            builder.AddJobHandler<BHandler>("contoso.b");
+            builder.AddJobHandler<AHandler>("contoso.a");
         });
 
         forward.ShouldBe(reversed);
@@ -110,10 +112,10 @@ public sealed class JobHandlerRegistryTests
         forward["contoso.b"].ShouldBe(typeof(BHandler));
     }
 
-    private static ValueTask<Dictionary<string, Type>> ResolveAsync(Action<IServiceCollection> configure)
+    private static ValueTask<Dictionary<string, Type>> ResolveAsync(Action<ITraconBuilder> configure)
     {
         var services = new ServiceCollection();
-        configure(services);
+        configure(new TraconBuilder(services));
 
         using var provider = services.BuildServiceProvider();
         var registry = JobHandlerRegistry.Create(provider.GetServices<JobHandlerRegistration>());

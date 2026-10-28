@@ -209,15 +209,18 @@ public sealed class ApprovalResumeVersionTests
 
     private static Task<TraconTestHost> StartAsync(FakeModelProvider provider)
         => TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddTool(
                     (Func<string, string>)(orderId => $"{orderId} canceled."),
                     name: "cancel_order",
                     description: "Cancels an order.",
-                    configure: options => options.RequiresApproval = true),
-            configureServices: static services => services.UseScheduling(
-                static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+                    configure: options => options.RequiresApproval = true);
+                builder.UseScheduling(
+                static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
     private static async Task SaveVersionAsync(TraconTestHost host, string instructions, bool create)
     {

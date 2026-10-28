@@ -30,8 +30,17 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         { "AddToolsFrom<T>", "TraconToolRegistration|Singleton|instance:TraconToolRegistration ; TraconToolRegistration|Singleton|instance:TraconToolRegistration" },
         { "AddToolsFrom(Type)", "TraconToolRegistration|Singleton|instance:TraconToolRegistration ; TraconToolRegistration|Singleton|instance:TraconToolRegistration" },
         { "AddAgent(definition)", "CodeAgentRegistration|Singleton|instance:CodeAgentRegistration ; CodeAgentRegistration|Singleton|instance:CodeAgentRegistration" },
+        { "AddJobHandler<T>", "SnapshotJobHandler|Scoped|type:SnapshotJobHandler ; JobHandlerRegistration|Singleton|instance:JobHandlerRegistration ; JobHandlerRegistration|Singleton|instance:JobHandlerRegistration" },
+        { "UseScheduling", "IPostConfigureOptions`1|Singleton|instance:PostConfigureOptions`1 ; IPostConfigureOptions`1|Singleton|instance:PostConfigureOptions`1" },
         { "AddSkill", "CodeSkillRegistration|Singleton|instance:CodeSkillRegistration ; CodeSkillRegistration|Singleton|instance:CodeSkillRegistration" },
         { "AddAgent(name, factory)", "CodeAgentRegistration|Singleton|instance:CodeAgentRegistration ; CodeAgentRegistration|Singleton|instance:CodeAgentRegistration" },
+        { "AddAgent(name, factory, description)", "CodeAgentRegistration|Singleton|instance:CodeAgentRegistration ; CodeAgentRegistration|Singleton|instance:CodeAgentRegistration" },
+        { "AddAgent(name, model, factory)", "CodeAgentRegistration|Singleton|instance:CodeAgentRegistration ; CodeAgentRegistration|Singleton|instance:CodeAgentRegistration" },
+        { "AddAgent(name, model, factory, description)", "CodeAgentRegistration|Singleton|instance:CodeAgentRegistration ; CodeAgentRegistration|Singleton|instance:CodeAgentRegistration" },
+        { "AddAgent(name, model, async factory)", "CodeAgentRegistration|Singleton|instance:CodeAgentRegistration ; CodeAgentRegistration|Singleton|instance:CodeAgentRegistration" },
+        { "AddAgent(name, model, async factory, description)", "CodeAgentRegistration|Singleton|instance:CodeAgentRegistration ; CodeAgentRegistration|Singleton|instance:CodeAgentRegistration" },
+        { "AddTool(factory, configure)", "TraconToolRegistration|Singleton|factory ; TraconToolRegistration|Singleton|factory" },
+        { "AddTool(factory)", "TraconToolRegistration|Singleton|factory ; TraconToolRegistration|Singleton|factory" },
         { "AddAgentSource<T>", "IAgentSource|Singleton|type:SnapshotSource" },
         { "AddAgentSource(instance)", "IAgentSource|Singleton|instance:SnapshotSource ; IAgentSource|Singleton|instance:SnapshotSource" },
         { "AddAgentSource(factory)", "IAgentSource|Singleton|factory ; IAgentSource|Singleton|factory" },
@@ -145,6 +154,8 @@ public sealed class TraconBuilderRegistrationSnapshotTests
                 Instructions = "x",
                 Model = new ModelBinding { Provider = "fake", Model = "fake" },
             }),
+            "AddJobHandler<T>" => builder.AddJobHandler<SnapshotJobHandler>("snapshot.handler"),
+            "UseScheduling" => builder.UseScheduling(static options => options.RunWorker = false),
             "AddSkill" => builder.AddSkill(new AgentSkillDefinition
             {
                 TenantId = "default",
@@ -153,6 +164,29 @@ public sealed class TraconBuilderRegistrationSnapshotTests
                 Instructions = "x",
             }),
             "AddAgent(name, factory)" => builder.AddAgent("snapshot", static _ => null!),
+            "AddAgent(name, factory, description)" => builder.AddAgent("snapshot", static _ => null!, "Snapshot agent."),
+            "AddAgent(name, model, factory)" => builder.AddAgent(
+                "snapshot",
+                new ModelBinding { Provider = "fake", Model = "fake" },
+                static (AgentFactoryContext _) => null!),
+            "AddAgent(name, model, factory, description)" => builder.AddAgent(
+                "snapshot",
+                new ModelBinding { Provider = "fake", Model = "fake" },
+                static (AgentFactoryContext _) => null!,
+                "Snapshot agent."),
+            "AddAgent(name, model, async factory)" => builder.AddAgent(
+                "snapshot",
+                new ModelBinding { Provider = "fake", Model = "fake" },
+                static (AgentFactoryContext _, CancellationToken _) => ValueTask.FromResult<AIAgent>(null!)),
+            "AddAgent(name, model, async factory, description)" => builder.AddAgent(
+                "snapshot",
+                new ModelBinding { Provider = "fake", Model = "fake" },
+                static (AgentFactoryContext _, CancellationToken _) => ValueTask.FromResult<AIAgent>(null!),
+                "Snapshot agent."),
+            "AddTool(factory, configure)" => builder.AddTool(
+                static (IServiceProvider _) => AIFunctionFactory.Create(() => "ok", "snapshot_factory_tool"),
+                static o => o.RequiresApproval = true),
+            "AddTool(factory)" => builder.AddTool(static (IServiceProvider _) => AIFunctionFactory.Create(() => "ok", "snapshot_factory_tool")),
             "AddAgentSource<T>" => builder.AddAgentSource<SnapshotSource>(),
             "AddAgentSource(instance)" => builder.AddAgentSource(new SnapshotSource()),
             "AddAgentSource(factory)" => builder.AddAgentSource(static _ => new SnapshotSource()),
@@ -214,6 +248,11 @@ public sealed class TraconBuilderRegistrationSnapshotTests
     {
         [TraconTool("snapshot_scanned", "x")]
         public static string Scanned() => "ok";
+    }
+
+    private sealed class SnapshotJobHandler : IJobHandler
+    {
+        public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 
     private sealed class SnapshotSource : IAgentSource

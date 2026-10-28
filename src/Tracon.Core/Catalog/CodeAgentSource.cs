@@ -17,6 +17,7 @@ internal sealed partial class CodeAgentSource : IAgentSource
     private readonly Dictionary<string, CodeAgentRegistration> _registrations;
     private readonly AgentDefinitionCompiler _compiler;
     private readonly CompiledAgentCache _cache;
+    private readonly IModelProviderRegistry _models;
     private readonly IServiceProvider _services;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<CodeAgentSource> _logger;
@@ -30,6 +31,7 @@ internal sealed partial class CodeAgentSource : IAgentSource
     /// <param name="registrations">The code agent registrations.</param>
     /// <param name="compiler">The compiler for declarative definitions.</param>
     /// <param name="cache">The compiled agent cache.</param>
+    /// <param name="models">The registry that builds the chat client of a factory agent that declares its model.</param>
     /// <param name="services">The service provider supplied to factory registrations.</param>
     /// <param name="tenantContext">
     /// The tenant context. Code agent definitions are shared across tenants, but
@@ -44,6 +46,7 @@ internal sealed partial class CodeAgentSource : IAgentSource
         IEnumerable<CodeAgentRegistration> registrations,
         AgentDefinitionCompiler compiler,
         CompiledAgentCache cache,
+        IModelProviderRegistry models,
         IServiceProvider services,
         ITenantContext tenantContext,
         ILogger<CodeAgentSource> logger)
@@ -51,12 +54,14 @@ internal sealed partial class CodeAgentSource : IAgentSource
         ArgumentNullException.ThrowIfNull(registrations);
         ArgumentNullException.ThrowIfNull(compiler);
         ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(logger);
 
         _compiler = compiler;
         _cache = cache;
+        _models = models;
         _services = services;
         _tenantContext = tenantContext;
         _logger = logger;
@@ -93,7 +98,7 @@ internal sealed partial class CodeAgentSource : IAgentSource
                 Description = registration.Description,
                 Origin = AgentDefinitionOrigin.Code,
                 SourceName = Name,
-                Model = registration.Definition?.Model,
+                Model = registration.Model ?? registration.Definition?.Model,
                 ToolNames = registration.Definition?.ToolNames ?? [],
                 SkillNames = registration.Definition?.SkillNames ?? [],
                 Skills = registration.Definition?.Skills,
@@ -120,9 +125,17 @@ internal sealed partial class CodeAgentSource : IAgentSource
 
         if (registration.Definition is not { } definition)
         {
-            var agent = registration.Factory!(_services);
-            WarnWhenModelRingsAreBypassed(agentName, agent, cancellationToken);
-            return agent;
+            // The tenant-aware path, as a definition agent gets: egress first, then the tenant's own key.
+            var built = await registration
+                .BuildFactoryAgentAsync(_services, _models.CreateChatClientAsync, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (built.Agent is { } agent)
+            {
+                DiagnoseModelRings(registration, agent, built.DeclaredChatClient, cancellationToken);
+            }
+
+            return built.Agent;
         }
 
         return await _compiler
@@ -131,17 +144,26 @@ internal sealed partial class CodeAgentSource : IAgentSource
     }
 
     /// <summary>
-    /// Warns, once per agent name, when a factory agent talks to a model through a chat
-    /// client that did not come from <see cref="IModelProviderRegistry"/>.
+    /// Warns, once per agent name, when the model calls of a factory agent do not match what it declared.
     /// </summary>
-    /// <param name="agentName">The agent name.</param>
+    /// <param name="registration">The registration of the agent.</param>
     /// <param name="agent">The agent the factory returned.</param>
+    /// <param name="declaredChatClient">The client Tracon built for the declared model, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">The caller's token; a genuine cancellation is never swallowed.</param>
     /// <remarks>
     /// <para>
     /// The registry wraps every client it builds in <see cref="ProviderFailureNormalizingChatClient"/>
     /// as the outermost ring. <c>GetService</c> walks the chat client chain, so finding that type
-    /// proves the client came from the registry, even when the consumer wrapped it further.
+    /// proves the client came from the registry, even when the consumer wrapped it further. Its
+    /// <em>instance</em> tells which client: the agent of a factory that declared its model must hold the
+    /// ring of <paramref name="declaredChatClient"/>, or its calls skip the key and the egress policy the
+    /// declaration promised and are priced at a model that did not answer.
+    /// </para>
+    /// <para>
+    /// Three cases warn. An agent with no declared model whose client is not from the registry skips the
+    /// model rings. An agent with no declared model whose client is from the registry carries no model,
+    /// cost, tenant key or egress policy. An agent with a declared model that does not use the client
+    /// Tracon gave it is not what it declared.
     /// </para>
     /// <para>
     /// An agent that exposes no <see cref="IChatClient"/> is unknown, not bypassed: it may call
@@ -149,29 +171,65 @@ internal sealed partial class CodeAgentSource : IAgentSource
     /// whose <c>GetService</c> throws still resolves, and the warning is skipped.
     /// </para>
     /// </remarks>
-    private void WarnWhenModelRingsAreBypassed(string agentName, AIAgent agent, CancellationToken cancellationToken)
+    private void DiagnoseModelRings(
+        CodeAgentRegistration registration,
+        AIAgent agent,
+        IChatClient? declaredChatClient,
+        CancellationToken cancellationToken)
     {
-        if (agent is null || _bypassWarned.ContainsKey(agentName) || !_logger.IsEnabled(LogLevel.Warning))
+        var agentName = registration.Name;
+
+        if (_bypassWarned.ContainsKey(agentName) || !_logger.IsEnabled(LogLevel.Warning))
         {
             return;
         }
 
+        ProviderFailureNormalizingChatClient? ring;
+
         try
         {
-            if (agent.GetService<IChatClient>() is not { } chatClient
-                || chatClient.GetService<ProviderFailureNormalizingChatClient>() is not null)
+            if (agent.GetService<IChatClient>() is not { } chatClient)
             {
                 return;
             }
+
+            ring = chatClient.GetService<ProviderFailureNormalizingChatClient>();
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             return;
         }
 
+        if (declaredChatClient is not null && registration.Model is { } model)
+        {
+            var declaredRing = declaredChatClient.GetService<ProviderFailureNormalizingChatClient>();
+
+            if (ring is not null && ReferenceEquals(ring, declaredRing))
+            {
+                return;
+            }
+
+            if (_bypassWarned.TryAdd(agentName, 0))
+            {
+                DeclaredModelNotUsed(_logger, agentName, model.Provider, model.Model);
+            }
+
+            return;
+        }
+
+        if (ring is null)
+        {
+            if (_bypassWarned.TryAdd(agentName, 0))
+            {
+                ModelRingsBypassed(_logger, agentName);
+            }
+
+            return;
+        }
+
         if (_bypassWarned.TryAdd(agentName, 0))
         {
-            ModelRingsBypassed(_logger, agentName);
+            ModelNotDeclared(_logger, agentName);
         }
     }
 
@@ -180,9 +238,29 @@ internal sealed partial class CodeAgentSource : IAgentSource
         Level = LogLevel.Warning,
         Message = "Code agent '{AgentName}' was built with a chat client that did not come from " +
                   "IModelProviderRegistry. Its model calls skip the model rings: run budget, circuit breaker, " +
-                  "fallback, response cache, content guards, and provider failure normalization. Build the client " +
-                  "with IModelProviderRegistry.CreateChatClient, or serve the agent from an IAgentSource that " +
-                  "calls CreateChatClientAsync, which also applies the tenant provider key and egress policy. " +
+                  "fallback, response cache, content guards, and provider failure normalization. Declare the model " +
+                  "with AddAgent(name, model, factory) and build the agent around AgentFactoryContext.ChatClient, " +
+                  "which also applies the tenant provider key and egress policy and names the model in the run record. " +
                   "This message is written once per agent name.")]
     private static partial void ModelRingsBypassed(ILogger logger, string agentName);
+
+    [LoggerMessage(
+        EventId = 2,
+        Level = LogLevel.Warning,
+        Message = "Code agent '{AgentName}' calls a model through IModelProviderRegistry but declares none. " +
+                  "Its calls use the key you set up at start, not the key of the tenant of the run, and skip the " +
+                  "tenant's egress policy; its run records carry no model and no cost, and a cost quota does not stop it. " +
+                  "Declare the model with AddAgent(name, model, factory) and build the agent around AgentFactoryContext.ChatClient. " +
+                  "This message is written once per agent name.")]
+    private static partial void ModelNotDeclared(ILogger logger, string agentName);
+
+    [LoggerMessage(
+        EventId = 3,
+        Level = LogLevel.Warning,
+        Message = "Code agent '{AgentName}' declares the model '{Provider}/{Model}' but its chat client is not " +
+                  "AgentFactoryContext.ChatClient. Its model calls do not use the tenant provider key or the egress policy " +
+                  "that the declaration promises, and its run records price them at the declared model, which may not be the " +
+                  "model that answered. Build the agent around AgentFactoryContext.ChatClient. " +
+                  "This message is written once per agent name.")]
+    private static partial void DeclaredModelNotUsed(ILogger logger, string agentName, string provider, string model);
 }

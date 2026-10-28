@@ -46,6 +46,77 @@ public static partial class TraconBuilderExtensions
         return builder.AddTool(tool, static _ => { });
     }
 
+    /// <summary>Registers a tool that the container builds, so the tool can take its dependencies at setup.</summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="factory">Builds the tool from the host's service provider.</param>
+    /// <param name="configure">Configures the tool metadata.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/>, <paramref name="factory"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// A tool does not get dependency injection at call time: Microsoft Agent Framework gives it an
+    /// empty service provider. A tool that needs a service takes it when it is built. This method is
+    /// the place: the factory gets the host's service provider and builds the tool around what it
+    /// resolves. <paramref name="configure"/> runs now, when you register. The factory runs once, when the
+    /// host builds the tool registry, which is at start. Both singletons: the tool is shared by every run
+    /// and every tenant. Use <see cref="AddScopedTool(ITraconBuilder, AIFunction, Action{ToolRegistrationOptions})"/>
+    /// for a tool that needs a fresh scope on every call.
+    /// </para>
+    /// <para>
+    /// The factory must not ask for <see cref="IToolRegistry"/> or for a service that needs it: the registry
+    /// is being built from the result of the factory. Tracon stops the host with a message that names
+    /// this. A factory that returns <see langword="null"/>, or a tool with an invalid name, stops it as well.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddTool(
+    ///            provider =>
+    ///            {
+    ///                var orders = provider.GetRequiredService&lt;IOrderRepository&gt;();
+    ///                return AIFunctionFactory.Create(
+    ///                    (string orderId) => orders.GetAsync(orderId),
+    ///                    "get_order_status");
+    ///            },
+    ///            options => options.RequiredPermission = "orders.read");
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddTool(
+        this ITraconBuilder builder,
+        Func<IServiceProvider, AIFunction> factory,
+        Action<ToolRegistrationOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new ToolRegistrationOptions();
+        configure(options);
+
+        // The factory needs the FINAL provider, so the registration is built lazily, as AddScopedTool does.
+        builder.Services.AddSingleton<TraconToolRegistration>(provider => ToolRegistrationMapping.FromOptions(
+            factory(provider) ?? throw new TraconException(
+                "The factory passed to AddTool returned null. A tool factory returns the tool it built."),
+            options));
+        return builder;
+    }
+
+    /// <summary>Registers a tool that the container builds, with default metadata.</summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="factory">Builds the tool from the host's service provider.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// See <see cref="AddTool(ITraconBuilder, Func{IServiceProvider, AIFunction}, Action{ToolRegistrationOptions})"/>.
+    /// </remarks>
+    public static ITraconBuilder AddTool(this ITraconBuilder builder, Func<IServiceProvider, AIFunction> factory)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(factory);
+        return builder.AddTool(factory, static _ => { });
+    }
+
     /// <summary>Registers a tool that runs inside its own dependency-injection scope on every call.</summary>
     /// <param name="builder">The Tracon configuration chain.</param>
     /// <param name="tool">The tool to register.</param>

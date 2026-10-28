@@ -201,16 +201,19 @@ public sealed class EvalBaselineGateTests
 
     private static Task<RealHttpHost> StartHostAsync()
         => RealHttpHost.StartAsync(
-            configureServices: static services => services.UseScheduling(options =>
-                options.PollInterval = TimeSpan.FromMilliseconds(50)),
-            configureTracon: static builder => builder
+            configureTracon: static builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage())
                 .AddAgent(new AgentDefinition
                 {
                     Name = AgentName,
                     Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
                     Origin = AgentDefinitionOrigin.Code,
-                }));
+                });
+                builder.UseScheduling(options =>
+                options.PollInterval = TimeSpan.FromMilliseconds(50));
+            });
 
     private static async Task<IReadOnlyList<Guid>> CreateSuiteAsync(
         RealHttpHost host,

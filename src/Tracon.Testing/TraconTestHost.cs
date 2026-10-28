@@ -21,8 +21,7 @@ namespace Tracon.Testing;
 /// <c>AIFunctionArguments.Services</c> is empty in the MAF pipeline: a
 /// dependency your own tool needs is <strong>not resolved from DI</strong>. Take
 /// the dependency in the tool's CONSTRUCTOR and register it through a factory
-/// with <c>services.AddSingleton(provider =&gt; new
-/// TraconToolRegistration(new MyTool(provider)) { ... })</c>.
+/// with <c>tracon.AddTool(provider =&gt; new MyTool(provider))</c>.
 /// </para>
 /// </remarks>
 public sealed class TraconTestHost : IAsyncDisposable

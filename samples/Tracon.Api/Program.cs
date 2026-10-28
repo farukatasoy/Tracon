@@ -523,7 +523,7 @@ tracon.AddSpeechSynthesizer(ToneSpeechSynthesizer.Name, static _ => new ToneSpee
 // run_budget_exceeded, and GET /tracon/api/runs/{id}/tools lists both calls, the second as failed.
 // The tool is registered with a factory: it reads the price table at setup, because Microsoft Agent
 // Framework hands a tool an empty service provider at call time (K-218).
-tracon.Services.AddSingleton(provider => new TraconToolRegistration(NarrateTool.Create(TonePricing.From(provider))));
+tracon.AddTool(provider => NarrateTool.Create(TonePricing.From(provider)));
 
 // A local model server example (Ollama/LM Studio). Setup is the SAME call as
 // any OpenAI-compatible endpoint; the only difference is omitting ApiKey (the
@@ -640,6 +640,32 @@ tracon
         Model = new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoNarratorModel },
         ToolNames = [NarrateTool.Name],
     })
+
+    // A factory agent that declares its model (phase 258). The factory builds the agent, so it owns the
+    // instructions and the tools; Tracon builds the chat client for the declared model and hands it over as
+    // context.ChatClient. That client carries the tenant's own provider key and egress policy, and the declared
+    // model is the model of the run record, so the run is priced and a cost quota applies. The tool is the one
+    // registered above with tracon.AddTool(provider => ...), taken from the tool registry so its approval,
+    // timeout and usage report still apply.
+    //
+    //   POST /tracon/api/agents/factory-narrator/run  {"message":"Narrate this sentence."}
+    //   GET  /tracon/api/runs/{id}         -> modelId is the declared model, cost is filled
+    //   GET  /tracon/api/runs/{id}/tools   -> the narrate call
+    .AddAgent(
+        "factory-narrator",
+        openAiEnabled ? model : new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoNarratorModel },
+        context => context.ChatClient.AsAIAgent(new ChatClientAgentOptions
+        {
+            Name = context.AgentName,
+            ChatOptions = new ChatOptions
+            {
+                Instructions = "Narrate the text the user sends with the narrate tool, then confirm in one sentence.",
+                Tools = [context.Services.GetRequiredService<IToolRegistry>().TryGet(NarrateTool.Name, out var narrate)
+                    ? narrate
+                    : throw new InvalidOperationException("The narrate tool is not registered.")],
+            },
+        }),
+        description: "A factory agent that declares its model and calls the narrate tool.")
 
     // Agent-calls-agent. The router itself does not use a tool; it hands the
     // work off to the specialist agent. Each hand-off produces a SEPARATE

@@ -161,13 +161,13 @@ public sealed class AgentBatchParameterTests
             builder =>
             {
                 builder.AddModelProvider(provider);
-                builder.Services.AddJobHandler<NoopHandler>("app.custom");
-            },
-            configureServices: services => services.UseScheduling(options =>
-            {
-                options.RunWorker = false;
-                options.HttpSchedulableHandlerKeys.Add("app.custom");
-            }));
+                builder.AddJobHandler<NoopHandler>("app.custom");
+                builder.UseScheduling(options =>
+                {
+                    options.RunWorker = false;
+                    options.HttpSchedulableHandlerKeys.Add("app.custom");
+                });
+            });
 
         using var saved = await host.Client.PutAsJsonAsync(
             "/tracon/api/schedules/custom",
@@ -204,15 +204,18 @@ public sealed class AgentBatchParameterTests
 
     private static Task<TraconTestHost> StartAsync(FakeModelProvider provider)
         => TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(Definition(Required, new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }))
-                .AddAgent(Definition(DefaultsOnly, new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, DefaultValue = "friend" })),
-            configureServices: services => services.UseScheduling(options =>
-            {
-                options.RunWorker = true;
-                options.PollInterval = TimeSpan.FromMilliseconds(20);
-            }));
+                .AddAgent(Definition(DefaultsOnly, new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, DefaultValue = "friend" }));
+                builder.UseScheduling(options =>
+                {
+                    options.RunWorker = true;
+                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                });
+            });
 
     /// <summary>Saves a schedule, triggers it and waits for the job to finish.</summary>
     private static async Task<BatchOutcome> RunBatchAsync(TraconTestHost host, string agent, string[] items)

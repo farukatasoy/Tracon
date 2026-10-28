@@ -39,15 +39,16 @@ public sealed class JobMetricEndToEndTests
         using var collector = new MeterInstanceCollector(meterFactory.Meter);
 
         await using var host = await TraconTestHost.StartAsync(
+            configureTracon: tracon =>
+            tracon.UseScheduling(static options =>
+                {
+                    options.RunWorker = true;
+                    options.PollInterval = TimeSpan.FromMilliseconds(50);
+                }),
             configureServices: services =>
             {
                 services.AddSingleton<IMeterFactory>(meterFactory);
                 services.Configure<TraconOptions>(options => options.Observability.IncludeTenantTag = includeTenantTag);
-                services.UseScheduling(static options =>
-                {
-                    options.RunWorker = true;
-                    options.PollInterval = TimeSpan.FromMilliseconds(50);
-                });
             });
 
         await host.Client.PutAsJsonAsync(
@@ -100,10 +101,11 @@ public sealed class JobMetricEndToEndTests
         using var collector = new MeterInstanceCollector(meterFactory.Meter);
 
         await using var host = await TraconTestHost.StartAsync(
+            configureTracon: tracon =>
+            tracon.UseScheduling(static options => options.RunWorker = false),
             configureServices: services =>
             {
                 services.AddSingleton<IMeterFactory>(meterFactory);
-                services.UseScheduling(static options => options.RunWorker = false);
             });
 
         await host.Client.PutAsJsonAsync(
@@ -146,8 +148,12 @@ public sealed class JobMetricEndToEndTests
         // Without the schema gate the first depth query reaches SQLite before
         // the tables exist and logs a refresh failure.
         await using var host = await TraconTestHost.StartAsync(
-            configureTracon: builder => builder
-                .UseSqlite(options => options.ConnectionString = database.ConnectionString),
+            configureTracon: builder =>
+            {
+                builder
+                .UseSqlite(options => options.ConnectionString = database.ConnectionString);
+                builder.UseScheduling(static options => options.RunWorker = false);
+            },
             configureServices: services =>
             {
                 services.AddSingleton<IMeterFactory>(meterFactory);
@@ -156,7 +162,6 @@ public sealed class JobMetricEndToEndTests
                     options.Observability.EnableJobQueueDepthGauge = true;
                     options.Observability.JobQueueDepthRefreshInterval = TimeSpan.FromMilliseconds(100);
                 });
-                services.UseScheduling(static options => options.RunWorker = false);
             });
 
         await host.Client.PutAsJsonAsync(

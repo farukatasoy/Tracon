@@ -359,9 +359,12 @@ public sealed class ExperimentEndpointTests
     private static async Task<TraconTestHost> StartQueuedHostAsync(FakeModelProvider provider)
     {
         var host = await TraconTestHost.StartAsync(
-            builder => builder.AddModelProvider(provider),
-            configureServices: static services => services.UseScheduling(
-                static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.UseScheduling(
+                static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         var model = new ModelBinding { Provider = "arm-provider", Model = "arm-1" };
 

@@ -9,6 +9,10 @@ Tracon.AgentDefinitionRequest.Name
 Tracon.AgentDescriptor.Name
 Tracon.AgentDescriptor.Origin
 Tracon.AgentDescriptor.SourceName
+Tracon.AgentFactoryContext.AgentName
+Tracon.AgentFactoryContext.ChatClient
+Tracon.AgentFactoryContext.Model
+Tracon.AgentFactoryContext.Services
 Tracon.AgentParameter.Kind
 Tracon.AgentParameter.Name
 Tracon.AgentParameterValidationError.Code

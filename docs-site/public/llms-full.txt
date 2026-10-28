@@ -47,7 +47,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Capability | What it gives you | Enable or define it | Boundary |
 |---|---|---|---|
 | Declarative agents | Instructions, model binding, tools, skills, callable agents, metadata, and runtime policy as data | `ITraconBuilder.AddAgent(AgentDefinition)` | A code definition wins a name collision with a database definition |
-| Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies Tracon decorators. The agent skips the compiler: model rings only through `IModelProviderRegistry.CreateChatClient` (one warning per agent name if the chat client skips it), and no tenant provider key, egress policy, or cost; a custom agent source can apply those three. See [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) |
+| Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, model, factory)` | The catalog still applies Tracon decorators. The agent skips the compiler. With a declared model, `context.ChatClient` carries the model rings, the tenant provider key, and the egress policy, and the run record names the model and its cost; a request field on the binding is refused. `AddAgent(name, factory)` declares no model: it loses the key, the egress policy, and cost, and Tracon writes one warning per agent name. See [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) |
 | Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider` or a chat client ring, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
@@ -100,6 +100,7 @@ decisions can be overridden or composed with your own rules — see
 |---|---|---|
 | Generated tools | `[TraconTool]` and `AddGeneratedTools()` | Compile-time discovery without reflection or dynamic code; `minimum`/`maximum`/length/`pattern` constraints from standard `DataAnnotations` attributes reach the schema; a parameter may be a supported object (a public record or class with a single public constructor), up to 3 nested levels deep, bound through the tool's own `JsonSerializerContext` |
 | Direct tools | `AddTool(AIFunction, configure)` | Exact tool instance and its approval, effect, permission, timeout, repeatability, and output policy |
+| Factory tools | `AddTool(provider => tool)` | The tool is built once, from the host's service provider, when the registry is built at start, so it can take a dependency (a tool gets an empty provider at call time). The factory must not ask for `IToolRegistry` |
 | Delegate tools | `AddTool(delegate)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()`, or the overload that takes a type | Only attributed methods become tools; this path uses reflection |
 | Scoped tools | `AddScopedTool` | Every call gets its own DI scope, closed when the call ends |
@@ -163,12 +164,12 @@ is the list.
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
 | Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; an agent's tool call that needs approval is a request of the form `ToolApproval` (approve or refuse it, give a reason, optionally save a rule), where a pattern hosts the agent; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`); `GET /api/workflows/requests` lists the tenant's waiting requests, and a `RequestTimeout` closes a run nobody answered (`run.failed`) so retention can release what it kept |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
-| Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
+| Custom jobs | `AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
 | Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()`, `GetWorkflowFunction` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin (fixed in the graph, or read from a run parameter), and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
 | Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and a spent cost quota of the tenant does too (`tenant_quota_exceeded`), and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one from both; the ceiling is the logical run's, so a run that continues an earlier one (an answer, a resume, a recovery) starts from what the earlier runs spent; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
-| Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
+| Worker control | `UseScheduling()` | A process can run workers or act only as an API node |
 | Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution; an agent run and a workflow run, resume or respond queue the same way |
 | Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice; on the workflow run endpoints only with `Prefer: respond-async` |
 | Singleton execution | `Tracon:SingletonExecution` | A distributed lease selects one active executor for singleton services |
@@ -505,26 +506,36 @@ The catalog merges registered sources, in priority order:
 flowchart LR
     accTitle: Agent catalog sources
     accDescr: Code registrations, database definitions, and custom sources merge into one catalog, with lower priority values winning name collisions.
-    C["Code<br/>AddAgent(definition) or AddAgent(name, factory)"] --> CAT["IAgentCatalog"]
+    C["Code<br/>AddAgent(definition) or AddAgent(name, model, factory)"] --> CAT["IAgentCatalog"]
     D["Database<br/>definitions written through the API"] --> CAT
     X["Custom<br/>IAgentSource registration"] --> CAT
     CAT --> R["ResolveAsync(name)"]
 ```
 
-`AddAgent(name, factory)` is a code registration too — the factory returns a MAF
+`AddAgent(name, model, factory)` is a code registration too — the factory returns a MAF
 `AIAgent` directly, built however you want, and the catalog still applies Tracon's
 decorators (recording, telemetry, approval) when it resolves the agent. The factory
-runs on every resolve, and its agent does not pass through the compiler. It keeps
-the model rings (run budget, circuit breaker, fallback, response cache, content
-guards, the `chat` span) only when it builds its chat client with
-`IModelProviderRegistry.CreateChatClient`. That synchronous call applies no tenant
-provider key and no egress policy, and the run records no model, so it has no cost.
-An agent source that returns its own agent can apply all three: it builds the client
-with `CreateChatClientAsync` and names the model in its `AgentDescriptor`.
-If the chat client of a factory agent does not come from that registry, Tracon writes
-one warning for the agent name. [Use any Microsoft Agent Framework
-feature](/guides/any-maf-feature/) compares this door with the decorator and the custom
-source.
+runs on every resolve, and its agent does not pass through the compiler. You declare
+the model, and Tracon builds the chat client for it and hands it to the factory as
+`context.ChatClient`. That client carries the model rings (run budget, circuit
+breaker, fallback, response cache, content guards, the `chat` span), the tenant's own
+provider key, and the tenant's egress policy. The model you declared is the model of
+the agent in the catalog, so the run record names it and prices the run, a cost quota
+stops the agent, and `POST /api/agents/{name}/estimate` answers.
+
+The factory builds its own `ChatOptions`, so a request field on the binding
+(`Temperature`, `MaxOutputTokens`, `ResponseFormat` and the rest) is refused when you
+register: Tracon would ignore it. Set the field in the factory.
+
+`AddAgent(name, factory)` declares no model. A client that factory builds with
+`IModelProviderRegistry.CreateChatClient` keeps the model rings, but that synchronous
+call applies no tenant provider key and no egress policy, and the run records no
+model, so it has no cost. Tracon writes one warning for the agent name when it sees
+this, and when the chat client does not come from the registry at all. Use that form
+for an agent that does not call a model through Tracon. [Use any Microsoft Agent
+Framework feature](/guides/any-maf-feature/) compares the doors, and [Move an agent
+from AddAIAgent to Tracon](/guides/from-maf-hosting/) maps the MAF hosting calls to
+them.
 
 An application can add an `IAgentSource` for definitions stored outside Tracon or
 for agents owned by another runtime. Custom-source agents are visible in the console
@@ -7148,16 +7159,16 @@ tracon.AddTool(GetOrderStatus);
 
 // Right — the dependency is captured when the tool is registered.
 // The factory runs once, on the final service provider, when Tracon builds its
-// tool registry. Register before builder.Build(): the service collection is
-// read-only after it, and a registration added then throws.
-builder.Services.AddSingleton(provider =>
+// tool registry at start. Register before builder.Build(): the service collection
+// is read-only after it, and a registration added then throws.
+tracon.AddTool(provider =>
 {
     var repository = provider.GetRequiredService<IOrderRepository>();
 
-    return new TraconToolRegistration(AIFunctionFactory.Create(
+    return AIFunctionFactory.Create(
         (string orderId) => repository.Find(orderId).Status,
         "get_order_status",
-        "Returns the shipping status of an order."));
+        "Returns the shipping status of an order.");
 });
 ```
 
@@ -7453,12 +7464,14 @@ question is what the agent loses on the way. This page puts the ways in order, l
 first, and says what each one keeps and loses.
 
 Every code block on this page comes from `samples/Tracon.Samples.MafFeatures`. That
-sample builds against the packed packages. Its test project checks six claims: the
+sample builds against the packed packages. Its test project checks eight claims: the
 decorator sees the tool calls of every door, the custom source uses the tenant's own
-key, the custom source records cost, the egress policy reaches the custom source and
-not the factory agent, an agent extension adds a context provider to an agent defined
-as data without losing the tenant's key or cost, and a chat client ring that an extension
-adds sees every model call of that agent.
+key and records cost, a factory agent that declares its model does the same, the egress
+policy reaches the custom source and the factory agent that declares its model, it does
+not reach a factory agent that declares none, that agent uses the setup key and records no
+cost, and Tracon says so once, an agent extension adds a context provider to an agent
+defined as data without losing the tenant's key or cost, and a chat client ring that an
+extension adds sees every model call of that agent.
 
 ## The coverage ladder
 
@@ -7483,7 +7496,7 @@ Start at the top of the diagram and stop at the first door that fits.
 ```mermaid
 flowchart TD
     accTitle: Which door reaches a framework feature
-    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. A framework option, a full context provider, or a chat client ring on an agent that a definition describes goes in an agent extension. Anything else needs an agent that code builds. If you need the tenant key, the egress policy, or cost, use a custom agent source. If you do not, use a factory agent.
+    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. A framework option, a full context provider, or a chat client ring on an agent that a definition describes goes in an agent extension. Anything else needs an agent that code builds. An agent that does not live in your code, such as one from a repository or another runtime, comes from a custom agent source. An agent in your code that calls a model through Tracon is a factory agent that declares its model, and it keeps the tenant key, the egress policy, and cost. An agent in your code that does not call a model through Tracon is a factory agent that declares none.
     START["A framework feature you want to use"] --> GRAPH{"Is it a workflow graph?"}
     GRAPH -->|yes| WF["Code workflow<br/>AddWorkflow"]
     GRAPH -->|no| DI{"Does Tracon read the type<br/>from the container?"}
@@ -7492,9 +7505,11 @@ flowchart TD
     MW -->|yes| DEC["Agent decorator"]
     MW -->|no| OPT{"Is it a framework option, a full context provider,<br/>or a chat client ring, on an agent that a definition describes?"}
     OPT -->|yes| EXT["Agent extension"]
-    OPT -->|no| KEY{"Do you need the tenant key,<br/>the egress policy, or cost?"}
-    KEY -->|yes| SRC["Custom agent source"]
-    KEY -->|no| FAC["Factory agent"]
+    OPT -->|no| LIVE{"Does the agent live<br/>in your code?"}
+    LIVE -->|no| SRC["Custom agent source"]
+    LIVE -->|yes| MODEL{"Does it call a model<br/>through Tracon?"}
+    MODEL -->|yes| FACM["Factory agent<br/>that declares its model"]
+    MODEL -->|no| FAC["Factory agent<br/>that declares none"]
 ```
 
 | Door | Use it when | What you keep | What you lose |
@@ -7502,8 +7517,9 @@ flowchart TD
 | Container registration | Tracon reads the type from the container | Everything | Nothing |
 | Agent decorator | The feature is agent middleware, tool middleware, or a message context provider | Everything: the model rings, the tenant key, the egress policy, cost | A full context provider |
 | Agent extension | The feature is a framework option, a full context provider, or a chat client ring, and a definition describes the agent | Everything a decorator keeps, plus the definition: console editing, versions, validation | The options the definition owns are protected. A tool that your provider adds skips the tool chain |
-| Factory agent | Code builds the agent and you need none of the three below | The run record, the model rings (through the registry), the wrapped tools | The tenant key, the egress policy, cost |
-| Custom agent source | Code builds the agent and you need the tenant key, the egress policy, or cost | All of the above, plus the tenant key, the egress policy, and cost | Console editing and the features the compiler wires |
+| Factory agent that declares its model | Code builds the agent and it calls a model through Tracon | The run record, the model rings, the tenant key, the egress policy, cost, the wrapped tools | Console editing, the request fields on the binding (set them in the factory), and the features the compiler wires |
+| Factory agent that declares none | Code builds the agent and it does not call a model through Tracon, such as a wrapper of another runtime | The run record and the wrapped tools; the model rings if you build the client from the registry | The tenant key, the egress policy, cost |
+| Custom agent source | The agents live outside your code: a repository, or another runtime | The same as a factory agent that declares its model | Console editing and the features the compiler wires |
 | Code workflow | The feature is a graph | The graph, in full | Events that Tracon does not map |
 
 ## Register it in the container
@@ -7547,8 +7563,8 @@ decorator outside run recording receives Tracon's own run options, and the middl
 rejects them.
 
 The decorator sees every agent. To act on one agent only, check `descriptor.Name`. The
-sample tests run this decorator against three agents: one defined as data, one from a
-factory, and one from a custom source. It sees the tool call of all three.
+sample tests run this decorator against four agents: one defined as data, two from
+factories, and one from a custom source. It sees the tool call of all four.
 
 A decorator cannot add a full context provider, one that adds tools or instructions.
 `UseAIContextProviders` takes only message providers. For a full provider on an agent that
@@ -7741,70 +7757,115 @@ What to know about this door:
 
 ## Build the agent in a factory
 
-`AddAgent(name, factory)` takes a factory that returns any MAF `AIAgent`. Tracon records
-the run and applies its decorators. The agent skips the definition compiler, so the
-factory has to ask for each piece it wants to keep:
+`AddAgent(name, model, factory)` takes the model the agent calls and a factory that returns
+any MAF `AIAgent`. Tracon builds the chat client for that model, with the tenant's own
+provider key and the tenant's egress policy, and hands it to the factory as
+`context.ChatClient`. Tracon records the run and applies its decorators. The agent skips
+the definition compiler, so the factory has to ask for each other piece it wants to keep:
 
 ```csharp
-// The registry builds the model rings: run budget, circuit breaker,
-// fallback, response cache, content guards, and the 'chat' span. This
-// synchronous call applies no tenant key and no egress policy.
-var chatClient = services.GetRequiredService<IModelProviderRegistry>().CreateChatClient(model);
-
-// The registry returns the wrapped tool: authorization, validation,
-// timeout, truncation, and approval stay on.
-if (!services.GetRequiredService<IToolRegistry>().TryGet(SearchOrdersToolRegistration.ToolName, out var searchOrders))
-{
-    throw new InvalidOperationException($"The tool '{SearchOrdersToolRegistration.ToolName}' is not registered.");
-}
-
-return chatClient.AsAIAgent(new ChatClientAgentOptions
-{
-    Name = AgentName,
-    ChatOptions = new ChatOptions
+return builder.AddAgent(
+    AgentName,
+    model,
+    context =>
     {
-        Instructions = "Answer questions about orders. Look orders up with the search tool.",
-        Tools = [searchOrders],
+        // The registry returns the wrapped tool: authorization, validation,
+        // timeout, truncation, and approval stay on.
+        if (!context.Services.GetRequiredService<IToolRegistry>().TryGet(SearchOrdersToolRegistration.ToolName, out var searchOrders))
+        {
+            throw new InvalidOperationException($"The tool '{SearchOrdersToolRegistration.ToolName}' is not registered.");
+        }
+
+        // The client carries the model rings (run budget, circuit breaker, fallback,
+        // response cache, content guards, the 'chat' span), the tenant's key, and the
+        // egress policy. Build the agent around it and nothing else.
+        return context.ChatClient.AsAIAgent(new ChatClientAgentOptions
+        {
+            Name = context.AgentName,
+            ChatOptions = new ChatOptions
+            {
+                Instructions = "Answer questions about orders. Look orders up with the search tool.",
+                Tools = [searchOrders],
+            },
+
+            // Tracon's history store, so the console and /v1/conversations show the
+            // turns. With SQL storage, leaving this out leaves both of them empty.
+            ChatHistoryProvider = context.Services.GetService<ChatHistoryProvider>(),
+
+            // Any framework provider or option is now yours.
+            AIContextProviders = [new TodoProvider(new TodoProviderOptions())],
+        });
     },
-
-    // Tracon's history store, so the console and /v1/conversations show the
-    // turns. With SQL storage, leaving this out leaves both of them empty.
-    ChatHistoryProvider = services.GetService<ChatHistoryProvider>(),
-
-    // Any framework provider or option is now yours.
-    AIContextProviders = [new TodoProvider(new TodoProviderOptions())],
-});
+    description: "A factory agent that declares its model and answers questions about orders.");
 ```
 
-What a factory agent keeps, and how:
+What a factory agent that declares its model keeps, and how:
 
 | Piece | Kept? | How |
 |---|---|---|
 | Run row, events, tool-call record, usage, cancellation, webhooks, error class, input record, replay | Yes | Automatic. Run recording wraps every agent. |
 | `invoke_agent` span and saved approval rules | Yes | Automatic. |
 | Sessions, `/v1/*`, A2A and MCP publication, being called as a sub-agent | Yes | Automatic. |
-| The model rings | Yes | Build the chat client with `IModelProviderRegistry.CreateChatClient`. |
+| The model rings | Yes | Build the agent around `context.ChatClient`. |
+| The tenant's own provider key and the egress policy | Yes | The client in `context.ChatClient` is built for the tenant of the run. |
+| Cost, model breakdown, cost quota, and `POST /api/agents/{name}/estimate` | Yes | The declared model is the model of the agent in the catalog. |
 | The tool chain: authorization, validation, timeout, truncation, approval flag | Yes | Take the tool from `IToolRegistry.TryGet`. |
 | History in the console and in `GET /v1/conversations/{id}/items` | Yes | Pass the `ChatHistoryProvider` from the container. |
-| The tenant's own provider key and the egress policy | **No** | The factory is synchronous. Use a custom agent source. |
-| Cost, model breakdown, and cost quota | **No** | The descriptor of a factory agent names no model. Use a custom agent source. |
+| The request fields: temperature, maximum output tokens, response format and the rest | **No** | The factory builds its own `ChatOptions`. A binding that sets one is refused when you register, with the field named. Set it in the factory. |
 
-Three facts about this door:
+Four facts about this door:
 
 - **The history provider matters on SQL storage.** With the in-memory store, the turn
   shows in the console and in `/v1/conversations/{id}/items` whether or not the agent
   uses the provider from the container. With a SQL store, both stay empty unless the
   agent uses it. The sample passes it.
-- **The factory runs on every resolve.** Keep it cheap, and keep state out of it.
-- **Tracon warns about a bypassed registry.** If the chat client of a factory agent did
-  not come from `IModelProviderRegistry`, Tracon writes one warning for that agent name
-  the first time the catalog resolves it. An agent that exposes no chat client gets no
-  warning.
+- **The factory runs on every resolve, and Tracon keeps nothing.** The client holds the
+  key of one tenant. Do not keep the agent, or the client, in a field or a cache that
+  outlives the call: another tenant would use the first tenant's key. Keep the factory
+  cheap, and keep state out of it. A factory that awaits takes
+  `Func<AgentFactoryContext, CancellationToken, ValueTask<AIAgent>>` and gets the token of the
+  resolve.
+- **The factory builds the agent. It does not call the model.** The detail view of the agent
+  (`GET /api/agents/{name}`) calls the factory to read the instructions, and builds the
+  client without the tenant's key.
+- **Tracon warns when the agent does not use the client it was given.** If the agent's chat
+  client is not `context.ChatClient`, because it comes from another registry call or from
+  outside the registry, Tracon writes one warning for that agent name the first time the
+  catalog resolves it. The run would be priced at a model that did not answer. An agent that
+  exposes no chat client gets no warning.
+
+### Declare no model
+
+`AddAgent(name, factory)` declares no model. Use it for an agent that does not call a model
+through Tracon, such as a wrapper of another runtime. The sample keeps one for the
+comparison:
+
+```csharp
+return builder.AddAgent(
+    AgentName,
+    services =>
+    {
+        // This synchronous call applies no tenant key and no egress policy.
+        var chatClient = services.GetRequiredService<IModelProviderRegistry>().CreateChatClient(model);
+
+        // ...the same tool and agent options...
+    },
+    description: "A factory agent that declares no model.");
+```
+
+Tracon does not know which model this agent calls. The client the factory builds from the
+registry has the model rings, but it uses the key set up at start and skips the tenant's egress
+policy. The run record has no model and no cost, and a cost quota does not stop the agent.
+Tracon writes one warning for the agent name when it sees an agent of this kind call a model
+through the registry, and one when the chat client does not come from the registry at all.
+Both warnings name `AddAgent(name, model, factory)` as the way out.
 
 ## Build the agent in a custom source
 
-A factory is synchronous, and its descriptor names no model. An `IAgentSource` has
-neither limit. Its `ResolveAsync` is asynchronous, so it can call
+Write a custom source when the agents do not live in your code: they come from a
+repository, a database of your own, or another runtime. An agent that code builds needs no
+source, because `AddAgent(name, model, factory)` gives the factory the same client. An
+`IAgentSource` builds its agents on demand. Its `ResolveAsync` is asynchronous, so it can call
 `CreateChatClientAsync`, which applies the tenant's own provider key and egress policy.
 Its `ListAsync` returns a descriptor that names the model, and run recording prices the
 run from that model. The sample describes its agent like this:
@@ -7849,9 +7910,11 @@ return chatClient.AsAIAgent(new ChatClientAgentOptions
 
 The sample tests run this agent for a tenant that has its own key. The chat client is
 built with that key, and the run record carries the model and a cost. The same tests run
-the factory agent for the same tenant: its client is built with the setup key, and its
-run record has no model and no cost. They also set an egress policy that forbids the
-provider. The custom source is refused. The factory agent still runs.
+the factory agent that declares its model for the same tenant, with the same result, and
+the factory agent that declares none: its client is built with the setup key, and its run
+record has no model and no cost. They also set an egress policy that forbids the provider.
+The custom source and the factory agent that declares its model are refused. The factory
+agent that declares none still runs.
 
 A custom source does not run the definition compiler. It owns the whole shape of the
 agent. Do not cache an agent whose client carries a tenant's own key across tenants.
@@ -7941,8 +8004,10 @@ These losses have no door that removes them:
 - **Everything a definition gives.** A code-built agent cannot take parameterized,
   per-culture, or shared instructions. It has no versions, experiments, rollback, or
   validation when you save, and you cannot edit it in the console.
-- **The tenant key, the egress policy, and cost on a factory agent.** A custom agent
-  source gets all three.
+- **The response format of a factory agent.** `ResponseFormat` is a request field, so a
+  factory agent cannot declare it, and the validator that checks a structured response runs
+  for agents defined as data. Set the format in the factory's `ChatOptions` and validate the
+  answer in your own code.
 
 ## Checklist
 
@@ -7951,10 +8016,11 @@ Answer these five questions before you write a factory agent:
 1. Can a decorator or an agent extension do the job? If the feature is middleware, a
    message provider, a framework option, a full context provider, or a chat client ring, one
    of them can, and you keep every ring.
-2. Do you need the tenant's own key, the egress policy, or cost? If yes, use a custom
-   agent source.
-3. Does the factory build its chat client with `IModelProviderRegistry`? If not, the
-   model rings are off, and Tracon logs a warning.
+2. Does the agent call a model through Tracon? If yes, declare the model with
+   `AddAgent(name, model, factory)`, so you keep the tenant's own key, the egress policy,
+   and cost. If the agents live outside your code, use a custom agent source.
+3. Does the factory build the agent around `context.ChatClient`? If not, the model rings,
+   the key, and the egress policy are off, and Tracon logs a warning.
 4. Does the agent take its tools from `IToolRegistry` and its history from the
    container? If not, tool policy is off, and the console may show an empty history.
 5. Can the agent live as code? Without console editing, versions, and rollback, and
@@ -7963,7 +8029,7 @@ Answer these five questions before you write a factory agent:
 
 ## Read next
 
-- [Write your own agent decorator](/guides/write-your-own-agent-decorator/) — the decorator door in full, with ordering rules
+- [Move an agent from AddAIAgent to Tracon](/guides/from-maf-hosting/) — the calls of Microsoft Agent Framework hosting, and the Tracon door for each
 - [Write your own agent source](/guides/write-your-own-agent-source/) — the source contract, priority, and tenancy
 - [Agents and definitions](/concepts/agents/) — where the catalog gets its agents
 
@@ -8032,20 +8098,19 @@ changes its settings:
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.UseScheduling(options =>
-{
-    options.RunWorker = true;
-    options.MaxConcurrentJobs = 4;
-    options.PollInterval = TimeSpan.FromSeconds(5);
-    options.LeaseDuration = TimeSpan.FromMinutes(5);
-    options.MaxAttempts = 3;
-    options.MaxItemsPerJob = 1_000;
-});
-
 var tracon = builder.AddTracon()
     .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
     .UsePostgreSql(
-        builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName));
+        builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName))
+    .UseScheduling(options =>
+    {
+        options.RunWorker = true;
+        options.MaxConcurrentJobs = 4;
+        options.PollInterval = TimeSpan.FromSeconds(5);
+        options.LeaseDuration = TimeSpan.FromMinutes(5);
+        options.MaxAttempts = 3;
+        options.MaxItemsPerJob = 1_000;
+    });
 
 var app = builder.Build();
 app.MapTracon("/tracon");
@@ -8456,7 +8521,7 @@ instances. Start one or more worker instances with the same storage, provider, a
 and handler registrations:
 
 ```csharp
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     options.RunWorker = builder.Configuration.GetValue<bool>("Worker:Enabled");
 });
@@ -8477,7 +8542,7 @@ budget, or scope a worker to specific lanes, to stop one kind of work from block
 another:
 
 ```csharp
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     // This process only leases "default" and "media" work.
     options.Lanes = ["default", "media"];
@@ -11508,6 +11573,172 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 - [Tools, skills, and MCP](/concepts/tools/) — the other direction: consuming an MCP server rather than publishing one
 - [Securing the endpoints](/getting-started/security/) — bind exposed agents to authentication, tenant scopes, and execution limits
 - [Compatibility matrices](/reference/compatibility/) — which protocol revisions and transports are supported
+
+---
+
+# Move an agent from AddAIAgent to Tracon
+
+Source: https://tracon.dev/guides/from-maf-hosting/
+
+You built an agent with `AddAIAgent` from Microsoft Agent Framework (MAF) hosting. What
+is the Tracon call for it? This page maps each hosting call to the Tracon call that does the
+same work, and says what you keep and gain on the way. Read it with the code of the
+`samples/Tracon.Samples.MafFeatures` sample open: its tests run the agent mappings against the
+packed packages. The tool block comes from `samples/Tracon.Samples.CustomTool`.
+
+Tracon does not read `AddAIAgent` registrations. An agent you registered with `AddAIAgent`
+is not in the Tracon catalog until you register it again with a Tracon call. The table is
+the list of calls to change.
+
+## Pick the Tracon call
+
+Start from how your MAF agent gets its model, and follow the arrow to the Tracon call.
+
+```mermaid
+flowchart TD
+    accTitle: From a hosting call to the Tracon call
+    accDescr: A decision tree. An AddAIAgent call with instructions only becomes an agent definition with a model binding. An AddAIAgent call with a factory that calls a model becomes AddAgent with a declared model, and Tracon gives the factory the chat client. A factory for an agent that calls no model through Tracon becomes AddAgent with no model. WithAITool becomes AddTool, and a tool that takes a dependency uses the factory form of AddTool.
+    START["An AddAIAgent call"] --> FORM{"What does it take?"}
+    FORM -->|"instructions"| DEF["AddAgent(new AgentDefinition)<br/>with a Model binding"]
+    FORM -->|"a factory"| CALL{"Does the agent call a model<br/>through Tracon?"}
+    CALL -->|yes| DECL["AddAgent(name, model, factory)<br/>Tracon builds the chat client"]
+    CALL -->|no| PLAIN["AddAgent(name, factory)<br/>no model declared"]
+    TOOL["A WithAITool call"] --> DEP{"Does the tool take<br/>a dependency?"}
+    DEP -->|no| ADD["AddTool(tool)"]
+    DEP -->|yes| ADDF["AddTool(provider => tool)"]
+```
+
+## The mapping
+
+| MAF hosting call | Tracon call | What changes |
+|---|---|---|
+| `AddAIAgent(name, instructions)` | `AddAgent(new AgentDefinition { … })` | The agent is data. Tracon compiles it and gives it versions, validation, and console editing. |
+| `AddAIAgent(name, instructions, chatClient)` | `AddAgent(new AgentDefinition { … })` with a `Model` binding | The chat client becomes a model binding that names a provider and a model. See [the model client](#the-model-client). |
+| `AddAIAgent(name, (sp, key) => agent)` | `AddAgent(name, model, context => agent)` | The factory is yours. Tracon builds the chat client and hands it over as `context.ChatClient`. |
+| `AddAIAgent(name, (sp, key) => agent)`, an agent that calls no model through Tracon | `AddAgent(name, sp => agent)` | The agent declares no model. Tracon records the run and nothing more. |
+| `WithAITool(tool)`, `WithAITools(…)` | `AddTool(tool)`, and the agent lists the tool name in `ToolNames` | The tool is registered once, with its policy, and every agent finds it by name. |
+| `WithAITool(sp => tool)` | `AddTool(sp => tool)` | The factory runs once, at start. |
+| `WithSessionStore(…)`, `WithInMemorySessionStore()` | Nothing to write | Tracon keeps the session. Pick a store with `UsePostgreSql` (package `Tracon.PostgreSql`), `UseSqlServer` (`Tracon.SqlServer`), or `UseSqlite` (`Tracon.Sqlite`). |
+| `AddWorkflow(name, (sp, key) => workflow)` | `AddWorkflow(name, factory)` from `Tracon.Workflows` | See [Workflows](/concepts/workflows/). |
+
+## An agent with instructions only
+
+`AddAIAgent(name, instructions)` becomes a definition. The definition names the model, so
+Tracon can build the chat client, price the run, and apply the tenant's own provider key:
+
+```csharp
+builder.AddTracon()
+       .AddAgent(new AgentDefinition
+       {
+           Name = "support-agent",
+           Instructions = "Answer questions about orders. Look orders up with the search tool.",
+           Model = model,
+           ToolNames = [SearchOrdersToolRegistration.ToolName],
+       });
+```
+
+## An agent that your code builds
+
+`AddAIAgent(name, (sp, key) => agent)` gives you the whole agent. In Tracon you keep that, and
+you declare the model the agent calls. Tracon then builds the chat client for the model, with
+the tenant's own provider key and the tenant's egress policy, and the factory builds the agent
+around it:
+
+```csharp
+return builder.AddAgent(
+    AgentName,
+    model,
+    context =>
+    {
+        // The registry returns the wrapped tool: authorization, validation,
+        // timeout, truncation, and approval stay on.
+        if (!context.Services.GetRequiredService<IToolRegistry>().TryGet(SearchOrdersToolRegistration.ToolName, out var searchOrders))
+        {
+            throw new InvalidOperationException($"The tool '{SearchOrdersToolRegistration.ToolName}' is not registered.");
+        }
+
+        // The client carries the model rings (run budget, circuit breaker, fallback,
+        // response cache, content guards, the 'chat' span), the tenant's key, and the
+        // egress policy. Build the agent around it and nothing else.
+        return context.ChatClient.AsAIAgent(new ChatClientAgentOptions
+        {
+            Name = context.AgentName,
+            ChatOptions = new ChatOptions
+            {
+                Instructions = "Answer questions about orders. Look orders up with the search tool.",
+                Tools = [searchOrders],
+            },
+
+            // Tracon's history store, so the console and /v1/conversations show the
+            // turns. With SQL storage, leaving this out leaves both of them empty.
+            ChatHistoryProvider = context.Services.GetService<ChatHistoryProvider>(),
+
+            // Any framework provider or option is now yours.
+            AIContextProviders = [new TodoProvider(new TodoProviderOptions())],
+        });
+    },
+    description: "A factory agent that declares its model and answers questions about orders.");
+```
+
+Three differences from the hosting factory:
+
+- **You do not use the key.** The hosting factory receives a service key that selects a
+  chat client in the container. Tracon does not read the container for the chat client. The
+  model you declare selects a provider, and the provider holds the credential.
+- **A request field is refused.** The factory builds its own `ChatOptions`, so a binding that
+  sets `Temperature`, `MaxOutputTokens`, `ResponseFormat`, or any other request field fails
+  when you register, and the message names the field. Set the field in the factory.
+- **Tracon keeps nothing between calls.** The factory runs on every resolve, and the client
+  holds the key of one tenant. Do not keep the agent, or the client, in a static field or a
+  cache.
+
+## The model client
+
+A hosting agent takes its chat client from the container, selected by a key. That client is
+a `Microsoft.Extensions.AI` `IChatClient` that you registered yourself. In Tracon the
+equivalent is a model provider: `UseOpenAI`, one of the other provider packages, or
+`AddModelProvider` for your own. The provider builds the client from a model binding, which
+is a provider name and a model name. The tenant's key and the egress policy apply to that
+path, and a client you register in the container does not use it.
+
+## A tool that takes a dependency
+
+`WithAITool(sp => tool)` and `AddTool(sp => tool)` are the same idea. The factory gets the host's
+service provider when Tracon builds its tool registry at start, and the tool keeps what the factory
+resolved. A tool does not get the container at call time, in MAF or in Tracon.
+
+```csharp
+return builder.AddTool(
+    static provider => provider.GetRequiredService<OrderFulfillmentTool>().CreateFunction(),
+    static options =>
+    {
+        options.RequiresApproval = true;
+        options.Effect = ToolEffect.External;
+        options.RequiredPermission = "orders.submit";
+        options.Timeout = TimeSpan.FromSeconds(30);
+        options.SafeToRepeat = true;
+        options.MaxOutputBytes = 768;
+    });
+```
+
+Do not ask the factory for `IToolRegistry`. The registry is built from the result of the
+factory, and Tracon stops the host with an error that says so. For a dependency that must be
+new on every call, use `AddScopedTool`.
+
+## What you gain
+
+The agent you move keeps its code. It gains the parts that hosting does not have:
+
+- a run record for every run, with events, usage, and cost;
+- the tenant's own provider key, the egress policy, and the cost quota;
+- the tool chain: authorization, approval, timeout, and output limits;
+- the catalog, the console, and the HTTP API.
+
+## Read next
+
+- [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) — the full list of doors, and what each one keeps
+- [Agents and definitions](/concepts/agents/) — how the catalog gets its agents
+- [Write your own tool](/guides/write-your-own-tool/) — approval, permission, and timeout for a tool
 
 ---
 
@@ -18360,7 +18591,7 @@ not optional. A job names the handler it needs, so the handler is registered
 against that name:
 
 ```csharp
-builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
+tracon.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
 ```
 
 Writing `services.AddSingleton<IJobHandler, NightlyReportJobHandler>()` instead
@@ -18453,9 +18684,14 @@ adds the same model rings a compiled agent gets. Set `AgentDescriptor.Model` in
 run has no cost. Do not cache an agent whose client carries a tenant's own key
 across tenants; `HasTenantProviderOverrideAsync` tells you when it does.
 `samples/Tracon.Samples.MafFeatures` builds such a source, and its tests show the
-tenant's key reach the chat client and the cost reach the run record. [Use any
-Microsoft Agent Framework feature](/guides/any-maf-feature/) says when to choose this
-shape over a factory agent.
+tenant's key reach the chat client and the cost reach the run record.
+
+Write an agent source for agents that do not live in your code: a repository, a
+database of your own, or another runtime. An agent that code builds and that talks to
+a model through Tracon needs no source. `AddAgent(name, model, factory)` hands the
+factory the same chat client, with the tenant's key and egress policy, and names the
+model for the run record. [Use any Microsoft Agent Framework
+feature](/guides/any-maf-feature/) says when each shape fits.
 
 ```csharp
 public async ValueTask<AIAgent?> ResolveAsync(string name, string? culture = null, CancellationToken ct = default)
@@ -18702,11 +18938,11 @@ public sealed class NightlyReportJobHandler(ILogger<NightlyReportJobHandler>? lo
 Register it with the key it answers to:
 
 ```csharp
-builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
+tracon.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
 ```
 
-The worker looks the key up by exact match, so **this call may come before or
-after `AddTracon()`** — registration order never decides which handler
+`tracon` is the chain `builder.AddTracon()` returns. The worker looks the key up by exact
+match, so **the order of the calls on the chain** never decides which handler
 runs, and no handler can shadow another. The handler is registered *scoped*
 and resolved from a fresh scope for every execution, so it may take scoped
 dependencies in its constructor: two jobs running in parallel, and two attempts
@@ -18777,7 +19013,7 @@ allow-list can also narrow the surface. To keep the built-in keys as well, name
 them alongside your own:
 
 ```csharp
-builder.Services.UseScheduling(options =>
+tracon.UseScheduling(options =>
 {
     foreach (var key in JobHandlerKeys.BuiltIn)
     {
@@ -19651,12 +19887,11 @@ public sealed record OrderFilter(string Status, int MinAmount);
 [JsonSerializable(typeof(OrderFilter))]
 internal partial class OrderFilterJsonContext : JsonSerializerContext;
 
-tracon.Services.AddSingleton<TraconToolRegistration>(provider =>
-    new(AIFunctionFactory.Create(
-        (OrderFilter filter) => SearchOrders(filter),
-        "search_orders",
-        "Searches orders matching a filter.",
-        OrderFilterJsonContext.Default.Options)));
+tracon.AddTool(AIFunctionFactory.Create(
+    (OrderFilter filter) => SearchOrders(filter),
+    "search_orders",
+    "Searches orders matching a filter.",
+    OrderFilterJsonContext.Default.Options));
 ```
 
 The source generator preserves all this metadata. For a complex result, declare its
@@ -19668,14 +19903,23 @@ tool answers with — is also inspected and also counts against `MaxOutputBytes`
 blocks survive as long as the result fits.
 
 Do not resolve dependencies from `AIFunctionArguments.Services`: MAF supplies an empty
-provider. Resolve a singleton dependency when you register an `AIFunction`, as shown
-above.
+provider. Take a singleton dependency when Tracon builds the tool. `AddTool` has an
+overload that gets the host's service provider for this:
 
 ```csharp
-var repository = provider.GetRequiredService<IOrderRepository>();
-tracon.AddTool(AIFunctionFactory.Create(
-    (string orderId) => repository.Find(orderId), "get_order", "Fetches an order."));
+tracon.AddTool(provider =>
+{
+    var repository = provider.GetRequiredService<IOrderRepository>();
+
+    return AIFunctionFactory.Create(
+        (string orderId) => repository.Find(orderId), "get_order", "Fetches an order.");
+});
 ```
+
+The factory runs once, when Tracon builds its tool registry at start. Do not ask it for
+`IToolRegistry`, or for a service that needs the registry: the registry is built from the
+result of the factory, and Tracon stops the host with an error that names this. For a
+dependency that must be new on every call, use `AddScopedTool`.
 
 `ToolRegistrationOptions` contains `RequiresApproval`, `Effect`,
 `RequiredPermission`, `Timeout`, `SafeToRepeat`, `MaxOutputBytes`, and `Source`.

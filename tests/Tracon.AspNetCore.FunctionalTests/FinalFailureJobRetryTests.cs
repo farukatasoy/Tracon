@@ -44,13 +44,16 @@ public sealed class FinalFailureJobRetryTests
         }
 
         await using var host = await TraconTestHost.StartAsync(
-            configureTracon: builder => builder
+            configureTracon: builder =>
+            {
+                builder
                 .AddModelProvider(agentModel)
                 .AddModelProvider(judgeModel)
                 .AddAgent(TestData.Definition(AgentName) with { Model = new ModelBinding { Provider = "agent-model", Model = "agent-1" } })
-                .AddEvalEvaluatorFactory<JudgingEvaluatorFactory>(),
-            configureServices: static services => services.UseScheduling(
-                static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+                .AddEvalEvaluatorFactory<JudgingEvaluatorFactory>();
+                builder.UseScheduling(
+                static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         (await host.Client.PutAsJsonAsync(
             new Uri($"/tracon/api/evals/{SuiteName}", UriKind.Relative),
@@ -113,9 +116,12 @@ public sealed class FinalFailureJobRetryTests
     public async Task A_consumer_handler_that_throws_its_own_404_keeps_its_retries()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureTracon: static builder => builder.Services.AddJobHandler<NotFoundYetHandler>(NotFoundYetHandler.Key),
-            configureServices: static services => services.UseScheduling(
-                static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+            configureTracon: static builder =>
+            {
+                builder.AddJobHandler<NotFoundYetHandler>(NotFoundYetHandler.Key);
+                builder.UseScheduling(
+                static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         var jobs = host.Services.GetRequiredService<IJobStore>();
         var tenantId = host.Services.GetRequiredService<ITenantContext>().TenantId;
@@ -143,12 +149,15 @@ public sealed class FinalFailureJobRetryTests
 
     private static Task<TraconTestHost> StartQueuedRunHostAsync(IModelProvider model)
         => TraconTestHost.StartAsync(
-            configureTracon: builder => builder
+            configureTracon: builder =>
+            {
+                builder
                 .AddModelProvider(model)
-                .AddAgent(TestData.Definition(AgentName) with { Model = new ModelBinding { Provider = model.Name, Model = "rejecting-1" } }),
+                .AddAgent(TestData.Definition(AgentName) with { Model = new ModelBinding { Provider = model.Name, Model = "rejecting-1" } });
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.Configure<TraconAsyncRunOptions>(static options => options.MaxAttempts = 3);
             });
 

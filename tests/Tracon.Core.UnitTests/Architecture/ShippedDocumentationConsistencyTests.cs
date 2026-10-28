@@ -4,9 +4,9 @@ using System.Xml.Linq;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Two rules for the text a consumer reads before the first agent runs: the same
-/// configuration key everywhere, and the package name next to a call that comes
-/// from a package.
+/// Three rules for the text a consumer reads before the first agent runs: the same
+/// configuration key everywhere, the package name next to a call that comes
+/// from a package, and one way to register a tool that takes a dependency.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -27,6 +27,14 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// and left nine pages calling <c>UsePostgreSql</c> without the package name; the
 /// same class for any other call is closed here.
 /// </para>
+/// <para>
+/// <b>One tool factory.</b> A tool takes its dependency when it is built, because Microsoft
+/// Agent Framework gives it an empty service provider at call time (K-218). Until phase 258
+/// the only way was a service registration that returned a <c>TraconToolRegistration</c> from
+/// the provider; <c>AddTool(provider =&gt; ...)</c> is the same thing on the Tracon chain. A page
+/// that teaches the old form sends a reader away from the chain the rest of the site uses. The
+/// gate is zero: the five places that taught it were moved in the same phase.
+/// </para>
 /// </remarks>
 public sealed class ShippedDocumentationConsistencyTests
 {
@@ -40,6 +48,14 @@ public sealed class ShippedDocumentationConsistencyTests
     // Multi-line on purpose: a provider's overload wraps after the name.
     private static readonly Regex BuilderExtension = new(
         @"public\s+static\s+ITraconBuilder\s+(?<name>\w+)\s*(?:<[^>]*>)?\s*\(\s*this\s+ITraconBuilder\b",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    // Both spellings of the old form: the lambda returns `new TraconToolRegistration(` directly or after
+    // a few statements, or the generic argument names the type and the lambda returns a target-typed `new(`.
+    private static readonly Regex ToolRegistrationFactory = new(
+        @"AddSingleton(?:<TraconToolRegistration>)?\(\s*(?:static\s+)?\w+\s*=>\s*(?:\{[^{}]*?\breturn\s+)?new\s+TraconToolRegistration\s*\("
+        + @"|AddSingleton<TraconToolRegistration>\(\s*(?:static\s+)?\w+\s*=>\s*new\s*\(",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -68,6 +84,49 @@ public sealed class ShippedDocumentationConsistencyTests
         offenders.ShouldBeEmpty(
             "Provider settings live under Tracon:Providers:<Provider>: (the SectionName constants and the template bind that form). " +
             $"A key such as OpenAI:ApiKey binds nothing.{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
+
+    [Fact]
+    public void Shipped_text_registers_a_tool_that_takes_a_dependency_with_AddTool_and_a_factory()
+    {
+        var offenders = new List<string>();
+
+        foreach (var file in ShippedTextFiles())
+        {
+            foreach (Match match in ToolRegistrationFactory.Matches(File.ReadAllText(file)))
+            {
+                var line = File.ReadAllText(file)[..match.Index].Count(static character => character == '\n') + 1;
+                offenders.Add($"{Relative(file)}:{line}: {match.Value.ReplaceLineEndings(" ").Trim()}");
+            }
+        }
+
+        offenders.ShouldBeEmpty(
+            "A tool that takes a dependency is registered with tracon.AddTool(provider => ...), the factory on the chain. " +
+            $"The service-registration form is the same thing one step away from the chain.{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
+
+    [Fact]
+    public void The_old_tool_registration_pattern_matches_the_forms_it_exists_to_catch()
+    {
+        // A pattern that matches nothing passes every page. These are the five spellings the site and the
+        // sources taught before phase 258.
+        string[] oldForms =
+        [
+            "services.AddSingleton(provider => new TraconToolRegistration(new SpeakTool(provider)));",
+            "services.AddSingleton(static provider => new TraconToolRegistration(\n    provider.GetRequiredService<Tool>().Create()) { RequiresApproval = true });",
+            "builder.Services.AddSingleton(provider =>\n{\n    var repository = provider.GetRequiredService<IOrderRepository>();\n\n    return new TraconToolRegistration(AIFunctionFactory.Create(\n        (string id) => repository.Find(id), \"get_order\"));\n});",
+            "tracon.Services.AddSingleton<TraconToolRegistration>(provider =>\n    new(AIFunctionFactory.Create(\n        (OrderFilter filter) => SearchOrders(filter), \"search_orders\")));",
+            "tracon.Services.AddSingleton<TraconToolRegistration>(provider => new TraconToolRegistration(NarrateTool.Create(provider)));",
+        ];
+
+        foreach (var form in oldForms)
+        {
+            ToolRegistrationFactory.IsMatch(form).ShouldBeTrue(form);
+        }
+
+        // The forms that stay: a ready registration, and the Tracon mapping that builds one.
+        ToolRegistrationFactory.IsMatch("builder.Services.AddSingleton(new TraconToolRegistration(refundTool) { RequiresApproval = true });").ShouldBeFalse();
+        ToolRegistrationFactory.IsMatch("builder.Services.AddSingleton<TraconToolRegistration>(provider => ToolRegistrationMapping.FromOptions(tool, options));").ShouldBeFalse();
     }
 
     [Fact]

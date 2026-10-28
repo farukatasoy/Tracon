@@ -18,7 +18,7 @@ public sealed class JobTests(BrowserFixture browsers)
     public async Task Schedule_is_created_triggered_and_job_completes()
     {
         await using var host = await UiHost.StartAsync(
-            configureServices: services => services.UseScheduling(options =>
+            configureTracon: tracon => tracon.UseScheduling(options =>
             {
                 // The test does not need to wait in real time; the worker polls immediately.
                 options.PollInterval = TimeSpan.FromMilliseconds(200);

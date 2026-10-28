@@ -108,16 +108,16 @@ tracon.AddTool(GetOrderStatus);
 
 // Right — the dependency is captured when the tool is registered.
 // The factory runs once, on the final service provider, when Tracon builds its
-// tool registry. Register before builder.Build(): the service collection is
-// read-only after it, and a registration added then throws.
-builder.Services.AddSingleton(provider =>
+// tool registry at start. Register before builder.Build(): the service collection
+// is read-only after it, and a registration added then throws.
+tracon.AddTool(provider =>
 {
     var repository = provider.GetRequiredService<IOrderRepository>();
 
-    return new TraconToolRegistration(AIFunctionFactory.Create(
+    return AIFunctionFactory.Create(
         (string orderId) => repository.Find(orderId).Status,
         "get_order_status",
-        "Returns the shipping status of an order."));
+        "Returns the shipping status of an order.");
 });
 ```
 

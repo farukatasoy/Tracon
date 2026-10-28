@@ -47,6 +47,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   saved earlier ran with a seed nobody had written. `POST /api/agents/validate` now reports `sampling_value_out_of_range`
   at `model.seed`, and a run of the stored agent fails with the compile error. Change the seed to a value from
   -2147483648 to 2147483647, or clear it.
+- **`AddJobHandler` and `UseScheduling` are now methods of the Tracon chain, not of `IServiceCollection`.** Every other
+  capability already was one, and the site taught two entry points. A host that calls either on `builder.Services` fails
+  to build (`CS1061`: `IServiceCollection` does not contain a definition for `AddJobHandler`, or for `UseScheduling`). Call
+  it on the chain `AddTracon()` returns: `builder.AddTracon().AddJobHandler<MyHandler>("contoso.my-job")` and
+  `.UseScheduling(options => options.RunWorker = false)`. The behavior is the same, with one difference in order: a
+  handler is registered after `AddTracon()`, because the chain does not exist before it. The key checks, the scoped
+  lifetime and the rule that code wins over configuration are unchanged. Tracon's own packages now follow one rule, checked
+  by a test: `AddTracon` is the only public extension of `IServiceCollection` or `IHostApplicationBuilder`.
+- **The warning for a factory agent now names the way out, and a second case warns.** `AddAgent(name, factory)` declares
+  no model, so Tracon wrote one warning when its chat client did not come from `IModelProviderRegistry`. The text now
+  says to declare the model with `AddAgent(name, model, factory)`. A factory agent that declares no model and whose client
+  does come from the registry (built with the synchronous `CreateChatClient`) now gets a warning too: its calls use the key
+  set up at start, skip the tenant's egress policy, and its run records carry no model and no cost. A host that read
+  the log for the old text, or treated a warning as a failure, sees the new line once for each such agent name.
+- **`AddAgent(name, factory, description)` has two overloads instead of one optional parameter.** The public API
+  analyzer refuses more than one overload with an optional parameter, and the new `AddAgent` forms below come in pairs.
+  A call with or without a description compiles as before, including `description:` by name.
+
 - **Migrations.** PostgreSQL `0066`, SQL Server `0054` and SQLite `0053`. With `AutoApplyMigrations`
   (the default) they run at startup. Each adds five nullable columns to `runs`: `cache_write_input_tokens`,
   `cache_write_long_input_tokens`, `cache_write_cost`, `cache_write_price_per_mtok` and
@@ -76,6 +94,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A factory agent can declare its model: `AddAgent(name, model, factory)`.** Tracon builds the chat client for the model,
+  with the tenant's own provider key and the tenant's egress policy, and hands it to the factory as
+  `AgentFactoryContext.ChatClient` (the new `AgentFactoryContext` also carries `AgentName`, `Services` and `Model`). The
+  declared model is the model of the agent in the catalog, so the run record names it and prices the run, the cost quota
+  stops the agent, and `POST /api/agents/{name}/estimate` answers (it returned `400` for a factory agent). The factory can
+  await: `Func<AgentFactoryContext, CancellationToken, ValueTask<AIAgent>>`. Before, a consumer who built an agent with
+  code lost the tenant's key, the egress policy and the cost, and had to write an `IAgentSource` to win them back. A
+  request field on the binding (`Temperature`, `TopP`, `TopK`, `MaxOutputTokens`, `Seed`, the two penalties,
+  `StopSequences`, `ToolMode`, `AllowMultipleToolCalls`, `ReasoningEffort`, `ReasoningOutput`, `ResponseFormat`) is
+  refused when you register, with the field named: the factory builds its own `ChatOptions`, so Tracon would ignore the
+  value. Tracon keeps neither the agent nor the client between calls, because the client holds the key of one tenant. It
+  warns once for the agent name when the agent does not use the client it was given.
+- **A tool can take its dependency at setup: `AddTool(provider => tool)`.** The factory gets the host's service provider
+  when Tracon builds its tool registry at start; `AddTool(provider => tool, options => …)` sets the approval, effect,
+  permission and the other policy. A tool gets an empty provider at call time, so the way to give it a dependency used to
+  be `services.AddSingleton(provider => new TraconToolRegistration(…))`. A factory that asks for `IToolRegistry`, or for a
+  service that needs it, stops the host with an error that names the cause; without that check the host start did not
+  finish. A factory that returns `null`, or a tool with an invalid name, stops it as well.
+- **A guide for a team that built agents with `AddAIAgent`: [Move an agent from AddAIAgent to
+  Tracon](https://tracon.dev/guides/from-maf-hosting/).** It maps `AddAIAgent`, `WithAITool`, `WithSessionStore` and
+  `AddWorkflow` to the Tracon call for each, and says what the move keeps and gains. Tracon does not read `AddAIAgent`
+  registrations.
 - **`dotnet new tracon-api --model <name>` writes the chat model to `appsettings.json`.** The value lands in the
   provider's `DefaultModel` (Azure OpenAI: `DefaultDeployment`), JSON-encoded, so a name with a quote or a backslash
   stays a valid file. It is not a `secret`. The first answer now takes five commands and no code edit:

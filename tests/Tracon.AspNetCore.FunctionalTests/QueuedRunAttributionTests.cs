@@ -147,7 +147,11 @@ public sealed class QueuedRunAttributionTests
 
     private static Task<TraconTestHost> StartAsync(Action<ITraconBuilder> configureTracon)
         => TraconTestHost.StartAsync(
-            configureTracon,
+            tracon =>
+            {
+                configureTracon(tracon);
+                tracon.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: static services =>
             {
                 services.AddHttpContextAccessor();
@@ -157,7 +161,6 @@ public sealed class QueuedRunAttributionTests
                 services.AddSingleton<IRunAttributionContext>(static provider =>
                     new RequestBoundAttribution(provider.GetRequiredService<IHttpContextAccessor>()));
 
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
     private static async Task<Guid> QueueAsync(TraconTestHost host, string agentName)

@@ -25,8 +25,11 @@ public sealed class AsyncRunTests
     public async Task Run_is_queued_and_returns_202_Location_and_PreferenceApplied()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
 
@@ -48,10 +51,13 @@ public sealed class AsyncRunTests
     public async Task A_queue_that_refuses_the_job_does_not_leave_the_row_queued()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(static o => o.RunWorker = false);
+            },
             configureServices: static services =>
             {
-                services.UseScheduling(static o => o.RunWorker = false);
                 services.AddSingleton<IJobStore>(static _ => new RefusingJobStore(new InMemoryJobStore(), JobHandlerKeys.AgentRun));
             });
 
@@ -78,8 +84,11 @@ public sealed class AsyncRunTests
     public async Task GET_immediately_after_queuing_returns_Queued_not_404()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -94,8 +103,11 @@ public sealed class AsyncRunTests
     public async Task Job_is_picked_up_by_the_worker_and_becomes_Completed()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -146,8 +158,11 @@ public sealed class AsyncRunTests
     public async Task Queuing_returns_429_when_the_quota_is_full()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using (var created = await host.Client.PutAsJsonAsync(
                    Quotas,
@@ -173,8 +188,11 @@ public sealed class AsyncRunTests
     public async Task Empty_message_returns_400()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "  " });
 
@@ -185,8 +203,11 @@ public sealed class AsyncRunTests
     public async Task Approval_decision_is_not_supported_returns_400()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var response = await PostAsyncAsync(
             host,
@@ -203,8 +224,11 @@ public sealed class AsyncRunTests
     public async Task Invalid_lane_is_rejected_with_400()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello", Lane = "Media" });
 
@@ -215,8 +239,11 @@ public sealed class AsyncRunTests
     public async Task Queued_run_carries_the_requested_lane()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello", Lane = "media" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -231,8 +258,11 @@ public sealed class AsyncRunTests
     public async Task Queued_run_without_a_lane_defaults_to_default()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -247,8 +277,11 @@ public sealed class AsyncRunTests
     public async Task Queued_run_can_be_canceled()
     {
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition()),
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();

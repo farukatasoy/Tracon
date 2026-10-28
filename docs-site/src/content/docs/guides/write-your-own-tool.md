@@ -127,12 +127,11 @@ public sealed record OrderFilter(string Status, int MinAmount);
 [JsonSerializable(typeof(OrderFilter))]
 internal partial class OrderFilterJsonContext : JsonSerializerContext;
 
-tracon.Services.AddSingleton<TraconToolRegistration>(provider =>
-    new(AIFunctionFactory.Create(
-        (OrderFilter filter) => SearchOrders(filter),
-        "search_orders",
-        "Searches orders matching a filter.",
-        OrderFilterJsonContext.Default.Options)));
+tracon.AddTool(AIFunctionFactory.Create(
+    (OrderFilter filter) => SearchOrders(filter),
+    "search_orders",
+    "Searches orders matching a filter.",
+    OrderFilterJsonContext.Default.Options));
 ```
 
 The source generator preserves all this metadata. For a complex result, declare its
@@ -144,14 +143,23 @@ tool answers with — is also inspected and also counts against `MaxOutputBytes`
 blocks survive as long as the result fits.
 
 Do not resolve dependencies from `AIFunctionArguments.Services`: MAF supplies an empty
-provider. Resolve a singleton dependency when you register an `AIFunction`, as shown
-above.
+provider. Take a singleton dependency when Tracon builds the tool. `AddTool` has an
+overload that gets the host's service provider for this:
 
 ```csharp
-var repository = provider.GetRequiredService<IOrderRepository>();
-tracon.AddTool(AIFunctionFactory.Create(
-    (string orderId) => repository.Find(orderId), "get_order", "Fetches an order."));
+tracon.AddTool(provider =>
+{
+    var repository = provider.GetRequiredService<IOrderRepository>();
+
+    return AIFunctionFactory.Create(
+        (string orderId) => repository.Find(orderId), "get_order", "Fetches an order.");
+});
 ```
+
+The factory runs once, when Tracon builds its tool registry at start. Do not ask it for
+`IToolRegistry`, or for a service that needs the registry: the registry is built from the
+result of the factory, and Tracon stops the host with an error that names this. For a
+dependency that must be new on every call, use `AddScopedTool`.
 
 `ToolRegistrationOptions` contains `RequiresApproval`, `Effect`,
 `RequiredPermission`, `Timeout`, `SafeToRepeat`, `MaxOutputBytes`, and `Source`.

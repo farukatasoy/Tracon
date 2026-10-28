@@ -33,7 +33,9 @@ public sealed class ApprovalChainTests
         var refunds = 0;
 
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(new FakeModelProvider("chain-model")
                     .CallsTool("cancel_order", new { orderId = "ORD-7" })
                     .CallsTool("refund_order", new { orderId = "ORD-7" })
@@ -59,9 +61,10 @@ public sealed class ApprovalChainTests
                     Instructions = "Give a short answer.",
                     Model = new ModelBinding { Provider = "chain-model", Model = "chain-1" },
                     ToolNames = ["cancel_order", "refund_order"],
-                }),
-            configureServices: static services => services.UseScheduling(
-                static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+                });
+                builder.UseScheduling(
+                static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         var firstRunId = await QueueAsync(host);
         await host.WaitForRunStatusAsync(firstRunId, "AwaitingApproval");

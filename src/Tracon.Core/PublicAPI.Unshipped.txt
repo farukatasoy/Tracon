@@ -10,6 +10,16 @@ Tracon.AgentDefinitionCompiler.CompileAsync(Tracon.AgentDefinition! definition, 
 Tracon.AgentDefinitionCompiler.CompileCachedAsync(Tracon.AgentDefinition! definition, Tracon.CompiledAgentCache! cache, string! tenantId, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 Tracon.AgentDefinitionCompiler.CompileParameterizedAsync(Tracon.AgentDefinition! definition, string? culture, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? values, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 Tracon.AgentDefinitionCompiler.ResolveCallableAgentsAsync(Tracon.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Tracon.ResolvedCallableAgents>
+Tracon.AgentFactoryContext
+Tracon.AgentFactoryContext.AgentFactoryContext() -> void
+Tracon.AgentFactoryContext.AgentName.get -> string!
+Tracon.AgentFactoryContext.AgentName.init -> void
+Tracon.AgentFactoryContext.ChatClient.get -> Microsoft.Extensions.AI.IChatClient!
+Tracon.AgentFactoryContext.ChatClient.init -> void
+Tracon.AgentFactoryContext.Model.get -> Tracon.ModelBinding!
+Tracon.AgentFactoryContext.Model.init -> void
+Tracon.AgentFactoryContext.Services.get -> System.IServiceProvider!
+Tracon.AgentFactoryContext.Services.init -> void
 Tracon.AgentDefinitionCompiler.UsesTenantProviderOverrideAsync(Tracon.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.AgentExtensionContext
 Tracon.AgentExtensionContext.ChatAgentOptions.get -> Microsoft.Agents.AI.ChatClientAgentOptions?
@@ -811,7 +821,12 @@ static Tracon.TraconRunContext.Current.get -> Tracon.AgentRunScope?
 static Tracon.TraconRunContext.CurrentRunId.get -> System.Guid?
 static Tracon.TraconRunContext.SetCurrent(Tracon.AgentRunScope? scope) -> void
 static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, Tracon.AgentDefinition! definition) -> Tracon.ITraconBuilder!
-static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.AIAgent!>! factory, string? description = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.AIAgent!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.AIAgent!>! factory, string? description) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, Tracon.ModelBinding! model, System.Func<Tracon.AgentFactoryContext!, Microsoft.Agents.AI.AIAgent!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, Tracon.ModelBinding! model, System.Func<Tracon.AgentFactoryContext!, Microsoft.Agents.AI.AIAgent!>! factory, string? description) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, Tracon.ModelBinding! model, System.Func<Tracon.AgentFactoryContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, Tracon.ModelBinding! model, System.Func<Tracon.AgentFactoryContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory, string? description) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentDecorator(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IAgentDecorator!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentDecorator(this Tracon.ITraconBuilder! builder, Tracon.IAgentDecorator! decorator) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentDecorator<TDecorator>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
@@ -819,6 +834,7 @@ static Tracon.TraconBuilderExtensions.AddAgentSource(this Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentSource(this Tracon.ITraconBuilder! builder, Tracon.IAgentSource! source) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentSource<TSource>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddEvalCheck(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.EvalCheck! check) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddJobHandler<THandler>(this Tracon.ITraconBuilder! builder, string! handlerKey) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.LoopEvaluator! evaluator) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.LoopEvaluator! evaluator, string? description) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.LoopEvaluator!>! factory) -> Tracon.ITraconBuilder!
@@ -835,15 +851,16 @@ static Tracon.TraconBuilderExtensions.AddSkill(this Tracon.ITraconBuilder! build
 static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.AI.AIFunction! tool) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.AI.AIFunction! tool, System.Action<Tracon.ToolRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, System.Delegate! method, string? name = null, string? description = null, System.Action<Tracon.ToolRegistrationOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Microsoft.Extensions.AI.AIFunction!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Microsoft.Extensions.AI.AIFunction!>! factory, System.Action<Tracon.ToolRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddToolsFrom(this Tracon.ITraconBuilder! builder, System.Type! type) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddToolsFrom<T>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.Configure(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.RequireCustomBinding<T>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.RequireProductionProfile(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconProductionProfileOptions!>? configure = null) -> Tracon.ITraconBuilder!
-static Tracon.TraconServiceCollectionExtensions.AddJobHandler<THandler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! handlerKey) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static Tracon.TraconBuilderExtensions.UseScheduling(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconSchedulingOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.TraconServiceCollectionExtensions.AddTracon(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration? configurationSection = null) -> Tracon.ITraconBuilder!
 static Tracon.TraconServiceCollectionExtensions.AddTracon(this Microsoft.Extensions.Hosting.IHostApplicationBuilder! builder) -> Tracon.ITraconBuilder!
-static Tracon.TraconServiceCollectionExtensions.UseScheduling(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<Tracon.TraconSchedulingOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static Tracon.TraconSkillScriptBuilderExtensions.UseSkillScripts(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconSkillScriptOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.TraconToolApprovalPolicyExtensions.AddToolApprovalPolicy(this Tracon.ITraconBuilder! builder, string! toolName, System.Func<Tracon.ToolApprovalContext!, Tracon.ToolApprovalPolicyDecision>! policy) -> Tracon.ITraconBuilder!
 static Tracon.TraconToolUsage.Report(Tracon.ToolCallUsage! usage) -> bool

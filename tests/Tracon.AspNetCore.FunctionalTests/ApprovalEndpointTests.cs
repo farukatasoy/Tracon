@@ -51,8 +51,11 @@ public sealed class ApprovalEndpointTests
     public async Task Queued_run_requests_approval_is_approved_from_the_console_and_completes()
     {
         await using var host = await TraconTestHost.StartAsync(
-            ConfigureApprovalAgent,
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            tracon =>
+            {
+                ConfigureApprovalAgent(tracon);
+                tracon.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-1" });
 
@@ -109,8 +112,11 @@ public sealed class ApprovalEndpointTests
     public async Task Second_decision_on_the_same_approval_gets_409()
     {
         await using var host = await TraconTestHost.StartAsync(
-            ConfigureApprovalAgent,
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            tracon =>
+            {
+                ConfigureApprovalAgent(tracon);
+                tracon.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-2" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -161,8 +167,8 @@ public sealed class ApprovalEndpointTests
                     options.Enabled = true;
                     options.AllowHeaderResolution = true;
                 });
-            },
-            configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-3" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -259,11 +265,14 @@ public sealed class ApprovalEndpointTests
         var probe = new ApprovalOrderProbe();
 
         await using var host = await TraconTestHost.StartAsync(
-            ConfigureApprovalAgent,
+            tracon =>
+            {
+                ConfigureApprovalAgent(tracon);
+                tracon.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
             configureServices: services =>
             {
                 services.AddSingleton<IPendingApprovalStore>(serviceProvider => probe.Bind(serviceProvider));
-                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
         using var accepted = await PostQueuedAsync(

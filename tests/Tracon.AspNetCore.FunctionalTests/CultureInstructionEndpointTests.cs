@@ -117,7 +117,7 @@ public sealed class CultureInstructionEndpointTests
         var provider = Provider();
         await using var host = await StartAsync(
             provider,
-            static services => services.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+            static tracon => tracon.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
         using var request = new HttpRequestMessage(HttpMethod.Post, RunUri)
         {
@@ -141,20 +141,23 @@ public sealed class CultureInstructionEndpointTests
 
     private static Task<Infrastructure.TraconTestHost> StartAsync(
         FakeModelProvider provider,
-        Action<IServiceCollection>? configureServices = null)
+        Action<ITraconBuilder>? configureTracon = null)
         => Infrastructure.TraconTestHost.StartAsync(
-            configureTracon: builder => builder
-                .AddAgent(new AgentDefinition
-                {
-                    Name = AgentName,
-                    Instructions = DefaultInstructions,
-                    InstructionsByCulture = new Dictionary<string, string>(StringComparer.Ordinal)
+            configureTracon: builder =>
+            {
+                builder
+                    .AddAgent(new AgentDefinition
                     {
-                        ["tr"] = AlternateCultureInstructions,
-                    },
-                    Model = new ModelBinding { Provider = "polyglot-provider", Model = ModelName },
-                    Origin = AgentDefinitionOrigin.Code,
-                })
-                .AddModelProvider(provider),
-            configureServices: configureServices);
+                        Name = AgentName,
+                        Instructions = DefaultInstructions,
+                        InstructionsByCulture = new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["tr"] = AlternateCultureInstructions,
+                        },
+                        Model = new ModelBinding { Provider = "polyglot-provider", Model = ModelName },
+                        Origin = AgentDefinitionOrigin.Code,
+                    })
+                    .AddModelProvider(provider);
+                configureTracon?.Invoke(builder);
+            });
 }

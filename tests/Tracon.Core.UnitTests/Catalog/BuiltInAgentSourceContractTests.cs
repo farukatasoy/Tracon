@@ -13,11 +13,13 @@ public sealed class CodeAgentSourceContractTests : AgentSourceContract
 
     protected override ValueTask<IAgentSource> CreateSourceAsync()
     {
-        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
+        var models = TestData.Providers(new FakeModelProvider());
+        var compiler = new AgentDefinitionCompiler(models, TestData.Registry());
         IAgentSource source = new CodeAgentSource(
             [CodeAgentRegistration.FromDefinition(TestData.Definition(KnownAgentName))],
             compiler,
             new CompiledAgentCache(),
+            models,
             new ServiceCollection().BuildServiceProvider(),
             new FixedTenantContext(),
             NullLogger<CodeAgentSource>.Instance);

@@ -79,7 +79,21 @@ const CEILING = 59_000;
 // The 1.0.0-preview.6 cut crossed it on 2026-10-27: 131 792 B gzip. The maintainer
 // chose to raise the ceiling for that release and to split the page before the next
 // one (F-710). Ceiling 150 000 B, about 14% headroom.
-const PAGE_CEILINGS = new Map([['reference/changelog/index.html', 150_000]]);
+//
+// The generated API page of TraconBuilderExtensions is the second page that grows with the product and
+// not with what a reader needs from one visit: DocFX writes one page per type, and every capability of the
+// Tracon chain is a method of this one static class. Measured 2026-10-28 (phase 258): 61 137 B gzip after
+// the page took AddJobHandler and UseScheduling from IServiceCollection, the model-declaring forms of
+// AddAgent (each a pair, because the public API analyzer refuses two overloads with an optional parameter)
+// and the factory forms of AddTool - eleven methods with their remarks and examples. The description-taking
+// member of each AddAgent pair already says "See ..." and carries no example of its own, so what the new
+// members add is the contract a consumer reads, not repeated prose. A static class cannot be split across
+// pages. Ceiling 64 000 B, about 4.7% headroom, which also covers the roughly 60 B by which a CI build
+// differs from a local one.
+const PAGE_CEILINGS = new Map([
+  ['reference/changelog/index.html', 150_000],
+  ['api/tracon.traconbuilderextensions/index.html', 64_000],
+]);
 
 if (!existsSync(dist)) {
   console.error('dist/ is missing; run `npm run build` before checking page weight.');

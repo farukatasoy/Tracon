@@ -133,17 +133,20 @@ public sealed class ParameterValueLeakTests
     {
         var provider = WorkflowParameterBindingTests.Provider();
         await using var host = await TraconTestHost.StartAsync(
-            builder => builder
+            builder =>
+            {
+                builder
                 .AddModelProvider(provider)
                 .AddAgent(WorkflowParameterBindingTests.Definition(
                     "writer",
                     "Write in a {{tone}} tone.",
-                    WorkflowParameterBindingTests.Tone(required: true))),
-            configureServices: services => services.UseScheduling(options =>
-            {
-                options.RunWorker = true;
-                options.PollInterval = TimeSpan.FromMilliseconds(20);
-            }));
+                    WorkflowParameterBindingTests.Tone(required: true)));
+                builder.UseScheduling(options =>
+                {
+                    options.RunWorker = true;
+                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                });
+            });
 
         var payload = System.Text.Json.JsonDocument.Parse(
             "[" +

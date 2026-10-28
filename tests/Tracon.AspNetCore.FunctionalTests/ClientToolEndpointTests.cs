@@ -219,8 +219,11 @@ public sealed class ClientToolEndpointTests
     public async Task Queued_run_with_tool_results_returns_400()
     {
         await using var host = await TraconTestHost.StartAsync(
-            ConfigureAgent,
-            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+            tracon =>
+            {
+                ConfigureAgent(tracon);
+                tracon.UseScheduling(o => o.RunWorker = false);
+            });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Run)
         {

@@ -73,8 +73,14 @@ export const agentMapBudgetBytes = 11264;
  * 25 KiB leaves about 800 B, a little over three more pages. The alternative is
  * the one the first raise rejected: trimming other pages' descriptions, which are
  * also the site's search snippets, to pay for one new page.
+ *
+ * Raised a third time, from 25 KiB to 26 KiB, measured: the guide for a team that
+ * moves from `AddAIAgent` to Tracon takes one line of 254 B, and the index then
+ * measures 25,737 B, 137 B over the ceiling. A description shorter than the 70
+ * characters the content gate allows would still have left it 48 B over, so
+ * shortening the new line could not pay for it. 26 KiB leaves about 890 B.
  */
-export const llmsBudgetBytes = 25600;
+export const llmsBudgetBytes = 26624;
 
 /** The byte ceiling of each budgeted artifact. */
 export const budgets = { agentMap: agentMapBudgetBytes, llms: llmsBudgetBytes };

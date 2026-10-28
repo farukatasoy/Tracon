@@ -117,6 +117,7 @@ export const sidebar = [
       { label: 'Write your own agent source', slug: 'guides/write-your-own-agent-source' },
       { label: 'Write your own agent decorator', slug: 'guides/write-your-own-agent-decorator' },
       { label: 'Use any Microsoft Agent Framework feature', slug: 'guides/any-maf-feature' },
+      { label: 'Move an agent from AddAIAgent', slug: 'guides/from-maf-hosting' },
       { label: 'Write your own tool', slug: 'guides/write-your-own-tool' },
       { label: 'Write your own error classifier', slug: 'guides/write-your-own-error-classifier' },
       { label: 'Write your own job handler', slug: 'guides/write-your-own-job-handler' },

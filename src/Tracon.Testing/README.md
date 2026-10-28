@@ -144,11 +144,10 @@ public sealed class OrderTools(IOrderRepository repository)
     public string GetOrderStatus(string orderId) => repository.Find(orderId);
 }
 
-services.AddSingleton(provider =>
+tracon.AddTool(provider =>
 {
     var tools = new OrderTools(provider.GetRequiredService<IOrderRepository>());
-    return new TraconToolRegistration(
-        AIFunctionFactory.Create(tools.GetOrderStatus, "get_order_status"));
+    return AIFunctionFactory.Create(tools.GetOrderStatus, "get_order_status");
 });
 ```
 

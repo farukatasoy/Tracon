@@ -571,10 +571,10 @@ public sealed class ToolBudgetGateTests
                         ToolNames = [First],
                         Origin = AgentDefinitionOrigin.Code,
                     });
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
             },
             configureServices: services =>
             {
-                services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
                 services.AddSingleton(store);
                 services.Configure<TraconOptions>(options =>
                 {
