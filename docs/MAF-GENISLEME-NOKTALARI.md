@@ -22,12 +22,30 @@ tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kes
 
 > **Sürüm damgası — 2026-10-16.** Bölüm başlıklarındaki damgalar imzanın **ilk**
 > ölçüldüğü sürümü söyler (MAF 1.16.0 · MEAI 10.8.3 · MCP 2.0.0). Pinlenmiş sürüm
-> bugün **MAF 1.25.0 · MEAI 10.11.0 · MCP 2.3.0**'dir (MCP 2.2.0 → 2.3.0, 2026-10-21: +1 üye `McpClientOptions.TimeProvider`, 0 kaldırma; `maf-kapsama.py fark`). Her yükseltmede iki tam yüzey
+> bugün **MAF 1.26.0 · MEAI 10.11.0 · MCP 2.3.0**'dir (MCP 2.2.0 → 2.3.0, 2026-10-21: +1 üye `McpClientOptions.TimeProvider`, 0 kaldırma; `maf-kapsama.py fark`). Her yükseltmede iki tam yüzey
 > dump'ı alınıp tip kapsamlı diff'lendi: çekirdek yüzeyde **hiçbir tip ve hiçbir üye
 > kaldırılmadı** — değişimin tamamı eklemedir, yani aşağıdaki imzalar bugün de geçerlidir;
 > **tek istisna** `Hosting` ailesinin `AgentSessionStore`'udur ve Faz 4 bölümünde yeni
 > imzasıyla yazılıdır. Yöntem:
 > [`maf-api-kesfi`](../.agents/skills/maf-api-kesfi/SKILL.md) § *Sürüm yükseltirken*.
+>
+> **1.25.0 → 1.26.0 turu (2026-10-28, Faz 255):** pin **MAF 1.26.0** (Hosting `1.26.0-preview.261023.1`,
+> Hosting.OpenAI `1.26.0-alpha.261023.1`). Dump farkı (`maf-kapsama.py fark`): **0 tip eklendi, 0 tip kaldırıldı,
+> 8 üye eklendi, 1 üye kaldırıldı** (aşağıdaki tablo). Kaldırılan tek üye `AgentFileStore.ScanContent`'in
+> `CancellationToken`'sız aşırı yüklemesidir; Tracon çağırmaz (`git grep ScanContent src/` boş). Paket ailesi
+> envanteri: 40 paket, değişiklik yok (`maf-paket-envanteri.py`). Davranış farkları iki sürümün **tam decompile**
+> diff'iyle bulundu (`ilspycmd -p`; ayrıntı: [`hafiza/tedarik-zinciri.md`](hafiza/tedarik-zinciri.md)): değişen her dosya
+> okundu. `Hosting.OpenAI`'da yalnız üretilmiş kod ve bir düzenli ifade adı değişti (Responses yazıcısı aynı), `Hosting.A2A`'da
+> yalnız bir yorum; `LoopAgent`, `OpenTelemetryAgent` ve workflow mesaj iletimi değişmedi.
+>
+> | Sürüm | Eklenen | Tracon'e etkisi |
+> |---|---|---|
+> | MAF 1.26.0 | `AgentSessionStore.DeleteSessionAsync` (**soyut**) · `DelegatingAgentSessionStore` (iletir) · `Hosting.{InMemory,Noop,IsolationKeyScoped}AgentSessionStore` aynı üye | **Kullanılıyor.** `TraconAgentSessionStore` uygular ve `SessionDeletion`'a gider (K-1114); `A2ASessionStore` geçersiz kılar. 🚨 MAF host kodu üyeyi **çağırmaz**; yalnız sarmalayıcılar iletir (`Delegating` anahtarı olduğu gibi, `IsolationKeyScoped` `isolation` bölümünü ekleyerek). |
+> | MAF 1.26.0 | `AgentFileStore.ScanContent(…, CancellationToken)` (eski aşırı yükleme **kalktı**) | Kullanılmıyor — Tracon çağırmaz. |
+> | MAF 1.26.0 | `Executor.RegisterCheckpointRestoringCallback` ×2 (protected) · `StatefulExecutor` durum önbelleğini bıraktı | Kullanılmıyor — Tracon `StatefulExecutor` türetmez (`git grep StatefulExecutor src/` boş), checkpoint'i kendi deposuyla yürütür. |
+> | MAF 1.26.0 | `ToolApprovalAgent` yinelenen onay isteği kimliğini `InvalidOperationException` ile reddeder (davranış, üye değil) | **Kullanılıyor.** Kimlikler tool çağrı kimliğinden türer; onay uçları ve devam yolu testleri yeşil (Faz 255 kapı koşumu). Yinelenen kimlik üreten bir host MAF'ın hatasını alır, Tracon'unkini değil. |
+> | MAF 1.26.0 | `AgentFileStore` araması tüm arama için 10 sn zaman aşımı taşır (`SearchTimeout`, internal; dosya içinde 5 sn regex sınırına ek) · `InMemory`/`FileSystem` depoları aynı | **Kullanılıyor** (dosya belleği ve çalışma alanı `InMemoryAgentFileStore`'u `TenantPrefixingAgentFileStore` ile sarar). Çok büyük bir arama artık 10 sn'de iptal olur; sınır yeni bir ayar değildir. Ölçülmedi: gerçek bir büyük depoda `grep` süresi. |
+> | MAF 1.26.0 | `FanOutEdgeRunner` hedefleri tekilleştirir · `StateManager` varsayılan fabrika sonucunu yazar | Etkisiz — Tracon yalnız `AddEdge` ile sıralı zincir kurar (`WorkflowDefinitionCompiler`), fan-out kenarı kurmaz. |
 >
 > **1.20.0 → 1.25.0 turu (2026-10-16, Faz 214):** pin **MAF 1.25.0 · MEAI 10.11.0 · MCP 2.2.0**.
 > Çekirdek yüzeyde (`Microsoft.Agents.AI*`, MEAI, MCP) **0 tip ve 0 üye kaldırıldı**; 4 tip eklendi.

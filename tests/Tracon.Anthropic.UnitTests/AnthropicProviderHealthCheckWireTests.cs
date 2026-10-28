@@ -11,7 +11,7 @@ namespace Tracon.Anthropic.UnitTests;
 public sealed class AnthropicProviderHealthCheckWireTests
 {
     [Fact]
-    public async Task Sends_x_api_key_and_the_required_version_header()
+    public async Task Sends_the_sdks_bearer_credential_and_the_required_version_header()
     {
         await using var server = StubHttpServer.Respond(200, "OK", """{"data":[{"id":"claude-test"}]}""");
 
@@ -25,8 +25,8 @@ public sealed class AnthropicProviderHealthCheckWireTests
 
         var head = await server.RequestHead;
         head.ShouldStartWith("GET /v1/models HTTP/1.1");
-        head.ShouldContain($"x-api-key: {TestData.ApiKey}");
+        head.ShouldContain($"Authorization: Bearer {TestData.ApiKey}", Case.Insensitive);
         head.ShouldContain($"anthropic-version: {AnthropicProviderHealthCheck.AnthropicVersion}");
-        head.ShouldNotContain("Authorization:", Case.Insensitive);
+        head.ShouldNotContain("x-api-key", Case.Insensitive);
     }
 }

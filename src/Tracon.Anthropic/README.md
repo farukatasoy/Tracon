@@ -41,7 +41,7 @@ Its transitive dependencies are only `Microsoft.Extensions.AI.Abstractions`,
 adapter initializes reflection-based JSON serialization: a Native AOT app that
 calls the provider fails on the first request with `Reflection-based serialization
 has been disabled`, and the publish emits thousands of trim and AOT warnings from
-the SDK. Measured 2026-10-17 with SDK 12.58.0.
+the SDK. Measured 2026-10-17 with SDK 12.58.0; the adapter did not change on this point in 13.3.0 (decompiled 2026-10-28), and the package's AOT claim is proved by the smoke publish the release check runs.
 
 ## `max_tokens` is required
 
@@ -105,10 +105,14 @@ var binding = new ModelBinding
 
 ### Known behavior differences
 
-- **Current models reject a thinking budget and sampling parameters** with `400`.
-  Use `anthropic.thinking.mode = adaptive` with `anthropic.effort`, leave
-  `Temperature` and `TopP` empty, and set `SupportsSampling = false` on the model's
-  catalog entry so such a definition fails at compile time instead of at run time.
+- **Tracon does not send `Temperature`, `TopP` or `TopK` to Anthropic.** Anthropic SDK 13
+  removed the three fields from the Messages request, so the SDK adapter drops them. A
+  definition that sets one is refused instead of running without it: saving it returns
+  `400`, the validation report names the field (`model.temperature`, `model.topP` or
+  `model.topK`) and the provider, and compiling it fails. The same holds when Anthropic is
+  only a fallback link of the binding. Remove the field. (Anthropic SDK 12 sent them.)
+- **Current models reject a thinking budget** with `400`. Use
+  `anthropic.thinking.mode = adaptive` with `anthropic.effort`.
 - **`ModelBinding.ReasoningEffort` becomes adaptive thinking.** It is sent as
   `thinking: {"type":"adaptive"}` plus `output_config.effort` (`low`, `medium`, `high`,
   `xhigh`), which every current Claude model accepts. A model that predates adaptive
@@ -116,10 +120,6 @@ var binding = new ModelBinding
   `anthropic.thinking.mode = enabled` and `anthropic.thinking.budgetTokens`. A `thinking`
   provider setting wins over `ReasoningEffort`. Measured live on 2026-10-17 across the
   Claude 5 family and `claude-haiku-4-5`.
-- **Temperature must be 1 while budgeted thinking is on.** When
-  `anthropic.thinking.budgetTokens` is given, `ModelBinding.Temperature` must be
-  either left empty or set to `1`; any other value gets the request rejected with
-  `invalid_request_error`.
 - **The thinking budget must be smaller than `MaxOutputTokens`.**
 - **Prompt caching requires a threshold.** Short prompts are not cached. The
   `request` placement treats the whole request as one cache unit, so a changed
@@ -137,8 +137,10 @@ var binding = new ModelBinding
 
 ## Health check
 
-Calls `GET {endpoint}/models`, **incurs no cost**. Authentication is done through
-the `x-api-key` header and the `anthropic-version: 2023-06-01` header is required.
+Calls `GET {endpoint}/models`, **incurs no cost**. It sends what the SDK sends:
+`Authorization: Bearer <key>` and `anthropic-version: 2026-10-21` (the version header is
+required). The live API also accepts `x-api-key` and the older `2023-06-01` version with
+an API key (measured 2026-10-28); the check follows the SDK so the two cannot drift.
 The error detail is limited to the HTTP status code and a short reason; the API
 key or the endpoint address **never leaks**.
 

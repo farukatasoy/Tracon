@@ -5,7 +5,7 @@
 > kayıtlar burada durmaz; tam metinleri git'tedir (§7). İş kalemi buraya değil,
 > [`ADAYLAR.md`](ADAYLAR.md)'ye yazılır.
 >
-> **Son güncelleme:** 2026-10-28 (RC kalite dalgası: [`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md); UR-004 tetiği, ölçüt 2 bayatladı) · 2026-10-27 (`preview.5` ve `preview.6` yayımlandı, site yayında; ölçümler satırında tarihli)  
+> **Son güncelleme:** 2026-10-28 (RC kalite dalgası: [`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md); UR-004 tetiği, ölçüt 2 bayatladı; Faz 255 çalışma anı seti en yeniye taşıdı, ölçüt 2 çalışma anı için yeniden ✅) · 2026-10-27 (`preview.5` ve `preview.6` yayımlandı, site yayında; ölçümler satırında tarihli)  
 > **Çalışma modu:** `nuget-danismani` — yayın sonrası (`1.0.0-preview.6`)  
 > **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.6` (2026-10-27; Faz 219–250,
 > `Tracon.AGUI` ilk yayın). Aynı gün `preview.5` de çıktı: etiketi 2026-10-17'de
@@ -52,7 +52,7 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | # | Ölçüt | Durum | İş |
 |---|---|---|---|
 | 1 | Küçültme | ✅ | Faz 212 (A-74) · Faz 213 (A-75, A-79) · A-78 · A-80 |
-| 2 | Her bağımlılık en yeni sürümde | ⏳ (2026-10-28: MAF `1.26.0`, platform 10.0.14, Anthropic 13 çıktı → [Faz 255](255-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-126.md) planlı; test/derleme araçları ayrı kalem) | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
+| 2 | Her bağımlılık en yeni sürümde | ✅ çalışma anı (2026-10-28: MAF `1.26.0`, platform `10.0.14`, Anthropic `13.3.0`, Google.GenAI `1.27.0`, Azure.Core `1.64.0`; [Faz 255](255-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-126.md)). Test ve derleme araçları (xunit.v3, MTP, Playwright, Meziantou, Roslyn, SDK) bu fazın dışındadır ve ayrı kalemdir | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm) · Faz 255 (çalışma anı, MAF 1.26). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
 | 3 | Modernizasyon | ✅ **Faz 217** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
 | 4 | Yeni yetenekler toplu girer | ⏳ UR-012 = B 👤 (2026-10-19) | Ölçüt en iyi RC'dir: RC'yi iyileştiren iş, kırıcı ya da ekleyici, freeze'den **önce** girer. Kaynak MAF kapsama matrisinin dalgalarıdır; Dalga 1 ölçüldü (2026-10-19, kırıcı kalem kalmadı). 2026-10-28'den beri ikinci kaynak RC kalite dalgalarıdır ([`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md), Dalga 0–6). F-290 ✅ Faz 218. RC ile GA arasında yetenek eklenmez. Önceki karar (A, 2026-10-17) UR-012 satırındadır |
 | 5 | Kırıcı kalemler kapandı · ailenin public imzasında upstream deneysel tip yok (uydu hattı hariç, K-1036) · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **Faz 218** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559 ✅ **Faz 237** (A-76) + **Faz 238** (A-67, A-68), 2026-10-24 · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |

@@ -81,12 +81,14 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
     /// <inheritdoc />
     /// <remarks>
-    /// Measured from the Anthropic 12.58.0 chat client adapter (2026-10-20): it sends top-k, the
-    /// stop sequences, the tool mode and the parallel-tool-use flag, and maps the reasoning output
-    /// to the thinking display. It has no seed and no penalties.
+    /// Measured from the Anthropic 13.3.0 chat client adapter (2026-10-28, decompiled and on the wire): it
+    /// sends the stop sequences, the tool mode and the parallel-tool-use flag, and maps the reasoning output
+    /// to the thinking display. It has no seed and no penalties, and since SDK 13 it has no temperature,
+    /// top-p or top-k either: <c>MessageCreateParams</c> has no member for them, so the adapter drops them.
+    /// Naming them here would let a definition run without a field it sets, which Tracon refuses; they are
+    /// left out, and a definition that sets one fails to compile with the provider's name.
     /// </remarks>
-    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.TopK
-        | SamplingFields.StopSequences
+    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.StopSequences
         | SamplingFields.ToolMode
         | SamplingFields.AllowMultipleToolCalls
         | SamplingFields.ReasoningOutput;

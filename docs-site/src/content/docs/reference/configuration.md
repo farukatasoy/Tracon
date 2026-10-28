@@ -675,8 +675,8 @@ Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
 `*CostPerMillionTokens` prices.
 `SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
 to compile. `RejectedSamplingFields` takes a name or a comma-separated list of request
-fields (`Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`,
-`AllowMultipleToolCalls`, `ReasoningOutput`), and makes a definition that sets one fail to compile
+fields (`Temperature`, `TopP`, `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`,
+`ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`), and makes a definition that sets one fail to compile
 for that model; a name that does not exist stops the host at start. `MaxOutputTokens` lets the
 validation report warn when a binding leaves its own limit to a lower provider default, such as
 Anthropic's `DefaultMaxOutputTokens`. See

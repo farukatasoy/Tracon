@@ -61,7 +61,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Working memory | Todo state, file memory, text search, vector search tools, and conversation memory (what a user said in earlier sessions) | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator. Conversation memory is off by default, needs `UseConversationMemory()` and a registered `VectorStore`, is scoped by tenant, agent, and user, and its records go with their session. See [Context and memory](/guides/context-and-memory/#remember-a-user-across-sessions) |
 | Workspace | A private file area for one session of one agent, with the eight `file_access_*` tools | `AgentDefinition.Workspace` | Off by default. The tools run through the Tracon tool chain; a tool that changes a file always asks for approval. Size limits per file, session and tenant. The files go with the session. An exposed A2A or MCP agent needs a read-only workspace with no read approval. See [Context and memory](/guides/context-and-memory/#give-an-agent-files-in-each-session) |
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
-| Request fields | Seed, top-k, stop sequences, penalties, tool mode, parallel tool calls, and reasoning output are part of the definition | `ModelBinding` | Unset sends nothing; a provider states what its API surface sends (`ISamplingSupport`), and a field it would drop, on the primary model or a fallback, fails to compile and validation |
+| Request fields | Temperature, top-p, seed, top-k, stop sequences, penalties, tool mode, parallel tool calls, and reasoning output are part of the definition | `ModelBinding` | Unset sends nothing; a provider states what its API surface sends (`ISamplingSupport`), and a field it would drop, on the primary model or a fallback, fails to compile and validation |
 | Tool-call loop | The loop that runs a turn's tool calls: concurrency, tolerated failed turns, and what an unknown tool does | `ModelBinding.ToolLoop` | `AllowConcurrentToolCalls` is off by default; each call still gets its own authorization, result, and metric; a fallback link takes the whole object |
 | Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values | `AgentDefinition.Parameters` | Value substitution only — no expression, condition, loop, or field access |
 | Workflow and queued run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares its schema in `WorkflowRegistrationOptions.Parameters`; `jobs.payload` is not content-protected |
@@ -3833,7 +3833,11 @@ decided by inspecting its magic bytes, not by the `Content-Type` the client clai
 
 Deleting a session deletes the attachments it owns, the conversation memory records it produced
 (see [Context and memory](/guides/context-and-memory/#remember-a-user-across-sessions)), and the files of
-its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). You can also call
+its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). Every way to delete
+a session does the same: `DELETE /api/sessions/{id}`, `DELETE /v1/conversations/{id}`, and the session store
+that Tracon registers for the Microsoft Agent Framework. The session record goes last, so a step that fails
+leaves the session in place and a repeat request finishes the work. A session that does not exist deletes
+nothing, and the attachments uploaded to its id stay. You can also call
 `DELETE /api/attachments/{id}` for one attachment, and the orphan-attachment retention
 target cleans uploads that never become part of a session. Individual deletion is a
 hard delete: an older message that still contains the reference will no longer be able
@@ -10499,7 +10503,7 @@ The same seam exists on `TraconSqlServerOptions.DataSource` and
 `TraconSqliteOptions.DataSource`, for symmetry. Neither
 `Microsoft.Data.SqlClient` nor `Microsoft.Data.Sqlite` ships a `DbDataSource`
 implementation of its own today (measured against `Microsoft.Data.SqlClient
-7.1.1` and `Microsoft.Data.Sqlite` 10.0.13), so there is no equivalent "give EF Core's data source to Tracon" call
+7.1.1` and `Microsoft.Data.Sqlite` 10.0.14), so there is no equivalent "give EF Core's data source to Tracon" call
 for those two providers yet — the field is ready for the day the ecosystem catches
 up, or for a `DbDataSource` adapter you write yourself.
 
@@ -12741,13 +12745,15 @@ ToolNames = ["get_order_status"],
 
 **A provider sends only some of them.** The model adapters of each API surface drop the
 fields they have no wire member for, without an error. A field that never reaches the model
-looks exactly like a field that worked, so Tracon refuses it instead. A `v` marks a field the
-surface sends:
+looks exactly like a field that worked, so Tracon refuses it instead. `Temperature` and `TopP`
+follow the same rule and are in the table too. A `v` marks a field the surface sends:
 
 | Field | `openai` | `openai-responses` | `anthropic` | `google` | `azure-openai` |
 |---|:-:|:-:|:-:|:-:|:-:|
+| `Temperature` | v | v | | v | v |
+| `TopP` | v | v | | v | v |
 | `Seed` | v | | | v | v |
-| `TopK` | | | v | v | |
+| `TopK` | | | | v | |
 | `StopSequences` | v | | v | v | v |
 | `FrequencyPenalty` | v | | | v | v |
 | `PresencePenalty` | v | | | v | v |
@@ -12755,6 +12761,10 @@ surface sends:
 | `AllowMultipleToolCalls` | v | v | v | | v |
 | `ReasoningOutput` | | v | v | v | |
 
+- **`anthropic` sends none of `Temperature`, `TopP` and `TopK`.** Anthropic SDK 13 removed the three
+  fields from the Messages request, so its adapter drops them. A definition that sets one for
+  `anthropic`, as the primary model or as a fallback link, does not compile; validation reports
+  `sampling_field_unsupported` at `model.temperature`, `model.topP` or `model.topK`. Remove the field.
 - A `UseOpenAICompatible()` registration follows the same two columns: its Chat Completions
   provider is the `openai` column, and its `{name}-responses` provider is the
   `openai-responses` column.
@@ -12788,8 +12798,11 @@ surface sends:
   its own `Endpoint`, state no limit: such a server can accept more. Anthropic bounds the total length of
   all stop sequences (2,500 characters) and not their number, so Tracon cannot check it and the
   provider's own error comes back.
-- A provider you write sends none of these fields until it states them. Implement
-  `ISamplingSupport` next to `IModelProvider` and return the `SamplingFields` its surface sends.
+- A provider you write sends none of these fields until it states them, except `Temperature` and
+  `TopP`: a provider that implements no `ISamplingSupport` is read as sending those two, as every
+  adapter did before they were named. Implement `ISamplingSupport` next to `IModelProvider` and
+  return the `SamplingFields` its surface sends, `Temperature` and `TopP` included. A provider that
+  implements the interface and names neither is read as not sending them.
   The table above is what the shipped adapters send; Tracon measures it again when it upgrades
   a provider SDK. To state a value range, return a `SamplingLimits` (`MinSeed`, `MaxSeed`,
   `MaxStopSequences`) from the same interface. The member has a default body: a provider that
@@ -13250,7 +13263,7 @@ The capability flags do not carry equal weight, and only three of them are gates
 |---|---|
 | `SupportsStructuredOutput` | **Enforced.** An agent requesting JSON output fails compilation when the model is *found* in the catalog with this explicitly `false`. A model absent from the catalog is not checked. See [Structured output](/guides/structured-output/) |
 | `SupportsSampling` | **Enforced.** `null` (the default) means unknown and checks nothing. When it is `false`, a definition that sets `Temperature` or `TopP` fails compilation, the validation report names the field as `sampling_unsupported`, and saving returns `400`. `Fallbacks` links are checked too, because they get the same parameters |
-| `RejectedSamplingFields` | **Enforced.** A name or a comma-separated list of the request fields the model rejects although its surface sends them: `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`. The default `None` checks nothing. A definition that sets a listed field fails compilation, the validation report names it as `sampling_field_rejected_by_model`, and saving returns `400`. `Fallbacks` links are checked too. A name that does not exist stops the host at start |
+| `RejectedSamplingFields` | **Enforced.** A name or a comma-separated list of the request fields the model rejects although its surface sends them: `Temperature`, `TopP`, `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`. The default `None` checks nothing. A definition that sets a listed field fails compilation, the validation report names it as `sampling_field_rejected_by_model`, and saving returns `400`. `Fallbacks` links are checked too. A name that does not exist stops the host at start |
 | `MaxOutputTokens` | Read by the validation report: when a binding leaves its own limit empty and the provider's default is lower, a structured or high-effort agent gets an `output_truncation_risk` warning |
 | `SupportsTools` | Advisory metadata — nothing enforces it at run time |
 | `SupportsStreaming` | Advisory metadata — nothing enforces it at run time |
@@ -13445,11 +13458,12 @@ streaming usage. Configure no estimate unless you can label it as an estimate.
 maximum possible output. Set a realistic `ModelBinding.MaxOutputTokens` value.
 
 **Anthropic rejects a thinking request.** Current models reject
-`budget_tokens` and sampling parameters with `400`: switch to
-`anthropic.thinking.mode = adaptive` with `anthropic.effort`, remove `Temperature`
-and `TopP`, and mark the model `SupportsSampling = false` in the catalog so the next
-definition fails at compile time. On an older model, keep the thinking budget below
-the output limit and set temperature to `1` or leave it out.
+`budget_tokens` with `400`: switch to `anthropic.thinking.mode = adaptive` with
+`anthropic.effort`. On an older model, keep the thinking budget below the output limit.
+
+**A definition for `anthropic` does not compile because of `Temperature`, `TopP` or `TopK`.**
+Anthropic SDK 13 has no request field for them, so Tracon refuses the definition instead of
+running it without the field. Remove the field.
 
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes
@@ -23915,13 +23929,13 @@ These are the versions they declare.
 
 | Package | Declared dependencies |
 |---|---|
-| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.25.0 · `Microsoft.Extensions.AI.Abstractions` 10.11.0 |
-| `Tracon.Core` | `Microsoft.Agents.AI` 1.25.0 · `Microsoft.Agents.AI.Harness` 1.25.0 · `Microsoft.Extensions.AI` 10.11.0 · `Microsoft.Extensions.AI.Evaluation` 10.11.0 |
-| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.25.0 |
-| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.25.0 · `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
+| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.26.0 · `Microsoft.Extensions.AI.Abstractions` 10.11.0 |
+| `Tracon.Core` | `Microsoft.Agents.AI` 1.26.0 · `Microsoft.Agents.AI.Harness` 1.26.0 · `Microsoft.Extensions.AI` 10.11.0 · `Microsoft.Extensions.AI.Evaluation` 10.11.0 |
+| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.26.0 |
+| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.26.0 · `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
 | `Tracon.Azure` | `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
-| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.25.0 · `Microsoft.Extensions.AI` 10.11.0 |
-| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.25.0 pre-release · `.Hosting.OpenAI` at exactly a 1.25.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview3` |
+| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.26.0 · `Microsoft.Extensions.AI` 10.11.0 |
+| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.26.0 pre-release · `.Hosting.OpenAI` at exactly a 1.26.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview3` |
 
 `Tracon.AspNetCore` is the only package that carries a pre-release Agent Framework
 dependency, and it is the only one permitted to.
@@ -23929,7 +23943,7 @@ dependency, and it is the only one permitted to.
 ### A pre-release dependency is an exact pin
 
 The five pre-release entries of `Tracon.AspNetCore` are exact ranges, such as
-`[1.25.0-preview.261014.1]`. A pre-release package makes no compatibility promise
+`[1.26.0-preview.261023.1]`. A pre-release package makes no compatibility promise
 between its own previews, and this one broke: `Microsoft.Agents.AI.Hosting.AgentSessionStore`
 left the Hosting assembly in `1.22.0-preview`, so a project that raised Hosting under
 `1.0.0-preview.2` restored without a warning and failed at run time with a
@@ -23942,7 +23956,7 @@ that is built against it.
 
 ### A stable dependency is a floor, not a pin
 
-Every other entry above is a minimum. NuGet reads `1.25.0` as `[1.25.0, )` and then resolves
+Every other entry above is a minimum. NuGet reads `1.26.0` as `[1.26.0, )` and then resolves
 the **lowest** version that satisfies every constraint in the graph, so a project that
 asks for nothing else restores exactly the version listed. You get a different version
 only when something asks for one: a direct `PackageReference` to a higher version, or
@@ -24793,8 +24807,8 @@ Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
 `*CostPerMillionTokens` prices.
 `SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
 to compile. `RejectedSamplingFields` takes a name or a comma-separated list of request
-fields (`Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`,
-`AllowMultipleToolCalls`, `ReasoningOutput`), and makes a definition that sets one fail to compile
+fields (`Temperature`, `TopP`, `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`,
+`ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`), and makes a definition that sets one fail to compile
 for that model; a name that does not exist stops the host at start. `MaxOutputTokens` lets the
 validation report warn when a binding leaves its own limit to a lower provider default, such as
 Anthropic's `DefaultMaxOutputTokens`. See

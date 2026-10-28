@@ -325,8 +325,15 @@ public sealed class AnthropicRequestSettingsTests
 
         await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
+        // Phase 255: SDK 13 sends the credential as a bearer token, not as x-api-key. What matters is whose key
+        // is on the wire, so the assertion names the key and not the header that carries it.
         var head = await server.RequestHead;
-        head.ShouldContain("x-api-key: tenant-own-key-for-test");
+        head.ShouldContain("tenant-own-key-for-test");
+        head.ShouldNotContain(TestData.ApiKey, Case.Insensitive, "the shared key must not reach a tenant's own endpoint");
+        head.ShouldContain(
+            $"anthropic-version: {AnthropicProviderHealthCheck.AnthropicVersion}",
+            Case.Insensitive,
+            "the health check sends the version the SDK sends; a new SDK that moves it must move the check");
 
         var body = JsonNode.Parse(await server.RequestBody)!.AsObject();
 

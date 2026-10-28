@@ -84,11 +84,13 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
     /// <inheritdoc />
     /// <remarks>
-    /// Measured from the Google.GenAI 1.26.1 chat client adapter (2026-10-20): it sends every field
+    /// Measured from the Google.GenAI 1.27.0 chat client adapter (decompiled 2026-10-28; its source is identical to the one measured on 2026-10-20): it sends every field
     /// but the parallel-tool-calls flag, which Gemini has no request member for. The reasoning
     /// output becomes <c>includeThoughts</c>.
     /// </remarks>
-    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.Seed
+    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.Temperature
+        | SamplingFields.TopP
+        | SamplingFields.Seed
         | SamplingFields.TopK
         | SamplingFields.StopSequences
         | SamplingFields.FrequencyPenalty
@@ -101,7 +103,7 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
     /// <para>
     /// The seed is a 32-bit integer. Measured on 2026-10-27: the Gemini API accepts <c>-2147483648</c> and
     /// <c>2147483647</c> and answers <c>3000000000</c> with <c>400</c> (<c>TYPE_INT32</c>), and the
-    /// Google.GenAI 1.26.1 chat client adapter narrows the seed with an unchecked <c>(int)</c> cast, so
+    /// Google.GenAI 1.27.0 chat client adapter (identical to the one measured first) narrows the seed with an unchecked <c>(int)</c> cast, so
     /// <c>3000000000</c> would reach the model as <c>-1294967296</c> and nothing would say so.
     /// </para>
     /// <para>

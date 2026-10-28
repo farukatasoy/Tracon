@@ -26,6 +26,8 @@ public sealed class SamplingSupportTests
         nameof(ModelBinding.ToolMode),
         nameof(ModelBinding.AllowMultipleToolCalls),
         nameof(ModelBinding.ReasoningOutput),
+        nameof(ModelBinding.Temperature),
+        nameof(ModelBinding.TopP),
     };
 
     /// <param name="field">The request field the definition sets.</param>
@@ -67,11 +69,15 @@ public sealed class SamplingSupportTests
     }
 
     [Fact]
-    public void A_provider_that_states_nothing_sends_none_of_the_fields()
+    public void A_provider_that_states_nothing_sends_temperature_and_top_p_and_none_of_the_other_fields()
     {
+        // Phase 255: every adapter sent the two before they were named, so a provider written before
+        // ISamplingSupport keeps them; any other field it must state.
         var compiler = Compiler(new UndeclaringProvider());
 
         compiler.Compile(Definition(new ModelBinding { Provider = UndeclaringProvider.ProviderName, Model = "m" })).ShouldNotBeNull();
+        compiler.Compile(Definition(new ModelBinding { Provider = UndeclaringProvider.ProviderName, Model = "m", Temperature = 0.2f, TopP = 0.9f }))
+            .ShouldNotBeNull();
 
         var exception = Should.Throw<TraconCompilationException>(() => compiler.Compile(Definition(
             new ModelBinding { Provider = UndeclaringProvider.ProviderName, Model = "m", Seed = 1 })));
@@ -179,7 +185,7 @@ public sealed class SamplingSupportTests
         var descriptors = registry.List().ToDictionary(static descriptor => descriptor.Name, StringComparer.Ordinal);
 
         descriptors["fake"].SupportedSamplingFields.ShouldBe(SamplingFields.Seed | SamplingFields.TopK);
-        descriptors[UndeclaringProvider.ProviderName].SupportedSamplingFields.ShouldBe(SamplingFields.None);
+        descriptors[UndeclaringProvider.ProviderName].SupportedSamplingFields.ShouldBe(SamplingFields.Temperature | SamplingFields.TopP);
     }
 
     /// <summary>The binding that sets exactly <paramref name="field"/>.</summary>
@@ -193,6 +199,8 @@ public sealed class SamplingSupportTests
         nameof(ModelBinding.ToolMode) => TestData.Binding() with { ToolMode = "auto" },
         nameof(ModelBinding.AllowMultipleToolCalls) => TestData.Binding() with { AllowMultipleToolCalls = false },
         nameof(ModelBinding.ReasoningOutput) => TestData.Binding() with { ReasoningOutput = "Summary" },
+        nameof(ModelBinding.Temperature) => TestData.Binding() with { Temperature = 0.5f },
+        nameof(ModelBinding.TopP) => TestData.Binding() with { TopP = 0.5f },
         _ => throw new ArgumentOutOfRangeException(nameof(field), field, null),
     };
 

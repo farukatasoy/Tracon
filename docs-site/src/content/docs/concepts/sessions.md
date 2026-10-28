@@ -303,7 +303,11 @@ decided by inspecting its magic bytes, not by the `Content-Type` the client clai
 
 Deleting a session deletes the attachments it owns, the conversation memory records it produced
 (see [Context and memory](/guides/context-and-memory/#remember-a-user-across-sessions)), and the files of
-its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). You can also call
+its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). Every way to delete
+a session does the same: `DELETE /api/sessions/{id}`, `DELETE /v1/conversations/{id}`, and the session store
+that Tracon registers for the Microsoft Agent Framework. The session record goes last, so a step that fails
+leaves the session in place and a repeat request finishes the work. A session that does not exist deletes
+nothing, and the attachments uploaded to its id stay. You can also call
 `DELETE /api/attachments/{id}` for one attachment, and the orphan-attachment retention
 target cleans uploads that never become part of a session. Individual deletion is a
 hard delete: an older message that still contains the reference will no longer be able

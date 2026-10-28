@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1051 kalem)
+## Arşivlenen Kararlar (1053 kalem)
 
 | K | Karar |
 |---|---|
@@ -1060,3 +1060,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1059 | `ToolApproval` isteği workflow hangi cevap kipinde olursa olsun tek cevap alır; ikinci aynı karar ilkini izler, farklısı `409` (F-615, Faz 230) |
 | K-1060 | Magentic katılımcısı tool onayını workflow isteği olarak bekler; yöneticinin onayı reddi sürdürür (K-1055 daraltması) |
 | K-1061 | Skill okuma onayını tanım kapatır, script onayını tanımdaki hiçbir ayar kapatmaz; dış yüzey kapısı o ayarı okur (F-626) 👤 |
+| K-1062 | Uzantı model zincirine halkayı `UseChatClient(ChatClientSlot, Func<IChatClient, IChatClient>)` ile koyar; seçim `ExtensionNames` ile (F-594) |
+| K-1063 | Halka iki sabit yuvaya girer, içerik korumasının altına inemez; yerleştiremeyen registry derlemeyi durdurur (F-594) |

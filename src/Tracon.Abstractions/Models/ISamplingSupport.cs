@@ -18,6 +18,12 @@ namespace Tracon;
 /// The model catalog uses the same set for the fields a model rejects
 /// (<see cref="ModelDescriptor.RejectedSamplingFields"/>), in JSON and in configuration.
 /// </para>
+/// <para>
+/// <see cref="Temperature"/> and <see cref="TopP"/> joined the set when a shipped adapter
+/// (Anthropic SDK 13) stopped sending them. Every other adapter always sent them, so a provider
+/// that implements no <see cref="ISamplingSupport"/> is read as sending both; a provider that
+/// does implement it names them like any other field.
+/// </para>
 /// </remarks>
 [Flags]
 [JsonConverter(typeof(JsonStringEnumConverter<SamplingFields>))]
@@ -49,6 +55,12 @@ public enum SamplingFields
 
     /// <summary><see cref="ModelBinding.ReasoningOutput"/>.</summary>
     ReasoningOutput = 1 << 7,
+
+    /// <summary><see cref="ModelBinding.Temperature"/>.</summary>
+    Temperature = 1 << 8,
+
+    /// <summary><see cref="ModelBinding.TopP"/>.</summary>
+    TopP = 1 << 9,
 }
 
 /// <summary>
@@ -64,8 +76,9 @@ public enum SamplingFields
 /// </para>
 /// <para>
 /// A provider that does not implement this interface supports none of the
-/// fields: a definition that sets one fails to compile and the validation report
-/// names the field and the provider. A field is never dropped silently. The
+/// fields except <see cref="SamplingFields.Temperature"/> and <see cref="SamplingFields.TopP"/>,
+/// which it is read as sending: a definition that sets another field fails to compile and the
+/// validation report names the field and the provider. A field is never dropped silently. The
 /// primary provider and every <see cref="ModelBinding.Fallbacks"/> link are
 /// checked, because a link receives the primary call's request options.
 /// </para>
@@ -96,6 +109,12 @@ public interface ISamplingSupport
     /// Gets the fields this provider's API surface sends to the model. Report a field
     /// only when the wire request carries it.
     /// </summary>
+    /// <remarks>
+    /// Name <see cref="SamplingFields.Temperature"/> and <see cref="SamplingFields.TopP"/> too when the
+    /// surface sends them. A provider written before the two existed and implementing this interface
+    /// reports neither, and a definition that sets one then fails to compile with a message that names
+    /// the provider.
+    /// </remarks>
     SamplingFields SupportedSamplingFields { get; }
 
     /// <summary>

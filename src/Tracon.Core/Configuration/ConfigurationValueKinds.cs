@@ -87,7 +87,7 @@ internal static class ConfigurationValueKinds
 
     /// <summary>
     /// Reads an enum like <see cref="TryEnum{TEnum}"/>, and a <c>[Flags]</c> value must also hold defined
-    /// bits only. The parser takes any number, so <c>"256"</c> would otherwise become a set that names no
+    /// bits only. The parser takes any number, so <c>"1024"</c> would otherwise become a set that names no
     /// member and checks nothing, where the operator meant a field.
     /// </summary>
     /// <typeparam name="TEnum">The enum type.</typeparam>

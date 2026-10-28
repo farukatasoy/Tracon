@@ -41,7 +41,7 @@ The same seam exists on `TraconSqlServerOptions.DataSource` and
 `TraconSqliteOptions.DataSource`, for symmetry. Neither
 `Microsoft.Data.SqlClient` nor `Microsoft.Data.Sqlite` ships a `DbDataSource`
 implementation of its own today (measured against `Microsoft.Data.SqlClient
-7.1.1` and `Microsoft.Data.Sqlite` 10.0.13), so there is no equivalent "give EF Core's data source to Tracon" call
+7.1.1` and `Microsoft.Data.Sqlite` 10.0.14), so there is no equivalent "give EF Core's data source to Tracon" call
 for those two providers yet — the field is ready for the day the ecosystem catches
 up, or for a `DbDataSource` adapter you write yourself.
 

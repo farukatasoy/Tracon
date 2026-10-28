@@ -329,18 +329,18 @@ internal static class SessionEndpoints
     /// Deletes a session and all attachments linked to it.
     /// </summary>
     /// <remarks>
-    /// Attachments are deleted AFTER the session: if the session is not found, there
-    /// is no side effect. This call is the ONLY way to clean up attachments in both
-    /// the persistent (PostgreSQL) and in-memory stores — <c>attachments.session_id</c>
-    /// is DELIBERATELY not a foreign key (see the migration 0006 comment: an
-    /// attachment can be uploaded before a session is ever opened).
+    /// The gates are asked here; the deletion itself is <see cref="SessionDeletion"/>, the path
+    /// <c>DELETE /v1/conversations/{id}</c> and the Microsoft Agent Framework session store bridge
+    /// share. It deletes the attachments BEFORE the record and only for a session that exists: this
+    /// call is the ONLY way to clean up attachments in both the persistent (PostgreSQL) and in-memory
+    /// stores — <c>attachments.session_id</c> is DELIBERATELY not a foreign key (see the migration
+    /// 0006 comment: an attachment can be uploaded before a session is ever opened).
     /// </remarks>
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSessionAsync(
         string sessionId,
         HttpContext httpContext,
-        AgentSessionManager sessions,
+        SessionDeletion deletion,
         ISessionStore store,
-        IAttachmentStore attachmentStore,
         ITenantContext tenantContext,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
@@ -363,14 +363,10 @@ internal static class SessionEndpoints
             return SessionNotFound(sessionId);
         }
 
-        if (!await sessions.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false))
+        if (!await deletion.DeleteAsync(sessionId, cancellationToken).ConfigureAwait(false))
         {
             return SessionNotFound(sessionId);
         }
-
-        await attachmentStore
-            .DeleteBySessionAsync(tenantContext.TenantId, sessionId, cancellationToken)
-            .ConfigureAwait(false);
 
         return TypedResults.NoContent();
     }

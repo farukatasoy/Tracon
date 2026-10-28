@@ -10,7 +10,7 @@ namespace Tracon;
 //
 // OpenAI 2.14.0 was built against System.ClientModel 1.15.0. System.ClientModel 1.16.0 renamed
 // AsyncStreamingClientResult<T> to AsyncStreamingResult<T>, and a host that also uses Tracon.Azure
-// resolves 1.16.0 (Azure.Core 1.63.0 requires it). The member signatures of AudioClient and
+// resolves 1.16.0 (Azure.Core 1.63.0 and 1.64.0 require it). The member signatures of AudioClient and
 // ImageClient still name the old type, so Native AOT cannot compile a host that merely constructs
 // one: "Failed to load type 'System.ClientModel.AsyncStreamingClientResult`1'". A ten-line program
 // reproduced it (1.16.0 fails; the same program with 1.15.0 publishes clean), and a JIT host only

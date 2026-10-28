@@ -179,7 +179,7 @@ public sealed class ProviderRegistrationCoreTests
     [Theory]
     [InlineData("StopSequences, Nonsense")]
     [InlineData("Nonsense")]
-    [InlineData("256")]
+    [InlineData("1024")]
     [InlineData("StopSequences;Seed")]
     public void A_rejected_field_list_that_cannot_be_read_is_left_unset_and_recorded(string text)
     {

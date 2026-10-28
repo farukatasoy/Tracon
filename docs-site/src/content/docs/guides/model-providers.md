@@ -216,13 +216,15 @@ ToolNames = ["get_order_status"],
 
 **A provider sends only some of them.** The model adapters of each API surface drop the
 fields they have no wire member for, without an error. A field that never reaches the model
-looks exactly like a field that worked, so Tracon refuses it instead. A `v` marks a field the
-surface sends:
+looks exactly like a field that worked, so Tracon refuses it instead. `Temperature` and `TopP`
+follow the same rule and are in the table too. A `v` marks a field the surface sends:
 
 | Field | `openai` | `openai-responses` | `anthropic` | `google` | `azure-openai` |
 |---|:-:|:-:|:-:|:-:|:-:|
+| `Temperature` | v | v | | v | v |
+| `TopP` | v | v | | v | v |
 | `Seed` | v | | | v | v |
-| `TopK` | | | v | v | |
+| `TopK` | | | | v | |
 | `StopSequences` | v | | v | v | v |
 | `FrequencyPenalty` | v | | | v | v |
 | `PresencePenalty` | v | | | v | v |
@@ -230,6 +232,10 @@ surface sends:
 | `AllowMultipleToolCalls` | v | v | v | | v |
 | `ReasoningOutput` | | v | v | v | |
 
+- **`anthropic` sends none of `Temperature`, `TopP` and `TopK`.** Anthropic SDK 13 removed the three
+  fields from the Messages request, so its adapter drops them. A definition that sets one for
+  `anthropic`, as the primary model or as a fallback link, does not compile; validation reports
+  `sampling_field_unsupported` at `model.temperature`, `model.topP` or `model.topK`. Remove the field.
 - A `UseOpenAICompatible()` registration follows the same two columns: its Chat Completions
   provider is the `openai` column, and its `{name}-responses` provider is the
   `openai-responses` column.
@@ -263,8 +269,11 @@ surface sends:
   its own `Endpoint`, state no limit: such a server can accept more. Anthropic bounds the total length of
   all stop sequences (2,500 characters) and not their number, so Tracon cannot check it and the
   provider's own error comes back.
-- A provider you write sends none of these fields until it states them. Implement
-  `ISamplingSupport` next to `IModelProvider` and return the `SamplingFields` its surface sends.
+- A provider you write sends none of these fields until it states them, except `Temperature` and
+  `TopP`: a provider that implements no `ISamplingSupport` is read as sending those two, as every
+  adapter did before they were named. Implement `ISamplingSupport` next to `IModelProvider` and
+  return the `SamplingFields` its surface sends, `Temperature` and `TopP` included. A provider that
+  implements the interface and names neither is read as not sending them.
   The table above is what the shipped adapters send; Tracon measures it again when it upgrades
   a provider SDK. To state a value range, return a `SamplingLimits` (`MinSeed`, `MaxSeed`,
   `MaxStopSequences`) from the same interface. The member has a default body: a provider that
@@ -725,7 +734,7 @@ The capability flags do not carry equal weight, and only three of them are gates
 |---|---|
 | `SupportsStructuredOutput` | **Enforced.** An agent requesting JSON output fails compilation when the model is *found* in the catalog with this explicitly `false`. A model absent from the catalog is not checked. See [Structured output](/guides/structured-output/) |
 | `SupportsSampling` | **Enforced.** `null` (the default) means unknown and checks nothing. When it is `false`, a definition that sets `Temperature` or `TopP` fails compilation, the validation report names the field as `sampling_unsupported`, and saving returns `400`. `Fallbacks` links are checked too, because they get the same parameters |
-| `RejectedSamplingFields` | **Enforced.** A name or a comma-separated list of the request fields the model rejects although its surface sends them: `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`. The default `None` checks nothing. A definition that sets a listed field fails compilation, the validation report names it as `sampling_field_rejected_by_model`, and saving returns `400`. `Fallbacks` links are checked too. A name that does not exist stops the host at start |
+| `RejectedSamplingFields` | **Enforced.** A name or a comma-separated list of the request fields the model rejects although its surface sends them: `Temperature`, `TopP`, `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`. The default `None` checks nothing. A definition that sets a listed field fails compilation, the validation report names it as `sampling_field_rejected_by_model`, and saving returns `400`. `Fallbacks` links are checked too. A name that does not exist stops the host at start |
 | `MaxOutputTokens` | Read by the validation report: when a binding leaves its own limit empty and the provider's default is lower, a structured or high-effort agent gets an `output_truncation_risk` warning |
 | `SupportsTools` | Advisory metadata — nothing enforces it at run time |
 | `SupportsStreaming` | Advisory metadata — nothing enforces it at run time |
@@ -920,11 +929,12 @@ streaming usage. Configure no estimate unless you can label it as an estimate.
 maximum possible output. Set a realistic `ModelBinding.MaxOutputTokens` value.
 
 **Anthropic rejects a thinking request.** Current models reject
-`budget_tokens` and sampling parameters with `400`: switch to
-`anthropic.thinking.mode = adaptive` with `anthropic.effort`, remove `Temperature`
-and `TopP`, and mark the model `SupportsSampling = false` in the catalog so the next
-definition fails at compile time. On an older model, keep the thinking budget below
-the output limit and set temperature to `1` or leave it out.
+`budget_tokens` with `400`: switch to `anthropic.thinking.mode = adaptive` with
+`anthropic.effort`. On an older model, keep the thinking budget below the output limit.
+
+**A definition for `anthropic` does not compile because of `Temperature`, `TopP` or `TopK`.**
+Anthropic SDK 13 has no request field for them, so Tracon refuses the definition instead of
+running it without the field. Remove the field.
 
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes

@@ -91,7 +91,9 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
     /// <c>openai</c> provider's Chat Completions surface sends (measured 2026-10-20): the seed, the
     /// stop sequences, both penalties, the tool mode and the parallel-tool-calls flag.
     /// </remarks>
-    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.Seed
+    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.Temperature
+        | SamplingFields.TopP
+        | SamplingFields.Seed
         | SamplingFields.StopSequences
         | SamplingFields.FrequencyPenalty
         | SamplingFields.PresencePenalty

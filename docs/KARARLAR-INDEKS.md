@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1051 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1053 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1103 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1105 kalem)
 
 | K | Karar |
 |---|---|
-| K-1062 | Uzantı model zincirine halkayı `UseChatClient(ChatClientSlot, Func<IChatClient, IChatClient>)` ile koyar; seçim `ExtensionNames` ile (F-594) |
-| K-1063 | Halka iki sabit yuvaya girer, içerik korumasının altına inemez; yerleştiremeyen registry derlemeyi durdurur (F-594) |
 | K-1064 | Tanımın koleksiyon üyeleri tipin `get`'inde `?? []` ile boş döner; okuyucuya onarım listesi yazdırılmaz |
 | K-1065 | Konuşma hafızası Core'dadır: kapsam kiracı + agent + kullanıcı; kullanıcısız ya da oturumsuz run hafıza kullanmaz (F-627) |
 | K-1066 | Hafıza kapsamı her çağrıda run'dan okunur; MAF sağlayıcısına oturum verilmez (F-627) |
@@ -62,3 +60,5 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1111 | Bütçe yüzünden reddedilen betik `script.denied` yazar; istisna ve `run_budget_exceeded` kimliği aynı kalır (F-690, Faz 254) |
 | K-1112 | `FakeModelProvider` tool turunda kullanım bildirir: `CallsTool`/`CallsTools` aşırı yüklemeleri; opsiyonel parametre bölündü (F-690, Faz 254) |
 | K-1113 | Çok replika dar vaadi: iki replika desteklenir; hız sınırı, MCP OAuth ve iptal açığı kapanır (K-739'u açar) 👤 |
+| K-1114 | Oturum silme tek iç yoldur (`SessionDeletion`): kopya, ek dosyaları, kayıt; üç çağıran aynı yolu kullanır (F-746, Faz 255) 👤 |
+| K-1115 | `SamplingFields` `Temperature` ve `TopP` taşır; Anthropic SDK 13 üçünü göndermez, beyan daralır, tanım reddedilir (F-745, Faz 255) 👤 |

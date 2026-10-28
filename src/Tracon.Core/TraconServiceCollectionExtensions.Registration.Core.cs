@@ -479,6 +479,14 @@ public static partial class TraconServiceCollectionExtensions
             // memory). Empty unless UseConversationMemory was called.
             provider.GetServices<ISubjectContentEraser>()));
 
+        // Phase 255 (F-746): the one path that deletes a session for a caller — record, the
+        // copy of its content and its attachments. Internal: the HTTP edge asks the gates
+        // first, so no consumer may reach it around them.
+        services.TryAddSingleton(static provider => new SessionDeletion(
+            provider.GetRequiredService<AgentSessionManager>(),
+            provider.GetRequiredService<IAttachmentStore>(),
+            provider.GetRequiredService<ITenantContext>()));
+
         // Conversation branching (Phase 47). IConversationBranchStore is
         // registered only while a SQL provider is on; without it, the service
         // says "not supported" and the endpoint returns 501 (see ConversationBranchService.IsSupported).

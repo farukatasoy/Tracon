@@ -27,7 +27,7 @@ namespace Tracon;
 /// That endpoint does its storage through the <c>IConversationStorage</c>,
 /// <c>IResponsesService</c>, and <c>IAgentConversationIndex</c> abstractions;
 /// those interfaces are also <strong>internal</strong> inside
-/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.25.0-alpha.261014.1).
+/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.26.0-alpha.261023.1).
 /// A consumer assembly cannot name these types, so no matter the registration
 /// order it cannot replace MAF's in-memory implementations. Using that path
 /// would silently lose all of the persistence, tenant isolation, audit trail,
@@ -454,8 +454,8 @@ internal static class OpenAIResponsesEndpoints
     /// </para>
     /// <para>
     /// <strong>The caller cannot answer that call over this endpoint.</strong>
-    /// Re-measured on 2026-10-16 (a probe that calls the helper) against
-    /// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> 1.25.0-alpha.261014.1:
+    /// Re-measured on 2026-10-16 (a probe that calls the helper), and read again on 2026-10-28 (decompiled: the helper
+    /// did not change) against <c>Microsoft.Agents.AI.Hosting.OpenAI</c> 1.26.0-alpha.261023.1:
     /// <see cref="OpenAIResponses.ToAgentRunRequest"/>
     /// deserializes <em>every</em> item of the <c>input</c> array into its
     /// internal <c>Responses.Models.InputMessage</c>, which declares <c>role</c>

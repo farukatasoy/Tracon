@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Phase 214: <see cref="TraconAgentSessionStore"/> against Microsoft Agent
-/// Framework 1.25's <see cref="AgentSessionStore"/> contract.
+/// Framework 1.26's <see cref="AgentSessionStore"/> contract.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -41,7 +41,9 @@ public sealed class SessionStoreIsolationTests
             configureTracon: static builder => builder.AddAgent(TestData.Definition()),
             configureServices: services => services.AddSingleton<AgentSessionStore>(sp =>
                 new IsolationKeyScopedAgentSessionStore(
-                    new TraconAgentSessionStore(sp.GetRequiredService<AgentSessionManager>()),
+                    new TraconAgentSessionStore(
+                        sp.GetRequiredService<AgentSessionManager>(),
+                        sp.GetRequiredService<SessionDeletion>()),
                     keys)));
 
         await PostTurnAsync(host, keys, "tenant-a", "first turn of a");
@@ -88,9 +90,36 @@ public sealed class SessionStoreIsolationTests
         await Should.ThrowAsync<NotSupportedException>(async () => await store.GetSessionAsync(agent, key, cancellationToken));
         await Should.ThrowAsync<NotSupportedException>(async () => await store.GetOrCreateSessionAsync(agent, key, cancellationToken));
         await Should.ThrowAsync<NotSupportedException>(async () => await store.SaveSessionAsync(agent, key, session, cancellationToken));
+        await Should.ThrowAsync<NotSupportedException>(async () => await store.DeleteSessionAsync(agent, key, cancellationToken));
 
         (await manager.QuerySessionsAsync(new SessionQuery(), cancellationToken))
             .ShouldBeEmpty("a refused key must not write a record under the bare session id");
+    }
+
+    [Fact]
+    public async Task Deleting_through_an_isolation_partition_deletes_that_callers_session_and_no_other()
+    {
+        // Phase 255: MAF 1.26 added DeleteSessionAsync. Folding the partition into the identity
+        // must hold for the delete as it does for every other call, or one caller's delete
+        // removes the session of the caller who shares the conversation id.
+        await using var host = await StartAsync();
+        var (store, manager, agent) = Resolve(host);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var tenantA = new AgentSessionStoreKey("conv", new Dictionary<string, string>(StringComparer.Ordinal) { ["isolation"] = "tenant-a" });
+        var tenantB = new AgentSessionStoreKey("conv", new Dictionary<string, string>(StringComparer.Ordinal) { ["isolation"] = "tenant-b" });
+        var bare = new AgentSessionStoreKey("conv");
+
+        foreach (var key in new[] { tenantA, tenantB, bare })
+        {
+            await store.SaveSessionAsync(agent, key, await store.GetOrCreateSessionAsync(agent, key, cancellationToken), cancellationToken);
+        }
+
+        await store.DeleteSessionAsync(agent, tenantA, cancellationToken);
+
+        (await manager.QuerySessionsAsync(new SessionQuery(), cancellationToken))
+            .Select(static record => record.Id)
+            .Order(StringComparer.Ordinal)
+            .ShouldBe(["conv", "tenant-b::conv"]);
     }
 
     [Fact]
@@ -157,7 +186,7 @@ public sealed class SessionStoreIsolationTests
         var manager = host.Services.GetRequiredService<AgentSessionManager>();
         var agent = host.Services.GetRequiredService<AgentDefinitionCompiler>().Compile(TestData.Definition());
 
-        return (new TraconAgentSessionStore(manager), manager, agent);
+        return (new TraconAgentSessionStore(manager, host.Services.GetRequiredService<SessionDeletion>()), manager, agent);
     }
 
     private static async Task PostTurnAsync(TraconTestHost host, SwitchableIsolationKeyProvider keys, string isolationKey, string input)

@@ -468,7 +468,7 @@ internal static class WorkflowDefinitionValidator
     /// <remarks>
     /// <para>
     /// <strong>Microsoft Agent Framework drops a message that no handler of the next
-    /// node takes, with no error</strong> (measured on 1.25.0): the next node
+    /// node takes, with no error</strong> (measured on 1.26.0, decompiled 2026-10-28; the delivery code is what the version before had): the next node
     /// never runs and the run ends <c>Completed</c> with no output. A first node that
     /// cannot take <see cref="RunInputType"/> runs nothing at all. Both shapes passed
     /// every check, so the save said <c>200</c> to a chain that could not run.
@@ -483,7 +483,7 @@ internal static class WorkflowDefinitionValidator
     /// </para>
     /// <para>
     /// <strong>The first node must not take <see cref="object"/></strong> (seen
-    /// on 1.25.0). The engine sends Microsoft Agent Framework's turn token to the first
+    /// on 1.26.0). The engine sends Microsoft Agent Framework's turn token to the first
     /// node after the run's message, on every start and every resume: a resume without it
     /// waits for its deadline when the checkpoint has nothing left to run. A node that
     /// takes <see cref="object"/> receives the token as a second input and runs twice, so

@@ -143,6 +143,40 @@ public sealed class AnthropicStopReasonTests
     }
 
     /// <summary>
+    /// Phase 255: SDK 12.59 and later hand an event name the adapter does not know to the stream instead of dropping it.
+    /// The two rings that read raw events (the stop reason and the cache usage) must let it pass, in a plain turn and in a
+    /// paused one, where the stop-reason ring rebuilds the blocks from the events it collected.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_streamed_turn_with_an_event_the_SDK_does_not_name_still_completes(bool paused)
+    {
+        await using var anthropic = await FakeAnthropicServer.StartAsync();
+
+        if (paused)
+        {
+            anthropic
+                .Stream(WithUnknownEvent(Events("msg_paused", "The search found the notes.", "pause_turn")))
+                .Stream(WithUnknownEvent(Events("msg_final", "The release ships on Friday.", "end_turn")));
+        }
+        else
+        {
+            anthropic.Stream(WithUnknownEvent(Events("msg_final", "The release ships on Friday.", "end_turn")));
+        }
+
+        await using var host = await StartAsync(anthropic, structured: false);
+
+        var frames = await PostStreamingAsync(host);
+
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        string.Concat(frames.Select(static frame => frame.Data)).ShouldContain("Friday");
+        anthropic.Bodies.Count.ShouldBe(paused ? 2 : 1);
+
+        (await SingleRunAsync(host)).Status.ShouldBe(RunStatus.Completed);
+    }
+
+    /// <summary>
     /// A streamed paused turn whose server tool streamed its input is sent back whole:
     /// the call with its parsed input, the result, and the text.
     /// </summary>
@@ -318,6 +352,15 @@ public sealed class AnthropicStopReasonTests
             Frame("message_stop", new JsonObject { ["type"] = "message_stop" }));
 
     private static string Frame(string name, JsonObject data) => $"event: {name}\ndata: {data.ToJsonString()}\n\n";
+
+    /// <summary>Puts an event the API may add one day (and today's SDK does not name) after the first one of the stream.</summary>
+    private static string WithUnknownEvent(string events)
+    {
+        var unknown = Frame("future_event", new JsonObject { ["type"] = "future_event", ["detail"] = 1 });
+        var firstEnd = events.IndexOf("\n\n", StringComparison.Ordinal) + 2;
+
+        return events.Insert(firstEnd, unknown);
+    }
 
     private static Task<TraconTestHost> StartAsync(FakeAnthropicServer anthropic, bool structured)
         => TraconTestHost.StartAsync(configureTracon: builder => builder

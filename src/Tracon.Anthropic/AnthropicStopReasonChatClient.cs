@@ -14,7 +14,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured (Anthropic SDK 12.58.0, the adapter decompiled): <c>ToFinishReason</c> maps
+/// Measured (Anthropic SDK 13.3.0, the adapter decompiled 2026-10-28; the mapping is the one the first measure found): <c>ToFinishReason</c> maps
 /// <c>end_turn</c> and <c>stop_sequence</c> to <see cref="ChatFinishReason.Stop"/>,
 /// <c>max_tokens</c> and <c>model_context_window_exceeded</c> to
 /// <see cref="ChatFinishReason.Length"/>, <c>tool_use</c> to
@@ -203,7 +203,7 @@ internal sealed class AnthropicStopReasonChatClient(IChatClient inner) : Delegat
     /// a tool's input is parsed at the end.
     /// The SDK's own <c>MessageContentAggregator</c> threw on a server tool's first
     /// <c>input_json_delta</c> in the version this code was written against; the
-    /// decompiled aggregator of 12.58.0 merges that input (<c>StreamedToolInput</c>). This
+    /// decompiled aggregator of 13.3.0 (unchanged since the first measure) merges that input (<c>StreamedToolInput</c>). This
     /// rebuild stays because a dependency upgrade changes no request; replacing it with
     /// the aggregator is a simplification to decide on its own.
     /// </remarks>

@@ -121,9 +121,14 @@ public sealed class AgentValidationWarningTests
         var report = await TraconTestHost.ReadJsonAsync(validation);
 
         report.GetProperty("valid").GetBoolean().ShouldBeFalse();
-        var error = report.GetProperty("messages").EnumerateArray().ShouldHaveSingleItem();
-        error.GetProperty("code").GetString().ShouldBe("sampling_unsupported");
-        error.GetProperty("path").GetString().ShouldBe("model.temperature");
+
+        // Phase 255: the catalog says the model rejects sampling, and since Anthropic SDK 13 the provider does not
+        // send the field either. Both findings are true and both name the path; the catalog one is the one this
+        // test is about, so it is looked up by its code.
+        var errors = report.GetProperty("messages").EnumerateArray().ToList();
+        errors.Select(static message => message.GetProperty("code").GetString()).Order(StringComparer.Ordinal)
+            .ShouldBe(["sampling_field_unsupported", "sampling_unsupported"]);
+        errors.ShouldAllBe(static message => string.Equals(message.GetProperty("path").GetString(), "model.temperature", StringComparison.Ordinal));
 
         using var save = await host.Client.PutAsJsonAsync(
             new Uri("/tracon/api/agents/sampling-agent", UriKind.Relative),

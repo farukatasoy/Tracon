@@ -1324,6 +1324,9 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     # F-598: hangi istek alanini bir API yuzeyinin tele yazdigi, SDK adaptorunun
     # decompile okumasina dayanir; ISamplingSupport tablosu yukseltmede yeniden olculur.
     "src/Tracon.Anthropic/AnthropicModelProvider.cs": "Anthropic",
+    # Faz 255: saglik denetimi SDK'nin gonderdigi anthropic-version degerini yazar; SDK degisince ikisi birlikte
+    # kaymasin diye surum pinle izlenir (AnthropicRequestSettingsTests ayni degeri telde dogrular).
+    "src/Tracon.Anthropic/AnthropicProviderHealthCheck.cs": "Anthropic",
     # F-598: adaptor AllowMultipleToolCalls'i yalniz tool_choice kurarken okur (decompile);
     # yukseltmede yeniden olculur, AnthropicProviderSettingsChatClient o davranisa dayanir.
     "src/Tracon.Anthropic/AnthropicProviderSettingsChatClient.cs": "Anthropic",

@@ -28,7 +28,9 @@ internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISampl
 
     /// <summary>Every field: a fake sends nothing, so a test limits it only when it tests the limit.</summary>
     public const SamplingFields AllSamplingFields =
-        SamplingFields.Seed
+        SamplingFields.Temperature
+        | SamplingFields.TopP
+        | SamplingFields.Seed
         | SamplingFields.TopK
         | SamplingFields.StopSequences
         | SamplingFields.FrequencyPenalty

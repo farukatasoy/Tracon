@@ -89,6 +89,13 @@
 - **Bot tek grup açar:** `agent-stack` (MAF + `Microsoft.Extensions.*` + OpenAI + A2A + AspNetCore/Bcl/Data). Zincir
   koparsa her PR `restore`'da kırmızı kalır (A-62).
 
+## Çalışma anı yükseltmesi, ikinci tur (Faz 255, 2026-10-28)
+
+- **🚨 "Derleme geçti" bir MAF yükseltmesinin kanıtı değildir; iki sürümün TAM decompile'ını diff'le.** `ilspycmd -p -o <dizin> <dll>` ile `Microsoft.Agents.AI`, `.Workflows`, `.Hosting*`, `.Abstractions` iki sürüm için açıldı (~1 dk), `diff -rq` 1.25 → 1.26'da yalnız 20 dosya gösterdi: `LoopAgent`, `OpenTelemetryAgent`, iletme kodu ve Responses yazıcısı DEĞİŞMEMİŞ — üç `///` damgası (`AggregatedResponseGuard`, `RecordingLoopEvaluator`, `WorkflowDefinitionValidator`, `ResponsesIncompleteness`) bu kanıtla yeni sürüme taşındı. Değişen: `ToolApprovalAgent` yinelenen onay kimliğini `InvalidOperationException` ile reddeder; `StatefulExecutor` önbelleği bıraktı. Aynı yöntem Anthropic için: adaptör sınıfı `ilspycmd -t Microsoft.Extensions.AI.AnthropicClientExtensions`.
+- **`DelegatingAgentSessionStore.DeleteSessionAsync` anahtarı OLDUĞU GİBİ iletir.** `A2ASessionStore` türevi geçersiz kılmazsa MAF `caller::contextId` anahtarını köprüye taşırdı ve `a2a:<özet>` kimliği altındaki konuşma yerinde kalırdı. Plan yalnız köprüyü sayıyordu; derleme bunu göstermez (taban sınıf artık somut).
+- **Pkcs sabitleri KALIR** (SqlClient 7.1.1 hâlâ en yeni; boş proje net8 8.0.1, net9/net10 9.0.18, NU1902+NU1903). Azure.Core 1.64.0 da System.ClientModel 1.16.0 ister: `AudioClient` notu geçerli. Data.Sqlite 10.0.14 `DbDataSource` sunmaz.
+- **Anthropic gerçek API'si Bearer + `anthropic-version: 2026-10-21` kabul eder** (200, SDK 13.3 ile gerçek run); `x-api-key` + `2023-06-01` de çalışır. Sağlık denetimi SDK'yı izler; test iki sürümü telde karşılaştırır.
+
 ## npm araç zinciri majörleri (Faz 216, 2026-10-16)
 
 - **🚨 Vite 8 (Rolldown) IIFE'nin `"use strict"`'ini bırakır.** Ölçüldü: `embed.js` `(function(){var e=…` ile

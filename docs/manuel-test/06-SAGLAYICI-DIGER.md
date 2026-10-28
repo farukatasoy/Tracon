@@ -1,6 +1,6 @@
 # 06 — Sağlayıcı: Anthropic, Google, Azure OpenAI (`PROV`)
 
-> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214, 217, 226, 252, 253
+> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214, 217, 226, 252, 253, 255
 > **Kaynak:** `src/Tracon.Anthropic` (tümü), `src/Tracon.Google` (tümü),
 > `src/Tracon.Azure` (tümü) — üç paket de `Tracon.OpenAI` ile **aynı**
 > iskeleti tekrarlar (`XxxProviderOptions*`, `XxxProviderExtensions`,
@@ -2144,3 +2144,60 @@ Gerçek para harcar (iki küçük çağrı, ~2,4 K girdi token'ı).
 - Aynı çağrının 5 dakikalık karşılığından daha pahalıdır (uzun fiyat kısa fiyatın 1,6 katıdır).
 
 2026-10-27 koşumu (`claude-haiku-5-5`): tamponlu `cacheWriteLongInputTokens 2425`, `cacheWriteCost 0.000485`, uzun fiyat `0.2`; akışlı `2427`, `0.0004854`.
+
+---
+
+### MT-PROV-099 — Anthropic SDK 13: paylaşılan anahtar, kiracının kendi anahtarı ve sağlık denetimi gerçek API'de `200` döner; `Temperature`, `TopP` ve `TopK` kaydedilmez (Faz 255, F-745)
+
+Otomatik karşılığı: `AnthropicRequestSettingsTests.A_tenant_credential_client_sends_the_same_settings` (kiracı anahtarı telde, paylaşılan anahtar telde değil) ·
+`AnthropicProviderHealthCheckWireTests` · `ModelSamplingSupportTests` · `ModelSamplingWireTests`. Bu case'in ek değeri **gerçek API'nin** SDK 13'ün kimlik biçimini
+(`Authorization: Bearer` ve `anthropic-version: 2026-10-21`) kabul etmesidir; kodla tekrarlanamaz.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 255 |
+| **İlgili karar** | K-1115 |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` + gerçek Anthropic anahtarı |
+
+Gerçek para harcar (iki küçük çağrı).
+
+**Ön koşul**
+- Gerçek Anthropic anahtarı `user-secrets` içinde. Örnek uygulama izole başlar: `Tracon__PostgreSql__ConnectionString=`, `Tracon__SqlServer__ConnectionString=`,
+  `Tracon__Sqlite__ConnectionString=`, `Tracon__Ui__AuthToken=` ve `Tracon__Providers__OpenAI__ApiKey=` boş; `Tracon__Tenancy__Enabled=true`,
+  `Tracon__Tenancy__AllowHeaderResolution=true`; kiracının anahtarı yalnız süreç ortamında: `Tracon__ProviderKeys__acme__anthropic=<anahtar>`.
+- `ASPNETCORE_ENVIRONMENT=Development`, derlenmiş DLL ve `--contentRoot` (bkz. `docs/hafiza/elle-kosum-ortami.md`).
+
+**Adımlar**
+1. `GET /api/models/health/anthropic` oku.
+2. `anthropic` / `claude-haiku-5-5` agent'ı kaydet ve çalıştır (paylaşılan anahtar).
+3. `PUT /api/tenants/acme/providers/anthropic` ile `Tracon:ProviderKeys:acme:anthropic` adını bağla; aynı agent'ı `acme` kiracısında kaydet ve çalıştır.
+4. Aynı sağlayıcı için `Temperature`, `TopP` ve `TopK` taşıyan üç tanım kaydetmeyi dene.
+
+**Girilecek veri**
+```bash
+A=http://127.0.0.1:5199/tracon
+curl -s $A/api/models/health/anthropic
+curl -s -X POST $A/api/agents -H 'content-type: application/json' \
+     -d '{"name":"f255-claude","instructions":"Reply with the single word: ok","model":{"provider":"anthropic","model":"claude-haiku-5-5","maxOutputTokens":64}}'
+curl -s -X POST $A/api/agents/f255-claude/run -H 'content-type: application/json' -H "Idempotency-Key: f255-1" -d '{"message":"hello"}'
+curl -s -X PUT $A/api/tenants/acme/providers/anthropic -H 'X-Tracon-Tenant: acme' -H 'content-type: application/json' \
+     -d '{"apiKeyConfigurationName":"Tracon:ProviderKeys:acme:anthropic"}'
+curl -s -X POST $A/api/agents -H 'X-Tracon-Tenant: acme' -H 'content-type: application/json' \
+     -d '{"name":"f255-claude-byok","instructions":"Reply with the single word: ok","model":{"provider":"anthropic","model":"claude-haiku-5-5","maxOutputTokens":64}}'
+curl -s -X POST $A/api/agents/f255-claude-byok/run -H 'X-Tracon-Tenant: acme' -H 'content-type: application/json' -H "Idempotency-Key: f255-2" -d '{"message":"hello"}'
+curl -s -X POST $A/api/agents -H 'content-type: application/json' \
+     -d '{"name":"f255-bad","instructions":"x","model":{"provider":"anthropic","model":"claude-haiku-5-5","temperature":0.5}}'   # topP: 0.5, topK: 40 ile de
+```
+
+**Beklenen sonuç**
+- (1) `status: Healthy`, `models` listesi dolu. Sağlık denetimi `Authorization: Bearer` ve `anthropic-version: 2026-10-21` gönderir.
+- (2) ve (3) iki run da `Completed`, yanıt metni `ok`; istek SDK'nın kimlik biçimiyle gider.
+- (4) Üç kayıt da `400`; `detail` alanı ve sağlayıcıyı (`'anthropic' provider`) adlandırır: `ModelBinding.Temperature`, `ModelBinding.TopP`, `ModelBinding.TopK`.
+  `Temperature` ve `TopP` için katalog bulgusu da yazılır (örnek uygulamanın Anthropic modelleri `SupportsSampling = false` taşır): iki cümle, aynı alan.
+
+> **Koşum (2026-10-28, Faz 255):** ✅ — `samples/Tracon.Api` Release, bellek içi depo, `Npgsql` günlük satırı `0`, gerçek `claude-haiku-5-5`, `Anthropic` 13.3.0.
+> (1) `Healthy` (0,68 sn). (2) `Completed`, yanıt `ok`. (3) bağlama `resolved: true`; kiracı run'ı `Completed`, yanıt `ok`. (4) üç kayıt `400` (`Definition invalid`).
+> Ek ölçüm (aynı gün, SDK'sız `GET /v1/models`): `x-api-key` + `2023-06-01`, `x-api-key` + `2026-10-21`, `Bearer` + `2026-10-21` ve `Bearer` + `2023-06-01` dördü de `200`.
+> Sınır: kiracı anahtarı bu koşumda paylaşılan anahtarla aynı değerdir, yani hangi anahtarın gittiğini telde birim testi kanıtlar (`A_tenant_credential_client_sends_the_same_settings`), bu case kanıtlamaz.
