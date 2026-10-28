@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Tracon ships 20 NuGet packages and one npm package from a single version
+Tracon ships 21 NuGet packages and one npm package from a single version
 line. Only the **most recent published version** receives security fixes; a
 preview that has been superseded is not patched in place. See
 [Versions and upgrades](https://tracon.dev/reference/versioning/)

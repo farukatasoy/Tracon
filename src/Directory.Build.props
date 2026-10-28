@@ -127,8 +127,8 @@
   <Target Name="TraconSetPackageReleaseNotes" BeforeTargets="GenerateNuspec">
     <PropertyGroup>
       <!--
-        Anchored to the version, not embedded release-note text: 20 packages
-        share one version stream, so inlining the same text 20 times would
+        Anchored to the version, not embedded release-note text: 21 packages
+        share one version stream, so inlining the same text 21 times would
         drift. The target is the documentation site's release-notes page, which
         is generated from the root CHANGELOG.md - a github.com URL would 404
         for every consumer while the repository is private. The `v<version>`
@@ -179,7 +179,7 @@
     SDK's default None glob applies only in the INNER (TFM-specific) builds,
     while `dotnet pack` collects package files in the OUTER cross-targeting
     build. Include is the working form - this is why README.md is packed the
-    same way. Verify with: unzip -l <nupkg> | grep icon.png (all 20 packages).
+    same way. Verify with: unzip -l <nupkg> | grep icon.png (all 21 packages).
     Rationale: docs/hafiza/paketleme-ve-dagitim.md.
   -->
   <ItemGroup Label="Package files">

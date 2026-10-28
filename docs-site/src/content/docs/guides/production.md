@@ -313,7 +313,7 @@ Preview a retention rule before you execute it. If archival is enabled but no
 `IArchiveSink` is registered, Tracon does not delete the rows.
 
 Retention removes data by age; it never touches `audit_log`, which is a separate,
-tamper-evident trail (`GET /api/audit/verify`) and stays outside any retention
+hash-chained trail (`GET /api/audit/verify`) and stays outside any retention
 target on purpose. If a data subject request (export or erasure by identity, not
 age) is part of your compliance posture, register an `IDataSubjectResolver` — see
 [Data subject rights](/concepts/governance/#data-subject-rights). Without

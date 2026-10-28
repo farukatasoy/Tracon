@@ -139,7 +139,7 @@ claim to provide an operating-system sandbox.
 A run is the unit of evidence. What is recorded is recorded against a run id, and a
 store failure never gets permission to stop the run itself — which is also the limit
 of the guarantee: recording is best-effort, so a store failure costs the record, not
-the run. Seven operations invert that and refuse to proceed without their audit entry;
+the run. Eight operations invert that and refuse to proceed without their audit entry;
 [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written)
 is the list.
 

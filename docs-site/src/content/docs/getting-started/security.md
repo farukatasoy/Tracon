@@ -387,7 +387,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
-| Audit trail | Seven operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Audit trail | Eight operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Quotas and rate limits | Spend and request volume above the configured ceiling | [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits) |
 | Production profile | A host starting with a security decision never made | [Requiring a production decision](/concepts/governance/#requiring-a-production-decision) |
 

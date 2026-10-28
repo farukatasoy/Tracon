@@ -3,12 +3,13 @@ title: Embedding into a host application
 description: Bind Tracon's seven embedding points to your own identity, authorization, eventing, storage, and approval presentation, and read the identity a tool body sees.
 ---
 
-`AddTracon()` plus `MapTracon()` is a complete, working setup on its own —
-that two-line promise is what [Your first agent](/getting-started/first-agent/)
-shows. Embedding Tracon into an application that already has its own tenants,
+`AddTracon()` plus `MapTracon()` is a complete, working setup on its own;
+[Your first agent](/getting-started/first-agent/) starts from it. Embedding Tracon into an application that already has its own tenants,
 users, permissions, event bus, or object storage is a different job: it means
-replacing six built-in defaults with bindings into systems you already run. All
-six are wired the same way, are all optional, and can be added one at a time.
+replacing built-in defaults with bindings into systems you already run. There are
+seven embedding points. The six below are wired the same way, are all optional, and
+can be added one at a time; the seventh, `IToolApprovalPresenter`, is covered with
+[Approvals](/concepts/governance/#approvals).
 
 ## The six points
 

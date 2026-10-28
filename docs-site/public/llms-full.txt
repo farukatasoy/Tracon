@@ -150,7 +150,7 @@ claim to provide an operating-system sandbox.
 A run is the unit of evidence. What is recorded is recorded against a run id, and a
 store failure never gets permission to stop the run itself — which is also the limit
 of the guarantee: recording is best-effort, so a store failure costs the record, not
-the run. Seven operations invert that and refuse to proceed without their audit entry;
+the run. Eight operations invert that and refuse to proceed without their audit entry;
 [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written)
 is the list.
 
@@ -2015,6 +2015,15 @@ outcomes:
 curl 'http://localhost:5081/tracon/api/audit/verify'
 # {"status":"Valid","entriesChecked":42,"firstFailingEntryId":null}
 ```
+
+:::caution[The chain detects a change; it does not resist one]
+The hash is SHA-256 over the entry and the previous hash, with no key. It catches a
+change made without recomputing the chain — a manual edit, a partial restore, a bug in
+another writer. Anyone who can write to the audit table can also recompute every hash
+after the change, and the walk then reports `Valid`. Protect the trail from a database
+administrator or an attacker with write access through the database's own access
+controls and backups, not through this check.
+:::
 
 :::note[Entries written before this feature ships have no hash]
 They are excluded from the walk rather than misreported as tampered — a chain starts
@@ -5998,48 +6007,42 @@ Use `--persistence`, `--provider`, and `--ui` to change the generated project.
 Run `dotnet new tracon-api -h` to see the available values. The console is
 embedded in the host; no separate console server is needed.
 
-Store your provider settings in the application's development secrets. Replace
-the example values with your key and a model identifier available to your account.
+Store your provider key in the application's development secrets. The key never
+enters the project; `appsettings.json` carries only an empty placeholder.
 
 ```bash
 dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
-dotnet user-secrets set "Tracon:Providers:OpenAI:DefaultModel" "YOUR_CHAT_MODEL"
 ```
 
 <span id="by-hand"></span>
 
-## Register the agent
+## Choose the model
 
-Replace the generated `Program.cs` with the following:
+The generated `Program.cs` already registers an agent named `support` and one tool,
+`get_order_status`, from `Tools/OrderTools.cs`. Tracon ships no model list, so the
+model name is the one line you edit: replace `WRITE_MODEL_NAME_HERE` with a chat
+model your account serves today.
 
-```csharp title="Program.cs"
-using Tracon;
-
-var builder = WebApplication.CreateBuilder(args);
-
-var tracon = builder.AddTracon()
-    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
-    .UseUI();
+```csharp title="Program.cs (excerpt)"
+const string ModelName = "WRITE_MODEL_NAME_HERE"; // your chat model
 
 tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
     DisplayName = "Support Assistant",
     Description = "Answers order and shipping questions.",
-    Instructions = "You are a support assistant. Answer briefly and clearly.",
+    Instructions = "You are a support assistant. Answer briefly and clearly. Always use a tool for order questions.",
     Model = new ModelBinding
     {
         Provider = OpenAIProviderNames.ChatCompletions,
-        Model = builder.Configuration["Tracon:Providers:OpenAI:DefaultModel"]
-            ?? throw new InvalidOperationException("Configure an OpenAI chat model."),
+        Model = ModelName,
     },
+    ToolNames = ["get_order_status"],
 });
-
-var app = builder.Build();
-
-app.MapTracon("/tracon");
-app.Run();
 ```
+
+With an API key set and the placeholder still in place, the host stops at startup
+and names this line, instead of failing on the first model call.
 
 This first agent uses a chat model only. To let a later agent generate stored image
 attachments, add `UseOpenAIImages(...)`, set `Tracon:Images:Enabled`, and choose
@@ -6104,8 +6107,9 @@ cannot take down product functionality.
 
 ## What you have
 
-An agent defined in code, a console, and a recorded history — with no database. Every
-store is in memory, so all of it ends when the process does.
+An agent defined in code with one tool, a console, and a recorded history — with no
+database. With the default `--persistence memory`, every store is in memory, so all of
+it ends when the process does.
 
 ## Read next
 
@@ -6961,7 +6965,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
-| Audit trail | Seven operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Audit trail | Eight operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Quotas and rate limits | Spend and request volume above the configured ceiling | [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits) |
 | Production profile | A host starting with a security decision never made | [Requiring a production decision](/concepts/governance/#requiring-a-production-decision) |
 
@@ -7108,12 +7112,19 @@ public static string GetOrderStatus(string orderId, IServiceProvider services)
 
 tracon.AddTool(GetOrderStatus);
 
-// Right — the dependency is captured when the tool is registered
-var repository = app.Services.GetRequiredService<IOrderRepository>();
-tracon.AddTool(AIFunctionFactory.Create(
-    (string orderId) => repository.Find(orderId).Status,
-    "get_order_status",
-    "Returns the shipping status of an order."));
+// Right — the dependency is captured when the tool is registered.
+// The factory runs once, on the final service provider, when Tracon builds its
+// tool registry. Register before builder.Build(): the service collection is
+// read-only after it, and a registration added then throws.
+builder.Services.AddSingleton(provider =>
+{
+    var repository = provider.GetRequiredService<IOrderRepository>();
+
+    return new TraconToolRegistration(AIFunctionFactory.Create(
+        (string orderId) => repository.Find(orderId).Status,
+        "get_order_status",
+        "Returns the shipping status of an order."));
+});
 ```
 
 `[TraconTool]` catches the same mistake earlier: the source generator does not
@@ -10587,12 +10598,13 @@ See [Read contract views](/reference/read-views/) for the full column list, the
 
 Source: https://tracon.dev/guides/embedding/
 
-`AddTracon()` plus `MapTracon()` is a complete, working setup on its own —
-that two-line promise is what [Your first agent](/getting-started/first-agent/)
-shows. Embedding Tracon into an application that already has its own tenants,
+`AddTracon()` plus `MapTracon()` is a complete, working setup on its own;
+[Your first agent](/getting-started/first-agent/) starts from it. Embedding Tracon into an application that already has its own tenants,
 users, permissions, event bus, or object storage is a different job: it means
-replacing six built-in defaults with bindings into systems you already run. All
-six are wired the same way, are all optional, and can be added one at a time.
+replacing built-in defaults with bindings into systems you already run. There are
+seven embedding points. The six below are wired the same way, are all optional, and
+can be added one at a time; the seventh, `IToolApprovalPresenter`, is covered with
+[Approvals](/concepts/governance/#approvals).
 
 ## The six points
 
@@ -15154,7 +15166,7 @@ Preview a retention rule before you execute it. If archival is enabled but no
 `IArchiveSink` is registered, Tracon does not delete the rows.
 
 Retention removes data by age; it never touches `audit_log`, which is a separate,
-tamper-evident trail (`GET /api/audit/verify`) and stays outside any retention
+hash-chained trail (`GET /api/audit/verify`) and stays outside any retention
 target on purpose. If a data subject request (export or erasure by identity, not
 age) is part of your compliance posture, register an `IDataSubjectResolver` — see
 [Data subject rights](/concepts/governance/#data-subject-rights). Without
@@ -25697,7 +25709,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Content guards | Input or output a configured guard rejects |
 | Secret handling | A secret value reaching storage, a log, or a response |
 | At-rest protection | Readable content in a database you do not fully trust |
-| Audit trail | Seven operations proceeding without their record |
+| Audit trail | Eight operations proceeding without their record |
 | Quotas and rate limits | Spend and request volume above the configured ceiling |
 | Production profile | A host starting with a security decision never made |
 
@@ -25728,9 +25740,10 @@ state.
 :::
 
 :::caution[The audit trail's best-effort half can go silently thin under a storage outage]
-Seven operations — an approval decision, granting or running a skill script, saving or
-deleting an inbound trigger, an automatic canary rollback, a data subject erasure, and
-an answer to a workflow's pending request — refuse to proceed if their audit record fails to write. Every other audit write is
+Eight operations — an approval decision, granting or revoking a skill script, running a
+skill script, saving or deleting an inbound trigger, an automatic canary rollback, a data
+subject erasure, an answer to a workflow's pending request, and an answer to a tool's
+request for user input — refuse to proceed if their audit record fails to write. Every other audit write is
 best-effort: the operation continues and the record can be missing. See [what is
 guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) for
 the full split and how a failed write is surfaced in metrics.
