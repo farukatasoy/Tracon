@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214, 237, 238, 247
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214, 237, 238, 247, 257
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -1809,55 +1809,61 @@ open http://localhost:5081/tracon
 |---|---|
 | **İzlek** | A |
 | **Önem** | Kritik |
-| **İlgili faz** | Faz 37 |
+| **İlgili faz** | Faz 37 · Faz 257 |
 | **İlgili karar** | K-032 |
 
-Sınır senaryosu. Şablon model adını bilerek **sabitlemez**; yer tutucu
-`WRITE_MODEL_NAME_HERE`'dır. Bu case yer tutucunun gerçekten fark edildiğini
-ve düzeltildikten sonra yolun çalıştığını kanıtlar.
+Sınır senaryosu. Şablon model adını bilerek **sabitlemez** ve koda da yazmaz: `--model` değeri
+`appsettings.json`'a sağlayıcının `DefaultModel` ayarı olarak girer (Faz 257). Bu case modelsiz
+üretimin adlandırılmış bir hatayla durduğunu ve `--model` ile üretilen projenin **hiçbir dosya
+düzenlenmeden** çalıştığını kanıtlar.
 
 **Ön koşul**
 - MT-PKG-071 geçti. Uygulama durduruldu.
 
 **Adımlar**
-1. Yer tutucuyla çalışırken bir `run` dene.
-2. Model adını düzelt.
-3. API anahtarını `user-secrets` ile ver.
-4. Uygulamayı başlat ve `run`'ı tekrarla.
+1. `--model` vermeden bir proje üret, API anahtarını ortam değişkeniyle ver, uygulamayı başlat.
+2. Aynı projeyi `--model` ile üret.
+3. Uygulamayı başlat ve `run` dene.
 
 **Girilecek veri**
 ```bash
-cd ~/tracon-manuel/varsayilan
-
-# 1) Yer tutucu ile
-dotnet run -c Release & sleep 8
-curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
-  -H "content-type: application/json" \
-  -d '{"message":"ORD-1001 siparisim nerede?"}' | head -c 400
-kill %1
-
-# 2) Model adini duzelt
-sed -i '' 's/WRITE_MODEL_NAME_HERE/gpt-5.4-mini/' Program.cs
-
-# 3) Anahtari ver — SKILL.md 1.2: user-secrets YAZILMAZ, ortam degiskeni kullanilir
+# SKILL.md 1.2: user-secrets YAZILMAZ, ortam degiskeni kullanilir
 export Tracon__Providers__OpenAI__ApiKey="<OPENAI_ANAHTARINIZ>"
 
-# 4) Tekrar dene
-dotnet build -c Release
+# 1) Modelsiz
+rm -rf ~/tracon-manuel/modelsiz && mkdir -p ~/tracon-manuel/modelsiz
+cd ~/tracon-manuel/modelsiz
+cp ~/tracon-manuel/uretec/nuget.config .
+SURUM=$(ls ~/tracon-local-feed/Tracon.0.*.nupkg | sed 's#.*/Tracon\.##;s#\.nupkg##')
+dotnet new tracon-api -o . --TraconVersion "$SURUM"
+dotnet run -c Release 2>&1 | head -c 800
+
+# 2) --model ile
+rm -rf ~/tracon-manuel/modelli && mkdir -p ~/tracon-manuel/modelli
+cd ~/tracon-manuel/modelli
+cp ~/tracon-manuel/uretec/nuget.config .
+dotnet new tracon-api -o . --TraconVersion "$SURUM" --model gpt-5.4-mini
+grep DefaultModel appsettings.json
+
+# 3) Calistir
 dotnet run -c Release & sleep 8
 curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
   -H "content-type: application/json" \
   -d '{"message":"ORD-1001 siparisim nerede?"}' | head -c 600
+kill %1
 ```
 
 **Beklenen sonuç**
-- 1. adımda `run` **başarısız** olur. Yanıt bir hata taşır ve hata metni model
-  adını (`WRITE_MODEL_NAME_HERE`) içerir. Uygulama **çökmez**.
-- 4. adımda `run` başarılı biter.
-- Yanıt `ORD-1001` dizgisini içerir **ve** `get_order_status` tool'u tam bir kez
-  çağrılır. (Model metni sabit değildir; metne bağlı iddia yapılmaz.)
-- `/tracon/api/runs` en az bir kayıt döndürür ve son kaydın `status` alanı
-  tamamlanmış durumu gösterir.
+- 1. adımda uygulama **açılmaz** (çıkış kodu sıfır değil). Mesaj `Tracon:Providers:OpenAI:DefaultModel`
+  anahtarını **ve** `--model` bayrağını adlandırır. `WRITE_MODEL_NAME_HERE` hiçbir yerde geçmez.
+- 2. adımda `appsettings.json` `"DefaultModel": "gpt-5.4-mini"` satırını taşır. `Program.cs` model adı taşımaz.
+- 3. adımda `run` başarılı biter. Yanıt `ORD-1001` dizgisini içerir **ve** `get_order_status` tool'u tam bir
+  kez çağrılır. (Model metni sabit değildir; metne bağlı iddia yapılmaz.)
+- `/tracon/api/runs` en az bir kayıt döndürür ve son kaydın `status` alanı tamamlanmış durumu gösterir.
+
+2026-10-28 koşumu (🤖, temiz `mcr.microsoft.com/dotnet/sdk:10.0` container'ı, yerel feed, gerçek OpenAI anahtarı ortam değişkeniyle): (1) çıkış `134`, mesaj
+`Tracon:Providers:OpenAI:DefaultModel` ve `dotnet new tracon-api --model <name>` dedi; (2) `appsettings.json` `"DefaultModel": "gpt-5.4-mini"` taşıdı,
+`Program.cs`'te `WRITE_` sayısı `0`; (3) `support` `Completed`, yanıt tool sonucunu taşıdı. Adım 3 `MT-PKG-175`'in koşumuyla aynı komutlardır.
 
 ---
 
@@ -4782,3 +4788,38 @@ Otomatik karşılığı: `UnreadableConfigurationValidatorTests.A_list_key_that_
 - (2) Uygulama açılır.
 
 2026-10-26 koşumu: (1) çıkış `134`, mesaj `…:EnvironmentAllowList:0` biçimini önerdi; (2) `Now listening on: http://localhost:5080`, `GET /tracon/api/meta` `200`.
+
+---
+
+### MT-PKG-175 — İlk agent'a giden yol: temiz bir container'da `dotnet new` → ilk yanıt, rehberin komutlarıyla; süre dakika olarak ölçülür (Faz 257)
+
+Otomatik karşılığı: `FirstAgentPathTests` (rehberin komutları, sahte sağlayıcı, adım sayısı tabanı) · `TemplateRunTests` · `TemplateModelNameTests`.
+Bu case otomatik testin **göremediği** iki şeyi ölçer: gerçek bir sağlayıcıyı ve geçen süreyi.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 257 |
+| **İlgili karar** | K-032 |
+| **Devir** | 🤖 ajan koşar — `mcr.microsoft.com/dotnet/sdk:10.0` container'ı, yerel feed ve gerçek OpenAI anahtarı (`manuel-test-kosumu` 1.2) |
+
+**Ön koşul** — Temiz `mcr.microsoft.com/dotnet/sdk:10.0` container'ı; yerel feed (`artifacts/package/release`) bağlı ve `nuget.config` onu
+gösterir. Gerçek OpenAI anahtarı yalnız ortam değişkeniyle verilir. Container'da daha önce `dotnet new install` koşulmamıştır.
+
+**Adımlar**
+1. Saati başlat. `docs-site/src/content/docs/getting-started/first-agent.md` `## Create the host` bölümündeki komutları **sırayla ve olduğu gibi** koş
+   (`dotnet new install`, `dotnet new tracon-api -n MyAgents --model <model>`, `cd MyAgents`, `dotnet user-secrets set …`, `dotnet run`).
+2. İlk `POST /tracon/api/agents/support/run` yanıtı gelince saati durdur.
+3. Komut sayısını ve geçen **dakikayı** yaz.
+
+**Beklenen sonuç**
+- Rehber beş komut sayar; hiçbir adım bir dosyayı düzenlemeyi istemez.
+- `run` gerçek modelden bir yanıt alır ve `Completed` biter.
+- Geçen süre dakika olarak case'e yazılır. **Eşik konmaz**; bakımcı ilk ölçümden sonra koyar.
+
+2026-10-28 koşumu (🤖, `mcr.microsoft.com/dotnet/sdk:10.0` arm64 container'ı, yerel feed `1.0.0-preview.6.40`, gerçek OpenAI, `gpt-5.4-mini`):
+**5 komut, 0 dosya düzenlemesi, ilk yanıta 24 sn (0,4 dakika)** — `dotnet new install` 4 sn · `dotnet new` + restore 7 sn · `user-secrets set` 1 sn ·
+`dotnet run` (derleme) → katalog 9 sn · ilk `run` yanıtı 3 sn. `support` `Completed`, `appsettings.json` `"DefaultModel": "gpt-5.4-mini"`.
+Sapma: faz yayınlanmadığı için `dotnet new install` nuget.org yerine yerel `.nupkg`'yi kurdu; `dotnet new` restore'u nuget.org'a gitti (soğuk önbellek, ağ ölçüme dahil).
+Eşik yok; bakımcı ilk ölçümden sonra koyar.

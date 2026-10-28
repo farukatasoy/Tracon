@@ -1191,8 +1191,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/knowledge/manuel-bilgi/d
 - Dördü de `HTTP: 501`.
 - `title` tam olarak: `Knowledge base not supported` (K-228 — bu case'in
   Türkçe metni 2026-09-18'de koşum sırasında düzeltildi).
-- `detail` tam olarak: `An IVectorSearchStore (today only PostgreSQL:
-  UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>>
+- `detail` tam olarak: `An IVectorSearchStore (today only the Tracon.PostgreSql
+  package: UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>>
   must both be registered.`
 
 **Ön koşulu geri al**
@@ -1321,7 +1321,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - `valid: false`.
 - `messages[0].message` tam olarak: `Agent 'manuel-vektor-yok' wants
   semantic search, but IVectorSearchStore is not registered (today only
-  PostgreSQL: UsePostgreSql()).` (K-228 — bu case'in Türkçe metni
+  the Tracon.PostgreSql package: UsePostgreSql()).` (K-228 — bu case'in Türkçe metni
   2026-09-18'de koşum sırasında düzeltildi.)
 
 **Ön koşulu geri al**

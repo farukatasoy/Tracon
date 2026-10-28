@@ -237,7 +237,7 @@ dotnet build "$TMP/dolu" -c Release
 |---|---|
 | **İzlek** | A |
 | **Önem** | Kritik |
-| **İlgili faz** | Faz 37 |
+| **İlgili faz** | Faz 37 · Faz 257 |
 | **İlgili karar** | K-059 |
 
 Negatif/kontrol senaryosu — `TemplateSecretTests`'in iki testinin birleşik
@@ -267,19 +267,21 @@ cat "$TMP/sir/appsettings.json"
 
 **Beklenen sonuç**
 - `secret` taraması **"temiz"** yazar — hiçbir eşleşme yok.
-- `appsettings.json`'da `Tracon.SqlServer.ConnectionString`, `Tracon.Providers.AzureOpenAI.Endpoint`
-  ve `Tracon.Providers.AzureOpenAI.ApiKey` alanlarının **hepsi boş dize (`""`)**'dir
-  (`appsettings.json:6,18`'deki `#if` blokları yalnız `sqlserver`/`azure` dilimini üretir).
+- `appsettings.json`'da `Tracon.SqlServer.ConnectionString`, `Tracon.Providers.AzureOpenAI.Endpoint`,
+  `Tracon.Providers.AzureOpenAI.ApiKey` ve `Tracon.Providers.AzureOpenAI.DefaultDeployment` alanlarının
+  **hepsi boş dize (`""`)**'dir (`--model` verilmedi; model adı `secret` değildir ama parametresiz üretimde boştur).
+  `AzureOpenAI` bölümü `Endpoint`, `ApiKey` ve `DefaultDeployment`'tan başka alan taşımaz
+  (`appsettings.json`'daki `#if` blokları yalnız `sqlserver`/`azure` dilimini üretir).
 
 ---
 
-### MT-TEST-005 — Üretilen `Program.cs` hiçbir sağlayıcı için sabit bir model adı taşımaz
+### MT-TEST-005 — `--model` değeri dört sağlayıcıda doğru ayara düşer; üretilen `Program.cs` hiçbir sağlayıcı için model adı ya da yer tutucu taşımaz
 
 | | |
 |---|---|
 | **İzlek** | A |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 37 |
+| **İlgili faz** | Faz 37 · Faz 257 |
 | **İlgili karar** | K-032 |
 
 Negatif senaryo — dört sağlayıcının hepsi tek case'te (`TemplateModelNameTests`
@@ -289,29 +291,30 @@ Negatif senaryo — dört sağlayıcının hepsi tek case'te (`TemplateModelName
 - Şablon kurulu.
 
 **Adımlar**
-1. Dört sağlayıcı seçeneğinin her biriyle ayrı ayrı proje üret.
-2. Her birinin `Program.cs` dosyasında bilinen model adı öneki ara.
+1. Dört sağlayıcı seçeneğinin her biriyle ayrı ayrı, `--model m-1` vererek proje üret.
+2. Her birinin `appsettings.json` dosyasında modelin düştüğü ayarı oku.
+3. Her birinin `Program.cs` dosyasında yer tutucu ve bilinen model adı öneki ara.
 
 **Girilecek veri**
 ```bash
 for PROVIDER in openai anthropic google azure; do
   TMP=$(mktemp -d)
   dotnet new tracon-api -n "Model.$PROVIDER" -o "$TMP/p" \
-    --provider "$PROVIDER" --TraconVersion "$SURUM" >/dev/null
+    --provider "$PROVIDER" --model m-1 --TraconVersion "$SURUM" >/dev/null
 
   echo "== $PROVIDER =="
-  grep -c "WRITE_MODEL_NAME_HERE" "$TMP/p/Program.cs"
+  grep -E "DefaultModel|DefaultDeployment" "$TMP/p/appsettings.json"
+  grep -c "WRITE_" "$TMP/p/Program.cs"
   grep -iE "gpt-|claude-|gemini-|o1-|o3-|text-embedding-" "$TMP/p/Program.cs" \
     && echo "SABIT MODEL ADI VAR" || echo "temiz"
 done
 ```
 
 **Beklenen sonuç**
-- Dördü için de `Program.cs` **tam olarak bir kez** `WRITE_MODEL_NAME_HERE`
-  placeholder'ını içerir. 🚨 Placeholder metni İngilizce'dir (dil sınırı, K-228
-  — pakete giren ve çalışma anında çalışan her şey İngilizce'dir); önceki
-  beklenti Türkçe `MODEL_ADINI_BURAYA_YAZIN` yazıyordu, düzeltildi
-  (2026-09-17, ap-s2).
+- `appsettings.json` `openai`, `anthropic` ve `google` için `Tracon.Providers.<Sağlayıcı>.DefaultModel`,
+  `azure` için `Tracon.Providers.AzureOpenAI.DefaultDeployment` alanında **`m-1`** taşır.
+- Dördü için de `Program.cs` yer tutucu **taşımaz**: `grep -c "WRITE_"` `0` yazar (Faz 257'den önce
+  tam bir kez `WRITE_MODEL_NAME_HERE` bekleniyordu; yer tutucu kalktı).
 - Dördü için de bilinen model öneki taraması **"temiz"** yazar.
 
 ---
