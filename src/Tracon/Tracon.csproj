@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Tracon meta package. A production-oriented agent control plane built on Microsoft Agent Framework, with PostgreSQL support and an embedded management UI. One reference brings the common set: runtime, HTTP API, PostgreSQL persistence, the OpenAI provider, workflows, MCP, and the embedded management UI. Other providers and storage engines are separate packages.</Description>
+    <Description>Tracon meta package. A production-oriented agent control plane built on Microsoft Agent Framework, with an embedded management UI. One reference brings the common set: runtime, HTTP API, the OpenAI provider, workflows, MCP, and the embedded management UI. Storage engines and other providers are separate packages.</Description>
     <PackageTags>$(CommonPackageTags);meta;all-in-one</PackageTags>
     <!-- The meta package carries no code; the build output is not packed, to avoid an empty assembly. -->
     <TraconAotCompatible>false</TraconAotCompatible>
@@ -22,11 +22,10 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
 
-  <ItemGroup Label="All Tracon components">
+  <ItemGroup Label="Tracon components in the meta package (no storage engine: K-1116)">
     <ProjectReference Include="../Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
     <ProjectReference Include="../Tracon.Mcp/Tracon.Mcp.csproj" />
     <ProjectReference Include="../Tracon.OpenAI/Tracon.OpenAI.csproj" />
-    <ProjectReference Include="../Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
     <ProjectReference Include="../Tracon.UI/Tracon.UI.csproj" />
     <ProjectReference Include="../Tracon.Workflows/Tracon.Workflows.csproj" />
   </ItemGroup>

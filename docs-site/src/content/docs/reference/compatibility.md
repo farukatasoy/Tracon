@@ -72,7 +72,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon` | — | net8/9/10 dependency groups | No | Meta package; it carries no assembly and includes packages that do not promise AOT |
 | `Tracon.Abstractions` | Yes | net8/9/10 | Yes | Contracts and data types only |
 | `Tracon.Core` | Yes | net8/9/10 | Yes | Catalog, compiler, decorators, in-memory stores, jobs, evaluation, and governance services |
-| `Tracon.PostgreSql` | Yes | net8/9/10 | Yes | Durable stores and the only built-in vector-search store |
+| `Tracon.PostgreSql` | No | net8/9/10 | Yes | Durable stores and the only built-in vector-search store |
 | `Tracon.OpenAI` | Yes | net8/9/10 | Yes | OpenAI Chat Completions, Responses, and named compatible endpoints |
 | `Tracon.AspNetCore` | Yes | net8/9/10 | No | Minimal API delegate routing uses reflection |
 | `Tracon.Workflows` | Yes | net8/9/10 | No | The MAF workflow engine uses reflection |

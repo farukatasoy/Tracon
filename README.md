@@ -174,7 +174,7 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | `Tracon` | PolyForm | Meta package — everything with one reference |
 | `Tracon.Abstractions` | MIT | Contracts; enough on its own if you write your own implementations |
 | `Tracon.Core` | PolyForm | Runtime, catalog, definition compiler, tool registry, sessions. **No database required.** |
-| `Tracon.PostgreSql` | PolyForm | Embedded SQL migrations, separate `tracon` schema |
+| `Tracon.PostgreSql` | PolyForm | Embedded SQL migrations, separate `tracon` schema. **Not in the meta package.** The only built-in vector-search store |
 | `Tracon.SqlServer` | PolyForm | SQL Server 2019+ and Azure SQL — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
 | `Tracon.Sqlite` | PolyForm | SQLite — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
 | `Tracon.OpenAI` | PolyForm | OpenAI adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
@@ -226,7 +226,10 @@ explicitly:
 
 ```bash
 dotnet add package Tracon --prerelease
+dotnet add package Tracon.PostgreSql --prerelease   # or Tracon.SqlServer, Tracon.Sqlite
 ```
+
+The meta package carries no storage engine. Without a second reference every store is in memory.
 
 ### The model catalog
 

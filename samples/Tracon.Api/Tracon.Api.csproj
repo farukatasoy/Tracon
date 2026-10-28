@@ -28,11 +28,13 @@
                        ReferenceOutputAssembly="false"
                        OutputItemType="Analyzer" />
     <!--
-      SQL Server and SQLite are NOT included in the meta package, so consumers
-      are not forced to pull in Microsoft.Data.SqlClient/SQLitePCLRaw
-      (K-185, same applies to SQLite). A consumer who wants them references
-      explicitly; the sample app references them to show all three providers.
+      PostgreSQL, SQL Server and SQLite are NOT included in the meta package, so
+      consumers are not forced to pull in Npgsql, Microsoft.Data.SqlClient or
+      SQLitePCLRaw (K-185 for SQL Server and SQLite, K-1116 for PostgreSQL).
+      A consumer who wants one references it explicitly; the sample app
+      references all three to show every store.
     -->
+    <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
     <!--

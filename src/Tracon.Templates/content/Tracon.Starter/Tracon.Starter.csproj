@@ -33,6 +33,9 @@
 
   <ItemGroup>
     <PackageReference Include="Tracon" Version="TRACON_TEMPLATE_PACKAGE_VERSION" />
+<!--#if (UsePostgres) -->
+    <PackageReference Include="Tracon.PostgreSql" Version="TRACON_TEMPLATE_PACKAGE_VERSION" />
+<!--#endif -->
 <!--#if (UseSqlServer) -->
     <PackageReference Include="Tracon.SqlServer" Version="TRACON_TEMPLATE_PACKAGE_VERSION" />
 <!--#endif -->

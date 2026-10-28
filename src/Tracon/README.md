@@ -4,11 +4,13 @@ An agent control plane built on the Microsoft Agent Framework: define agents, ru
 them, and see what they did.
 
 This is the meta package. It is a single reference that brings the common set —
-runtime, PostgreSQL persistence, the OpenAI provider, the HTTP API, workflows, MCP,
-and the embedded management UI.
+runtime, the OpenAI provider, the HTTP API, workflows, MCP, and the embedded
+management UI. It carries no storage engine: the one you use is a second reference.
+Without one, every store is in memory and ends with the process.
 
 ```bash
 dotnet add package Tracon --prerelease
+dotnet add package Tracon.PostgreSql --prerelease   # or Tracon.SqlServer, Tracon.Sqlite
 ```
 
 ```csharp
@@ -43,7 +45,6 @@ newer preview.
 |---|---|
 | `Tracon.Abstractions` | The contracts everything is written against |
 | `Tracon.Core` | Runtime: catalog, definition compiler, tool registry, run recording |
-| `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | The OpenAI provider |
 | `Tracon.AspNetCore` | The HTTP API — 177 operations, layered access control |
 | `Tracon.Workflows` | Multi-agent workflows, checkpoints, human-in-the-loop |
@@ -53,9 +54,9 @@ newer preview.
 ## Install pieces instead
 
 Every one of these also stands alone. Take `Tracon.Core` plus a provider if you
-want the runtime and nothing else; swap `Tracon.SqlServer` or `Tracon.Sqlite`
-in for PostgreSQL; add `Tracon.Anthropic`, `.Google`, `.Azure`, or `.Voice` as you
-need them. `Tracon.Testing` carries the fakes for your own tests.
+want the runtime and nothing else; choose a store, `Tracon.PostgreSql`,
+`Tracon.SqlServer` or `Tracon.Sqlite`; add `Tracon.Anthropic`, `.Google`, `.Azure`,
+or `.Voice` as you need them. `Tracon.Testing` carries the fakes for your own tests.
 
 Reach for the meta package when you want the usual set; reach for the individual ones
 when you care about what enters your dependency graph.
