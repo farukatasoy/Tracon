@@ -267,6 +267,7 @@
 | 251 | Kesik ve Filtreli Yanıtın Sinyali: Responses `incomplete` ve `tracon.output.filtered` | tam | ✅ | 2026-10-28 | F-503 · F-505 | `d2be0d24:docs/251-KESIK-VE-FILTRELI-YANIT-SINYALI.md` |
 | 252 | Model Başına İstek Alanı Reddi ve Değer Sınırları | hafif | ✅ | 2026-10-28 | F-606 · F-607 | `be963d73:docs/252-MODEL-BASINA-ISTEK-ALANI-VE-SINIRLARI.md` |
 | 253 | Önbellek Yazma Token'ı ve Fiyatı Run Maliyetine Girer | tam | ✅ | 2026-10-28 | F-420 | `beeb1fde:docs/253-ONBELLEK-YAZMA-MALIYETI.md` |
+| 254 | Tool Çağrısı Zincirde Kaydedilir: Başarısız Akışsız Run'ın Tool Satırları ve Betik Yolu | tam | ✅ | 2026-10-28 | F-689 · F-690 | `c3dd12d6:docs/254-TOOL-CAGRISI-ZINCIRDE-KAYIT.md` |
 
 ## Süreç Ölçümü
 
@@ -361,3 +362,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 251 | 12 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 252 | 13 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 253 | 9 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 254 | 17 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |

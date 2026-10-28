@@ -10,11 +10,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
 **Sıradaki boş faz numarası: 255.**
 
-## Açık fazlar (2 kalem)
+## Açık fazlar (1 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [254](254-TOOL-CAGRISI-ZINCIRDE-KAYIT.md) | Tool Çağrısı Zincirde Kaydedilir: Başarısız Akışsız Run'ın Tool Satırları ve Betik Yolu | 📋 Planlandı |
 
-Kapanan fazlar (253 kayıt; son: Faz 253 — Önbellek Yazma Token'ı ve Fiyatı Run Maliyetine Girer): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
+Kapanan fazlar (254 kayıt; son: Faz 254 — Tool Çağrısı Zincirde Kaydedilir: Başarısız Akışsız Run'ın Tool Satırları ve Betik Yolu): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
