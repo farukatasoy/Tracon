@@ -1,6 +1,6 @@
 # Faz 253 — Önbellek Yazma Token'ı ve Fiyatı Run Maliyetine Girer
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** ✅ Tamamlandı (2026-10-28)
 > **Kademe:** tam — migration (üç sağlayıcıda `runs` sütunları) · kalıcı veri: run maliyetinin bileşimi ve fiyat anlık görüntüsü değişir · K-483 sınıfı toplama ifadesine dördüncü terim (kota tavanı güvenliği)
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan karar: iki adlı fiyat — `CacheWriteCostPerMillionTokens` kısa TTL, `CacheWriteLongCostPerMillionTokens` uzun TTL; run iki token sayısını ve tek `CacheWriteCost` terimini taşır; `Total()` dört terim)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-420**
@@ -439,12 +439,12 @@ Okuma:
 - [x] Kota tavanı yazmalı run'da doğru dolar (fonksiyonel test) — `AnthropicCacheWriteTests.The_quota_counter_and_the_webhook_carry_the_whole_cost_including_the_write`
 - [x] Migration üç sağlayıcıda; `RunStoreContract` dört depoda yeşil — kanıt: `CacheWriteMigrationTests` (×3, eski şemadan yükseltme), `ReadViewContractTests` (×3), `RunStoreContract` (bellek içi, SQLite, PostgreSQL, SQL Server); beşinci depo `FileRunStore` örneği de geçti (geçici proje)
 - [x] Yeni `K-*` (`kalıcı-veri`, `public-api`): yazma terimi ve geri uyum kuralı, reddedilen alternatifler (TTL sözlüğü, tek fiyat) adıyla — `K-1105`, `K-1106`, `K-1107` işlendi (taslaklar *Entegrasyon Notları*, b: `K-NEW-1…3`)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — entegratörde (`kapi.py kapanis`). Bu dalda yerel kanıt: *Doğrulama kaydı*
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban d8579948` entegrasyon ağacında (dört fazın birleşmesi ve doküman commit'leri): 30.008 test, 39 modül, 1 atlandı (koşullu), 0 kırmızı; `dotnet format --verify-no-changes`, `npm run check` (build, bağlantı, SEO, ağırlık, içerik), `performans`, betik testleri, `kapi.py tarama` ve `dokuman-bakim.py --denetle` yeşil (2026-10-28). `performans` kapısı `QueryRuns` için +848 B verdi (taban `d8579948` 48184 B, bu fazın birleşmesi 49032 B ölçüldü); artış bu fazındır ve tahsis tabanı güncellendi (`bench/baseline.json`). Yayın provası `kapi.py yayin --kuru --surum 1.0.0-preview.7` yeşil: 21 paket, sekiz yeni sözleşme testi sürüm notunda adıyla, 7 paketlenmiş örnek (FileRunStore dahil), 2 Native AOT ve net8.0 tüketici
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1-3), çıktı belgeye yazıldı — "Canlı koşum sonucu"
 - [x] `secret` taraması boş döndü — `kapi.py tarama` temiz; fark üzerinde anahtar kalıbı yok
 - [x] `🤖` case'ler `docs/manuel-test/12-…` ve `06-…` içinde ve koşuldu — `MT-PROV-097`, `MT-PROV-098`, `MT-OBS-086`
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — entegratörde
-- [ ] `docs-site/` güncellendi; `npm run check` temiz; bundle payı ölçüldü ve yazıldı — **kısmen:** sayfalar güncel, bundle +41 B yazıldı, `build`, `check:links` ve `check:weight` temiz; `check:content` tek bulguyla kırmızı (`llms-full.txt`, bu fazın yasak listesinde; entegratör üretir)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bağımsız `faz-denetcisi`: 🔴 yok, 🟡 iki (ikisi de kapandı: `RunUsageSum.Add` testleri, uzun TTL ağaç toplamı vakası), 🟢 yedi (dördü düzeltildi, üçü aday); ayrıntı "Denetim Bulguları"
+- [x] `docs-site/` güncellendi; `npm run check` temiz; bundle payı ölçüldü ve yazıldı — sayfalar güncel, bundle +41 B yazıldı; `npm run check` entegrasyon ağacında yeşil (1.054 sayfa: build, bağlantı, ağırlık, içerik, SEO; `llms-full.txt` `kapanis` içindeki `uret` ile üretildi)
 
 ### Doğrulama komutları
 
