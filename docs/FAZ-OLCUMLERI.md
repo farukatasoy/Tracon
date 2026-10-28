@@ -101,3 +101,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 254 | 17 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 255 | 0 | 1 | 2 / 0 / 0 | 1 | ölçülmedi |
 | 256 | 0 | 3 | 0 / 0 / 0 | 1 | ölçülmedi |
+| 257 | 0 | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
