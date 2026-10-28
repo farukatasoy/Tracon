@@ -79,7 +79,7 @@ stable provider name.
 |---|---|---|---|
 | `Tracon.OpenAI` | `UseOpenAI()` | `openai`, `openai-responses` | Chat Completions and Responses clients |
 | `Tracon.OpenAI` | `UseOpenAICompatible(name, ...)` | `name`, and optionally `name-responses` | OpenRouter, Groq, Ollama, LM Studio, vLLM, and other compatible endpoints |
-| `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, with effort, adaptive or budgeted thinking, and prompt caching (TTL, breakpoint placement) settings |
+| `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, with effort, adaptive or budgeted thinking, prompt caching (TTL, breakpoint placement) settings, and cache writes priced by TTL |
 | `Tracon.Google` | `UseGoogle()` | `google` | Gemini safety thresholds and thinking settings |
 | `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure deployments with an API key or a consumer-supplied Entra credential |
 | Any package | `AddModelProvider()` | Chosen by the implementation | A custom `IModelProvider` without a provider package |
@@ -126,7 +126,7 @@ claim to provide an operating-system sandbox.
 
 | Capability | Surface | Important behavior |
 |---|---|---|
-| Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events; a plain-text answer cut off at the output limit or the context window ends with a `custom` frame (`tracon.output.truncated`) before `done` |
+| Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events; a plain-text answer cut off at the output limit or the context window, or one a provider's content filter stopped after it wrote text, ends with a `custom` frame (`tracon.output.truncated` or `tracon.output.filtered`) before `done`; `/v1/responses` reports both as `incomplete` |
 | Non-streaming runs | .NET or an idempotent HTTP request | A completed response can be stored and replayed safely |
 | Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; content and workflow events Tracon has no type for are recorded as `tracon.content` and `tracon.workflow.event` (metadata only); it can be disabled and store failure never breaks the run |
 | Custom run events | `RunEventType.Custom` and `AgentRunScope.Writer` | A tool writes its own named event into the stream a consumer already carries; the console draws it with a generic card, no code change required |
@@ -2799,10 +2799,19 @@ reads `Running` once the run has what it waited for.
 `modelProvider` names the provider that actually answered — the same provider
 `modelId`'s model came from. `cost` is a **price snapshot**: it also carries the
 unit price (per million tokens) that was applied for input, output, and any
-prompt-cache read, computed once when the run ends. A later change to your
+prompt-cache read or write, computed once when the run ends. A later change to your
 pricing catalog or configuration never rewrites a run's already-known cost —
 `POST /api/stats/recalculate-costs` only fills in runs whose price was unknown
 at the time, it never re-prices a run that already has one.
+
+Prompt-cache tokens are counted **inside** `usage.inputTokens`, never beside it:
+`cachedInputTokens` were served from the cache, and `cacheWriteInputTokens` and
+`cacheWriteLongInputTokens` were written into it with the short and the long time to
+live (Anthropic: five minutes and one hour, which it bills apart). The cost has a term
+for each: `cachedInputCost` and `cacheWriteCost` are taken out of `inputCost` and billed
+at their own rates, so a run's total is the sum of all four terms and never only the
+first two. A counter the provider did not report is `null`, not `0`. A model with no
+write rate keeps its written tokens in `inputCost`, as before the rate existed.
 
 A run can spend tokens on more than one model: the context compaction
 summarizer and the judge of an `aiJudge` loop criterion can run on models of
@@ -2915,9 +2924,9 @@ OpenAI-compatible endpoints use the OpenAI wire format.
 
 The live stream's `custom` frames are the one place the two contracts meet. Right
 before `done`, the stream sends the run's own recorded notices from a fixed list —
-`tracon.output.truncated` always, `tracon.quota.threshold` when it is published to the
-run stream — and each frame's data is the same recorded event `/events` serves, byte
-for byte. The [HTTP API](/http-api/#streaming) page lists the rules. The
+`tracon.output.truncated` and `tracon.output.filtered` always, `tracon.quota.threshold`
+when it is published to the run stream — and each frame's data is the same recorded
+event `/events` serves, byte for byte. The [HTTP API](/http-api/#streaming) page lists the rules. The
 `loop.iteration-completed` frame of an agent with a loop is the other: it has the name
 and the data of the recorded `LoopIterationCompleted` event, and it arrives between two
 iterations, not before `done`.
@@ -2926,7 +2935,9 @@ A client written against one contract will not decode the other; pick the endpoi
 that matches what you are building — a live turn, or a run's full recorded history.
 
 Tool calls are also written individually — name, arguments, result, duration, error —
-so "which tool failed and with what input" is a query, not a log search.
+so "which tool failed and with what input" is a query, not a log search. A call is
+[recorded where it happens](#tool-calls-are-recorded-where-they-happen), so the row is
+there when the run fails or is cancelled too.
 
 A reasoning model's thinking is a separate event type, `ReasoningDelta`, never merged
 into `MessageDelta`. It is off by default — reasoning output can run far longer than
@@ -2939,6 +2950,47 @@ services.Configure<TraconOptions>(options =>
 
 With it off, a reasoning model still streams its thinking to the caller in real time —
 this setting only controls whether it is **recorded**.
+
+### Tool calls are recorded where they happen
+
+A tool call that goes through the tool chain is noted in memory when it starts and when it
+ends, inside the run. The chain holds the layers every such tool passes: the budget check,
+the authorization handler, argument validation, the timeout, the approval and the output
+limit. Code tools, MCP tools, the session workspace, the knowledge search and the
+conversation memory search go through it. The run writes the rows when it closes. Nothing
+is stored before that, so a process that stops while a run is open leaves no row for these
+calls.
+
+That keeps the trail when a run does not end well. A queued run, a run that continues an
+answer, an agent step of a workflow and the non-streaming form of the `/v1/*` endpoints do
+not stream, so they have no messages to read their calls from until the model answers. When
+a run of that kind fails or is cancelled before then, it still has the row and the events of
+every call that went through the chain. The budget refuses its next model call, the
+provider is down, somebody cancels the run: the calls are there.
+
+| What happened to the call | What `GET /api/runs/{runId}/tools` and the events show |
+|---|---|
+| It ended | One row with the result and the duration; a `tool.invoking` and a `tool.invoked` event |
+| The tool failed, or the chain refused it (budget, validation, timeout) | One row with the error; a `tool.failed` event |
+| The run was cancelled while it ran | One row with the error *The run ended before the tool result arrived.*; a `tool.invoking` event |
+
+A call is one row, and its duration is measured whether the run streams or not. A call
+that the chain denied for lack of permission is an ordinary result, not an error: the row
+has `authorizationDenied` set and no error. A run that does not stream and fails or is
+cancelled has no messages, so it writes the calls the chain noted. A run that answered keeps
+the rows its messages hold; when it does not stream, each row takes its duration and its
+time from what the chain noted. A call that the chain noted and the answer does not hold
+gets no row of its own: a model link
+ran it, the provider failed over, and the next link was answered from its result, so the
+call is not listed twice. When a run fails or is cancelled, the events of its calls carry
+the times the calls really ran.
+
+Some tools are outside the chain, among them a hosted tool, an agent called as a tool and
+the background agents, the framework's own `load_skill`, `read_skill_resource` and
+`run_skill_script`, the file memory and to-do tools, the harness's `mode_*` tools and the
+providers an agent extension adds. The messages of the answer are the only record of such a
+call. A run that does not stream has a row for it when the run succeeds, with no duration,
+and has none when the run fails.
 
 ### Writing your own event
 
@@ -2974,6 +3026,7 @@ every store. The `tracon.` prefix is reserved, so a built-in
 custom type can never collide with your own. Tracon writes these:
 `tracon.quota.threshold` (the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits)),
 `tracon.output.truncated` (see [Truncated output](#truncated-output)),
+`tracon.output.filtered` (see [Filtered output](#filtered-output)),
 `tracon.content` and `tracon.workflow.event` (see
 [Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
 `tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
@@ -3356,6 +3409,28 @@ An online-evaluation judge asks for a structured answer too. When its answer is 
 off, the judge fails with `judge_failed` and the job does not retry it: the next
 attempt would send the same limit. Raise the `MaxOutputTokens` of the judge's own
 binding.
+
+### Filtered output
+
+A provider's content filter can stop a model in the middle of an answer: Anthropic
+reports a `refusal`, Gemini a safety block. Tracon reads every provider's report as
+one finish reason, and the outcome depends on what the model had written:
+
+| The model had written | Outcome |
+|---|---|
+| Nothing | The run fails with error type `content_filtered`, class `ContentFiltered`. Nothing is left to keep |
+| Text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.filtered`. Its payload names the provider — never the answer text. The provider's own word for the filter is not in it |
+
+A structured response (`Json` or `JsonSchema`) a filter stopped after it wrote text
+gets the event too. The structured-response validator, when it is on, still decides
+whether that document is usable. As with truncation, only the turn that ends the run
+decides, and the event keeps its payload when `RecordToolPayloads` is off.
+
+A client streaming the run receives the event as a `custom` frame right before `done`,
+the way it receives `tracon.output.truncated`, with the same data the run's events
+carry. No event, and no frame, is written while run recording is off
+(`Tracon:RunRecording:Enabled`). On `/v1/responses` the same answer is `incomplete`
+with the reason `content_filter` (see [OpenAI-compatible API](/guides/openai-api/)).
 
 ### The error message is safe to display, not safe to debug from
 
@@ -6348,6 +6423,13 @@ the `evaluator_version` column, is the ordinary shape: a single nullable column
 appended to the table, no backfill, and no index change. Existing rows are left
 exactly as they are and read back with a null version, so the step costs the same
 whether the table holds a thousand rows or a million.
+
+The cache-write migration is of that shape too: `0066` on PostgreSQL, `0054` on SQL Server
+and `0053` on SQLite. It appends five nullable columns to `runs`, which hold the
+tokens, the charge and the unit prices of prompt-cache writes. Rows written before it read
+back with nulls. A database that turned on `EnableReadViews` also gets a second definition
+of `runs_v1`: its `total_cost` adds the write charge and the five columns are published
+at the end of the view ([Read contract views](/reference/read-views/)).
 
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
 Tracon then verifies but does not write. The diagnostics endpoint can report
@@ -12824,6 +12906,16 @@ agent sends the same request as before:
   costs more to write and pays off when the same prefix returns more than five
   minutes apart. `ttl` and `placement` without `anthropic.promptCaching = true` are
   an error, not a silent no-op.
+- **Pricing a cache write.** Anthropic bills a write apart from plain input, by the
+  entry's time to live. Give the catalog entry `CacheWriteCostPerMillionTokens` for
+  five-minute entries and `CacheWriteLongCostPerMillionTokens` for one-hour entries
+  (or `CacheWrite` and `CacheWriteLong` under
+  [`Tracon:Pricing`](/reference/configuration/#pricing)). A run then records
+  `cacheWriteInputTokens`, `cacheWriteLongInputTokens` and `cacheWriteCost`, and its
+  total cost adds the write. With no write rate the written tokens stay in the input
+  charge, as before. A provider adapter of your own reports writes under the keys of
+  `TraconUsageCounts` in `UsageDetails.AdditionalCounts`, counted inside `InputTokenCount`
+  like cached tokens.
 - **Thinking tokens count against the output limit.** At `high` effort or above,
   set `MaxOutputTokens` explicitly. Without it, the request goes out with
   `DefaultMaxOutputTokens` (4096), and the validation report warns when the
@@ -12845,7 +12937,8 @@ Google supports five `google.safety.*` thresholds plus
 budget range is `-1..65535`; `-1` lets the model decide and `0` disables thinking.
 Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
-failed run with error type `content_filtered`.
+failed run with error type `content_filtered`; one that already has text completes with a
+`tracon.output.filtered` run event.
 
 OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
 other key:
@@ -13121,7 +13214,8 @@ was actually cancelled.
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself. The same holds for the output limit:
+`TraconContentFilteredException` itself when the response is empty, or records a
+`tracon.output.filtered` event when it already has text. The same holds for the output limit:
 report `ChatFinishReason.Length`, and Tracon raises
 `TraconOutputTruncatedException` for a structured request or records a
 `tracon.output.truncated` event for plain text. Throwing instead leaves the decision to
@@ -13348,8 +13442,8 @@ the output limit and set temperature to `1` or leave it out.
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes
 with a `tracon.output.truncated` run event, which a streaming client also receives as a
-`custom` frame before `done`, and `/v1/chat/completions` reports
-`finish_reason: "length"`. Raise `MaxOutputTokens`. When the message
+`custom` frame before `done`. `/v1/chat/completions` reports `finish_reason: "length"`
+and `/v1/responses` reports `incomplete`. Raise `MaxOutputTokens`. When the message
 and the event's `cause` name the **context window** instead (Anthropic's
 `model_context_window_exceeded`), the conversation filled the window: shorten it with
 context compaction or use a model with a larger window.
@@ -13950,8 +14044,8 @@ query dimension — break costs down with `GET /api/stats` instead, which return
 :::
 
 `tracon.tokens` reports only two `direction` values, `input` and `output`.
-The finer counters a provider may report — prompt-cache hits, reasoning tokens,
-audio tokens — are counted **inside** those two totals and are recorded on the
+The finer counters a provider may report — prompt-cache hits, prompt-cache writes,
+reasoning tokens, audio tokens — are counted **inside** those two totals and are recorded on the
 `runs` row rather than emitted as extra metric series, for the same reason:
 adding them would double count every token on the dashboard.
 
@@ -14253,7 +14347,8 @@ status, and usage when the underlying provider reports it. Errors use the OpenAI
 ### Stream Responses events
 
 Set `stream=true`. The server returns SSE with OpenAI event names, including
-`response.created`, `response.output_text.delta`, and `response.completed`:
+`response.created`, `response.output_text.delta`, and `response.completed` (or
+`response.incomplete` when the answer was [cut off or filtered](#compatibility-matrix)):
 
 ```python
 stream = client.responses.create(
@@ -14461,7 +14556,8 @@ for await (const frame of readSse(response)) {
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
-| Cut-off answer | no: `status` stays `completed` | `finish_reason: "length"` | See below |
+| Cut-off answer | `status: "incomplete"`, `incomplete_details.reason: "max_output_tokens"` | `finish_reason: "length"` | See below |
+| Answer a content filter stopped after it wrote text | `status: "incomplete"`, `incomplete_details.reason: "content_filter"` | `finish_reason: "content_filter"` | See below |
 | Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
@@ -14479,10 +14575,28 @@ response and on the last chunk of a stream (`data: [DONE]` still follows). An an
 the model cut off at its output token limit or its context window is `"length"`; an
 answer a content filter cut off after it produced text is `"content_filter"`; anything
 else is `"stop"`. Tools run on the server, so a tool turn's `tool_calls` reason is never
-reported. The value does not depend on run recording. The Responses endpoint does not
-mark a cut-off answer `incomplete` yet: its `status` reads `completed`, and the run's
-`tracon.output.truncated` event is the only signal there
-(see [Truncated output](/concepts/runs/#truncated-output)).
+reported. The value does not depend on run recording.
+
+The Responses endpoint marks the same answers `incomplete`, the way OpenAI's own API
+does. `status` is `"incomplete"` and `incomplete_details.reason` is `"max_output_tokens"`
+for an answer cut off at its output token limit or its context window (OpenAI has no
+separate reason for a full window) and `"content_filter"` for an answer a content filter
+stopped after it wrote text. The message item that was cut reads `"incomplete"` too. On
+a stream the last event is `response.incomplete` in place of `response.completed`, as on
+OpenAI's own stream, and it carries the final `response`. The `response.output_item.done`
+event of the cut message carries the same status, unless that item was already closed
+before the stream ended (a reasoning item that follows the text does it). A closed item
+keeps `completed` in its own event; the final `response` is whole and accurate.
+The OpenAI Python SDK's `stream.get_final_response()` raises `RuntimeError` when a
+stream ends in `response.incomplete`, against OpenAI itself too, so read the `response`
+of the last event instead. A complete answer keeps `completed` and has no
+`incomplete_details`. The same rules as `finish_reason` apply:
+only the answer's final model call decides, a tool turn or an earlier loop iteration that
+hit the limit does not count, and the status does not depend on run recording. A filter
+that stopped the model before it wrote anything is an error, not an `incomplete` answer.
+The run's own `tracon.output.truncated` and `tracon.output.filtered` events stay on
+the run (see [Truncated output](/concepts/runs/#truncated-output) and
+[Filtered output](/concepts/runs/#filtered-output)).
 
 A field that carries no model setting can be accepted without becoming a Tracon
 feature. Do not assume every OpenAI storage flag, service tier, or retrieval surface
@@ -16035,15 +16149,21 @@ A function node is different on the first row: its output goes to the next node,
 
 A refused call does not run. Its result is the limit and the setting to raise, followed by "The tool
 call did not start." No model reads that sentence, because the next model call is refused: it goes to
-the event stream and to the run record. A streaming run (the HTTP run is one) records the call as failed,
-with that sentence as its error. A run that does not stream records no call rows when it fails, the first
-call's included. The run itself ends as it always did: the next model call is refused, and the run is
+the event stream and to the run record. The call is recorded as failed, with that sentence as its error,
+whether the run streams or not: the tool chain notes each call where it happens and the run writes the
+rows when it closes, so a queued run that fails at its next model call still lists the calls it made, the
+refused one included
+([a failed run keeps its calls](/concepts/runs/#tool-calls-are-recorded-where-they-happen)).
+The run itself ends as it always did: the next model call is refused, and the run is
 `Failed` with error type `run_budget_exceeded`. The refusal needs no setting, and a host whose run
 never passes a ceiling sees no change. The check happens before the authorization handler, so a spent
 run does not ask it. Code tools, workspace tools, MCP tools, the knowledge search and the conversation memory search pass the check in the
 tool chain. A skill
 script is checked by the script runner when its run would start, with the same condition and the same
-sentence in the refusal.
+sentence in the refusal. The runner also writes the refusal to the audit trail as `script.denied`, the
+entry it writes for every other gate: the entry names the skill and the script, and its reason is the
+sentence. The entry is best-effort here, as for the other gates. If it cannot be written, the script
+still does not start and the run ends as above.
 
 **Two limits remain.**
 
@@ -16942,6 +17062,9 @@ Available scripts are:
 | `RespondsWith(params string[])` | Enqueues fixed text responses |
 | `RespondsWith(text, inputTokens, outputTokens)` | Enqueues text with reported usage for cost and metric tests |
 | `CallsTool(name, arguments)` | Enqueues one model-requested tool call |
+| `CallsTool(name, arguments, inputTokens, outputTokens)` | Enqueues a tool call whose turn reports its token usage, for budget, cost and metric tests |
+| `CallsTools(params calls)` | Enqueues one turn that asks for several tools at once |
+| `CallsTools(inputTokens, outputTokens, params calls)` | The same turn, reporting its token usage once |
 | `EchoesUserMessage()` | Uses the latest user message after the queue drains |
 | `EchoesLastToolResult(prefix, ...)` | Uses the latest real tool result after the queue drains |
 | `ForModel(modelId, configure)` | Gives one model an independent queue and fallback |
@@ -19736,6 +19859,7 @@ the same as `GET /api/runs/{runId}/events` serves it, in the order it was record
 | `customType` | Sent |
 |---|---|
 | `tracon.output.truncated` | Always. The model cut a plain-text answer off at its output token limit or its context window; the streamed text is incomplete (see [Truncated output](/concepts/runs/#truncated-output)) |
+| `tracon.output.filtered` | Always. The provider's content filter stopped the model after it wrote text; the streamed text is incomplete (see [Filtered output](/concepts/runs/#filtered-output)). A filter that stopped the model before any text ends the stream with an `error` frame instead |
 | `tracon.quota.threshold` | Only with `Quotas:PublishThresholdToRunStream` turned on (off by default): the run crossed a [quota threshold](/concepts/governance/#quotas-and-rate-limits) |
 
 No other custom event reaches this stream; a tool's own `Custom` event stays on
@@ -19998,7 +20122,7 @@ Add these when you need them.
 |---|---|
 | `Tracon.SqlServer` | You run SQL Server instead of PostgreSQL |
 | `Tracon.Sqlite` | One node, or durable local development |
-| `Tracon.Anthropic` | You call Claude models — with effort, adaptive thinking and prompt-cache TTL and placement settings |
+| `Tracon.Anthropic` | You call Claude models — with effort, adaptive thinking, prompt-cache TTL and placement settings, and priced cache writes |
 | `Tracon.Google` | You call Gemini models, or speak and voice a two-voice dialogue with a Gemini text-to-speech model |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
@@ -24291,6 +24415,8 @@ Tracon:Pricing:Currency
 Tracon:Pricing:{provider}:{model}:Input
 Tracon:Pricing:{provider}:{model}:Output
 Tracon:Pricing:{provider}:{model}:CachedInput
+Tracon:Pricing:{provider}:{model}:CacheWrite
+Tracon:Pricing:{provider}:{model}:CacheWriteLong
 Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters
 Tracon:Pricing:Voice:{provider}:{model}:PerMinute
 Tracon:Pricing:Images:{provider}:{model}:PerImage
@@ -24311,30 +24437,42 @@ currency (an amount that names no currency is in it, and with no `Currency` set 
 an amount adds); any other is listed and counted as not added. A function node's amounts
 are the amounts the node computed, not a price table Tracon applies.
 
-The shorter configuration keys `Input`, `Output` and `CachedInput` bind to the code
-properties `InputCostPerMillionTokens`, `OutputCostPerMillionTokens` and
-`CachedInputCostPerMillionTokens`.
+The shorter configuration keys `Input`, `Output`, `CachedInput`, `CacheWrite` and
+`CacheWriteLong` bind to the code properties `InputCostPerMillionTokens`,
+`OutputCostPerMillionTokens`, `CachedInputCostPerMillionTokens`,
+`CacheWriteCostPerMillionTokens` and `CacheWriteLongCostPerMillionTokens`.
 
 `CachedInput` is the rate for input tokens the provider served from its prompt
 cache. It is optional, and its absence is not a configuration error — unlike
 `Input` and `Output`, where an entry with neither is rejected at startup as a
 likely typo.
 
-Cost is computed by **subtraction**, because a provider counts cached tokens
-*inside* the input total rather than beside it:
+`CacheWrite` and `CacheWriteLong` are the rates for input tokens the provider
+*wrote* into its prompt cache, by how long the entry lives: Anthropic bills a
+five-minute entry at 1.25 times the input price and a one-hour entry at 2 times.
+Both are optional and independent, and a negative value stops the host at start.
+Which class a write belongs to is the provider's report; a response with no per-class
+split counts the whole write under `anthropic.promptCaching.ttl` (the short class when it sets none).
+
+Cost is computed by **subtraction**, because a provider counts cached and written
+tokens *inside* the input total rather than beside it:
 
 ```text
 full_price_input = InputTokens - CachedInputTokens
-cost             = full_price_input   * Input
-                 + CachedInputTokens  * CachedInput
-                 + OutputTokens       * Output
+                   - CacheWriteInputTokens - CacheWriteLongInputTokens
+cost             = full_price_input           * Input
+                 + CachedInputTokens          * CachedInput
+                 + CacheWriteInputTokens      * CacheWrite
+                 + CacheWriteLongInputTokens  * CacheWriteLong
+                 + OutputTokens               * Output
 ```
 
 :::note
-Leave `CachedInput` unset and the whole input is priced at `Input`, exactly as
-before the rate existed. A missing cache rate never makes a run's `pricingSource`
+Leave `CachedInput`, `CacheWrite` or `CacheWriteLong` unset and the tokens of that
+kind are priced at `Input`, exactly as before the rate existed; the two write classes
+are decided one by one. A missing rate never makes a run's `pricingSource`
 `Unknown` — that value means the **model** price is missing, which is a different
-fault. Set it to `0` to state that cache reads are free.
+fault. Set a rate to `0` to state that cache reads, or writes, are free.
 :::
 
 Reasoning tokens are recorded (`reasoningTokens`) but priced at the output rate:
@@ -24639,7 +24777,7 @@ identity is required.
 Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
 `ContextWindowTokens`, `MaxOutputTokens`, `SupportsStreaming` (`true`),
 `SupportsTools` (`true`), `SupportsReasoning` (`false`), `SupportsStructuredOutput`
-(`false`), `SupportsSampling` (`null`), `RejectedSamplingFields` (`None`), and the three
+(`false`), `SupportsSampling` (`null`), `RejectedSamplingFields` (`None`), and the five
 `*CostPerMillionTokens` prices.
 `SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
 to compile. `RejectedSamplingFields` takes a name or a comma-separated list of request
@@ -25294,12 +25432,13 @@ its database.
 | `started_at`, `completed_at` | timestamp | UTC; `completed_at` is `NULL` while a run is in progress |
 | `is_streaming` | boolean | |
 | `input_tokens`, `output_tokens`, `cached_input_tokens`, `reasoning_tokens`, `total_tokens` | bigint | `cached_input_tokens` is counted **inside** `input_tokens`, not in addition to it |
-| `input_cost`, `output_cost`, `cached_input_cost` | decimal | The raw priced terms; `NULL` when pricing is undefined |
+| `cache_write_input_tokens`, `cache_write_long_input_tokens` | bigint | Input tokens the provider wrote into its prompt cache, by the entry's time to live (short, long). Counted **inside** `input_tokens`; `NULL` when no write was reported, and on every row written before these columns existed |
+| `input_cost`, `output_cost`, `cached_input_cost`, `cache_write_cost` | decimal | The raw priced terms; `NULL` when pricing is undefined |
 | `total_cost` | decimal | See [Reading `total_cost`](#reading-total_cost) below |
 | `cost_currency` | text | Populated whenever `total_cost` is |
 | `error_type` | text | The raw error type string; `NULL` for a run that has not failed |
 | `model_provider` | text | The provider that actually answered; `NULL` for a row written before this column existed |
-| `input_price_per_mtok`, `output_price_per_mtok`, `cached_input_price_per_mtok` | decimal | The unit price (per million tokens) applied when the run completed — a price snapshot, `NULL` when the price was unknown or when the run's tokens were priced at more than one model. Rates, not amounts: they are never part of `total_cost` |
+| `input_price_per_mtok`, `output_price_per_mtok`, `cached_input_price_per_mtok`, `cache_write_price_per_mtok`, `cache_write_long_price_per_mtok` | decimal | The unit price (per million tokens) applied when the run completed — a price snapshot, `NULL` when the price was unknown or when the run's tokens were priced at more than one model. Rates, not amounts: they are never part of `total_cost` |
 
 Everything here is metadata or a value derived from metadata. No conversation
 content, tool argument, tool result, or file content is ever in scope for this or
@@ -25309,12 +25448,15 @@ through the HTTP API and `IRunStore`.
 ## Reading `total_cost`
 
 `total_cost` sums every priced term (`input_cost`, `output_cost`,
-`cached_input_cost`) with one rule that matters: **`NULL` is not zero.**
+`cached_input_cost`, `cache_write_cost`) with one rule that matters: **`NULL` is not zero.**
 
 - If pricing was never resolved for the run (an unpriced code agent, for example),
-  all three terms are `NULL` and `total_cost` is `NULL` — the run has no known cost,
+  all four terms are `NULL` and `total_cost` is `NULL` — the run has no known cost,
   which is a different fact than "this run cost nothing."
 - If at least one term is populated, `total_cost` sums the populated terms.
+- `cached_input_cost` and `cache_write_cost` are terms of their own, not parts of
+  `input_cost`: the charge for cached and for written tokens is taken out of the input
+  charge and billed there. Add all four, never only the first two.
 
 This is the exact value `IRunStore.GetStatisticsAsync` reports for the same run —
 querying the view and reading the API give you the same number, because both read
@@ -25352,11 +25494,14 @@ public sealed class TraconRun
     public long? InputTokens { get; set; }
     public long? OutputTokens { get; set; }
     public long? CachedInputTokens { get; set; }
+    public long? CacheWriteInputTokens { get; set; }
+    public long? CacheWriteLongInputTokens { get; set; }
     public long? ReasoningTokens { get; set; }
     public long? TotalTokens { get; set; }
     public decimal? InputCost { get; set; }
     public decimal? OutputCost { get; set; }
     public decimal? CachedInputCost { get; set; }
+    public decimal? CacheWriteCost { get; set; }
     public decimal? TotalCost { get; set; }
     public string? CostCurrency { get; set; }
     public string? ErrorType { get; set; }
@@ -26862,8 +27007,9 @@ A run's detail header names the user it belongs to and shows its labels as badge
 Opening a run gives the summary and the full event stream in order: message deltas,
 tool calls with arguments and results, errors with their class. The summary names
 the provider that actually answered, next to the model, and — when pricing is
-configured — the unit price applied for input, output, and any cached input; that
-price is a snapshot of what was in effect when the run ended, unaffected by a later
+configured — the unit price applied for input, output, any cached input, and any
+cache write (a separate price for the short and for the long time to live, shown only
+for a class the run priced); that price is a snapshot of what was in effect when the run ended, unaffected by a later
 catalog or configuration change. A run priced at more than one model — a
 summarizer or a loop judge on a model of its own — shows `—` there, because one
 rate cannot describe its cost. When a reasoning
@@ -26889,7 +27035,8 @@ shows no panel. See
 [Report what a node spent beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
 for what adds up and what does not.
 
-Two runs can be compared side by side, and any run can be scored. The thumbs on the
+Two runs can be compared side by side, with one cost per run that adds every cost term
+(input, output, cache read and cache write), and any run can be scored. The thumbs on the
 run screen write one named score — `overall` — as the person looking at it. Every
 other score on that run, whether a second name someone wrote through the API or one
 an automatic judge produced, is listed beside them read-only, with its name and its
