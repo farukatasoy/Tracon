@@ -297,6 +297,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Adding a tool](https://tracon.dev/getting-started/tools/) — Register a tool so an agent can do something, and understand the one rule that trips people up.
 - [AG-UI front ends](https://tracon.dev/guides/ag-ui/) — Run a Tracon agent from a front end that speaks AG-UI, such as CopilotKit, with front-end tools and approvals.
 - [Use any Microsoft Agent Framework feature](https://tracon.dev/guides/any-maf-feature/) — Reach a Microsoft Agent Framework feature that Tracon does not model, and see which Tracon rings each way keeps and which it loses.
+- [Sign the audit chain with a key](https://tracon.dev/guides/audit-chain-key/) — Turn on the HMAC key that signs the audit trail's hash chain, rotate it, switch it off, and know what it does and does not protect against.
 - [Background work](https://tracon.dev/guides/background-work/) — Queue agent runs, schedule recurring work, operate workers, and understand leasing, retries, cancellation, and multi-instance behavior.
 - [Build diagnostics](https://tracon.dev/guides/build-diagnostics/) — What each TRC build diagnostic means, how to fix it or silence it, and how the same build writes the agent map that teaches a coding agent about Tracon.
 - [Typed client and CLI](https://tracon.dev/guides/cli/) — Call the management API from a typed client, and apply migrations, check health, or write the coding-agent gate skill without starting the application, using the tracon CLI.

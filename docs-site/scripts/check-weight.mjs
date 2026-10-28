@@ -65,7 +65,15 @@ const dist = resolve(here, '../dist');
 // guides/production (which the new sidebar entries had pushed to 58 985 B locally) to
 // guides/production-upgrades. The heaviest page is now concepts/governance at 58 194 B
 // locally. Ceiling unchanged.
-const CEILING = 59_000;
+//
+// Raised 2026-10-29 (phase 260) after a split, not instead of one. The audit chain key needed a setup
+// and rotation guide; it went to its own page (guides/audit-chain-key) and concepts/governance kept
+// only the four answers and a link, which still grew it from 58 194 B to 59 281 B. The new sidebar
+// entry is rendered into every page and costs each about 30-40 B: guides/model-providers, which was
+// at 58 99x B and was not edited, measured 59 023 B. Both are over a ceiling that left a few bytes of
+// margin, so the margin was gone before this change. Ceiling 60 000 B, about 1.2% over the heaviest
+// page of a local build, which also has to cover the roughly 60 B by which a CI build differs.
+const CEILING = 60_000;
 
 // The release notes page is generated from CHANGELOG.md and is the one page whose
 // size grows with every release, not with what a reader needs from one visit: a

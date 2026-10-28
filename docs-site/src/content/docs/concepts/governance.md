@@ -338,61 +338,15 @@ curl 'http://localhost:5081/tracon/api/audit/verify'
 The console's Audit screen runs the same walk with its **Verify chain** button and shows the
 status, the entries checked, the unsigned count and the first failing entry.
 
-#### Sign the chain with a key
+With a chain key the hash is an HMAC under a value only the host holds. [Sign the audit chain with a
+key](/guides/audit-chain-key/) covers the setup, the rotation and what the key does not protect.
 
-The key value lives in configuration and nowhere else; the entry stores only the key's id.
-
-```json
-{
-  "Tracon": {
-    "Audit": { "ChainKeyId": "2026-10" },
-    "AuditChainKeys": { "2026-10": "<base64, at least 32 bytes>" }
-  }
-}
-```
-
-```bash
-openssl rand -base64 32
-dotnet user-secrets set 'Tracon:AuditChainKeys:2026-10' '<the value>'
-```
-
-- A key decodes to at least 32 bytes. An id is 1 to 64 characters of lowercase letters, digits,
-  `.`, `_` and `-`; lowercase only, because configuration keys ignore case and the id is stored as
-  written.
-- The host reads every key at start and refuses to start when one is missing a value, is not
-  base64, is too short or has an id outside the pattern. The message names the configuration key and
-  never carries a value. A change needs a restart.
-- The value is never written to the database, a log, the diagnostics report or a response.
-- Every replica carries the same set of keys. During a rollout two replicas may sign with different
-  ids; both ids must be in both replicas' configuration.
-- Entries written before the key was set keep their plain SHA-256 and are checked with it. They are
-  not re-signed, because re-signing would rewrite history. The walk counts them in `unkeyedEntries`.
-  After the first signed entry, an unsigned entry is a downgrade and the walk reports `Broken`.
-
-**Rotate the key.** Add a new key under a new id, set `ChainKeyId` to it and restart. Keep the old
-value in configuration: the entries it signed are checked with it for as long as they exist. Remove it
-and those entries report `UnknownKey`.
-
-**Turn the key off.** Remove `ChainKeyId` and restart. Audit entries are still written (an audit trail
-must not lose a record), unsigned; the host logs one warning per tenant, and the walk reports `Broken`
-from the first unsigned entry on.
-
-`RequireProductionProfile()` asks about the key as `UnkeyedAuditChain`; see [Make a production
-decision required](/guides/embedding/#make-a-production-decision-required).
-
-:::caution[What the key protects against, and what it does not]
-The key protects against an actor who can **write to the audit table but cannot read this host's
-configuration**: a database administrator, a restored backup, another application's connection. They
-can no longer change an entry and recompute the hashes after it, because a valid hash needs the key.
-
-It does not protect against an actor who can read the configuration **and** write the table: they hold
-the key. It does not anchor the chain outside the database, so an attacker who rewrites every entry from
-the first signed one onward without a key leaves a chain the walk calls `Valid`; the signal is
-`unkeyedEntries` equal to `entriesChecked`, which a host that has been signed from its first entry never
-shows. `?after=` and `?before=` walk a range and cannot see a signed entry before it: the whole-history walk
-is the one to trust. Without a key the chain still catches a change made without recomputing it (a manual
-edit, a partial restore, a bug in another writer) and nothing more: anyone who can write the table can
-recompute every hash, and the walk reports `Valid`.
+:::caution[Without a key the chain detects a change; it does not resist one]
+The hash is SHA-256 over the entry and the previous hash, with no key. It catches a change made
+without recomputing the chain: a manual edit, a partial restore, a bug in another writer. Anyone
+who can write to the audit table can also recompute every hash after the change, and the walk then
+reports `Valid`. A chain key closes that for an actor who cannot read the host's configuration, and
+only for that actor; `unkeyedEntries` is the number to read beside the status.
 :::
 
 :::note[Entries written before this feature ships have no hash]

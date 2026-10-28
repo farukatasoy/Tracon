@@ -345,7 +345,7 @@ curl -X POST 'http://localhost:5081/tracon/api/retention/run'
 A durable `audit_log` can be **verified**: `GET /api/audit/verify` walks a
 hash chain and reports whether any entry was altered or deleted after it was
 written. Set a chain key and the hash is an HMAC that only your host can produce
-([Tamper detection](/concepts/governance/#tamper-detection)). And because sessions, runs, conversations, and workflow checkpoints are real
+([Sign the audit chain with a key](/guides/audit-chain-key/)). And because sessions, runs, conversations, and workflow checkpoints are real
 rows now, a data subject's content can be found and erased by identity, not just aged
 out — see [Data subject rights](/concepts/governance/#data-subject-rights).
 

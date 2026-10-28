@@ -128,7 +128,7 @@ someone who can write the audit table but cannot read the configuration can no l
 recompute the hashes after it. Someone who can read both can still forge the whole trail, and nothing outside
 the database anchors it. A chain without a key detects a change made without recomputing it and nothing more.
 Rewriting every entry from the first signed one onward without a key leaves a chain the walk calls `Valid`, with
-`unkeyedEntries` equal to `entriesChecked`. [Tamper detection](/concepts/governance/#tamper-detection) has the
+`unkeyedEntries` equal to `entriesChecked`. [Sign the audit chain with a key](/guides/audit-chain-key/) has the
 setup and the rotation.
 :::
 

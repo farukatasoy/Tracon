@@ -2054,61 +2054,15 @@ curl 'http://localhost:5081/tracon/api/audit/verify'
 The console's Audit screen runs the same walk with its **Verify chain** button and shows the
 status, the entries checked, the unsigned count and the first failing entry.
 
-#### Sign the chain with a key
+With a chain key the hash is an HMAC under a value only the host holds. [Sign the audit chain with a
+key](/guides/audit-chain-key/) covers the setup, the rotation and what the key does not protect.
 
-The key value lives in configuration and nowhere else; the entry stores only the key's id.
-
-```json
-{
-  "Tracon": {
-    "Audit": { "ChainKeyId": "2026-10" },
-    "AuditChainKeys": { "2026-10": "<base64, at least 32 bytes>" }
-  }
-}
-```
-
-```bash
-openssl rand -base64 32
-dotnet user-secrets set 'Tracon:AuditChainKeys:2026-10' '<the value>'
-```
-
-- A key decodes to at least 32 bytes. An id is 1 to 64 characters of lowercase letters, digits,
-  `.`, `_` and `-`; lowercase only, because configuration keys ignore case and the id is stored as
-  written.
-- The host reads every key at start and refuses to start when one is missing a value, is not
-  base64, is too short or has an id outside the pattern. The message names the configuration key and
-  never carries a value. A change needs a restart.
-- The value is never written to the database, a log, the diagnostics report or a response.
-- Every replica carries the same set of keys. During a rollout two replicas may sign with different
-  ids; both ids must be in both replicas' configuration.
-- Entries written before the key was set keep their plain SHA-256 and are checked with it. They are
-  not re-signed, because re-signing would rewrite history. The walk counts them in `unkeyedEntries`.
-  After the first signed entry, an unsigned entry is a downgrade and the walk reports `Broken`.
-
-**Rotate the key.** Add a new key under a new id, set `ChainKeyId` to it and restart. Keep the old
-value in configuration: the entries it signed are checked with it for as long as they exist. Remove it
-and those entries report `UnknownKey`.
-
-**Turn the key off.** Remove `ChainKeyId` and restart. Audit entries are still written (an audit trail
-must not lose a record), unsigned; the host logs one warning per tenant, and the walk reports `Broken`
-from the first unsigned entry on.
-
-`RequireProductionProfile()` asks about the key as `UnkeyedAuditChain`; see [Make a production
-decision required](/guides/embedding/#make-a-production-decision-required).
-
-:::caution[What the key protects against, and what it does not]
-The key protects against an actor who can **write to the audit table but cannot read this host's
-configuration**: a database administrator, a restored backup, another application's connection. They
-can no longer change an entry and recompute the hashes after it, because a valid hash needs the key.
-
-It does not protect against an actor who can read the configuration **and** write the table: they hold
-the key. It does not anchor the chain outside the database, so an attacker who rewrites every entry from
-the first signed one onward without a key leaves a chain the walk calls `Valid`; the signal is
-`unkeyedEntries` equal to `entriesChecked`, which a host that has been signed from its first entry never
-shows. `?after=` and `?before=` walk a range and cannot see a signed entry before it: the whole-history walk
-is the one to trust. Without a key the chain still catches a change made without recomputing it (a manual
-edit, a partial restore, a bug in another writer) and nothing more: anyone who can write the table can
-recompute every hash, and the walk reports `Valid`.
+:::caution[Without a key the chain detects a change; it does not resist one]
+The hash is SHA-256 over the entry and the previous hash, with no key. It catches a change made
+without recomputing the chain: a manual edit, a partial restore, a bug in another writer. Anyone
+who can write to the audit table can also recompute every hash after the change, and the walk then
+reports `Valid`. A chain key closes that for an actor who cannot read the host's configuration, and
+only for that actor; `unkeyedEntries` is the number to read beside the status.
 :::
 
 :::note[Entries written before this feature ships have no hash]
@@ -6671,7 +6625,7 @@ curl -X POST 'http://localhost:5081/tracon/api/retention/run'
 A durable `audit_log` can be **verified**: `GET /api/audit/verify` walks a
 hash chain and reports whether any entry was altered or deleted after it was
 written. Set a chain key and the hash is an HMAC that only your host can produce
-([Tamper detection](/concepts/governance/#tamper-detection)). And because sessions, runs, conversations, and workflow checkpoints are real
+([Sign the audit chain with a key](/guides/audit-chain-key/)). And because sessions, runs, conversations, and workflow checkpoints are real
 rows now, a data subject's content can be found and erased by identity, not just aged
 out — see [Data subject rights](/concepts/governance/#data-subject-rights).
 
@@ -8111,6 +8065,90 @@ Answer these five questions before you write a factory agent:
 - [Move an agent from AddAIAgent to Tracon](/guides/from-maf-hosting/) — the calls of Microsoft Agent Framework hosting, and the Tracon door for each
 - [Write your own agent source](/guides/write-your-own-agent-source/) — the source contract, priority, and tenancy
 - [Agents and definitions](/concepts/agents/) — where the catalog gets its agents
+
+---
+
+# Sign the audit chain with a key
+
+Source: https://tracon.dev/guides/audit-chain-key/
+
+The audit trail is a per-tenant hash chain: each entry carries a hash of its own content and
+of the entry before it, and `GET /api/audit/verify` walks it (see [Tamper
+detection](/concepts/governance/#tamper-detection) for the four answers it gives). Without a key
+that hash is a plain SHA-256 of a public form, so anyone who can write to the audit table can change
+an entry, recompute every hash after it and still get `Valid`. With a chain key the hash is an
+HMAC-SHA256 under a value only your host holds, and each entry names the key's **id**, never its value.
+
+## Turn the key on
+
+The key value lives in configuration and nowhere else; the entry stores only the key's id.
+
+```json
+{
+  "Tracon": {
+    "Audit": { "ChainKeyId": "2026-10" },
+    "AuditChainKeys": { "2026-10": "<base64, at least 32 bytes>" }
+  }
+}
+```
+
+```bash
+openssl rand -base64 32
+dotnet user-secrets set 'Tracon:AuditChainKeys:2026-10' '<the value>'
+```
+
+- A key decodes to at least 32 bytes. An id is 1 to 64 characters of lowercase letters, digits,
+  `.`, `_` and `-`; lowercase only, because configuration keys ignore case and the id is stored as
+  written.
+- The host reads every key at start and refuses to start when one is missing a value, is not
+  base64, is too short or has an id outside the pattern. The message names the configuration key and
+  never carries a value. A change needs a restart.
+- The value is never written to the database, a log, the diagnostics report or a response.
+- Every replica carries the same set of keys. During a rollout two replicas may sign with different
+  ids; both ids must be in both replicas' configuration.
+- Entries written before the key was set keep their plain SHA-256 and are checked with it. They are
+  not re-signed, because re-signing would rewrite history. The walk counts them in `unkeyedEntries`.
+  After the first signed entry, an unsigned entry is a downgrade and the walk reports `Broken`.
+
+## Rotate the key
+
+Add a new key under a new id, set `ChainKeyId` to it and restart. Keep the old
+value in configuration: the entries it signed are checked with it for as long as they exist. Remove it
+and those entries report `UnknownKey`.
+
+## Turn the key off
+
+Remove `ChainKeyId` and restart. Audit entries are still written (an audit trail
+must not lose a record), unsigned; the host logs one warning per tenant, and the walk reports `Broken`
+from the first unsigned entry on.
+
+## Ask for it in production
+
+`RequireProductionProfile()` asks about the key as `UnkeyedAuditChain`. It is not asked while the audit
+log is Tracon's in-memory one, because that chain lives in the process and goes with it; a database
+audit log, or one you registered, is asked. See [Make a production decision
+required](/guides/embedding/#make-a-production-decision-required).
+
+## What the key protects against, and what it does not
+
+The key protects against an actor who can **write to the audit table but cannot read this host's
+configuration**: a database administrator, a restored backup, another application's connection. They
+can no longer change an entry and recompute the hashes after it, because a valid hash needs the key.
+
+It does not protect against an actor who can read the configuration **and** write the table: they hold
+the key. It does not anchor the chain outside the database, so an attacker who rewrites every entry from
+the first signed one onward without a key leaves a chain the walk calls `Valid`; the signal is
+`unkeyedEntries` equal to `entriesChecked`, which a host that has been signed from its first entry never
+shows. `?after=` and `?before=` walk a range and cannot see a signed entry before it: the whole-history walk
+is the one to trust. Without a key the chain still catches a change made without recomputing it (a manual
+edit, a partial restore, a bug in another writer) and nothing more: anyone who can write the table can
+recompute every hash, and the walk reports `Valid`.
+
+## Read next
+
+- [Governance](/concepts/governance/#tamper-detection) — the four answers of `GET /api/audit/verify` and what each means
+- [Make a production decision required](/guides/embedding/#make-a-production-decision-required) — `UnkeyedAuditChain` among the decisions the profile asks
+- [Threat model](/reference/threat-model/) — who can write to the audit table and what the key does about it
 
 ---
 
@@ -11240,7 +11278,7 @@ repeat it:
 | `UnrestrictedTenantEgress` | A tenant with no egress policy may call every provider | `Tracon:TenantProviders:RequireEgressPolicy`, then save a policy for each tenant |
 | `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
 | `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
-| `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Tamper detection](/concepts/governance/#tamper-detection) |
+| `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Sign the audit chain with a key](/guides/audit-chain-key/) |
 
 Some rows are not asked in every composition:
 
@@ -15591,7 +15629,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node or a tool call from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
-| Audit chain key | Off. The audit trail's hash is a plain SHA-256, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a random key of at least 32 bytes under `Tracon:AuditChainKeys:<id>` in a secret store and set `Tracon:Audit:ChainKeyId` to `<id>`. Keep every old key's value in configuration for as long as the entries it signed exist. [Tamper detection](/concepts/governance/#tamper-detection) has the rotation and what the key does not protect |
+| Audit chain key | Off. The audit trail's hash is a plain SHA-256, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a random key of at least 32 bytes under `Tracon:AuditChainKeys:<id>` in a secret store and set `Tracon:Audit:ChainKeyId` to `<id>`. Keep every old key's value in configuration for as long as the entries it signed exist. [Sign the audit chain with a key](/guides/audit-chain-key/) has the rotation and what the key does not protect |
 | Tenant egress policy | A tenant with no egress policy may call every provider the deployment has | In a multi-tenant host set `Tracon:TenantProviders:RequireEgressPolicy` to `true` and save a policy for each tenant, the default tenant included: a tenant without one then calls no provider, and a provider binding cannot be saved for it. A tenant with a policy is judged by its list alone |
 
 Several of these rows — multi-tenancy, session ownership, at-rest content encryption,
@@ -26193,7 +26231,7 @@ someone who can write the audit table but cannot read the configuration can no l
 recompute the hashes after it. Someone who can read both can still forge the whole trail, and nothing outside
 the database anchors it. A chain without a key detects a change made without recomputing it and nothing more.
 Rewriting every entry from the first signed one onward without a key leaves a chain the walk calls `Valid`, with
-`unkeyedEntries` equal to `entriesChecked`. [Tamper detection](/concepts/governance/#tamper-detection) has the
+`unkeyedEntries` equal to `entriesChecked`. [Sign the audit chain with a key](/guides/audit-chain-key/) has the
 setup and the rotation.
 :::
 
