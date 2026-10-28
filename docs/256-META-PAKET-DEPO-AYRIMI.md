@@ -395,12 +395,39 @@ grep -rn -i "PostgreSQL persistence\|with PostgreSQL support\|instead of Postgre
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **Karar numarası `K-1116`.** Plan numara rezerve etmez; uygulama anında en yüksek numara `K-1115` idi.
+2. **Planın tablosunda olmayan iki yüzey.** `docs-site/…/getting-started/persistence.md` (`UsePostgreSql()` örneği
+   kurulum satırı ve `CS1061` uyarısı olmadan duruyordu) ve kök `README.md:177` satırındaki "The only built-in
+   vector-search store" cümlesi eklendi. İkisi de sevk edilen metindeki "meta paket PostgreSQL getirir" izlenimini
+   kapatır; yeni iddia değildir (`compatibility.md` aynı cümleyi taşır).
+3. **`CapacityPackageIsolationTests` değişmedi.** Plan onu anmadı; `Tracon.PostgreSql.dll` iddiasını koruyor çünkü
+   kapasite host'u artık paketi açıkça alıyor (§256.2). Meta paketin kendisi hakkında bir iddia taşımaz.
+4. **Örnek uygulama koşumu tek kullanımlık veritabanında yapıldı.** Paylaşılan `ap-pg` container'ına dokunulmadı
+   (`elle-kosum-ortami.md`: `AutoApplyMigrations` orada migration uygular). `pgvector/pgvector:pg18` imajı ile
+   yeni bir container açıldı, koşum sonrası silindi.
+5. **Site senkronu: `proje-sablonu → getting-started/index.md` kuralı gerekçeyle geçildi.** Şablon değişikliği yalnız
+   `--persistence postgres` seçiminde bir `PackageReference` satırı ekler. `getting-started/index.md` şablonun paket
+   referanslarını anlatmaz (yalnız `net10.0` hedefini ve sürüm sabitlemesini söyler; ikisi de doğru). Değişikliği anlatan
+   sayfalar güncellendi: `packages.md`, `getting-started/persistence.md`, `reference/compatibility.md`. `first-agent.md`
+   Q-11'in işidir (§Kapsam dışı). `--site-gerekce-yazildi` ile geçildi.
+
+**Tüketici yüzeyi envanteri.** `docs-site/`: `packages.md` · `getting-started/persistence.md` ·
+`reference/compatibility.md` (elle) · `public/llms-full.txt` (üretildi). Sevk edilen metin: `src/Tracon/Tracon.csproj`
+`<Description>` · `src/Tracon/README.md` · kök `README.md` · `CHANGELOG.md` (site `reference/changelog.md` ondan üretilir).
+Agent haritası ve yerel referans: `capabilities.md` satırı gerekmedi (PostgreSQL satırı depo seçimini anlatır, meta
+paketi anmaz); `Tracon.AgentMap.md` değişmedi. Kapılar: `ShippedDocumentationSelfContainmentTests` ·
+`CapabilityExampleTests` · `SourceLanguageTests` (12/12) · `LocalReferenceTests` (10/10) · `npm run check` (içerik 1054
+sayfa, bağlantı 187376 referans, sıfır kırık; ağırlık tavanı altında).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **K-1116** — `Tracon` meta paketi depo içermez; depo her zaman açık referanstır *(kategori: public-api,
+  geri-dönüşü-pahalı, kullanıcı kararı)*. K-185'in yerini aldı. `docs/KARARLAR.md`'de.
 
 ## Süreç Ölçümü
 
