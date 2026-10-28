@@ -23,10 +23,12 @@ namespace Tracon.Package.Tests;
 public sealed class ConsumerSurfaceTests(TemplateFixture fixture)
 {
     [Theory]
-    [InlineData("InMemoryRunStore")]
-    [InlineData("MigrationRunner")]
-    public async Task Internal_type_is_not_visible_to_a_package_consumer(string typeName)
+    [InlineData("InMemoryRunStore", null)]
+    [InlineData("MigrationRunner", "Tracon.PostgreSql")]
+    public async Task Internal_type_is_not_visible_to_a_package_consumer(string typeName, string? owningPackage)
     {
+        // `MigrationRunner` lives in the store packages, which the meta package no longer brings (Phase 256). Without
+        // the owning package the build would fail with CS0246 (not found) and prove nothing about visibility.
         using var dir = new TempDirectory();
 
         await SurfaceProbeProject.WriteAsync(fixture.Version, dir.Path, $$"""
@@ -34,7 +36,7 @@ public sealed class ConsumerSurfaceTests(TemplateFixture fixture)
 
             {{typeName}}? narrowed = null;
             Console.WriteLine(narrowed);
-            """);
+            """, owningPackage);
 
         var buildResult = await ProcessRunner.RunAsync("dotnet", "build -c Release", dir.Path, TimeSpan.FromMinutes(2));
 
