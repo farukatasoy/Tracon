@@ -28,7 +28,314 @@
    **K-1016** (`TraconAgentSessionStore` `internal`; köprü oturum açmaz; `isolation` bölümü katlanır, başka bölüm reddedilir) · **K-1017** (yükseltme istek davranışını değiştirmez; Anthropic adaptörü `Extended` ile kurulur) · **K-1103** (model reddi `RejectedSamplingFields`; denetim = yüzey desteği − model reddi) · **K-1104** (değer sınırı `SamplingLimits`) · **K-543** (Dependabot grubu) · **K-283** (bir davranışı düzeltmek çağıranı sessizce değiştirir).
 3. Emsal faz — MAF 1.25 yükseltmesi, aynı iş türü:
    ```bash
-   git show 2a8149ef:docs/arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md | sed -n '/## Plandan Sapmalar
+   git show 2a8149ef:docs/arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md | sed -n '/## Plandan Sapmalar/,/## Bu Fazda/p'
+   ```
+   Sapma 5'teki sürüm damgası tablosu bu fazın Adım 255.5 kalıbıdır.
+4. Alan hafızası: [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md) (köprü) ·
+   [`hafiza/tedarik-zinciri.md`](hafiza/tedarik-zinciri.md) (sürüm damgası, AOT vaadi) ·
+   [`hafiza/oturum-calisma-alani.md`](hafiza/oturum-calisma-alani.md) (oturum silmenin sildiği içerik) ·
+   [`hafiza/yayin-ve-surumleme.md`](hafiza/yayin-ve-surumleme.md) (kırıcı not).
+5. Gerektiğinde: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §10 (MAF takip süreci P-02…P-05) ·
+   [`.agents/skills/maf-api-kesfi/SKILL.md`](../.agents/skills/maf-api-kesfi/SKILL.md) § *Sürüm yükseltirken*.
+
+---
+
+## Amaç
+
+Sevk edilen paketlerin çalışma anı grafiğini en yeni sürümlere taşı. Upstream'in
+zorladığı iki değişikliği `rc.1`'den önce kalıcı biçimde karşıla: MAF 1.26'nın
+soyut `DeleteSessionAsync`'i ve Anthropic SDK 13'ün örnekleme alanlarını kaldırması.
+Oturum silmenin üç yolunu tek bir iç yola topla.
+
+- **F-745** — MAF 1.26 + Hosting `1.26.0-preview.261023.1` + platform 10.0.14 + Anthropic 13.3.0 + Google.GenAI 1.27.0 + Azure.Core 1.64.0 + Sqlite 10.0.14; köprünün silmesi; Anthropic örnekleme beyanı.
+- **F-746** — `DELETE /v1/conversations/{id}` oturumu ve bellek kopyasını siler, ek dosyalarını bırakır. Ortak silme yolu bunu kapatır.
+
+### Bugün ne çalışmıyor — doğrulanmış kanıt
+
+| Kanıt | Gözlem |
+|---|---|
+| [`Directory.Packages.props:19,26,67,68,79,80,133,134,149,195,301`](../Directory.Packages.props) | MAF `1.25.0`, platform `10.0.13`, Hosting `[1.25.0-preview.261014.1]`, Hosting.OpenAI `[1.25.0-alpha.261014.1]`, Anthropic `12.58.0`, Google.GenAI `1.26.1`, Azure.Core `1.63.0`, Sqlite `10.0.13`, OpenApi `10.0.13`. NuGet'te en yeniler: `1.26.0` (2026-10-23), `1.26.0-preview.261023.1`, `10.0.14` (2026-10-25), `13.3.0`, `1.27.0`, `1.64.0` |
+| [`TraconAgentSessionStore.cs:39`](../src/Tracon.AspNetCore/Sessions/TraconAgentSessionStore.cs) | MAF 1.26'da derleme kırılır: `CS0534 … does not implement inherited abstract member 'AgentSessionStore.DeleteSessionAsync(AIAgent, AgentSessionStoreKey, CancellationToken)'` (deneme yükseltmesi, üç TFM) |
+| [`SessionEndpoints.cs:338-376`](../src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs) | `DELETE /api/sessions/{id}`: yetki kapısı → sahiplik kapısı → `AgentSessionManager.DeleteSessionAsync` (oturum + bellek ve çalışma alanı kopyası, `ISubjectContentEraser`) → `IAttachmentStore.DeleteBySessionAsync` |
+| [`OpenAIConversationsEndpoints.cs:247-282`](../src/Tracon.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs) | `DELETE /v1/conversations/{id}`: aynı kapılar, `manager.DeleteSessionAsync` (`:276`); **ek dosyaları silinmez** (F-746) |
+| [`AgentSessionManager.cs:620`](../src/Tracon.Core/Sessions/AgentSessionManager.cs) | Yönetici silmesi ek dosyalarına dokunmaz; eraser'lar bellek (`ConversationMemoryEraser`) ve çalışma alanıdır (`SessionWorkspaceEraser`) |
+| [`AnthropicModelProvider.cs:84-88`](../src/Tracon.Anthropic/AnthropicModelProvider.cs) | `SupportedSamplingFields` `TopK` taşır. Anthropic 13.3.0'da `MessageCreateParams` `temperature`, `top_k`, `top_p` alanlarını **taşımaz** (12.58.0 taşıyordu; iki sürüm decompile edildi). Deneme: `ModelSamplingWireTests.Anthropic_sends_top_k_stop_sequences_and_the_tool_choice` kırmızı, gövdede `top_k` yok; `disable_parallel_tool_use` yerinde |
+| [`AnthropicRequestSettingsTests.cs:328-329`](../tests/Tracon.Anthropic.UnitTests/AnthropicRequestSettingsTests.cs) | SDK 13.3 kiracı anahtarını `Authorization: Bearer …` ile ve `anthropic-version: 2026-10-21` ile gönderir; test `x-api-key` bekler (3 TFM kırmızı). Giden anahtar **kiracınınki**dir (prob); BYOK ihlali yok |
+| [`AnthropicProviderHealthCheck.cs:22,55`](../src/Tracon.Anthropic/AnthropicProviderHealthCheck.cs) · [`README.md:141`](../src/Tracon.Anthropic/README.md) | Sağlık denetimi SDK'yı kullanmaz; ham `x-api-key` ve `anthropic-version: 2023-06-01` gönderir. SDK ile tutarlılığı ölçülmeli |
+| `maf-kapsama.py fark` (1.25.0 → 1.26.0) | +üye 3, −üye 1: `AgentSessionStore.DeleteSessionAsync`, `DelegatingAgentSessionStore.DeleteSessionAsync`, `AgentFileStore.ScanContent(…, CancellationToken)` (eski aşırı yükleme kalktı). Tracon `ScanContent` çağırmaz (`git grep` boş). Paket ailesi envanteri: 40 paket, değişiklik yok, Hosting hâlâ ön sürüm |
+| MAF 1.26 decompile | `DeleteSessionAsync`'i MAF host kodu çağırmaz; yalnız `DelegatingAgentSessionStore` ve `IsolationKeyScopedAgentSessionStore` iletir. MAF'ın sözleşmesi: "olmayan oturum no-op" |
+
+> Kanıtlar 2026-10-28'de doğrulandı. Deneme yükseltmesi izole worktree'de (HEAD
+> `8295ca9c`): bütün çözüm geçici bir `DeleteSessionAsync` gövdesiyle **0 hata, 0
+> uyarı** derlendi. MAF'a bağlı 11 test projesi (25 046 test) MAF 1.26 ile yeşildi.
+> Tam set (platform + Anthropic 13 + Google + Azure.Core + Sqlite) ile yalnız yukarıdaki
+> iki Anthropic testi düştü (26 667 testten).
+
+---
+
+## 255.1 — Sürüm hedefleri
+
+| Paket | Bugün | Hedef | Not |
+|---|---|---|---|
+| `Microsoft.Agents.AI` ailesi (`MicrosoftAgentsAIVersion`) | 1.25.0 | **1.26.0** | MEAI ≥ 10.10 ister; Tracon 10.11.0 |
+| `Microsoft.Agents.AI.Hosting`, `.Hosting.A2A`, `.Hosting.AspNetCore` | `[1.25.0-preview.261014.1]` | **`[1.26.0-preview.261023.1]`** | K-008: yalnız `Tracon.AspNetCore` |
+| `Microsoft.Agents.AI.Hosting.OpenAI` | `[1.25.0-alpha.261014.1]` | **`[1.26.0-alpha.261023.1]`** | |
+| `A2A.AspNetCore`, `A2A` | `[1.0.0-preview3]` | değişmez | NuGet'te en yeni |
+| `MicrosoftExtensionsVersion` | 10.0.13 | **10.0.14** | platform yaması |
+| `Microsoft.Data.Sqlite`, `Microsoft.AspNetCore.OpenApi` | 10.0.13 | **10.0.14** | |
+| `Microsoft.AspNetCore.TestHost`, `.Mvc.Testing` | 10.0.13 | **10.0.14** | aynı ASP.NET Core hattı (`Directory.Packages.props:298`) |
+| `Anthropic` | 12.58.0 | **13.3.0** | §255.3 |
+| `Google.GenAI` | 1.26.1 | **1.27.0** | |
+| `Azure.Core` | 1.63.0 | **1.64.0** | |
+| `System.Security.Cryptography.Pkcs` ×3 | 8.0.2 / 9.0.21 / 10.0.13 | **yeniden ölç** | CVE sabitidir (`Directory.Packages.props:175-188`); SqlClient hâlâ açık sürüm çekiyor mu, Faz 214 yöntemiyle ölç |
+
+Kapsam dışı (👤 2026-10-28): test ve derleme araçları (xunit.v3 4, MTP, Playwright
+1.64, Meziantou, Roslyn, SDK `10.0.403` / `global.json`). Ayrı faz, Faz 215 emsali.
+
+Hedefler uygulama anında flat container ile **yeniden ölçülür**; daha yeni bir
+sürüm çıktıysa en yenisi alınır ve sapma olarak yazılır.
+
+## 255.2 — Köprünün silmesi ve ortak silme yolu
+
+```mermaid
+flowchart LR
+    A["DELETE /api/sessions/{id}<br/>yetki + sahiplik kapısı"] --> S
+    B["DELETE /v1/conversations/{id}<br/>sahiplik + yetki kapısı"] --> S
+    C["TraconAgentSessionStore.DeleteSessionAsync<br/>MAF sözleşmesi"] --> S
+    S["iç ortak silme<br/>(oturum + bellek/çalışma alanı kopyası + ek dosyaları)"] --> M["AgentSessionManager.DeleteSessionAsync"]
+    S --> T["IAttachmentStore.DeleteBySessionAsync"]
+```
+
+- **Bir iç yol, üç çağıran.** Oturumu silen etkileşimli üç yol aynı iç servisi
+  çağırır: oturum kaydı, `ISubjectContentEraser` kopyaları ve ek dosyaları birlikte
+  silinir. Servis `internal`'dır; yeri (Core mu AspNetCore mu) `IAttachmentStore`'un
+  kaydına göre seçilir — **ölçülmeli**.
+- **Kapılar HTTP ucunda kalır.** Yetki (`RunAuthorizationGate`) ve sahiplik
+  (`SessionOwnershipGate`) kapıları uçlarda kalır; iç servis kapı taşımaz. Köprüyü
+  yalnız Tracon'un kendi uçları ve host kodu çağırır; MAF 1.26 onu çağırmaz.
+- **Kiracı sınırı depo katmanındadır.** `ISessionStore` ve `IAttachmentStore`
+  çağrıları ortam kiracısını kullanır (`AgentSessionManager` `_tenantContext`,
+  ek dosyası silmesi açık kiracı alır).
+- **Köprü sözleşmesi:** `DeleteSessionAsync` anahtarı `ToSessionId` ile katlar
+  (K-1016: `isolation` bölümü; başka bölüm `NotSupportedException`). Olmayan oturum
+  **no-op**'tur (MAF sözleşmesi); hata atmaz.
+- **Kapsam dışı:** veri sahibi silmesi (`SqlDataSubjectStore`) ve saklama
+  (`SqlRetentionStore`) ek dosyalarını kendi işlemlerinde zaten siler; onlara
+  dokunulmaz.
+- **🚨 K-283:** silmeyi değiştirmek ona dayanan çağıranı sessizce değiştirir.
+  `git grep -n "DeleteSessionAsync\|DeleteBySessionAsync" -- src` ile **her** çağıranı
+  tara; bugün üç etkileşimli yol + iki depo uygulamasıdır.
+
+## 255.3 — Anthropic SDK 13
+
+Ölçülen üç fark (12.58.0 → 13.3.0, decompile ve deneme):
+
+| Fark | Etki | Ne yapılır |
+|---|---|---|
+| `MessageCreateParams` `temperature`, `top_k`, `top_p` taşımaz; adaptör `ChatOptions.Temperature/TopK/TopP`'yi düşürür | Tracon `TopK`'yi destekleniyor diye beyan eder → **sessiz düşürme** (K-1103 kuralına aykırı); sıcaklık ve top_p de düşer | Beyan daralır: Anthropic `TopK` taşımaz; sıcaklık/top_p taşıyan Anthropic tanımı kaydetme ve derleme anında reddedilir (Açık Soru 1) |
+| Anahtar `Authorization: Bearer` ile, `anthropic-version: 2026-10-21` ile gider | Kiracı anahtarı doğru gider (prob). Gerçek API'nin bu çifti kabul ettiği **ölçülmedi** | 🤖/👤 kabul case'i gerçek anahtarla (§ *Manuel Kabul*). Test başlık adına değil, anahtarın gittiğine bakar |
+| 12.59.0: akış tanınmayan SSE olay adlarını da verir | `AnthropicStopReasonChatClient` ve önbellek kullanımı halkası bilinmeyen olayı görebilir | Decompile + akış testi; bilinmeyen olay sessizce yutulmaz ama run'ı düşürmez (İ3) — **ölçülmeli** |
+
+- **Sağlık denetimi.** `AnthropicProviderHealthCheck` ham HTTP ile `x-api-key` +
+  `2023-06-01` gönderir. SDK ile aynı kimlik biçimine mi geçmeli, yoksa eski sürüm
+  başlığı API'de destekli mi kalır — **ölçülmeli** (Açık Soru 2).
+- **README § *Known behavior differences*** yeniden yazılır: "Temperature must be 1
+  while budgeted thinking is on" maddesi SDK 13'te geçersizdir (sıcaklık hiç
+  gönderilemez). Bütçeli düşünme (`ThinkingConfigEnabled.budget_tokens`) 13.3'te
+  durur (decompile).
+- K-1017'nin `Extended` kurulumu ve system yerleşimi 13.3 adaptöründe yeniden ölçülür.
+
+## 255.4 — Matris ve takip süreci (P-02…P-05)
+
+- `MAF-KAPSAMA.md` başlığı ve §5 `1.26.0` ölçümüne geçer; `maf-kapsama.py temas`
+  (`kapi.py uret`) yeniden üretilir; `✗` tabanı kapıdan geçer.
+- `MAF-GENISLEME-NOKTALARI.md` § *Sürüm damgası*: üç üye farkı ve hangisinin
+  **kullanılmadığı** yazılır (`ScanContent` — Tracon çağırmaz; `DeleteSessionAsync`
+  — köprü uygular, MAF çağırmaz).
+- MAF 1.26 sürüm notunun Tracon'a dokunan öteki maddeleri tek tek yargılanır ve
+  matrise yazılır: #9542 yinelenen onay kimliği reddi (Tracon `ToolApprovalAgent`'ı
+  kullanır; testler yeşil, onay devam yolu ölçülmeli) · #9382 AG-UI istek anında
+  agent seçimi (Tracon `AGUI.Server` kullanır, MAF'ın AG-UI paketini değil →
+  etkisiz) · #9540/#9394/#9432 workflow durum sıfırlama ve fan-out tekilleştirme ·
+  #9269 bellek sağlayıcısı iptali · #9534 A2A görev durum iletisi · #9539 MCP çağrı
+  başlığı doğrulaması.
+
+## 255.5 — Sürüm damgaları
+
+`dokuman-bakim.py` "Bağımlılık sürüm damgası" kapısı eski sürümü anan satırı
+bulur. Bugün bilinenler (her biri yeni sürüme karşı **yeniden ölçülür** ya da
+tarihlenir; Faz 214 Sapma 5 tablosu kalıbı):
+
+- Anthropic 12.58.0: `AnthropicCacheUsageChatClient.cs:19`, `AnthropicModelProvider.cs:84`, `AnthropicProviderSettingsChatClient.cs:36,164`, `AnthropicStopReasonChatClient.cs:17,206`, `src/Tracon.Anthropic/README.md:44`
+- Google.GenAI 1.26.1: `GoogleModelProvider.cs:87,104`, `src/Tracon.Google/README.md:107`
+- MAF 1.25: `TraconA2AOptions.cs:8`, `OpenAIResponsesEndpoints.cs:30,458`, `ResponsesIncompleteness.cs:16,102`, `RecordingLoopEvaluator.cs:38,46`, `AggregatedResponseGuard.cs:20`, `WorkflowDefinitionValidator.cs:471,486`
+- Azure.Core 1.63.0: `OpenAIAudioTransport.cs:13`
+- Site: `reference/compatibility.md:135-162`, `guides/ef-core.md:44`
+
+---
+
+## Planlanan Public API
+
+> Taslaktır. Gerçekleşen imza kapanışta yazılır.
+
+```csharp
+// Tracon.Abstractions — yalnız Açık Soru 1 = A ise
+[Flags]
+public enum SamplingFields
+{
+    // … bugünkü üyeler …
+    Temperature = 1 << 8,   // sağlayıcı sıcaklığı gönderir
+    TopP = 1 << 9,          // sağlayıcı top_p'yi gönderir
+}
+```
+
+Bugün eklemek bedavadır (`Shipped` boş); sonradan eklemek davranış kırıcıdır: beyan
+etmeyen her üçüncü taraf sağlayıcı sıcaklığı "desteklemiyor" sayılır. Bu yüzden
+`ISamplingSupport` uygulamayan sağlayıcı için varsayılan bugünkü davranışı korumalıdır
+(sıcaklık gönderilir) — **ölçülmeli**: `ModelProviderRegistry.cs:176-178` uygulamayan
+sağlayıcıya `SamplingFields.None` verir.
+
+### HTTP `endpoint`'leri
+
+Yeni uç yok. Değişen davranış:
+
+| Metot | Yol | Değişen |
+|---|---|---|
+| `DELETE` | `/v1/conversations/{id}` | Oturumun ek dosyalarını da siler (F-746) |
+| `PUT`/`POST` | agent tanımı kaydetme | Anthropic bağlamasında `Temperature`, `TopP`, `TopK` reddedilir (`400`, alan yolu ile) |
+
+### Arayüz payı
+
+Yok.
+
+---
+
+## Planlanan Dosya Listesi
+
+```
+Directory.Packages.props                     # §255.1
+.github/dependabot.yml                       # grup değişirse
+src/Tracon.AspNetCore/Sessions/TraconAgentSessionStore.cs      # DeleteSessionAsync
+src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs            # ortak yola geçer
+src/Tracon.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs  # ortak yola geçer (F-746)
+src/Tracon.{Core|AspNetCore}/Sessions/<ortak silme servisi>.cs  # yeni, internal
+src/Tracon.Anthropic/AnthropicModelProvider.cs                 # beyan
+src/Tracon.Anthropic/AnthropicProviderHealthCheck.cs           # Açık Soru 2
+src/Tracon.Anthropic/README.md
+src/Tracon.Abstractions/Models/ISamplingSupport.cs             # Açık Soru 1 = A
+src/Tracon.Core/Compilation/SamplingCapabilityCheck.cs | SamplingSupportCheck.cs
+src/**/*.cs                                  # §255.5 damgaları
+tests/Tracon.Anthropic.UnitTests/AnthropicRequestSettingsTests.cs
+tests/Tracon.AspNetCore.FunctionalTests/ModelSamplingWireTests.cs
+tests/Tracon.AspNetCore.FunctionalTests/<SessionDeletion…>Tests.cs  # yeni
+docs/MAF-KAPSAMA.md · docs/MAF-GENISLEME-NOKTALARI.md · docs-site/… (başlıktaki liste)
+CHANGELOG.md
+```
+
+---
+
+## Hata Modları ve Testler
+
+| Ne bozulabilir | Seviye | Test |
+|---|---|---|
+| Köprünün silmesi başka kiracının oturumunu siler | Fonksiyonel (kiracı sınırı, gerçek host) | yeni `SessionDeletionPathTests` — iki kiracı, aynı oturum kimliği |
+| Köprü olmayan oturumda hata atar (MAF sözleşmesi no-op ister) | Birim + fonksiyonel | aynı sınıf |
+| Köprü `isolation` dışı bölümü sessizce birleştirir | Birim | mevcut `SessionStoreIsolationTests`'e silme vakası |
+| `DELETE /v1/conversations/{id}` ek dosyasını bırakır (F-746) | Fonksiyonel, **önce kırmızı** | yeni test: ek dosyalı oturum, silme, `GET` ek dosyası `404` |
+| `DELETE /api/sessions/{id}` davranışı ortak yola geçince değişir (sıra: kopya önce, kayıt sonra) | Fonksiyonel | mevcut oturum silme testleri + kopya silinemezse oturumun yerinde kaldığı vaka |
+| Yetki ya da sahiplik reddinde silme yine olur | Fonksiyonel | iki uç için ret → kayıt ve ek dosyası yerinde |
+| Bellek kopyası silinemezse ek dosyası silinmiş, oturum duruyor (yarım silme) | Fonksiyonel (alt sistem hatası) | eraser hata atar → ne oturum ne ek dosyası silinir; sıra ölçülür |
+| Anthropic tanımı `Temperature`/`TopK`/`TopP` ile sessizce kaydedilir ve alan düşer | Fonksiyonel (kaydetme + derleme) | `ModelSamplingWireTests` yeniden yazılır: kaydetme `400` ve alan yolu; derlemede aynı ret (K-1103 iki okuyucu) |
+| Fallback zincirindeki Anthropic halkası alanı düşürür | Fonksiyonel | birincil OpenAI + Anthropic yedek → ret (`SamplingCapabilityCheck` yedek halkayı okur) |
+| `ISamplingSupport` uygulamayan üçüncü taraf sağlayıcıda sıcaklık artık reddedilir | Birim (Açık Soru 1) | varsayılanın korunduğu vaka |
+| BYOK isteği paylaşılan anahtarı gönderir | Birim (gerçek soket) | `A_tenant_credential_client_sends_the_same_settings` — başlık adından bağımsız, kiracı anahtarı tel üstünde |
+| Anahtar ya da `Authorization` başlığı loga veya kayda sızar | Birim | mevcut `SecretLeakTests` Bearer biçimiyle |
+| Akışta tanınmayan SSE olayı run'ı düşürür | Fonksiyonel (akış) | sahte sunucu bilinmeyen olay gönderir → run tamamlanır |
+| Paketlenmiş tüketicide MAF 1.26 ile `TypeLoadException` | Paket | `uyum-probu.cs -- ileri` (0 eksik tip/üye) + negatif kontrol |
+| Deneysel tip public imzaya sızar | Paket | `uyum-probu.cs -- deneysel` (`public_maruziyet` yalnız F-560'ın dört satırı) |
+
+Beş soru: **iptal** — silmede iptal belirteci depoya iletilir, yarım silme sırası
+ölçülür · **eşzamanlılık** — aynı oturum iki uçtan aynı anda silinir: ikincisi
+no-op/404 · **boş/aşırı girdi** — boş oturum kimliği `ArgumentException` (bugünkü),
+köprüde boş `SessionId` · **başka kiracı** — yukarıdaki iki kiracılı vaka ·
+**alt sistem hatası** — eraser ve ek dosyası deposu hata atar.
+
+---
+
+## Manuel Kabul Case'leri
+
+| # | Ön koşul | Adımlar | Beklenen sonuç |
+|---|---|---|---|
+| 1 `🤖` (`06`) | Gerçek Anthropic anahtarı, SDK 13.3 | Anthropic agent'ı ile bir run; kiracı BYOK anahtarıyla bir run | İki run da `200`; istek `anthropic-version: 2026-10-21` taşır. Anahtar yoksa `👤` (bakımcı) |
+| 2 `🤖` (`06`) | Aynı | `Temperature` taşıyan Anthropic tanımı kaydet | `400`, alan yolu `model.temperature`; mesaj sağlayıcının alanı göndermediğini söyler |
+| 3 `🤖` (`08`) | `samples/Tracon.Api`, ek dosyalı bir conversation | `DELETE /tracon/v1/conversations/{id}` | `deleted: true`; ek dosyası artık okunamaz (`404`) |
+| 4 `🤖` (`01`) | `kapi.py yayin --kuru --surum 1.0.0-preview.7.255` | Paketlenmiş tüketici (net8 dahil) | EXIT 0 |
+
+---
+
+## Açık Sorular
+
+| # | Soru | Seçenekler | Öneri |
+|---|---|---|---|
+| 1 | Sıcaklık ve top_p'nin sağlayıcı düzeyinde reddi nasıl beyan edilir? | A: `SamplingFields`'e `Temperature` ve `TopP`; uygulamayan sağlayıcı için varsayılan "gönderilir" korunur · B: Anthropic sağlayıcısı katalog tanımlayıcılarına varsayılan `SupportsSampling = false` yazar | **A** — bilgi sağlayıcının gerçeğidir, modelin değil (K-1103'ün yüzey/model ayrımı); B kataloğu "doğrulama listesi"ne çevirir (`SamplingCapabilityCheck` remarks'ı bunu reddeder) |
+| 2 | `AnthropicProviderHealthCheck` hangi kimlik biçimini kullansın? | A: SDK ile aynı (`Bearer` + `2026-10-21`) · B: ham `x-api-key` + `2023-06-01` kalsın | Gerçek API'de ölç; ikisi de geçerse **A** (tek biçim, SDK ile kayma yok) |
+| 3 | Ortak silme servisi hangi pakette? | A: `Tracon.Core` (`IAttachmentStore` Abstractions'ta) · B: `Tracon.AspNetCore` | **A**, eğer `IAttachmentStore` Core'da her zaman kayıtlıysa — ölç |
+| 4 | Pkcs CVE sabitleri kalkar mı? | A: kaldır · B: 10.0.14'e çek · C: değiştirme | Faz 214 yöntemiyle ölç (boş proje + `NuGetAudit`) |
+
+---
+
+## Bitiş Ölçütleri (DoD)
+
+- [ ] `Directory.Packages.props` §255.1 hedeflerinde (flat container ile yeniden ölçüldü); `dotnet restore Tracon.slnx` uyarısız; `dotnet list Tracon.slnx package --vulnerable --include-transitive` açık yok
+- [ ] `TraconAgentSessionStore.DeleteSessionAsync` ortak silme yolunu çağırır; olmayan oturum no-op; `isolation` dışı bölüm `NotSupportedException` (K-1016)
+- [ ] Üç etkileşimli silme yolu tek iç servisi çağırır; F-746 testi düzeltmeden **önce kırmızı**, sonra yeşil; iki kiracılı silme testi yeşil
+- [ ] Anthropic: `SupportedSamplingFields` `TopK` taşımaz; `Temperature`/`TopP`/`TopK` taşıyan Anthropic bağlaması kaydetmede ve derlemede reddedilir (fallback halkası dahil); `ModelSamplingWireTests` ve `AnthropicRequestSettingsTests` yeni davranışı sabitler
+- [ ] Gerçek Anthropic API'si `Bearer` + `2026-10-21` isteğini kabul eder (manuel case 1) ya da case `👤` olarak bakımcıya devredildi
+- [ ] `maf-kapsama.py fark` sonucu `MAF-GENISLEME-NOKTALARI.md` § *Sürüm damgası*'nda; `MAF-KAPSAMA.md` 1.26.0 ölçümünde; `maf-kapsama.py denetle` yeşil
+- [ ] §255.5 damgaları yeniden ölçüldü; `dokuman-bakim.py` "Bağımlılık sürüm damgası" temiz
+- [ ] `uyum-probu.cs -- ileri` 0 eksik tip/üye (negatif kontrolle); `-- deneysel` yalnız F-560 satırları
+- [ ] `CHANGELOG.md` `[Unreleased]`: Changed (bağımlılıklar), Changed/Breaking (Anthropic örnekleme reddi, adıyla), Fixed (F-746)
+- [ ] `YAYIN-HAZIRLIK.md` ölçüt 2 yeniden ✅ (çalışma anı); test/derleme araçları ayrı kalem olarak anılır
+- [ ] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
+- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (Responses, A2A ve conversation silme dahil)
+- [ ] `secret` taraması boş döndü (`kapi.py tarama`)
+- [ ] `🤖` case'ler `docs/manuel-test/01`, `06`, `08` içinde ve koşuldu; `👤` yalnız gerçek anahtar yoksa
+- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [ ] `docs-site/` güncellendi (başlıktaki sayfalar); `npm run build` + `check-links.mjs` temiz
+- [ ] `RC-KALITE-DALGALARI.md` Q-10 satırının Durum hücresi `✅ Faz 255`
+
+### Doğrulama komutları
+
+```bash
+# deneme ölçümünün yeniden üretimi
+git worktree add --detach /tmp/wt255 HEAD   # props'u §255.1'e çek, sonra:
+dotnet build Tracon.slnx -c Release
+python3 scripts/maf-kapsama.py fark <eski.txt> <yeni.txt>   # maf-api-kesfi § Sürüm yükseltirken
+dotnet run .agents/skills/nuget-danismani/scripts/uyum-probu.cs -- deneysel
+python3 scripts/kapi.py test --proje Tracon.Anthropic.UnitTests --sinif "*AnthropicRequestSettingsTests*" --tfm net10.0
+python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.7.255
+```
+
+---
+
+## Riskler
+
+| Risk | Önlem |
+|------|-------|
+| Gerçek Anthropic API'si `Bearer` ile API anahtarını reddeder | Manuel case 1 gerçek anahtarla; reddederse SDK'nın kimlik seçeneği ölçülür (`ApiKey` ↔ `AuthToken`) ve sapma yazılır |
+| Anthropic tanımı reddi var olan tüketici tanımlarını kırar | `rc.1` öncesi; CHANGELOG adıyla anar; ret mesajı alanı ve nedeni söyler |
+| Ortak silme yolu `DELETE /api/sessions` sırasını değiştirir (K-283) | Mevcut testler + yarım silme vakası; her çağıran `git grep` ile tarandı |
+| Ön sürüm Hosting bir sonraki minor'da yine kırar | K-008 sınırı; deneme yükseltmesi önce koşar |
+| Bu arada daha yeni sürüm çıkar | Uygulama anında yeniden ölç; en yenisini al, sapma yaz |
+
+---
+
+<!-- ============================================================
+     AŞAĞISI ÇALIŞIRKEN DOLAR — doküman kapanışta silinir (`faz-kapat`).
+     Kalıcı kısım `faz-tamamlama` Adım 5'te yerine taşınır. Başlıkları SİLME.
+     ============================================================ -->
+
+## Plandan Sapmalar
 
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
@@ -67,7 +374,25 @@
 8. **MAF'ın dosya araması artık 10 sn'de iptal olur** (#9536; `AgentFileStore.SearchTimeout`). Plan bunu saymıyordu;
    dosya belleği ve çalışma alanı `InMemoryAgentFileStore` yolunu kullanır. Matrise yazıldı; gerçek büyük depoda süre
    ölçülmedi.
-9. **Dependabot grubu değişmedi.** `Anthropic`, `Google.GenAI` ve `Azure.Core` `agent-stack` grubunda değildir ve
+9. **Site senkron kapısı iki kural için gerekçeyle geçildi** (`--site-gerekce-yazildi`). `http-api`
+   (`A2ASessionStore.cs` tetikledi): yeni uç ve yeni durum kodu yok; `DELETE /v1/conversations/{id}`'nin ek dosyalarını da
+   silmesi `concepts/sessions.md`'de yazıldı. OpenAPI `description` metinleri yanlış değil (`/api/sessions` ek dosyalarını
+   zaten anar, `/v1` "the session underneath it" der); metni değiştirmek anlık görüntüyü, .NET ve TypeScript istemcisini
+   yeniden üretmeyi ister ve yeni bilgi taşımaz. `paket-readme` (`Tracon.Anthropic/README.md` tetikledi): `packages.md`
+   Anthropic satırı yetenekleri sayar, örnekleme alanı reddini ve kimlik başlığını taşımaz; model sağlayıcıları sayfası
+   (`guides/model-providers.md`) ikisini yazar.
+10. **Kabul seti.** Plan dört `🤖` case sayıyordu (`01`, `06` ×2, `08`). `faz-tamamlama` Adım 3 (2026-10-17) kodla tekrarlanan
+   davranışı sete almaz: alan reddi (`ModelSamplingSupportTests`), conversation silme (`SessionDeletionPathTests`) ve
+   paketlenmiş tüketici (`kapi.py yayin --kuru`, `uyum-probu`) kodla tekrarlanır. Sete **tek case** girdi: `MT-PROV-099`
+   (gerçek API'nin SDK 13 kimlik biçimini kabul etmesi; kodla tekrarlanamaz). Öteki üçü ayrıca örnek uygulamada koşuldu
+   (DoD'de çıktısı).
+11. **Denetim 🔴 #2: `ModelRunJudge` aynı kuralı dışarıda bırakıyordu.** Yargıç kendi `ChatOptions`'ını yazar ve agent
+   derleyicisinden geçmez; `Temperature`/`TopP` taşıyan bir Anthropic yargıç modeli hatasız varsayılan sıcaklıkla
+   çalışırdı. `JudgeAsync` artık `SamplingSupportCheck`'i sorar (yalnız yargıcın gönderdiği iki alan) ve ilk modele
+   gitmeden `TraconException` atar. Sınıf taraması: `git grep "\.Temperature\b\|\.TopP\b" -- src` — `ModelRunJudge`'dan
+   başka `ModelBinding` örnekleme alanını `ChatOptions`'a yazan yer agent derleyicisidir. aiJudge döngü ölçütü ve
+   `EvaluatorRunJudge` alanları hiç okumaz.
+12. **Dependabot grubu değişmedi.** `Anthropic`, `Google.GenAI` ve `Azure.Core` `agent-stack` grubunda değildir ve
    ayrı PR alır; zincir kopmadı, bu yüzden K-543 satırı ve `dependabot.yml` aynı kaldı.
 
 ## Bu Fazda Verilen Kararlar

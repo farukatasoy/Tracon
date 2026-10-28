@@ -192,3 +192,22 @@ Taşındıkları gün `docs/ADAYLAR.md`'den alınan gövdeler. Güncel plan: Faz
 **Ekosistem (2026-10-21):** MS Learn AG-UI entegrasyonu yedi özelliği (onay, ön yüz tool'u, durum) kapsar; `AGUI.Server` yayıncısı "AG-UI Protocol"dür → `nuget-danismani` tedarik zinciri onayı.
 
 **Karşı görüş:** Tracon'un kendi gömülebilir sohbet aracı ve TS istemcisi aynı işi görür; AG-UI talebi ölçülmedi. Değer, ekosistemin AG-UI'yi standart kabul etmesine bağlıdır.
+
+## `docs/ADAYLAR.md` durum paragrafı — Faz 255 (iki aday satırına yer açmak için)
+
+2026-10-26 tarihli "Durum" paragrafının tam metni:
+
+**Durum (2026-10-26):** sıralanabilir kuyrukta **5** aday var (F-324 video tüketicisi
+turu; F-618…F-621 MAF Dalga 4 turu,
+[`kesif/2026-10-21-maf-dalga-4.md`](../kesif/2026-10-21-maf-dalga-4.md)).
+2026-10-26'da iki planlama turu oldu. Birincisi: F-688 (Faz 246), F-572 + F-508
+(Faz 247), F-409 (Faz 248 numara kimliği, Faz 250 alt agent sabiti) ve F-545
+(Faz 249; ikinci kanıtı F-409, bakımcı kararı). F-409'un skill yarısı F-698
+olarak § *Tetik bekleyenler*'dedir. İkincisi, yanlış çalıştığı ölçülen dört birim:
+F-503 + F-505 (Faz 251), F-606 + F-607 (Faz 252), F-420 (Faz 253), F-689 + F-690
+(Faz 254). Aynı gün doğrudan kapandı: F-495, F-640, F-673, F-702, F-704, F-705.
+RC kalite dalgası (2026-10-28) kalemlerini yerel `Q-NN` kimliğiyle
+[`RC-KALITE-DALGALARI.md`](../RC-KALITE-DALGALARI.md) tutar; F-ID planlamada verilir.
+Bugün yapılabilecek iş
+§ *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil,
+üretilen [`YOL-HARITASI.md`](../YOL-HARITASI.md)'dedir.

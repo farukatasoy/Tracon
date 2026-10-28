@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -140,9 +141,18 @@ public sealed class SessionDeletionPathTests
 
         eraser.Fail = true;
 
-        using (var failed = await DeleteAllowingServerErrorAsync(host, uri))
+        var (failedResponse, failure) = await DeleteAllowingServerErrorAsync(host, uri);
+
+        using (failedResponse)
         {
-            failed?.IsSuccessStatusCode.ShouldNotBe(true);
+            if (failure is not null)
+            {
+                failure.Message.ShouldContain("The copy store is down.");
+            }
+            else
+            {
+                failedResponse.ShouldNotBeNull().StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+            }
         }
 
         await AssertSessionExistsAsync(host, conversationId);
@@ -153,6 +163,62 @@ public sealed class SessionDeletionPathTests
         using var repeated = await host.Client.DeleteAsync(uri, TestContext.Current.CancellationToken);
 
         repeated.IsSuccessStatusCode.ShouldBeTrue("a repeat call finds the session and finishes");
+        await AssertAttachmentGoneAsync(host, attachmentId);
+    }
+
+    [Theory]
+    [MemberData(nameof(DeleteEndpoints))]
+    public async Task A_session_another_user_owns_keeps_its_session_and_attachments_when_the_delete_is_refused(string route)
+    {
+        var identity = new SwitchableAttribution { UserId = "u1" };
+
+        await using var host = await StartAsync(configureServices: services =>
+        {
+            services.Configure<TraconSessionOwnershipOptions>(static options => options.Enabled = true);
+            services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(identity));
+        });
+        var conversationId = await CreateAndRunAsync(host);
+        var attachmentId = await UploadAsync(host, conversationId);
+
+        identity.UserId = "u2";
+
+        using (var response = await host.Client.DeleteAsync(
+            new Uri(string.Format(System.Globalization.CultureInfo.InvariantCulture, route, conversationId), UriKind.Relative),
+            TestContext.Current.CancellationToken))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound, "another user's session answers like a session that does not exist");
+        }
+
+        identity.UserId = "u1";
+
+        await AssertSessionExistsAsync(host, conversationId);
+        (await StatusOfAsync(host, attachmentId)).ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Two_deletes_of_one_conversation_at_once_delete_it_once_and_neither_fails()
+    {
+        await using var host = await StartAsync();
+        var conversationId = await CreateAndRunAsync(host);
+        var attachmentId = await UploadAsync(host, conversationId);
+        var uri = new Uri($"/tracon/v1/conversations/{conversationId}", UriKind.Relative);
+
+        var responses = await Task.WhenAll(
+            host.Client.DeleteAsync(uri, TestContext.Current.CancellationToken),
+            host.Client.DeleteAsync(uri, TestContext.Current.CancellationToken));
+
+        var deleted = new List<bool>();
+
+        foreach (var response in responses)
+        {
+            using (response)
+            {
+                response.StatusCode.ShouldBe(HttpStatusCode.OK);
+                deleted.Add((await TraconTestHost.ReadJsonAsync(response)).GetProperty("deleted").GetBoolean());
+            }
+        }
+
+        deleted.Count(static value => value).ShouldBe(1, "the record goes once");
         await AssertAttachmentGoneAsync(host, attachmentId);
     }
 
@@ -418,15 +484,17 @@ public sealed class SessionDeletionPathTests
     }
 
     /// <summary>A failing store surfaces as an exception on the test server; the status is then not observable.</summary>
-    private static async Task<HttpResponseMessage?> DeleteAllowingServerErrorAsync(TraconTestHost host, Uri uri)
+    private static async Task<(HttpResponseMessage? Response, InvalidOperationException? Failure)> DeleteAllowingServerErrorAsync(
+        TraconTestHost host,
+        Uri uri)
     {
         try
         {
-            return await host.Client.DeleteAsync(uri, TestContext.Current.CancellationToken);
+            return (await host.Client.DeleteAsync(uri, TestContext.Current.CancellationToken), null);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException failure)
         {
-            return null;
+            return (null, failure);
         }
     }
 
@@ -440,6 +508,14 @@ public sealed class SessionDeletionPathTests
         }
 
         return request;
+    }
+
+    /// <summary>The end user of the calling request, switchable between calls like a gateway's callers.</summary>
+    private sealed class SwitchableAttribution : IRunAttributionContext
+    {
+        public string? UserId { get; set; }
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
     }
 
     /// <summary>Allows every request until <see cref="DenyDelete"/> is set, then refuses session deletes.</summary>

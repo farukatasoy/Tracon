@@ -300,6 +300,26 @@ public sealed class AnthropicRequestSettingsTests
         plain.GetService<ModelOutputLimit>().ShouldNotBeNull().HighReasoningEffort.ShouldBeFalse();
     }
 
+    /// <summary>
+    /// Phase 255: the provider states that it does not send these three (<c>ISamplingSupport</c>) because
+    /// Anthropic SDK 13's request has no member for them. A definition cannot set them, so this hands the adapter
+    /// the options directly: the day an SDK writes one of them again, this test fails and the declaration is stale.
+    /// </summary>
+    [Fact]
+    public async Task Temperature_top_p_and_top_k_never_reach_the_request_body()
+    {
+        var body = await SendAsync(
+            [],
+            new ChatOptions { Temperature = 0.5f, TopP = 0.5f, TopK = 40, StopSequences = ["END"] });
+
+        foreach (var dropped in new[] { "temperature", "top_p", "top_k" })
+        {
+            body.ContainsKey(dropped).ShouldBeFalse($"'{dropped}' is not a member of the SDK 13 request; the provider declares it unsent");
+        }
+
+        body["stop_sequences"]!.ToJsonString().ShouldBe("""["END"]""", "the control: a field the provider does send");
+    }
+
     [Fact]
     public async Task A_tenant_credential_client_sends_the_same_settings()
     {

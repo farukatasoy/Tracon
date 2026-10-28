@@ -104,7 +104,7 @@ dependencies.
 (`IsAotCompatible=true`), but the SDK's credential library (`Google.Apis.Auth`)
 uses reflection-based JSON (`Newtonsoft.Json`): a Native AOT publish of an app that
 calls the provider emits about 100 trim and AOT warnings. Measured 2026-10-17 with
-`Google.GenAI` 1.26.1; the same measure holds on 1.27.0 (the package's AOT claim is proved by the smoke publish the release check runs).
+`Google.GenAI` 1.26.1. Not measured again on 1.27.0.
 
 ## Provider-specific settings
 

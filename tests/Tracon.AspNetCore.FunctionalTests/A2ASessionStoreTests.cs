@@ -152,13 +152,13 @@ public sealed class A2ASessionStoreTests
     public async Task A_delete_removes_the_conversation_under_its_digest_and_not_the_plain_identity()
     {
         // Phase 255: DelegatingAgentSessionStore forwards a delete with the key as it came. Forwarded
-        // as it is, the bridge would fold the isolation partition into "apikey:key-1::ctx-1", delete
+        // as it is, the bridge would fold the isolation partition into "apikey\:key-1::ctx-1", delete
         // nothing, and leave the conversation this store wrote under "a2a:<digest>".
         await using var host = await StartAsync();
         var (store, manager, agent) = Resolve(host);
         var cancellationToken = TestContext.Current.CancellationToken;
         var key = Isolated("ctx-1");
-        var plain = new AgentSessionStoreKey("apikey:key-1::ctx-1");
+        var plain = new AgentSessionStoreKey(@"apikey\:key-1::ctx-1");
 
         await store.SaveSessionAsync(agent, key, await store.GetOrCreateSessionAsync(agent, key, cancellationToken), cancellationToken);
         await manager.SaveSessionAsync(agent, await manager.GetOrCreateSessionAsync(agent, plain.SessionId, cancellationToken), cancellationToken);
@@ -167,7 +167,7 @@ public sealed class A2ASessionStoreTests
 
         (await manager.QuerySessionsAsync(new SessionQuery(), cancellationToken))
             .ShouldHaveSingleItem()
-            .Id.ShouldBe("apikey:key-1::ctx-1", "the delete reached the digest identity and nothing else");
+            .Id.ShouldBe(@"apikey\:key-1::ctx-1", "the delete reached the digest identity and nothing else");
         (await store.GetSessionAsync(agent, key, cancellationToken)).ShouldBeNull();
     }
 

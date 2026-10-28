@@ -12,7 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   removed the three fields from the Messages request, so the SDK adapter drops them: a definition that set one ran
   without it. Tracon refuses to drop a field without saying so. `POST /api/agents/validate` now reports
   `sampling_field_unsupported` at `model.temperature`, `model.topP` or `model.topK`, a save returns `400`, and a run of
-  a stored agent fails with the compile error. The same holds when Anthropic is only a `Fallbacks` link. Clear the
+  a stored agent fails with the compile error. The same holds when Anthropic is only a `Fallbacks` link, and for the
+  judge model of `AddModelRunJudge`: its first judgment fails with an error that names the field. Clear the
   field. Providers that already sent it (`openai`, `openai-responses`, OpenAI-compatible servers, `azure-openai`,
   `google`) are not affected.
 - **A custom `ISamplingSupport` must now name `Temperature` and `TopP`.** `SamplingFields` gains the two members. A

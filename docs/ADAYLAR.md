@@ -12,21 +12,12 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-26):** sıralanabilir kuyrukta **5** aday var (F-324 video tüketicisi
-turu; F-618…F-621 MAF Dalga 4 turu,
-[`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md)).
-2026-10-26'da iki planlama turu oldu. Birincisi: F-688 (Faz 246), F-572 + F-508
-(Faz 247), F-409 (Faz 248 numara kimliği, Faz 250 alt agent sabiti) ve F-545
-(Faz 249; ikinci kanıtı F-409, bakımcı kararı). F-409'un skill yarısı F-698
-olarak § *Tetik bekleyenler*'dedir. İkincisi, yanlış çalıştığı ölçülen dört birim:
-F-503 + F-505 (Faz 251), F-606 + F-607 (Faz 252), F-420 (Faz 253), F-689 + F-690
-(Faz 254). Aynı gün doğrudan kapandı: F-495, F-640, F-673, F-702, F-704, F-705.
-RC kalite dalgası (2026-10-28) kalemlerini yerel `Q-NN` kimliğiyle
-[`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md) tutar; F-ID planlamada verilir.
-Bugün yapılabilecek iş
-§ *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil,
-üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
-
+**Durum (2026-10-28):** sıralanabilir kuyrukta **5** aday var (F-324 video tüketicisi turu; F-618…F-621 MAF Dalga 4 turu,
+[`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md)). 2026-10-26 planlama turlarının kalem → faz eşlemesi
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)'dedir. RC kalite dalgası (2026-10-28) kalemlerini yerel
+`Q-NN` kimliğiyle [`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md) tutar; F-ID planlamada verilir. Bugün yapılabilecek iş
+§ *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil, üretilen
+[`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 ---
 
 ## Okuma Sırası
@@ -281,6 +272,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 |---|---|---|---|
 | 🟠 | **F-709** · Yarım kalan yayın etiketi on gün görünmedi: hiçbir yerel kapı uzak CI'ı ya da son `v*` etiketinin nuget.org'da olup olmadığını okumaz | Ölçüldü 2026-10-27 (`nuget-danismani`, BL-059): `v1.0.0-preview.5` etiket koşumu 2026-10-17'de kırılgan testte düştü. Tuzak `hafiza/yayin-turu.md`'de yazılıydı ama kimse görmedi: 2026-10-19…26 arasında 25 `main` koşumu `Paketle`'de kırmızı kaldı, bu arada 32 faz `kapi.py kapanis` ile yeşil kapandı | `kapi.py kapanis`: son erişilen `v*` etiketinin paketleri nuget.org'da yoksa kırmızı (flat container, anonim). Ek olarak `origin/main`'in son CI sonucunu oku, kırmızıysa uyar. Sınıf: uzak durum yerel kapıda görünmez |
 | 🟡 | **F-708** · `WorkflowResponseOwnershipTests.A_client_that_goes_away_between_the_run_and_the_claim…` kırılgan: ikinci cevabın SSE akışında `WorkflowOutput` yok | Etiket koşumu `39061203012` (2026-10-17, ubuntu): akış `sequence` 0, 1, 3 taşır, 2 yoktur; run `Completed`. Aynı commit `main`'de ve windows'ta yeşil. Test preview.4'ten beri var (`d5a63033`, F-319) | `kusur-giderme` Adım 2 (KR-03): kırılgan test mi, yoksa SSE aynası bir olay mı düşürüyor? `sequence` boşluğu ürün kusuru adayıdır; tekrar döngüsüyle repro |
+| 🟢 | **F-747** · MAF `DeleteSessionAsync`'i bir gün çağırırsa köprü ve A2A deposu `SessionAccess.Delete` yetkisini sormaz | Faz 255 denetimi 🟢2: iki HTTP ucu `IRunAuthorizationHandler`'ı sorar; köprü hiçbir kapı sormaz, A2A deposu yalnız sahipliği sorar. MAF 1.26 üyeyi çağırmaz (decompile) | MAF üyeyi çağırırsa kapıları depoya taşı; çağıran görününce ölç |
 | 🟢 | **F-679** · Slot bekleyen run'ın `Queued → Running` terfisi koşulsuz upsert'tir: bu arada kapanmış satırı yeniden `Running` yazabilir | Faz 240 denetimi (🟢8, kod okuması). `RunEventWriter.PromoteAsync` `StartRunAsync`'i çağırır; upsert `status`'u ezer, `completed_at`/hata alanlarına dokunmaz. Kuyruktan lease'li bir workflow run'ı başka bir örnekte slot beklerken iptal ucu (kayıt defteri o örnekte yok) işi iptal edip satırı `Canceled` yazarsa, bekleyen örnek slotu alınca satırı `Running`'e döndürür; iş iptalini `PollInterval` içinde fark edip run'ı yeniden kapatır. Kısa süreli tutarsız görünüm; ölçülmedi | Terfiyi "satır hâlâ `Queued` ise" koşullu yaz (depo sözleşmesine koşullu güncelleme gerekir) ya da terfiden sonra satırı oku ve kapanmışsa run'ı iptal et. Önce iki örnekli bir testle ölç |
 | 🟢 | **F-680** · Uzlaştırmanın `Failed`/`orphaned` kapattığı hiç başlamamış bekleyen run, `ResumeInterruptedRuns` açıkken sonraki iş denemesinde "kesinti" sayılır ve bir `MaxResumeAttempts` hakkı harcar | Faz 240 denetimi (🟢12). `WorkflowRecovery.PlanAsync` (`WorkflowRecovery.cs:109`, `:135-160`): tek `Queued` zincir `NotStarted` sayılır, ama uzlaştırma satırı `Failed` kapattıysa zincir "kesinti" olur, devam run'ı açılır (checkpoint yoksa baştan koşar) ve hak tüketilir. Sonuç doğru, hak tüketimi belgelenmemiş. Ölçülmedi | Davranışı `Resume an interrupted workflow run` bölümüne yaz ya da `orphaned` kapanan ve olayı olmayan tek run'ı `NotStarted` say. Önce testle ölç |
 | 🟢 | **F-639** · Dış yüzey kapısı yalnız açılıştaki, bağlamsız katalogu okur: açıldıktan sonra kaydedilen agent, başka kiracının agent'ı ve çağrılabilir alt agent görünmez | Faz 231 denetimi (🟡4, 🟢2). Ölçüldü: açıldıktan sonra HTTP ile kaydedilen veritabanı agent'ı denetlenmez (`SkillExposureTests` iki host ister). Okuma, ölçülmedi: bağlam yoksa kiracı varsayılandır, çok kiracılı host'ta başka kiracının agent'ı listede yoktur; çağrılabilir alt agent'ın skill ve tool'u sayılmaz. Tool kuralıyla aynı sınıf (eski). Çalışma anı reddi tutar, sızıntı yok | Önce çok kiracılı host'ta ölç. Sonra kapıyı katalog değişince ya da agent çözülürken yeniden koştur; olmazsa sınırı belgede bırak (belgede açılış anı yazılı) |
@@ -633,7 +625,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-747**.
+numara: **F-748**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

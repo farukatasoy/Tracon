@@ -49,6 +49,30 @@ internal sealed class ModelRunJudge(
     /// <inheritdoc />
     public string Name => "model";
 
+    /// <summary>
+    /// Stops a judge whose binding sets a sampling field its provider does not send.
+    /// </summary>
+    /// <remarks>
+    /// The judge writes its own request options and never passes through the agent compiler, so the
+    /// provider's statement of what its API surface sends (<see cref="ISamplingSupport"/>) is asked here.
+    /// Without it a judge on a provider that drops the temperature would run on the provider's default and
+    /// nothing would say so; the scores would simply get noisier. Only the two fields the judge sends are checked.
+    /// </remarks>
+    /// <exception cref="TraconException">The binding sets <see cref="ModelBinding.Temperature"/> or <see cref="ModelBinding.TopP"/> and the provider does not send it.</exception>
+    private void RefuseSamplingFieldsTheProviderDrops(ModelBinding model)
+    {
+        var dropped = SamplingSupportCheck.Find(modelProviders, model)
+            .Where(static finding => finding.Field is SamplingFields.Temperature or SamplingFields.TopP)
+            .ToList();
+
+        if (dropped.Count > 0)
+        {
+            throw new TraconException(
+                "The model judge cannot use its configured model. " +
+                string.Join(" ", dropped.Select(static finding => finding.Describe())));
+        }
+    }
+
     /// <inheritdoc />
     public async ValueTask<RunJudgment> JudgeAsync(
         RunJudgeContext context,
@@ -58,6 +82,8 @@ internal sealed class ModelRunJudge(
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = optionsMonitor.CurrentValue;
+
+        RefuseSamplingFieldsTheProviderDrops(options.Model);
 
         var chatOptions = new ChatOptions
         {
