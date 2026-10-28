@@ -12,6 +12,7 @@ import type {
   QuotaSaveRequest,
   RetentionPolicySaveRequest,
   TenantEgressPolicyRequest,
+  TenantToolPolicyRequest,
   WorkflowSaveRequest,
 } from '@tracon/client';
 import { fixture, installApiMock, testMeta, type FixtureRoute } from './test/api-fixtures';
@@ -696,6 +697,29 @@ const ROUND_TRIPS: RoundTrip[] = [
     render: () => <TenantProviderPanel canAdminister />,
     save: async (user) => clickWhenEnabled(user, await screen.findByTestId('tenant-egress-save')),
     expected: { allowedProviders: ['openai', 'anthropic'] },
+  }),
+  roundTrip<TenantToolPolicyRequest>({
+    source: 'components/tenant-tool-policy-panel.tsx',
+    path: '/api/tenants/{tenantId}/tools',
+    title: 'tenant tool policy',
+    routes: [
+      fixture('GET', 'api/tenants/current', { tenantId: 'acme' }),
+      fixture('GET', 'api/models', providers),
+      fixture('GET', 'api/tools', [
+        { name: 'get_order', description: 'Reads an order.', effect: 'Read', requiresApproval: false, runsOnClient: false, requiredPermission: null },
+        { name: 'refund_order', description: 'Refunds an order.', effect: 'Write', requiresApproval: false, runsOnClient: false, requiredPermission: 'orders.refund' },
+      ]),
+      fixture('GET', 'api/tenants/:tenantId/tools', {
+        tenantId: 'acme',
+        allowedTools: ['get_order', 'srv_lookup'],
+        grantedPermissions: ['orders.refund'],
+        updatedAt: stamp,
+        requirePolicy: false,
+      }),
+    ],
+    render: () => <TenantProviderPanel canAdminister />,
+    save: async (user) => clickWhenEnabled(user, await screen.findByTestId('tenant-tool-save')),
+    expected: { allowedTools: ['get_order', 'srv_lookup'], grantedPermissions: ['orders.refund'] },
   }),
 ];
 

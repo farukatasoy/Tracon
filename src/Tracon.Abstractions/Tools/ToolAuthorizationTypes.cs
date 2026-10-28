@@ -23,6 +23,13 @@ namespace Tracon;
 /// A gate that fails open on an exception is not a gate.
 /// </para>
 /// <para>
+/// <strong>The tenant's tool policy comes first.</strong> Before the handler is asked, the tool chain checks the
+/// calling tenant's <see cref="TenantToolPolicy"/> (saved with <see cref="ITenantToolPolicyStore"/>, or through
+/// <c>PUT /api/tenants/{tenantId}/tools</c>). A call the policy refuses never reaches this handler, and a call
+/// needs both to allow it. A tenant with no policy passes the policy unless <c>Tracon:Tools:RequireTenantPolicy</c>
+/// is on. The policy covers exactly the tools listed below that this handler is asked about, and no others.
+/// </para>
+/// <para>
 /// The handler is asked for every call that runs through Tracon's tool chain: a tool registered in code, a tool of an
 /// MCP server, the <c>file_access_*</c> tools of a session workspace (<see cref="ToolEffect.Read"/>,
 /// <see cref="ToolEffect.Write"/> or <see cref="ToolEffect.Destructive"/>), <c>search_knowledge</c> and the

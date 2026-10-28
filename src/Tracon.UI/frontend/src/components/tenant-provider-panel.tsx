@@ -16,6 +16,7 @@ import {
   TextInput,
   Unauthorized,
 } from './ui';
+import { TenantToolPolicySection } from './tenant-tool-policy-panel';
 import type { SpeechProviderDescriptor, TenantProviderBindingResponse as TenantProviderBinding } from '@tracon/client';
 import type { ModelProviderDescriptor } from '../lib/server-types';
 
@@ -80,6 +81,7 @@ export function TenantProviderPanel({ canAdminister }: { canAdminister: boolean 
         <>
           <BindingsSection tenantId={effectiveTenantId} />
           <EgressSection tenantId={effectiveTenantId} />
+          <TenantToolPolicySection tenantId={effectiveTenantId} />
         </>
       )}
     </Panel>

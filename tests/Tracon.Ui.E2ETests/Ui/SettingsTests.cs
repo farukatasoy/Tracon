@@ -201,6 +201,61 @@ public sealed class SettingsTests(BrowserFixture browsers)
         served.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, await served.Content.ReadAsStringAsync());
     }
 
+    /// <summary>
+    /// A tool policy written in the console is the policy the tenant gets: the tool the administrator
+    /// picked is the one the server saved, and a second save with the choice removed saves two empty
+    /// lists (a policy that allows nothing), not the absence of a policy.
+    /// </summary>
+    [Fact]
+    public async Task A_tool_policy_saved_in_the_console_is_the_policy_the_server_holds()
+    {
+        await using var host = await UiHost.StartAsync(
+            configureTracon: static builder => builder.AddTool(
+                (Func<string>)(static () => "order"),
+                name: "get_order",
+                description: "Reads an order.",
+                configure: static options => options.RequiredPermission = "orders.read"));
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+
+        await Expect(session.Page.GetByTestId("tenant-tool-policy-state"))
+            .ToHaveTextAsync("No policy: every tool is allowed");
+
+        await session.Page.GetByTestId("tenant-tool-restrict").ClickAsync();
+        await session.Page.GetByTestId("tenant-tool-option-get_order").ClickAsync();
+        await session.Page.GetByTestId("tenant-permission-option-orders.read").ClickAsync();
+        await session.Page.GetByTestId("tenant-tool-save").ClickAsync();
+
+        await WaitUntil.ValueAsync(
+            async () => (await api.GetFromJsonAsync<JsonElement>("api/tenants/default/tools")),
+            static policy => policy.GetProperty("allowedTools").ValueKind == JsonValueKind.Array,
+            "the console to save the tool policy");
+
+        var saved = await api.GetFromJsonAsync<JsonElement>("api/tenants/default/tools");
+
+        saved.GetProperty("allowedTools").EnumerateArray().Select(static name => name.GetString()).ShouldBe(["get_order"]);
+        saved.GetProperty("grantedPermissions").EnumerateArray().Select(static name => name.GetString()).ShouldBe(["orders.read"]);
+
+        // Remove both choices: two empty lists are a policy that allows nothing, and the panel says so.
+        await session.Page.GetByTestId("tenant-tool-option-get_order").ClickAsync();
+        await session.Page.GetByTestId("tenant-permission-option-orders.read").ClickAsync();
+        await Expect(session.Page.GetByTestId("tenant-tool-policy-empty")).ToBeVisibleAsync();
+        await session.Page.GetByTestId("tenant-tool-save").ClickAsync();
+
+        await WaitUntil.ValueAsync(
+            async () => (await api.GetFromJsonAsync<JsonElement>("api/tenants/default/tools")),
+            static policy => policy.GetProperty("allowedTools").ValueKind == JsonValueKind.Array
+                             && policy.GetProperty("allowedTools").GetArrayLength() == 0,
+            "the console to save the empty policy");
+
+        // Clearing returns the tenant to no policy.
+        await session.Page.GetByTestId("tenant-tool-clear").ClickAsync();
+        await Expect(session.Page.GetByTestId("tenant-tool-policy-state"))
+            .ToHaveTextAsync("No policy: every tool is allowed");
+    }
+
     /// <summary>A local synthesizer that answers with a fixed MP3 frame.</summary>
     private sealed class StudioSynthesizer : ISpeechSynthesizer
     {
