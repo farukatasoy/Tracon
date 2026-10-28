@@ -99,3 +99,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 252 | 13 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 253 | 9 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 254 | 17 sapma | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 255 | 0 | 1 | 2 / 0 / 0 | 1 | ölçülmedi |

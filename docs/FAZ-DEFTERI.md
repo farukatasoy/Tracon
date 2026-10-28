@@ -268,3 +268,4 @@
 | 252 | Model Başına İstek Alanı Reddi ve Değer Sınırları | hafif | ✅ | 2026-10-28 | F-606 · F-607 | `be963d73:docs/252-MODEL-BASINA-ISTEK-ALANI-VE-SINIRLARI.md` |
 | 253 | Önbellek Yazma Token'ı ve Fiyatı Run Maliyetine Girer | tam | ✅ | 2026-10-28 | F-420 | `beeb1fde:docs/253-ONBELLEK-YAZMA-MALIYETI.md` |
 | 254 | Tool Çağrısı Zincirde Kaydedilir: Başarısız Akışsız Run'ın Tool Satırları ve Betik Yolu | tam | ✅ | 2026-10-28 | F-689 · F-690 | `c3dd12d6:docs/254-TOOL-CAGRISI-ZINCIRDE-KAYIT.md` |
+| 255 | Çalışma Anı Bağımlılıkları ve MAF 1.26 | tam | ✅ | 2026-10-28 | F-745 · F-746 | `3c4d7d7e:docs/255-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-126.md` |
