@@ -285,7 +285,7 @@ internal sealed partial class KnowledgeIngestionService
     /// it may come from the interface it is NOT ACCEPTED as free-form text.
     /// </summary>
     /// <exception cref="ArgumentException">The name does not match the pattern.</exception>
-    private static void RequireValidCollectionName(string collection)
+    internal static void RequireValidCollectionName(string collection)
     {
         if (!ValidCollectionName().IsMatch(collection))
         {
@@ -296,6 +296,6 @@ internal sealed partial class KnowledgeIngestionService
         }
     }
 
-    [GeneratedRegex("^[a-zA-Z0-9_-]+$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex("^[a-zA-Z0-9_-]+\\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ValidCollectionName();
 }

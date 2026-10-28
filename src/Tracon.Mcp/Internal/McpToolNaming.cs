@@ -32,6 +32,6 @@ internal static partial class McpToolNaming
     public static string? TryQualify(string serverName, string toolName)
         => SafeName().IsMatch(toolName) ? $"{serverName}_{toolName}" : null;
 
-    [GeneratedRegex("^[a-zA-Z0-9_-]+$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex("^[a-zA-Z0-9_-]+\\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex SafeName();
 }

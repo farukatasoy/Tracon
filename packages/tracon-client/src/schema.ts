@@ -2721,7 +2721,7 @@ export interface paths {
         };
         /**
          * Walks the tenant's audit trail hash chain and reports whether it is intact.
-         * @description 'Valid' means every entry's hash matches its content and links to the one before it. 'Broken' means an entry's stored hash no longer matches its content — it was altered after it was written. 'Gap' means a link between two entries is missing — a row was deleted, or a write never completed; 'firstFailingEntryId' names where. An entry written before this feature shipped carries no hash and is excluded from the walk, not misreported as broken. Without '?after='/'?before=' the whole tenant history is walked; a narrower range is cheaper but cannot judge a break exactly at its own edge, because the entry just before the range is not read.
+         * @description 'Valid' means every entry's hash matches its content and links to the one before it. 'Broken' means an entry's stored hash no longer matches its content — it was altered after it was written — or an entry without a signing key follows one with a key (a signed chain does not go back to unsigned). 'Gap' means a link between two entries is missing — a row was deleted, or a write never completed. 'UnknownKey' means an entry names a signing key this host does not hold, so the walk cannot check it: the key was removed from configuration or never reached this host. That is not evidence of tampering; put the key back under Tracon:AuditChainKeys and verify again. 'firstFailingEntryId' names where the walk stopped. 'unkeyedEntries' counts the walked entries that carry no key: entries written before Tracon:Audit:ChainKeyId was set are checked with the plain hash they were written with and are counted here. A chain signed from its first entry shows 0; a count equal to 'entriesChecked' on a host that has always had a key means every entry was rewritten without one. An entry written before hash chaining existed carries no hash and is excluded from the walk, not misreported as broken. Without '?after='/'?before=' the whole tenant history is walked and this is the answer to trust; a narrower range is cheaper but cannot judge a break exactly at its own edge, because the entry just before the range is not read, and it cannot see a signed entry before the range, so an unsigned entry at the start of the range is judged by its own hash alone.
          */
         get: operations["TraconVerifyAuditChain"];
         put?: never;
@@ -3768,7 +3768,7 @@ export interface components {
          * @description The result of walking a tenant's audit trail hash chain.
          * @enum {unknown}
          */
-        AuditChainStatus: "Valid" | "Broken" | "Gap";
+        AuditChainStatus: "Valid" | "Broken" | "Gap" | "UnknownKey";
         /** @description The result of verifying one tenant's audit trail hash chain. */
         AuditChainVerification: {
             /** @description Gets the overall chain status. */
@@ -3784,6 +3784,11 @@ export interface components {
              *     when AuditChainStatus AuditChainVerification.Status is `AuditChainStatus.Valid`.
              */
             firstFailingEntryId?: null | string;
+            /**
+             * Format: int32
+             * @description Gets the number of walked entries that carry no signing key.
+             */
+            unkeyedEntries?: number | string;
         };
         /** @description A row in the audit trail that records who changed which entity and when. */
         AuditEntry: {
@@ -3826,12 +3831,18 @@ export interface components {
              */
             previousHash?: null | string;
             /**
-             * @description Gets the hash of this entry: a SHA-256 over a canonical form of its
+             * @description Gets the hash of this entry: a hash over a canonical form of its
              *     fields that also includes the previous entry's hash, so changing an
-             *     earlier entry breaks every later link. The write path computes this
-             *     value; a caller-supplied value is ignored.
+             *     earlier entry breaks every later link. It is an HMAC-SHA256 when
+             *     `KeyId` is set and a plain SHA-256 when it is not. The write
+             *     path computes this value; a caller-supplied value is ignored.
              */
             hash?: null | string;
+            /**
+             * @description Gets the id of the key that signed this entry, or `null`
+             *     for an entry written without a key.
+             */
+            keyId?: null | string;
         };
         /**
          * @description One agent another agent may call, and the version of it that runs.

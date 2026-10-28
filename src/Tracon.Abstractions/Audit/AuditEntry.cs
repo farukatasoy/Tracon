@@ -67,7 +67,7 @@ public sealed record AuditEntry
     /// Gets the hash of this entry: a hash over a canonical form of its
     /// fields that also includes the previous entry's hash, so changing an
     /// earlier entry breaks every later link. It is an HMAC-SHA256 when
-    /// <see cref="KeyId"/> is set and a plain SHA-256 when it is not. The write
+    /// <c>KeyId</c> is set and a plain SHA-256 when it is not. The write
     /// path computes this value; a caller-supplied value is ignored.
     /// </summary>
     public string? Hash { get; init; }
