@@ -24,7 +24,7 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 176 | 0 | 4 | faz-denetim bölümüne bak | 0 | — |
 | 177 | 0 | 4 | 2 / 0 / 0 | 0 | — |
 | 178 | 0 | 3 | 2 / 0 / 0 + 1 bayat | 1 | — |
-| 179 | 0 | 2 | 2 / 0 / 0 | 0 ölçülen. Kapılar üç kez kızardı ve üçü de fazın kendi eksiğiydi | 1 |
+| 179 | 0 | 2 | 2 / 0 / 0 | 0 ölçülen. Kapılar üç kez kızardı ve üçü de fazın kendi eksiğiydi | 2 |
 | 180 | 0 | 1 | 1 / 0 / 0 | 0 | — |
 | 181 | 0 | 1 | 0 / 0 / 0 | 0 | — |
 | 182 | 0 | 1 | 0 / 0 / 0 | 0 | 0 |

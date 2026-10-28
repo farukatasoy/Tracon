@@ -106,12 +106,19 @@ public static string GetOrderStatus(string orderId, IServiceProvider services)
 
 tracon.AddTool(GetOrderStatus);
 
-// Right — the dependency is captured when the tool is registered
-var repository = app.Services.GetRequiredService<IOrderRepository>();
-tracon.AddTool(AIFunctionFactory.Create(
-    (string orderId) => repository.Find(orderId).Status,
-    "get_order_status",
-    "Returns the shipping status of an order."));
+// Right — the dependency is captured when the tool is registered.
+// The factory runs once, on the final service provider, when Tracon builds its
+// tool registry. Register before builder.Build(): the service collection is
+// read-only after it, and a registration added then throws.
+builder.Services.AddSingleton(provider =>
+{
+    var repository = provider.GetRequiredService<IOrderRepository>();
+
+    return new TraconToolRegistration(AIFunctionFactory.Create(
+        (string orderId) => repository.Find(orderId).Status,
+        "get_order_status",
+        "Returns the shipping status of an order."));
+});
 ```
 
 `[TraconTool]` catches the same mistake earlier: the source generator does not

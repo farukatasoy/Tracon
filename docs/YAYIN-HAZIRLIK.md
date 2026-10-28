@@ -5,7 +5,7 @@
 > kayıtlar burada durmaz; tam metinleri git'tedir (§7). İş kalemi buraya değil,
 > [`ADAYLAR.md`](ADAYLAR.md)'ye yazılır.
 >
-> **Son güncelleme:** 2026-10-27 (`preview.5` ve `preview.6` yayımlandı, site yayında; ölçümler satırında tarihli)  
+> **Son güncelleme:** 2026-10-28 (RC kalite dalgası: [`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md); UR-004 tetiği, ölçüt 2 bayatladı) · 2026-10-27 (`preview.5` ve `preview.6` yayımlandı, site yayında; ölçümler satırında tarihli)  
 > **Çalışma modu:** `nuget-danismani` — yayın sonrası (`1.0.0-preview.6`)  
 > **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.6` (2026-10-27; Faz 219–250,
 > `Tracon.AGUI` ilk yayın). Aynı gün `preview.5` de çıktı: etiketi 2026-10-17'de
@@ -32,7 +32,7 @@
 | CI'ın gördüğü | 2026-10-27: etiket sonrası `main` iki kez kırmızı oldu, ikisi de yayın sonrası adımdı: site ağırlık kapısı (CI, aynı commit'i yerelden ~56 B ağır ölçer; üç sayfa bölündü, `eb0341f3`) ve `Tracon.AGUI`'nin bayat `TraconPackageFirstRelease` bayrağı (kaldırıldı). Dependabot PR'ları kırmızıydı (nedeni okunmadı) | Actions API |
 | Canlı site | 2026-10-27: `tracon.dev` `1.0.0-preview.6` der; kurulum komutu çözülür; AG-UI ve üç bölünmüş sayfa yayında. Changelog sayfası 131 792 B gzip, tavan 150 000 B (F-710) | `curl` · `site-deploy.sh` |
 | Son sürüm notu | `[1.0.0-preview.6] - 2026-10-27`: 21 paket, 27 kırıcı tip ve 27 contract testi notta, HTTP'de 6 kırılma notta. SSE, telemetri, yapılandırma, hata kodu ve CLI anlık görüntülerinin ilk kaydıdır; karşılaştırma `preview.7`'de başlar | `CHANGELOG.md` · prova çıktısı |
-| Upstream | MAF `1.25.0` + MEAI `10.11.0` pinli (Faz 214). Hosting ailesi ve `A2A.AspNetCore` için kararlı sürüm **yok** | nuget.org flat container |
+| Upstream | MAF `1.25.0` + MEAI `10.11.0` pinli (Faz 214). 2026-10-28: MAF `1.26.0` (2026-10-23) en yeni, pin geride → Q-10. Hosting ailesi (63 sürüm) ve `A2A.AspNetCore` için kararlı sürüm **yok** | nuget.org flat container |
 | Public yüzey | `PublicAPI.Shipped.txt` boş — yüzey donmadı | K-603 |
 | Dış geri bildirim | İnsan kaynaklı issue 0, yıldız 0 | GitHub API |
 | Zafiyet bildirimi | Private vulnerability reporting `enabled: false`, advisory yok (A-61) | anonim GitHub API |
@@ -40,8 +40,9 @@
 
 ## 2. Hedef ve freeze yolu
 
-**Hedef:** yüzey `1.0.0-rc.1`'de donar; `Shipped` dolumu tek commit'tir
-(K-603). **Upstream GA beklenir (UR-004 A):** `rc.1` de `Tracon.AspNetCore`'un
+**Hedef:** yüzey `1.0.0-rc.1`'de donar: `rc.1` ile GA arasında public yüzey
+değişmez (UR-009 B, UR-012). `Shipped` dolumu ayrı bir adımdır: `1.0.0` GA'da tek
+commit'tir (K-603). **Upstream GA beklenir (UR-004 A):** `rc.1` de `Tracon.AspNetCore`'un
 ön sürüm bağımlılıkları (Hosting ailesi, `A2A.AspNetCore`) kararlı olunca
 çıkar (ER-001, K-008, K-602). O güne kadar preview hattı sürer. GA (`1.0.0`)
 `rc.1`'den sonra ayrı bir adımdır.
@@ -51,9 +52,9 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | # | Ölçüt | Durum | İş |
 |---|---|---|---|
 | 1 | Küçültme | ✅ | Faz 212 (A-74) · Faz 213 (A-75, A-79) · A-78 · A-80 |
-| 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
+| 2 | Her bağımlılık en yeni sürümde | ⏳ (2026-10-28: MAF `1.26.0`, platform 10.0.14, Anthropic 13 çıktı → [Faz 255](255-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-126.md) planlı; test/derleme araçları ayrı kalem) | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
 | 3 | Modernizasyon | ✅ **Faz 217** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
-| 4 | Yeni yetenekler toplu girer | ⏳ UR-012 = B 👤 (2026-10-19) | Ölçüt en iyi RC'dir: RC'yi iyileştiren iş, kırıcı ya da ekleyici, freeze'den **önce** girer. Kaynak MAF kapsama matrisinin dalgalarıdır; Dalga 1 ölçüldü (2026-10-19, kırıcı kalem kalmadı). F-290 ✅ Faz 218. RC ile GA arasında yetenek eklenmez. Önceki karar (A, 2026-10-17) UR-012 satırındadır |
+| 4 | Yeni yetenekler toplu girer | ⏳ UR-012 = B 👤 (2026-10-19) | Ölçüt en iyi RC'dir: RC'yi iyileştiren iş, kırıcı ya da ekleyici, freeze'den **önce** girer. Kaynak MAF kapsama matrisinin dalgalarıdır; Dalga 1 ölçüldü (2026-10-19, kırıcı kalem kalmadı). 2026-10-28'den beri ikinci kaynak RC kalite dalgalarıdır ([`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md), Dalga 0–6). F-290 ✅ Faz 218. RC ile GA arasında yetenek eklenmez. Önceki karar (A, 2026-10-17) UR-012 satırındadır |
 | 5 | Kırıcı kalemler kapandı · ailenin public imzasında upstream deneysel tip yok (uydu hattı hariç, K-1036) · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **Faz 218** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559 ✅ **Faz 237** (A-76) + **Faz 238** (A-67, A-68), 2026-10-24 · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
 | 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | **Yalnız son adımda sayılır** 👤 (2026-10-19, UR-012 B): 4–6 bittikten sonra, `rc.1`'den hemen önceki son preview sessiz geçer; `kapi.py yayin` kırılma listesi boş olur. Pencere o güne kadar sayılmaz; o aralıkta giren kırıcı değişiklik ya da yeni yetenek pencereyi yeniden başlatır |
@@ -139,7 +140,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 |---|---|---|
 | UR-001 | Yayın türü `preview` | UR-009 ölçütleri sağlanınca **ve** ER-001 kalkınca `rc` (UR-004 A) |
 | UR-002 | Kapsam: paketlenen her proje (bugün 20) + `@tracon/client`, tek sürüm hattı (K-602). **Genişletildi 👤 (2026-10-20, K-1037):** ön sürüm upstream'e bağlı **yeni** uydu paket ayrı ön sürüm hattında çıkar ve ailenin `rc.1`/GA'sını bekletmez. İlk uydu paketin fazı hattı kurar: `PackageFamilyAlignment` listesi dışı, `uyum-probu deneysel` sayımı dışı, ayrı yayın provası | Uydu paketin upstream'i GA olunca paket aileye katılır |
-| UR-004 | **A** 👤 (2026-10-17): upstream GA beklenir. Freeze (`1.0.0-rc.1`) de ER-001 kalkana kadar çıkmaz — Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alana kadar preview hattı sürer. B (Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayırmak) ve C (önce dondur, `rc.N` çık, yalnız GA upstream'i bekler) seçilmedi | Upstream kararlı sürüm takvimi uzar ve preview hattında bekleyen iş birikirse C yeniden tartılır |
+| UR-004 | **A** 👤 (2026-10-17): upstream GA beklenir. Freeze (`1.0.0-rc.1`) de ER-001 kalkana kadar çıkmaz — Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alana kadar preview hattı sürer. B (Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayırmak) ve C (önce dondur, `rc.N` çık, yalnız GA upstream'i bekler) seçilmedi | Upstream kararlı sürüm takvimi uzar ve preview hattında bekleyen iş birikirse C yeniden tartılır. **Tetik 👤 (2026-10-28, QD-2):** RC kalite dalgası (`RC-KALITE-DALGALARI.md` Dalga 6) kapanınca ER-001 hâlâ açıksa C yeniden tartılır. Ayrık hat (raporun önerisi) seçilmedi: K-1037 hattı kurmadı, yol K-602'de reddedilmişti |
 | UR-005 | **A:** tek kararlı katman; Tracon'un kendi `[Experimental]` katmanı yok. **Genişletildi 👤 (2026-10-20, K-1036):** kural aileye uygulanır; ayrı hattaki uydu paket upstream deneysel tipi public imzasında taşıyabilir | Uydu paket aileye katılınca kural ona da uygulanır |
 | UR-006 | **A:** ön sürüm upstream bağımlılığı tam sürüm `[x]` yazılır (K-872) | Upstream kararlı olunca alt sınıra döner |
 | UR-009 | **B:** küçült → yükselt → modernize et → yetenekler → kurallar → RC'de dondur (§2). RC upstream kararlı olunca çıkar (UR-004 A) | — |

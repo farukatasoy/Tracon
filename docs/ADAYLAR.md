@@ -21,6 +21,8 @@ turu; F-618…F-621 MAF Dalga 4 turu,
 olarak § *Tetik bekleyenler*'dedir. İkincisi, yanlış çalıştığı ölçülen dört birim:
 F-503 + F-505 (Faz 251), F-606 + F-607 (Faz 252), F-420 (Faz 253), F-689 + F-690
 (Faz 254). Aynı gün doğrudan kapandı: F-495, F-640, F-673, F-702, F-704, F-705.
+RC kalite dalgası (2026-10-28) kalemlerini yerel `Q-NN` kimliğiyle
+[`RC-KALITE-DALGALARI.md`](RC-KALITE-DALGALARI.md) tutar; F-ID planlamada verilir.
 Bugün yapılabilecek iş
 § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil,
 üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
@@ -349,6 +351,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-571** · Anthropic duraklatılmış tur yeniden kurma kodu SDK aggregator'ına taşınabilir mi | Faz 214: SDK 12.58 `MessageContentAggregator` sunucu tool'unun `input_json_delta`'sını birleştirir; `AnthropicStopReasonChatClient.StreamedBlocks`'un varlık gerekçesi kısmen düştü. Kod bilerek kaldı (yükseltme istek değiştirmez) | Ölçüm: aggregator `redacted_thinking`, atıf ve bilinmeyen blok türlerini ham JSON'a birebir döndürüyor mu; evet ise ~80 satır silinir
 | 🟢 | **F-699** · Harness agent'ında `EnableConversationMemory` sessizce yok sayılır | Faz 246 planlaması (2026-10-26, kod okuması, ölçülmedi): `CreateMemoryProviders` yalnız `CompileChatAgent`'ta çağrılır (`AgentDefinitionCompiler.Agents.cs:50`); harness sağlayıcı listesinde (`:470-498`) konuşma hafızası yok ve doğrulayıcı kuralı bulunmadı | Önce ölç: harness agent'ı `OnDemand` hafızayla koş, model isteğinde `search_conversation_memory` var mı. Yoksa `kusur-giderme`: kayıtta `400` ya da harness'e bağlama (karar) |
 | 🟢 | **F-700** · Uzlaştırıcı kayıt dışı tool'u güvensiz sayar; arama, MCP ve workspace tool'u çağıran run otomatik devam edemez | Faz 246 planlaması (2026-10-26, kod okuması, ölçülmedi): `RunReconciliationService.FindUnsafeToolAsync` (`:244-261`) `toolRegistry.List()`'te olmayan tool'u güvensiz sayar; yerleşik arama tool'ları, MCP ve workspace tool'ları kayıtta değildir | Önce ölç: `search_knowledge` çağıran run'ı yarıda kes, `ResumeInterruptedRuns` açıkken devam ediyor mu. Karar: descriptor'ın `SafeToRepeat`'i yönetişimden okunur mu |
+| 🟢 | **F-744** · F-180 sınıfı yeniden: `Playground_voice_mode_…shows_transcript` tam koşumda 60 sn zaman aşımı | 2026-10-28 (RC Dalga 0 kapanışı): Faz 184 düzeltmesinden sonra ilk tekrar; izole 7/7, ikinci tam koşum 30012/0 | Ön koşulu oku (`test-yalitimi-vakalari.md`); repro tam koşumdur |
 
 ### Faz planlama
 
@@ -569,7 +572,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 
 | Eşik | ID'ler | Kural |
 |---|---|---|
-| **Karar / uyumluluk eşiği** | F-72 · F-90 · F-91 · F-92 · F-132 · F-169 | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9 |
+| **Karar / uyumluluk eşiği** | F-72 · F-90 · F-91 · F-132 · F-169 | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. F-92 K-1113 ile çıktı (RC-KALITE-DALGALARI Q-30). **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9 |
 | 🟢 | **F-540** · Kod grafında katılımcı kapsaması run başında yapılmaz | Faz 211 (K-1010): saklanan workflow'da agent'ların zorunlu parametreleri ilk model çağrısından önce denetlenir; kod grafında eksik değer adım koşarken düşer, önceki adımlar token harcamıştır | `WorkflowGraphReader` agent adlarını verir, `AgentVersion` sabiti bilinmez. Önce ölçüm: tüketici ihtiyacı |
 | 🟢 | **F-541** · `GET /api/workflows/{name}` kod workflow'u için `404`; şema ve `requestTimeout` yalnız listede | Faz 211 (K-1010): uç `WorkflowDefinition` döner, kod workflow'unun betimleyicisi tek tek okunamaz | Betimleyici döndüren uç; uç sözleşmesi büyür (public), önce tüketici ihtiyacı ölçülmeli |
 | 🟢 | **F-542** · Zaman aşımından sonra token'ı yok sayan handler `MaxConcurrency` slotunu bırakmış olur | Faz 211 denetimi: `limit` `timeout`'un dışındadır; `RetryPolicy` ile yeni deneme boşalan slotu alır, `MaxConcurrency = 1` aşılır | Slotu handler bitene kadar tutmak beklemeyi düğüm süresine katar; belgeli sınır yeter. Önce ölçüm: üretimde görülüyor mu |
@@ -630,7 +633,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-744**.
+numara: **F-747**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
@@ -646,8 +649,8 @@ Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 Tek kaynak
 [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)'dir:
 reddedilmiş işler ve "zaten var, eksik diye önerilmez" kalemleri. Özellikle
-**F-91** (`secret` saklama sınırı) ve **F-92** (dağıtık hız sınırı / Redis)
-kararı değiştirmeden yeniden aday olmaz.
+**F-91** (`secret` saklama sınırı) kararı değiştirmeden yeniden aday olmaz.
+**F-92** (dağıtık hız sınırı) K-1113 ile açıldı; Redis paketi yine eklenmez (Q-30).
 
 **F-95 bu listede değildir** — onu bekleten bir tasarım kararı değil, MAF'ın
 sözleşmesidir; bkz. § *Tetik bekleyenler* → F-95.

@@ -311,6 +311,15 @@ curl 'http://localhost:5081/tracon/api/audit/verify'
 # {"status":"Valid","entriesChecked":42,"firstFailingEntryId":null}
 ```
 
+:::caution[The chain detects a change; it does not resist one]
+The hash is SHA-256 over the entry and the previous hash, with no key. It catches a
+change made without recomputing the chain — a manual edit, a partial restore, a bug in
+another writer. Anyone who can write to the audit table can also recompute every hash
+after the change, and the walk then reports `Valid`. Protect the trail from a database
+administrator or an attacker with write access through the database's own access
+controls and backups, not through this check.
+:::
+
 :::note[Entries written before this feature ships have no hash]
 They are excluded from the walk rather than misreported as tampered — a chain starts
 at the first entry written after upgrading, not retroactively.

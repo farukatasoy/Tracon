@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -174,6 +176,68 @@ public sealed class TenantIdCaseTests
             new Uri("/tracon/api/tenants/acme", UriKind.Relative));
 
         deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    [Theory]
+    [InlineData("acme", "ACME")]
+    [InlineData("acme", "Acme")]
+    [InlineData("Acme", "acme")]
+    public async Task A_shifted_header_matches_the_tenant_of_an_api_key(string keyTenant, string header)
+    {
+        // 🚨 The header-versus-key check compared the raw header with the key's
+        // tenant using Ordinal, so "ACME" against a key of "acme" answered 403
+        // while every other layer folds the two into one tenant.
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.UseTenancy(static options =>
+            {
+                options.Enabled = true;
+                options.AllowHeaderResolution = true;
+            }));
+
+        var store = host.Services.GetRequiredService<IApiKeyStore>();
+        var created = await store.CreateAsync(new ApiKeyDraft
+        {
+            TenantId = keyTenant,
+            Name = "ci",
+            Scopes = [ApiKeyScope.AgentsRead],
+        });
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/tracon/api/agents", UriKind.Relative));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
+        request.Headers.Add(TenantHeader, header);
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task A_header_naming_another_tenant_is_still_refused_against_an_api_key()
+    {
+        // 🚨 The fold must not widen the check: a test that only proves "ACME
+        // now passes" would also pass if the comparison were removed.
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.UseTenancy(static options =>
+            {
+                options.Enabled = true;
+                options.AllowHeaderResolution = true;
+            }));
+
+        var store = host.Services.GetRequiredService<IApiKeyStore>();
+        var created = await store.CreateAsync(new ApiKeyDraft
+        {
+            TenantId = "acme",
+            Name = "ci",
+            Scopes = [ApiKeyScope.AgentsRead],
+        });
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/tracon/api/agents", UriKind.Relative));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
+        request.Headers.Add(TenantHeader, "OTHER");
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     private static async Task<string> ReadTenantAsync(TraconTestHost host, string header)

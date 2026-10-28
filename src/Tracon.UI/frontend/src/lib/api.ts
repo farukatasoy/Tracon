@@ -51,7 +51,7 @@ async function toError(response: Response): Promise<TraconError> {
 /**
  * Opens a Server-Sent Events stream, carrying auth and abort support.
  *
- * Not part of `@tracon/client`: six operations answer
+ * Not part of `@tracon/client`: seven operations answer
  * `text/event-stream`, not JSON, and a `fetch`-based typed client reads a
  * response body as JSON (Phase 84, section 84.4).
  */

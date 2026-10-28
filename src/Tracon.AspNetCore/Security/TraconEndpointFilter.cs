@@ -326,7 +326,10 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
     /// </summary>
     /// <remarks>
     /// The header CANNOT override the key. If it could, the tenant binding
-    /// of the key would mean nothing.
+    /// of the key would mean nothing. Both sides are compared in their
+    /// canonical form: letter case never distinguishes two tenants, and the
+    /// key's tenant is folded the same way when <c>HttpTenantContext</c>
+    /// resolves it.
     /// </remarks>
     private static ProblemHttpResult? CheckTenantHeaderConflict(HttpContext httpContext, ApiKeyRecord record)
     {
@@ -339,7 +342,17 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
 
         var declared = httpContext.Request.Headers[tenancyOptions.HeaderName].ToString();
 
-        if (declared.Length == 0 || string.Equals(declared, record.TenantId, StringComparison.Ordinal))
+        if (declared.Length == 0)
+        {
+            return null;
+        }
+
+        // A whitespace-only header names no tenant and cannot be folded; it stays a mismatch.
+        if (!string.IsNullOrWhiteSpace(declared)
+            && string.Equals(
+                AmbientTenantScope.Normalize(declared),
+                AmbientTenantScope.Normalize(record.TenantId),
+                StringComparison.Ordinal))
         {
             return null;
         }

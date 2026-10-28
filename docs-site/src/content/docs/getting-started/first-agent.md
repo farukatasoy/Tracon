@@ -37,48 +37,42 @@ Use `--persistence`, `--provider`, and `--ui` to change the generated project.
 Run `dotnet new tracon-api -h` to see the available values. The console is
 embedded in the host; no separate console server is needed.
 
-Store your provider settings in the application's development secrets. Replace
-the example values with your key and a model identifier available to your account.
+Store your provider key in the application's development secrets. The key never
+enters the project; `appsettings.json` carries only an empty placeholder.
 
 ```bash
 dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "YOUR_API_KEY"
-dotnet user-secrets set "Tracon:Providers:OpenAI:DefaultModel" "YOUR_CHAT_MODEL"
 ```
 
 <span id="by-hand"></span>
 
-## Register the agent
+## Choose the model
 
-Replace the generated `Program.cs` with the following:
+The generated `Program.cs` already registers an agent named `support` and one tool,
+`get_order_status`, from `Tools/OrderTools.cs`. Tracon ships no model list, so the
+model name is the one line you edit: replace `WRITE_MODEL_NAME_HERE` with a chat
+model your account serves today.
 
-```csharp title="Program.cs"
-using Tracon;
-
-var builder = WebApplication.CreateBuilder(args);
-
-var tracon = builder.AddTracon()
-    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
-    .UseUI();
+```csharp title="Program.cs (excerpt)"
+const string ModelName = "WRITE_MODEL_NAME_HERE"; // your chat model
 
 tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
     DisplayName = "Support Assistant",
     Description = "Answers order and shipping questions.",
-    Instructions = "You are a support assistant. Answer briefly and clearly.",
+    Instructions = "You are a support assistant. Answer briefly and clearly. Always use a tool for order questions.",
     Model = new ModelBinding
     {
         Provider = OpenAIProviderNames.ChatCompletions,
-        Model = builder.Configuration["Tracon:Providers:OpenAI:DefaultModel"]
-            ?? throw new InvalidOperationException("Configure an OpenAI chat model."),
+        Model = ModelName,
     },
+    ToolNames = ["get_order_status"],
 });
-
-var app = builder.Build();
-
-app.MapTracon("/tracon");
-app.Run();
 ```
+
+With an API key set and the placeholder still in place, the host stops at startup
+and names this line, instead of failing on the first model call.
 
 This first agent uses a chat model only. To let a later agent generate stored image
 attachments, add `UseOpenAIImages(...)`, set `Tracon:Images:Enabled`, and choose
@@ -143,8 +137,9 @@ cannot take down product functionality.
 
 ## What you have
 
-An agent defined in code, a console, and a recorded history — with no database. Every
-store is in memory, so all of it ends when the process does.
+An agent defined in code with one tool, a console, and a recorded history — with no
+database. With the default `--persistence memory`, every store is in memory, so all of
+it ends when the process does.
 
 ## Read next
 

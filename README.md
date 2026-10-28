@@ -16,8 +16,8 @@ You write the AI harness; you operate it at `/tracon`. Start with
 > Product documentation is at [tracon.dev](https://tracon.dev); release notes are on the
 > [changelog](https://tracon.dev/reference/changelog/).
 >
-> - Runs recorded with spans, metrics and cost; tenants isolated; audit trail made
->   tamper-evident with a hash chain (`GET /api/audit/verify`)
+> - Runs recorded with spans, metrics and cost; tenants isolated; audit trail
+>   hash-chained per tenant, so an edit that skips the chain shows in `GET /api/audit/verify`
 > - Agents exposed over MCP and A2A; `pgvector` semantic search; API keys narrow access
 > - A tenant can bring its own provider key (BYOK) under an egress policy — an
 >   unauthorised provider is rejected at compile time
@@ -39,8 +39,9 @@ builder.AddTracon()
 app.MapTracon("/tracon");
 ```
 
-Two lines: a working agent, durable sessions, and a control plane at
-`http://localhost:5080/tracon`.
+Two lines: durable sessions, the registered tool, and a control plane at
+`http://localhost:5080/tracon`, where you create an agent that calls it. To define the
+agent in code instead, follow [Your first agent](https://tracon.dev/getting-started/first-agent/).
 
 ### The console
 
@@ -150,7 +151,7 @@ Running examples: [`samples/Tracon.Api`](samples/Tracon.Api) and the
 
 ## Why?
 
-Microsoft Agent Framework reached GA with 1.16.0 and offers a capable agent runtime.
+Microsoft Agent Framework reached GA with 1.0.0 in April 2026 and offers a capable agent runtime.
 Its official developer interface, **DevUI**, is still preview, and its own
 documentation says so plainly: *"DevUI is a **sample app** … It is **not** intended
 for production use."* Tracon does not replace DevUI — it continues where DevUI stops.
@@ -163,7 +164,6 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | Agent definitions | Read-only | Code + database, versioned, rollback-able |
 | Multi-tenancy | None | `tenant_id` on every query |
 | Audit trail | None | `audit_log` |
-| .NET documentation | "Coming soon" | Published |
 
 ---
 
@@ -307,7 +307,7 @@ under a grant pinned to its exact content. Full behavior and the guard decision 
 `Microsoft.Agents.AI.Hosting` (preview) and `Microsoft.Agents.AI.Hosting.OpenAI`
 (alpha) are still pre-release, so Tracon publishes as `1.0.0-preview.N` until both
 reach GA. Only `Tracon.AspNetCore` references them directly — but `Tracon`,
-`Tracon.UI` and `Tracon.Testing` depend on `Tracon.AspNetCore`, so installing any
+`Tracon.UI`, `Tracon.AGUI` and `Tracon.Testing` depend on `Tracon.AspNetCore`, so installing any
 of those brings the pre-release chain in transitively. Packages outside that
 chain (`Tracon.Abstractions`, `Tracon.Core`, the store and provider packages)
 depend on GA packages only.

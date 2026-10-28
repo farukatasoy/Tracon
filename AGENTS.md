@@ -23,7 +23,7 @@ işi vardır, aradığın iş bu tablodadır:
 | Bir karar alınmış mı? | [KARARLAR-INDEKS](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
 | Mimari resim (katman, veri modeli, çalıştırma yolu) | [MIMARI](docs/MIMARI.md) — ilgili bölüm |
 | Güvenlik modeli (kiracı, rol, denetim izi, sandbox) | [MIMARI-GUVENLIK](docs/MIMARI-GUVENLIK.md) |
-| MAF genişleme noktası · MAF kapsaması (dalgalar) | [MAF-GENISLEME-NOKTALARI](docs/MAF-GENISLEME-NOKTALARI.md) · [MAF-KAPSAMA](docs/MAF-KAPSAMA.md) |
+| MAF genişleme noktası · MAF kapsaması (dalgalar) · RC kalite dalgaları | [MAF-GENISLEME-NOKTALARI](docs/MAF-GENISLEME-NOKTALARI.md) · [MAF-KAPSAMA](docs/MAF-KAPSAMA.md) · [RC-KALITE-DALGALARI](docs/RC-KALITE-DALGALARI.md) |
 | Faz durumu (**üretilen**) · kapanan fazlar · adaylar · keşif turları | [YOL-HARITASI](docs/YOL-HARITASI.md) · [FAZ-DEFTERI](docs/FAZ-DEFTERI.md) · [ADAYLAR](docs/ADAYLAR.md) · [kesif/](docs/kesif/) |
 | Elle koşulan kabul testi | [manuel-test/00-INDEKS](docs/manuel-test/00-INDEKS.md) — koşumu `manuel-test-kosumu` yürütür |
 | Geçmişte neden öyle yapıldı? | [arsiv/](docs/arsiv/) — kapanmış kayıt, yalnız grep'le |

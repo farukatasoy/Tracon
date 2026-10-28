@@ -135,6 +135,9 @@
   artık ses soketinde giden ikili çerçeveleri sayar ve ilk ses parçası
   gittikten sonra `commit`'e basar; paralel 5/5, tam koşum yeşil. **Ders:** bir
   test altı fazda "yavaş makine" sanıldıysa, sınırı değil **ön koşulunu** oku.
+  **Dokuzuncu vaka (2026-10-28, F-744):** Faz 184'ten sonra ilk kez tam koşumda yine düştü
+  (60 sn, `voice-transcript` yok); izole 7/7, ikinci tam koşum 30012/0. Kök düzeltme bir
+  ön koşulu kapattı; ikinci bir ön koşul olabilir — kayıt açık.
 
 - **`ObjectToolAotPackageTests` — ayni desenin Native AOT `publish` hali**
   (2026-09-12, F-219/F-220 kusur turu kapanisi).
