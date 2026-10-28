@@ -208,6 +208,7 @@ function ChainVerifyPanel(): ReactNode {
 
   return (
     <Panel
+      className="mb-3"
       title={t('audit.verify.title')}
       actions={
         <Button
