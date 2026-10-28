@@ -12,7 +12,7 @@ namespace Tracon.Anthropic.UnitTests;
 /// </summary>
 /// <remarks>
 /// Protected boundary: the key only goes to the Anthropic client's
-/// <c>x-api-key</c> header. The catalog, provider registry, options object,
+/// credential header (a bearer token since SDK 13). The catalog, provider registry, options object,
 /// validation messages, exception messages, client metadata, and log lines
 /// must <strong>never, under any condition,</strong> carry the key.
 /// </remarks>

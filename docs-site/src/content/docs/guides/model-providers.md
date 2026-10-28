@@ -326,8 +326,9 @@ the surface runs:
 
 ## Provider-specific settings
 
-Portable settings live directly on `ModelBinding`: `Temperature`, `TopP`,
-`MaxOutputTokens`, `ReasoningEffort`, `ResponseFormat`, and the fields above.
+Portable settings live directly on `ModelBinding`: `Temperature`, `TopP` (not for
+`anthropic`, which does not send them), `MaxOutputTokens`, `ReasoningEffort`,
+`ResponseFormat`, and the fields above.
 Vendor-only settings live in `ProviderSettings`. Unknown keys fail compilation instead of
 being ignored.
 
@@ -392,7 +393,7 @@ agent sends the same request as before:
   depth. `enabled` needs `budgetTokens`, and current Claude models reject a budget
   with `400`. A budget on its own still means `enabled`, as before. Setting
   `adaptive` together with a budget is an error. With `enabled`, the budget must be
-  smaller than the output limit, and temperature must be absent or `1`.
+  smaller than the output limit.
 - **Prompt caching.** `request` (the default) caches the whole request. `system`
   marks the end of the agent's instructions instead, so requests that carry a
   different document after the same instructions read the same cached prefix; with

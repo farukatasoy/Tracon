@@ -22,7 +22,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// test of the Anthropic group is the proof.
 /// </para>
 /// <para>
-/// Google has no local fake server here; its row of the table rests on the decompiled adapter.
+/// Google has no local fake server here; its row of the table rests on the decompiled adapter. The Anthropic
+/// cells for temperature, top-p and top-k ("drops") cannot be proved through a definition, which refuses them;
+/// <c>AnthropicRequestSettingsTests.Temperature_top_p_and_top_k_never_reach_the_request_body</c> hands the
+/// adapter those options directly.
 /// </para>
 /// </remarks>
 public sealed class ModelSamplingWireTests
@@ -63,13 +66,13 @@ public sealed class ModelSamplingWireTests
     }
 
     [Fact]
-    public async Task OpenAI_responses_sends_the_tool_fields_and_the_reasoning_summary_and_drops_the_sampling_fields()
+    public async Task OpenAI_responses_sends_temperature_top_p_the_tool_fields_and_the_reasoning_summary_and_drops_the_other_sampling_fields()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
         await using var host = await StartOpenAIAsync(server);
 
-        // The sampling fields are refused for this surface (ModelSamplingSupportTests), so the body is read for
-        // the fields it does send.
+        // Seed, stop sequences and the penalties are refused for this surface (ModelSamplingSupportTests), so the
+        // body is read for the fields it does send, temperature and top-p included.
         await SaveAndRunAsync(host, new
         {
             provider = "wire-openai-responses",

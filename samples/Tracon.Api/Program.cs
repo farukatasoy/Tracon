@@ -1421,8 +1421,8 @@ if (anthropicEnabled)
     });
 
     // An end-to-end proof of provider-specific settings (ProviderSettings):
-    // extended thinking turned on. With thinking on, Anthropic only allows a
-    // temperature of 1, so Temperature is not set.
+    // extended thinking turned on. Temperature, TopP and TopK are not set: the
+    // Anthropic SDK has no request field for them, so Tracon refuses them.
     tracon.AddAgent(new AgentDefinition
     {
         Name = "claude-thinking",

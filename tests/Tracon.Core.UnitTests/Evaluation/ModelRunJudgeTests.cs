@@ -123,18 +123,72 @@ public sealed class ModelRunJudgeTests
         Output = "answer",
     };
 
+    /// <summary>
+    /// The judge writes its own request options, so the provider's statement of what it sends must be asked here:
+    /// a judge on a provider that drops the temperature would run on the provider's default with no word.
+    /// </summary>
+    [Fact]
+    public async Task A_temperature_the_judges_provider_does_not_send_stops_the_judge_before_any_model_call()
+    {
+        var chatClient = new FakeChatClient(_ => Response("""{"score":80,"reason":"ok"}"""));
+        var (judge, runs) = Build(
+            chatClient,
+            new ModelBinding { Provider = "test", Model = "cheap-model", Temperature = 0f, TopP = 0.9f },
+            SamplingFields.None);
+
+        var failure = await Should.ThrowAsync<TraconException>(async () => await judge.JudgeAsync(Context()));
+
+        failure.Message.ShouldContain("ModelBinding.Temperature");
+        failure.Message.ShouldContain("ModelBinding.TopP");
+        failure.Message.ShouldContain("'test' provider");
+        chatClient.CallCount.ShouldBe(0);
+        (await runs.QueryRunsAsync(new RunQuery { TenantId = Tenant, OnlyRootRuns = false })).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_temperature_the_judges_provider_sends_is_judged_as_before()
+    {
+        var chatClient = new FakeChatClient(_ => Response("""{"score":80,"reason":"ok"}"""));
+        var (judge, _) = Build(
+            chatClient,
+            new ModelBinding { Provider = "test", Model = "cheap-model", Temperature = 0f, TopP = 0.9f },
+            SamplingFields.Temperature | SamplingFields.TopP);
+
+        (await judge.JudgeAsync(Context())).Scores.ShouldHaveSingleItem().Value.ShouldBe(80);
+    }
+
+    [Fact]
+    public async Task A_field_the_judge_never_sends_is_not_its_providers_to_refuse()
+    {
+        // The judge sends the temperature, top-p and the output limit. A seed on its binding goes nowhere, so a
+        // provider that does not send seeds must not stop the judge for it.
+        var chatClient = new FakeChatClient(_ => Response("""{"score":80,"reason":"ok"}"""));
+        var (judge, _) = Build(
+            chatClient,
+            new ModelBinding { Provider = "test", Model = "cheap-model", Seed = 7 },
+            SamplingFields.None);
+
+        (await judge.JudgeAsync(Context())).Scores.ShouldHaveSingleItem().Value.ShouldBe(80);
+    }
+
     private static (ModelRunJudge Judge, InMemoryRunStore Runs) Build(FakeChatClient chatClient)
+        => Build(chatClient, new ModelBinding { Provider = "test", Model = "cheap-model" }, declared: null);
+
+    private static (ModelRunJudge Judge, InMemoryRunStore Runs) Build(
+        FakeChatClient chatClient,
+        ModelBinding model,
+        SamplingFields? declared)
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
 
         var options = new ModelRunJudgeOptions
         {
-            Model = new ModelBinding { Provider = "test", Model = "cheap-model" },
+            Model = model,
         };
         options.Criteria.Add("Is the answer correct?");
 
         var judge = new ModelRunJudge(
-            new FixedModelProviderRegistry(chatClient),
+            new FixedModelProviderRegistry(chatClient, declared),
             new StaticOptionsMonitor<ModelRunJudgeOptions>(options),
             runs,
             new FixedTenantContext(Tenant),
@@ -149,9 +203,12 @@ public sealed class ModelRunJudgeTests
         public string TenantId => tenantId;
     }
 
-    private sealed class FixedModelProviderRegistry(IChatClient chatClient) : IModelProviderRegistry
+    private sealed class FixedModelProviderRegistry(IChatClient chatClient, SamplingFields? declared = null) : IModelProviderRegistry
     {
-        public IReadOnlyList<ModelProviderDescriptor> List() => [];
+        public IReadOnlyList<ModelProviderDescriptor> List()
+            => declared is { } fields
+                ? [new ModelProviderDescriptor { Name = "test", Models = [], SupportedSamplingFields = fields }]
+                : [];
 
         public IChatClient CreateChatClient(ModelBinding binding) => chatClient;
 

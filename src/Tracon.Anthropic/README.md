@@ -41,7 +41,9 @@ Its transitive dependencies are only `Microsoft.Extensions.AI.Abstractions`,
 adapter initializes reflection-based JSON serialization: a Native AOT app that
 calls the provider fails on the first request with `Reflection-based serialization
 has been disabled`, and the publish emits thousands of trim and AOT warnings from
-the SDK. Measured 2026-10-17 with SDK 12.58.0; the adapter did not change on this point in 13.3.0 (decompiled 2026-10-28), and the package's AOT claim is proved by the smoke publish the release check runs.
+the SDK. Measured 2026-10-17 with SDK 12.58.0 and again on 2026-10-28 with SDK 13.3.0:
+a program with `PublishAot` on (reflection-based JSON switched off) that sends one request through the adapter
+still fails with `Reflection-based serialization has been disabled`.
 
 ## `max_tokens` is required
 
