@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **The `Tracon` package no longer brings PostgreSQL.** It now carries the HTTP API, workflows, MCP, the OpenAI
+  provider, and the console, and no storage engine, so a host on SQL Server, SQLite, or the in-memory stores no longer
+  takes Npgsql. A host that calls `UsePostgreSql` and references only `Tracon` fails to build (`CS1061`: `ITraconBuilder`
+  does not contain a definition for `UsePostgreSql`). Add the package with
+  `dotnet add package Tracon.PostgreSql --prerelease`. A project generated with `--persistence postgres` from the new
+  template already references it.
 - **An agent that sets `Temperature`, `TopP` or `TopK` for the `anthropic` provider no longer builds.** Anthropic SDK 13
   removed the three fields from the Messages request, so the SDK adapter drops them: a definition that set one ran
   without it. Tracon refuses to drop a field without saying so. `POST /api/agents/validate` now reports

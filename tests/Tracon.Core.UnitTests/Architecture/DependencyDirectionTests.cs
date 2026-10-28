@@ -16,6 +16,9 @@ namespace Tracon.Core.UnitTests.Architecture;
 ///                       +----- Testing (test helper; NOT referenced by the meta package)
 ///     Abstractions -- Testing.Contracts.Xunit (store contract suite; NOT referenced by the meta package)
 ///
+/// The meta package reaches NO storage package (PostgreSql, SqlServer, Sqlite): a store is always an
+/// explicit reference, so a host on another store never takes the PostgreSQL driver (Phase 256).
+///
 /// Adding a ProjectReference that breaks this graph is forbidden.
 /// Rationale: docs/MIMARI.md, section 2.
 ///
@@ -80,7 +83,8 @@ public sealed class DependencyDirectionTests
         // (the two test packages are independent; one binds no test
         // framework, the other binds xunit.v3 on purpose).
         ["Tracon.Testing.Contracts.Xunit"] = ["Tracon.Abstractions"],
-        ["Tracon"] = ["Tracon.AspNetCore", "Tracon.Mcp", "Tracon.OpenAI", "Tracon.PostgreSql", "Tracon.UI", "Tracon.Workflows"],
+        // The meta package carries no storage package: a store is an explicit reference (Phase 256).
+        ["Tracon"] = ["Tracon.AspNetCore", "Tracon.Mcp", "Tracon.OpenAI", "Tracon.UI", "Tracon.Workflows"],
         // Client is the CALLING side of the control plane, not the hosting
         // side: it takes NO Tracon reference at all. Its DTOs are
         // generated straight from the OpenAPI document, not reused from
@@ -213,6 +217,39 @@ public sealed class DependencyDirectionTests
 
         ReadTraconProjectReferences("Tracon").ShouldNotContain("Tracon.AGUI", StringComparer.Ordinal);
         ReadTraconProjectReferences("Tracon.AspNetCore").ShouldNotContain("Tracon.AGUI", StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void The_meta_package_reaches_no_storage_package()
+    {
+        // Phase 256: the meta package is a control plane without a storage engine. A store is always an explicit
+        // reference, so a host on SQL Server, SQLite or the in-memory stores never takes the PostgreSQL driver. The
+        // closure is walked over project files (the shape the nuspec is packed from), not only the direct references.
+        string[] storage = ["Tracon.PostgreSql", "Tracon.SqlServer", "Tracon.Sqlite"];
+
+        var closure = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<string>(ReadTraconProjectReferences("Tracon"));
+
+        while (pending.TryPop(out var package))
+        {
+            if (!closure.Add(package))
+            {
+                continue;
+            }
+
+            foreach (var dependency in ReadTraconProjectReferences(package))
+            {
+                pending.Push(dependency);
+            }
+        }
+
+        foreach (var name in storage)
+        {
+            closure.Contains(name).ShouldBeFalse(
+                $"'{name}' is in the closure of the 'Tracon' meta package. The meta package must not reach a " +
+                "storage package; a store is an explicit reference (K-1116 replaces K-185, Phase 256). " +
+                "Reference the package from the host project instead.");
+        }
     }
 
     [Fact]

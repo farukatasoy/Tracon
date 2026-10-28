@@ -3,7 +3,8 @@
 > **Ölçüm:** 2026-10-28 · HEAD `8295ca9c` · MAF `1.26.0` en yeni (Tracon pin'i `1.25.0`) · MEAI `10.11.0` · MCP SDK `2.3.0` · canlı sürüm `1.0.0-preview.6`.
 > **Kaynak:** "Tracon Stratejik Değerlendirme Raporu" (2026-10-26, `af816fc6`; repoda değildir) ve onun ölçümü [`kesif/2026-10-28-rc-kalite-raporu-olcumu.md`](kesif/2026-10-28-rc-kalite-raporu-olcumu.md). Raporun ölçülen 60 iddiasından 29'u doğru, 20'si kısmen doğru, 6'sı yanlış, 3'ü bayat çıktı. Bu dosya yalnız ölçülmüş olana dayanır.
 > **Kitle:** Tracon bakımcısı ve faz planlayan oturumlar. Bu dosya **plan girdisidir**, karar defteri değildir ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) emsali). Kararlar `K-*`'e, yayın kararları [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md)'ye yazılır.
-> **Durum:** Dalga 0 ✅ (2026-10-28) · Dalga 1–6 📋. Her `Q-NN` satırının Durum hücresi faz açıldıkça ve kapandıkça güncellenir (§11).
+> **Ara ölçüm:** 2026-10-28 · HEAD `5d615e0e` · Tracon pin'i `1.26.0` = NuGet'in en yenisi (MAF, Hosting, MEAI `10.11.0`, MCP `2.3.0`). Q-11…Q-14 ve Q-20…Q-22 kanıtı bu HEAD'de geçerli.
+> **Durum:** Dalga 0 ✅ (2026-10-28) · Dalga 1 🔧 (Q-10 ✅ Faz 255 · Q-14 ✅ Faz 256) · Dalga 2–6 📋. Her `Q-NN` satırının Durum hücresi faz açıldıkça ve kapandıkça güncellenir (§11).
 > **İlişki:** MAF kapsama dalgaları (Dalga 0–5) MAF yüzeyinin genişliğini kapattı. Bu dalgalar hedefin öteki yarısını kapatır: ilk temas, güvenli varsayılan, ölçek, entegrasyon ve RC güveni. İki dosya aynı kalemi tutmaz.
 
 ---
@@ -18,7 +19,7 @@ burada tekrarlanmaz.
 
 | Fiil | Bu dalgalarda ölçüt | Bugün (ölçüldü 2026-10-28) | Dalga |
 |---|---|---|---|
-| Çalışsın | MAF'ın en yeni kararlı sürümü pinli; iki replikada belgeli ve test edilmiş davranış | Pin `1.25.0`, en yeni `1.26.0`; çok node destek beyanı değil (K-739) | 1, 3 |
+| Çalışsın | MAF'ın en yeni kararlı sürümü pinli; iki replikada belgeli ve test edilmiş davranış | Pin `1.26.0` = en yeni (Faz 255); çok node destek beyanı değil (K-739) | 1, 3 |
 | Kaydedilsin | Workflow, embedding, ses ve görsel span'i ve atıf run kaydında | F-595 açık | 4 |
 | Yönetilsin | Güvenli varsayılan üretim profiliyle zorlanır; tanım ortamlar arasında taşınır | Profil 6 risk denetler; rol, tool, egress ve başlık yok. Aktarma yok | 2, 5 |
 | Karşılık bulsun | Her MAF kayıt yolunun Tracon'da karşılığı ya da belgeli geçişi var | `AddAIAgent` K0 (D-06); geçiş rehberi yok | 1 |
@@ -136,7 +137,7 @@ sınıfı kapatmaz.
 | **Q-11** | **İlk agent'a kadar geçen süre.** Şablon yapılandırmadan çalışır (`WRITE_MODEL_NAME_HERE` kalkar, `DefaultModel` okunur). `first-agent.md` şablonla tek yol olur. Tek anahtar biçimi: `Tracon:Providers:*`. README "iki satır" örneği dürüst olur. Temiz makinede `dotnet new` → ilk yanıt **adım sayısı ve dakika** olarak ölçülür: adım sayısı CI kapısıdır (sahte sağlayıcı), dakika manuel case'tir | `Templates/.../Program.cs:96`; `first-agent.md:44-52`; `src/Tracon/README.md:16`; `README.md:32-42` | İ · 1, 5 | hafif · şablon ve site | Q-14 (meta paket şablonu belirler) | 📋 |
 | **Q-12** | **G-02 ve MAF-yerli giriş.** Async fabrika + model beyanı → BYOK, egress ve maliyet fabrika agent'ında geri gelir. `AddTool(Func<IServiceProvider, AIFunction>)`: K-218 tuzağının derleme anı cevabı. Site rehberi "From `AddAIAgent` to Tracon" (D-06 korunur). İmza tahmin edilmez: `maf-api-kesfi` | `TraconBuilderExtensions.Agents.cs:32,91` (yalnız senkron fabrika); `IModelProviderRegistry.cs:26-34` (senkron yol BYOK/egress uygulamaz); `TraconBuilderExtensions.Tools.cs:33`; `MAF-KAPSAMA.md` §7.1 | M, İ · 1, 3, 5, 8 | tam (BYOK ve egress kiracı sınırıdır) · API ekleyici | Q-10 | 📋 |
 | **Q-13** | **Builder tutarlılığı.** `AddJobHandler` ve `UseScheduling` `ITraconBuilder`'a taşınır | `TraconServiceCollectionExtensions.cs:109,161` | İ · 5 | tam (PublicAPI'den satır silinir) · kırıcı, `rc.1` öncesi serbest (UR-012 B) | Q-12 ile aynı faza girebilir | 📋 |
-| **Q-14** | **Meta paketin yeniden kurulumu.** `Tracon` meta paketi SQL Server kullanana Npgsql taşımaz. Seçenek planlamada 👤: (a) meta = Core + AspNetCore + UI, depo ayrı seçilir; (b) depo başına meta paket | `src/Tracon/Tracon.csproj:29`; `Tracon.PostgreSql.csproj:13` | İ, P · 1, 3 | tam (paket bileşimi `rc.1`'de kilitlenir) · paket grafı kırıcı | yok | 📋 |
+| **Q-14** | **Meta paketin yeniden kurulumu.** `Tracon` meta paketi SQL Server kullanana Npgsql taşımaz. Seçenek planlamada 👤: (a) meta = Core + AspNetCore + UI, depo ayrı seçilir; (b) depo başına meta paket. 👤 2026-10-28: yalnız depo çıkar (meta = AspNetCore + Mcp + OpenAI + UI + Workflows); ölçülen graf [Faz 256](256-META-PAKET-DEPO-AYRIMI.md) §256.1 | `src/Tracon/Tracon.csproj:29`; `Tracon.PostgreSql.csproj:13` | İ, P · 1, 3 | tam (paket bileşimi `rc.1`'de kilitlenir) · paket grafı kırıcı | yok | ✅ Faz 256 (F-748) |
 
 **Karşı görüş ve cevap.**
 

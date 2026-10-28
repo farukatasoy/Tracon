@@ -21,7 +21,8 @@ tekrarlanmaz. Mimari açıdan anlamı olan kalemler:
   `src/Tracon.<Sağlayıcı>/Migrations/*.sql` dosyalarıdır.
 - `PgVectorSearchStore` (Faz 51) `Sql.Shared`'den geçmeyen **tek** `store`'dur —
   doğrudan `Npgsql` kullanır (K4, K-344).
-- Meta pakete **dâhil olmayanlar**: `SqlServer` (K-185), `Sqlite`, `Anthropic`
+- Meta pakete **dâhil olmayanlar**: `PostgreSql` (K-1116; depo her zaman açık
+  referanstır), `SqlServer` (K-185), `Sqlite`, `Anthropic`
   (K-209), `Google` (K-205), `Azure` (K-210; ayar sunmaz K-211, Responses yok
   K-213), `Voice` (K-216; sözleşme `Abstractions`'ta K-215, gerçek zamanlı
   katman `Core`'da K-222), `Templates`, `Testing`.

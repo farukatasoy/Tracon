@@ -26,14 +26,15 @@ NuGet; pin the exact version for reproducible builds.
 dotnet add package Tracon --prerelease
 ```
 
-Brings runtime, PostgreSQL persistence, the OpenAI provider, the HTTP API, workflows,
-MCP, and the console — eight packages counting the two that come transitively.
+Brings runtime, the OpenAI provider, the HTTP API, workflows, MCP, and the console —
+seven packages counting the two that come transitively. It carries no storage engine:
+add the one you use ([Persistence](/getting-started/persistence/)). Without one, every
+store is in memory.
 
 | Package | What it does |
 |---|---|
 | `Tracon.Abstractions` | Contracts. No provider, no web framework, no database |
 | `Tracon.Core` | Catalog, definition compiler, tool registry, run recording, the startup composition gates, and the build-time analyzer |
-| `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
 | `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts, a report of what they spent beyond tokens and a start gate on the call tree's cost and time budget, checkpoints, human input, run parameters, per-workflow run timeouts, a version history with rollback and agent version pins (in a graph built in code, fixed or chosen by a run parameter), a per-function concurrency limit, a per-tenant run limit, and the same step capabilities in graphs built in code (`GetWorkflowFunction`, `GetWorkflowAgentStep`) |
@@ -46,7 +47,8 @@ Add these when you need them.
 
 | Package | Add it when |
 |---|---|
-| `Tracon.SqlServer` | You run SQL Server instead of PostgreSQL |
+| `Tracon.PostgreSql` | Durable storage on PostgreSQL, and the only built-in vector-search store (knowledge search) |
+| `Tracon.SqlServer` | You run SQL Server |
 | `Tracon.Sqlite` | One node, or durable local development |
 | `Tracon.Anthropic` | You call Claude models — with effort, adaptive thinking, prompt-cache TTL and placement settings, and priced cache writes |
 | `Tracon.Google` | You call Gemini models, or speak and voice a two-voice dialogue with a Gemini text-to-speech model |

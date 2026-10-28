@@ -781,17 +781,20 @@ rm -f artifacts/package/release/*1.0.0-preview.1.*   # repo kokunden, serit work
 - Etiketten sonra sürüm tam olarak `1.0.0-preview.1`'dir.
 - `git tag -d` sonrası `git tag` yine boştur.
 
-### MT-PKG-030 — Meta paket yalnız altı bileşen getirir
+### MT-PKG-030 — Meta paket yalnız beş bileşen getirir
 
 | | |
 |---|---|
 | **İzlek** | A |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 0 |
-| **İlgili karar** | K-185 |
+| **İlgili faz** | Faz 0 · Faz 256 |
+| **İlgili karar** | K-185 · K-1116 |
+| **Devir** | ➜ CI: `TransitiveDependencyTests` · `DependencyDirectionTests.The_meta_package_reaches_no_storage_package` · `TemplateInstantiationTests` |
 
 Tasarım kuralı: PostgreSQL kullanmayan tüketici `Npgsql`'i çekmez, Gemini
-kullanmayan tüketici `Google.Apis.Auth` zincirini almaz.
+kullanmayan tüketici `Google.Apis.Auth` zincirini almaz. Faz 256'ya kadar
+case bu kuralı yazıyor, beklenen sonucu ise `Tracon.PostgreSql`'i meta
+bağımlılığı sayıyordu; kural artık meta paketin kendisi için de doğrudur.
 
 **Ön koşul**
 - `/tmp/ap-pack` dolu.
@@ -807,12 +810,12 @@ grep -E "<dependency id=" Tracon.nuspec | sort -u
 ```
 
 **Beklenen sonuç**
-- Yalnız şu altı bağımlılık görünür: `Tracon.AspNetCore`, `Tracon.Mcp`,
-  `Tracon.OpenAI`, `Tracon.PostgreSql`, `Tracon.UI`,
-  `Tracon.Workflows`.
-- Şunlar **görünmez**: `Tracon.SqlServer`, `Tracon.Sqlite`,
-  `Tracon.Anthropic`, `Tracon.Google`, `Tracon.Azure`,
-  `Tracon.Voice`, `Tracon.Testing`, `Tracon.Templates`.
+- Yalnız şu beş bağımlılık görünür: `Tracon.AspNetCore`, `Tracon.Mcp`,
+  `Tracon.OpenAI`, `Tracon.UI`, `Tracon.Workflows`.
+- Şunlar **görünmez**: `Tracon.PostgreSql`, `Tracon.SqlServer`,
+  `Tracon.Sqlite`, `Tracon.Anthropic`, `Tracon.Google`, `Tracon.Azure`,
+  `Tracon.Voice`, `Tracon.Testing`, `Tracon.Templates`. Depo her zaman açık
+  referanstır (K-1116).
 
 ---
 

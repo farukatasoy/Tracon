@@ -29,6 +29,8 @@
       scripts/capacity.py as an exact value.
     -->
     <PackageReference Include="Tracon" Version="$(TraconCapacityPackageVersion)" />
+    <!-- The host calls UsePostgreSql; the meta package carries no storage engine (K-1116). -->
+    <PackageReference Include="Tracon.PostgreSql" Version="$(TraconCapacityPackageVersion)" />
   </ItemGroup>
 
   <!-- Linked, never copied: see bench/capacity/Shared/CapacityContract.cs. -->

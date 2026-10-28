@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon/Tracon.csproj" />
+    <!-- PostgreSQL is NOT in the meta package (K-1116): a store is an explicit reference. -->
+    <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
     <!--
       🚨 Needed only for THIS repo, same reason as samples/Tracon.Api:
       OutputItemType=Analyzer does NOT propagate across multi-hop

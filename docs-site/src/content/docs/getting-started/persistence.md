@@ -26,6 +26,10 @@ builder.AddTracon()
        .UsePostgreSql(connectionString);   // Tracon.PostgreSql
 ```
 
+The `Tracon` meta package carries no storage engine, so the store you pick is a second
+reference: `dotnet add package Tracon.PostgreSql --prerelease`. A host that calls
+`UsePostgreSql()` with only `Tracon` referenced does not build (`CS1061`).
+
 | Package | Choose it when |
 |---|---|
 | `Tracon.PostgreSql` | The default. The only one with vector search for knowledge |

@@ -203,7 +203,9 @@ dotnet build "$TMP/yalin" -c Release
 
 `TemplateInstantiationTests.EnDoluBirlesim_SifirUyariylaDerlenir`'in tekrarı —
 `sqlserver`+`azure` bilinçli seçildi çünkü ikisi de meta pakete dahil **DEĞİL**
-(postgres/openai aksine), kırılmayı daha güçlü yakalar (37. faz DoD notu).
+(openai aksine), kırılmayı daha güçlü yakalar (37. faz DoD notu). Faz 256'dan
+beri `postgres` de meta pakette değildir; onun birleşimi ayrı bir testtir
+(`Postgres_combination_compiles_with_zero_warnings`, bkz. `MT-TEST-008`).
 
 **Ön koşul**
 - Şablon kurulu.
@@ -397,20 +399,22 @@ curl -s http://localhost:5081/tracon/api/agents | jq
 
 ---
 
-### MT-TEST-008 — `postgres`/`openai` seçiminde ayrı bir paket referansı EKLENMEZ (zaten meta pakette)
+### MT-TEST-008 — `postgres` seçimi `Tracon.PostgreSql` satırı EKLER; `openai` eklemez (zaten meta pakette)
 
 | | |
 |---|---|
 | **İzlek** | A |
 | **Önem** | Orta |
-| **İlgili faz** | Faz 37 |
-| **İlgili karar** | K-185 |
+| **İlgili faz** | Faz 37 · Faz 256 |
+| **İlgili karar** | K-185 · K-1116 |
+| **Devir** | ➜ CI: `TemplateInstantiationTests.Postgres_combination_compiles_with_zero_warnings` · `Most_minimal_combination_compiles_with_zero_warnings` · `Most_full_combination_compiles_with_zero_warnings` |
 
-Pozitif kontrol — olası bir yanlış izlenimi çürütür. `Tracon.Starter.csproj`da
-`sqlserver`/`sqlite`/`anthropic`/`google`/`azure` için koşullu `PackageReference`
-blokları var ama `postgres`/`openai` için **yok** — bu bir eksiklik değildir,
-çünkü meta paket (`Tracon`) `Tracon.PostgreSql` ve `Tracon.OpenAI`yı
-**zaten** taşır (`src/Tracon/Tracon.csproj:12-17`).
+Faz 256'ya kadar bu case tersini yazıyordu: `postgres` için koşullu blok yoktu,
+çünkü meta paket `Tracon.PostgreSql`'i taşıyordu. Meta paket depo taşımaz
+(K-1116); `Tracon.Starter.csproj`da `postgres`/`sqlserver`/`sqlite`/
+`anthropic`/`google`/`azure` için koşullu `PackageReference` blokları var ama
+`openai` için **yok** — bu bir eksiklik değildir, çünkü meta paket (`Tracon`)
+`Tracon.OpenAI`yı **zaten** taşır (`src/Tracon/Tracon.csproj`).
 
 **Ön koşul**
 - Şablon kurulu.
@@ -419,6 +423,7 @@ blokları var ama `postgres`/`openai` için **yok** — bu bir eksiklik değildi
 1. Varsayılan seçeneklerle (`postgres` DEĞİL `memory`, ama `provider=openai`
    varsayılan) bir proje üret ve `.csproj`'u oku.
 2. `--persistence postgres` ile ayrı bir proje üret, `.csproj`'u karşılaştır.
+3. Her iki projeyi derle; `obj/project.assets.json` içinde `Npgsql/` anahtarını ara.
 
 **Girilecek veri**
 ```bash
@@ -431,15 +436,14 @@ diff "$TMP/a"/*.csproj "$TMP/b"/*.csproj
 ```
 
 **Beklenen sonuç**
-- 🚨 `<ItemGroup>`/`<PackageReference>` bloğu **birebir aynıdır** — `postgres`
-  seçmek `.csproj`'a hiçbir paket referansı satırı eklemez, çünkü
-  `Tracon.PostgreSql` zaten `Tracon` meta referansı üzerinden geçişli olarak
-  gelir. (Önceki beklenti "iki dosya birebir aynıdır, diff boş döner" diyordu;
-  düzeltildi 2026-09-17, ap-s2 — her `dotnet new` çağrısı rastgele bir
-  `UserSecretsId` GUID'i üretir, bu persistence seçimiyle ilgisizdir ve `diff`
-  hiçbir zaman tam boş dönmez. Yukarıdaki komut da artık iki projeyi **aynı**
-  `-n` ile üretir; farklı adlarla `RootNamespace` da farka eklenirdi.)
-- İki proje de yalnız `<PackageReference Include="Tracon" .../>` taşır (tek satır).
+- 🚨 `diff` yalnız iki farkı gösterir: `UserSecretsId` GUID'i (her `dotnet new`
+  çağrısı rastgele bir tane üretir; persistence seçimiyle ilgisizdir ve `diff`
+  hiçbir zaman tam boş dönmez, yukarıdaki komut iki projeyi bu yüzden **aynı**
+  `-n` ile üretir) ve `b` projesindeki **bir** ek satır:
+  `<PackageReference Include="Tracon.PostgreSql" Version="$SURUM" />`.
+- `a` projesi yalnız `<PackageReference Include="Tracon" .../>` taşır (tek satır);
+  `b` projesi `Tracon` ile `Tracon.PostgreSql` taşır.
+- `a` projesinin grafında `Npgsql/` **yoktur**; `b` projesinin grafında vardır.
 
 ---
 
