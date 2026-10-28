@@ -10898,7 +10898,7 @@ namespace Tracon.Client.Generated
         /// Returns a tenant's model provider egress policy.
         /// </summary>
         /// <remarks>
-        /// 'allowedProviders: null' means the tenant is UNRESTRICTED (no policy saved); an empty or populated array means the tenant may call only those providers. A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// 'allowedProviders: null' means no policy is saved: the tenant is UNRESTRICTED, unless Tracon:TenantProviders:RequireEgressPolicy is on, which makes it call NO provider; an empty or populated array means the tenant may call only those providers. A tenant other than the caller's own requires platform authority (403 otherwise).
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -10980,7 +10980,7 @@ namespace Tracon.Client.Generated
         /// Creates or replaces a tenant's egress policy.
         /// </summary>
         /// <remarks>
-        /// Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty 'allowedProviders' array allows NO provider — it is not the same as having no policy; use DELETE to return to unrestricted. The 'tenantId' route value is folded to lower case before the policy is saved, so a policy written for 'Acme' is the policy the runtime finds for 'acme'. A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted (or, with Tracon:TenantProviders:RequireEgressPolicy on, may call no provider), and this call is the way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty 'allowedProviders' array allows NO provider — it is not the same as having no policy; use DELETE to remove the policy. The 'tenantId' route value is folded to lower case before the policy is saved, so a policy written for 'Acme' is the policy the runtime finds for 'acme'. A tenant other than the caller's own requires platform authority (403 otherwise).
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -11069,7 +11069,7 @@ namespace Tracon.Client.Generated
         /// Deletes a tenant's egress policy.
         /// </summary>
         /// <remarks>
-        /// After deletion the tenant is unrestricted again — the same state as before any policy was ever saved. A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// After deletion the tenant has no policy again — the same state as before any policy was ever saved: unrestricted, or, with Tracon:TenantProviders:RequireEgressPolicy on, able to call no provider. A tenant other than the caller's own requires platform authority (403 otherwise).
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -26414,13 +26414,13 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Gets the closed set of allowed provider names, or `null`
-        /// <br/>when the tenant is unrestricted (no policy saved).
+        /// <br/>when no policy is saved (unrestricted, unless the host requires a policy).
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("allowedProviders")]
         public System.Collections.Generic.ICollection<string>? AllowedProviders { get; set; } = default!;
 
         /// <summary>
-        /// Gets the time the policy was last written; `null` when unrestricted.
+        /// Gets the time the policy was last written; `null` when no policy is saved.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("updatedAt")]
         public System.DateTimeOffset? UpdatedAt { get; set; } = default!;

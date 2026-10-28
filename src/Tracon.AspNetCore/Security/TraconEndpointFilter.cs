@@ -125,7 +125,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
                 return rejectedAnonymous;
             }
 
-            return CheckTenancyWhitelist(httpContext) is { } rejectedNoAuth
+            return CheckTenant(httpContext) is { } rejectedNoAuth
                 ? rejectedNoAuth
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
         }
@@ -145,7 +145,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             // anonymous request (CrossTenantAuthority).
             StaticTokenRequestContext.Set(httpContext);
 
-            return CheckTenancyWhitelist(httpContext) is { } rejectedStaticToken
+            return CheckTenant(httpContext) is { } rejectedStaticToken
                 ? rejectedStaticToken
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
         }
@@ -167,7 +167,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
                 return rejectedGroupForMandatory;
             }
 
-            return CheckTenancyWhitelist(httpContext) is { } rejectedGroupToken
+            return CheckTenant(httpContext) is { } rejectedGroupToken
                 ? rejectedGroupToken
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
         }
@@ -183,6 +183,16 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
 
             if (record is not null)
             {
+                // The key is proven, so the format comes next: a malformed header is the
+                // client's mistake and is named as one, before it can be read as a
+                // mismatch with the key's tenant.
+                var malformed = CheckTenantValueFormat(httpContext);
+
+                if (malformed is not null)
+                {
+                    return malformed;
+                }
+
                 var conflict = CheckTenantHeaderConflict(httpContext, record);
 
                 if (conflict is not null)
@@ -262,10 +272,11 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
     /// <see cref="HttpTenantContext.Resolve"/>).
     /// </para>
     /// <para>
-    /// When NO candidate is supplied at all (neither claim nor header), or when it is
-    /// formally invalid, this check does not engage — falling back to the default tenant is
-    /// the intended behavior in that case (the no-surprises rule: nothing changes until multi-tenancy is turned
-    /// on).
+    /// When NO candidate is supplied at all (neither claim nor header), this check does not
+    /// engage — falling back to the default tenant is the intended behavior in that case (the
+    /// no-surprises rule: nothing changes until multi-tenancy is turned on). A candidate that is
+    /// formally invalid does not engage it either, but it never gets here:
+    /// <see cref="CheckTenantValueFormat"/> runs first and rejects it.
     /// </para>
     /// </remarks>
     private static ProblemHttpResult? CheckTenancyWhitelist(HttpContext httpContext)
@@ -277,22 +288,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             return null;
         }
 
-        string? candidate;
-
-        if (tenancyOptions.ClaimType is { Length: > 0 } claimType)
-        {
-            candidate = httpContext.User.Identity?.IsAuthenticated == true
-                ? httpContext.User.FindFirst(claimType)?.Value
-                : null;
-        }
-        else if (tenancyOptions.AllowHeaderResolution)
-        {
-            candidate = httpContext.Request.Headers[tenancyOptions.HeaderName].ToString();
-        }
-        else
-        {
-            candidate = null;
-        }
+        var candidate = HttpTenantContext.ReadCandidate(httpContext, tenancyOptions).Value;
 
         // 🚨 The same canonical form HttpTenantContext.Accept produces, through
         // the same helper (K-382). If the two surfaces folded letter case
@@ -308,6 +304,66 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             detail: "The resolved tenant is not on the allow list. This request is NOT silently " +
                     "downgraded to the default tenant's data; it is rejected.",
             statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    /// <summary>
+    /// Runs both tenant value checks: the format first, then the allowlist.
+    /// </summary>
+    /// <remarks>
+    /// The order matters. A value that is not a tenant id cannot be on the allowlist, and the allowlist
+    /// check does not engage for it, so without the format check first a malformed value would reach the
+    /// default tenant even when <see cref="TraconTenancyOptions.AllowedTenants"/> is set.
+    /// </remarks>
+    private static ProblemHttpResult? CheckTenant(HttpContext httpContext)
+        => CheckTenantValueFormat(httpContext) ?? CheckTenancyWhitelist(httpContext);
+
+    /// <summary>
+    /// Rejects a tenant value that is present and is not a well-formed tenant id, instead of letting
+    /// <see cref="HttpTenantContext.TenantId"/> drop it to the default tenant.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only while tenancy is on and the value source is active, and only for a value that was SENT: no
+    /// header, an empty header and a missing claim all stay the default tenant, as before. A malformed
+    /// <strong>header</strong> is the client's mistake and answers <c>400</c>. A malformed
+    /// <strong>claim</strong> is the identity provider's, which the client cannot correct, and answers
+    /// <c>403</c>.
+    /// </para>
+    /// <para>
+    /// The value is never put in the response: it is the client's text, and an echo of it would carry
+    /// that text into logs and the interface (the reason <see cref="HttpTenantContext.IsValidTenantId"/>
+    /// has a format at all). The header's NAME is configuration and may appear.
+    /// </para>
+    /// </remarks>
+    private static ProblemHttpResult? CheckTenantValueFormat(HttpContext httpContext)
+    {
+        var tenancyOptions = httpContext.RequestServices.GetService<IOptions<TraconTenancyOptions>>()?.Value;
+
+        if (tenancyOptions is not { Enabled: true })
+        {
+            return null;
+        }
+
+        var candidate = HttpTenantContext.ReadCandidate(httpContext, tenancyOptions);
+
+        if (!candidate.IsPresent || HttpTenantContext.IsValidTenantId(candidate.Value))
+        {
+            return null;
+        }
+
+        return candidate.Source == TenantCandidateSource.Claim
+            ? TypedResults.Problem(
+                title: "Tenant claim malformed",
+                detail: "The tenant claim of the authenticated identity is not a valid tenant id. A tenant id " +
+                        "matches ^[a-zA-Z0-9_.-]+$ and has at most 64 characters. The request is not " +
+                        "downgraded to the default tenant; it is rejected.",
+                statusCode: StatusCodes.Status403Forbidden)
+            : TypedResults.Problem(
+                title: "Tenant header malformed",
+                detail: $"The '{tenancyOptions.HeaderName}' header is not a valid tenant id. A tenant id " +
+                        "matches ^[a-zA-Z0-9_.-]+$ and has at most 64 characters. The request is not " +
+                        "downgraded to the default tenant; it is rejected.",
+                statusCode: StatusCodes.Status400BadRequest);
     }
 
     private static ProblemHttpResult Unauthorized(HttpContext httpContext)

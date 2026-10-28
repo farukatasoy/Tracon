@@ -31,9 +31,10 @@ process that never starts a host does not run it.
 
 Security-sensitive settings come up permissive for the same "no surprises" reason.
 Add `.RequireProductionProfile()` when that is the wrong default: it changes no
-setting, and refuses to start while tenant separation, session ownership, at-rest
-protection, content inspection, rate limiting or retention is still on its permissive
-default and the risk has not been accepted by name.
+setting, and refuses to start while any of its production decisions is still on its
+permissive default and the risk has not been accepted by name. The list of decisions
+and how to answer each one is in
+[Make a production decision required](https://tracon.dev/guides/embedding/#make-a-production-decision-required).
 
 ## What it does
 

@@ -59,4 +59,38 @@ public enum TraconProductionRisk
     /// bound and old conversations stay readable indefinitely.
     /// </summary>
     UnboundedRetention,
+
+    /// <summary>
+    /// At least one of the <c>Tracon.Reader</c>, <c>Tracon.Operator</c> and
+    /// <c>Tracon.Admin</c> authorization policies is not registered, so the
+    /// endpoints it would guard get no role check and any caller that passes the
+    /// outer layers reaches them.
+    /// </summary>
+    UnregisteredRolePolicies,
+
+    /// <summary>
+    /// The tool authorization handler is Tracon's built-in one, which allows every
+    /// call, so any caller of a run can make the agent run any tool the agent has.
+    /// </summary>
+    UncheckedToolCalls,
+
+    /// <summary>
+    /// Tenants are separated, but a tenant with no egress policy may reach every
+    /// provider, so a tenant nobody wrote a policy for sends its data wherever
+    /// the deployment has a provider.
+    /// </summary>
+    UnrestrictedTenantEgress,
+
+    /// <summary>
+    /// The tenant is read from a request header and no claim takes precedence, so
+    /// any client that can reach the endpoint can name the tenant it acts as.
+    /// </summary>
+    UnverifiedTenantHeader,
+
+    /// <summary>
+    /// Tenants are separated, but no limit caps the workflow runs one tenant has
+    /// going at once, so one tenant can take every workflow slot and the others
+    /// wait.
+    /// </summary>
+    UnlimitedTenantWorkflows,
 }

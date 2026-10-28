@@ -91,9 +91,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   expectations changed because a total now has four terms:
   `RunStoreContract.Every_cost_total_includes_the_cache_charge` and
   `RunStoreContract.No_cost_total_adds_amounts_in_two_currencies`.
+- **`RequireProductionProfile()` asks five more decisions: a host that calls it does not start until each is answered or
+  accepted by name.** `TraconProductionRisk` gains `UnregisteredRolePolicies`, `UncheckedToolCalls`,
+  `UnrestrictedTenantEgress`, `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows`. A host that never calls the
+  method sees nothing change. The startup failure names every open decision with its setting, what it is today and how
+  to answer it; accept one with `profile.Accept(TraconProductionRisk.<Risk>)`. Why each was added:
+  - `UnregisteredRolePolicies`: an unregistered `Tracon.Reader`, `Tracon.Operator` or `Tracon.Admin` policy adds no role
+    check, so any caller that passes the outer layers reaches the endpoint it would have guarded. It was skipped in
+    silence unless `RequireRolePolicies` was on. Answer it by defining the three policies in `AddAuthorization(...)`. It
+    is asked only of a host that called `MapTracon` before it started: the answer is known there.
+  - `UncheckedToolCalls`: the built-in `IToolAuthorizationHandler` allows every call, so any caller of a run can make an
+    agent run any tool it has. Answer it by registering your own handler. It is asked of every host, single-tenant
+    ones included.
+  - `UnrestrictedTenantEgress`: a tenant with no egress policy may call every provider the deployment has. Answer it with
+    the new `Tracon:TenantProviders:RequireEgressPolicy` (see below). It is asked only when tenants are separated.
+  - `UnverifiedTenantHeader`: with `UseTenancy` enabled, `AllowHeaderResolution` open and no `ClaimType`, any client
+    that reaches the endpoint names the tenant it acts as. Answer it by setting `ClaimType`, or by closing the header
+    path. Accept it when a gateway in front of Tracon writes the header. A request authenticated with an API key keeps
+    that key's tenant either way.
+  - `UnlimitedTenantWorkflows`: with `UseWorkflows` and separated tenants, one tenant that starts many runs holds every
+    workflow slot. Answer it with `Tracon:Workflows:MaxConcurrentRunsPerTenant`. It is not asked while
+    `Tracon:Workflows:Enabled` is `false`.
+
+  A host that does not separate tenants (the built-in single-tenant context, or `UseTenancy(o => o.Enabled = false)`) is
+  not asked the egress, header and workflow decisions: they are about one tenant reaching what another should not, so
+  they are reported as not applicable.
+- **A tenant value that is sent and is not a valid tenant id is now refused, instead of becoming the default tenant.**
+  While tenancy is on and the value source is active, a malformed header answers `400` (`Tenant header malformed`) and
+  a malformed claim of an authenticated identity answers `403` (`Tenant claim malformed`). Before this the value was
+  dropped and the request ran as the default tenant, so a client with a typo in its tenant read and wrote the default
+  tenant's data, and `AllowedTenants` did not catch it. A valid id is `^[a-zA-Z0-9_.-]+$` and at most 64 characters. An
+  absent header, an empty header and a missing claim are not malformed and still resolve to the default tenant. The
+  response never carries the value. The refusal is made by Tracon's endpoint filter, so it covers the endpoints Tracon
+  maps; an endpoint you map yourself that reads `ITenantContext` still resolves a malformed value to the default tenant,
+  so check it with `HttpTenantContext.IsValidTenantId` there. A client that sends a malformed tenant now sees the `400` or `403`; fix the value, or
+  stop sending it. The contract gate does not see this change, because it treats a documented `4xx` as documentation.
+  Covered by `TenantValueFormatTests`; the old `TenancyTests.Malformed_tenant_falls_back_to_default` was removed with
+  the behavior it asserted.
 
 ### Added
 
+- **`Tracon:TenantProviders:RequireEgressPolicy` makes a tenant with no egress policy call no provider.** Off by default,
+  so nothing changes until it is turned on. Turned on, a tenant without a policy row is refused on every path to a
+  provider (the agent's model and its fallbacks, the summarizer and loop judge, image, speech, live voice and
+  embedding), and a provider binding cannot be saved for it. The default tenant is a tenant too and needs its own row.
+  The refusal is the same `TraconTenantProviderRefusedException`, and its message names the setting. An empty policy
+  still forbids everything, and a tenant with a policy is judged by its list alone. Set it with the new
+  `TraconTenantProviderOptions.RequireEgressPolicy`. It is the answer to the `UnrestrictedTenantEgress` decision above.
+  A value the binder cannot read (`yes`) stops the host at startup instead of leaving the switch off.
 - **A factory agent can declare its model: `AddAgent(name, model, factory)`.** Tracon builds the chat client for the model,
   with the tenant's own provider key and the tenant's egress policy, and hands it to the factory as
   `AgentFactoryContext.ChatClient` (the new `AgentFactoryContext` also carries `AgentName`, `Services` and `Model`). The

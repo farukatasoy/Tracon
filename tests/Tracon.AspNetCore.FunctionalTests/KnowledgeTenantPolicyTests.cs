@@ -106,6 +106,51 @@ public sealed class KnowledgeTenantPolicyTests
     }
 
     [Fact]
+    public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_is_refused_the_embedding_provider()
+    {
+        // F-254: the embedding access check is one of the callers that must read the switch.
+        var embeddings = new CountingEmbeddingGenerator();
+        await using var host = await StartAsync(
+            embeddings,
+            EmbeddingProvider,
+            static services => services.Configure<TraconTenantProviderOptions>(static options => options.RequireEgressPolicy = true));
+
+        using var refused = await host.Client.PostAsJsonAsync(SearchUri, new { query = "refund policy" });
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await refused.Content.ReadAsStringAsync());
+        (await refused.Content.ReadAsStringAsync()).ShouldContain("has no egress policy");
+        embeddings.Calls.ShouldBe(0, "the tenant's query must not reach a provider the tenant has no policy for");
+
+        await SavePolicyAsync(host, EmbeddingProvider);
+
+        using var searched = await host.Client.PostAsJsonAsync(SearchUri, new { query = "refund policy" });
+
+        searched.StatusCode.ShouldBe(HttpStatusCode.OK, await searched.Content.ReadAsStringAsync());
+        embeddings.Calls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task An_unnamed_embedding_provider_is_refused_without_a_policy_when_one_is_required()
+    {
+        // The provider-not-named branch judged "no policy" as allowed. With a policy required there is
+        // nothing the call can be judged against, so it is refused and the message says how to name it.
+        var embeddings = new CountingEmbeddingGenerator();
+        await using var host = await StartAsync(
+            embeddings,
+            embeddingProvider: null,
+            static services => services.Configure<TraconTenantProviderOptions>(static options => options.RequireEgressPolicy = true));
+
+        using var refused = await host.Client.PostAsJsonAsync(SearchUri, new { query = "refund policy" });
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await refused.Content.ReadAsStringAsync());
+
+        var body = await refused.Content.ReadAsStringAsync();
+        body.ShouldContain("Tracon:Knowledge:EmbeddingProvider");
+        body.ShouldContain("Tracon:TenantProviders:RequireEgressPolicy");
+        embeddings.Calls.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Search_refuses_a_tenant_with_its_own_key_for_the_embedding_provider()
     {
         // The generator was built with the setup key and cannot use the tenant's.

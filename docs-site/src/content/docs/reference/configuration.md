@@ -702,7 +702,11 @@ Anthropic's `DefaultMaxOutputTokens`. See
 }
 ```
 
-| `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"` |
+| `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"`, `RequireEgressPolicy=false` |
+
+`RequireEgressPolicy` makes a tenant with no egress policy call no provider. It is off
+by default; see [Per-tenant provider credentials and
+egress](/concepts/governance/#per-tenant-provider-credentials-and-egress).
 
 A tenant provider binding's configuration key name must start with
 `AllowedConfigurationPrefix` followed by the tenant's segment

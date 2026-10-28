@@ -95,7 +95,8 @@ Without it, the name the generator reports is used, and that name does not tell
 providers apart: the OpenAI and the Azure OpenAI generators both report `openai`. When
 no name is known, a tenant with an egress policy is refused (`403` on the endpoints; for
 the agent's tool, the model reads the refusal as the result of the call); a tenant without
-one is not affected. Every setting can also come from the
+one is not affected, unless `Tracon:TenantProviders:RequireEgressPolicy` is on: then it is refused
+too, because the call cannot be judged. Every setting can also come from the
 `Tracon:Knowledge` section of configuration.
 
 The embedding model in this example produces 1,536 dimensions. If you choose another

@@ -71,6 +71,12 @@ public static class TraconWorkflowsBuilderExtensions
             services.Configure(configure);
         }
 
+        // Phase 259: the profile gate asks whether one tenant can take every workflow slot. Registered
+        // here, the one composition that has a slot to take; resolved only when the host also called
+        // RequireProductionProfile.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProductionProfileCheck, TenantWorkflowSlotsProfileCheck>());
+
         // The cache MUST be SINGLETON: executor identity stability - and
         // therefore resuming from checkpoints - depends on it.
         services.TryAddSingleton<WorkflowAgentCache>();

@@ -448,8 +448,9 @@ builder.AddTracon()
         .Accept(TraconProductionRisk.SingleTenant));
 ```
 
-Six decisions are asked about, and each is either answered by turning the feature on
-or accepted by name:
+These decisions are asked about, and each is either answered by turning the feature on
+or accepted by name. This table is the one list; other pages point here rather than
+repeat it:
 
 | Risk | What the permissive default means | Answer it with |
 |---|---|---|
@@ -459,6 +460,26 @@ or accepted by name:
 | `UninspectedContent` | No prompt or response is inspected | `AddPatternContentGuard(...)` or `AddContentGuard<TGuard>()` |
 | `UnlimitedRequestRate` | One caller can take the whole model budget | `Tracon:RateLimit:Enabled` |
 | `UnboundedRetention` | Nothing is ever deleted | `Tracon:Retention:Enabled`, or a policy per target |
+| `UnregisteredRolePolicies` | At least one of the `Tracon.Reader`, `Tracon.Operator` and `Tracon.Admin` policies is not registered, so the endpoints it guards get no role check | Define the three policies in `AddAuthorization(...)` with `TraconPolicies.Reader`, `Operator` and `Admin`, and set `TraconEndpointOptions.RequireRolePolicies` so a missing one stops `MapTracon` too |
+| `UncheckedToolCalls` | The built-in tool authorization handler allows every call for every caller | Register your own `IToolAuthorizationHandler` |
+| `UnrestrictedTenantEgress` | A tenant with no egress policy may call every provider | `Tracon:TenantProviders:RequireEgressPolicy`, then save a policy for each tenant |
+| `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
+| `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
+
+Some rows are not asked in every composition:
+
+- `UnrestrictedTenantEgress`, `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows`
+  are about one tenant reaching what another should not. They are reported as not
+  applicable and never stop a host that does not separate tenants (the built-in
+  single-tenant context, or `UseTenancy(options => options.Enabled = false)`). This is
+  also why `SingleTenant` and these three are never open together: a host is one or the
+  other.
+- `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows` exist only when
+  `UseTenancy(...)` or `UseWorkflows(...)` is in the chain. `UnlimitedTenantWorkflows`
+  is also not asked while `Tracon:Workflows:Enabled` is `false`.
+- `UnregisteredRolePolicies` is known only once `MapTracon` has run, so it is asked of a
+  host that mapped the endpoints before it started. A host with no HTTP surface is not
+  asked it.
 
 The startup failure names every open decision at once — the setting, what it is
 today, and how to answer it — so one restart clears all of them rather than one per
@@ -480,7 +501,7 @@ Five properties are worth knowing before you rely on it:
   on. The only thing it does is turn a skipped decision into a startup failure.
 - **It is off by default.** An application that never calls it behaves exactly as it
   did before, and the call resolves nothing extra at startup.
-- **Accepting is per item.** There is no way to accept all six at once, so each
+- **Accepting is per item.** There is no way to accept them all at once, so each
   accepted risk is one reviewable line — and every accepted risk is written to the
   log at information level, by name, each time the host starts.
 - **The set of decisions is a versioned contract.** A later release that adds one

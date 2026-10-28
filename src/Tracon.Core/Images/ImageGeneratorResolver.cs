@@ -27,13 +27,15 @@ internal sealed class ImageGeneratorResolver
     private readonly ITenantEgressPolicyStore? _egressPolicies;
     private readonly ITenantProviderBindingStore? _providerBindings;
     private readonly TenantProviderCredentialResolver? _credentialResolver;
+    private readonly IOptions<TraconTenantProviderOptions>? _tenantProviderOptions;
 
     public ImageGeneratorResolver(
         IServiceProvider services,
         IOptions<TraconImageOptions> options,
         ITenantEgressPolicyStore? egressPolicies = null,
         ITenantProviderBindingStore? providerBindings = null,
-        TenantProviderCredentialResolver? credentialResolver = null)
+        TenantProviderCredentialResolver? credentialResolver = null,
+        IOptions<TraconTenantProviderOptions>? tenantProviderOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
@@ -43,6 +45,7 @@ internal sealed class ImageGeneratorResolver
         _egressPolicies = egressPolicies;
         _providerBindings = providerBindings;
         _credentialResolver = credentialResolver;
+        _tenantProviderOptions = tenantProviderOptions;
     }
 
     /// <summary>Returns the registered generator without a tenant check.</summary>
@@ -87,14 +90,18 @@ internal sealed class ImageGeneratorResolver
 
         if (providerName is { Length: > 0 })
         {
-            if (_egressPolicies is not null)
-            {
-                var policy = await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+            var requirePolicy = TenantProviderAccess.PolicyRequired(_tenantProviderOptions);
 
-                if (!TenantProviderAccess.IsAllowed(policy, providerName))
+            if (_egressPolicies is not null || requirePolicy)
+            {
+                var policy = _egressPolicies is null
+                    ? null
+                    : await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+
+                if (!TenantProviderAccess.IsAllowed(policy, providerName, requirePolicy))
                 {
                     throw new TraconTenantProviderRefusedException(
-                        TenantProviderAccess.DescribeDenial(policy!, tenantId, providerName, TenantProviderCallKind.Image));
+                        TenantProviderAccess.DescribeDenial(policy, tenantId, providerName, TenantProviderCallKind.Image));
                 }
             }
 

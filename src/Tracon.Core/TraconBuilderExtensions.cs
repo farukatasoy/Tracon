@@ -132,11 +132,20 @@ public static partial class TraconBuilderExtensions
     /// registered a content guard, in complete silence.
     /// </para>
     /// <para>
-    /// Six decisions are asked about: tenant separation, session ownership,
-    /// at-rest content protection, content inspection, request rate limiting
-    /// and retention. Each one is either answered by turning the feature on, or
-    /// accepted by name. Acceptance is per item and there is no way to accept
-    /// them all at once.
+    /// The decisions are the values of <see cref="TraconProductionRisk"/>: tenant
+    /// separation, session ownership, at-rest content protection, content
+    /// inspection, request rate limiting, retention, the endpoint role
+    /// policies, tool authorization, tenant egress, the tenant header and the
+    /// workflow slots one tenant may take. A decision a composition cannot have
+    /// (tenant egress with one tenant, for example) is reported as not
+    /// applicable and never stops the host. Each one is either answered by turning
+    /// the feature on, or accepted by name. Acceptance is per item and there is no
+    /// way to accept them all at once.
+    /// </para>
+    /// <para>
+    /// The endpoint role policies are known only once <c>MapTracon</c> has run, so
+    /// that decision is asked only of a host that called <c>MapTracon</c> before it
+    /// started. An embedded host with no HTTP surface is not asked.
     /// </para>
     /// <para>
     /// <strong>The set of decisions is a versioned contract.</strong> A later

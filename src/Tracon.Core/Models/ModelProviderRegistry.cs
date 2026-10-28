@@ -47,6 +47,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private readonly TraconMetrics? _metrics;
     private readonly IProviderRetryClassifier? _retryClassifier;
     private readonly IServiceProvider? _services;
+    private readonly IOptions<TraconTenantProviderOptions>? _tenantProviderOptions;
 
     /// <summary>Creates a new registry from the registered providers.</summary>
     /// <param name="providers">The model providers.</param>
@@ -105,6 +106,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// Resolves <see cref="IRunPricingResolver"/> for <see cref="RunBudgetChatClient"/>
     /// LAZILY, at pipeline-build time rather than here in the constructor.
     /// </param>
+    /// <param name="tenantProviderOptions">
+    /// The tenant provider options; <see cref="TraconTenantProviderOptions.RequireEgressPolicy"/>
+    /// decides whether a tenant with no egress policy may call a provider. If <see langword="null"/>,
+    /// no policy is required.
+    /// </param>
     /// <remarks>
     /// <para>
     /// <paramref name="services"/> is deliberately not a direct
@@ -133,7 +139,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         IDistributedCache? distributedCache = null,
         TraconMetrics? metrics = null,
         IProviderRetryClassifier? retryClassifier = null,
-        IServiceProvider? services = null)
+        IServiceProvider? services = null,
+        IOptions<TraconTenantProviderOptions>? tenantProviderOptions = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
@@ -151,6 +158,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         _metrics = metrics;
         _retryClassifier = retryClassifier;
         _services = services;
+        _tenantProviderOptions = tenantProviderOptions;
 
         foreach (var provider in providers)
         {
@@ -379,18 +387,25 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private async ValueTask EnsureEgressAllowedAsync(ModelBinding binding, string tenantId, CancellationToken cancellationToken)
     {
         // 🚨 Fallback links found by the independent audit of phase 65.
-        if (_tenantEgressPolicies is null)
+        var requirePolicy = TenantProviderAccess.PolicyRequired(_tenantProviderOptions);
+
+        // No store and no required policy: nothing to apply. With a policy required, a missing
+        // store is a tenant with no policy, which is refused (F-254).
+        if (_tenantEgressPolicies is null && !requirePolicy)
         {
             return;
         }
 
-        var policy = await _tenantEgressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+        var policy = _tenantEgressPolicies is null
+            ? null
+            : await _tenantEgressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
-        TenantProviderAccess.EnsureAllowed(policy, tenantId, binding.Provider);
+        TenantProviderAccess.EnsureAllowed(policy, tenantId, binding.Provider, requirePolicy);
 
         foreach (var fallback in binding.Fallbacks)
         {
-            TenantProviderAccess.EnsureAllowed(policy, tenantId, fallback.Provider, fallbackFor: binding.Provider);
+            TenantProviderAccess.EnsureAllowed(
+                policy, tenantId, fallback.Provider, requirePolicy, fallbackFor: binding.Provider);
         }
     }
 

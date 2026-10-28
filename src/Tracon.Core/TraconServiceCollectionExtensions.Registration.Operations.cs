@@ -115,8 +115,10 @@ public static partial class TraconServiceCollectionExtensions
         // Tenant provider bindings / BYOK (Phase 65). Same rationale: carries
         // its own section, requires no separate Use...() call. The default
         // prefix is restrictive on its own (section 65.2); no separate
-        // Enabled flag is needed.
-        services.AddOptions<TraconTenantProviderOptions>().ValidateOnStart();
+        // Enabled flag is needed. Phase 259: RequireEgressPolicy is a fail-closed
+        // switch, so a value the binder cannot read stops the host instead of
+        // leaving the switch off.
+        UnreadableConfigurationValidator.Add<TraconTenantProviderOptions>(services);
 
         // Inbound triggers (Phase 66). Same rationale as tenant providers:
         // carries its own section, requires no separate Use...() call. The

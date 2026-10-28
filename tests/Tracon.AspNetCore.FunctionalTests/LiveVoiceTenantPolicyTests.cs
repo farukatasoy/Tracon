@@ -50,6 +50,32 @@ public sealed class LiveVoiceTenantPolicyTests
     }
 
     [Fact]
+    public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_cannot_open_a_session()
+    {
+        // F-254: the live session launcher is one of the callers that must read the switch.
+        await using var provider = await FakeGptLiveServer.StartAsync();
+        await using var host = await LiveVoiceTests.StartAsync(
+            provider,
+            configureServices: static services => services.Configure<TraconTenantProviderOptions>(
+                static options => options.RequireEgressPolicy = true));
+
+        using var refused = await CreateAsync(host);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .ShouldContain("has no egress policy");
+        provider.CreateCallCount.ShouldBe(0, "the tenant's audio must not reach a provider the tenant has no policy for");
+
+        await host.Services.GetRequiredService<ITenantEgressPolicyStore>()
+            .UpsertAsync("default", ["openai", "echo"], TestContext.Current.CancellationToken);
+
+        using var opened = await CreateAsync(host);
+
+        opened.StatusCode.ShouldBe(HttpStatusCode.OK);
+        provider.CreateCallCount.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task A_tenant_whose_egress_policy_allows_the_live_provider_opens_a_session()
     {
         await using var provider = await FakeGptLiveServer.StartAsync();

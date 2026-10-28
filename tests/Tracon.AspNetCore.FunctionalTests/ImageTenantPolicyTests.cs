@@ -66,6 +66,30 @@ public sealed class ImageTenantPolicyTests
     }
 
     [Fact]
+    public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_is_refused_the_image_provider()
+    {
+        // F-254: the image resolver is one of the callers that must read the switch. A tenant with no
+        // policy row reached every provider before it.
+        var generator = new CountingImageGenerator();
+        await using var host = await StartAsync(
+            generator,
+            services => services.Configure<TraconTenantProviderOptions>(static options => options.RequireEgressPolicy = true));
+
+        using var refused = await host.Client.PostAsJsonAsync(GenerateUri, new { prompt = "a lighthouse" });
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await refused.Content.ReadAsStringAsync()).ShouldContain($"has no egress policy");
+        generator.Calls.ShouldBe(0, "the tenant's prompt must not reach a provider the tenant has no policy for");
+
+        await SavePolicyAsync(host, "anthropic", ImageProvider);
+
+        using var generated = await host.Client.PostAsJsonAsync(GenerateUri, new { prompt = "a lighthouse" });
+
+        generated.StatusCode.ShouldBe(HttpStatusCode.OK);
+        generator.Calls.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task The_endpoint_refuses_a_tenant_with_its_own_key_for_the_image_provider()
     {
         // The generator was built with the setup key and cannot use the

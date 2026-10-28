@@ -158,9 +158,8 @@ deliberate exemptions](/getting-started/security/#two-deliberate-exemptions).
 
 Turning on [`RequireProductionProfile()`](/concepts/governance/#requiring-a-production-decision)
 forces a deployment to answer — or explicitly accept, by name — the risks that a
-permissive default otherwise leaves open: single-tenant mode, unowned sessions,
-unencrypted content at rest, uninspected content, unlimited request rate, and
-unbounded retention.
+permissive default otherwise leaves open. The list is in [Make a production decision
+required](/guides/embedding/#make-a-production-decision-required).
 
 ## Read next
 

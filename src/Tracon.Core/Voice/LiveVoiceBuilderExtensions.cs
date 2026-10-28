@@ -127,7 +127,8 @@ public static class LiveVoiceBuilderExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<ITenantEgressPolicyStore>(),
             provider.GetService<ITenantProviderBindingStore>(),
-            provider.GetService<TenantProviderCredentialResolver>()));
+            provider.GetService<TenantProviderCredentialResolver>(),
+            provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, LiveVoiceShutdownService>());

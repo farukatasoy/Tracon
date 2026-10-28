@@ -157,7 +157,7 @@ public sealed class ProductionProfileValidatorTests
     {
         var logs = new RecordingLogger();
 
-        // No check at all: every one of the six risks is uncovered here.
+        // No check at all: every risk is uncovered here.
         var validator = Validator([Declaration()], logger: logs);
 
         await validator.StartAsync(TestContext.Current.CancellationToken);
@@ -270,6 +270,7 @@ public sealed class ProductionProfileValidatorTests
         var validator = new ProductionProfileValidator(
             [Declaration()],
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new LateProductionProfileChecks(),
             NullLogger<ProductionProfileValidator>.Instance);
 
         var exception = await Should.ThrowAsync<InvalidOperationException>(
@@ -284,6 +285,63 @@ public sealed class ProductionProfileValidatorTests
         // Proves the scope is real rather than a provider that allows anything:
         // the same resolve from the ROOT is rejected by ValidateScopes.
         Should.Throw<InvalidOperationException>(() => provider.GetRequiredService<ScopedDependency>());
+    }
+
+    [Fact]
+    public async Task A_check_added_after_the_container_was_built_is_asked_like_a_registered_one()
+    {
+        // MapTracon knows which role policies exist only after Build(), so its answer arrives through
+        // LateProductionProfileChecks. The validator has to read it, or the decision is never asked.
+        var late = new LateProductionProfileChecks();
+        late.Add(Permissive(TraconProductionRisk.UnregisteredRolePolicies));
+
+        var validator = Validator([Declaration()], late, logger: null);
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await validator.StartAsync(TestContext.Current.CancellationToken));
+
+        exception.Message.ShouldContain(nameof(TraconProductionRisk.UnregisteredRolePolicies));
+        exception.Message.ShouldContain("1 production decision is");
+    }
+
+    [Fact]
+    public async Task The_strictest_answer_wins_between_a_registered_check_and_a_late_one()
+    {
+        var late = new LateProductionProfileChecks();
+        late.Add(Permissive(TraconProductionRisk.UnregisteredRolePolicies));
+
+        var validator = Validator(
+            [Declaration()],
+            late,
+            logger: null,
+            new StubCheck(
+                TraconProductionRisk.UnregisteredRolePolicies,
+                ProductionProfileResult.Satisfied("a registered check")));
+
+        await Should.ThrowAsync<InvalidOperationException>(
+            async () => await validator.StartAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task A_late_check_does_not_stop_a_host_that_declared_no_profile()
+    {
+        var late = new LateProductionProfileChecks();
+        late.Add(Permissive(TraconProductionRisk.UnregisteredRolePolicies));
+
+        // No declaration: the scope factory throws if it is opened, and the late list is not read.
+        await Validator([], late, logger: null).StartAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Late_checks_can_be_added_from_many_threads_without_losing_one()
+    {
+        var late = new LateProductionProfileChecks();
+
+        await Task.WhenAll(Enumerable.Range(0, 64).Select(_ => Task.Run(
+            () => late.Add(Permissive(TraconProductionRisk.UnregisteredRolePolicies)),
+            TestContext.Current.CancellationToken)));
+
+        late.Snapshot().Count.ShouldBe(64);
     }
 
     private static ProductionProfileRegistration Declaration(params TraconProductionRisk[] accepted)
@@ -315,6 +373,13 @@ public sealed class ProductionProfileValidatorTests
         IEnumerable<ProductionProfileRegistration> registrations,
         RecordingLogger? logger,
         params IProductionProfileCheck[] checks)
+        => Validator(registrations, new LateProductionProfileChecks(), logger, checks);
+
+    private static ProductionProfileValidator Validator(
+        IEnumerable<ProductionProfileRegistration> registrations,
+        LateProductionProfileChecks late,
+        RecordingLogger? logger,
+        params IProductionProfileCheck[] checks)
     {
         var declared = registrations.ToArray();
 
@@ -325,6 +390,7 @@ public sealed class ProductionProfileValidatorTests
         return new ProductionProfileValidator(
             declared,
             scopeFactory,
+            late,
             (ILogger<ProductionProfileValidator>?)logger ?? NullLogger<ProductionProfileValidator>.Instance);
     }
 

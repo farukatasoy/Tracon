@@ -269,6 +269,14 @@ release can deliberately stop a host that used to start.
 | What happens to a host that does not call the method? | Nothing. Every default stays exactly where it was; the profile changes no setting |
 | Does accepting a risk survive the upgrade? | Yes. An accept names one risk and keeps applying to that risk alone |
 
+The set has grown since the first release that carried it, and each growth was announced
+this way. The decisions added after the first six (tenant separation, session ownership,
+at-rest content protection, content inspection, request rate limiting and retention) are
+`UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
+`UnverifiedTenantHeader` and `UnlimitedTenantWorkflows`; `CHANGELOG.md` gives the reason for
+each. The current list is the one table in [Make a production decision
+required](/guides/embedding/#make-a-production-decision-required).
+
 Read that cost before adopting the method. A deployment that wants its production
 decisions pinned rather than re-asked should pin the package version, not avoid the
 gate: the alternative is a new decision arriving in silence, which is the thing the

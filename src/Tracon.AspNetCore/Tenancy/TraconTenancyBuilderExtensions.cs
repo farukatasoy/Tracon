@@ -68,6 +68,13 @@ public static class TraconTenancyBuilderExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IProductionProfileCheck, TenancyResolutionProfileCheck>());
 
+        // Phase 259: whether the request's header can name the tenant unverified is the same kind of
+        // question (only this package sees the setting), and the core's egress check asks the switch
+        // below whether tenants are separated, because Enabled=false still binds HttpTenantContext.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProductionProfileCheck, TenantHeaderProfileCheck>());
+        services.TryAddSingleton<ITenantResolutionSwitch, TenantResolutionSwitch>();
+
         return builder;
     }
 }

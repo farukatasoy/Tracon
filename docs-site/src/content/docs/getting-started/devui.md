@@ -63,8 +63,9 @@ own process. You still own authentication, model providers, storage, and outboun
 connections.
 
 **Most governance features start switched off.** Tenancy, rate limiting, retention, and
-at-rest protection are opt-in. `RequireProductionProfile()` turns each of those into a
-decision you make at startup rather than one you discover later.
+at-rest protection are opt-in. `RequireProductionProfile()` turns each of those, and the
+other production decisions, into a decision you make at startup rather than one you
+discover later.
 
 ## Read next
 

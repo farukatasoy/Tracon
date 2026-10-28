@@ -17,7 +17,7 @@ Off by default. Turned on, the tenant is resolved in a fixed order:
 ```mermaid
 flowchart TD
     accTitle: Tenant resolution order
-    accDescr: Tracon first uses an API key tenant, then configured claim or header tenancy, and otherwise resolves the built-in default tenant.
+    accDescr: Tracon first uses an API key tenant, then configured claim or header tenancy, and otherwise resolves the built-in default tenant. A value that is sent but malformed, or not on the allow-list, is refused.
     K{"authenticated with an API key?"} -->|yes| KT["the key's tenant"]
     K -->|no| S{"tenancy enabled?"}
     S -->|no| D["default tenant"]
@@ -28,10 +28,14 @@ flowchart TD
     C -->|no| H{"header resolution allowed?"}
     H -->|yes| HD["the header's value"]
     H -->|no| D
-    CL --> V{"valid format · allowlisted?"}
-    HD --> V
+    CL --> F{"value sent?"}
+    HD --> F
+    F -->|no| D
+    F -->|yes| M{"valid format?"}
+    M -->|"no: header 400 · claim 403"| X["refused"]
+    M -->|yes| V{"on the allow-list, when one is set?"}
     V -->|yes| T["tenant resolved"]
-    V -->|no| D
+    V -->|"no: 403"| X
 ```
 
 Two rules are worth reading twice.
@@ -47,11 +51,23 @@ path also has to be enabled explicitly — an HTTP header is not proof of identi
 ### What a tenant identifier may be
 
 A tenant identifier matches `^[a-zA-Z0-9_.-]+$` and is at most 64 characters. A
-value that does not match is never resolved, and the request **falls to the
-default tenant** — the allow-list does not catch it, because the allow-list
-only sees values that passed the format check. Treat a malformed header as a
-request that reaches the default tenant, not as one that is refused: if that
-matters to you, reject it in front of Tracon.
+value that is **sent** and does not match is refused, not resolved: a malformed
+header answers `400` (`Tenant header malformed`), and a malformed claim of an
+authenticated identity answers `403` (`Tenant claim malformed`), because the
+client cannot correct a claim its identity provider issued. On the endpoints
+Tracon maps, the request is never downgraded to the default tenant, and the
+response never repeats the value. The check applies while tenancy is on and the
+value source is active: with a claim type set the header is not read, so it
+cannot be malformed.
+
+The check lives in Tracon's endpoint filter. An endpoint you map yourself that
+reads `ITenantContext` still resolves a malformed value to the default tenant:
+check the value with `HttpTenantContext.IsValidTenantId` before it reaches that
+endpoint, or reject it in front of Tracon.
+
+A value that is **not sent** is not malformed. No header, an empty header and a
+missing claim still resolve to the default tenant. Authentication comes first: a
+caller who is not authenticated gets `401`, whatever the tenant value.
 
 **Letter case does not distinguish two tenants.** `acme`, `Acme` and `ACME` are
 one tenant. Tracon reaches that by folding the *value* to invariant lower case
@@ -164,8 +180,13 @@ administrator writes one, and a binding whose configuration key carries no value
 not fall back to the shared key silently — the run fails with a clear error, so a
 misconfigured tenant is never billed against the wrong account.
 
-An egress policy narrows which providers a tenant's agents may call at all. A tenant
-with no saved policy is unrestricted; saving one is an additive restriction. Naming a
+An egress policy narrows which providers a tenant's agents may call at all. By default a tenant
+with no saved policy is unrestricted; saving one is an additive restriction. A
+multi-tenant deployment can close that gap with `Tracon:TenantProviders:RequireEgressPolicy`
+(default `false`): turned on, a tenant with no policy calls **no** provider, on every path below,
+and the default tenant needs a policy row like any other. An empty policy still forbids everything,
+and a tenant that has a policy is judged by its list alone. This is the answer to the
+`UnrestrictedTenantEgress` decision of [`RequireProductionProfile()`](/guides/embedding/#make-a-production-decision-required). Naming a
 forbidden provider in an agent definition is rejected **at compile time** — before any
 request reaches the network — and writing a credential binding for a forbidden
 provider is rejected too, so the two surfaces cannot disagree.
@@ -186,7 +207,7 @@ See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-
 
 Knowledge base embedding calls obey the policy too: an upload, a knowledge search and
 the `search_knowledge` tool check the provider that `Tracon:Knowledge:EmbeddingProvider`
-names. A tenant with a policy is refused when that provider is not named, and a tenant
+names. A tenant with a policy (or, with `RequireEgressPolicy` on, any tenant) is refused when that provider is not named, and a tenant
 with its own key for it is refused rather than billed to the host. See
 [the knowledge guide](/guides/knowledge/#register-the-two-required-dependencies).
 
@@ -817,10 +838,11 @@ builder.AddTracon()
 ```
 
 It **changes no setting**. It sets no value, chooses no policy and turns nothing on;
-the only thing it does is turn a skipped decision into a startup failure. Six
-decisions are asked about — tenant separation, session ownership, at-rest content
-protection, content inspection, request rate limiting and retention — and each is
-either answered by turning the feature on or accepted by name. Accepting is per
+the only thing it does is turn a skipped decision into a startup failure. The
+decisions are listed once, in [Make a production decision
+required](/guides/embedding/#make-a-production-decision-required), and each is either
+answered by turning the feature on or accepted by name. A decision the composition
+cannot have is reported as not applicable and never stops the host. Accepting is per
 item, so each accepted risk is one reviewable line, and every accept is written to
 the log at information level each time the host starts.
 

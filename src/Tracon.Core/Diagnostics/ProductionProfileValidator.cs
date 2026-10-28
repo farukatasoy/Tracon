@@ -44,6 +44,7 @@ internal sealed record ProductionProfileRegistration(TraconProductionProfileOpti
 internal sealed class ProductionProfileValidator(
     IEnumerable<ProductionProfileRegistration> registrations,
     IServiceScopeFactory scopeFactory,
+    LateProductionProfileChecks lateChecks,
     ILogger<ProductionProfileValidator> logger) : IHostedService
 {
     /// <inheritdoc />
@@ -79,7 +80,12 @@ internal sealed class ProductionProfileValidator(
         // reject.
         using var scope = scopeFactory.CreateScope();
 
-        var checks = scope.ServiceProvider.GetServices<IProductionProfileCheck>().ToArray();
+        // The container's checks, then the ones a step after Build() contributed
+        // (MapTracon: which role policies are registered is known only there).
+        // Both go through the same strictest-answer rule below.
+        var checks = scope.ServiceProvider.GetServices<IProductionProfileCheck>()
+            .Concat(lateChecks.Snapshot())
+            .ToArray();
         var open = new List<(TraconProductionRisk Risk, ProductionProfileResult Result)>();
 
         foreach (var risk in Enum.GetValues<TraconProductionRisk>())

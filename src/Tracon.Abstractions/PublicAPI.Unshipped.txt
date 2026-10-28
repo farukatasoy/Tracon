@@ -3774,10 +3774,15 @@ Tracon.TraconPreflightOptions.TraconPreflightOptions() -> void
 Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.SingleTenant = 0 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnboundedRetention = 5 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UncheckedToolCalls = 7 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnencryptedContentAtRest = 2 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UninspectedContent = 3 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnlimitedRequestRate = 4 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnlimitedTenantWorkflows = 10 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnownedSessions = 1 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnregisteredRolePolicies = 6 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnrestrictedTenantEgress = 8 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnverifiedTenantHeader = 9 -> Tracon.TraconProductionRisk
 Tracon.TraconProviderUnavailableException
 Tracon.TraconProviderUnavailableException.ProviderName.get -> string?
 Tracon.TraconProviderUnavailableException.ProviderName.init -> void
@@ -3869,6 +3874,8 @@ Tracon.TraconStructuredResponseException.TraconStructuredResponseException(strin
 Tracon.TraconTenantProviderOptions
 Tracon.TraconTenantProviderOptions.AllowedConfigurationPrefix.get -> string!
 Tracon.TraconTenantProviderOptions.AllowedConfigurationPrefix.set -> void
+Tracon.TraconTenantProviderOptions.RequireEgressPolicy.get -> bool
+Tracon.TraconTenantProviderOptions.RequireEgressPolicy.set -> void
 Tracon.TraconTenantProviderOptions.TraconTenantProviderOptions() -> void
 Tracon.TraconToolAttribute
 Tracon.TraconToolAttribute.Description.get -> string?

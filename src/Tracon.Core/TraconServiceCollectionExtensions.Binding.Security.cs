@@ -76,6 +76,13 @@ public static partial class TraconServiceCollectionExtensions
         {
             options.AllowedConfigurationPrefix = prefix;
         }
+
+        var read = ConfigurationValueReader.For(section, options);
+
+        read.Boolean(
+            nameof(TraconTenantProviderOptions.RequireEgressPolicy),
+            static o => o.RequireEgressPolicy,
+            static (o, v) => o.RequireEgressPolicy = v);
     }
 
     /// <summary>Binds the <c>Tracon:InboundTriggers</c> section.</summary>

@@ -50,19 +50,6 @@ public sealed class TenancyTests
     }
 
     [Fact]
-    public async Task Malformed_tenant_falls_back_to_default()
-    {
-        await using var host = await TraconTestHost.StartAsync(
-            static builder => builder.UseTenancy(static options =>
-            {
-                options.Enabled = true;
-                options.AllowHeaderResolution = true;
-            }));
-
-        (await ReadTenantAsync(host, header: "tenant b/../admin")).ShouldBe("default");
-    }
-
-    [Fact]
     public async Task A_tenant_outside_the_allowlist_does_NOT_fall_back_to_default()
     {
         // When the allowlist is populated, a value not on the list must not

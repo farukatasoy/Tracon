@@ -301,6 +301,7 @@ Tracon:Sqlite:TablePrefix
 Tracon:StructuredResponse:Enabled
 Tracon:StructuredResponse:MaxRepairAttempts
 Tracon:TenantProviders:AllowedConfigurationPrefix
+Tracon:TenantProviders:RequireEgressPolicy
 Tracon:Tools:AllowUnverifiedToolRegistry
 Tracon:Tools:ApprovalPresentationTimeout
 Tracon:Tools:DefaultMaxOutputBytes

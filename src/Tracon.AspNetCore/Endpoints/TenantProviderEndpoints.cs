@@ -81,7 +81,8 @@ internal static class TenantProviderEndpoints
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Returns a tenant's model provider egress policy.")
             .WithDescription(
-                "'allowedProviders: null' means the tenant is UNRESTRICTED (no policy saved); " +
+                "'allowedProviders: null' means no policy is saved: the tenant is UNRESTRICTED, unless " +
+                "Tracon:TenantProviders:RequireEgressPolicy is on, which makes it call NO provider; " +
                 "an empty or populated array means the tenant may call only those providers. " +
                 "A tenant other than the caller's own requires platform authority (403 otherwise).");
 
@@ -95,10 +96,11 @@ internal static class TenantProviderEndpoints
             .Accepts<TenantEgressPolicyRequest>("application/json")
             .WithDescription(
                 "Saving a policy is an ADDITIVE restriction: a tenant with no policy is " +
-                "unrestricted, and this call is the only way that changes. An agent definition " +
+                "unrestricted (or, with Tracon:TenantProviders:RequireEgressPolicy on, may call no " +
+                "provider), and this call is the way that changes. An agent definition " +
                 "naming a provider outside the saved list is rejected at compile time, not only " +
                 "at call time. An empty 'allowedProviders' array allows NO provider — it is not " +
-                "the same as having no policy; use DELETE to return to unrestricted. " +
+                "the same as having no policy; use DELETE to remove the policy. " +
                 "The 'tenantId' route value is folded to lower case before the policy is saved, " +
                 "so a policy written for 'Acme' is the policy the runtime finds for 'acme'. " +
                 "A tenant other than the caller's own requires platform authority (403 otherwise).");
@@ -111,8 +113,9 @@ internal static class TenantProviderEndpoints
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Deletes a tenant's egress policy.")
             .WithDescription(
-                "After deletion the tenant is unrestricted again — the same state as before any " +
-                "policy was ever saved. A tenant other than the caller's own requires platform " +
+                "After deletion the tenant has no policy again — the same state as before any " +
+                "policy was ever saved: unrestricted, or, with Tracon:TenantProviders:RequireEgressPolicy " +
+                "on, able to call no provider. A tenant other than the caller's own requires platform " +
                 "authority (403 otherwise).");
     }
 
@@ -141,6 +144,7 @@ internal static class TenantProviderEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IOptionsMonitor<TraconEgressOptions> egressOptions,
+        [FromServices] IOptions<TraconTenantProviderOptions> providerOptions,
         [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
@@ -201,9 +205,11 @@ internal static class TenantProviderEndpoints
 
         var policy = await egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
-        if (!TenantProviderAccess.IsAllowed(policy, provider))
+        var requirePolicy = TenantProviderAccess.PolicyRequired(providerOptions);
+
+        if (!TenantProviderAccess.IsAllowed(policy, provider, requirePolicy))
         {
-            return Invalid(TenantProviderAccess.DescribeDenial(policy!, tenantId, provider));
+            return Invalid(TenantProviderAccess.DescribeDenial(policy, tenantId, provider));
         }
 
         var binding = new TenantProviderBinding
@@ -460,10 +466,10 @@ internal sealed record TenantEgressPolicyResponse
 
     [Description(
         "Gets the closed set of allowed provider names, or `null`\n" +
-        "when the tenant is unrestricted (no policy saved).")]
+        "when no policy is saved (unrestricted, unless the host requires a policy).")]
     public IReadOnlyList<string>? AllowedProviders { get; init; }
 
-    [Description("Gets the time the policy was last written; `null` when unrestricted.")]
+    [Description("Gets the time the policy was last written; `null` when no policy is saved.")]
     public DateTimeOffset? UpdatedAt { get; init; }
 }
 

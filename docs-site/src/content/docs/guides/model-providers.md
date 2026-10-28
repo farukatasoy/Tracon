@@ -541,7 +541,9 @@ curl -X PUT "http://localhost:5081/tracon/api/tenants/acme/egress" \
 ```
 
 A tenant with no saved policy is unrestricted — saving one is an additive
-restriction, not a default wall. An agent definition naming a provider outside the
+restriction, not a default wall — unless the host sets
+`Tracon:TenantProviders:RequireEgressPolicy` to `true`: then a tenant with no policy
+calls no provider, and a binding cannot be saved for it. An agent definition naming a provider outside the
 saved list is rejected **at compile time**, before any request reaches the network;
 the same check also protects `PUT .../providers/{provider}` itself, so both surfaces
 agree. The console's Settings screen exposes both panels; no field there accepts a
@@ -887,7 +889,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
 | Fallback chain | Empty; an unavailable primary throws, same as before this feature existed |
 | Tenant provider binding | None; every tenant uses the global setup-time credential until one is saved |
-| Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall |
+| Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall. `Tracon:TenantProviders:RequireEgressPolicy` (default `false`) turns a missing policy into a refusal |
 | Allowed configuration prefix for a binding | `Tracon:ProviderKeys:{tenant}:`; a flat name belongs to the default tenant, and any other name is rejected with `400` |
 | Response cache | Off; a binding with `ResponseCache.Enabled = true` and no registered `IDistributedCache` fails to compile |
 | Response cache lifetime | 10 minutes, when caching is enabled |

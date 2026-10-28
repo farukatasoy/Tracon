@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -30,6 +31,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
     private readonly IReadOnlyList<SpeechProviderRegistration> _registrations;
     private readonly ITenantContext _tenantContext;
     private readonly ITenantEgressPolicyStore? _egressPolicies;
+    private readonly IOptions<TraconTenantProviderOptions>? _tenantProviderOptions;
     private readonly ITenantProviderBindingStore? _providerBindings;
     private readonly TenantProviderCredentialResolver? _credentialResolver;
 
@@ -39,7 +41,8 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
         ITenantContext tenantContext,
         ITenantEgressPolicyStore? egressPolicies,
         ITenantProviderBindingStore? providerBindings,
-        TenantProviderCredentialResolver? credentialResolver)
+        TenantProviderCredentialResolver? credentialResolver,
+        IOptions<TraconTenantProviderOptions>? tenantProviderOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(registrations);
@@ -53,6 +56,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
         _egressPolicies = egressPolicies;
         _providerBindings = providerBindings;
         _credentialResolver = credentialResolver;
+        _tenantProviderOptions = tenantProviderOptions;
     }
 
     /// <inheritdoc />
@@ -248,14 +252,18 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
     {
         var tenantId = TraconRunContext.Current?.TenantId ?? _tenantContext.TenantId;
 
-        if (_egressPolicies is not null)
-        {
-            var policy = await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+        var requirePolicy = TenantProviderAccess.PolicyRequired(_tenantProviderOptions);
 
-            if (!TenantProviderAccess.IsAllowed(policy, providerName))
+        if (_egressPolicies is not null || requirePolicy)
+        {
+            var policy = _egressPolicies is null
+                ? null
+                : await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+
+            if (!TenantProviderAccess.IsAllowed(policy, providerName, requirePolicy))
             {
                 throw new TraconTenantProviderRefusedException(
-                    TenantProviderAccess.DescribeDenial(policy!, tenantId, providerName, TenantProviderCallKind.Speech));
+                    TenantProviderAccess.DescribeDenial(policy, tenantId, providerName, TenantProviderCallKind.Speech));
             }
         }
 

@@ -3,6 +3,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Architecture;
 
@@ -75,6 +76,7 @@ public sealed class CompiledAgentCacheKeyCoverageTests
         [typeof(IEnumerable<TraconLoopEvaluatorRegistration>)] = "process: criteria registered in code",
         [typeof(IEnumerable<IAgentExtension>)] = "process: extensions registered in code; the names a definition selects are part of the definition, so they enter the key (Phase 222, AgentDefinitionCacheInvalidationTests)",
         [typeof(ModelRunJudgeOptions)] = "process: judge binding from IOptions",
+        [typeof(IOptions<TraconTenantProviderOptions>)] = "process: RequireEgressPolicy is read from IOptions, so it is fixed when the host starts (F-254, TenantProviderEgressRequiredTests); a value that reloaded would need to enter the key like the policy does",
     };
 
     [Fact]

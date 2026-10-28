@@ -82,6 +82,11 @@ public static class TraconEndpointRouteBuilderExtensions
         // three-layer protection (legacy behavior).
         var roles = TraconRolePolicies.Resolve(services, options);
 
+        // Phase 259: the same answer is a production decision (UnregisteredRolePolicies). It is known
+        // only here, after Build(), so it joins the profile checks the container registered instead of
+        // being asked a second time. Nothing reads it unless the host called RequireProductionProfile.
+        services.GetService<LateProductionProfileChecks>()?.Add(new RolePolicyProfileCheck(roles));
+
         // Meta group: no authentication, no filter.
         var metaGroup = endpoints.MapGroup(normalizedPrefix).WithTags("Tracon");
         MetaEndpoints.Map(metaGroup, options, normalizedPrefix, roles);

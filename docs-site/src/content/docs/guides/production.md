@@ -72,14 +72,17 @@ var tracon = builder.AddTracon()
         .Accept(TraconProductionRisk.SingleTenant));
 ```
 
-It changes no setting and secures nothing by itself. It asks about six decisions —
-tenant separation, session ownership, at-rest content protection, content
-inspection, request rate limiting and retention — and refuses to start while one of
-them is still on its permissive default and you have not accepted the risk by name.
-The startup failure names every open decision at once, what it is today, and how to
-answer it.
+It changes no setting and secures nothing by itself. It asks about the production
+decisions listed in [Make a production decision required](/guides/embedding/#make-a-production-decision-required)
+and refuses to start while one of them is still on its permissive default and you
+have not accepted the risk by name. The startup failure names every open decision at
+once, what it is today, and how to answer it. A decision your composition cannot have
+is reported as not applicable and never stops the host: tenant egress, the tenant
+header and the workflow slots one tenant may take are asked only when tenants are
+separated, and the endpoint role policies only of a host that mapped the Tracon
+endpoints before it started.
 
-Accepting is per item on purpose: there is no way to accept all six at once, so each
+Accepting is per item on purpose: there is no way to accept them all at once, so each
 accepted risk is one line a reviewer can see. An accepted risk is written to the log
 at information level, by name, every time the host starts.
 
@@ -344,14 +347,16 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node or a tool call from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
+| Tenant egress policy | A tenant with no egress policy may call every provider the deployment has | In a multi-tenant host set `Tracon:TenantProviders:RequireEgressPolicy` to `true` and save a policy for each tenant, the default tenant included: a tenant without one then calls no provider, and a provider binding cannot be saved for it. A tenant with a policy is judged by its list alone |
 
-Six of these rows — multi-tenancy, session ownership, at-rest content encryption,
-content inspection, request rate limiting and retention defaults — can be enforced
-rather than remembered. `RequireProductionProfile()` turns a skipped one into a
-failed startup; see [Start from a production
-registration](#start-from-a-production-registration). The other rows stay a reading
-exercise: their defaults are already the strict ones, or the binding gate
-(`RequireCustomBinding<T>()`) already covers them.
+Several of these rows — multi-tenancy, session ownership, at-rest content encryption,
+content inspection, request rate limiting, retention defaults, the workflow runs per
+tenant and the egress policy of a tenant — can be enforced rather than remembered. `RequireProductionProfile()`
+turns a skipped one into a failed startup; the full list is in [Make a production
+decision required](/guides/embedding/#make-a-production-decision-required), and the start is
+described in [Start from a production registration](#start-from-a-production-registration). The
+other rows stay a reading exercise: their defaults are already the strict ones, or
+the binding gate (`RequireCustomBinding<T>()`) already covers them.
 
 ## Upgrading a deployment
 
@@ -706,7 +711,7 @@ scaled without a matching quota.
 - [ ] Answer every row of [Production-sensitive defaults](#production-sensitive-defaults) on
       purpose. Multi-tenancy, session ownership, rate limiting, at-rest encryption, and content
       inspection are each off until you turn them on, and session ownership is not retroactive.
-- [ ] Call `RequireProductionProfile()` so those six decisions cannot be skipped in
+- [ ] Call `RequireProductionProfile()` so those decisions cannot be skipped in
       silence, and accept by name the ones this deployment carries deliberately.
 - [ ] Configure trusted proxy headers and TLS without relying on loopback identity.
 - [ ] Choose combined or split workers and calculate cluster-wide concurrency.

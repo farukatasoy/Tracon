@@ -227,7 +227,7 @@ experiment, and automatic rollback is off until you configure it.
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `TraconEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
-| Production profile gate | `RequireProductionProfile()` | Off by default, and it changes no setting and secures nothing by itself. It refuses to start the host while tenant separation, session ownership, at-rest protection, content inspection, rate limiting, or retention is still on its permissive default and the risk has not been accepted by name |
+| Production profile gate | `RequireProductionProfile()` | Off by default, and it changes no setting and secures nothing by itself. It refuses to start the host while any of its production decisions is still on its permissive default and the risk has not been accepted by name; [the decisions are listed here](/guides/embedding/#make-a-production-decision-required) |
 
 An API-key scope never grants a role. Effective authority is the intersection of the
 caller's role and key scopes. See the complete scope table in
@@ -1733,7 +1733,7 @@ Off by default. Turned on, the tenant is resolved in a fixed order:
 ```mermaid
 flowchart TD
     accTitle: Tenant resolution order
-    accDescr: Tracon first uses an API key tenant, then configured claim or header tenancy, and otherwise resolves the built-in default tenant.
+    accDescr: Tracon first uses an API key tenant, then configured claim or header tenancy, and otherwise resolves the built-in default tenant. A value that is sent but malformed, or not on the allow-list, is refused.
     K{"authenticated with an API key?"} -->|yes| KT["the key's tenant"]
     K -->|no| S{"tenancy enabled?"}
     S -->|no| D["default tenant"]
@@ -1744,10 +1744,14 @@ flowchart TD
     C -->|no| H{"header resolution allowed?"}
     H -->|yes| HD["the header's value"]
     H -->|no| D
-    CL --> V{"valid format · allowlisted?"}
-    HD --> V
+    CL --> F{"value sent?"}
+    HD --> F
+    F -->|no| D
+    F -->|yes| M{"valid format?"}
+    M -->|"no: header 400 · claim 403"| X["refused"]
+    M -->|yes| V{"on the allow-list, when one is set?"}
     V -->|yes| T["tenant resolved"]
-    V -->|no| D
+    V -->|"no: 403"| X
 ```
 
 Two rules are worth reading twice.
@@ -1763,11 +1767,23 @@ path also has to be enabled explicitly — an HTTP header is not proof of identi
 ### What a tenant identifier may be
 
 A tenant identifier matches `^[a-zA-Z0-9_.-]+$` and is at most 64 characters. A
-value that does not match is never resolved, and the request **falls to the
-default tenant** — the allow-list does not catch it, because the allow-list
-only sees values that passed the format check. Treat a malformed header as a
-request that reaches the default tenant, not as one that is refused: if that
-matters to you, reject it in front of Tracon.
+value that is **sent** and does not match is refused, not resolved: a malformed
+header answers `400` (`Tenant header malformed`), and a malformed claim of an
+authenticated identity answers `403` (`Tenant claim malformed`), because the
+client cannot correct a claim its identity provider issued. On the endpoints
+Tracon maps, the request is never downgraded to the default tenant, and the
+response never repeats the value. The check applies while tenancy is on and the
+value source is active: with a claim type set the header is not read, so it
+cannot be malformed.
+
+The check lives in Tracon's endpoint filter. An endpoint you map yourself that
+reads `ITenantContext` still resolves a malformed value to the default tenant:
+check the value with `HttpTenantContext.IsValidTenantId` before it reaches that
+endpoint, or reject it in front of Tracon.
+
+A value that is **not sent** is not malformed. No header, an empty header and a
+missing claim still resolve to the default tenant. Authentication comes first: a
+caller who is not authenticated gets `401`, whatever the tenant value.
 
 **Letter case does not distinguish two tenants.** `acme`, `Acme` and `ACME` are
 one tenant. Tracon reaches that by folding the *value* to invariant lower case
@@ -1880,8 +1896,13 @@ administrator writes one, and a binding whose configuration key carries no value
 not fall back to the shared key silently — the run fails with a clear error, so a
 misconfigured tenant is never billed against the wrong account.
 
-An egress policy narrows which providers a tenant's agents may call at all. A tenant
-with no saved policy is unrestricted; saving one is an additive restriction. Naming a
+An egress policy narrows which providers a tenant's agents may call at all. By default a tenant
+with no saved policy is unrestricted; saving one is an additive restriction. A
+multi-tenant deployment can close that gap with `Tracon:TenantProviders:RequireEgressPolicy`
+(default `false`): turned on, a tenant with no policy calls **no** provider, on every path below,
+and the default tenant needs a policy row like any other. An empty policy still forbids everything,
+and a tenant that has a policy is judged by its list alone. This is the answer to the
+`UnrestrictedTenantEgress` decision of [`RequireProductionProfile()`](/guides/embedding/#make-a-production-decision-required). Naming a
 forbidden provider in an agent definition is rejected **at compile time** — before any
 request reaches the network — and writing a credential binding for a forbidden
 provider is rejected too, so the two surfaces cannot disagree.
@@ -1902,7 +1923,7 @@ See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-
 
 Knowledge base embedding calls obey the policy too: an upload, a knowledge search and
 the `search_knowledge` tool check the provider that `Tracon:Knowledge:EmbeddingProvider`
-names. A tenant with a policy is refused when that provider is not named, and a tenant
+names. A tenant with a policy (or, with `RequireEgressPolicy` on, any tenant) is refused when that provider is not named, and a tenant
 with its own key for it is refused rather than billed to the host. See
 [the knowledge guide](/guides/knowledge/#register-the-two-required-dependencies).
 
@@ -2533,10 +2554,11 @@ builder.AddTracon()
 ```
 
 It **changes no setting**. It sets no value, chooses no policy and turns nothing on;
-the only thing it does is turn a skipped decision into a startup failure. Six
-decisions are asked about — tenant separation, session ownership, at-rest content
-protection, content inspection, request rate limiting and retention — and each is
-either answered by turning the feature on or accepted by name. Accepting is per
+the only thing it does is turn a skipped decision into a startup failure. The
+decisions are listed once, in [Make a production decision
+required](/guides/embedding/#make-a-production-decision-required), and each is either
+answered by turning the feature on or accepted by name. A decision the composition
+cannot have is reported as not applicable and never stops the host. Accepting is per
 item, so each accepted risk is one reviewable line, and every accept is written to
 the log at information level each time the host starts.
 
@@ -5977,8 +5999,9 @@ own process. You still own authentication, model providers, storage, and outboun
 connections.
 
 **Most governance features start switched off.** Tenancy, rate limiting, retention, and
-at-rest protection are opt-in. `RequireProductionProfile()` turns each of those into a
-decision you make at startup rather than one you discover later.
+at-rest protection are opt-in. `RequireProductionProfile()` turns each of those, and the
+other production decisions, into a decision you make at startup rather than one you
+discover later.
 
 ## Read next
 
@@ -7039,9 +7062,9 @@ model](/reference/threat-model/).
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout)
-- [ ] `RequireProductionProfile()` is called, so tenant separation, session ownership,
-      at-rest protection, content inspection, rate limiting and retention cannot be skipped
-      in silence — see
+- [ ] `RequireProductionProfile()` is called, so the production decisions (tenant
+      separation, role policies, tool authorization, tenant egress and the rest) cannot be
+      skipped in silence — see
       [Make a production decision required](/guides/embedding/#make-a-production-decision-required)
 
 ## Read next
@@ -11144,8 +11167,9 @@ builder.AddTracon()
         .Accept(TraconProductionRisk.SingleTenant));
 ```
 
-Six decisions are asked about, and each is either answered by turning the feature on
-or accepted by name:
+These decisions are asked about, and each is either answered by turning the feature on
+or accepted by name. This table is the one list; other pages point here rather than
+repeat it:
 
 | Risk | What the permissive default means | Answer it with |
 |---|---|---|
@@ -11155,6 +11179,26 @@ or accepted by name:
 | `UninspectedContent` | No prompt or response is inspected | `AddPatternContentGuard(...)` or `AddContentGuard<TGuard>()` |
 | `UnlimitedRequestRate` | One caller can take the whole model budget | `Tracon:RateLimit:Enabled` |
 | `UnboundedRetention` | Nothing is ever deleted | `Tracon:Retention:Enabled`, or a policy per target |
+| `UnregisteredRolePolicies` | At least one of the `Tracon.Reader`, `Tracon.Operator` and `Tracon.Admin` policies is not registered, so the endpoints it guards get no role check | Define the three policies in `AddAuthorization(...)` with `TraconPolicies.Reader`, `Operator` and `Admin`, and set `TraconEndpointOptions.RequireRolePolicies` so a missing one stops `MapTracon` too |
+| `UncheckedToolCalls` | The built-in tool authorization handler allows every call for every caller | Register your own `IToolAuthorizationHandler` |
+| `UnrestrictedTenantEgress` | A tenant with no egress policy may call every provider | `Tracon:TenantProviders:RequireEgressPolicy`, then save a policy for each tenant |
+| `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
+| `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
+
+Some rows are not asked in every composition:
+
+- `UnrestrictedTenantEgress`, `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows`
+  are about one tenant reaching what another should not. They are reported as not
+  applicable and never stop a host that does not separate tenants (the built-in
+  single-tenant context, or `UseTenancy(options => options.Enabled = false)`). This is
+  also why `SingleTenant` and these three are never open together: a host is one or the
+  other.
+- `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows` exist only when
+  `UseTenancy(...)` or `UseWorkflows(...)` is in the chain. `UnlimitedTenantWorkflows`
+  is also not asked while `Tracon:Workflows:Enabled` is `false`.
+- `UnregisteredRolePolicies` is known only once `MapTracon` has run, so it is asked of a
+  host that mapped the endpoints before it started. A host with no HTTP surface is not
+  asked it.
 
 The startup failure names every open decision at once — the setting, what it is
 today, and how to answer it — so one restart clears all of them rather than one per
@@ -11176,7 +11220,7 @@ Five properties are worth knowing before you rely on it:
   on. The only thing it does is turn a skipped decision into a startup failure.
 - **It is off by default.** An application that never calls it behaves exactly as it
   did before, and the call resolves nothing extra at startup.
-- **Accepting is per item.** There is no way to accept all six at once, so each
+- **Accepting is per item.** There is no way to accept them all at once, so each
   accepted risk is one reviewable line — and every accepted risk is written to the
   log at information level, by name, each time the host starts.
 - **The set of decisions is a versioned contract.** A later release that adds one
@@ -12364,7 +12408,8 @@ Without it, the name the generator reports is used, and that name does not tell
 providers apart: the OpenAI and the Azure OpenAI generators both report `openai`. When
 no name is known, a tenant with an egress policy is refused (`403` on the endpoints; for
 the agent's tool, the model reads the refusal as the result of the call); a tenant without
-one is not affected. Every setting can also come from the
+one is not affected, unless `Tracon:TenantProviders:RequireEgressPolicy` is on: then it is refused
+too, because the call cannot be judged. Every setting can also come from the
 `Tracon:Knowledge` section of configuration.
 
 The embedding model in this example produces 1,536 dimensions. If you choose another
@@ -13339,7 +13384,9 @@ curl -X PUT "http://localhost:5081/tracon/api/tenants/acme/egress" \
 ```
 
 A tenant with no saved policy is unrestricted — saving one is an additive
-restriction, not a default wall. An agent definition naming a provider outside the
+restriction, not a default wall — unless the host sets
+`Tracon:TenantProviders:RequireEgressPolicy` to `true`: then a tenant with no policy
+calls no provider, and a binding cannot be saved for it. An agent definition naming a provider outside the
 saved list is rejected **at compile time**, before any request reaches the network;
 the same check also protects `PUT .../providers/{provider}` itself, so both surfaces
 agree. The console's Settings screen exposes both panels; no field there accepts a
@@ -13685,7 +13732,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
 | Fallback chain | Empty; an unavailable primary throws, same as before this feature existed |
 | Tenant provider binding | None; every tenant uses the global setup-time credential until one is saved |
-| Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall |
+| Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall. `Tracon:TenantProviders:RequireEgressPolicy` (default `false`) turns a missing policy into a refusal |
 | Allowed configuration prefix for a binding | `Tracon:ProviderKeys:{tenant}:`; a flat name belongs to the default tenant, and any other name is rejected with `400` |
 | Response cache | Off; a binding with `ResponseCache.Enabled = true` and no registered `IDistributedCache` fails to compile |
 | Response cache lifetime | 10 minutes, when caching is enabled |
@@ -15209,14 +15256,17 @@ var tracon = builder.AddTracon()
         .Accept(TraconProductionRisk.SingleTenant));
 ```
 
-It changes no setting and secures nothing by itself. It asks about six decisions —
-tenant separation, session ownership, at-rest content protection, content
-inspection, request rate limiting and retention — and refuses to start while one of
-them is still on its permissive default and you have not accepted the risk by name.
-The startup failure names every open decision at once, what it is today, and how to
-answer it.
+It changes no setting and secures nothing by itself. It asks about the production
+decisions listed in [Make a production decision required](/guides/embedding/#make-a-production-decision-required)
+and refuses to start while one of them is still on its permissive default and you
+have not accepted the risk by name. The startup failure names every open decision at
+once, what it is today, and how to answer it. A decision your composition cannot have
+is reported as not applicable and never stops the host: tenant egress, the tenant
+header and the workflow slots one tenant may take are asked only when tenants are
+separated, and the endpoint role policies only of a host that mapped the Tracon
+endpoints before it started.
 
-Accepting is per item on purpose: there is no way to accept all six at once, so each
+Accepting is per item on purpose: there is no way to accept them all at once, so each
 accepted risk is one line a reviewer can see. An accepted risk is written to the log
 at information level, by name, every time the host starts.
 
@@ -15481,14 +15531,16 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node or a tool call from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
+| Tenant egress policy | A tenant with no egress policy may call every provider the deployment has | In a multi-tenant host set `Tracon:TenantProviders:RequireEgressPolicy` to `true` and save a policy for each tenant, the default tenant included: a tenant without one then calls no provider, and a provider binding cannot be saved for it. A tenant with a policy is judged by its list alone |
 
-Six of these rows — multi-tenancy, session ownership, at-rest content encryption,
-content inspection, request rate limiting and retention defaults — can be enforced
-rather than remembered. `RequireProductionProfile()` turns a skipped one into a
-failed startup; see [Start from a production
-registration](#start-from-a-production-registration). The other rows stay a reading
-exercise: their defaults are already the strict ones, or the binding gate
-(`RequireCustomBinding<T>()`) already covers them.
+Several of these rows — multi-tenancy, session ownership, at-rest content encryption,
+content inspection, request rate limiting, retention defaults, the workflow runs per
+tenant and the egress policy of a tenant — can be enforced rather than remembered. `RequireProductionProfile()`
+turns a skipped one into a failed startup; the full list is in [Make a production
+decision required](/guides/embedding/#make-a-production-decision-required), and the start is
+described in [Start from a production registration](#start-from-a-production-registration). The
+other rows stay a reading exercise: their defaults are already the strict ones, or
+the binding gate (`RequireCustomBinding<T>()`) already covers them.
 
 ## Upgrading a deployment
 
@@ -15843,7 +15895,7 @@ scaled without a matching quota.
 - [ ] Answer every row of [Production-sensitive defaults](#production-sensitive-defaults) on
       purpose. Multi-tenancy, session ownership, rate limiting, at-rest encryption, and content
       inspection are each off until you turn them on, and session ownership is not retroactive.
-- [ ] Call `RequireProductionProfile()` so those six decisions cannot be skipped in
+- [ ] Call `RequireProductionProfile()` so those decisions cannot be skipped in
       silence, and accept by name the ones this deployment carries deliberately.
 - [ ] Configure trusted proxy headers and TLS without relying on loopback identity.
 - [ ] Choose combined or split workers and calculate cluster-wide concurrency.
@@ -24353,6 +24405,14 @@ release can deliberately stop a host that used to start.
 | What happens to a host that does not call the method? | Nothing. Every default stays exactly where it was; the profile changes no setting |
 | Does accepting a risk survive the upgrade? | Yes. An accept names one risk and keeps applying to that risk alone |
 
+The set has grown since the first release that carried it, and each growth was announced
+this way. The decisions added after the first six (tenant separation, session ownership,
+at-rest content protection, content inspection, request rate limiting and retention) are
+`UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
+`UnverifiedTenantHeader` and `UnlimitedTenantWorkflows`; `CHANGELOG.md` gives the reason for
+each. The current list is the one table in [Make a production decision
+required](/guides/embedding/#make-a-production-decision-required).
+
 Read that cost before adopting the method. A deployment that wants its production
 decisions pinned rather than re-asked should pin the package version, not avoid the
 gate: the alternative is a new decision arriving in silence, which is the thing the
@@ -25121,7 +25181,11 @@ Anthropic's `DefaultMaxOutputTokens`. See
 }
 ```
 
-| `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"` |
+| `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"`, `RequireEgressPolicy=false` |
+
+`RequireEgressPolicy` makes a tenant with no egress policy call no provider. It is off
+by default; see [Per-tenant provider credentials and
+egress](/concepts/governance/#per-tenant-provider-credentials-and-egress).
 
 A tenant provider binding's configuration key name must start with
 `AllowedConfigurationPrefix` followed by the tenant's segment
@@ -26096,9 +26160,8 @@ deliberate exemptions](/getting-started/security/#two-deliberate-exemptions).
 
 Turning on [`RequireProductionProfile()`](/concepts/governance/#requiring-a-production-decision)
 forces a deployment to answer — or explicitly accept, by name — the risks that a
-permissive default otherwise leaves open: single-tenant mode, unowned sessions,
-unencrypted content at rest, uninspected content, unlimited request rate, and
-unbounded retention.
+permissive default otherwise leaves open. The list is in [Make a production decision
+required](/guides/embedding/#make-a-production-decision-required).
 
 ## Read next
 

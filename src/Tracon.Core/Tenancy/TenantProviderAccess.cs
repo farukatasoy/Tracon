@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace Tracon;
 
 /// <summary>
@@ -21,10 +23,36 @@ namespace Tracon;
 // no copy at all and sent a forbidden tenant's audio to OpenAI).
 internal static class TenantProviderAccess
 {
+    /// <summary>The configuration key that makes a tenant with no egress policy call no provider.</summary>
+    public const string RequirePolicySetting = "Tracon:TenantProviders:RequireEgressPolicy";
+
+    /// <summary>
+    /// Reads whether a tenant with no egress policy may call no provider at all
+    /// (<see cref="TraconTenantProviderOptions.RequireEgressPolicy"/>).
+    /// </summary>
+    /// <param name="options">The tenant provider options; <see langword="null"/> when none are available.</param>
+    /// <returns><see langword="true"/> when a missing policy refuses the call.</returns>
+    /// <remarks>
+    /// Read from <see cref="IOptions{TOptions}"/>, so the value is fixed when the host
+    /// starts, as the production profile gate sees it. That is deliberate: the compiled-agent
+    /// cache keys an agent on the tenant's policy, not on this switch, so a value that changed
+    /// under a running host would leave an agent compiled under the old one in service. No options
+    /// at all means the switch is off: only a hand-built component has none, never a container.
+    /// </remarks>
+    public static bool PolicyRequired(IOptions<TraconTenantProviderOptions>? options)
+        => options?.Value.RequireEgressPolicy ?? false;
+
     /// <summary>Refuses a provider the tenant's egress policy does not allow.</summary>
-    /// <param name="policy">The tenant's policy; <see langword="null"/> when it has none (no restriction).</param>
+    /// <param name="policy">
+    /// The tenant's policy; <see langword="null"/> when it has none (no restriction, unless
+    /// <paramref name="requirePolicy"/> is set).
+    /// </param>
     /// <param name="tenantId">The tenant.</param>
     /// <param name="provider">The provider about to be called.</param>
+    /// <param name="requirePolicy">
+    /// Whether a tenant with no policy may call no provider
+    /// (<see cref="TraconTenantProviderOptions.RequireEgressPolicy"/>).
+    /// </param>
     /// <param name="kind">The kind of provider the call is for; only changes the noun in the message.</param>
     /// <param name="fallbackFor">
     /// The primary provider when <paramref name="provider"/> is one of its fallbacks;
@@ -35,51 +63,62 @@ internal static class TenantProviderAccess
         TenantEgressPolicy? policy,
         string tenantId,
         string provider,
+        bool requirePolicy,
         TenantProviderCallKind kind = TenantProviderCallKind.Model,
         string? fallbackFor = null)
     {
-        if (IsAllowed(policy, provider))
+        if (IsAllowed(policy, provider, requirePolicy))
         {
             return;
         }
 
-        throw new TraconTenantProviderRefusedException(DescribeDenial(policy!, tenantId, provider, kind, fallbackFor));
+        throw new TraconTenantProviderRefusedException(DescribeDenial(policy, tenantId, provider, kind, fallbackFor));
     }
 
     /// <summary>Says whether the tenant's egress policy allows a provider.</summary>
-    /// <param name="policy">The tenant's policy; <see langword="null"/> when it has none (no restriction).</param>
+    /// <param name="policy">
+    /// The tenant's policy; <see langword="null"/> when it has none (no restriction, unless
+    /// <paramref name="requirePolicy"/> is set).
+    /// </param>
     /// <param name="provider">The provider.</param>
-    /// <returns><see langword="true"/> when there is no policy or it names the provider.</returns>
-    public static bool IsAllowed(TenantEgressPolicy? policy, string provider)
-        => policy is null || policy.AllowedProviders.Contains(provider, StringComparer.OrdinalIgnoreCase);
+    /// <param name="requirePolicy">
+    /// Whether a tenant with no policy may call no provider
+    /// (<see cref="TraconTenantProviderOptions.RequireEgressPolicy"/>).
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the policy names the provider, or there is no policy and none is required.
+    /// </returns>
+    public static bool IsAllowed(TenantEgressPolicy? policy, string provider, bool requirePolicy)
+        => policy is null
+            ? !requirePolicy
+            : policy.AllowedProviders.Contains(provider, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Describes a refusal of a model provider by the tenant's egress policy.</summary>
-    /// <param name="policy">The policy that refused.</param>
+    /// <param name="policy">The policy that refused; <see langword="null"/> when the tenant has none.</param>
     /// <param name="tenantId">The tenant.</param>
     /// <param name="provider">The refused provider.</param>
     /// <param name="fallbackFor">The primary provider when the refused one is its fallback.</param>
     /// <returns>The message.</returns>
-    public static string DescribeDenial(TenantEgressPolicy policy, string tenantId, string provider, string? fallbackFor = null)
+    public static string DescribeDenial(TenantEgressPolicy? policy, string tenantId, string provider, string? fallbackFor = null)
         => DescribeDenial(policy, tenantId, provider, TenantProviderCallKind.Model, fallbackFor);
 
     /// <summary>Describes a refusal by the tenant's egress policy.</summary>
-    /// <param name="policy">The policy that refused.</param>
+    /// <param name="policy">
+    /// The policy that refused; <see langword="null"/> when the tenant has none and the
+    /// deployment requires one.
+    /// </param>
     /// <param name="tenantId">The tenant.</param>
     /// <param name="provider">The refused provider.</param>
     /// <param name="kind">The kind of provider the call was for; only changes the noun.</param>
     /// <param name="fallbackFor">The primary provider when the refused one is its fallback.</param>
     /// <returns>The message.</returns>
     public static string DescribeDenial(
-        TenantEgressPolicy policy,
+        TenantEgressPolicy? policy,
         string tenantId,
         string provider,
         TenantProviderCallKind kind,
         string? fallbackFor = null)
     {
-        ArgumentNullException.ThrowIfNull(policy);
-
-        var allowed = string.Join(", ", policy.AllowedProviders);
-
         // The model wording is pinned by the model-path tests and by clients that
         // match it; a speech refusal names its own kind instead of claiming a model.
         var noun = kind switch
@@ -91,10 +130,22 @@ internal static class TenantProviderAccess
             _ => "model provider",
         };
 
-        return fallbackFor is null
-            ? $"Tenant '{tenantId}' is not allowed to call {noun} '{provider}'. Allowed providers: {allowed}."
-            : $"Tenant '{tenantId}' is not allowed to call {noun} '{provider}' " +
-              $"(used as a fallback for '{fallbackFor}'). Allowed providers: {allowed}.";
+        var used = fallbackFor is null ? string.Empty : $" (used as a fallback for '{fallbackFor}')";
+
+        if (policy is null)
+        {
+            // The tenant has no row and the deployment asked for one. The message
+            // names the setting so the operator learns WHY a tenant that was never
+            // restricted is refused, and what turns it back.
+            return $"Tenant '{tenantId}' has no egress policy, and {RequirePolicySetting} is on, so it is not " +
+                   $"allowed to call {noun} '{provider}'{used}. Save an egress policy for the tenant " +
+                   "(PUT /api/tenants/{tenantId}/egress) that lists the providers it may call, or turn " +
+                   $"{RequirePolicySetting} off.";
+        }
+
+        var allowed = string.Join(", ", policy.AllowedProviders);
+
+        return $"Tenant '{tenantId}' is not allowed to call {noun} '{provider}'{used}. Allowed providers: {allowed}.";
     }
 
     /// <summary>Resolves the tenant's own credential for a provider.</summary>

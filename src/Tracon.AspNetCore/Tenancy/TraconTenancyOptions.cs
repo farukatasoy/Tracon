@@ -62,7 +62,11 @@ public sealed class TraconTenancyOptions
     /// <remarks>
     /// <para>
     /// <strong>The format</strong> is <c>^[a-zA-Z0-9_.-]+$</c>, at most 64
-    /// characters. A value that does not match is never resolved.
+    /// characters. A value that is sent and does not match is never resolved,
+    /// and it does not fall to the default tenant either: a malformed header
+    /// answers <c>400</c> and a malformed claim of an authenticated identity
+    /// answers <c>403</c>. A value that is not sent (no header, an empty header,
+    /// no claim) is the default tenant, as before.
     /// </para>
     /// <para>
     /// <strong>Letter case does not distinguish two tenants.</strong> Entries

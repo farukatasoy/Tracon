@@ -44,6 +44,30 @@ public sealed class SpeechTenantPolicyTests
     }
 
     [Fact]
+    public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_is_refused_the_speech_provider()
+    {
+        // F-254: the speech resolver is one of the callers that must read the switch.
+        var engine = new CountingSpeechProvider(Provider);
+        await using var host = await StartAsync(
+            engine,
+            configureServices: static services => services.Configure<TraconTenantProviderOptions>(
+                static options => options.RequireEgressPolicy = true));
+
+        using var refused = await host.Client.PostAsJsonAsync(SpeakUri, new { text = "hello", provider = "studio" });
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await refused.Content.ReadAsStringAsync()).ShouldContain($"has no egress policy");
+        engine.Calls.ShouldBe(0, "the tenant's text must not reach a provider the tenant has no policy for");
+
+        await SavePolicyAsync(host, Provider);
+
+        using var spoken = await host.Client.PostAsJsonAsync(SpeakUri, new { text = "hello", provider = "studio" });
+
+        spoken.StatusCode.ShouldBe(HttpStatusCode.OK);
+        engine.Calls.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Speak_refuses_the_default_synthesizer_too()
     {
         var engine = new CountingSpeechProvider(Provider);

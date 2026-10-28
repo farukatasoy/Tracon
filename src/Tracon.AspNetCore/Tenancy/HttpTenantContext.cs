@@ -24,6 +24,11 @@ namespace Tracon;
 ///   <item><description>If none apply → the default tenant.</description></item>
 /// </list>
 /// <para>
+/// A value that IS sent but is not a well-formed tenant id never reaches the last step on a request
+/// that goes through <c>TraconEndpointFilter</c>: the filter answers <c>400</c> (header) or
+/// <c>403</c> (claim) first. This class alone still resolves such a value to the default tenant.
+/// </para>
+/// <para>
 /// While the claim is set, the <strong>header is never read</strong>. Otherwise
 /// an authenticated user could access another tenant's data simply by adding a
 /// header.
@@ -96,27 +101,50 @@ public sealed partial class HttpTenantContext : ITenantContext
 
     private string? Resolve()
     {
-        var options = _tenancyOptions.Value;
-
-        if (!options.Enabled || _accessor.HttpContext is not { } context)
+        if (_accessor.HttpContext is not { } context)
         {
             return null;
         }
 
-        // If the claim is set, the header is NEVER read.
+        var options = _tenancyOptions.Value;
+        var candidate = ReadCandidate(context, options);
+
+        return candidate.Source == TenantCandidateSource.None ? null : Accept(candidate.Value, options);
+    }
+
+    /// <summary>
+    /// Reads the tenant value the request carries, from the one source that applies.
+    /// </summary>
+    /// <param name="context">The request.</param>
+    /// <param name="options">The tenancy options.</param>
+    /// <returns>
+    /// The source and the value as sent, unchecked. The source is
+    /// <see cref="TenantCandidateSource.None"/> when tenancy is off or no source applies.
+    /// </returns>
+    /// <remarks>
+    /// The single reader of the claim-or-header rule: <see cref="Resolve"/> and
+    /// <c>TraconEndpointFilter</c> (the format check and the allowlist check) all go
+    /// through here, so the filter judges exactly the value the context would use
+    /// (same source, same precedence). If a claim type is set, the header is
+    /// NEVER read.
+    /// </remarks>
+    internal static TenantCandidate ReadCandidate(HttpContext context, TraconTenancyOptions options)
+    {
+        if (!options.Enabled)
+        {
+            return default;
+        }
+
         if (options.ClaimType is { Length: > 0 } claimType)
         {
             return context.User.Identity?.IsAuthenticated == true
-                ? Accept(context.User.FindFirst(claimType)?.Value, options)
-                : null;
+                ? new TenantCandidate(TenantCandidateSource.Claim, context.User.FindFirst(claimType)?.Value)
+                : default;
         }
 
-        if (!options.AllowHeaderResolution)
-        {
-            return null;
-        }
-
-        return Accept(context.Request.Headers[options.HeaderName].ToString(), options);
+        return options.AllowHeaderResolution
+            ? new TenantCandidate(TenantCandidateSource.Header, context.Request.Headers[options.HeaderName].ToString())
+            : default;
     }
 
     private static string? Accept(string? candidate, TraconTenancyOptions options)
@@ -212,4 +240,46 @@ public sealed partial class HttpTenantContext : ITenantContext
 
     [GeneratedRegex("^[a-zA-Z0-9_.-]+$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex TenantIdPattern();
+}
+
+/// <summary>Where a request's tenant value came from.</summary>
+internal enum TenantCandidateSource
+{
+    /// <summary>No source applies: tenancy is off, or neither a claim type nor the header path is set.</summary>
+    None = 0,
+
+    /// <summary>The claim of the authenticated identity (<see cref="TraconTenancyOptions.ClaimType"/>).</summary>
+    Claim = 1,
+
+    /// <summary>The request header (<see cref="TraconTenancyOptions.HeaderName"/>).</summary>
+    Header = 2,
+}
+
+/// <summary>The tenant value a request carries, as sent and not yet checked.</summary>
+/// <remarks>
+/// A plain struct rather than a <c>record struct</c>: the generated <c>ToString</c> would print the
+/// value, and the value is the client's text.
+/// </remarks>
+internal readonly struct TenantCandidate
+{
+    /// <summary>Creates a candidate.</summary>
+    /// <param name="source">Where it came from.</param>
+    /// <param name="value">The value as sent; <see langword="null"/> or empty when the source carried none.</param>
+    public TenantCandidate(TenantCandidateSource source, string? value)
+    {
+        Source = source;
+        Value = value;
+    }
+
+    /// <summary>Gets where the value came from.</summary>
+    public TenantCandidateSource Source { get; }
+
+    /// <summary>Gets the value as sent.</summary>
+    public string? Value { get; }
+
+    /// <summary>
+    /// Gets whether the request named a tenant at all. An empty value is no value: an empty header and
+    /// a missing claim both fall to the default tenant, as before.
+    /// </summary>
+    public bool IsPresent => Source != TenantCandidateSource.None && !string.IsNullOrEmpty(Value);
 }

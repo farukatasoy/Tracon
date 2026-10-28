@@ -4938,7 +4938,7 @@
           "TenantProviders"
         ],
         "summary": "Returns a tenant\u0027s model provider egress policy.",
-        "description": "\u0027allowedProviders: null\u0027 means the tenant is UNRESTRICTED (no policy saved); an empty or populated array means the tenant may call only those providers. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "description": "\u0027allowedProviders: null\u0027 means no policy is saved: the tenant is UNRESTRICTED, unless Tracon:TenantProviders:RequireEgressPolicy is on, which makes it call NO provider; an empty or populated array means the tenant may call only those providers. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconGetTenantEgressPolicy",
         "parameters": [
           {
@@ -4969,7 +4969,7 @@
           "TenantProviders"
         ],
         "summary": "Creates or replaces a tenant\u0027s egress policy.",
-        "description": "Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted. The \u0027tenantId\u0027 route value is folded to lower case before the policy is saved, so a policy written for \u0027Acme\u0027 is the policy the runtime finds for \u0027acme\u0027. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "description": "Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted (or, with Tracon:TenantProviders:RequireEgressPolicy on, may call no provider), and this call is the way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to remove the policy. The \u0027tenantId\u0027 route value is folded to lower case before the policy is saved, so a policy written for \u0027Acme\u0027 is the policy the runtime finds for \u0027acme\u0027. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconSaveTenantEgressPolicy",
         "parameters": [
           {
@@ -5010,7 +5010,7 @@
           "TenantProviders"
         ],
         "summary": "Deletes a tenant\u0027s egress policy.",
-        "description": "After deletion the tenant is unrestricted again \u2014 the same state as before any policy was ever saved. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "description": "After deletion the tenant has no policy again \u2014 the same state as before any policy was ever saved: unrestricted, or, with Tracon:TenantProviders:RequireEgressPolicy on, able to call no provider. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconDeleteTenantEgressPolicy",
         "parameters": [
           {
@@ -17505,14 +17505,14 @@
             "items": {
               "type": "string"
             },
-            "description": "Gets the closed set of allowed provider names, or \u0060null\u0060\nwhen the tenant is unrestricted (no policy saved)."
+            "description": "Gets the closed set of allowed provider names, or \u0060null\u0060\nwhen no policy is saved (unrestricted, unless the host requires a policy)."
           },
           "updatedAt": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Gets the time the policy was last written; \u0060null\u0060 when unrestricted.",
+            "description": "Gets the time the policy was last written; \u0060null\u0060 when no policy is saved.",
             "format": "date-time"
           }
         },

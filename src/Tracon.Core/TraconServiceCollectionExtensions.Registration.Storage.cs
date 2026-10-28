@@ -132,7 +132,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IOptions<TraconImageOptions>>(),
             provider.GetService<ITenantEgressPolicyStore>(),
             provider.GetService<ITenantProviderBindingStore>(),
-            provider.GetService<TenantProviderCredentialResolver>()));
+            provider.GetService<TenantProviderCredentialResolver>(),
+            provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
         // Workflow definitions and checkpoints. The stores are ALWAYS
         // registered; the execution engine, however, is DISABLED until

@@ -70,7 +70,7 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, UnpricedModelWarningService>());
 
-        // Composition gate for the six production decisions (phase 170, F-231).
+        // Composition gate for the production decisions (phase 170, F-231).
         // Its sibling above covers the BINDING half of the same argument; this
         // one covers the OPTIONS half. Registered here for the same reason and
         // with the same guarantee: it resolves nothing at all unless the
@@ -88,6 +88,12 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, ContentGuardProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, RateLimitProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, RetentionProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, ToolAuthorizationProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, TenantEgressProfileCheck>());
+
+        // The checks only a step after Build() can answer (phase 259: MapTracon knows which role
+        // policies are registered). The validator reads them with the registered ones.
+        services.TryAddSingleton<LateProductionProfileChecks>();
 
         // Tool argument validation (phase 127): valid by default. Registered as
         // the specific shared instance so ToolWrapperChain.Compose can recognize
@@ -172,7 +178,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetService<ITenantEgressPolicyStore>(),
             provider.GetService<ITenantProviderBindingStore>(),
-            provider.GetService<TenantProviderCredentialResolver>()));
+            provider.GetService<TenantProviderCredentialResolver>(),
+            provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
         // Provider retry classifier (Phase 113, F-149). Registered BEFORE
         // IModelProviderRegistry so its constructor can resolve it. The
@@ -210,7 +217,8 @@ public static partial class TraconServiceCollectionExtensions
             // dependency. `provider` is captured for RunBudgetChatClient to resolve it
             // lazily at pipeline-build time instead - see ModelProviderRegistry's own
             // constructor remarks.
-            provider));
+            provider,
+            provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
         // Pre-flight context-window estimator (phase 62, F-59). Registered
         // unconditionally: POST /api/agents/{name}/estimate works regardless
@@ -376,7 +384,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
             provider.GetService<ITenantEgressPolicyStore>(),
             provider.GetService<ITenantProviderBindingStore>(),
-            provider.GetService<TenantProviderCredentialResolver>()));
+            provider.GetService<TenantProviderCredentialResolver>(),
+            provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
         services.TryAddSingleton(static provider => new KnowledgeIngestionService(
             provider.GetRequiredService<ITenantContext>(),

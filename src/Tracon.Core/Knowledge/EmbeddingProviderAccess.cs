@@ -36,6 +36,7 @@ internal sealed class EmbeddingProviderAccess
     private readonly ITenantEgressPolicyStore? _egressPolicies;
     private readonly ITenantProviderBindingStore? _providerBindings;
     private readonly TenantProviderCredentialResolver? _credentialResolver;
+    private readonly IOptions<TraconTenantProviderOptions>? _tenantProviderOptions;
 
     /// <summary>Creates the access check.</summary>
     /// <param name="options">The knowledge options; <see cref="TraconKnowledgeOptions.EmbeddingProvider"/> names the provider.</param>
@@ -43,12 +44,16 @@ internal sealed class EmbeddingProviderAccess
     /// <param name="egressPolicies">The tenant egress policy store; <see langword="null"/> applies no policy.</param>
     /// <param name="providerBindings">The tenant provider binding store; <see langword="null"/> checks no binding.</param>
     /// <param name="credentialResolver">Resolves a binding's key; <see langword="null"/> checks no binding.</param>
+    /// <param name="tenantProviderOptions">
+    /// The tenant provider options; <see langword="null"/> does not require a policy.
+    /// </param>
     public EmbeddingProviderAccess(
         IOptions<TraconKnowledgeOptions> options,
         IEmbeddingGenerator<string, Embedding<float>>? generator = null,
         ITenantEgressPolicyStore? egressPolicies = null,
         ITenantProviderBindingStore? providerBindings = null,
-        TenantProviderCredentialResolver? credentialResolver = null)
+        TenantProviderCredentialResolver? credentialResolver = null,
+        IOptions<TraconTenantProviderOptions>? tenantProviderOptions = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -57,6 +62,7 @@ internal sealed class EmbeddingProviderAccess
         _egressPolicies = egressPolicies;
         _providerBindings = providerBindings;
         _credentialResolver = credentialResolver;
+        _tenantProviderOptions = tenantProviderOptions;
     }
 
     /// <summary>The provider name the checks are made against, or <see langword="null"/> when none is known.</summary>
@@ -79,16 +85,23 @@ internal sealed class EmbeddingProviderAccess
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var providerName = ProviderName;
+        var requirePolicy = TenantProviderAccess.PolicyRequired(_tenantProviderOptions);
         var policy = _egressPolicies is null
             ? null
             : await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
         if (providerName is null)
         {
-            if (policy is not null)
+            // With a policy required, a tenant with no policy is refused here too: the provider
+            // is not named, so nothing says the call is one the policy would allow (F-254).
+            if (policy is not null || requirePolicy)
             {
                 throw new TraconTenantProviderRefusedException(
-                    $"Tenant '{tenantId}' has an egress policy, and the embedding provider is not named, so the " +
+                    $"Tenant '{tenantId}' " +
+                    (policy is not null
+                        ? "has an egress policy"
+                        : $"must have an egress policy ({TenantProviderAccess.RequirePolicySetting} is on)") +
+                    ", and the embedding provider is not named, so the " +
                     $"policy cannot be applied. Set {TraconKnowledgeOptions.SectionName}:" +
                     $"{nameof(TraconKnowledgeOptions.EmbeddingProvider)} to the provider the embedding generator calls.");
             }
@@ -96,10 +109,10 @@ internal sealed class EmbeddingProviderAccess
             return;
         }
 
-        if (!TenantProviderAccess.IsAllowed(policy, providerName))
+        if (!TenantProviderAccess.IsAllowed(policy, providerName, requirePolicy))
         {
             throw new TraconTenantProviderRefusedException(
-                TenantProviderAccess.DescribeDenial(policy!, tenantId, providerName, TenantProviderCallKind.Embedding));
+                TenantProviderAccess.DescribeDenial(policy, tenantId, providerName, TenantProviderCallKind.Embedding));
         }
 
         // A binding whose key has no value is refused there: the call does not fall

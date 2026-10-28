@@ -70,6 +70,7 @@ internal sealed class LiveVoiceSessionLauncher
     private readonly ILoggerFactory _loggerFactory;
     private readonly TimeProvider _timeProvider;
     private readonly ITenantEgressPolicyStore? _egressPolicies;
+    private readonly IOptions<TraconTenantProviderOptions>? _tenantProviderOptions;
     private readonly ITenantProviderBindingStore? _providerBindings;
     private readonly TenantProviderCredentialResolver? _credentialResolver;
 
@@ -88,7 +89,8 @@ internal sealed class LiveVoiceSessionLauncher
         TimeProvider? timeProvider = null,
         ITenantEgressPolicyStore? egressPolicies = null,
         ITenantProviderBindingStore? providerBindings = null,
-        TenantProviderCredentialResolver? credentialResolver = null)
+        TenantProviderCredentialResolver? credentialResolver = null,
+        IOptions<TraconTenantProviderOptions>? tenantProviderOptions = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(sessions);
@@ -113,6 +115,7 @@ internal sealed class LiveVoiceSessionLauncher
         _egressPolicies = egressPolicies;
         _providerBindings = providerBindings;
         _credentialResolver = credentialResolver;
+        _tenantProviderOptions = tenantProviderOptions;
     }
 
     /// <summary>Gets whether a live voice provider is registered.</summary>
@@ -246,11 +249,16 @@ internal sealed class LiveVoiceSessionLauncher
     {
         var providerName = provider.ProviderName;
 
-        if (_egressPolicies is not null)
-        {
-            var policy = await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+        var requirePolicy = TenantProviderAccess.PolicyRequired(_tenantProviderOptions);
 
-            TenantProviderAccess.EnsureAllowed(policy, tenantId, providerName, TenantProviderCallKind.LiveVoice);
+        if (_egressPolicies is not null || requirePolicy)
+        {
+            var policy = _egressPolicies is null
+                ? null
+                : await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+
+            TenantProviderAccess.EnsureAllowed(
+                policy, tenantId, providerName, requirePolicy, TenantProviderCallKind.LiveVoice);
         }
 
         var credential = await TenantProviderAccess
