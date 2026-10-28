@@ -45,6 +45,27 @@
 
 ---
 
+## Önceki Fazdan Devir
+
+Faz 255 (çalışma anı bağımlılıkları, 2026-10-28) bu fazla `Directory.Packages.props` ve `CHANGELOG.md` `[Unreleased]`'ı
+paylaştı; bu faz ondan **sonra** koşar (ikisi paralel koşmaz).
+
+- **Satır numaraları kaydı.** Bu dokümandaki `Directory.Packages.props:NNN` işaretçileri Faz 255 öncesi dosyaya aittir
+  (yorumlar uzadı). Kaydırılmış satırı `grep -n` ile bul, numaraya güvenme.
+- **Yeni tabanlar.** MAF `1.26.0` (Hosting `1.26.0-preview.261023.1`, Hosting.OpenAI `1.26.0-alpha.261023.1`), platform
+  `10.0.14`, `Anthropic` `13.3.0`, `Google.GenAI` `1.27.0`, `Azure.Core` `1.64.0`. Dependabot grubu aynı kaldı.
+- **`System.Security.Cryptography.Pkcs` ×3 koşullu sabiti** (8.0.2 / 9.0.21 / 10.0.13) yeniden ölçüldü ve KALDI: SqlClient
+  7.1.1 hâlâ en yenisi ve boş projede net8.0 `8.0.1`, net9.0/net10.0 `9.0.18` ile `NU1902` + `NU1903` veriyor. Bu faz net8.0 ve
+  net9.0'ı düşürünce iki koşullu satır gider, `net10.0` satırı kalır; **önce SqlClient'ın yeni bir sürümünü ve Pkcs ölçümünü
+  tekrarla** (boş proje + `NuGetAudit`, Faz 255 yöntemi).
+- **CHANGELOG.** `[Unreleased]` → *Upgrading from 1.0.0-preview.6* bölümünde Faz 255'in dört maddesi var (Anthropic
+  `Temperature`/`TopP`/`TopK` reddi, `ISamplingSupport` için iki yeni üye, Anthropic bearer kimliği, MAF 1.26 tabanı).
+  Kendi *Upgrading* maddelerini onların **altına ekle**, bölümü yeniden yazma.
+- **Paketlenmiş tüketici provası.** Faz 255 `kapi.py yayin --kuru` ve `uyum-probu -- ileri` sonuçlarını kapanış commit mesajına yazdı
+  (`git log` ile ara); net8 yüzeyi o provanın parçasıdır.
+
+---
+
 ## Amaç
 
 Microsoft .NET 8 ve .NET 9 desteğini 2026-11-10'da bitirir. Tracon desteği

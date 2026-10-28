@@ -286,23 +286,23 @@ köprüde boş `SessionId` · **başka kiracı** — yukarıdaki iki kiracılı 
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `Directory.Packages.props` §255.1 hedeflerinde (flat container ile yeniden ölçüldü); `dotnet restore Tracon.slnx` uyarısız; `dotnet list Tracon.slnx package --vulnerable --include-transitive` açık yok
-- [ ] `TraconAgentSessionStore.DeleteSessionAsync` ortak silme yolunu çağırır; olmayan oturum no-op; `isolation` dışı bölüm `NotSupportedException` (K-1016)
-- [ ] Üç etkileşimli silme yolu tek iç servisi çağırır; F-746 testi düzeltmeden **önce kırmızı**, sonra yeşil; iki kiracılı silme testi yeşil
-- [ ] Anthropic: `SupportedSamplingFields` `TopK` taşımaz; `Temperature`/`TopP`/`TopK` taşıyan Anthropic bağlaması kaydetmede ve derlemede reddedilir (fallback halkası dahil); `ModelSamplingWireTests` ve `AnthropicRequestSettingsTests` yeni davranışı sabitler
-- [ ] Gerçek Anthropic API'si `Bearer` + `2026-10-21` isteğini kabul eder (manuel case 1) ya da case `👤` olarak bakımcıya devredildi
-- [ ] `maf-kapsama.py fark` sonucu `MAF-GENISLEME-NOKTALARI.md` § *Sürüm damgası*'nda; `MAF-KAPSAMA.md` 1.26.0 ölçümünde; `maf-kapsama.py denetle` yeşil
-- [ ] §255.5 damgaları yeniden ölçüldü; `dokuman-bakim.py` "Bağımlılık sürüm damgası" temiz
-- [ ] `uyum-probu.cs -- ileri` 0 eksik tip/üye (negatif kontrolle); `-- deneysel` yalnız F-560 satırları
-- [ ] `CHANGELOG.md` `[Unreleased]`: Changed (bağımlılıklar), Changed/Breaking (Anthropic örnekleme reddi, adıyla), Fixed (F-746)
-- [ ] `YAYIN-HAZIRLIK.md` ölçüt 2 yeniden ✅ (çalışma anı); test/derleme araçları ayrı kalem olarak anılır
-- [ ] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (Responses, A2A ve conversation silme dahil)
-- [ ] `secret` taraması boş döndü (`kapi.py tarama`)
-- [ ] `🤖` case'ler `docs/manuel-test/01`, `06`, `08` içinde ve koşuldu; `👤` yalnız gerçek anahtar yoksa
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (başlıktaki sayfalar); `npm run build` + `check-links.mjs` temiz
-- [ ] `RC-KALITE-DALGALARI.md` Q-10 satırının Durum hücresi `✅ Faz 255`
+- [x] `Directory.Packages.props` §255.1 hedeflerinde (flat container ile yeniden ölçüldü); `dotnet restore Tracon.slnx` uyarısız; `dotnet list Tracon.slnx package --vulnerable --include-transitive` açık yok — 2026-10-28: hedefler hâlâ en yenisi; `dotnet restore Tracon.slnx --force` uyarısız; vulnerable listesi 49 projede boş
+- [x] `TraconAgentSessionStore.DeleteSessionAsync` ortak silme yolunu çağırır; olmayan oturum no-op; `isolation` dışı bölüm `NotSupportedException` (K-1016) — `SessionDeletionPathTests.The_bridge_*`, `SessionStoreIsolationTests` (bölüm katlama, ret)
+- [x] Üç etkileşimli silme yolu tek iç servisi çağırır; F-746 testi düzeltmeden **önce kırmızı**, sonra yeşil; iki kiracılı silme testi yeşil — düzeltmeden önce `Deleting_a_conversation_deletes_the_attachments_of_its_session` ve eraser vakasının conversation kolu kırmızıydı (MAF 1.25 + eski uç); sonra yeşil. İki kiracı: `Deleting_a_session_in_one_tenant_leaves_the_same_id_in_another_tenant` (uç) ve `The_bridge_deletes_in_the_current_tenant_only` (köprü). Sıra: `SessionDeletionTests`
+- [x] Anthropic: `SupportedSamplingFields` `TopK` taşımaz; `Temperature`/`TopP`/`TopK` taşıyan Anthropic bağlaması kaydetmede ve derlemede reddedilir (fallback halkası dahil); `ModelSamplingWireTests` ve `AnthropicRequestSettingsTests` yeni davranışı sabitler — `ModelSamplingSupportTests` (tablo, kaydetme `400`, fallback halkası), `SamplingSupportTests` (derleme), `ModelSamplingWireTests`, `AnthropicRequestSettingsTests.Temperature_top_p_and_top_k_never_reach_the_request_body`, `ModelRunJudgeTests` (denetim 🔴 2)
+- [x] Gerçek Anthropic API'si `Bearer` + `2026-10-21` isteğini kabul eder (manuel case 1) ya da case `👤` olarak bakımcıya devredildi — `MT-PROV-099` koşuldu (2026-10-28, gerçek `claude-haiku-5-5`): sağlık `Healthy`, paylaşılan anahtar ve kiracı anahtarı run'ları `Completed` (`ok`), üç alan `400`
+- [x] `maf-kapsama.py fark` sonucu `MAF-GENISLEME-NOKTALARI.md` § *Sürüm damgası*'nda; `MAF-KAPSAMA.md` 1.26.0 ölçümünde; `maf-kapsama.py denetle` yeşil — fark: +tip 0 · −tip 0 · +üye 8 · −üye 1 (`ScanContent`, kullanılmıyor); envanter 40 paket; `denetle`: temas tablosu taze, `✗` tabanda
+- [x] §255.5 damgaları yeniden ölçüldü; `dokuman-bakim.py` "Bağımlılık sürüm damgası" temiz — iki sürümün decompile diff'iyle (Sapma 7); kapı temiz
+- [x] `uyum-probu.cs -- ileri` 0 eksik tip/üye (negatif kontrolle); `-- deneysel` yalnız F-560 satırları — `ileri --tracon 1.0.0-preview.6`: 1617 üye, `eksik_tip=0 eksik_uye=0`; negatif kontrol (`--ust Microsoft.Agents.AI@1.20.0`): `eksik_tip=1` (`DelegatingAgentSessionStore`); `deneysel`: `public_maruziyet=4` (`AddLoopEvaluator` ×4 = F-560)
+- [x] `CHANGELOG.md` `[Unreleased]`: Changed (bağımlılıklar), Changed/Breaking (Anthropic örnekleme reddi, adıyla), Fixed (F-746) — Upgrading ×4, Changed ×2, Fixed ×1
+- [x] `YAYIN-HAZIRLIK.md` ölçüt 2 yeniden ✅ (çalışma anı); test/derleme araçları ayrı kalem olarak anılır
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — 2026-10-28 `kapi.py kapanis --taban 9f1d9da6`: üretim, tarama, doküman denetimi, betik testleri, zorlanmış restore, build (sıfır uyarı), pack, site, `dotnet format` yeşil. Tam test ilk koşumda (denetim öncesi) 30 089 test yeşil; denetim düzeltmelerinden sonraki koşumda 30 104 testten biri düştü (`BackgroundChildQuotaTests.The_threshold_a_late_child_crosses_is_written_to_the_childs_own_stream`, 11 sn `TimeoutException`; faza ait değil, izole geçti) ve yalnız test aşaması yeniden koşunca 30 104 test, 0 başarısız, 1 atlanmış
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (Responses, A2A ve conversation silme dahil) — 2026-10-28, Release, bellek içi depo (`Npgsql` günlük satırı 0), `claude-haiku-5-5`: `POST /v1/responses` → `completed`, `['ok']`; `DELETE /v1/conversations/{id}` → `deleted: true`, ek dosyası `200` → `404`, oturum `404`; A2A `SendMessage` (`summarizer`, `contextId`) → `ROLE_AGENT` yanıtı, `contextId` döndü
+- [x] `secret` taraması boş döndü (`kapi.py tarama`) — `Tarama: ✅ temiz`
+- [x] `🤖` case'ler `docs/manuel-test/01`, `06`, `08` içinde ve koşuldu; `👤` yalnız gerçek anahtar yoksa — sete tek case girdi (`MT-PROV-099`, koşuldu); öteki üçü kodla tekrarlanır ve örnek uygulamada koşuldu (Sapma 10); `👤` yok
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — iki 🔴, ikisi gerçek, ikisi kapandı (bkz. Denetim Bulguları)
+- [x] `docs-site/` güncellendi (başlıktaki sayfalar); `npm run build` + `check-links.mjs` temiz — `npm run check` (içerik, derleme, bağlantı, ağırlık) temiz; en ağır sayfa `guides/model-providers` 58 853 B (tavan 59 000 B)
+- [x] `RC-KALITE-DALGALARI.md` Q-10 satırının Durum hücresi `✅ Faz 255`
 
 ### Doğrulama komutları
 
@@ -419,10 +419,10 @@ python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.7.255
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan dokümanı değişmedi; 12 sapma yazıldı) |
+| Düzeltme turu sayısı | 1 (denetim sonrası) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 1 (yargıç yolu: SDK 13 sıcaklığı hatasız düşürüyordu; kapanıştan önce denetimde yakalandı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -430,3 +430,19 @@ python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.7.255
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetçi: `faz-denetcisi` (taze bağlam), `9f1d9da6...33bf6636`. Triyaj: iki 🔴'ın ikisi de denetçi önerisiyle **gerçek**.
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | Faz dokümanının planı silinmiş (bölüm başlığı değiştirirken okuma listesindeki alıntıyı eşleştirdim) | 🔴 | Düzeltildi: doküman `9f1d9da6` sürümünden anchored başlık eşlemesiyle yeniden kuruldu; 17 DoD kutusu, plan gövdesi ve sapmalar yerinde. Ders: `index(\"## Başlık\")` satır başına demirlenmeden bölüm değiştirme |
+| 2 | `ModelRunJudge` `Temperature`/`TopP`'yi sağlayıcı beyanına sormadan `ChatOptions`'a yazar | 🔴 | Düzeltildi: `JudgeAsync` `SamplingSupportCheck`'i sorar (yalnız iki alan), modele gitmeden `TraconException`; `ModelRunJudgeTests` ×3 (düşen alan, gönderilen alan, yargıcın hiç göndermediği alan). Sınıf taraması Sapma 11'de; CHANGELOG'a cümle |
+| 3 | Anthropic'in üç alanı düşürdüğüne tel testi yok (tanım alanı kaydedemez, yokluk garanti) | 🟡 | Düzeltildi: `AnthropicRequestSettingsTests.Temperature_top_p_and_top_k_never_reach_the_request_body` adaptöre alanları doğrudan verir; `ModelSamplingWireTests` açıklaması ona işaret eder |
+| 4 | Yeni retle çelişen bayat metinler (site "temperature `1`", "Portable settings", örnek yorumu, test adları, `SecretLeakTests`) | 🟡 | Düzeltildi; `llms-full.txt` yeniden üretildi, `npm run check` temiz |
+| 5 | Google README "1.27.0'da aynı ölçüm" diyor, ölçülmedi | 🟡 | Düzeltildi: "Not measured again on 1.27.0" |
+| 6 | Sahiplik reddi ek dosyasını sınamıyor | 🟡 | Düzeltildi: `A_session_another_user_owns_keeps_its_session_and_attachments_when_the_delete_is_refused` (iki uç) |
+| 7 | Kayıtsız conversation'a yüklenmiş ek dosyaları silinmez | 🟢 | Gerekçelendi: bilinçli, `/api/sessions` ile aynı, `A_conversation_that_was_never_used…` sabitliyor |
+| 8 | A2A/köprü silmesi `SessionAccess.Delete` yetkisini sormaz (MAF çağırmıyor) | 🟢 | F-747 olarak devredildi |
+| 9 | Eşzamanlı iki silme için test yok | 🟢 | Yapıldı: `Two_deletes_of_one_conversation_at_once_delete_it_once_and_neither_fails` |
+| 10 | A2A silme testinin "plain" yemi gerçek katlanmış kimlik değil | 🟢 | Yapıldı: yem `apikey\:key-1::ctx-1` |
+| 11 | Eraser hatası testi hata türünü/mesajı sınamıyor | 🟢 | Yapıldı: mesaj `The copy store is down.` ya da `500` |

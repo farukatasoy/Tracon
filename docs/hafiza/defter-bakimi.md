@@ -7,6 +7,13 @@
 (faz kapanışı) — bunlar birikimli defterlerdir ve kendi tuzak sınıflarını
 üretirler. Ortak desen: **kapı yeşil kalır, kayıt sessizce bozulur.**
 
+## 🚨 Betikle doküman bölümü değiştirirken başlığı SATIR BAŞINA demirle (Faz 255)
+
+Faz dokümanında `s.index("## Plandan Sapmalar")` okuma listesindeki bir kod bloğunun içindeki **alıntıyı** buldu ve
+iki başlık arasındaki 300 satırlık plan gövdesini (DoD dahil) sildi. Doküman kapıları yeşil kaldı: `faz-kapat` yalnız
+işaretsiz kutuda durur, kutu yoksa sessizce geçer. Bağımsız denetçi `git show <faz öncesi>:<doküman>` ile yakaladı.
+Bölüm değiştiren betik `"\n## Başlık\n"` arar ve sonucu `grep -n "^## "` ile doğrular.
+
 ## 🚨 Karar numarasını tablonun SONUNA bakarak seçme (K-539)
 
 Faz 77 ve Faz 78 aynı tabandan yazıldı. İkisi de `KARARLAR.md` §2'nin son satırına
