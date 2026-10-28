@@ -2110,5 +2110,17 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@tenant_id, @allowed_providers, @updated_at);
             """;
 
+        UpsertTenantToolPolicy = $"""
+            UPDATE {Schema}.tenant_tool_policies WITH (UPDLOCK, SERIALIZABLE)
+               SET allowed_tools = @allowed_tools,
+                   granted_permissions = @granted_permissions,
+                   updated_at = @updated_at
+             WHERE tenant_id = @tenant_id;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.tenant_tool_policies (tenant_id, allowed_tools, granted_permissions, updated_at)
+            VALUES (@tenant_id, @allowed_tools, @granted_permissions, @updated_at);
+            """;
+
     }
 }

@@ -1180,6 +1180,15 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that deletes a tenant's egress policy.</summary>
     public string DeleteTenantEgressPolicy { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that creates or replaces a tenant's tool policy.</summary>
+    public string UpsertTenantToolPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads a tenant's tool policy.</summary>
+    public string SelectTenantToolPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that deletes a tenant's tool policy.</summary>
+    public string DeleteTenantToolPolicy { get; protected set; } = string.Empty;
+
     /// <summary>Replaces the schema placeholder in the embedded migration text with the real name.</summary>
     /// <param name="sql">The raw migration text.</param>
     /// <returns>Runnable SQL.</returns>
@@ -2383,6 +2392,17 @@ internal abstract class SqlQueriesBase
 
         DeleteTenantEgressPolicy = $"""
             DELETE FROM {Table("tenant_egress_policies")}
+            WHERE tenant_id = @tenant_id;
+            """;
+
+        SelectTenantToolPolicy = $"""
+            SELECT tenant_id, allowed_tools, granted_permissions, updated_at
+            FROM {Table("tenant_tool_policies")}
+            WHERE tenant_id = @tenant_id;
+            """;
+
+        DeleteTenantToolPolicy = $"""
+            DELETE FROM {Table("tenant_tool_policies")}
             WHERE tenant_id = @tenant_id;
             """;
     }

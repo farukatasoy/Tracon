@@ -125,6 +125,7 @@ internal sealed class McpTenantTools
     /// <param name="registrations">The discovered tool registrations.</param>
     /// <param name="logger">The logger name collisions are reported to.</param>
     /// <param name="authorizationHandler">The authorization policy applied before every call.</param>
+    /// <param name="policyGate">The tenant tool policy applied before <paramref name="authorizationHandler"/>.</param>
     /// <param name="validator">The argument validation policy applied before every call.</param>
     /// <param name="defaultTimeout">The timeout applied when a tool's own registration sets none.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
@@ -162,6 +163,7 @@ internal sealed class McpTenantTools
         IReadOnlyList<TraconToolRegistration> registrations,
         ILogger logger,
         IToolAuthorizationHandler authorizationHandler,
+        TenantToolPolicyGate policyGate,
         IToolArgumentsValidator validator,
         TimeSpan defaultTimeout,
         IRunAttributionContext? attribution,
@@ -220,6 +222,7 @@ internal sealed class McpTenantTools
                 registration,
                 descriptor,
                 authorizationHandler,
+                policyGate,
                 validator,
                 defaultTimeout,
                 defaultMaxOutputBytes,

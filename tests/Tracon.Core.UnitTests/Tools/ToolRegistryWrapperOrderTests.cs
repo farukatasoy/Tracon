@@ -29,6 +29,7 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new DenyingHandler("This account cannot cancel orders."),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -69,6 +70,7 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -92,6 +94,7 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -116,6 +119,7 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -144,6 +148,7 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             attribution: null,
@@ -174,6 +179,7 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             attribution: null,
@@ -206,6 +212,7 @@ public sealed class ToolRegistryWrapperOrderTests
         var registry = new ToolRegistry(
             [registration],
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,

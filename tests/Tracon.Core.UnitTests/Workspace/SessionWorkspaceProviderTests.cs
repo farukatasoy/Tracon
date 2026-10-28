@@ -243,6 +243,7 @@ public sealed class SessionWorkspaceProviderTests : IDisposable
 
         var governance = new BuiltInToolGovernance(
             handler ?? new RecordingHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             new StaticOptionsMonitor<TraconOptions>(options),
             attribution: null,

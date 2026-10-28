@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Tools;
 
@@ -18,6 +19,7 @@ public sealed class AuthorizingAIFunctionTests
         var wrapped = new AuthorizingAIFunction(
             inner,
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             ToolEffect.Read,
             requiredPermission: null,
             attribution: null,
@@ -41,6 +43,7 @@ public sealed class AuthorizingAIFunctionTests
         var wrapped = new AuthorizingAIFunction(
             inner,
             new DenyingHandler("Refunds require the 'orders.refund' permission."),
+            TestData.OpenToolPolicy(),
             ToolEffect.Destructive,
             requiredPermission: "orders.refund",
             attribution: null,
@@ -61,6 +64,7 @@ public sealed class AuthorizingAIFunctionTests
         var wrapped = new AuthorizingAIFunction(
             inner,
             new ThrowingHandler(),
+            TestData.OpenToolPolicy(),
             ToolEffect.Destructive,
             requiredPermission: null,
             attribution: null,

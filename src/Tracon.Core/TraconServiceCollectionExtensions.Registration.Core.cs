@@ -40,6 +40,15 @@ public static partial class TraconServiceCollectionExtensions
         // A consumer replaces this registration to enforce its own policy.
         services.TryAddSingleton<IToolAuthorizationHandler, AllowAllToolAuthorizationHandler>();
 
+        // Per-tenant tool policy (phase 261, F-759): a gate in front of the handler above, not a replacement for it,
+        // so a consumer's own handler does not switch it off. A tenant with no saved policy is unrestricted unless
+        // Tracon:Tools:RequireTenantPolicy is on. The gate resolves the store when the tool registry is first built,
+        // so the storage provider's replacement is the one it reads.
+        services.TryAddTraconDefault<ITenantToolPolicyStore, InMemoryTenantToolPolicyStore>();
+        services.TryAddSingleton(static provider => new TenantToolPolicyGate(
+            provider.GetRequiredService<ITenantToolPolicyStore>(),
+            provider.GetRequiredService<IOptions<TraconOptions>>()));
+
         // Run and session authorization (phase 139, F-185): Tracon draws
         // ownership at the tenant level and never learns which user inside a
         // tenant a run or session belongs to. Allows every call by default, so

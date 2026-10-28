@@ -1803,5 +1803,16 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     updated_at = excluded.updated_at;
             """;
 
+        UpsertTenantToolPolicy = $"""
+            INSERT INTO {Schema}tenant_tool_policies
+                (tenant_id, allowed_tools, granted_permissions, updated_at)
+            VALUES
+                (@tenant_id, @allowed_tools, @granted_permissions, @updated_at)
+            ON CONFLICT (tenant_id) DO UPDATE
+                SET allowed_tools = excluded.allowed_tools,
+                    granted_permissions = excluded.granted_permissions,
+                    updated_at = excluded.updated_at;
+            """;
+
     }
 }

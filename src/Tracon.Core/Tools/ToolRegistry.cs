@@ -85,6 +85,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         return new ToolRegistry(
             registrations,
             provider.GetRequiredService<IToolAuthorizationHandler>(),
+            provider.GetRequiredService<TenantToolPolicyGate>(),
             provider.GetRequiredService<IToolArgumentsValidator>(),
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             provider.GetService<IRunAttributionContext>(),
@@ -97,6 +98,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     /// <summary>Initializes a new registry from registrations.</summary>
     /// <param name="registrations">The tool registrations.</param>
     /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
+    /// <param name="policyGate">The tenant tool policy applied before <paramref name="authorizationHandler"/>.</param>
     /// <param name="validator">The argument validation policy applied before every server-side call.</param>
     /// <param name="optionsMonitor">Supplies the installation's default tool timeout.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
@@ -112,6 +114,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     public ToolRegistry(
         IEnumerable<TraconToolRegistration> registrations,
         IToolAuthorizationHandler authorizationHandler,
+        TenantToolPolicyGate policyGate,
         IToolArgumentsValidator validator,
         IOptionsMonitor<TraconOptions> optionsMonitor,
         IRunAttributionContext? attribution,
@@ -121,6 +124,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     {
         ArgumentNullException.ThrowIfNull(registrations);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
+        ArgumentNullException.ThrowIfNull(policyGate);
         ArgumentNullException.ThrowIfNull(validator);
         ArgumentNullException.ThrowIfNull(optionsMonitor);
         ArgumentNullException.ThrowIfNull(authorizingLogger);
@@ -163,6 +167,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
                 registration,
                 descriptor,
                 authorizationHandler,
+                policyGate,
                 validator,
                 defaultTimeout,
                 defaultMaxOutputBytes,

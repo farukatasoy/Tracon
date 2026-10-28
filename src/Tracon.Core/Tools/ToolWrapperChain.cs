@@ -27,7 +27,8 @@ namespace Tracon;
 /// outside it, turns into the tool's result.
 /// Authorization runs before everything else that follows: asking for approval, waiting
 /// out a timeout, or validating arguments for a call the caller could never
-/// make is backwards. Validation runs before the timeout and the approval
+/// make is backwards. The layer asks two gates, the tenant's tool policy first and then the
+/// consumer's <see cref="IToolAuthorizationHandler"/>; a call needs both. Validation runs before the timeout and the approval
 /// wait: a malformed call should not consume a timeout budget or wait on a
 /// human decision. Timeout sits outside approval: <c>ApprovalRequiredAIFunction</c>
 /// never blocks on the human decision within one call — the decision resumes
@@ -48,6 +49,11 @@ internal static class ToolWrapperChain
     /// descriptor, not inside this method.
     /// </param>
     /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
+    /// <param name="policyGate">
+    /// The tenant tool policy, checked in the same layer and before <paramref name="authorizationHandler"/>.
+    /// Every caller passes the container's gate: a tool source that built its chain without one would run every
+    /// tool for every tenant.
+    /// </param>
     /// <param name="validator">The argument validation policy applied before every server-side call.</param>
     /// <param name="defaultTimeout">The timeout applied when the registration sets none.</param>
     /// <param name="defaultMaxOutputBytes">The output byte limit applied when the registration sets none.</param>
@@ -69,6 +75,7 @@ internal static class ToolWrapperChain
         TraconToolRegistration registration,
         ToolDescriptor descriptor,
         IToolAuthorizationHandler authorizationHandler,
+        TenantToolPolicyGate policyGate,
         IToolArgumentsValidator validator,
         TimeSpan defaultTimeout,
         int? defaultMaxOutputBytes,
@@ -80,6 +87,7 @@ internal static class ToolWrapperChain
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
+        ArgumentNullException.ThrowIfNull(policyGate);
         ArgumentNullException.ThrowIfNull(validator);
         ArgumentNullException.ThrowIfNull(authorizingLogger);
         ArgumentNullException.ThrowIfNull(timeoutLogger);
@@ -125,6 +133,7 @@ internal static class ToolWrapperChain
         wrapped = new AuthorizingAIFunction(
             wrapped,
             authorizationHandler,
+            policyGate,
             descriptor.Effect,
             registration.RequiredPermission,
             attribution,

@@ -199,6 +199,7 @@ public static class TraconSqliteBuilderExtensions
         // are written to the audit trail separately at the HTTP layer.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantToolPolicyStore, SqlTenantToolPolicyStore>());
 
         // Data retention and archiving (Phase 25).
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());

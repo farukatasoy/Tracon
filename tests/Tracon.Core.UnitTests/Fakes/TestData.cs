@@ -29,10 +29,24 @@ internal static class TestData
     public static AIFunction Tool(string name, string description = "test tool")
         => AIFunctionFactory.Create(() => "result", name, description);
 
+    /// <summary>
+    /// The tenant tool policy gate of a host that saved no policy: an empty store and the switch off, so every call
+    /// passes the policy and the handler alone decides, as before the policy existed.
+    /// </summary>
+    public static TenantToolPolicyGate OpenToolPolicy()
+        => ToolPolicyGate(new InMemoryTenantToolPolicyStore());
+
+    /// <summary>The tenant tool policy gate over a store.</summary>
+    /// <param name="store">The store the gate reads.</param>
+    /// <param name="requirePolicy">The value of <c>Tracon:Tools:RequireTenantPolicy</c>.</param>
+    public static TenantToolPolicyGate ToolPolicyGate(ITenantToolPolicyStore store, bool requirePolicy = false)
+        => new(store, Options.Create(new TraconOptions { Tools = new TraconToolOptions { RequireTenantPolicy = requirePolicy } }));
+
     public static ToolRegistry Registry(params AIFunction[] tools)
         => new(
             tools.Select(static tool => new TraconToolRegistration(tool)),
             new AllowAllToolAuthorizationHandler(),
+            OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             DefaultOptionsMonitor(),
             attribution: null,

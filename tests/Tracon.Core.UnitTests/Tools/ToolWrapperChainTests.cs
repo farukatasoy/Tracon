@@ -25,11 +25,13 @@ public sealed class ToolWrapperChainTests
         TraconToolRegistration registration,
         ToolDescriptor descriptor,
         IToolAuthorizationHandler? authorizationHandler = null,
-        IToolArgumentsValidator? validator = null)
+        IToolArgumentsValidator? validator = null,
+        TenantToolPolicyGate? policyGate = null)
         => ToolWrapperChain.Compose(
             registration,
             descriptor,
             authorizationHandler ?? new AllowAllToolAuthorizationHandler(),
+            policyGate ?? TestData.OpenToolPolicy(),
             validator ?? NoOpToolArgumentsValidator.Instance,
             defaultTimeout: TimeSpan.FromSeconds(30),
             defaultMaxOutputBytes: null,

@@ -1272,6 +1272,10 @@ Tracon.ITenantEgressPolicyStore
 Tracon.ITenantEgressPolicyStore.DeleteAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.ITenantEgressPolicyStore.GetAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.TenantEgressPolicy?>
 Tracon.ITenantEgressPolicyStore.UpsertAsync(string! tenantId, System.Collections.Generic.IReadOnlyList<string!>! allowedProviders, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.TenantEgressPolicy!>
+Tracon.ITenantToolPolicyStore
+Tracon.ITenantToolPolicyStore.DeleteAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.ITenantToolPolicyStore.GetAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.TenantToolPolicy?>
+Tracon.ITenantToolPolicyStore.UpsertAsync(string! tenantId, System.Collections.Generic.IReadOnlyList<string!>! allowedTools, System.Collections.Generic.IReadOnlyList<string!>! grantedPermissions, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.TenantToolPolicy!>
 Tracon.ITenantProviderBindingStore
 Tracon.ITenantProviderBindingStore.DeleteAsync(string! tenantId, string! providerName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.ITenantProviderBindingStore.GetAsync(string! tenantId, string! providerName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.TenantProviderBinding?>
@@ -3347,6 +3351,18 @@ Tracon.TenantEgressPolicy.TenantId.get -> string!
 Tracon.TenantEgressPolicy.TenantId.init -> void
 Tracon.TenantEgressPolicy.UpdatedAt.get -> System.DateTimeOffset
 Tracon.TenantEgressPolicy.UpdatedAt.init -> void
+Tracon.TenantToolPolicy
+Tracon.TenantToolPolicy.<Clone>$() -> Tracon.TenantToolPolicy!
+Tracon.TenantToolPolicy.AllowedTools.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.TenantToolPolicy.AllowedTools.init -> void
+Tracon.TenantToolPolicy.Equals(Tracon.TenantToolPolicy? other) -> bool
+Tracon.TenantToolPolicy.GrantedPermissions.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.TenantToolPolicy.GrantedPermissions.init -> void
+Tracon.TenantToolPolicy.TenantId.get -> string!
+Tracon.TenantToolPolicy.TenantId.init -> void
+Tracon.TenantToolPolicy.TenantToolPolicy() -> void
+Tracon.TenantToolPolicy.UpdatedAt.get -> System.DateTimeOffset
+Tracon.TenantToolPolicy.UpdatedAt.init -> void
 Tracon.TenantProviderBinding
 Tracon.TenantProviderBinding.<Clone>$() -> Tracon.TenantProviderBinding!
 Tracon.TenantProviderBinding.ApiKeyConfigurationName.get -> string!
@@ -4947,6 +4963,9 @@ override Tracon.TenantDescriptor.ToString() -> string!
 override Tracon.TenantEgressPolicy.Equals(object? obj) -> bool
 override Tracon.TenantEgressPolicy.GetHashCode() -> int
 override Tracon.TenantEgressPolicy.ToString() -> string!
+override Tracon.TenantToolPolicy.Equals(object? obj) -> bool
+override Tracon.TenantToolPolicy.GetHashCode() -> int
+override Tracon.TenantToolPolicy.ToString() -> string!
 override Tracon.TenantProviderBinding.Equals(object? obj) -> bool
 override Tracon.TenantProviderBinding.GetHashCode() -> int
 override Tracon.TenantProviderBinding.ToString() -> string!
@@ -5415,6 +5434,8 @@ static Tracon.TenantDescriptor.operator !=(Tracon.TenantDescriptor? left, Tracon
 static Tracon.TenantDescriptor.operator ==(Tracon.TenantDescriptor? left, Tracon.TenantDescriptor? right) -> bool
 static Tracon.TenantEgressPolicy.operator !=(Tracon.TenantEgressPolicy? left, Tracon.TenantEgressPolicy? right) -> bool
 static Tracon.TenantEgressPolicy.operator ==(Tracon.TenantEgressPolicy? left, Tracon.TenantEgressPolicy? right) -> bool
+static Tracon.TenantToolPolicy.operator !=(Tracon.TenantToolPolicy? left, Tracon.TenantToolPolicy? right) -> bool
+static Tracon.TenantToolPolicy.operator ==(Tracon.TenantToolPolicy? left, Tracon.TenantToolPolicy? right) -> bool
 static Tracon.TenantProviderBinding.NormalizeProviderName(string! providerName) -> string!
 static Tracon.TenantProviderBinding.operator !=(Tracon.TenantProviderBinding? left, Tracon.TenantProviderBinding? right) -> bool
 static Tracon.TenantProviderBinding.operator ==(Tracon.TenantProviderBinding? left, Tracon.TenantProviderBinding? right) -> bool

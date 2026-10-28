@@ -1846,5 +1846,16 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     updated_at = EXCLUDED.updated_at;
             """;
 
+        UpsertTenantToolPolicy = $"""
+            INSERT INTO {Schema}.tenant_tool_policies
+                (tenant_id, allowed_tools, granted_permissions, updated_at)
+            VALUES
+                (@tenant_id, @allowed_tools, @granted_permissions, @updated_at)
+            ON CONFLICT (tenant_id) DO UPDATE
+                SET allowed_tools = EXCLUDED.allowed_tools,
+                    granted_permissions = EXCLUDED.granted_permissions,
+                    updated_at = EXCLUDED.updated_at;
+            """;
+
     }
 }

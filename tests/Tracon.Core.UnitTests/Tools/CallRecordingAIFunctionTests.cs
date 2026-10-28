@@ -146,6 +146,7 @@ public sealed class CallRecordingAIFunctionTests
             new TraconToolRegistration(AIFunctionFactory.Create(() => { ran = true; return "spoken"; }, "speak")),
             new ToolDescriptor { Name = "speak", Effect = ToolEffect.Read },
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             defaultTimeout: TimeSpan.FromSeconds(30),
             defaultMaxOutputBytes: null,

@@ -179,6 +179,7 @@ public static class TraconEndpointRouteBuilderExtensions
         WebhookEndpoints.Map(group, roles);
         ApiKeyEndpoints.Map(group, roles);
         TenantProviderEndpoints.Map(group, roles);
+        TenantToolPolicyEndpoints.Map(group, roles);
         TriggerEndpoints.Map(group, roles);
         ApprovalEndpoints.Map(group, roles);
         RetentionEndpoints.Map(group, roles);

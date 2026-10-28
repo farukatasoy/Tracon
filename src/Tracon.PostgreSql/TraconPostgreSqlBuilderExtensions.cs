@@ -262,6 +262,7 @@ public static class TraconPostgreSqlBuilderExtensions
         // are written to the audit trail separately at the HTTP layer.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantToolPolicyStore, SqlTenantToolPolicyStore>());
 
         // Retention and archival (Phase 25). The policy/run store (control
         // plane) is NOT wrapped in the audit-trail decorator: same rationale as

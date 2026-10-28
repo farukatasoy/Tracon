@@ -41,6 +41,7 @@ public sealed class McpToolCatalogReachabilityTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
+            McpToolPolicyTestGates.Open(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 
@@ -62,6 +63,7 @@ public sealed class McpToolCatalogReachabilityTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
+            McpToolPolicyTestGates.Open(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 

@@ -123,6 +123,29 @@ public sealed class TraconToolOptions
     /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan ApprovalPresentationTimeout { get; set; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Gets or sets whether a tenant with no tool policy may run no tool at all. Default <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Off</strong>, a tenant with no tool policy row is not restricted by the policy gate: it runs every
+    /// tool the agent has, subject to <see cref="IToolAuthorizationHandler"/> as before. That is the right default
+    /// for a single-tenant setup, and a deployment that separates tenants answers
+    /// <see cref="TraconProductionRisk.UncheckedToolCalls"/> with this switch or with its own handler.
+    /// </para>
+    /// <para>
+    /// <strong>On</strong>, a call to a tool the policy gate covers (the tools <see cref="IToolAuthorizationHandler"/>
+    /// is asked about) is refused until the tenant has a policy. The default tenant is a tenant too: with this on,
+    /// it needs its own policy row. A policy that lists nothing refuses every tool, so it is not the same as having
+    /// no policy. Saving a policy is never blocked by this switch.
+    /// </para>
+    /// <para>
+    /// Configuration key: <c>Tracon:Tools:RequireTenantPolicy</c>. It is read when the host starts; changing it
+    /// afterwards does not apply to the running process.
+    /// </para>
+    /// </remarks>
+    public bool RequireTenantPolicy { get; set; }
 }
 
 /// <summary>Defines options for the <c>POST /api/agents/validate</c> endpoint.</summary>

@@ -242,6 +242,7 @@ public static class TraconSqlServerBuilderExtensions
         // are written to the audit trail separately at the HTTP layer.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantToolPolicyStore, SqlTenantToolPolicyStore>());
 
         // Retention and archival (Phase 25). Same rationale: the policy/run
         // store is not wrapped, the data plane is meaningful only while a SQL

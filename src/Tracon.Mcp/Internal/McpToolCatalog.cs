@@ -48,6 +48,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly ILogger<McpToolCatalog> _logger;
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly IToolAuthorizationHandler _authorizationHandler;
+    private readonly TenantToolPolicyGate _policyGate;
     private readonly IToolArgumentsValidator _validator;
     private readonly IRunAttributionContext? _attribution;
     private readonly EgressSocketGuard? _egressGuard;
@@ -75,6 +76,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ILoggerFactory loggerFactory,
         McpOAuthTokenCacheRegistry tokenCaches,
         IToolAuthorizationHandler authorizationHandler,
+        TenantToolPolicyGate policyGate,
         IToolArgumentsValidator validator,
         IRunAttributionContext? attribution,
         EgressSocketGuard? egressGuard = null,
@@ -89,6 +91,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(tokenCaches);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
+        ArgumentNullException.ThrowIfNull(policyGate);
         ArgumentNullException.ThrowIfNull(validator);
 
         _servers = servers;
@@ -100,6 +103,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _logger = loggerFactory.CreateLogger<McpToolCatalog>();
         _tokenCaches = tokenCaches;
         _authorizationHandler = authorizationHandler;
+        _policyGate = policyGate;
         _validator = validator;
         _attribution = attribution;
         _egressGuard = egressGuard;
@@ -190,6 +194,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         registrations,
                         _logger,
                         _authorizationHandler,
+                        _policyGate,
                         _validator,
                         _coreOptions.Value.Tools.DefaultTimeout,
                         _attribution,

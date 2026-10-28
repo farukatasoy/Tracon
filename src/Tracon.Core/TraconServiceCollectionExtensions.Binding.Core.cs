@@ -50,6 +50,11 @@ public static partial class TraconServiceCollectionExtensions
             nameof(TraconToolOptions.ApprovalPresentationTimeout),
             static o => o.ApprovalPresentationTimeout,
             static (o, v) => o.ApprovalPresentationTimeout = v);
+
+        read.Boolean(
+            nameof(TraconToolOptions.RequireTenantPolicy),
+            static o => o.RequireTenantPolicy,
+            static (o, v) => o.RequireTenantPolicy = v);
     }
 
     /// <summary>Binds the <c>Tracon:Preflight</c> section.</summary>

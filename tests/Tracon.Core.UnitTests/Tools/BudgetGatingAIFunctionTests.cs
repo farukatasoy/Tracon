@@ -239,6 +239,7 @@ public sealed class BudgetGatingAIFunctionTests
             new TraconToolRegistration(tool),
             new ToolDescriptor { Name = tool.Name, Effect = ToolEffect.Read },
             handler,
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             defaultTimeout: TimeSpan.FromSeconds(30),
             defaultMaxOutputBytes: null,

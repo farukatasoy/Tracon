@@ -78,6 +78,7 @@ public sealed class McpDiscoverySingletonTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
+            McpToolPolicyTestGates.Open(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 

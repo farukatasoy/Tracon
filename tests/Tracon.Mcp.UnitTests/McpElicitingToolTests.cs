@@ -180,6 +180,7 @@ public sealed class McpElicitingToolTests
             [new TraconToolRegistration(tool) { Source = "srv" }],
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
+            McpToolPolicyTestGates.Open(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,

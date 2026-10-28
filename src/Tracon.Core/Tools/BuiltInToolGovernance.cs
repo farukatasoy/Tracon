@@ -30,6 +30,7 @@ namespace Tracon;
 internal sealed class BuiltInToolGovernance
 {
     private readonly IToolAuthorizationHandler _authorizationHandler;
+    private readonly TenantToolPolicyGate _policyGate;
     private readonly IToolArgumentsValidator _validator;
     private readonly IOptionsMonitor<TraconOptions> _options;
     private readonly IRunAttributionContext? _attribution;
@@ -39,6 +40,7 @@ internal sealed class BuiltInToolGovernance
 
     /// <summary>Creates the governance with the dependencies of the tool chain.</summary>
     /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
+    /// <param name="policyGate">The tenant tool policy applied before <paramref name="authorizationHandler"/>.</param>
     /// <param name="validator">The argument validation policy applied before every server-side call.</param>
     /// <param name="options">Supplies the installation's default tool timeout and output limit.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
@@ -47,6 +49,7 @@ internal sealed class BuiltInToolGovernance
     /// <param name="validatingLogger">The logger passed to every validating layer.</param>
     public BuiltInToolGovernance(
         IToolAuthorizationHandler authorizationHandler,
+        TenantToolPolicyGate policyGate,
         IToolArgumentsValidator validator,
         IOptionsMonitor<TraconOptions> options,
         IRunAttributionContext? attribution,
@@ -55,6 +58,7 @@ internal sealed class BuiltInToolGovernance
         ILogger<ValidatingAIFunction> validatingLogger)
     {
         ArgumentNullException.ThrowIfNull(authorizationHandler);
+        ArgumentNullException.ThrowIfNull(policyGate);
         ArgumentNullException.ThrowIfNull(validator);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(authorizingLogger);
@@ -62,6 +66,7 @@ internal sealed class BuiltInToolGovernance
         ArgumentNullException.ThrowIfNull(validatingLogger);
 
         _authorizationHandler = authorizationHandler;
+        _policyGate = policyGate;
         _validator = validator;
         _options = options;
         _attribution = attribution;
@@ -79,6 +84,7 @@ internal sealed class BuiltInToolGovernance
 
         return new BuiltInToolGovernance(
             provider.GetRequiredService<IToolAuthorizationHandler>(),
+            provider.GetRequiredService<TenantToolPolicyGate>(),
             provider.GetRequiredService<IToolArgumentsValidator>(),
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             provider.GetService<IRunAttributionContext>(),
@@ -118,6 +124,7 @@ internal sealed class BuiltInToolGovernance
             registration,
             descriptor,
             _authorizationHandler,
+            _policyGate,
             _validator,
             _options.CurrentValue.Tools.DefaultTimeout,
             _options.CurrentValue.Tools.DefaultMaxOutputBytes,

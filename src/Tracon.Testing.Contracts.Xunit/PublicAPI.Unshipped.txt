@@ -629,6 +629,19 @@ Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Saved_policy_is
 Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.TenantEgressPolicyStoreContract() -> void
 Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Tenant_with_no_saved_policy_is_unrestricted() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Upsert_replaces_the_existing_policy() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.A_policy_is_deleted_whatever_case_the_caller_uses() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.A_policy_saved_under_a_different_case_replaces_the_existing_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.A_tenant_is_matched_case_insensitively(string! savedAs, string! requestedAs) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Concurrent_saves_for_one_tenant_leave_one_whole_policy() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Deleting_the_policy_removes_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Each_list_is_kept_apart_from_the_other() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Saved_policy_is_read_back_with_both_lists_in_order() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Tenant_with_no_saved_policy_has_none() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.TenantToolPolicyStoreContract() -> void
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Two_empty_lists_are_a_policy_and_not_the_absence_of_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Upsert_replaces_the_existing_policy() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.Upsert_returns_the_canonical_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.AmbientTenant.get -> Tracon.Testing.Contracts.Storage.MutableTenantContext!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Same_name_lives_independently_across_two_tenants() -> System.Threading.Tasks.Task!
@@ -932,6 +945,10 @@ override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.CountA
 override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.SeedAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<object!>
 override Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+override Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.CountAsync(string! tenantId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.SeedAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.TenantToolPolicyStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 override Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.CancellableReadAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
 override Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.CancellableWriteAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
 override Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.WroteAnythingAsync() -> System.Threading.Tasks.ValueTask<bool>

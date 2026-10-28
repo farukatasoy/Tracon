@@ -47,6 +47,7 @@ public sealed class ToolRegistrationTests
         var withApproval = new ToolRegistry(
             [new TraconToolRegistration(TestData.Tool("delete")) { RequiresApproval = true }],
             new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -145,6 +146,7 @@ public sealed class ToolRegistrationTests
             () => new ToolRegistry(
                 [new TraconToolRegistration(declaration) { RequiresApproval = true }],
                 new AllowAllToolAuthorizationHandler(),
+                TestData.OpenToolPolicy(),
                 NoOpToolArgumentsValidator.Instance,
                 TestData.DefaultOptionsMonitor(),
                 attribution: null,
