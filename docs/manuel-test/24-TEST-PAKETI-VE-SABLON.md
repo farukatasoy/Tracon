@@ -1860,9 +1860,10 @@ grep -c "Tracon.Testing" ~/Desktop/projects/Tracon/src/Tracon/Tracon.csproj
 
 **Beklenen sonuç**
 - `.nuspec` taraması **"temiz"** yazar.
-- Kaynak `.csproj` taraması `0` döner — meta paket altı bileşenin (`AspNetCore`,
-  `Mcp`, `OpenAI`, `PostgreSql`, `UI`, `Workflows`) hiçbirinin arasında
-  `Testing` **yoktur** (`src/Tracon/Tracon.csproj:12-17`).
+- Kaynak `.csproj` taraması `0` döner — meta paket beş bileşenin (`AspNetCore`,
+  `Mcp`, `OpenAI`, `UI`, `Workflows`) hiçbirinin arasında `Testing`
+  **yoktur** (`src/Tracon/Tracon.csproj`; Faz 256'dan beri `PostgreSql` de
+  yoktur, K-1116).
 
 ---
 

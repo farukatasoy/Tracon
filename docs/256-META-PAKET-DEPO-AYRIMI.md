@@ -366,8 +366,9 @@ NUGET_PACKAGES="$W/packages" dotnet build Tracon.CapacityHost/Tracon.CapacityHos
   -c Release -p:TraconCapacityPackageVersion="$V"
 
 # Sevk edilen metin taraması — "meta PostgreSQL getirir" iddiası kalmamalı
-grep -rn -i "PostgreSQL persistence\|with PostgreSQL support\|instead of PostgreSQL" \
-  src/Tracon/ README.md docs-site/src/content/docs --include='*.md' --include='*.mdx' --include='*.csproj'
+# (düzeltildi: ilk desen tabanda da eşleşiyordu; üretilen api/ sayfaları dışarıda, desen iddiayı arar)
+grep -rn -i "PostgreSQL persistence, the OpenAI\|with PostgreSQL support\|instead of PostgreSQL" \
+  src/Tracon/ README.md docs-site/src/content/docs --exclude-dir=api --include='*.md' --include='*.mdx' --include='*.csproj'
 ```
 
 ---
@@ -419,6 +420,20 @@ paketi anmaz); `Tracon.AgentMap.md` değişmedi. Kapılar: `ShippedDocumentation
 `CapabilityExampleTests` · `SourceLanguageTests` (12/12) · `LocalReferenceTests` (10/10) · `npm run check` (içerik 1054
 sayfa, bağlantı 187376 referans, sıfır kırık; ağırlık tavanı altında).
 
+6. **DoD'deki sevk edilen metin taraması düzeltildi.** İlk desen (`PostgreSQL persistence` …) tabanda da eşleşiyordu:
+   `capabilities.md:328` ve üretilen `api/` sayfaları paketin kendi işini anlatır, meta paketi anmaz. Sıfıra ulaşılamazdı.
+   Desen iddianın kendisine daraltıldı (`PostgreSQL persistence, the OpenAI` · `with PostgreSQL support` · `instead of
+   PostgreSQL`) ve `api/` dışarıda bırakıldı; sonuç sıfırdır. `capabilities.md:328` bilerek değişmedi: satır agent
+   haritasına girer ve harita 11256 / 11264 B'tedir (F-714); F-751'e yazıldı.
+7. **İki manuel case'in beklenen sonucu daha yanlış çıktı** (denetim 🟡-2): `MT-PKG-073` (`postgres` varyantı "yalnız
+   `Tracon`") ve `MT-TEST-061` (meta paketin altı bileşeni). Plan tablosunda yoklardı; ikisi de düzeltildi.
+8. **Kapanış kapısı gerçek bir regresyon yakaladı.** `ConsumerSurfaceTests.Internal_type_is_not_visible_to_a_package_consumer`
+   (`MigrationRunner`) tam testte düştü, izole koşumda da düştü. Sebep: `MigrationRunner` depo paketlerinde `internal`'dır
+   ve sonda yalnız `Tracon`'u referanslıyordu; meta paket depoyu getirmeyince tip grafta kalmadı, derleme `CS0122` yerine
+   `CS0246` verdi. Plan bu testi anmamıştı; ben de paket testlerinden yalnız üç sınıfı koşmuştum. Düzeltme:
+   `SurfaceProbeProject.WriteAsync` sahibi paketi (`owningPackage`) referanslar, `MigrationRunner` vakası
+   `Tracon.PostgreSql` verir. Sınıf taraması: 30 108 testin başka hiçbiri düşmedi. Ders `hafiza/paketleme-ve-dagitim.md`'de.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -450,3 +465,14 @@ sayfa, bağlantı 187376 referans, sıfır kırık; ağırlık tavanı altında)
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetçi taze bağlamlı `faz-denetcisi`; aralık `5d615e0e..b5de3141`. 🔴 yok.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| DoD'deki sevk edilen metin taraması taban commit'te de eşleşiyordu, sıfır olamazdı | 🟡 | Düzeltildi: desen iddiaya daraltıldı, `api/` dışarıda (Sapma 6) |
+| `MT-PKG-073` ve `MT-TEST-061` eski bileşimi yazıyordu | 🟡 | Düzeltildi (Sapma 7); `MT-PKG-073`'e `➜ CI` işareti eklendi |
+| `proje-sablonu → getting-started/index.md` site kapısı kırmızı | 🟡 | Gerekçelendi ve `--site-gerekce-yazildi` ile geçildi (Sapma 5); denetçi koşumundan sonra yazıldı |
+| `UsePostgreSql` kullanan README ve rehber örnekleri yalnız `Tracon` ile derlenmez | 🟢 | F-749 |
+| `README.md:174` "everything with one reference" | 🟢 | F-750 |
+| Bilgi hata metinleri ve agent haritası paketi anmaz | 🟢 | F-751 |

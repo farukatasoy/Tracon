@@ -1867,8 +1867,9 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
 |---|---|
 | **İzlek** | A |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 37 |
-| **İlgili karar** | K-185 |
+| **İlgili faz** | Faz 37 · Faz 256 |
+| **İlgili karar** | K-185 · K-1116 |
+| **Devir** | ➜ CI: `TemplateInstantiationTests.Postgres_combination_compiles_with_zero_warnings` (`postgres` varyantının referansı ve derlemesi) |
 
 **Ön koşul**
 - MT-PKG-070 geçti.
@@ -1895,8 +1896,8 @@ done
 ```
 
 **Beklenen sonuç**
-- `postgres` varyantı yalnız `Tracon` paketini referanslar (PostgreSQL meta
-  pakete dâhildir) ve `UsePostgreSql` çağrısını taşır.
+- `postgres` varyantı `Tracon` ve `Tracon.PostgreSql` paketlerini referanslar
+  (PostgreSQL meta pakette değildir, K-1116) ve `UsePostgreSql` çağrısını taşır.
 - `sqlite` varyantı ek olarak `Tracon.Sqlite` paketini referanslar.
 - `sqlserver` varyantı ek olarak `Tracon.SqlServer` paketini referanslar.
 - Her varyantın `appsettings.json` dosyası yalnız **kendi** sağlayıcısının
