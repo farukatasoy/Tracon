@@ -1,6 +1,6 @@
 # Faz 255 — Çalışma Anı Bağımlılıkları ve MAF 1.26
 
-> **Durum:** 🚧 Uygulanıyor (2026-10-28)
+> **Durum:** ✅ Tamamlandı (2026-10-28)
 > **Kademe:** tam — güvenlik ve kiracı sınırı (oturum silme yolu; BYOK isteğinin kimlik başlığı değişir) · public API davranışı (Anthropic örnekleme beyanı daralır, alanı taşıyan tanım reddedilir; `SamplingFields` büyüyebilir) · geri dönüşü pahalı (Anthropic SDK major sürümü)
 > **Plan onayı:** 👤 2026-10-28 (farukatasoy) — "fazı geliştir commit atabilirsin". Kapsam kararları 👤 aynı gün: çalışma anı seti · ortak silme yolu · Anthropic 13'e geç ve beyanı daralt. Açık Sorular 1–4 plandaki önerilen seçenekle uygulandı (bkz. Plandan Sapmalar 1).
 > **Kaynak:** [RC-KALITE-DALGALARI.md](RC-KALITE-DALGALARI.md) Q-10 · **F-745** (çalışma anı bağımlılık seti ve MAF 1.26), **F-746** (`DELETE /v1/conversations/{id}` oturumun ek dosyalarını silmez)
