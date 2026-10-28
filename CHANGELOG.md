@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   does not contain a definition for `UsePostgreSql`). Add the package with
   `dotnet add package Tracon.PostgreSql --prerelease`. A project generated with `--persistence postgres` from the new
   template already references it.
+- **A project generated from the new template takes the model name from `appsettings.json`, not from `Program.cs`.**
+  The generated `Program.cs` no longer carries the `WRITE_MODEL_NAME_HERE` placeholder. It reads
+  `Tracon:Providers:<Provider>:DefaultModel` (Azure OpenAI: `DefaultDeployment`) and binds the value to the sample agent.
+  A project generated earlier keeps its own `Program.cs` and is not affected. For a new project, pass the model to
+  `dotnet new tracon-api --model <name>`, or fill the setting in. With an API key set and no model name the app stops
+  at startup and names the setting; with no key it still starts, as before.
 - **An agent that sets `Temperature`, `TopP` or `TopK` for the `anthropic` provider no longer builds.** Anthropic SDK 13
   removed the three fields from the Messages request, so the SDK adapter drops them: a definition that set one ran
   without it. Tracon refuses to drop a field without saying so. `POST /api/agents/validate` now reports
@@ -70,6 +76,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`dotnet new tracon-api --model <name>` writes the chat model to `appsettings.json`.** The value lands in the
+  provider's `DefaultModel` (Azure OpenAI: `DefaultDeployment`), JSON-encoded, so a name with a quote or a backslash
+  stays a valid file. It is not a `secret`. The first answer now takes five commands and no code edit:
+  `dotnet new install`, `dotnet new tracon-api --model`, `cd`, `dotnet user-secrets set`, `dotnet run`. The template
+  README no longer asks for `dotnet user-secrets init`: the generated project file already carries its `UserSecretsId`.
+
 - **A catalog entry can name the request fields its model rejects: `ModelDescriptor.RejectedSamplingFields`.** A model
   decides what it accepts, not the API surface: `openai` sends `stop`, and the three models of the OpenAI account used for
   the measurement answer it with `400 unsupported_parameter`.
@@ -124,6 +136,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The knowledge-base errors name the package that supplies the store.** The `501` answer of the knowledge
+  endpoints, the `TraconException` of the knowledge service and the compile error of an agent that asks for semantic
+  search now say "the `Tracon.PostgreSql` package, `UsePostgreSql()`". The status code and the title are unchanged. The
+  production warning about non-persistent storage and the warning about a session workspace on the in-memory file store
+  name the package of each `Use*` call they suggest.
+- **Every example reads the provider key from `Tracon:Providers:*`.** The XML examples, the package READMEs and the
+  guides showed `Configuration["OpenAI:ApiKey"]`, a key nothing binds. They now use the section overload
+  (`GetSection(OpenAIProviderOptions.SectionName)`) or the key `Tracon:Providers:OpenAI:ApiKey`. Pages that call
+  `UsePostgreSql` now name the `Tracon.PostgreSql` package, and the root README no longer says "two lines".
 - **Dependencies move to the newest releases of the runtime stack.** Microsoft Agent Framework `1.25.0` to `1.26.0`
   (Hosting `1.26.0-preview.261023.1`, Hosting.OpenAI `1.26.0-alpha.261023.1`), the .NET platform packages `10.0.13` to
   `10.0.14`, `Anthropic` `12.58.0` to `13.3.0`, `Google.GenAI` `1.26.1` to `1.27.0` and `Azure.Core` `1.63.0` to `1.64.0`.
