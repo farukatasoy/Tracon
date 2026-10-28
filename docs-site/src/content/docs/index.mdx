@@ -102,7 +102,7 @@ import LandingScript from '../../components/landing/LandingScript.astro';
 <p class="lx-vig-head" id="filed-head"><span>Audit trail · tenant acme</span><em class="lx-sample">Sample</em></p>
 <p>Runs are not audit entries; the run history is the record. The audit trail records who changed what: the tenant, the key, the decision. Each entry stores its SHA-256 and the previous entry's hash.</p>
 <Verify />
-<p class="lx-limit">Verification is an API call; the console does not run it. <a href="/concepts/governance/#tamper-detection">Tamper detection <span aria-hidden="true">→</span></a></p>
+<p class="lx-limit">Verification is an API call, and the console's Audit screen runs it on request. <a href="/concepts/governance/#tamper-detection">Tamper detection <span aria-hidden="true">→</span></a></p>
 <p class="lx-soak"><a href="/guides/production/#what-one-environment-measured">Thirty minutes, one machine</a>: 12&nbsp;515 runs accepted, 12&nbsp;515 completed, no gap in any event stream, nothing under the wrong tenant. Not an SLA.</p>
 </div>
 <Chain />

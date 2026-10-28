@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { absoluteTime, relativeTime, prettyJson } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -13,6 +13,7 @@ import {
   Mono,
   PageHeader,
   Panel,
+  Stat,
   Table,
   Td,
   TextInput,
@@ -21,7 +22,8 @@ import {
 } from '../components/ui';
 import { Toolbar, ToolbarField } from '../components/toolbar';
 import { DiffView } from '../components/diff-view';
-import type { AuditEntry, TraconMetaResponse as Meta } from '@tracon/client';
+import type { StatusTone } from '../components/status-dot';
+import type { AuditChainVerification, AuditEntry, TraconMetaResponse as Meta } from '@tracon/client';
 
 const EMPTY_FILTERS = { actor: '', action: '', entity: '' };
 
@@ -70,6 +72,8 @@ export function AuditScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
       ) : (
         <>
+          <ChainVerifyPanel />
+
           <Toolbar onReset={filtering ? () => setFilters(EMPTY_FILTERS) : undefined}>
             <ToolbarField label={t('audit.actor')}>
               {(id) => (
@@ -163,6 +167,112 @@ export function AuditScreen({ meta }: { meta: Meta }): ReactNode {
         </>
       )}
     </>
+  );
+}
+
+const VERIFY_TONE: Record<AuditChainVerification['status'], StatusTone> = {
+  Valid: 'success',
+  Broken: 'danger',
+  Gap: 'danger',
+  UnknownKey: 'warn',
+};
+
+const VERIFY_LABEL = {
+  Valid: 'audit.verify.valid',
+  Broken: 'audit.verify.broken',
+  Gap: 'audit.verify.gap',
+  UnknownKey: 'audit.verify.unknownKey',
+} as const;
+
+const VERIFY_HINT = {
+  Valid: 'audit.verify.validHint',
+  Broken: 'audit.verify.brokenHint',
+  Gap: 'audit.verify.gapHint',
+  UnknownKey: 'audit.verify.unknownKeyHint',
+} as const;
+
+/**
+ * Walks the tenant's whole hash chain on request and shows what the walk found.
+ *
+ * A button, not an automatic query: the walk reads every entry of the tenant, which
+ * is cheap on a screen that was asked for it and wasteful on one that merely opened.
+ * The first failing entry is shown as an id with a copy control and not as a link
+ * into the list: the list is not paged and the entry may not be on it.
+ */
+function ChainVerifyPanel(): ReactNode {
+  const t = useT();
+  const verify = useMutation({
+    mutationFn: () => unwrap(client.GET('/api/audit/verify', {})),
+  });
+  const result = verify.data;
+
+  return (
+    <Panel
+      title={t('audit.verify.title')}
+      actions={
+        <Button
+          tone="primary"
+          testId="audit-verify"
+          busy={verify.isPending}
+          disabled={verify.isPending}
+          onClick={() => verify.mutate()}
+        >
+          {verify.isPending ? t('audit.verify.running') : t('audit.verify.run')}
+        </Button>
+      }
+    >
+      <p className="px-4 py-2 text-sm text-muted">{t('audit.verify.description')}</p>
+
+      {verify.isError && (
+        <div className="p-4">
+          <ErrorNote error={verify.error} onRetry={() => verify.mutate()} />
+        </div>
+      )}
+
+      {result !== undefined && <ChainVerifyResult result={result} />}
+    </Panel>
+  );
+}
+
+function ChainVerifyResult({ result }: { result: AuditChainVerification }): ReactNode {
+  const t = useT();
+  // The schema types an int32 as `number | string` (the wire may carry either).
+  const unkeyed = Number(result.unkeyedEntries ?? 0);
+
+  return (
+    <div className="grid gap-3 border-t border-line p-4" data-testid="audit-verify-result">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium tracking-wide text-subtle uppercase">
+          {t('audit.verify.status')}
+        </span>
+        <Badge tone={VERIFY_TONE[result.status]}>{t(VERIFY_LABEL[result.status])}</Badge>
+        <span className="text-sm text-muted">{t(VERIFY_HINT[result.status])}</span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Stat label={t('audit.verify.checked')} value={String(result.entriesChecked)} />
+        <Stat
+          label={t('audit.verify.unkeyed')}
+          value={String(unkeyed)}
+          hint={t('audit.verify.unkeyedHint')}
+        />
+      </div>
+
+      {unkeyed > 0 && (
+        <p className="text-sm text-warn" role="status" data-testid="audit-verify-unkeyed-warning">
+          {t('audit.verify.unkeyedWarning', { n: unkeyed, total: result.entriesChecked })}
+        </p>
+      )}
+
+      {result.firstFailingEntryId != null && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-xs font-medium tracking-wide text-subtle uppercase">
+            {t('audit.verify.failing')}
+          </span>
+          <Mono copy={result.firstFailingEntryId}>{result.firstFailingEntryId}</Mono>
+        </div>
+      )}
+    </div>
   );
 }
 
