@@ -131,7 +131,7 @@ Düzeltme koddadır; **tekrarı önleyen şey** yazıdır.
 | Kusuru yakalayan senaryo | `docs/manuel-test/<NN>-<ALAN>.md` — regresyon case'i olarak |
 | Kapanan kusur bir `F-NN` kaydıydı | Satırı `docs/ADAYLAR.md`'den sil; `docs/arsiv/ERTELENEN-ADAYLAR.md` § *Kapanan kalemler* tablosuna tek satırla (tarih + kanıt) taşı. Aday dosyası yalnız yapılacak işi taşır; F-ID sayacı arşivdeki numarayı da sayar. Kısmen kapandıysa satır yerinde kalır ve yalnız kalan işi anlatır. Kapı: `--denetle` → *Aday dosyasının hizası* — kapanan tablosundaki F-ID aday dosyasında hâlâ duruyorsa kırmızıdır |
 | Kalıcı çalışma kuralı değişti | `AGENTS.md` veya ilgili skill |
-| Kusurun geldiği faz biliniyor | `docs/FAZ-DEFTERI.md` § *Süreç Ölçümü*'nde o fazın satırına **bir çentik**: `Faz kapandıktan sonra bulunan kusur` hücresini artır (`ölçülmedi` → `1`). Hücre defterin elle yazılan tek hücresidir; `ask` kuralı sorar — protokolsüz bırakılan bir satır doldurulmaz. Faz 167'den eskiyse satır yoktur, çentik atılmaz |
+| Kusurun geldiği faz biliniyor | `docs/FAZ-OLCUMLERI.md` § *Süreç Ölçümü*'nde o fazın satırına **bir çentik**: `Faz kapandıktan sonra bulunan kusur` hücresini artır (`ölçülmedi` → `1`). Hücre bu dosyanın elle yazılan tek hücresidir; `ask` kuralı sorar — protokolsüz bırakılan bir satır doldurulmaz. Faz 167'den eskiyse satır yoktur, çentik atılmaz |
 
 Not yazarken **neyin bedel ödettiğini** yaz, ne yaptığını değil. "Düzeltildi"
 bir not değildir; "async yardımcıda açılan `scope` çağırana akmaz" nottur.

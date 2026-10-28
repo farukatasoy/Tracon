@@ -144,9 +144,11 @@ koşar**. 🟡 bulgular kapanır ya da gerekçesi kapanış commit mesajına yaz
 ## Adım 5 — Kalıcı bilgiyi yerine taşı
 
 Faz dokümanı kapanışta **silinir** (Adım 9, `faz-kapat`); yalnız
-[`FAZ-DEFTERI`](../../../docs/FAZ-DEFTERI.md) satırı kalır. Kapanışta dokümana
-gerçekleşen public API, dosya listesi ya da test listesi **yazılmaz** — kod ve
-diff onları taşır. Dokümanda yalnız `faz-kapat`'ın okuduğu dört şey düzeltilir:
+[`FAZ-DEFTERI`](../../../docs/FAZ-DEFTERI.md) satırı ile
+[`FAZ-OLCUMLERI`](../../../docs/FAZ-OLCUMLERI.md) ölçüm satırı kalır.
+Kapanışta dokümana gerçekleşen public API, dosya listesi ya da test listesi
+**yazılmaz** — kod ve diff onları taşır. Dokümanda yalnız `faz-kapat`'ın okuduğu
+dört şey düzeltilir:
 
 - [ ] **Durum**: `✅ Tamamlandı (YYYY-AA-GG)`
 - [ ] **Kademe**: `hafif` ya da `tam` — `faz-kapat` satır yoksa durur

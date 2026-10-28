@@ -217,7 +217,13 @@ YONETIM_BUTCESI = {
     # ~150 B buyur; ILK SINIR -- K-214'e girmez. Asilirsa satir kisaltilmaz,
     # olcum tablosu ayri dosyaya bolunur.
     # Ayni gun `Kademe` sutunu eklendi (+1_376 B); ilk sinir o olcume gore konur.
+    # 2026-10-28: dort faz tek oturumda kapandi (her kapanis iki satir ekler) ve dosya
+    # 42_239 B ile siniri asti. Yazili soz tutuldu: satir kisaltilmadi, sinir BUYUTULMEDI;
+    # olcum tablosu `docs/FAZ-OLCUMLERI.md`'ye bolundu. Dosya simdi 37_401 B.
     "docs/FAZ-DEFTERI.md": 42_000,  # ILK SINIR 2026-10-17; olculen 35_011 (olculen/0.85=41_190)
+    # FAZ-OLCUMLERI: kapanan fazin surec olcumu (2026-10-28, FAZ-DEFTERI'nden bolundu).
+    # Faz basina ~50 B buyur; ILK SINIR -- K-214'e girmez. Ledger gibi "yalniz aramada" okunur.
+    "docs/FAZ-OLCUMLERI.md": 6_100,  # ILK SINIR 2026-10-28; olculen 5_153 (olculen/0.85=6_062)
 }
 
 # Birleştirilmiş görünüm yalnız büyüme projeksiyonu içindir. Raporlama bu
@@ -998,9 +1004,11 @@ def surec_olcumu_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
     bulgu", "üretilen regresyon" sayılarının hiçbiri tutulmadı. `artifacts/`
     `.gitignore`'dadır, `kapi-olcum.jsonl` faz numarası taşımaz: geriye dönük
     türetme MÜMKÜN DEĞİLDİR. Bu yüzden ölçüm kapanışta faz dokümanına YAZILIR;
-    `faz-kapat` onu `FAZ-DEFTERI.md`'nin ölçüm tablosuna taşır ve dokümanı
-    siler (2026-10-17). Kapı iki yere bakar: kökte kalmış kapanmış bir doküman
-    (eksik ölçüm `faz-kapat`'tan ÖNCE görünür) ve defter.
+    `faz-kapat` onu `FAZ-OLCUMLERI.md`'nin ölçüm tablosuna taşır ve dokümanı
+    siler (2026-10-17; tablo 2026-10-28'de `FAZ-DEFTERI.md`'den ayrıldı). Kapı
+    iki yere bakar: kökte kalmış kapanmış bir doküman (eksik ölçüm
+    `faz-kapat`'tan ÖNCE görünür) ve ölçüm dosyası. Ölçüm satırı gereken fazı
+    defter satırı belirler.
 
     🚨 Kapı satırın VARLIĞINI denetler, DOĞRULUĞUNU denetlemez — `0/0/0` yazan
     bir faz yeşil geçer (K-766). Kapı hiçbir şey YAZMAZ."""
@@ -1019,11 +1027,11 @@ def surec_olcumu_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
         if k["no"] < SUREC_OLCUMU_ESIGI or not _durum_tamamlandi_mi(k["durum"]):
             continue
         if k["olcum"] is None:
-            bulgular.append(f"{FAZ_DEFTERI}: Faz {k['no']} için ölçüm satırı yok")
+            bulgular.append(f"{FAZ_OLCUMLERI}: Faz {k['no']} için ölçüm satırı yok")
             continue
         for metrik in SUREC_OLCUMU_METRIKLERI:
             if not _tablo_etiketi(k["olcum"].get(metrik, "")):
-                bulgular.append(f"{FAZ_DEFTERI}: Faz {k['no']} `{metrik}` hücresi boş")
+                bulgular.append(f"{FAZ_OLCUMLERI}: Faz {k['no']} `{metrik}` hücresi boş")
     return bulgular
 
 
@@ -1032,9 +1040,18 @@ def surec_olcumu_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
 # 2026-10-17; K-523 yeniden acildi). Izi bu defterin bir satiridir: konu,
 # kaynak F-ID, kapanis tarihi ve tam metne goturen `<sha>:<yol>`. Esik 167'den
 # itibaren fazin surec olcumu ayri bir tabloda durur (K-766/K-767 aynen).
-# Defteri `faz-kapat` yazar; elle yazilan tek hucre `Faz kapandıktan sonra
-# bulunan kusur`dur (`kusur-giderme` Adim 6 centigi).
+# 2026-10-28: o tablo ayri DOSYAYA bolundu (`FAZ_OLCUMLERI`) -- defter butcesini
+# asan dosya icin `YONETIM_BUTCESI` yorumunun yazili cozumu buydu. Iki dosya AYNI
+# kayitlardan yazilir; `faz_defteri_oku` ikisini faz numarasiyla birlestirir ve
+# kayit sozlesmesi (anahtarlar, `olcum`) bolunmeden once ile ayni kalir.
+# Defteri ve olcumleri `faz-kapat` yazar; elle yazilan tek hucre olcum dosyasindaki
+# `Faz kapandıktan sonra bulunan kusur`dur (`kusur-giderme` Adim 6 centigi).
 FAZ_DEFTERI = "docs/FAZ-DEFTERI.md"
+FAZ_OLCUMLERI = "docs/FAZ-OLCUMLERI.md"
+# `faz-kapat` yazar. Baglanti/yol onaricilari bu dosyalara DOKUNMAZ: defterin
+# `Kayıt` hucresi silinen faz yolunu bilerek tasir (tam metne giden tek yol odur);
+# olcum tablosu bolunmeden once ayni dosyadaydi ve onaricilar onu zaten atliyordu.
+_DEFTER_DOSYALARI = (FAZ_DEFTERI, FAZ_OLCUMLERI)
 _DEFTER_KAYIT_BASLIGI = "## Kapanan fazlar"
 _DEFTER_OLCUM_BASLIGI = f"## {SUREC_OLCUMU_BASLIK}"
 _DEFTER_SUTUNLARI = ("Faz", "Konu", "Kademe", "Durum", "Kapanış", "Kaynak", "Kayıt")
@@ -1059,16 +1076,36 @@ def _hucre(deger: str) -> str:
     return " ".join(deger.split()).replace("|", "\\|")
 
 
+def _olcumleri_oku(kok: pathlib.Path) -> dict[int, dict[str, str]]:
+    """`FAZ_OLCUMLERI`'ndeki ölçüm satırları: faz numarası -> (metrik -> değer).
+
+    Dosya yoksa boş sözlük: ölçümsüz bir defter okunur, `olcum` `None` kalır ve
+    eksiği `surec_olcumu_bulgulari` yakalar."""
+    yol = kok / FAZ_OLCUMLERI
+    if not yol.exists():
+        return {}
+    olcumler: dict[int, dict[str, str]] = {}
+    bolum = ""
+    for satir in yol.read_text(encoding="utf-8").split("\n"):
+        if satir.startswith("## "):
+            bolum = satir.strip()
+        elif bolum == _DEFTER_OLCUM_BASLIGI and _DEFTER_SATIRI.match(satir):
+            h = _hucreler(satir)
+            olcumler[int(h[0])] = dict(zip(SUREC_OLCUMU_METRIKLERI, h[1:]))
+    return olcumler
+
+
 def faz_defteri_oku(kok: pathlib.Path = ROOT) -> list[dict]:
-    """Defterin kayıtları, faz numarasına göre sıralı; dosya yoksa boş liste.
+    """Defterin kayıtları, faz numarasına göre sıralı; defter dosyası yoksa boş liste.
 
     Kayıt: `no`, `konu`, `kademe`, `durum`, `kapanis`, `kaynak`, `kayit`
-    (`<sha>:<yol>`) ve `olcum` (metrik -> değer; ölçüm satırı yoksa `None`)."""
+    (`<sha>:<yol>`) ve `olcum` (metrik -> değer; ölçüm satırı yoksa `None`).
+    Satırlar `FAZ_DEFTERI`'nden, `olcum` `FAZ_OLCUMLERI`'nden gelir ve faz
+    numarasıyla eşlenir; defterde satırı olmayan bir ölçüm satırı atılır."""
     yol = kok / FAZ_DEFTERI
     if not yol.exists():
         return []
     kayitlar: dict[int, dict] = {}
-    olcumler: dict[int, dict[str, str]] = {}
     bolum = ""
     sutunlar: list[str] = []
     for satir in yol.read_text(encoding="utf-8").split("\n"):
@@ -1087,9 +1124,7 @@ def faz_defteri_oku(kok: pathlib.Path = ROOT) -> list[dict]:
                                       if ad in _DEFTER_ANAHTARLARI}
             kayit["no"], kayit["kayit"], kayit["olcum"] = no, kayit.get("kayit", "").strip("`"), None
             kayitlar[no] = kayit
-        elif bolum == _DEFTER_OLCUM_BASLIGI:
-            olcumler[no] = dict(zip(SUREC_OLCUMU_METRIKLERI, h[1:]))
-    for no, olcum in olcumler.items():
+    for no, olcum in _olcumleri_oku(kok).items():
         if no in kayitlar:
             kayitlar[no]["olcum"] = olcum
     return [kayitlar[n] for n in sorted(kayitlar)]
@@ -1106,14 +1141,16 @@ def _defter_olcum_satiri(k: dict) -> str:
 
 
 def _defter_metni(kayitlar: list[dict]) -> str:
+    """`FAZ_DEFTERI` metni: başlık ve `## Kapanan fazlar` tablosu. Ölçüm tablosu
+    `_olcum_metni`'nde, ayrı dosyadadır."""
     sirali = sorted(kayitlar, key=lambda k: k["no"])
     satirlar = [
         "# Faz Defteri",
         "",
         "> **Kapanan fazların tek satırlık izi.** Satırı",
         "> `python3 scripts/dokuman-bakim.py faz-kapat <NN>` yazar ve faz dokümanını",
-        "> aynı anda siler. Elle yazılan tek hücre `Faz kapandıktan sonra bulunan",
-        "> kusur`dur (`kusur-giderme` Adım 6).",
+        "> aynı anda siler. Süreç ölçümü ve elle yazılan tek hücre ayrı dosyadadır:",
+        "> [`FAZ-OLCUMLERI.md`](FAZ-OLCUMLERI.md).",
         ">",
         "> Tam metin: `git show <Kayıt>`. Faz 0–218 satırları 2026-10-17'de",
         "> `2a8149ef`'teki yol haritasından ve kayıtlardan dolduruldu; kademeleri `tam`",
@@ -1125,6 +1162,22 @@ def _defter_metni(kayitlar: list[dict]) -> str:
         "| " + " | ".join(_DEFTER_SUTUNLARI) + " |",
         "|" + "---|" * len(_DEFTER_SUTUNLARI),
         *(_defter_satiri(k) for k in sirali),
+    ]
+    return "\n".join(satirlar) + "\n"
+
+
+def _olcum_metni(kayitlar: list[dict]) -> str:
+    """`FAZ_OLCUMLERI` metni: başlık ve `## Süreç Ölçümü` tablosu; yalnız ölçüm
+    satırı olan kayıtlar yazılır. Tablonun kendisi `FAZ_DEFTERI` içindeyken
+    yazılanla bayt bayt aynıdır."""
+    sirali = sorted(kayitlar, key=lambda k: k["no"])
+    satirlar = [
+        "# Faz Ölçümleri",
+        "",
+        "> **Kapanan fazların süreç ölçümü.** Her fazın satırını",
+        "> `python3 scripts/dokuman-bakim.py faz-kapat <NN>` yazar. Elle yazılan tek",
+        "> hücre `Faz kapandıktan sonra bulunan kusur`dur (`kusur-giderme` Adım 6).",
+        "> Fazın kendi satırı: [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md).",
         "",
         _DEFTER_OLCUM_BASLIGI,
         "",
@@ -1139,6 +1192,13 @@ def _defter_metni(kayitlar: list[dict]) -> str:
 
 
 def faz_defteri_yaz(kok: pathlib.Path, kayitlar: list[dict]) -> None:
+    """Defteri ve ölçüm dosyasını AYNI kayıtlardan yazar: iki dosya, tek kaynak.
+
+    Ölçüm dosyası ÖNCE yazılır. Yarıda kalan yazım defterde satırı olmayan bir
+    ölçüm satırı bırakır; okuyucu onu atar ve bir sonraki yazım siler. Ters
+    sırada ölçümü olmayan bir defter satırı kalırdı ve `faz-kapat` "satırı zaten
+    var" diye dururdu."""
+    (kok / FAZ_OLCUMLERI).write_text(_olcum_metni(kayitlar), encoding="utf-8")
     (kok / FAZ_DEFTERI).write_text(_defter_metni(kayitlar), encoding="utf-8")
 
 
@@ -3300,7 +3360,7 @@ def _gelen_baglantilari_duz_metne_indir(kok: pathlib.Path, hedef: str, yedek: st
                 continue
             f = pathlib.Path(dp) / fn_
             r = f.relative_to(kok).as_posix()
-            if r in (hedef, FAZ_DEFTERI):
+            if r == hedef or r in _DEFTER_DOSYALARI:
                 continue
             try:
                 metin = f.read_text(encoding="utf-8")
@@ -3330,7 +3390,7 @@ _DUZ_REFERANS_DONMUS = re.compile(r"(^|/)Migrations[A-Za-z]*/")
 
 def _duz_yol_referanslarini_cevir(kok: pathlib.Path, eski: str, yeni) -> tuple[int, list[str]]:
     """Düz metin yol referanslarını çevirir; `yeni` bir metin ya da
-    `yeni(dosya_yolu) -> metin`dir. `docs/` de taranır (defter hariç).
+    `yeni(dosya_yolu) -> metin`dir. `docs/` de taranır (defter dosyaları hariç).
 
     Doner: (guncellenen dosya sayisi, onarilamayan referanslar).
     """
@@ -3345,7 +3405,7 @@ def _duz_yol_referanslarini_cevir(kok: pathlib.Path, eski: str, yeni) -> tuple[i
             if not f.is_file() or _DUZ_REFERANS_HARIC & set(f.parts):
                 continue
             r = f.relative_to(kok).as_posix()
-            if r == FAZ_DEFTERI:
+            if r in _DEFTER_DOSYALARI:
                 continue
             try:
                 metin = f.read_text(encoding="utf-8")
@@ -3368,7 +3428,8 @@ def _kapanan_faz_adi(no: int):
 
 
 def komut_faz_kapat(a: argparse.Namespace) -> int:
-    """`docs/NN-*.md` -> `FAZ-DEFTERI.md` satırı; doküman silinir, bağlantılar düz metne iner."""
+    """`docs/NN-*.md` -> `FAZ-DEFTERI.md` satırı ve `FAZ-OLCUMLERI.md` ölçüm satırı; doküman
+    silinir, bağlantılar düz metne iner."""
     no = int(a.faz)
     adaylar = [p2 for p2 in sorted((ROOT / "docs").glob(FAZ_DESEN), key=_faz_no) if _faz_no(p2) == no]
     if len(adaylar) != 1:
@@ -3407,7 +3468,7 @@ def komut_faz_kapat(a: argparse.Namespace) -> int:
     if a.kuru:
         print(f"(kuru) {rel} silinir · {FAZ_DEFTERI} satırı:\n  {_defter_satiri(kayit)}")
         if kayit["olcum"] is not None:
-            print(f"  {_defter_olcum_satiri(kayit)}")
+            print(f"(kuru) {FAZ_OLCUMLERI} satırı:\n  {_defter_olcum_satiri(kayit)}")
         return 0
 
     once = len(kirik_baglantilar())
@@ -3427,7 +3488,8 @@ def komut_faz_kapat(a: argparse.Namespace) -> int:
         for b in sonra[:5]:
             print(f"  {b}")
         return 1
-    print(f"✅ Faz {no} kapandı: {rel} silindi · {FAZ_DEFTERI} satırı yazıldı · "
+    olcum_yazildi = f" · {FAZ_OLCUMLERI} satırı yazıldı" if kayit["olcum"] is not None else ""
+    print(f"✅ Faz {no} kapandı: {rel} silindi · {FAZ_DEFTERI} satırı yazıldı{olcum_yazildi} · "
           f"{gelen} dosyada bağlantı, {duz} dosyada düz yol referansı düz metne indi")
     if donmus:
         print("   ⚠️  Donmuş migration içindeki referans ONARILAMAZ (bayt donmuş):")
@@ -3818,7 +3880,8 @@ def main(argv: list[str] | None = None) -> int:
     krd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
     krd.set_defaults(_calistir=komut_karar_damit)
 
-    fk = alt.add_parser("faz-kapat", help="kapanan fazı sil, FAZ-DEFTERI.md'ye tek satır yaz")
+    fk = alt.add_parser("faz-kapat", help="kapanan fazı sil, FAZ-DEFTERI.md'ye tek satır, "
+                                          "FAZ-OLCUMLERI.md'ye ölçüm satırı yaz")
     fk.add_argument("faz", help="faz numarası")
     fk.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
     fk.add_argument("--taban", default=None,

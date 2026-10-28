@@ -214,7 +214,7 @@ curl -s http://localhost:5081/tracon/api/<yol>
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL: `faz-kapat`
-> işaretsiz kutuda durur. `faz-kapat` bu tabloyu `docs/FAZ-DEFTERI.md`'ye taşır;
+> işaretsiz kutuda durur. `faz-kapat` bu tabloyu `docs/FAZ-OLCUMLERI.md`'ye taşır;
 > eşik **167**'den itibaren boş bir değer hücresinde kapanışı durdurur.
 > `ölçülmedi` **geçerli bir değerdir** — kapı bir sayı değil, bir **karar** arar.
 > Kapı bölümün VARLIĞINI denetler, doğruluğunu denetlemez (K-766).

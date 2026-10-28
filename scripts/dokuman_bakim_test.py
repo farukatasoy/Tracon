@@ -11,6 +11,7 @@ Koşum: python3 -m unittest discover -s scripts -p "*_test.py"
 """
 from __future__ import annotations
 
+import argparse
 import contextlib
 import importlib.util
 import io
@@ -1006,6 +1007,214 @@ class FazKapatTestleri(unittest.TestCase):
         self.assertEqual(ad("docs/ADAYLAR.md"), "Faz 219")
         self.assertEqual(ad(".agents/skills/x/SKILL.md"), "Faz 219")
         self.assertEqual(ad("src/Tracon.Core/X.cs"), "Phase 219")
+
+
+class FazOlcumleriDosyasiTestleri(unittest.TestCase):
+    """2026-10-28: süreç ölçümü tablosu `FAZ-DEFTERI.md`'den `FAZ-OLCUMLERI.md`'ye taşındı.
+
+    Dört faz tek oturumda kapandı ve `FAZ-DEFTERI.md` 42_239 B ile 42_000 B bütçesini
+    aştı. Yazılı çözüm (`YONETIM_BUTCESI` yorumu) ölçüm tablosunu ayrı dosyaya bölmekti:
+    satır kısaltılmadı, bütçe büyütülmedi. `faz_defteri_oku` sözleşmesi aynı kalır."""
+
+    DEFTER = (
+        "# Faz Defteri\n\n## Kapanan fazlar\n\n"
+        "| Faz | Konu | Kademe | Durum | Kapanış | Kaynak | Kayıt |\n"
+        "|---|---|---|---|---|---|---|\n"
+        "| 170 | Ölçümlü | tam | ✅ | 2026-10-17 | F-1 | `abc12345:docs/170-X.md` |\n"
+        "| 171 | Ölçümsüz | hafif | ✅ | 2026-10-18 | — | `abc12345:docs/171-X.md` |\n")
+    # 172'nin defterde satırı yok; 171'in ölçüm satırı yok.
+    OLCUM_TABLOSU = (
+        "## Süreç Ölçümü\n\n"
+        "| Faz | Plan revizyonu sayısı | Düzeltme turu sayısı | "
+        "🔴 bulgu: gerçek / gürültü / araştırılacak | Fazın ürettiği regresyon | "
+        "Faz kapandıktan sonra bulunan kusur |\n"
+        "|---|---|---|---|---|---|\n"
+        "| 170 | 0 | 2 | 1 / 0 / 0 | 0 | ölçülmedi |\n"
+        "| 172 | 9 | 9 | 9 / 9 / 9 | 9 | 9 |\n")
+    FAZ_DOKUMANI = (
+        "# Faz 219 — Örnek Konu\n\n> **Durum:** ✅ Tamamlandı (2026-10-18)\n"
+        "> **Kademe:** tam\n"
+        "> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-559**, **F-560**\n\n"
+        "## Bitiş Ölçütleri (DoD)\n\n- [x] Bir\n\n"
+        "## Süreç Ölçümü\n\n| Metrik | Değer |\n|---|---|\n"
+        "| Plan revizyonu sayısı | 0 |\n"
+        "| Düzeltme turu sayısı | 3 (iç döngü: analizör) |\n"
+        "| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (🟡 4, 🟢 2) |\n"
+        "| Fazın ürettiği regresyon | 2, ikisi de faz içinde yakalandı |\n"
+        "| Faz kapandıktan sonra bulunan kusur | `ölçülmedi` (kapanış anı) |\n")
+
+    @staticmethod
+    def _docs(kok: pathlib.Path, **dosyalar: str) -> None:
+        """`docs/<ad>.md` dosyalarını yazar; anahtar alt çizgili ad (`FAZ_DEFTERI` -> `FAZ-DEFTERI.md`)."""
+        (kok / "docs").mkdir(exist_ok=True)
+        for ad, metin in dosyalar.items():
+            (kok / "docs" / f"{ad.replace('_', '-')}.md").write_text(metin, encoding="utf-8")
+
+    @staticmethod
+    def _git(kok: pathlib.Path, *args: str) -> None:
+        import subprocess
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+                        *args], cwd=kok, capture_output=True, text=True, check=True)
+
+    def _depo(self, kok: pathlib.Path) -> None:
+        """Commit'li geçici depo: kapanmaya hazır Faz 219 dokümanı ve ölçümlü Faz 170 defter satırı."""
+        self._git(kok, "init", "-q")
+        self._docs(kok, **{"219_ORNEK": self.FAZ_DOKUMANI})
+        dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI])
+        self._git(kok, "add", "-A")
+        self._git(kok, "commit", "-q", "-m", "temel")
+
+    def _kapat(self, kok: pathlib.Path, **secenekler) -> tuple[int, str]:
+        """`komut_faz_kapat`'ı geçici depoda koşar. `ROOT` yaması `kok=ROOT` varsayılanlarına
+        ulaşmaz (içe aktarma anında GERÇEK depoya bağlanırlar): `faz_defteri_oku` geçici köke
+        yönlendirilir, `kirik_baglantilar` ve `uretilenleri_yaz` susturulur. Gerçek depoya
+        dokunulmaz."""
+        gercek_oku = dokuman_bakim.faz_defteri_oku
+        cikti = io.StringIO()
+        with mock.patch.object(dokuman_bakim, "ROOT", kok), \
+                mock.patch.object(dokuman_bakim, "faz_defteri_oku", lambda kok_=kok: gercek_oku(kok_)), \
+                mock.patch.object(dokuman_bakim, "kirik_baglantilar", return_value=[]), \
+                mock.patch.object(dokuman_bakim, "uretilenleri_yaz", return_value=[]), \
+                contextlib.redirect_stdout(cikti):
+            kod = dokuman_bakim.komut_faz_kapat(
+                argparse.Namespace(faz="219", taban=None, **({"kuru": False} | secenekler)))
+        return kod, cikti.getvalue()
+
+    def test_okuma_iki_dosyayi_faz_numarasiyla_birlestirir(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            self._docs(kok, FAZ_DEFTERI=self.DEFTER, FAZ_OLCUMLERI="# Faz Ölçümleri\n\n" + self.OLCUM_TABLOSU)
+            kayitlar = dokuman_bakim.faz_defteri_oku(kok)
+        self.assertEqual([170, 171], [k["no"] for k in kayitlar])      # 172: defterde satırı yok, atılır
+        self.assertEqual("Ölçümlü", kayitlar[0]["konu"])
+        self.assertEqual(DEFTER_OLCUMU, kayitlar[0]["olcum"])
+        self.assertIsNone(kayitlar[1]["olcum"])                        # ölçüm satırı olmayan faz
+
+    def test_defterdeki_eski_olcum_bolumu_okunmaz(self):
+        # Tek kaynak: ölçüm yalnız `FAZ-OLCUMLERI.md`'dedir. Eski yerleşimin kalıntısı
+        # sessizce ikinci bir kaynak olmaz; ölçüm dosyası yoksa da defter okunur ve kapı
+        # eksik satırı yeni dosyanın adıyla bildirir.
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            self._docs(kok, FAZ_DEFTERI=self.DEFTER + "\n" + self.OLCUM_TABLOSU)
+            kayitlar = dokuman_bakim.faz_defteri_oku(kok)
+            bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual([None, None], [k["olcum"] for k in kayitlar])
+        self.assertEqual(["docs/FAZ-OLCUMLERI.md: Faz 170 için ölçüm satırı yok",
+                          "docs/FAZ-OLCUMLERI.md: Faz 171 için ölçüm satırı yok"], bulgular)
+
+    def test_yazma_iki_dosyayi_ayni_kayitlardan_uretir(self):
+        kayitlar = [DEFTER_KAYDI | {"no": 3, "olcum": None, "konu": "A | B"}, DEFTER_KAYDI | {"no": 170}]
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            (kok / "docs").mkdir()
+            dokuman_bakim.faz_defteri_yaz(kok, list(reversed(kayitlar)))
+            defter = (kok / "docs" / "FAZ-DEFTERI.md").read_text(encoding="utf-8")
+            olcum = (kok / "docs" / "FAZ-OLCUMLERI.md").read_text(encoding="utf-8")
+        # Defter: yalnız kayıt tablosu; ölçüm dosyasına işaret eder.
+        self.assertIn("| 3 | A \\| B | tam | ✅ | 2026-10-17 | F-1 | `abc12345:docs/170-X.md` |", defter)
+        self.assertIn("| 170 | Örnek | tam | ✅ | 2026-10-17 | F-1 | `abc12345:docs/170-X.md` |", defter)
+        self.assertNotIn("## Süreç Ölçümü", defter)
+        self.assertNotIn("Plan revizyonu sayısı", defter)
+        self.assertIn("](FAZ-OLCUMLERI.md)", defter)
+        # Ölçüm dosyası: yalnız ölçüm satırı olan faz; başlık, tablo ve defter bağlantısı.
+        self.assertIn("## Süreç Ölçümü", olcum)
+        self.assertIn("| Faz | Plan revizyonu sayısı | Düzeltme turu sayısı | "
+                      "🔴 bulgu: gerçek / gürültü / araştırılacak | Fazın ürettiği regresyon | "
+                      "Faz kapandıktan sonra bulunan kusur |", olcum)
+        self.assertIn("| 170 | 0 | 2 | 1 / 0 / 0 | 0 | ölçülmedi |", olcum)
+        self.assertNotIn("| 3 |", olcum)
+        self.assertNotIn("## Kapanan fazlar", olcum)
+        self.assertIn("](FAZ-DEFTERI.md)", olcum)
+
+    def test_yazma_belirleyicidir_ve_okuyup_yeniden_yazmak_dosyayi_degistirmez(self):
+        kayitlar = [DEFTER_KAYDI | {"no": 171, "olcum": None}, DEFTER_KAYDI | {"no": 170}]
+        ikisi = ("FAZ-DEFTERI.md", "FAZ-OLCUMLERI.md")
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            (kok / "docs").mkdir()
+            dokuman_bakim.faz_defteri_yaz(kok, kayitlar)
+            once = {ad: (kok / "docs" / ad).read_bytes() for ad in ikisi}
+            dokuman_bakim.faz_defteri_yaz(kok, dokuman_bakim.faz_defteri_oku(kok))
+            sonra = {ad: (kok / "docs" / ad).read_bytes() for ad in ikisi}
+        self.assertEqual(once, sonra)
+
+    def test_elle_yazilan_hucre_okuma_yazma_dongusunde_korunur(self):
+        # `kusur-giderme` Adım 6: ölçüm dosyasındaki tek elle yazılan hücreye çentik atılır.
+        # Sonraki bir `faz-kapat` dosyayı okuyup yeniden yazar; çentik kaybolmamalıdır.
+        kusur = "Faz kapandıktan sonra bulunan kusur"
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            (kok / "docs").mkdir()
+            dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI])
+            yol = kok / "docs" / "FAZ-OLCUMLERI.md"
+            yol.write_text(yol.read_text(encoding="utf-8").replace(
+                "| 170 | 0 | 2 | 1 / 0 / 0 | 0 | ölçülmedi |", "| 170 | 0 | 2 | 1 / 0 / 0 | 0 | 1 |"),
+                encoding="utf-8")
+            self.assertEqual("1", dokuman_bakim.faz_defteri_oku(kok)[0]["olcum"][kusur])
+            dokuman_bakim.faz_defteri_yaz(
+                kok, dokuman_bakim.faz_defteri_oku(kok) + [DEFTER_KAYDI | {"no": 171}])
+            metin = yol.read_text(encoding="utf-8")
+        self.assertIn("| 170 | 0 | 2 | 1 / 0 / 0 | 0 | 1 |", metin)
+        self.assertIn("| 171 | 0 | 2 | 1 / 0 / 0 | 0 | ölçülmedi |", metin)
+
+    def test_faz_kapat_olcum_satirini_yeni_dosyaya_yazar(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            self._depo(kok)
+            kod, cikti = self._kapat(kok)
+            defter = (kok / "docs" / "FAZ-DEFTERI.md").read_text(encoding="utf-8")
+            olcum = (kok / "docs" / "FAZ-OLCUMLERI.md").read_text(encoding="utf-8")
+            kapanmis_doku_var = (kok / "docs" / "219-ORNEK.md").exists()
+            kayitlar = dokuman_bakim.faz_defteri_oku(kok)
+            bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual(0, kod, cikti)
+        self.assertFalse(kapanmis_doku_var)
+        # Defter satırı defterde, ölçüm satırı ölçüm dosyasında; önceki fazın satırı yerinde.
+        self.assertIn("| 219 | Örnek Konu | tam | ✅ | 2026-10-18 | F-559 · F-560 |", defter)
+        self.assertNotIn("| 219 | 0 | 3 |", defter)
+        self.assertNotIn("## Süreç Ölçümü", defter)
+        self.assertIn("| 219 | 0 | 3 | 0 / 0 / 0 | 2 | ölçülmedi |", olcum)
+        self.assertIn("| 170 | 0 | 2 | 1 / 0 / 0 | 0 | ölçülmedi |", olcum)
+        self.assertEqual([170, 219], [k["no"] for k in kayitlar])
+        self.assertEqual(["0", "3", "0 / 0 / 0", "2", "ölçülmedi"], list(kayitlar[1]["olcum"].values()))
+        self.assertEqual([], bulgular)                       # kapanıştan sonra kapı yeşildir
+        self.assertIn("docs/FAZ-OLCUMLERI.md satırı yazıldı", cikti)
+
+    def test_faz_kapat_kuru_kosum_olcum_satirini_yeni_dosya_adiyla_basar_ve_yazmaz(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            self._depo(kok)
+            ikisi = [kok / "docs" / "FAZ-DEFTERI.md", kok / "docs" / "FAZ-OLCUMLERI.md"]
+            once = [p.read_bytes() for p in ikisi]
+            kod, cikti = self._kapat(kok, kuru=True)
+            sonra = [p.read_bytes() for p in ikisi]
+            doku_var = (kok / "docs" / "219-ORNEK.md").exists()
+        self.assertEqual(0, kod, cikti)
+        self.assertEqual(once, sonra)
+        self.assertTrue(doku_var)
+        self.assertIn("· docs/FAZ-DEFTERI.md satırı:\n  | 219 | Örnek Konu | tam | ✅ |", cikti)
+        self.assertIn("(kuru) docs/FAZ-OLCUMLERI.md satırı:\n  | 219 | 0 | 3 | 0 / 0 / 0 | 2 | ölçülmedi |", cikti)
+
+    def test_baglanti_ve_yol_onarimi_iki_defter_dosyasina_dokunmaz(self):
+        # `Kayıt` hücresi silinen faz yolunu BİLEREK taşır; onarıcılar defter dosyalarını atlar.
+        metin = "bkz. docs/219-X.md ve [`docs/219-X.md`](219-X.md)\n"
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            self._docs(kok, FAZ_DEFTERI=metin, FAZ_OLCUMLERI=metin, ADAYLAR=metin)
+            dokuman_bakim._gelen_baglantilari_duz_metne_indir(kok, "docs/219-X.md", "Faz 219")
+            dokuman_bakim._duz_yol_referanslarini_cevir(kok, "docs/219-X.md", "Faz 219")
+            okunan = {ad: (kok / "docs" / ad).read_text(encoding="utf-8")
+                      for ad in ("FAZ-DEFTERI.md", "FAZ-OLCUMLERI.md", "ADAYLAR.md")}
+        self.assertEqual(metin, okunan["FAZ-DEFTERI.md"])
+        self.assertEqual(metin, okunan["FAZ-OLCUMLERI.md"])
+        self.assertEqual("bkz. Faz 219 ve Faz 219\n", okunan["ADAYLAR.md"])   # onarıcı gerçekten koştu
+
+    def test_olcum_dosyasi_ledger_butcesindedir(self):
+        # Bütçesiz dosya sessizce büyür: `FAZ-DEFTERI.md` tam böyle 42_239 B'ye ulaşmıştı.
+        self.assertEqual("docs/FAZ-OLCUMLERI.md", dokuman_bakim.FAZ_OLCUMLERI)
+        self.assertIn("docs/FAZ-OLCUMLERI.md", dokuman_bakim.YONETIM_BUTCESI)
+        self.assertGreater(dokuman_bakim.YONETIM_BUTCESI["docs/FAZ-OLCUMLERI.md"], 0)
 
 
 class KademeTetikleriTestleri(unittest.TestCase):
@@ -2239,16 +2448,16 @@ class SurecOlcumuTestleri(unittest.TestCase):
         kok = self._kok({})
         dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI | {"no": 170, "olcum": None}])
         bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
-        self.assertEqual(1, len(bulgular), bulgular)
-        self.assertIn("Faz 170 için ölçüm satırı yok", bulgular[0])
+        # 2026-10-28: ölçüm tablosu `FAZ-OLCUMLERI.md`'dedir; bulgu o dosyayı anar.
+        self.assertEqual(["docs/FAZ-OLCUMLERI.md: Faz 170 için ölçüm satırı yok"], bulgular)
 
     def test_defterde_BOS_hucre_bulgudur(self):
         kok = self._kok({})
         olcum = dict(DEFTER_OLCUMU, **{"Fazın ürettiği regresyon": ""})
         dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI | {"no": 170, "olcum": olcum}])
         bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
-        self.assertEqual(1, len(bulgular), bulgular)
-        self.assertIn("Fazın ürettiği regresyon", bulgular[0])
+        self.assertEqual(
+            ["docs/FAZ-OLCUMLERI.md: Faz 170 `Fazın ürettiği regresyon` hücresi boş"], bulgular)
 
     def test_defterde_esik_alti_ve_beklemedeki_faz_atlanir(self):
         kok = self._kok({})

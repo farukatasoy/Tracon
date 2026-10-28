@@ -225,7 +225,7 @@ Dosya adı: `docs/NN-BUYUK-HARFLI-AD.md` — Türkçe, tire ile ayrılmış, kı
 
 🚨 `Süreç Ölçümü` bir **tablodur**, onay kutusu değil, ve beş satırı da
 şablondan **birebir** kopyalanır: `faz-kapat` (eşik 167) etiketleri adıyla arar
-ve tabloyu `FAZ-DEFTERI.md`'ye taşır. Satırı eksik ya da değer hücresi boş bir
+ve tabloyu `FAZ-OLCUMLERI.md`'ye taşır. Satırı eksik ya da değer hücresi boş bir
 faz kapanamaz.
 
 İkinci gruptaki başlıkları **boş yer tutucu olarak** bırak. Kapanışta
