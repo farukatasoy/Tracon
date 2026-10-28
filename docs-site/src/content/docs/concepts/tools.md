@@ -97,6 +97,12 @@ A denied call does not fail the run: the model receives the reason text as an or
 tool result and continues its turn — the same way a search that finds nothing is not an
 error. If your handler throws, the call is denied (fail-closed), never allowed.
 
+The authorization layer asks two gates, in this order, and a call needs both. First the
+tenant's [tool policy](/concepts/governance/#per-tenant-tool-policy), which an administrator
+writes as data (which tool names and permissions the tenant holds); then your handler, which is
+your code. A call the policy refuses never reaches your handler. A tenant with no policy passes
+the first gate, so a host that saves none behaves as before.
+
 The chain does not stop at tools you register. The `file_access_*` tools of a session workspace
 and the two search tools Tracon adds itself, `search_knowledge` and the on-demand
 `search_conversation_memory`, run through it too, so the handler, the validator, the timeout and

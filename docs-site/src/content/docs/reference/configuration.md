@@ -142,6 +142,7 @@ script.
 | `UtilityModel` | `null` | Optional model binding for compaction summarization. `Provider` and `Model` are both required, or no binding is built. A `Temperature`, `TopP` or `MaxOutputTokens` that is not a number stops the host at startup; an empty one means the provider default |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
+| `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/governance/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
 
 Non-positive graph token, cost, or run limits remove that limit. See
 [`TraconAgentGraphOptions`](/api/tracon.traconagentgraphoptions/)

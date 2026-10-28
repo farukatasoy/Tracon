@@ -55,7 +55,7 @@ your own exception; it does not fail to compile.
 
 One abstract class per `Tracon.Abstractions` store interface:
 `RunStoreContract`, `SessionStoreContract`, `AgentDefinitionStoreContract`,
-`ExperimentStoreContract`, and 27 more. Every one derives from
+`ExperimentStoreContract`, and 28 more. Every one derives from
 `TenantIsolationContract<TStore>`, which supplies the shared lifecycle
 plumbing (`InitializeAsync`/`DisposeAsync`) and the two-directional tenant
 check every store must pass: a tenant reads its own records, and never

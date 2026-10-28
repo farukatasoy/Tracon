@@ -133,6 +133,9 @@ agent called as a tool, the skill tools, the file memory, todo and harness tools
 that an agent extension adds brings with it. The two search tools are not in the tool registry, so `GET /api/tools` does
 not list them: write their names in your policy as fixed text.
 
+The same list is what a tenant's [tool policy](/concepts/governance/#per-tenant-tool-policy) covers: the policy is
+checked first, and a call it refuses is not shown to your handler.
+
 ### 4 — Run event bridge
 
 Bridges every run event to your own queue or bus, in addition to the run store —
@@ -461,7 +464,7 @@ repeat it:
 | `UnlimitedRequestRate` | One caller can take the whole model budget | `Tracon:RateLimit:Enabled` |
 | `UnboundedRetention` | Nothing is ever deleted | `Tracon:Retention:Enabled`, or a policy per target |
 | `UnregisteredRolePolicies` | At least one of the `Tracon.Reader`, `Tracon.Operator` and `Tracon.Admin` policies is not registered, so the endpoints it guards get no role check | Define the three policies in `AddAuthorization(...)` with `TraconPolicies.Reader`, `Operator` and `Admin`, and set `TraconEndpointOptions.RequireRolePolicies` so a missing one stops `MapTracon` too |
-| `UncheckedToolCalls` | The built-in tool authorization handler allows every call for every caller | Register your own `IToolAuthorizationHandler` |
+| `UncheckedToolCalls` | The built-in tool authorization handler allows every call for every caller | Register your own `IToolAuthorizationHandler`, or set `Tracon:Tools:RequireTenantPolicy` to `true` and save a [tool policy](/concepts/governance/#per-tenant-tool-policy) for each tenant, the default tenant included |
 | `UnrestrictedTenantEgress` | A tenant with no egress policy may call every provider | `Tracon:TenantProviders:RequireEgressPolicy`, then save a policy for each tenant |
 | `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
 | `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |

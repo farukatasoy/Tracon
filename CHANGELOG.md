@@ -101,8 +101,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     silence unless `RequireRolePolicies` was on. Answer it by defining the three policies in `AddAuthorization(...)`. It
     is asked only of a host that called `MapTracon` before it started: the answer is known there.
   - `UncheckedToolCalls`: the built-in `IToolAuthorizationHandler` allows every call, so any caller of a run can make an
-    agent run any tool it has. Answer it by registering your own handler. It is asked of every host, single-tenant
-    ones included.
+    agent run any tool it has. Answer it by registering your own handler, or with the new
+    `Tracon:Tools:RequireTenantPolicy` and a tool policy for each tenant (see below). It is asked of every host,
+    single-tenant ones included.
   - `UnrestrictedTenantEgress`: a tenant with no egress policy may call every provider the deployment has. Answer it with
     the new `Tracon:TenantProviders:RequireEgressPolicy` (see below). It is asked only when tenants are separated.
   - `UnverifiedTenantHeader`: with `UseTenancy` enabled, `AllowHeaderResolution` open and no `ClaimType`, any client
@@ -131,6 +132,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A tenant can have a tool policy: the tools its runs may call.** `ITenantToolPolicyStore` (in memory by default, and on
+  PostgreSQL, SQL Server and SQLite through a new `tenant_tool_policies` table) holds two closed lists per tenant: the
+  tool names it may run and the permissions it holds. A call passes when its tool name is listed or the permission its
+  tool declares is granted; two empty lists refuse every tool. It is a gate **in front of** `IToolAuthorizationHandler`,
+  not a replacement: a call needs both to allow it, and a call the policy refuses is not shown to your handler. It
+  covers the tools the handler is asked about (tools registered in code, MCP tools, the `file_access_*` tools of a
+  session workspace, `search_knowledge` and `search_conversation_memory`). A refused call is an ordinary tool result
+  (`This tool is not enabled for this tenant.`) recorded with `authorizationDenied`, and a store that cannot be read
+  refuses the call and logs an error. The policy is read on every call, so a saved policy applies to the next one.
+  A tenant with no policy passes, so nothing changes until one is saved. Manage it with `GET`, `PUT` and `DELETE
+  /api/tenants/{tenantId}/tools` (`SecurityAdmin`, and platform authority for another tenant; saves and deletes are
+  audited as `tenant_tool_policy.save` and `.delete`) or in the tenant panel of the console. The new migration adds one
+  table on each provider and changes no existing table.
+- **`Tracon:Tools:RequireTenantPolicy` makes a tenant with no tool policy run no tool.** Off by default. Turned on, a
+  tenant without a policy row is refused on every tool the policy covers, and the default tenant needs its own row. The
+  refusal text names the setting. Saving a policy is never blocked by it. It is the second answer to the
+  `UncheckedToolCalls` decision of `RequireProductionProfile()`, next to registering your own handler; no new risk was
+  added, so no host that started before stops. A value the binder cannot read (`yes`) stops the host at startup.
 - **`Tracon:TenantProviders:RequireEgressPolicy` makes a tenant with no egress policy call no provider.** Off by default,
   so nothing changes until it is turned on. Turned on, a tenant without a policy row is refused on every path to a
   provider (the agent's model and its fallbacks, the summarizer and loop judge, image, speech, live voice and
