@@ -1,6 +1,6 @@
 # Faz 254 — Tool Çağrısı Zincirde Kaydedilir: Başarısız Akışsız Run'ın Tool Satırları ve Betik Yolu
 
-> **Durum:** 📋 Planlandı (2026-10-26)
+> **Durum:** ✅ Tamamlandı (2026-10-28)
 > **Kademe:** tam — geri dönüşü pahalı karar: tool satırının kayıt noktası mesaj gözleminden tool zincirine taşınır ve her run yolunun (`tool_invocations`) anlamını değiştirir; `Tracon.Testing` public yüzeyi büyür; denetim izi (`script.denied`) yeni bir ret türünü kaydeder
 > **Plan onayı:** Bakımcı, 2026-10-26 (sohbette alınan kararlar: çağrı ve sonuç yönetilen tool sarmalayıcısında o anda run kapsamına yazılır, mesaj yolu aynı `CallId`'yi ikinci kez yazmaz, zincir dışı tool'lar mesajdan okunmaya devam eder; bütçe yüzünden reddedilen betik `script.denied` yazar, sebep bütçe metnidir)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-689**, **F-690**
@@ -228,12 +228,12 @@ tests/Tracon.AspNetCore.FunctionalTests/…SkillScriptBudgetTests.cs   # yeni ya
 - [x] Betik yolu uçtan uca fonksiyonel testte; token bütçesi testi gerçek kullanım yolunda — `SkillScriptBudgetTests` (model → onay → devam run'ı → betik) + `ToolBudgetGateTests.A_tool_does_not_start_once_the_turn_that_asked_for_it_spent_the_token_budget`
 - [x] `FakeModelProvider` aşırı yüklemeleri XML ve `Tracon.Testing/README.md` örneğiyle — ayrıca site `guides/testing.md` yöntem tablosu
 - [x] Yeni `K-*` (`geri-dönüşü-pahalı`): tool satırının kayıt noktası zincirdir, reddedilen alternatif (içeride akışla koşmak) adıyla — `K-1110`, `K-1111`, `K-1112` işlendi (taslaklar Entegrasyon Notları b: `K-NEW-1`, `K-NEW-2`, `K-NEW-3`)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban d8579948` entegrasyon ağacında (dört fazın birleşmesi ve doküman commit'leri): 30.008 test, 39 modül, 1 atlandı (koşullu), 0 kırmızı; `dotnet format --verify-no-changes`, `npm run check` (build, bağlantı, SEO, ağırlık, içerik), `performans`, betik testleri, `kapi.py tarama` ve `dokuman-bakim.py --denetle` yeşil (2026-10-28)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (case 1, 2), çıktı belgeye yazıldı — "Canlı Koşum Kanıtı" (2026-10-27, bellek içi depo, gerçek OpenAI)
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` temiz
 - [x] `🤖` case'ler `docs/manuel-test/16-…` ve `14-…` içinde ve koşuldu — `MT-JOB-154`, `MT-SKILL-087` (2026-10-27)
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bağımsız denetçi koştu: 🔴 yok, 🟡 beş (hepsi düzeltildi), 🟢 beş (iki küçük düzeltme grubu yapıldı, üç aday); ayrıntı "Denetim Bulguları". Kutuyu entegratör işaretler
-- [ ] `docs-site/` güncellendi; `npm run check` temiz — sayfalar yazıldı; kilit altında dört kapı tek tek koşuldu (2026-10-28): `build` (üretim + Astro) ✅ · `check:links` ✅ (1051 sayfa, kırık yok; SEO 0 hata) · `check:weight` ✅ (en ağır `concepts/governance` 58 194 B / 59 000 B, temel sürümle aynı) · `check:content` tek bulgu: `docs-site/public/llms-full.txt` bayat (üretilen dosya; entegratör `python3 scripts/kapi.py uret` koşar, bu çalışma ağacında koşulmadı). Konsol ekran görüntüsü damgası yenilendi ve `checkConsoleScreens` temiz. Kutu `uret` koşumundan sonra işaretlenir
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bağımsız `faz-denetcisi`: 🔴 yok, 🟡 beş (hepsi düzeltildi), 🟢 beş (iki küçük düzeltme grubu yapıldı, üç aday); ayrıntı "Denetim Bulguları"
+- [x] `docs-site/` güncellendi; `npm run check` temiz — sayfalar yazıldı; `npm run check` entegrasyon ağacında yeşil (1.054 sayfa: build, bağlantı, ağırlık, içerik, SEO; en ağır sayfa `guides/model-providers`, `concepts/governance` taban değerinde); `llms-full.txt` `kapanis` içindeki `uret` ile üretildi; konsol ekran görüntüsü damgası yenilendi ve `checkConsoleScreens` temiz
 
 ### Doğrulama komutları
 
