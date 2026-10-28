@@ -41,14 +41,19 @@ internal sealed class TraconAgentSessionStore : AgentSessionStore
     private const string IsolationPartitionName = "isolation";
 
     private readonly AgentSessionManager _sessions;
+    private readonly SessionDeletion _deletion;
 
     /// <summary>Creates a new bridge.</summary>
     /// <param name="sessions">The session manager to delegate to.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="sessions"/> is <see langword="null"/>.</exception>
-    public TraconAgentSessionStore(AgentSessionManager sessions)
+    /// <param name="deletion">The path that deletes a session with everything that belongs to it.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
+    public TraconAgentSessionStore(AgentSessionManager sessions, SessionDeletion deletion)
     {
         ArgumentNullException.ThrowIfNull(sessions);
+        ArgumentNullException.ThrowIfNull(deletion);
+
         _sessions = sessions;
+        _deletion = deletion;
     }
 
     /// <inheritdoc />
@@ -88,6 +93,21 @@ internal sealed class TraconAgentSessionStore : AgentSessionStore
 
         await _sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Microsoft Agent Framework 1.26 added this member and calls it from nowhere: only its own
+    /// wrappers forward it. It deletes what <c>DELETE /api/sessions/{id}</c> deletes (the record,
+    /// the copy of its content and the attachments) through the same path, in the current tenant.
+    /// A session that does not exist is a no-op, as the framework's contract says. The gates
+    /// (run authorization, session ownership) are the HTTP edge's; this bridge is reached by host
+    /// code that holds the store, so it asks none.
+    /// </remarks>
+    public override async ValueTask DeleteSessionAsync(
+        AIAgent agent,
+        AgentSessionStoreKey key,
+        CancellationToken cancellationToken = default)
+        => await _deletion.DeleteAsync(ToSessionId(key), cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Maps a partitioned key onto Tracon's single session identity.

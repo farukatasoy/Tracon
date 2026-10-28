@@ -2974,8 +2974,10 @@ Tracon.SamplingFields.PresencePenalty = 16 -> Tracon.SamplingFields
 Tracon.SamplingFields.ReasoningOutput = 128 -> Tracon.SamplingFields
 Tracon.SamplingFields.Seed = 1 -> Tracon.SamplingFields
 Tracon.SamplingFields.StopSequences = 4 -> Tracon.SamplingFields
+Tracon.SamplingFields.Temperature = 256 -> Tracon.SamplingFields
 Tracon.SamplingFields.ToolMode = 32 -> Tracon.SamplingFields
 Tracon.SamplingFields.TopK = 2 -> Tracon.SamplingFields
+Tracon.SamplingFields.TopP = 512 -> Tracon.SamplingFields
 Tracon.SamplingLimits
 Tracon.SamplingLimits.<Clone>$() -> Tracon.SamplingLimits!
 Tracon.SamplingLimits.Equals(Tracon.SamplingLimits? other) -> bool

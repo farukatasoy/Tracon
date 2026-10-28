@@ -289,6 +289,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IToolApprovalPresenter | Singleton | Instance:Tracon.NullToolApprovalPresenter",
         "Tracon.ToolApprovalPresenterRunner | Singleton | Tracon.ToolApprovalPresenterRunner",
         "Tracon.AgentSessionManager | Singleton | Factory",
+        "Tracon.SessionDeletion | Singleton | Factory",
         "Tracon.ConversationBranchService | Singleton | Factory",
         "Tracon.ParameterizedAgentFactory | Singleton | Factory",
         "Tracon.RunReplayService | Singleton | Factory",

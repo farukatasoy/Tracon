@@ -448,6 +448,8 @@ public static class TraconEndpointRouteBuilderExtensions
 #pragma warning disable MAAI001
     private static AgentSessionStore ResolveSessionStore(IServiceProvider services)
         => services.GetService<AgentSessionStore>()
-           ?? new TraconAgentSessionStore(services.GetRequiredService<AgentSessionManager>());
+           ?? new TraconAgentSessionStore(
+               services.GetRequiredService<AgentSessionManager>(),
+               services.GetRequiredService<SessionDeletion>());
 #pragma warning restore MAAI001
 }

@@ -115,7 +115,9 @@ internal sealed class A2ASessionStore : DelegatingAgentSessionStore
             agentName,
             static (provider, _) => provider.GetService<AgentSessionStore>()
                 ?? new A2ASessionStore(
-                    new TraconAgentSessionStore(provider.GetRequiredService<AgentSessionManager>()),
+                    new TraconAgentSessionStore(
+                        provider.GetRequiredService<AgentSessionManager>(),
+                        provider.GetRequiredService<SessionDeletion>()),
                     provider.GetRequiredService<ITenantContext>(),
                     provider.GetRequiredService<ISessionStore>(),
                     provider.GetRequiredService<IHttpContextAccessor>(),
@@ -183,6 +185,52 @@ internal sealed class A2ASessionStore : DelegatingAgentSessionStore
         AgentSession session,
         CancellationToken cancellationToken = default)
         => InnerStore.SaveSessionAsync(agent, Rewrite(agent, key), session, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>DelegatingAgentSessionStore</c> forwards the key as it is. That would delete the session of a
+    /// plain <c>caller::contextId</c> identity (what the bridge folds an isolation partition into) and
+    /// leave the conversation this store wrote under its digest. The key is rewritten like every other
+    /// operation's, and a conversation that belongs to another user is refused before anything is deleted.
+    /// </remarks>
+    /// <exception cref="TraconSessionOwnerRequiredException">The conversation belongs to another user.</exception>
+    public override async ValueTask DeleteSessionAsync(
+        AIAgent agent,
+        AgentSessionStoreKey key,
+        CancellationToken cancellationToken = default)
+    {
+        var scoped = Rewrite(agent, key);
+
+        await EnsureMayDeleteAsync(scoped.SessionId, cancellationToken).ConfigureAwait(false);
+
+        await InnerStore.DeleteSessionAsync(agent, scoped, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Refuses a delete of a conversation that belongs to another user, before anything is deleted.
+    /// </summary>
+    /// <remarks>
+    /// The question the delete endpoints ask (<see cref="SessionOwnershipGate.DeniesAsync"/>), not the one
+    /// a run asks: a conversation that does not exist is not refused, because deleting it is a no-op, and
+    /// a caller who satisfies the management policy may delete an unowned conversation.
+    /// </remarks>
+    private async ValueTask EnsureMayDeleteAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        if (_httpContextAccessor.HttpContext is not { } httpContext)
+        {
+            return;
+        }
+
+        if (await SessionOwnershipGate
+                .DeniesAsync(_ownershipOptions, _attribution, _sessions, sessionId, httpContext, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            throw new TraconSessionOwnerRequiredException("This session is not available to the calling user.")
+            {
+                SessionId = sessionId,
+            };
+        }
+    }
 
     /// <summary>
     /// Refuses a stored conversation that belongs to another user, before its

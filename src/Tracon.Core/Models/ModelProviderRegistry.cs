@@ -173,9 +173,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             {
                 Name = provider.Name,
                 Models = provider.Models,
+                // A provider that states nothing is read as sending the two fields every adapter sent
+                // before they were named; any other field it must state (ISamplingSupport).
                 SupportedSamplingFields = provider is ISamplingSupport sampling
                     ? sampling.SupportedSamplingFields
-                    : SamplingFields.None,
+                    : SamplingFields.Temperature | SamplingFields.TopP,
                 // A provider is third-party code. A null answer is read as "no limit" instead of failing the
                 // compile and validation paths that read this descriptor with a NullReferenceException.
                 SamplingLimits = provider is ISamplingSupport limits

@@ -238,7 +238,7 @@ internal static class OpenAIConversationsEndpoints
         string conversationId,
         HttpContext httpContext,
         ISessionStore sessions,
-        AgentSessionManager manager,
+        SessionDeletion deletion,
         ITenantContext tenantContext,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
@@ -270,10 +270,9 @@ internal static class OpenAIConversationsEndpoints
             return NotFound(conversationId);
         }
 
-        var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
-
-        var deleted = record is not null &&
-                      await manager.DeleteSessionAsync(conversationId, cancellationToken).ConfigureAwait(false);
+        // The same deletion DELETE /api/sessions/{id} makes: the session, the copy of its content and
+        // its attachments (F-746). A conversation that was never used has no record and deletes nothing.
+        var deleted = await deletion.DeleteAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
         return Results.Json(
             new DeletedResource(conversationId, "conversation.deleted", deleted),

@@ -17,7 +17,7 @@ namespace Tracon;
 /// <see cref="ChatResponse"/>. <see cref="OpenTelemetryAgent"/> rebuilds the
 /// response it returns from the raw representation when there is one, so the
 /// sum was lost on the way out: a three-iteration loop returned, and recorded,
-/// one iteration's tokens. Read again on MAF 1.25.0 (2026-10-16, decompiled):
+/// one iteration's tokens. Read again on MAF 1.26.0 (2026-10-28, decompiled; the loop and the telemetry agent are the code 1.25 had):
 /// <c>LoopAgent</c> applies the sum to the last response in place, and
 /// <see cref="OpenTelemetryAgent"/> prefers the raw representation.
 /// </para>

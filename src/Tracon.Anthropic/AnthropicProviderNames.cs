@@ -47,11 +47,6 @@ public static class AnthropicProviderNames
     /// <see cref="ModelBinding.MaxOutputTokens"/>; otherwise Anthropic rejects the
     /// request.
     /// </para>
-    /// <para>
-    /// While thinking is on, Anthropic allows <see cref="ModelBinding.Temperature"/>
-    /// to be only 1. Any other temperature gets the request rejected with
-    /// <c>invalid_request_error</c> — measured against the live API.
-    /// </para>
     /// </remarks>
     public const string ThinkingBudgetTokensSetting = "anthropic.thinking.budgetTokens";
 

@@ -5,7 +5,7 @@ namespace Tracon;
 /// <para>
 /// There is <strong>NO</strong> counterpart to
 /// <see cref="TraconMcpServerOptions.ExposeAllAgents"/>. Measured
-/// (<c>Microsoft.Agents.AI.Hosting.A2A</c> 1.25.0-preview.261014.1):
+/// (<c>Microsoft.Agents.AI.Hosting.A2A</c> 1.26.0-preview.261023.1):
 /// <c>AddA2AServer</c> is a REGISTRATION-TIME API and can only publish agents
 /// explicitly named in <see cref="ExposedAgents"/>; it cannot see an agent
 /// added at runtime.

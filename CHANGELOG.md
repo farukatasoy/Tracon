@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **An agent that sets `Temperature`, `TopP` or `TopK` for the `anthropic` provider no longer builds.** Anthropic SDK 13
+  removed the three fields from the Messages request, so the SDK adapter drops them: a definition that set one ran
+  without it. Tracon refuses to drop a field without saying so. `POST /api/agents/validate` now reports
+  `sampling_field_unsupported` at `model.temperature`, `model.topP` or `model.topK`, a save returns `400`, and a run of
+  a stored agent fails with the compile error. The same holds when Anthropic is only a `Fallbacks` link. Clear the
+  field. Providers that already sent it (`openai`, `openai-responses`, OpenAI-compatible servers, `azure-openai`,
+  `google`) are not affected.
+- **A custom `ISamplingSupport` must now name `Temperature` and `TopP`.** `SamplingFields` gains the two members. A
+  provider that implements `ISamplingSupport` and reports neither is read as not sending them, and an agent that sets one
+  for it no longer builds. Add `SamplingFields.Temperature | SamplingFields.TopP` to `SupportedSamplingFields` if your
+  provider sends them. A provider that does not implement `ISamplingSupport` is read as sending both, as before.
+- **The Anthropic requests carry a bearer token.** SDK 13 sends the API key as `Authorization: Bearer <key>` with
+  `anthropic-version: 2026-10-21` where SDK 12 sent `x-api-key` with `2023-06-01`; the health check
+  (`GET /api/models/health/anthropic`) sends the same. The live API accepts both forms with an API key (measured). If an
+  `Endpoint` points at a gateway that reads only `x-api-key`, make it accept the bearer form or map the header.
+- **Microsoft Agent Framework 1.26.** A host that references `Microsoft.Agents.AI` 1.26 now runs Tracon: 1.26 added an
+  abstract `AgentSessionStore.DeleteSessionAsync`, and the `Tracon.AspNetCore` 1.0.0-preview.6 binary can fail to load its
+  session store against it (`TypeLoadException`). The packages that depend on Agent Framework now declare 1.26.0 as
+  their floor, and `Tracon.AspNetCore` references the Hosting packages `1.26.0-preview.261023.1` and
+  `1.26.0-alpha.261023.1` (exact versions, as before). Raise your own `Microsoft.Agents.AI*` references to 1.26.0 or later
+  when you upgrade.
 - **A saved agent for the `google` provider with a seed outside the 32-bit range no longer builds.** The Google.GenAI
   client library narrowed such a seed without a check (`3000000000` reached the model as `-1294967296`), so a definition
   saved earlier ran with a seed nobody had written. `POST /api/agents/validate` now reports `sampling_value_out_of_range`
@@ -96,6 +117,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Dependencies move to the newest releases of the runtime stack.** Microsoft Agent Framework `1.25.0` to `1.26.0`
+  (Hosting `1.26.0-preview.261023.1`, Hosting.OpenAI `1.26.0-alpha.261023.1`), the .NET platform packages `10.0.13` to
+  `10.0.14`, `Anthropic` `12.58.0` to `13.3.0`, `Google.GenAI` `1.26.1` to `1.27.0` and `Azure.Core` `1.63.0` to `1.64.0`.
+  Anthropic 13 is the one that changes behavior; see Upgrading. The test and build tools stay where they are.
+- **`SamplingFields` has two more members, `Temperature` and `TopP`,** so a provider can say that its API surface does not
+  send them (the `anthropic` provider does not). `GET /api/models` and the configuration value of
+  `RejectedSamplingFields` accept the two names as well.
 - **`POST /v1/responses` reports a cut-off or filtered answer as `incomplete`.** Microsoft Agent Framework wrote
   `status: "completed"` (and `response.completed` on a stream) for every finish reason. An answer the model cut off at
   its output token limit or its context window now has `status: "incomplete"` and
@@ -119,6 +147,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`DELETE /v1/conversations/{id}` deletes the attachments of the conversation.** It deleted the session and the copy
+  of its content that conversation memory keeps, and left the files uploaded to it: nothing could name them any more, so
+  they stayed until retention. `DELETE /api/sessions/{id}` already deleted them; both endpoints, and the Microsoft Agent
+  Framework session store that Tracon registers, now delete through one path. The order is the copy of the content, the
+  attachments, then the session record, so a step that fails leaves the record in place and a repeat call finishes.
+  `DELETE /api/sessions/{id}` used to delete the record first and the attachments after it: a failure in between left
+  attachments no later call could reach.
 - **The agent editor of the console no longer rounds a seed it cannot hold exactly.** A seed above 9007199254740991 in
   absolute value went out as another number (`9007199254740993` as `9007199254740992`), and a stored seed of that size
   came back rounded and was written back the same way. The editor checks the text before it makes a number: it shows the

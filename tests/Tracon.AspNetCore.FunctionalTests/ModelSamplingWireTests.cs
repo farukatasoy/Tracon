@@ -40,6 +40,8 @@ public sealed class ModelSamplingWireTests
         {
             provider = "wire-openai",
             model = "fake-local-model",
+            temperature = 0.25,
+            topP = 0.75,
             seed = 7,
             stopSequences = new[] { "END" },
             frequencyPenalty = 0.25,
@@ -50,6 +52,8 @@ public sealed class ModelSamplingWireTests
 
         var body = server.ChatCompletionBodies.ShouldHaveSingleItem();
 
+        body["temperature"]!.GetValue<double>().ShouldBe(0.25);
+        body["top_p"]!.GetValue<double>().ShouldBe(0.75);
         body["seed"]!.GetValue<long>().ShouldBe(7);
         body["stop"]!.ToJsonString().ShouldBe("""["END"]""");
         body["frequency_penalty"]!.GetValue<double>().ShouldBe(0.25);
@@ -70,6 +74,8 @@ public sealed class ModelSamplingWireTests
         {
             provider = "wire-openai-responses",
             model = "fake-local-model",
+            temperature = 0.25,
+            topP = 0.75,
             toolMode = "required",
             allowMultipleToolCalls = false,
             reasoningOutput = "Summary",
@@ -77,6 +83,8 @@ public sealed class ModelSamplingWireTests
 
         var body = server.ResponsesBodies.ShouldHaveSingleItem();
 
+        body["temperature"]!.GetValue<double>().ShouldBe(0.25);
+        body["top_p"]!.GetValue<double>().ShouldBe(0.75);
         body["tool_choice"]!.GetValue<string>().ShouldBe("required");
         body["parallel_tool_calls"]!.GetValue<bool>().ShouldBeFalse();
         body["reasoning"]!["summary"]!.GetValue<string>().ShouldBe("concise");
@@ -108,8 +116,11 @@ public sealed class ModelSamplingWireTests
     }
 
     [Fact]
-    public async Task Anthropic_sends_top_k_stop_sequences_and_the_tool_choice()
+    public async Task Anthropic_sends_stop_sequences_and_the_tool_choice_and_no_sampling_field_SDK_13_removed()
     {
+        // Phase 255: SDK 12.58 wrote top_k; SDK 13.3.0's MessageCreateParams has no member for temperature, top_p
+        // or top_k. The definition cannot set them (the next test), so the proof here is that a request which sets
+        // everything the surface does send carries none of the three.
         await using var anthropic = await FakeAnthropicServer.StartAsync();
         await using var host = await StartAnthropicAsync(anthropic);
 
@@ -117,7 +128,6 @@ public sealed class ModelSamplingWireTests
         {
             provider = AnthropicProviderNames.Anthropic,
             model = "claude-test",
-            topK = 40,
             stopSequences = new[] { "END" },
             toolMode = "required",
             allowMultipleToolCalls = false,
@@ -125,7 +135,11 @@ public sealed class ModelSamplingWireTests
 
         var body = anthropic.Bodies.ShouldHaveSingleItem();
 
-        body["top_k"]!.GetValue<int>().ShouldBe(40);
+        foreach (var removed in new[] { "temperature", "top_p", "top_k" })
+        {
+            body.ContainsKey(removed).ShouldBeFalse($"'{removed}' is not a field the SDK 13 request has");
+        }
+
         body["stop_sequences"]!.ToJsonString().ShouldBe("""["END"]""");
         body["tool_choice"]!["type"]!.GetValue<string>().ShouldBe("any");
         body["tool_choice"]!["disable_parallel_tool_use"]!.GetValue<bool>().ShouldBeTrue();
@@ -167,12 +181,15 @@ public sealed class ModelSamplingWireTests
     }
 
     [Fact]
-    public async Task Anthropic_refuses_seed_and_the_penalties_which_the_adapter_has_no_member_for()
+    public async Task Anthropic_refuses_the_fields_which_the_adapter_has_no_member_for()
     {
         await using var anthropic = await FakeAnthropicServer.StartAsync();
         await using var host = await StartAnthropicAsync(anthropic);
 
-        foreach (var (field, value) in new (string, object)[] { ("seed", 7), ("frequencyPenalty", 0.5), ("presencePenalty", 0.5) })
+        foreach (var (field, value) in new (string, object)[]
+        {
+            ("seed", 7), ("frequencyPenalty", 0.5), ("presencePenalty", 0.5), ("temperature", 0.5), ("topP", 0.5), ("topK", 40),
+        })
         {
             using var response = await host.Client.PostAsJsonAsync(
                 new Uri("/tracon/api/agents/validate", UriKind.Relative),

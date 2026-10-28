@@ -10,7 +10,8 @@ namespace Tracon;
 /// The model adapters send only some of the <see cref="SamplingFields"/> and drop the rest without an error:
 /// a definition that sets <see cref="ModelBinding.Seed"/> for the Responses API runs, and the seed never
 /// reaches the model. A provider states what its surface sends through <see cref="ISamplingSupport"/>; a
-/// provider that states nothing supports none of the fields.
+/// provider that states nothing supports none of the fields except <see cref="SamplingFields.Temperature"/> and
+/// <see cref="SamplingFields.TopP"/>, which every adapter sent before the two were named.
 /// </para>
 /// <para>
 /// A field the surface sends can still fail at the model or in its value, so the check has three findings:
@@ -153,6 +154,8 @@ internal static class SamplingSupportCheck
         requested |= string.IsNullOrWhiteSpace(binding.ToolMode) ? SamplingFields.None : SamplingFields.ToolMode;
         requested |= binding.AllowMultipleToolCalls is null ? SamplingFields.None : SamplingFields.AllowMultipleToolCalls;
         requested |= string.IsNullOrWhiteSpace(binding.ReasoningOutput) ? SamplingFields.None : SamplingFields.ReasoningOutput;
+        requested |= binding.Temperature is null ? SamplingFields.None : SamplingFields.Temperature;
+        requested |= binding.TopP is null ? SamplingFields.None : SamplingFields.TopP;
 
         return requested;
     }
@@ -266,6 +269,8 @@ internal static class SamplingSupportCheck
         SamplingFields.ToolMode => nameof(ModelBinding.ToolMode),
         SamplingFields.AllowMultipleToolCalls => nameof(ModelBinding.AllowMultipleToolCalls),
         SamplingFields.ReasoningOutput => nameof(ModelBinding.ReasoningOutput),
+        SamplingFields.Temperature => nameof(ModelBinding.Temperature),
+        SamplingFields.TopP => nameof(ModelBinding.TopP),
         _ => field.ToString(),
     };
 

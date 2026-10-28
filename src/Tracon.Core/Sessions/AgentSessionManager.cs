@@ -615,18 +615,39 @@ public sealed class AgentSessionManager
     /// <remarks>
     /// The copy goes FIRST and only for a session that exists: a copy that cannot be erased fails the
     /// call with the session still in place, so a repeat call finds it and finishes the erasure. Erasing after
-    /// the delete would leave a copy no repeat call could reach.
+    /// the delete would leave a copy no repeat call could reach. The attachments of the session are not deleted
+    /// here; <c>SessionDeletion</c> is the path that deletes them too.
     /// </remarks>
-    public async ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+        => DeleteSessionAsync(sessionId, null, cancellationToken);
+
+    /// <summary>Deletes the session, running one more step between the copy and the record.</summary>
+    /// <param name="sessionId">The session identity.</param>
+    /// <param name="afterContentErased">
+    /// A step that must finish before the record goes, run only for a session that exists. It fails the call like a
+    /// copy that cannot be erased does: the record stays, so a repeat call finishes.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if a deletion occurred.</returns>
+    /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
+    internal async ValueTask<bool> DeleteSessionAsync(
+        string sessionId,
+        Func<CancellationToken, ValueTask>? afterContentErased,
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        if (_contentErasers.Count > 0
+        if ((_contentErasers.Count > 0 || afterContentErased is not null)
             && await _store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false) is not null)
         {
             foreach (var eraser in _contentErasers)
             {
                 await eraser.EraseAsync(_tenantContext.TenantId, [sessionId], cancellationToken).ConfigureAwait(false);
+            }
+
+            if (afterContentErased is not null)
+            {
+                await afterContentErased(cancellationToken).ConfigureAwait(false);
             }
         }
 

@@ -33,7 +33,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// It also keeps <see cref="ModelBinding.AllowMultipleToolCalls"/> from being dropped
-/// without a word. Measured (Anthropic 12.58.0 adapter, decompiled): the adapter reads
+/// without a word. Measured (Anthropic 13.3.0 adapter, decompiled 2026-10-28; the same code as in the first measure): the adapter reads
 /// <see cref="ChatOptions.AllowMultipleToolCalls"/> only while it builds <c>tool_choice</c>
 /// from <see cref="ChatOptions.ToolMode"/>, so a request that sets the first and not the
 /// second goes out without <c>disable_parallel_tool_use</c>. When the request carries tools

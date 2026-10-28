@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using Microsoft.Extensions.Logging;
 
 namespace Tracon;
@@ -19,9 +20,12 @@ namespace Tracon;
 /// network call.
 /// </para>
 /// <para>
-/// Anthropic authentication uses the <c>x-api-key</c> header, not
-/// <c>Authorization: Bearer</c>, and the <c>anthropic-version</c> header is
-/// <strong>required</strong>; the endpoint returns <c>HTTP 400</c> when it is missing.
+/// The check sends what the SDK sends (Anthropic 13.3.0): <c>Authorization: Bearer</c> and the
+/// <c>anthropic-version</c> header, which is <strong>required</strong>; the endpoint returns
+/// <c>HTTP 400</c> when it is missing. Measured against the live API on 2026-10-28: the endpoint
+/// also accepts <c>x-api-key</c> and the older <c>2023-06-01</c> version with an API key, so the choice
+/// is not forced. The check follows the SDK so the two cannot drift apart: a test compares the version
+/// with the one a chat request carries.
 /// </para>
 /// </remarks>
 internal sealed class AnthropicProviderHealthCheck(string providerName, AnthropicProviderOptions options, ILogger? logger = null)
@@ -30,10 +34,10 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
     private static readonly Uri DefaultAnthropicEndpoint = new("https://api.anthropic.com/v1/");
 
     /// <summary>
-    /// The API version header Anthropic requires. It is a dated version id, not
-    /// today's date; bumping it is a deliberate decision.
+    /// The API version header Anthropic requires, the one the SDK sends. It is a dated version id, not
+    /// today's date; bumping it is a deliberate decision, and it moves with the SDK.
     /// </summary>
-    internal const string AnthropicVersion = "2023-06-01";
+    internal const string AnthropicVersion = "2026-10-21";
 
     private readonly ProviderHealthCheckCore _core = new(providerName, logger);
 
@@ -52,7 +56,7 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
 
         if (!string.IsNullOrWhiteSpace(options.ApiKey))
         {
-            request.Headers.Add("x-api-key", options.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
         }
 
         return ValueTask.CompletedTask;

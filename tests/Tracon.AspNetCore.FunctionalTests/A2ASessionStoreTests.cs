@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -147,6 +148,76 @@ public sealed class A2ASessionStoreTests
         AgentSessionIdentity.GetId((await store.GetSessionAsync(agent, key, cancellationToken)).ShouldNotBeNull()).ShouldBe(expected);
     }
 
+    [Fact]
+    public async Task A_delete_removes_the_conversation_under_its_digest_and_not_the_plain_identity()
+    {
+        // Phase 255: DelegatingAgentSessionStore forwards a delete with the key as it came. Forwarded
+        // as it is, the bridge would fold the isolation partition into "apikey:key-1::ctx-1", delete
+        // nothing, and leave the conversation this store wrote under "a2a:<digest>".
+        await using var host = await StartAsync();
+        var (store, manager, agent) = Resolve(host);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var key = Isolated("ctx-1");
+        var plain = new AgentSessionStoreKey("apikey:key-1::ctx-1");
+
+        await store.SaveSessionAsync(agent, key, await store.GetOrCreateSessionAsync(agent, key, cancellationToken), cancellationToken);
+        await manager.SaveSessionAsync(agent, await manager.GetOrCreateSessionAsync(agent, plain.SessionId, cancellationToken), cancellationToken);
+
+        await store.DeleteSessionAsync(agent, key, cancellationToken);
+
+        (await manager.QuerySessionsAsync(new SessionQuery(), cancellationToken))
+            .ShouldHaveSingleItem()
+            .Id.ShouldBe("apikey:key-1::ctx-1", "the delete reached the digest identity and nothing else");
+        (await store.GetSessionAsync(agent, key, cancellationToken)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_delete_without_an_isolation_partition_is_refused_and_deletes_nothing()
+    {
+        await using var host = await StartAsync();
+        var (store, manager, agent) = Resolve(host);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await store.SaveSessionAsync(agent, Isolated("ctx-1"), await store.GetOrCreateSessionAsync(agent, Isolated("ctx-1"), cancellationToken), cancellationToken);
+
+        await Should.ThrowAsync<InvalidOperationException>(
+            async () => await store.DeleteSessionAsync(agent, new AgentSessionStoreKey("ctx-1"), cancellationToken));
+
+        (await manager.QuerySessionsAsync(new SessionQuery(), cancellationToken)).ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task A_delete_of_a_conversation_another_user_owns_is_refused_and_a_missing_one_is_a_no_op()
+    {
+        var attribution = new SwitchableAttribution { UserId = "u1" };
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: services =>
+            {
+                services.Configure<TraconSessionOwnershipOptions>(static options => options.Enabled = true);
+                services.AddSingleton<IRunAttributionContext>(attribution);
+            });
+        var (store, manager, agent) = ResolveWithRequest(host, attribution);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var key = Isolated("ctx-1");
+
+        await store.SaveSessionAsync(agent, key, await store.GetOrCreateSessionAsync(agent, key, cancellationToken), cancellationToken);
+
+        attribution.UserId = "u2";
+
+        await Should.ThrowAsync<TraconSessionOwnerRequiredException>(
+            async () => await store.DeleteSessionAsync(agent, key, cancellationToken));
+        (await manager.QuerySessionsAsync(new SessionQuery(), cancellationToken)).ShouldHaveSingleItem("the refusal comes before the delete");
+
+        await store.DeleteSessionAsync(agent, Isolated("never-opened"), cancellationToken);
+
+        attribution.UserId = "u1";
+
+        await store.DeleteSessionAsync(agent, key, cancellationToken);
+
+        (await manager.QuerySessionsAsync(new SessionQuery(), cancellationToken)).ShouldBeEmpty();
+    }
+
     private static AgentSessionStoreKey Isolated(string contextId)
         => new(contextId, new Dictionary<string, string>(StringComparer.Ordinal) { ["isolation"] = "apikey:key-1" });
 
@@ -154,16 +225,42 @@ public sealed class A2ASessionStoreTests
         => TraconTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition()));
 
     private static (A2ASessionStore Store, AgentSessionManager Manager, AIAgent Agent) Resolve(TraconTestHost host)
+        => Resolve(host, new HttpContextAccessor(), ownershipOptions: null, attribution: null);
+
+    /// <summary>The same store with a request in flight and session ownership read from the host.</summary>
+    private static (A2ASessionStore Store, AgentSessionManager Manager, AIAgent Agent) ResolveWithRequest(
+        TraconTestHost host,
+        IRunAttributionContext attribution)
+        => Resolve(
+            host,
+            new HttpContextAccessor { HttpContext = new DefaultHttpContext { RequestServices = host.Services } },
+            host.Services.GetRequiredService<IOptionsMonitor<TraconSessionOwnershipOptions>>(),
+            attribution);
+
+    private static (A2ASessionStore Store, AgentSessionManager Manager, AIAgent Agent) Resolve(
+        TraconTestHost host,
+        IHttpContextAccessor accessor,
+        IOptionsMonitor<TraconSessionOwnershipOptions>? ownershipOptions,
+        IRunAttributionContext? attribution)
     {
         var manager = host.Services.GetRequiredService<AgentSessionManager>();
         var agent = host.Services.GetRequiredService<AgentDefinitionCompiler>().Compile(TestData.Definition());
         var store = new A2ASessionStore(
-            new TraconAgentSessionStore(manager),
+            new TraconAgentSessionStore(manager, host.Services.GetRequiredService<SessionDeletion>()),
             host.Services.GetRequiredService<ITenantContext>(),
             host.Services.GetRequiredService<ISessionStore>(),
-            new HttpContextAccessor());
+            accessor,
+            ownershipOptions,
+            attribution);
 
         return (store, manager, agent);
+    }
+
+    private sealed class SwitchableAttribution : IRunAttributionContext
+    {
+        public string? UserId { get; set; }
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
     }
 }
 #pragma warning restore MAAI001

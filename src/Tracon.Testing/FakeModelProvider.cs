@@ -62,7 +62,9 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
     /// <see cref="Requests"/> shows it.
     /// </summary>
     public SamplingFields SupportedSamplingFields =>
-        SamplingFields.Seed
+        SamplingFields.Temperature
+        | SamplingFields.TopP
+        | SamplingFields.Seed
         | SamplingFields.TopK
         | SamplingFields.StopSequences
         | SamplingFields.FrequencyPenalty

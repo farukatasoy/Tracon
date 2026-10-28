@@ -117,15 +117,20 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     /// <remarks>
     /// Measured from the Microsoft.Extensions.AI.OpenAI 10.11.0 adapters (2026-10-20): Chat
     /// Completions sends the seed, the stop sequences and both penalties and has no top-k or
-    /// reasoning output; the Responses API sends none of the sampling fields and is the one that
-    /// carries the reasoning summary. Both send the tool mode and the parallel-tool-calls flag.
+    /// reasoning output; the Responses API sends the temperature and top-p (measured on the wire,
+    /// 2026-10-28) but none of the other sampling fields, and is the one that carries the reasoning
+    /// summary. Both send the tool mode and the parallel-tool-calls flag.
     /// </remarks>
     public SamplingFields SupportedSamplingFields => ApiSurface switch
     {
-        OpenAIApiSurface.Responses => SamplingFields.ToolMode
+        OpenAIApiSurface.Responses => SamplingFields.Temperature
+            | SamplingFields.TopP
+            | SamplingFields.ToolMode
             | SamplingFields.AllowMultipleToolCalls
             | SamplingFields.ReasoningOutput,
-        _ => SamplingFields.Seed
+        _ => SamplingFields.Temperature
+            | SamplingFields.TopP
+            | SamplingFields.Seed
             | SamplingFields.StopSequences
             | SamplingFields.FrequencyPenalty
             | SamplingFields.PresencePenalty

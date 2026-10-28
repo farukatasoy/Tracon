@@ -16,6 +16,11 @@ public sealed record ModelBinding
     public required string Model { get; init; }
 
     /// <summary>Gets the sampling temperature. The provider default is used when it is <see langword="null"/>.</summary>
+    /// <remarks>
+    /// Sent only by the API surfaces that state it (see <see cref="ISamplingSupport"/>): the Anthropic
+    /// provider does not send it, and a definition that sets it for that provider is rejected while
+    /// the agent is built. The same holds for <see cref="TopP"/>.
+    /// </remarks>
     public float? Temperature { get; init; }
 
     /// <summary>Gets the upper output token limit. The provider default is used when it is <see langword="null"/>.</summary>
@@ -145,7 +150,7 @@ public sealed record ModelBinding
     /// <remarks>
     /// Sent only by the API surfaces that support it (see <see cref="ISamplingSupport"/>); a
     /// definition that sets it for a provider that does not is rejected while the agent is
-    /// built. The same holds for <see cref="TopK"/>, <see cref="StopSequences"/>,
+    /// built. The same holds for <see cref="Temperature"/>, <see cref="TopP"/>, <see cref="TopK"/>, <see cref="StopSequences"/>,
     /// <see cref="FrequencyPenalty"/>, <see cref="PresencePenalty"/>, <see cref="ToolMode"/>,
     /// <see cref="AllowMultipleToolCalls"/> and <see cref="ReasoningOutput"/>, on the primary
     /// provider and on every <see cref="Fallbacks"/> link.
