@@ -10,11 +10,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
 **Sıradaki boş faz numarası: 257.**
 
-## Açık fazlar (2 kalem)
+## Açık fazlar (1 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [256](256-META-PAKET-DEPO-AYRIMI.md) | Meta Paketten Deponun Ayrılması | 📋 Planlandı |
 
-Kapanan fazlar (255 kayıt; son: Faz 255 — Çalışma Anı Bağımlılıkları ve MAF 1.26): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
+Kapanan fazlar (256 kayıt; son: Faz 256 — Meta Paketten Deponun Ayrılması): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
