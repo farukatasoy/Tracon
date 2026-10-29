@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using Microsoft.Extensions.Caching.Distributed;
@@ -49,6 +50,76 @@ public sealed class McpOAuthCrossInstanceTests
 
         await WaitUntil.ValueAsync(() => OAuthFlowClient.ToolNamesAsync(pair.B), OAuthFlowClient.HasLookup);
         server.TokenRequests.ShouldHaveSingleItem("B listed the tools with the token A obtained; it exchanged nothing.");
+    }
+
+    /// <summary>
+    /// The call, not only the listing: an agent run on instance B calls the tool of a server that instance A
+    /// authorized, and the server answers it.
+    /// </summary>
+    [Fact]
+    public async Task A_tool_call_on_the_other_instance_reaches_the_server_with_the_token()
+    {
+        var model = new Tracon.Testing.FakeModelProvider("oauth-model").EchoesLastToolResult();
+        await using var server = await OAuthProtectedMcpServer.StartAsync();
+        await using var pair = await StartPairAsync(new SharedCache(), model);
+
+        await OAuthFlowClient.SaveServerAsync(pair.A, server.Endpoint);
+        (await OAuthFlowClient.AuthorizeAsync(pair.A)).ShouldContain("Authorization complete", Case.Sensitive);
+        await OAuthFlowClient.RefreshAsync(pair.B);
+        await WaitUntil.ValueAsync(() => OAuthFlowClient.ToolNamesAsync(pair.B), OAuthFlowClient.HasLookup);
+
+        using (var saved = await pair.B.Client.PostAsJsonAsync(
+                   new Uri("/tracon/api/agents", UriKind.Relative),
+                   new AgentDefinitionRequest
+                   {
+                       Name = "looker",
+                       Instructions = "Look the value up.",
+                       Model = new ModelBinding { Provider = "oauth-model", Model = "lookup" },
+                       ToolNames = [$"{OAuthFlowClient.ServerName}_lookup"],
+                   }))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.Created, await saved.Content.ReadAsStringAsync());
+        }
+
+        model.CallsTool($"{OAuthFlowClient.ServerName}_lookup");
+
+        using var run = await pair.B.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/looker/run", UriKind.Relative),
+            new AgentRunRequest { Message = "look it up", SessionId = "oauth-b" });
+
+        run.StatusCode.ShouldBe(HttpStatusCode.OK, await run.Content.ReadAsStringAsync());
+
+        // The server answered the call "forty-two" because the request carried the token A obtained.
+        (await run.Content.ReadAsStringAsync()).ShouldContain("forty-two", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// 🚨 Two tenants save a server of the same name, at the same endpoint, with the same client id. Only one of them
+    /// authorizes it. The other tenant must get no token from the cache the instances share: the key holds the tenant.
+    /// </summary>
+    [Fact]
+    public async Task Tokens_are_per_tenant()
+    {
+        await using var server = await OAuthProtectedMcpServer.StartAsync();
+        await using var pair = await StartPairAsync(new SharedCache(), tenancy: true);
+
+        foreach (var slug in new[] { "tenant-a", "tenant-b" })
+        {
+            using var tenant = await pair.A.Client.PutAsJsonAsync(new Uri($"/tracon/api/tenants/{slug}", UriKind.Relative), new { displayName = slug });
+            tenant.StatusCode.ShouldBe(HttpStatusCode.OK, await tenant.Content.ReadAsStringAsync());
+
+            await OAuthFlowClient.SaveServerAsync(pair.A, server.Endpoint, slug);
+        }
+
+        var state = await OAuthFlowClient.StartFlowAsync(pair.A, "tenant-a");
+        (await OAuthFlowClient.CallbackAsync(pair.B, state)).ShouldContain("Authorization complete", Case.Sensitive);
+
+        await OAuthFlowClient.RefreshAsync(pair.B);
+
+        // The refresh ran for both tenants: the first one's tool is there, so the snapshot that holds both is in place.
+        await WaitUntil.ValueAsync(() => OAuthFlowClient.ToolNamesAsync(pair.B, "tenant-a"), OAuthFlowClient.HasLookup);
+        OAuthFlowClient.HasLookup(await OAuthFlowClient.ToolNamesAsync(pair.B, "tenant-b")).ShouldBeFalse();
+        server.TokenRequests.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -346,12 +417,32 @@ public sealed class McpOAuthCrossInstanceTests
         cache.Keys.ShouldContain(stored => string.Equals(stored, McpOAuthCacheKeys.Token(key), StringComparison.Ordinal));
     }
 
-    private static Task<TwoHostFixture> StartPairAsync(SharedCache? cache)
+    private static Task<TwoHostFixture> StartPairAsync(
+        SharedCache? cache,
+        Tracon.Testing.FakeModelProvider? model = null,
+        bool tenancy = false)
     {
         var protector = McpOAuthKit.Protector();
 
         return TwoHostFixture.StartAsync(
-            configure: static builder => builder.UseMcp(),
+            configure: builder =>
+            {
+                builder.UseMcp();
+
+                if (tenancy)
+                {
+                    builder.UseTenancy(static options =>
+                    {
+                        options.Enabled = true;
+                        options.AllowHeaderResolution = true;
+                    });
+                }
+
+                if (model is not null)
+                {
+                    builder.AddModelProvider(model);
+                }
+            },
             configureServices: services =>
             {
                 services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);

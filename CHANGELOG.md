@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **MCP discovery runs on every instance, also with `Tracon:SingletonExecution:Enabled` on.** It ran under the
+  single-executor lease, so only the instance that held the lease refreshed its tool catalog and the other instance had no
+  MCP tool at all (two instances on one database: 1 tool on the lease holder, 0 on the other, with or without OAuth on the
+  server). The catalog is a cache of the process and holds the live connection a tool call goes through, so every instance
+  needs its own. Each instance now opens one connection to each server and lists its tools once for each
+  `Tracon:Mcp:RefreshInterval`. With one instance, or with singleton execution off, nothing changes. The lease named
+  `mcp-discovery` is no longer taken; a row with that name in `singleton_leases` is harmless and expires.
+
 - **`RequireProductionProfile()` asks a new decision: `UnkeyedAuditChain`. A host that calls it and keeps its audit
   trail in a database does not start until the decision is answered or accepted by name.** `TraconProductionRisk` gains
   `UnkeyedAuditChain`. A host that never calls the method sees nothing change. Why it was added: the audit trail's
@@ -192,6 +200,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **MCP OAuth works on two instances. Set `Tracon:Mcp:OAuthTokenStore` to `DistributedCache`.** The default, `Memory`,
+  keeps today's behavior: a token lives in the memory of the process that obtained it, and only the instance that started an
+  authorization can finish it. With `DistributedCache` the token is kept in your `IDistributedCache`, encrypted with
+  `IContentProtector`; the key stays in configuration and the token is never written to the Tracon database. The
+  provider's redirect may reach either instance: the instance that receives it leaves the code in the cache, the instance
+  that started the flow takes it and exchanges it, and the instance that received the redirect shows the result. One
+  instance at a time refreshes a token, through a lease in the lease store (`ISingletonLeaseStore`, a SQL provider for a
+  lease that two instances share). The application does not start in this mode when no `IDistributedCache` is registered or
+  content protection is off, and starts with a warning when the cache or the lease store lives in one process. The new
+  `Tracon:Mcp:OAuthTokenSlidingLifetime` (default 30 days) sets how long a token stays in the cache without a write. New public
+  types: `McpOAuthTokenStore`, `TraconMcpOptions.OAuthTokenStore` and `TraconMcpOptions.OAuthTokenSlidingLifetime`. In this
+  mode the MCP client reads the cache for each HTTP request it sends to the server, because a copy kept in the process
+  could refresh with a refresh token the provider has already replaced. Without this setting, a callback that reaches the
+  other instance now says that this instance may not have started the authorization and names the setting.
 - **The audit trail's hash chain can be signed with a key.** Set `Tracon:Audit:ChainKeyId` to the id of a key whose
   base64 value is under `Tracon:AuditChainKeys:<id>` (at least 32 bytes). New entries are then hashed with HMAC-SHA256 and
   carry the key's id in `keyId`; the key value is read from configuration at start and never written to the database, a
@@ -367,6 +389,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   say that a run that does not stream has no duration (no schema change).
 
 ### Fixed
+
+- **A server's tools are listed on every instance when singleton execution is on.** See the first entry under "Upgrading".
+- **A token is forgotten when its server is deleted.** The refresh that notices a deleted server removes the token this
+  process held a cache for (in the distributed cache, the shared entry); a disabled server keeps its token, and a tenant the
+  refresh did not read is not treated as deleted. Before, a token stayed in memory until the process stopped.
 
 - **The documentation of `RateLimitPartitionKind.Global` no longer claims a limit shared across the whole deployment.** It
   was shared by every caller of one instance only; the whole deployment shares it with `Tracon:RateLimit:Scope` set to

@@ -439,11 +439,30 @@ tool-count limit, and the latest refresh result.
 Code tools keep priority over a remote tool with the same name. MCP tools also require
 approval by default.
 
+### MCP OAuth says "not found or has expired" after consent
+
+If more than one instance serves the application, the provider's redirect may have reached an instance that did
+not start the authorization. With the default `Tracon:Mcp:OAuthTokenStore` (`Memory`) only the instance that
+started it can finish it. Set `Tracon:Mcp:OAuthTokenStore` to `DistributedCache`, with a shared `IDistributedCache`
+and content protection; see
+[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances). With one instance,
+the session ended after 10 minutes: start the authorization again.
+
+### An MCP server's tools appear on one instance only
+
+Before this release, discovery ran under the singleton-execution lease and only the instance that held it listed the
+tools. Every instance discovers now. If a server's tools are missing on one instance, call `POST /api/mcp-servers/refresh`
+on it and read its log: a server that cannot be reached, or an OAuth server whose token that instance cannot read
+(`OAuthTokenStore` is still `Memory`), has no tools there.
+
 ### MCP OAuth returns to the wrong address
 
 Set `Tracon:Mcp:OAuthCallbackBaseUri` when proxy or public routing makes the
 inferred address wrong. The callback must still use the prefix and access layers of
-the mapped application.
+the mapped application. The address of a server's callback is this value followed by
+`api/mcp-servers/{name}/oauth/callback`, so write the path prefix into it and end it with a
+slash: `https://myapp.example.com/tracon/`. Without the final slash the last path segment is
+replaced and the provider is sent to an address that lacks the prefix.
 
 ### `MapTraconMcpServer()` says services are missing
 

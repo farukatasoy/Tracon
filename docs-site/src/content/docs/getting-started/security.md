@@ -241,6 +241,14 @@ Each prefix is configurable through the matching options section, and both rules
 enforced twice: where the record is saved, and again where the value is resolved — so
 a record written before a rule existed cannot quietly read outside it.
 
+### OAuth tokens of MCP servers
+
+A token that an MCP server's OAuth flow returns is never written to the database. By default it stays in the
+memory of the process that obtained it. With more than one instance, `Tracon:Mcp:OAuthTokenStore = DistributedCache`
+keeps it in your `IDistributedCache`, encrypted with the content protector. The application does not start in that mode
+while content protection is off. See
+[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
+
 ### Credential headers are declared by key name
 
 An MCP server or a webhook receiver often wants a credential in a header other than

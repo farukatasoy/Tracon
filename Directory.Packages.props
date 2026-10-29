@@ -208,6 +208,16 @@
   </ItemGroup>
 
   <!--
+    Faz 264: samples/Tracon.Api'nin isteğe bağlı Redis önbelleği — iki süreçli kabul case'i
+    (docs/manuel-test/18-MCP-VE-A2A.md, MT-MCP-096) `Tracon:Mcp:OAuthTokenStore = DistributedCache` için
+    süreçler arasında paylaşılan bir `IDistributedCache` ister. Tracon Redis'e bağlı değildir; bu bağımlılık
+    yalnız samples/ altındadır, sevk edilen hiçbir pakete girmez (K-007).
+  -->
+  <ItemGroup Label="Sample-only: Redis distributed cache (Faz 264)">
+    <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.9" />
+  </ItemGroup>
+
+  <!--
     MCP istemcisi. `ModelContextProtocol` DEGIL, `.Core`: tam paket
     Microsoft.Extensions.Hosting.Abstractions ve Caching.Abstractions da ceker;
     bunlar sunucu barindirma icindir ve Tracon yalnizca istemcidir.

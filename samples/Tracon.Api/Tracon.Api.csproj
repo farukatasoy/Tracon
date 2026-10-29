@@ -62,6 +62,11 @@
       Microsoft.Extensions.VectorData.Abstractions that the Microsoft Agent Framework package accepts.
     -->
     <PackageReference Include="CommunityToolkit.VectorData.PgVector" />
+    <!--
+      A distributed cache that several instances share (phase 264). Used only when
+      `Tracon:Demo:RedisConnectionString` is set; see the cache registration in Program.cs.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
   </ItemGroup>
 
   <ItemGroup>

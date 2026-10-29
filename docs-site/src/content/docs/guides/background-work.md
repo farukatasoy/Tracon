@@ -591,7 +591,9 @@ both meant for a multi-instance deployment.
 instance for periodic background services that must not run twice at once:
 approval expiration, model-provider health polling, canary evaluation, and run
 reconciliation itself. It does not protect the job queue — that already uses
-per-job SQL leasing, which is unaffected by this setting.
+per-job SQL leasing, which is unaffected by this setting. It does not cover MCP
+discovery either: every instance needs its own catalog of remote tools, so every
+instance discovers.
 
 ```json
 {

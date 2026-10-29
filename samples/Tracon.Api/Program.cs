@@ -208,8 +208,18 @@ if (builder.Configuration["Tracon:Demo:ToolAuthorization:Mode"] is { Length: > 0
 // never registers one itself (an agent that enables ResponseCache without
 // this line fails to compile with a message naming exactly this gap).
 // AddDistributedMemoryCache() is enough for a single-instance sample; a real
-// multi-instance deployment points this at Redis/SQL Server instead.
-builder.Services.AddDistributedMemoryCache();
+// multi-instance deployment points this at Redis/SQL Server instead. Set
+// `Tracon:Demo:RedisConnectionString` to run two instances of this sample on one Redis: the
+// cache is then shared, which `Tracon:Mcp:OAuthTokenStore = DistributedCache` needs (it keeps
+// an MCP server's OAuth token there, encrypted; the content protection below is on already).
+if (builder.Configuration["Tracon:Demo:RedisConnectionString"] is { Length: > 0 } redisConnectionString)
+{
+    builder.Services.AddStackExchangeRedisCache(options => options.Configuration = redisConnectionString);
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
 
 var tracon = builder.AddTracon()
     // Tools are defined ONLY in code. The UI lets a user pick from this list;

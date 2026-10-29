@@ -404,7 +404,7 @@ checkpoints fails at startup.
 ## Elect one owner for periodic services
 
 `SingletonExecution.Enabled` adds lease-based cluster election to Tracon's
-periodic model-health refresh, MCP discovery, run reconciliation, approval expiry,
+periodic model-health refresh, run reconciliation, approval expiry,
 and canary evaluation. It is off by default and uses a 60-second lease. Renewal runs
 at one third of the lease duration. An empty `OwnerId` becomes a
 machine/process/unique-suffix identifier.
@@ -415,6 +415,10 @@ that an external side effect happens exactly once.
 
 The background job queue does not use this option. It already owns independent job
 leases, so turning on singleton execution does not reduce job-worker concurrency.
+
+MCP discovery does not use it either. Each instance keeps its own catalog of remote tools and the
+live connection a tool call goes through, so every instance discovers. See
+[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
 
 ## Bound multi-agent trees
 

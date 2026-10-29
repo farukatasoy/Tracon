@@ -122,6 +122,17 @@ counters are reporting, not prevention: they tell you evidence is missing, they 
 keep it.
 :::
 
+:::caution[An OAuth token in a shared cache is as safe as the key that protects it]
+With `Tracon:Mcp:OAuthTokenStore` set to `DistributedCache`, an MCP server's access token, refresh token and
+client secret are in your `IDistributedCache` for as long as the entry lives. They are encrypted with the content
+protector, and the key is in configuration, so someone who can read the cache but not the configuration gets no token.
+Someone who can read both gets them. Nothing then limits what that token may do at the MCP server: the limit is the
+scope the provider granted. Keep the encryption key out of the cache's reach, and give the cache the same access control
+you give any store of credentials. The callback endpoint takes no bearer token and writes to that cache, but only for an
+authorization an instance announced; see
+[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
+:::
+
 :::caution[The audit chain key does not stop someone who holds the key]
 With `Tracon:Audit:ChainKeyId` set, the audit trail's hash is an HMAC under a key kept in configuration, so
 someone who can write the audit table but cannot read the configuration can no longer change an entry and

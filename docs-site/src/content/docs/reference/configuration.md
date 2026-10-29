@@ -739,6 +739,8 @@ resolved. See
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |
+| `OAuthTokenStore` | `Memory` |
+| `OAuthTokenSlidingLifetime` | 30 days |
 | `AllowedConfigurationPrefix` | `Tracon:McpSecrets:` |
 
 `AllowedConfigurationPrefix` belongs to `TraconMcpSecurityOptions` rather than
@@ -748,6 +750,13 @@ live in packages that do not reference each other. The section name is the same,
 it stays one section to configure. It bounds both `headerConfigurationKeys` and
 `oauthClientSecretConfigurationKey`, and inside it a tenant's server names
 `{prefix}{tenant}:...`; a flat name belongs to the default tenant.
+
+`OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
+servers that use OAuth in your `IDistributedCache`, encrypted, and lets the provider's redirect reach any
+instance. The application does not start in that mode without an `IDistributedCache` and content protection.
+`OAuthTokenSlidingLifetime` is how long a token stays in the cache without a write; it applies to
+`DistributedCache` only and must be greater than zero. See
+[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
 
 The remaining keys belong to `TraconMcpOptions`. `UseMcp()` without arguments uses
 those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:

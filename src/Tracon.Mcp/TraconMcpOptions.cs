@@ -72,11 +72,17 @@ public sealed class TraconMcpOptions
 
     /// <summary>
     /// The base URI of the OAuth Mode 1 (authorization code) callback
-    /// addresses. Example: <c>https://myapp.example.com/</c>. Must already be
-    /// registered with the provider. When <see langword="null"/>, no
-    /// connection is made to a server with OAuth enabled, and
+    /// addresses. Must already be registered with the provider. When
+    /// <see langword="null"/>, no connection is made to a server with OAuth enabled, and
     /// <c>/oauth/start</c> answers that OAuth is not configured.
     /// </summary>
+    /// <remarks>
+    /// The callback address of a server is this address followed by
+    /// <c>api/mcp-servers/{name}/oauth/callback</c>. Include the path prefix Tracon is mapped under
+    /// and end the address with a slash: <c>https://myapp.example.com/tracon/</c> for the default prefix.
+    /// Without the slash the last path segment is replaced, and the provider redirects to an address
+    /// that has no <c>/tracon</c>.
+    /// </remarks>
     public Uri? OAuthCallbackBaseUri { get; set; }
 
     /// <summary>
