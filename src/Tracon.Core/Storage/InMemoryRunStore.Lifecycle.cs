@@ -59,6 +59,10 @@ internal sealed partial class InMemoryRunStore
                 // first, with the link; the engine that runs it writes it again
                 // without one. The SQL providers COALESCE for the same reason.
                 ContinuedFromRunId = record.ContinuedFromRunId ?? previous!.ContinuedFromRunId,
+
+                // F-764: a cancellation request written while the run was Queued survives the
+                // worker's second write. The SQL providers never touch the column on conflict.
+                CancelRequestedAt = previous!.CancelRequestedAt,
             };
         }
 
@@ -140,13 +144,15 @@ internal sealed partial class InMemoryRunStore
     }
 
     /// <inheritdoc />
-    public ValueTask TouchHeartbeatAsync(
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
         DateTimeOffset at,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runIds);
         cancellationToken.ThrowIfCancellationRequested();
+
+        List<RunCancellationRequest>? requests = null;
 
         foreach (var runId in runIds)
         {
@@ -156,10 +162,54 @@ internal sealed partial class InMemoryRunStore
             if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
             {
                 _heartbeats[runId] = at;
+
+                if (run.CancelRequestedAt is { } requestedAt)
+                {
+                    (requests ??= []).Add(new RunCancellationRequest
+                    {
+                        RunId = runId,
+                        TenantId = run.TenantId ?? string.Empty,
+                        RequestedAt = requestedAt,
+                    });
+                }
             }
         }
 
-        return default;
+        return new ValueTask<IReadOnlyList<RunCancellationRequest>>(requests ?? (IReadOnlyList<RunCancellationRequest>)[]);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> RequestCancellationAsync(
+        Guid runId,
+        string tenantId,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // A compare-and-swap loop: a concurrent completion or a concurrent request must
+        // not be overwritten by a stale copy of the record.
+        while (_runs.TryGetValue(runId, out var existing))
+        {
+            if (existing.Status is not (RunStatus.Running or RunStatus.Queued)
+                || !string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                return new ValueTask<bool>(false);
+            }
+
+            if (existing.CancelRequestedAt is not null)
+            {
+                return new ValueTask<bool>(true);
+            }
+
+            if (_runs.TryUpdate(runId, existing with { CancelRequestedAt = at }, existing))
+            {
+                return new ValueTask<bool>(true);
+            }
+        }
+
+        return new ValueTask<bool>(false);
     }
 
     /// <summary>

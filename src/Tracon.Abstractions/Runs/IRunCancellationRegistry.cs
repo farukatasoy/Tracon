@@ -7,12 +7,28 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The registry is <strong>in-process</strong>. In a multi-instance
-/// deployment, a request may land on the wrong instance; in that case the
-/// cancellation endpoint returns <c>409 Conflict</c>. A setup that needs a
-/// distributed registry can replace this interface with its own
-/// implementation (<c>TryAddSingleton</c>).
+/// The registry is <strong>in-process</strong> and registered as a singleton, and it
+/// stays that way: it does not have to be distributed. In a multi-instance deployment, a request may land on an
+/// instance that does not run the run. The cancellation endpoint then takes one of
+/// three paths, in this order:
 /// </para>
+/// <list type="number">
+/// <item>
+/// The run belongs to a queued job (<c>Job.Id == Run.Id</c>): the endpoint cancels the
+/// job, and the worker that executes it stops the handler within its poll interval.
+/// </item>
+/// <item>
+/// The run is registered in this process: <see cref="TryCancel"/> reaches it.
+/// </item>
+/// <item>
+/// Otherwise, when <c>Tracon:RunReconciliation:Enabled</c> is <see langword="true"/>, the
+/// endpoint writes the request onto the run's row
+/// (<see cref="IRunStore.RequestCancellationAsync"/>). The instance that owns the run
+/// reads it in <see cref="IRunStore.TouchHeartbeatAsync"/> and calls
+/// <see cref="TryCancel"/> itself, within one heartbeat interval. With reconciliation off
+/// nobody reads the row, so the endpoint returns <c>409 Conflict</c>.
+/// </item>
+/// </list>
 /// <para>
 /// Cancelling the root run (<c>RunId == RootRunId</c>) also cancels every
 /// record under the same <c>RootRunId</c>. Cancelling a single child run

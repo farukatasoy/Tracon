@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -295,9 +296,14 @@ internal static class RunEndpoints
             .WithSummary("Requests cancellation of a running run.")
             .WithDescription(
                 "202 only reports that cancellation was REQUESTED; the final status is read from " +
-                "'GET /api/runs/{id}'. Returns 409 if the run is not executing on this instance (a different " +
-                "instance, or a restarted process). Canceling a root run also stops every child run in the " +
-                "tree; canceling a child run on its own does not affect the root.");
+                "'GET /api/runs/{id}'. The request reaches the run whichever instance receives it: a run that " +
+                "belongs to a queued job is canceled through the job queue (the worker stops it within its poll " +
+                "interval, 10 seconds by default), and any other run executing on a different instance reads the " +
+                "request on its next heartbeat ('cancelRequestedAt' on the run shows it; 30 seconds by default). " +
+                "That second path needs 'Tracon:RunReconciliation:Enabled'; without it the call returns 409 when " +
+                "the run is not executing on the receiving instance. Returns 409 as well when the run has already " +
+                "ended. Canceling a root run also stops every child run in the tree; canceling a child run on its " +
+                "own does not affect the root.");
 
         builder.MapPost("/api/runs/{runId:guid}/feedback", SaveFeedbackAsync)
             .RequireRole(roles.Operator)
@@ -989,26 +995,33 @@ internal static class RunEndpoints
     /// If the run does not exist or belongs to another tenant, <c>404</c> (both are the
     /// same, to avoid leaking existence).
     /// </item>
-    /// <item>If the run is registered, its source is canceled and <c>202</c> is returned.</item>
     /// <item>
-    /// If the run is <see cref="RunStatus.Running"/> in <c>runs</c> but not registered,
-    /// this instance is not executing it; <c>409</c> is returned.
-    /// </item>
-    /// <item>If the run has already ended, <c>409</c> is returned along with the current status.</item>
-    /// <item>
-    /// A run in the <see cref="RunStatus.Queued"/> status that is registered in
-    /// <see cref="IRunCancellationRegistry"/> is a workflow run waiting in this process for a
-    /// concurrency slot (<c>TraconWorkflowOptions.MaxConcurrentRuns</c>): it is canceled like a
-    /// running one, and its own runner closes the row.
+    /// If the run is not <see cref="RunStatus.Queued"/> or <see cref="RunStatus.Running"/>, it
+    /// has ended (or waits for a person): <c>409</c> is returned along with the current status.
     /// </item>
     /// <item>
-    /// Any other <see cref="RunStatus.Queued"/> run is NOT
-    /// executing YET; it cannot be registered in <see cref="IRunCancellationRegistry"/>.
-    /// In this case cancellation happens FROM THE QUEUE, via
-    /// <c>IJobStore.CancelAsync</c> (Job.Id == RunId), and the
-    /// <c>runs</c> row is closed directly to <see cref="RunStatus.Canceled"/>
-    /// right here — since the worker never picked up the job,
-    /// <c>RunRecordingAgent</c> will never close this row.
+    /// Otherwise the request takes the first of three paths that applies, in this order, and
+    /// returns <c>202</c>. <strong>1.</strong> The run's job (a queued run and its job share one
+    /// id) is canceled in the queue. <strong>2.</strong> The run is registered in this process's
+    /// <see cref="IRunCancellationRegistry"/>, and its source is canceled. <strong>3.</strong> The
+    /// request is written onto the <c>runs</c> row
+    /// (<see cref="IRunStore.RequestCancellationAsync"/>) and the instance that owns the run
+    /// reads it on its next heartbeat; this path needs <c>Tracon:RunReconciliation:Enabled</c>, and
+    /// without it the call returns <c>409</c>.
+    /// </item>
+    /// <item>
+    /// The job is canceled BEFORE the local source. The other order makes the
+    /// worker see its handler stop while the job still reads <c>Running</c>, so with
+    /// <c>AsyncRun.MaxAttempts</c> above 1 the job is leased again and the run, closed
+    /// <see cref="RunStatus.Canceled"/>, comes back to <see cref="RunStatus.Running"/>.
+    /// </item>
+    /// <item>
+    /// A <see cref="RunStatus.Queued"/> run whose job was canceled and that is NOT registered
+    /// in this process is not executing YET. The <c>runs</c> row is closed directly to
+    /// <see cref="RunStatus.Canceled"/> right here: since the worker never picked up the job,
+    /// <c>RunRecordingAgent</c> will never close this row. A <see cref="RunStatus.Queued"/> run
+    /// that IS registered is a workflow run waiting in this process for a concurrency slot
+    /// (<c>TraconWorkflowOptions.MaxConcurrentRuns</c>); its own runner closes the row.
     /// </item>
     /// </list>
     /// </remarks>
@@ -1017,6 +1030,7 @@ internal static class RunEndpoints
         [FromServices] IRunStore runs,
         [FromServices] IJobStore jobs,
         [FromServices] IRunCancellationRegistry cancellations,
+        [FromServices] IOptionsMonitor<RunReconciliationOptions> reconciliation,
         [FromServices] ITenantContext tenants,
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
@@ -1049,25 +1063,30 @@ internal static class RunEndpoints
             return authorizationProblem;
         }
 
+        if (run.Status is not (RunStatus.Queued or RunStatus.Running))
+        {
+            return TypedResults.Problem(
+                title: "Run already ended",
+                detail: $"Run '{runId}' is already in status '{run.Status}'.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        // 🚨 The job FIRST, the local source SECOND (F-765). The local cancel drops the handler at
+        // once; the worker then reads the job status to decide between "cancelled" and "failed,
+        // try again". With the job still Running that read says "try again", and the run, closed
+        // Canceled, is written Running again by the second attempt. Only a run with a queued job
+        // (K-305: Job.Id == Run.Id) pays the write; for a direct run it is a keyed UPDATE that
+        // finds no row.
+        var jobCanceled = await jobs.CancelAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false);
+
         // Registered here means this process is executing the run, whatever its status shows: a workflow
         // run that waits for a concurrency slot is Queued and its runner holds the registration (Phase 240).
         var registered = cancellations.TryCancel(runId, tenants.TenantId);
 
-        if (!registered && run.Status == RunStatus.Queued)
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+
+        if (jobCanceled && !registered && run.Status == RunStatus.Queued)
         {
-            if (!await jobs.CancelAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false))
-            {
-                // No open job holds the run and this process does not run it: it ended a moment ago, or a workflow
-                // run is waiting for a concurrency slot in another instance.
-                return TypedResults.Problem(
-                    title: "Run is not executing on this instance",
-                    detail: $"Run '{runId}' is 'Queued', but no queued job holds it and this process is not running it. " +
-                            "It may have just ended, or it may be waiting for a workflow concurrency slot in a different instance.",
-                    statusCode: StatusCodes.Status409Conflict);
-            }
-
-            var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
-
             await runs.CompleteRunAsync(
                 // `run` came from a read already FILTERED by tenant; the
                 // expected tenant is its own record (K-355).
@@ -1080,52 +1099,71 @@ internal static class RunEndpoints
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            await AuditRecorder.WriteAsync(
-                auditLog,
-                actorResolver,
-                loggerFactory.CreateLogger("Tracon.RunEndpoints"),
-                metrics,
-                tenants.TenantId,
-                action: "run.cancel",
-                entity: $"run:{runId}",
-                before: null,
-                after: null,
-                cancellationToken).ConfigureAwait(false);
+            await WriteCancelAuditAsync(auditLog, actorResolver, loggerFactory, metrics, tenants.TenantId, runId, cancellationToken)
+                .ConfigureAwait(false);
 
             return TypedResults.Accepted($"/api/runs/{runId}", run with { Status = RunStatus.Canceled, CompletedAt = now });
         }
 
-        if (!registered)
+        if (jobCanceled || registered)
         {
-            return run.Status == RunStatus.Running
-                ? TypedResults.Problem(
-                    title: "Run is not executing on this instance",
-                    detail: $"Run '{runId}' shows as 'Running' but is not registered in this process. " +
-                            "It may be running on a different instance, or the process may have restarted mid-run.",
-                    statusCode: StatusCodes.Status409Conflict)
-                : TypedResults.Problem(
-                    title: "Run already ended",
-                    detail: $"Run '{runId}' is already in status '{run.Status}'.",
-                    statusCode: StatusCodes.Status409Conflict);
+            await WriteCancelAuditAsync(auditLog, actorResolver, loggerFactory, metrics, tenants.TenantId, runId, cancellationToken)
+                .ConfigureAwait(false);
+
+            // 202: cancellation was only REQUESTED. cts.Cancel() is not a
+            // guarantee; the agent sees the token at its next check point. The
+            // final status is read from 'GET /api/runs/{id}'.
+            return TypedResults.Accepted($"/api/runs/{runId}", run);
         }
 
-        await AuditRecorder.WriteAsync(
+        // Neither this process nor a queued job holds the run: it executes on another instance, or it
+        // ended a moment ago. The request goes onto the row and the owner reads it on its heartbeat
+        // (F-764). Without reconciliation no heartbeat runs, nobody would read the row, and a 202
+        // would be a promise the system does not keep: the 409 stays.
+        if (!reconciliation.CurrentValue.Enabled)
+        {
+            return TypedResults.Problem(
+                title: "Run is not executing on this instance",
+                detail: $"Run '{runId}' shows as '{run.Status}' but neither a queued job nor this process holds it. " +
+                        "It may be running on a different instance, or the process may have restarted mid-run. " +
+                        "Enable Tracon:RunReconciliation so the owning instance reads the cancellation on its heartbeat.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        if (!await runs.RequestCancellationAsync(runId, tenants.TenantId, now, cancellationToken).ConfigureAwait(false))
+        {
+            // The row left Running/Queued between the read above and the write: the run ended first.
+            return TypedResults.Problem(
+                title: "Run already ended",
+                detail: $"Run '{runId}' ended before the cancellation could be recorded.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        await WriteCancelAuditAsync(auditLog, actorResolver, loggerFactory, metrics, tenants.TenantId, runId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return TypedResults.Accepted($"/api/runs/{runId}", run with { CancelRequestedAt = run.CancelRequestedAt ?? now });
+    }
+
+    private static ValueTask WriteCancelAuditAsync(
+        IAuditLog auditLog,
+        IAuditActorResolver actorResolver,
+        ILoggerFactory loggerFactory,
+        TraconMetrics metrics,
+        string tenantId,
+        Guid runId,
+        CancellationToken cancellationToken)
+        => AuditRecorder.WriteAsync(
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RunEndpoints"),
             metrics,
-            tenants.TenantId,
+            tenantId,
             action: "run.cancel",
             entity: $"run:{runId}",
             before: null,
             after: null,
-            cancellationToken).ConfigureAwait(false);
-
-        // 202: cancellation was only REQUESTED. cts.Cancel() is not a
-        // guarantee; the agent sees the token at its next check point. The
-        // final status is read from 'GET /api/runs/{id}'.
-        return TypedResults.Accepted($"/api/runs/{runId}", run);
-    }
+            cancellationToken);
 
     private static async Task<Results<Ok<IReadOnlyList<RunScore>>, ProblemHttpResult>> ListFeedbackAsync(
         Guid runId,

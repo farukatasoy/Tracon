@@ -255,7 +255,7 @@ public sealed class ForeignCancellationTests
             CancellationToken cancellationToken = default)
             => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
-        public ValueTask TouchHeartbeatAsync(
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
@@ -266,6 +266,13 @@ public sealed class ForeignCancellationTests
             // is NOT stopping, so this is a failure, not a shutdown.
             throw new TaskCanceledException("The store timed out.");
         }
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
         public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
             DateTimeOffset staleBefore,

@@ -575,7 +575,7 @@ public sealed class TenantWorkflowConcurrencyTests
         public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
-        public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
         {
             if (RefuseHeartbeats)
             {
@@ -586,6 +586,13 @@ public sealed class TenantWorkflowConcurrencyTests
 
             return inner.TouchHeartbeatAsync(runIds, at, cancellationToken);
         }
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
             => inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken);

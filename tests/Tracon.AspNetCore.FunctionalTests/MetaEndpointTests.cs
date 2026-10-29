@@ -167,8 +167,15 @@ public sealed class MetaEndpointTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public ValueTask TouchHeartbeatAsync(
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

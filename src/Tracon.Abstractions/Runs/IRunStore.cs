@@ -24,7 +24,8 @@ namespace Tracon;
 /// <description>
 /// <see cref="AppendEventAsync"/>, <see cref="CompleteRunAsync"/>,
 /// <see cref="UpdateRunCostAsync"/>,
-/// <see cref="CompleteLateToolInvocationAsync"/>. The tenant carried by the call is
+/// <see cref="CompleteLateToolInvocationAsync"/>, <see cref="RequestCancellationAsync"/>.
+/// The tenant carried by the call is
 /// compared against the record's own tenant; a mismatch fails the write (or,
 /// for <see cref="UpdateRunCostAsync"/> and
 /// <see cref="CompleteLateToolInvocationAsync"/>, silently affects no row). The
@@ -378,12 +379,17 @@ public interface IRunStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates the "still here" mark of in-flight runs in one batch.
+    /// Updates the "still here" mark of in-flight runs in one batch, and reads back the
+    /// cancellation requests that wait on them.
     /// </summary>
     /// <param name="runIds">The ids of the runs to mark.</param>
     /// <param name="at">The mark time (UTC).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task that completes when the marks are written.</returns>
+    /// <returns>
+    /// The runs among <paramref name="runIds"/> that are still <c>Running</c> or
+    /// <c>Queued</c> and carry a cancellation request (<see cref="RequestCancellationAsync"/>).
+    /// The list is empty when none does. The caller cancels each one it owns.
+    /// </returns>
     /// <remarks>
     /// <para>
     /// Only <c>Running</c> and <c>Queued</c> rows are affected (a workflow run that
@@ -392,15 +398,62 @@ public interface IRunStore
     /// skipped silently — this is a maintenance signal and must not interrupt a run.
     /// </para>
     /// <para>
+    /// The cancellation read is part of the same write. A store reads the request in
+    /// the statement that marks the row, so a cancel costs no extra query. The same
+    /// request comes back on every call until the run ends; the caller cancels
+    /// idempotently.
+    /// </para>
+    /// <para>
     /// <c>[TenantAgnostic]</c>: the ids come from the calling process's OWN
     /// <c>IRunCancellationRegistry</c> and are therefore already limited to the runs
     /// that process actually executes. A tenant filter would also need one query per
     /// tenant, which defeats the point of a heartbeat: a cheap signal that stays off
-    /// the hot path.
+    /// the hot path. Each returned request carries the run's own tenant, which the
+    /// caller hands to <see cref="IRunCancellationRegistry.TryCancel"/>.
     /// </para>
     /// </remarks>
-    ValueTask TouchHeartbeatAsync(
+    ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Records that cancellation was requested for a run another instance may own.
+    /// </summary>
+    /// <param name="runId">The id of the run to cancel.</param>
+    /// <param name="tenantId">
+    /// The EXPECTED tenant of the run. The write affects the row only when its tenant
+    /// matches; a mismatch affects no row and is not an error.
+    /// </param>
+    /// <param name="at">The request time (UTC).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> when the run is <c>Running</c> or <c>Queued</c> and belongs to
+    /// <paramref name="tenantId"/>, so a request is now on the row.
+    /// <see langword="false"/> when the run does not exist, belongs to another tenant, or
+    /// has already ended.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The call is idempotent. A second call keeps the FIRST request time
+    /// (<see cref="RunRecord.CancelRequestedAt"/>) and still returns
+    /// <see langword="true"/> while the run is active.
+    /// </para>
+    /// <para>
+    /// The method only records the request. The instance that owns the run reads it back
+    /// in <see cref="TouchHeartbeatAsync"/> and cancels the run itself, so the run ends
+    /// within one heartbeat interval. A request on a row that ends first stays on the row
+    /// as it was.
+    /// </para>
+    /// <para>
+    /// <strong>Tenant behavior — EXPECTED tenant.</strong> The ambient tenant
+    /// (<c>ITenantContext</c>) is not consulted. The cancel endpoint passes the tenant of
+    /// the run it already read.
+    /// </para>
+    /// </remarks>
+    ValueTask<bool> RequestCancellationAsync(
+        Guid runId,
+        string tenantId,
         DateTimeOffset at,
         CancellationToken cancellationToken = default);
 

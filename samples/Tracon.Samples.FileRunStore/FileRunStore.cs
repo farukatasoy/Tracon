@@ -134,6 +134,9 @@ public sealed class JsonFileRunStore : IRunStore
                     UserId = record.UserId ?? previous!.UserId,
                     Labels = record.Labels ?? previous!.Labels,
                     ContinuedFromRunId = record.ContinuedFromRunId ?? previous!.ContinuedFromRunId,
+
+                    // A cancellation request written while the run was Queued survives the second write.
+                    CancelRequestedAt = previous!.CancelRequestedAt,
                 };
             }
 
@@ -283,13 +286,15 @@ public sealed class JsonFileRunStore : IRunStore
     }
 
     /// <inheritdoc />
-    public ValueTask TouchHeartbeatAsync(
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
         DateTimeOffset at,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runIds);
         cancellationToken.ThrowIfCancellationRequested();
+
+        List<RunCancellationRequest> requests = [];
 
         lock (_gate)
         {
@@ -299,6 +304,18 @@ public sealed class JsonFileRunStore : IRunStore
                 if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
                 {
                     _heartbeats[runId] = at;
+
+                    // The same call hands back the cancellation requests other instances wrote onto
+                    // the rows this process owns; the caller cancels them.
+                    if (run.CancelRequestedAt is { } requestedAt)
+                    {
+                        requests.Add(new RunCancellationRequest
+                        {
+                            RunId = runId,
+                            TenantId = run.TenantId ?? string.Empty,
+                            RequestedAt = requestedAt,
+                        });
+                    }
                 }
             }
         }
@@ -307,7 +324,38 @@ public sealed class JsonFileRunStore : IRunStore
         // frequency maintenance signal, and a store restart legitimately
         // resets "last seen" to the run's own StartedAt (ClaimOrphanedRunsAsync
         // falls back to it below).
-        return default;
+        return new ValueTask<IReadOnlyList<RunCancellationRequest>>(requests);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> RequestCancellationAsync(
+        Guid runId,
+        string tenantId,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            // Only an active run of the EXPECTED tenant takes a request; anything else is "no row".
+            if (!_runs.TryGetValue(runId, out var run)
+                || run.Status is not (RunStatus.Running or RunStatus.Queued)
+                || !string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                return new ValueTask<bool>(false);
+            }
+
+            // The FIRST request time is kept: a second call is still a hit, and it writes nothing.
+            if (run.CancelRequestedAt is null)
+            {
+                _runs[runId] = run with { CancelRequestedAt = at };
+                Save();
+            }
+
+            return new ValueTask<bool>(true);
+        }
     }
 
     /// <inheritdoc />

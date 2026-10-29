@@ -104,8 +104,15 @@ public sealed class WorkflowRecordingFailureTests
         public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
 
-        public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
-            => ValueTask.CompletedTask;
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<RunCancellationRequest>>([]);
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(false);
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

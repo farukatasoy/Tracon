@@ -1189,8 +1189,9 @@ Tracon.IRunStore.ListToolInvocationsAsync(System.Guid runId, System.Threading.Ca
 Tracon.IRunStore.QueryRunsAsync(Tracon.RunQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RunRecord!>!>
 Tracon.IRunStore.ReadEventsAsync(System.Guid runId, long fromSequence = 0, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<Tracon.RunEvent!>!
 Tracon.IRunStore.RecordToolInvocationAsync(Tracon.ToolInvocationRecord! invocation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IRunStore.RequestCancellationAsync(System.Guid runId, string! tenantId, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IRunStore.StartRunAsync(Tracon.RunStartInfo! info, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunRecord!>
-Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollection<System.Guid>! runIds, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollection<System.Guid>! runIds, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RunCancellationRequest!>!>
 Tracon.IRunStore.UpdateRunCostAsync(System.Guid runId, Tracon.RunCost? cost, string? tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ISamplingSupport
 Tracon.ISamplingSupport.SamplingLimits.get -> Tracon.SamplingLimits!
@@ -2242,6 +2243,16 @@ Tracon.RunAuthorizationResult.IsAllowed.init -> void
 Tracon.RunAuthorizationResult.Reason.get -> string?
 Tracon.RunAuthorizationResult.Reason.init -> void
 Tracon.RunAuthorizationResult.RunAuthorizationResult() -> void
+Tracon.RunCancellationRequest
+Tracon.RunCancellationRequest.<Clone>$() -> Tracon.RunCancellationRequest!
+Tracon.RunCancellationRequest.Equals(Tracon.RunCancellationRequest? other) -> bool
+Tracon.RunCancellationRequest.RequestedAt.get -> System.DateTimeOffset
+Tracon.RunCancellationRequest.RequestedAt.init -> void
+Tracon.RunCancellationRequest.RunCancellationRequest() -> void
+Tracon.RunCancellationRequest.RunId.get -> System.Guid
+Tracon.RunCancellationRequest.RunId.init -> void
+Tracon.RunCancellationRequest.TenantId.get -> string!
+Tracon.RunCancellationRequest.TenantId.init -> void
 Tracon.RunCompletion
 Tracon.RunCompletion.<Clone>$() -> Tracon.RunCompletion!
 Tracon.RunCompletion.CompletedAt.get -> System.DateTimeOffset
@@ -2541,6 +2552,8 @@ Tracon.RunRecord.AgentName.get -> string!
 Tracon.RunRecord.AgentName.init -> void
 Tracon.RunRecord.AgentVersion.get -> int?
 Tracon.RunRecord.AgentVersion.init -> void
+Tracon.RunRecord.CancelRequestedAt.get -> System.DateTimeOffset?
+Tracon.RunRecord.CancelRequestedAt.init -> void
 Tracon.RunRecord.ChildRunCount.get -> int
 Tracon.RunRecord.ChildRunCount.init -> void
 Tracon.RunRecord.CompletedAt.get -> System.DateTimeOffset?
@@ -4810,6 +4823,9 @@ override Tracon.RunAuthorizationRequest.ToString() -> string!
 override Tracon.RunAuthorizationResult.Equals(object? obj) -> bool
 override Tracon.RunAuthorizationResult.GetHashCode() -> int
 override Tracon.RunAuthorizationResult.ToString() -> string!
+override Tracon.RunCancellationRequest.Equals(object? obj) -> bool
+override Tracon.RunCancellationRequest.GetHashCode() -> int
+override Tracon.RunCancellationRequest.ToString() -> string!
 override Tracon.RunCompletion.Equals(object? obj) -> bool
 override Tracon.RunCompletion.GetHashCode() -> int
 override Tracon.RunCompletion.ToString() -> string!
@@ -5319,6 +5335,8 @@ static Tracon.RunAuthorizationResult.Allow() -> Tracon.RunAuthorizationResult!
 static Tracon.RunAuthorizationResult.Deny(string! reason) -> Tracon.RunAuthorizationResult!
 static Tracon.RunAuthorizationResult.operator !=(Tracon.RunAuthorizationResult? left, Tracon.RunAuthorizationResult? right) -> bool
 static Tracon.RunAuthorizationResult.operator ==(Tracon.RunAuthorizationResult? left, Tracon.RunAuthorizationResult? right) -> bool
+static Tracon.RunCancellationRequest.operator !=(Tracon.RunCancellationRequest? left, Tracon.RunCancellationRequest? right) -> bool
+static Tracon.RunCancellationRequest.operator ==(Tracon.RunCancellationRequest? left, Tracon.RunCancellationRequest? right) -> bool
 static Tracon.RunCompletion.operator !=(Tracon.RunCompletion? left, Tracon.RunCompletion? right) -> bool
 static Tracon.RunCompletion.operator ==(Tracon.RunCompletion? left, Tracon.RunCompletion? right) -> bool
 static Tracon.RunCost.operator !=(Tracon.RunCost? left, Tracon.RunCost? right) -> bool

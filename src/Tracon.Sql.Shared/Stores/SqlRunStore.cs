@@ -305,7 +305,7 @@ internal sealed class SqlRunStore : IRunStore
     [TenantAgnostic(
         "The ids come from the CALLING process's OWN IRunCancellationRegistry ledger and are " +
         "already scoped to runs that process is actually executing; this is a maintenance signal, it reads no data.")]
-    public async ValueTask TouchHeartbeatAsync(
+    public async ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
         DateTimeOffset at,
         CancellationToken cancellationToken = default)
@@ -318,6 +318,13 @@ internal sealed class SqlRunStore : IRunStore
         // (System.Text.Json, lowercase). The number of CONCURRENTLY running
         // runs in this process is small (IRunCancellationRegistry.ActiveRunIds);
         // N single UPDATEs in a loop give the same result without that risk.
+        //
+        // F-764: each UPDATE reads the row's tenant and cancellation request back
+        // (RETURNING / OUTPUT), so a cancel written by another instance reaches this
+        // process in the round trip that already exists. The run id is the caller's
+        // own value, not read back: the SQLite uuid casing (K-191) never enters.
+        List<RunCancellationRequest>? requests = null;
+
         foreach (var runId in runIds)
         {
             var command = CreateCommand(_sql.TouchRunHeartbeat);
@@ -326,8 +333,49 @@ internal sealed class SqlRunStore : IRunStore
             DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
             DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
 
-            await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            var rows = await DbHelpers.ReadListAsync(
+                command,
+                static reader => (
+                    TenantId: reader.GetString(0),
+                    RequestedAt: DbHelpers.GetNullableTimestamp(reader, 1)),
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (var (tenantId, requestedAt) in rows)
+            {
+                if (requestedAt is { } value)
+                {
+                    (requests ??= []).Add(new RunCancellationRequest
+                    {
+                        RunId = runId,
+                        TenantId = tenantId,
+                        RequestedAt = value,
+                    });
+                }
+            }
         }
+
+        return requests ?? (IReadOnlyList<RunCancellationRequest>)[];
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> RequestCancellationAsync(
+        Guid runId,
+        string tenantId,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        var command = CreateCommand(_sql.RequestRunCancellation);
+        DbHelpers.Add(command, "id", runId);
+
+        // EXPECTED tenant (K-355): the WHERE clause finds no row of another tenant.
+        DbHelpers.AddTenant(command, tenantId);
+        Dialect.AddTimestamp(command, "at", at);
+        DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+        DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
+
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -1014,6 +1062,10 @@ internal sealed class SqlRunStore : IRunStore
             // 🚨 23: Added at the END in Phase 87. NULL on every row written
             // before the column existed, and on every run that is not a continuation.
             ContinuedFromRunId = reader.IsDBNull(23) ? null : reader.GetGuid(23),
+
+            // 🚨 24: Added at the END in Phase 262 (F-764). Reconciliation reads it to leave a
+            // run the operator asked to cancel closed instead of opening a continuation.
+            CancelRequestedAt = DbHelpers.GetNullableTimestamp(reader, 24),
         };
 
     private static RunRecord ReadRun(DbDataReader reader)
@@ -1083,6 +1135,10 @@ internal sealed class SqlRunStore : IRunStore
             // columns existed and on every run that reported nothing beyond tokens.
             NonTokenCost = ownNonTokenCost,
             TreeNonTokenCost = ReadTreeNonTokenCost(reader, ownNonTokenCost),
+
+            // Appended at the END in Phase 262 (F-764). NULL on every row written before the
+            // column existed and on every run no operator asked to cancel from another instance.
+            CancelRequestedAt = DbHelpers.GetNullableTimestamp(reader, RunOrdinals.CancelRequestedAt),
         };
     }
 

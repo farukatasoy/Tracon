@@ -50,6 +50,39 @@ public sealed class CancelRunEndpointTests
     }
 
     [Fact]
+    public async Task Run_running_elsewhere_is_recorded_for_its_owner_when_reconciliation_is_on()
+    {
+        // F-764: neither a queued job nor this process holds the run, so the request goes onto the row.
+        // The owner (another host, covered by CrossInstanceRunCancelTests) reads it on its heartbeat.
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services => services.Configure<RunReconciliationOptions>(static options => options.Enabled = true));
+        var runId = await SeedRunAsync(host, RunStatus.Running);
+
+        using var response = await host.Client.PostAsync(CancelUri(runId), content: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+
+        var stored = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId);
+
+        stored.ShouldNotBeNull().Status.ShouldBe(RunStatus.Running);
+        stored.CancelRequestedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Run_running_elsewhere_returns_409_with_a_hint_when_reconciliation_is_off()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var runId = await SeedRunAsync(host, RunStatus.Running);
+
+        using var response = await host.Client.PostAsync(CancelUri(runId), content: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString()
+            .ShouldNotBeNull().ShouldContain("Tracon:RunReconciliation", Case.Sensitive);
+        (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull().CancelRequestedAt.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Finished_run_returns_409()
     {
         await using var host = await TraconTestHost.StartAsync();

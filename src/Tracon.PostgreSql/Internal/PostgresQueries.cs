@@ -339,10 +339,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // and still owned by this process); for an id that does not exist or is in
         // another status it silently updates zero rows (a maintenance signal, not
         // a thrown error).
+        //
+        // F-764: the statement also reads the row's cancellation request back (RETURNING),
+        // so the owner finds a cancel in the same round trip that writes its heartbeat.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
             SET heartbeat_at = @at
-            WHERE id = @id AND status IN (@status_running, @status_queued);
+            WHERE id = @id AND status IN (@status_running, @status_queued)
+            RETURNING tenant_id, cancel_requested_at;
             """;
 
         // In one statement: candidate selection (falls back to started_at when
@@ -376,7 +380,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
                       model_id, kind, workflow_name, agent_version, experiment_id, variant, replay_of_run_id,
                       parent_run_id, root_run_id, depth, event_count, error_type, error_message, error_class,
-                      error_fingerprint, continued_from_run_id;
+                      error_fingerprint, continued_from_run_id, cancel_requested_at;
             """;
 
         // Tree totals are computed ON READ, not stored. Storing them would
@@ -476,7 +480,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             tree.cost_currencies, tree.non_token_currencies,
             r.cache_write_input_tokens, r.cache_write_long_input_tokens, r.cache_write_cost,
             r.cache_write_price_per_mtok, r.cache_write_long_price_per_mtok,
-            tree.cache_write_input_tokens, tree.cache_write_long_input_tokens, tree.cost_cache_write
+            tree.cache_write_input_tokens, tree.cache_write_long_input_tokens, tree.cost_cache_write,
+            r.cancel_requested_at
             """;
 
         SelectRun = $"""

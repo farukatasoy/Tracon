@@ -20,6 +20,7 @@ internal sealed class HangingModelProvider(string name, bool respectsCancellatio
 {
     private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<string> _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _calls;
 
     public string Name { get; } = name;
 
@@ -28,12 +29,18 @@ internal sealed class HangingModelProvider(string name, bool respectsCancellatio
     /// <summary>Completes once the chat client has been called at least once.</summary>
     public Task Started => _started.Task;
 
+    /// <summary>Gets how many times a chat client was called: a run that is retried calls the model again.</summary>
+    public int Calls => Volatile.Read(ref _calls);
+
+    private void RecordCall() => Interlocked.Increment(ref _calls);
+
     /// <summary>Lets a call that ignores cancellation finally resolve, with the given text.</summary>
     public void Release(string text) => _release.TrySetResult(text);
 
-    public IChatClient CreateChatClient(ModelBinding binding) => new HangingChatClient(_started, _release, respectsCancellation);
+    public IChatClient CreateChatClient(ModelBinding binding) => new HangingChatClient(this, _started, _release, respectsCancellation);
 
     private sealed class HangingChatClient(
+        HangingModelProvider provider,
         TaskCompletionSource started,
         TaskCompletionSource<string> release,
         bool respectsCancellation) : IChatClient
@@ -43,6 +50,7 @@ internal sealed class HangingModelProvider(string name, bool respectsCancellatio
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
+            provider.RecordCall();
             started.TrySetResult();
 
             var text = respectsCancellation
@@ -57,6 +65,7 @@ internal sealed class HangingModelProvider(string name, bool respectsCancellatio
             ChatOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            provider.RecordCall();
             started.TrySetResult();
 
             var text = respectsCancellation

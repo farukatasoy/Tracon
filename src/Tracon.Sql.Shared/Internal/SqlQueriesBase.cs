@@ -300,6 +300,7 @@ internal abstract class SqlQueriesBase
         new("cache_write_input_tokens", RunColumnSource.Tree),
         new("cache_write_long_input_tokens", RunColumnSource.Tree),
         new("cost_cache_write", RunColumnSource.Tree),
+        new("cancel_requested_at", RunColumnSource.Own),
     ];
 
     /// <summary>Gets the query that inserts a tool invocation record.</summary>
@@ -764,9 +765,16 @@ internal abstract class SqlQueriesBase
 
     /// <summary>
     /// Gets the query that writes the heartbeat mark of a running run. It
-    /// affects <c>Running</c> rows only.
+    /// affects <c>Running</c> and <c>Queued</c> rows only, and it returns the row's
+    /// <c>tenant_id</c> and <c>cancel_requested_at</c>, in that order.
     /// </summary>
     public string TouchRunHeartbeat { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the query that records a cancellation request on a <c>Running</c> or
+    /// <c>Queued</c> row of the expected tenant. It keeps the first request time.
+    /// </summary>
+    public string RequestRunCancellation { get; protected set; } = string.Empty;
 
     /// <summary>
     /// Gets the query that closes the top N <c>Running</c> rows past the heartbeat
@@ -1428,6 +1436,15 @@ internal abstract class SqlQueriesBase
         InsertMigration = $"""
             INSERT INTO {Table("__migrations")} (set_name, id, name, checksum, applied_at)
             VALUES (@set_name, @id, @name, @checksum, @applied_at);
+            """;
+
+        // F-764: the expected tenant is part of the WHERE, so a row of another tenant
+        // is simply not found (zero rows). COALESCE keeps the FIRST request time on
+        // a repeated call, and the call still counts as a hit (idempotent).
+        RequestRunCancellation = $"""
+            UPDATE {Table("runs")}
+               SET cancel_requested_at = COALESCE(cancel_requested_at, @at)
+             WHERE id = @id AND tenant_id = @tenant_id AND status IN (@status_running, @status_queued);
             """;
 
         InsertAgentDefinitionVersion = $"""

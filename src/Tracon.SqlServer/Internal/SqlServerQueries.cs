@@ -452,9 +452,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // rows (Phase 240: a run waiting in-process for a workflow slot is Queued
         // and still owned by this process); silently updates zero rows for an id
         // that does not exist or is in a different status.
+        //
+        // F-764: the statement also reads the row's cancellation request back. OUTPUT sits
+        // after SET and before WHERE (T-SQL), and the statement is a single UPDATE, not an
+        // upsert, so the two-branch OUTPUT trap does not apply.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
                SET heartbeat_at = @at
+            OUTPUT inserted.tenant_id, inserted.cancel_requested_at
              WHERE id = @id AND status IN (@status_running, @status_queued);
             """;
 
@@ -478,7 +483,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    inserted.kind, inserted.workflow_name, inserted.agent_version, inserted.experiment_id,
                    inserted.variant, inserted.replay_of_run_id, inserted.parent_run_id, inserted.root_run_id,
                    inserted.depth, inserted.event_count, inserted.error_type, inserted.error_message,
-                   inserted.error_class, inserted.error_fingerprint, inserted.continued_from_run_id
+                   inserted.error_class, inserted.error_fingerprint, inserted.continued_from_run_id,
+                   inserted.cancel_requested_at
               FROM {Schema}.runs AS r
              WHERE r.id IN (
                        SELECT TOP (@max) id FROM {Schema}.runs
@@ -590,7 +596,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             tree.cost_currencies, tree.non_token_currencies,
             r.cache_write_input_tokens, r.cache_write_long_input_tokens, r.cache_write_cost,
             r.cache_write_price_per_mtok, r.cache_write_long_price_per_mtok,
-            tree.cache_write_input_tokens, tree.cache_write_long_input_tokens, tree.cost_cache_write
+            tree.cache_write_input_tokens, tree.cache_write_long_input_tokens, tree.cost_cache_write,
+            r.cancel_requested_at
             """;
 
         SelectRun = $"""

@@ -580,7 +580,14 @@ public sealed class RunRecordingFailureMetricTests
         public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
@@ -668,7 +675,14 @@ public sealed class RunRecordingFailureMetricTests
         public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)

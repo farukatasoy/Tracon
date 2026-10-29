@@ -414,8 +414,15 @@ public sealed class RunEventSinkTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public ValueTask TouchHeartbeatAsync(
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -526,8 +533,15 @@ public sealed class RunEventSinkTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public ValueTask TouchHeartbeatAsync(
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

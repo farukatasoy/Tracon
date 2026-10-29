@@ -1088,6 +1088,17 @@ override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.SeedAsync(string
 override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.CancellableReadAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
 Tracon.Testing.Contracts.Storage.NonTokenUsageContract.The_largest_quantity_and_amount_a_run_accepts_fit_the_columns() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_largest_total_a_run_writes_fits_the_snapshot_column() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RequestCancellationAsync_records_the_request_and_the_next_heartbeat_returns_it_with_the_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RequestCancellationAsync_works_on_a_Queued_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RequestCancellationAsync_keeps_the_first_time_and_stays_true() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RequestCancellationAsync_is_false_for_a_terminal_run_and_leaves_the_row_alone() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RequestCancellationAsync_is_false_for_an_unknown_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RequestCancellationAsync_ignores_another_tenants_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.RequestCancellationAsync_uses_the_expected_tenant_and_not_the_ambient_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.TouchHeartbeatAsync_returns_only_requested_active_rows_with_their_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.TouchHeartbeatAsync_returns_an_empty_list_when_no_request_was_written() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_request_written_while_Queued_survives_the_upsert_to_Running() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_returns_the_cancellation_request_of_the_run_it_closes() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.The_response_mode_survives_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract
 Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.A_claim_is_found_by_its_scope_and_request() -> System.Threading.Tasks.Task!

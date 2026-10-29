@@ -3306,4 +3306,209 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         claimed.ShouldNotContain(record => record.Id == runId);
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
     }
+
+    // --- Cross-instance run cancellation (Phase 262, F-764) ---
+
+    private static readonly TimeSpan CancelTimeTolerance = TimeSpan.FromSeconds(1);
+
+    [Fact]
+    public async Task RequestCancellationAsync_records_the_request_and_the_next_heartbeat_returns_it_with_the_tenant()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+        var requestedAt = DateTimeOffset.UtcNow;
+
+        (await Store.RequestCancellationAsync(runId, TenantA, requestedAt)).ShouldBeTrue();
+
+        var record = (await Store.GetRunAsync(runId))!;
+        record.Status.ShouldBe(RunStatus.Running);
+        record.CancelRequestedAt!.Value.ShouldBe(requestedAt, CancelTimeTolerance);
+
+        var requests = await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        var request = requests.ShouldHaveSingleItem();
+        request.RunId.ShouldBe(runId);
+        request.TenantId.ShouldBe(TenantA);
+        request.RequestedAt.ShouldBe(requestedAt, CancelTimeTolerance);
+    }
+
+    [Fact]
+    public async Task RequestCancellationAsync_works_on_a_Queued_run()
+    {
+        // A workflow run that waits in its process for a concurrency slot is Queued, and so is a
+        // run whose job nobody leased yet: the request reaches both.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { Status = RunStatus.Queued });
+
+        (await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow)).ShouldBeTrue();
+
+        (await Store.GetRunAsync(runId))!.CancelRequestedAt.ShouldNotBeNull();
+        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldHaveSingleItem().RunId.ShouldBe(runId);
+    }
+
+    [Fact]
+    public async Task RequestCancellationAsync_keeps_the_first_time_and_stays_true()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+        var first = DateTimeOffset.UtcNow.AddSeconds(-30);
+
+        (await Store.RequestCancellationAsync(runId, TenantA, first)).ShouldBeTrue();
+        (await Store.RequestCancellationAsync(runId, TenantA, first.AddSeconds(20))).ShouldBeTrue();
+
+        (await Store.GetRunAsync(runId))!.CancelRequestedAt!.Value.ShouldBe(first, CancelTimeTolerance);
+    }
+
+    [Fact]
+    public async Task RequestCancellationAsync_is_false_for_a_terminal_run_and_leaves_the_row_alone()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        (await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow)).ShouldBeFalse();
+
+        var record = (await Store.GetRunAsync(runId))!;
+        record.Status.ShouldBe(RunStatus.Completed);
+        record.CancelRequestedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task RequestCancellationAsync_is_false_for_an_unknown_run()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        (await Store.RequestCancellationAsync(TraconId.NewId(), TenantA, DateTimeOffset.UtcNow)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task RequestCancellationAsync_ignores_another_tenants_run()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        (await Store.RequestCancellationAsync(runId, TenantB, DateTimeOffset.UtcNow)).ShouldBeFalse();
+
+        (await Store.GetRunAsync(runId))!.CancelRequestedAt.ShouldBeNull();
+        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RequestCancellationAsync_uses_the_expected_tenant_and_not_the_ambient_one()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        // The caller states the run's tenant; whatever is ambient on its thread does not count.
+        AmbientTenant.TenantId = TenantB;
+        (await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow)).ShouldBeTrue();
+
+        AmbientTenant.TenantId = TenantA;
+        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task TouchHeartbeatAsync_returns_only_requested_active_rows_with_their_tenant()
+    {
+        var requestedA = TraconId.NewId();
+        var requestedB = TraconId.NewId();
+        var untouched = TraconId.NewId();
+        var requestedThenCompleted = TraconId.NewId();
+        var requestedButNotAsked = TraconId.NewId();
+
+        AmbientTenant.TenantId = TenantA;
+        await Store.StartRunAsync(TestData.Run(requestedA));
+        await Store.StartRunAsync(TestData.Run(untouched));
+        await Store.StartRunAsync(TestData.Run(requestedThenCompleted));
+        await Store.StartRunAsync(TestData.Run(requestedButNotAsked));
+        AmbientTenant.TenantId = TenantB;
+        await Store.StartRunAsync(TestData.Run(requestedB));
+
+        await Store.RequestCancellationAsync(requestedA, TenantA, DateTimeOffset.UtcNow);
+        await Store.RequestCancellationAsync(requestedB, TenantB, DateTimeOffset.UtcNow);
+        await Store.RequestCancellationAsync(requestedThenCompleted, TenantA, DateTimeOffset.UtcNow);
+        await Store.RequestCancellationAsync(requestedButNotAsked, TenantA, DateTimeOffset.UtcNow);
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = requestedThenCompleted,
+            Status = RunStatus.Canceled,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        // The heartbeat is tenant-agnostic: ids come from the calling process's own ledger and the
+        // answer carries each run's OWN tenant. A request on a row the caller did not name stays out.
+        var requests = await Store.TouchHeartbeatAsync(
+            [requestedA, requestedB, untouched, requestedThenCompleted, TraconId.NewId()],
+            DateTimeOffset.UtcNow);
+
+        requests.Count.ShouldBe(2);
+        requests.Single(request => request.RunId == requestedA).TenantId.ShouldBe(TenantA);
+        requests.Single(request => request.RunId == requestedB).TenantId.ShouldBe(TenantB);
+    }
+
+    [Fact]
+    public async Task TouchHeartbeatAsync_returns_an_empty_list_when_no_request_was_written()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldBeEmpty();
+        (await Store.TouchHeartbeatAsync([], DateTimeOffset.UtcNow)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_request_written_while_Queued_survives_the_upsert_to_Running()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        var queued = TestData.Run(runId) with { Status = RunStatus.Queued };
+        await Store.StartRunAsync(queued);
+        await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow);
+
+        // The worker writes the same row again when it starts the run. The request must not vanish.
+        await Store.StartRunAsync(queued with { Status = RunStatus.Running });
+
+        (await Store.GetRunAsync(runId))!.CancelRequestedAt.ShouldNotBeNull();
+        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_returns_the_cancellation_request_of_the_run_it_closes()
+    {
+        // The owner died before it read the request. Reconciliation closes the row as Failed (the
+        // process died) and must see the request, so it does not open a continuation of the work.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10) });
+        await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow.AddMinutes(-9));
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        var record = claimed.Single(candidate => candidate.Id == runId);
+        record.Status.ShouldBe(RunStatus.Failed);
+        record.CancelRequestedAt.ShouldNotBeNull();
+    }
 }

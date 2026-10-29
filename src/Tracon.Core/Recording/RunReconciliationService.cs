@@ -151,6 +151,19 @@ internal sealed class RunReconciliationService(
             return;
         }
 
+        // F-764: an operator asked to cancel this run from another instance, and the process
+        // that owned it died before it read the request. The claim closed the row as Failed
+        // (the process died; the operator's wish is not the cause), but opening a continuation
+        // would run the work the operator asked to stop.
+        if (record.CancelRequestedAt is { } requestedAt)
+        {
+            await WriteBlockedEventAsync(
+                record,
+                $"cancellation was requested at {requestedAt:O}, and the process that ran it stopped before it could cancel the run.",
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         // F-344: a workflow root, a workflow step or a callable sub-agent's run is
         // not an agent turn of its own. The claim already closed it as Failed;
         // the event says why nothing follows, and for a workflow how to resume it.

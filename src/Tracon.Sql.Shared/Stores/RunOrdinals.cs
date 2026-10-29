@@ -88,4 +88,5 @@ internal static class RunOrdinals
     public const int TreeCacheWriteInputTokens = 72;
     public const int TreeCacheWriteLongInputTokens = 73;
     public const int TreeCostCacheWrite = 74;
+    public const int CancelRequestedAt = 75;
 }

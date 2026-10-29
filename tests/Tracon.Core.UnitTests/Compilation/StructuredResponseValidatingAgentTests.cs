@@ -565,9 +565,16 @@ public sealed class StructuredResponseValidatingAgentTests
             Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => _inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
-        public ValueTask TouchHeartbeatAsync(
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
             => _inner.TouchHeartbeatAsync(runIds, at, cancellationToken);
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => _inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
             DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)

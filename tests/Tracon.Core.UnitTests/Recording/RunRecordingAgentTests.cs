@@ -721,8 +721,15 @@ public sealed class RunRecordingAgentTests
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");
 
-        public ValueTask TouchHeartbeatAsync(
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("store unavailable");
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");

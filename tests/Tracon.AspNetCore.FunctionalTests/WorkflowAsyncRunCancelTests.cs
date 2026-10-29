@@ -83,11 +83,11 @@ public sealed class WorkflowAsyncRunCancelTests
 
         await host.WaitForRunStatusAsync(runId, nameof(RunStatus.Canceled));
 
-        // The run ended on its own: the job fails at once, with no retry that
-        // recovery could mistake for an interruption.
+        // The endpoint cancelled the job before it stopped the handler, so the job is Cancelled and
+        // stays so (F-765). It used to read Failed: the operator's cancel looked like an error, and
+        // with attempts left the worker would have taken it for an interruption. No retry follows.
         var job = await WaitForJobAsync(host, runId);
-        job.Status.ShouldBe(JobStatus.Failed);
-        job.ErrorMessage.ShouldNotBeNull().ShouldStartWith(WorkflowRunJobHandler.RunFailedCode);
+        job.Status.ShouldBe(JobStatus.Cancelled);
         job.Attempt.ShouldBe(1);
 
         (await WorkflowRunsAsync(host)).ShouldHaveSingleItem().Id.ShouldBe(runId);

@@ -202,4 +202,24 @@ public sealed record RunRecord
     /// </para>
     /// </remarks>
     public Guid? ContinuedFromRunId { get; init; }
+
+    /// <summary>
+    /// Gets the time an operator first requested this run's cancellation, or
+    /// <see langword="null"/> when none was requested.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The cancel endpoint writes it when the run is executing on ANOTHER instance
+    /// (<see cref="IRunStore.RequestCancellationAsync"/>). The instance that owns the run
+    /// reads it on its next heartbeat, so the run ends up to
+    /// <see cref="RunReconciliationOptions.HeartbeatInterval"/> later. The value explains a
+    /// run that is still <c>Running</c> after the cancel call returned <c>202</c>.
+    /// </para>
+    /// <para>
+    /// A request that reached a run through the local registry or the job queue is not
+    /// written here. The value stays on the row after the run ends. Rows written before
+    /// the column existed hold <see langword="null"/>.
+    /// </para>
+    /// </remarks>
+    public DateTimeOffset? CancelRequestedAt { get; init; }
 }

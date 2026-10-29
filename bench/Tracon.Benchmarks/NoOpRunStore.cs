@@ -8,6 +8,7 @@ namespace Tracon.Benchmarks;
 internal sealed class NoOpRunStore : IRunStore
 {
     private static readonly IReadOnlyList<RunRecord> EmptyRuns = [];
+    private static readonly IReadOnlyList<RunCancellationRequest> EmptyCancellationRequests = [];
     private static readonly IReadOnlyList<ToolInvocationRecord> EmptyInvocations = [];
     private static readonly IReadOnlyList<ToolUsage> EmptyToolUsage = [];
     private static readonly IReadOnlyList<ExperimentVariantResult> EmptyExperimentResults = [];
@@ -74,7 +75,11 @@ internal sealed class NoOpRunStore : IRunStore
 
     public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default) => default;
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+        => new(EmptyCancellationRequests);
+
+    public ValueTask<bool> RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken cancellationToken = default)
+        => new(false);
 
     public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
         => new(EmptyRuns);

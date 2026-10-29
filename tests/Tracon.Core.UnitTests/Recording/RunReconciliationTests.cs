@@ -339,6 +339,196 @@ public sealed class RunReconciliationTests
         claimed.ShouldBeEmpty();
     }
 
+    // --- Cross-instance run cancellation (Phase 262, F-764) ---
+
+    [Fact]
+    public async Task Heartbeat_writer_cancels_a_registered_run_whose_row_carries_a_request()
+    {
+        var store = new CountingRunStore(new InMemoryRunStore());
+        var registry = new RunCancellationRegistry();
+        var runId = await StartTenantRunAsync(store, "tenant-x");
+        using var cts = new CancellationTokenSource();
+        using var registration = registry.Register(runId, runId, "tenant-x", cts);
+
+        // Another instance wrote the request; this process owns the run and learns of it on its heartbeat.
+        (await store.RequestCancellationAsync(runId, "tenant-x", DateTimeOffset.UtcNow)).ShouldBeTrue();
+
+        var writer = CreateWriter(store, registry);
+
+        await writer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => Task.FromResult(cts.IsCancellationRequested), "the owner to cancel the run");
+        await writer.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Heartbeat_writer_leaves_a_run_without_a_request_running()
+    {
+        var store = new CountingRunStore(new InMemoryRunStore());
+        var registry = new RunCancellationRegistry();
+        var runId = await StartTenantRunAsync(store, "tenant-x");
+        using var cts = new CancellationTokenSource();
+        using var registration = registry.Register(runId, runId, "tenant-x", cts);
+
+        var writer = CreateWriter(store, registry);
+
+        await writer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => Task.FromResult(store.TouchCalls >= 3), "three heartbeat cycles");
+        await writer.StopAsync(TestContext.Current.CancellationToken);
+
+        cts.IsCancellationRequested.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Heartbeat_writer_ignores_a_request_on_a_run_this_process_does_not_own()
+    {
+        var store = new CountingRunStore(new InMemoryRunStore());
+        var registry = new RunCancellationRegistry();
+        var mine = await StartTenantRunAsync(store, "tenant-x");
+        var theirs = await StartTenantRunAsync(store, "tenant-x");
+        using var cts = new CancellationTokenSource();
+        using var registration = registry.Register(mine, mine, "tenant-x", cts);
+
+        // The ids come from this process's own ledger: the row of the other run is never read back.
+        (await store.RequestCancellationAsync(theirs, "tenant-x", DateTimeOffset.UtcNow)).ShouldBeTrue();
+
+        var writer = CreateWriter(store, registry);
+
+        await writer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => Task.FromResult(store.TouchCalls >= 3), "three heartbeat cycles");
+        await writer.StopAsync(TestContext.Current.CancellationToken);
+
+        cts.IsCancellationRequested.ShouldBeFalse();
+        store.RequestsSeen.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_failed_tick_keeps_the_run_and_reads_the_request_next_tick()
+    {
+        var store = new CountingRunStore(new InMemoryRunStore(), failures: 2);
+        var registry = new RunCancellationRegistry();
+        var runId = await StartTenantRunAsync(store, "tenant-x");
+        using var cts = new CancellationTokenSource();
+        using var registration = registry.Register(runId, runId, "tenant-x", cts);
+
+        (await store.RequestCancellationAsync(runId, "tenant-x", DateTimeOffset.UtcNow)).ShouldBeTrue();
+
+        var writer = CreateWriter(store, registry);
+
+        await writer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => Task.FromResult(cts.IsCancellationRequested), "the request to be read after the failed cycles");
+        await writer.StopAsync(TestContext.Current.CancellationToken);
+
+        // Two cycles failed and the writer went on; the request waited on the row.
+        store.FailedTouches.ShouldBe(2);
+        store.RequestsSeen.ShouldBeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task Heartbeat_writer_keeps_handing_the_request_back_until_the_run_ends()
+    {
+        var store = new CountingRunStore(new InMemoryRunStore());
+        var registry = new RunCancellationRegistry();
+        var runId = await StartTenantRunAsync(store, "tenant-x");
+        using var cts = new CancellationTokenSource();
+        using var registration = registry.Register(runId, runId, "tenant-x", cts);
+
+        (await store.RequestCancellationAsync(runId, "tenant-x", DateTimeOffset.UtcNow)).ShouldBeTrue();
+
+        var writer = CreateWriter(store, registry);
+
+        // A run that reads its token late stays registered; the request stays on the row and comes
+        // back every cycle. TryCancel is idempotent, so the repeat breaks nothing.
+        await writer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => Task.FromResult(store.RequestsSeen >= 3), "the request to come back on three cycles");
+        await writer.StopAsync(TestContext.Current.CancellationToken);
+
+        cts.IsCancellationRequested.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task An_orphaned_run_with_a_cancellation_request_is_closed_Failed_and_not_continued()
+    {
+        // The owner died before it read the request. The claim closes the row as Failed (the process
+        // died). A continuation would run the work the operator asked to stop, so none is opened.
+        var runStore = new InMemoryRunStore();
+        var jobStore = new InMemoryJobStore();
+        var runId = TraconId.NewId();
+
+        await runStore.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "test-agent",
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+            SessionId = "session-cancelled",
+        });
+        (await runStore.RequestCancellationAsync(runId, "default", DateTimeOffset.UtcNow.AddMinutes(-9))).ShouldBeTrue();
+
+        var service = new RunReconciliationService(
+            runStore,
+            new InMemorySingletonLeaseStore(),
+            jobStore,
+            new EmptyToolRegistry(),
+            Options(new RunReconciliationOptions
+            {
+                Enabled = true,
+                ScanInterval = TimeSpan.FromMilliseconds(30),
+                OrphanThreshold = TimeSpan.FromMinutes(5),
+                HeartbeatInterval = TimeSpan.FromSeconds(30),
+            }),
+            Options(new SingletonExecutionOptions()),
+            Options(new TraconRunContinuationOptions { Enabled = true }),
+            new SchemaReadyGate([]),
+            logger: NullLogger<RunReconciliationService>.Instance);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(
+            async () => (await runStore.GetRunAsync(runId))?.Status == RunStatus.Failed,
+            "the orphaned run to close");
+        await WaitUntil.TrueAsync(
+            async () =>
+            {
+                await foreach (var runEvent in runStore.ReadEventsAsync(runId))
+                {
+                    if (runEvent.Type == RunEventType.RunContinuationBlocked)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+            "the refusal to be written onto the run");
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        var session = await runStore.QueryRunsAsync(new RunQuery { SessionId = "session-cancelled", OnlyRootRuns = false });
+
+        session.ShouldHaveSingleItem().Id.ShouldBe(runId);
+        (await jobStore.QueryAsync(new JobQuery { TenantId = "default", Take = 10 })).ShouldBeEmpty();
+    }
+
+    private static async Task<Guid> StartTenantRunAsync(IRunStore store, string tenantId)
+    {
+        var runId = TraconId.NewId();
+
+        await store.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "test-agent",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = tenantId,
+        });
+
+        return runId;
+    }
+
+    private static RunHeartbeatWriter CreateWriter(IRunStore store, IRunCancellationRegistry registry)
+        => new(
+            store,
+            registry,
+            Options(new RunReconciliationOptions { Enabled = true, HeartbeatInterval = TimeSpan.FromMilliseconds(30) }),
+            new SchemaReadyGate([]),
+            logger: NullLogger<RunHeartbeatWriter>.Instance);
+
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
 
     /// <summary>Fake <see cref="IToolRegistry"/> carrying no tools.</summary>
@@ -412,14 +602,23 @@ public sealed class RunReconciliationTests
     /// Wrapper that tracks call counts for <see cref="IRunStore.ClaimOrphanedRunsAsync"/>
     /// and <see cref="IRunStore.TouchHeartbeatAsync"/>, delegating everything else to the inner store.
     /// </summary>
-    private sealed class CountingRunStore(IRunStore inner) : IRunStore
+    private sealed class CountingRunStore(IRunStore inner, int failures = 0) : IRunStore
     {
         private int _claimCalls;
         private int _touchCalls;
+        private int _failedTouches;
+        private int _requestsSeen;
 
         public int ClaimCalls => Volatile.Read(ref _claimCalls);
 
+        /// <summary>Gets the heartbeat calls that reached the inner store and returned.</summary>
         public int TouchCalls => Volatile.Read(ref _touchCalls);
+
+        /// <summary>Gets the heartbeat calls this wrapper failed on purpose (the first <c>failures</c> of them).</summary>
+        public int FailedTouches => Volatile.Read(ref _failedTouches);
+
+        /// <summary>Gets how many cancellation requests the heartbeat calls handed back in all.</summary>
+        public int RequestsSeen => Volatile.Read(ref _requestsSeen);
 
         public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
             => inner.StartRunAsync(info, cancellationToken);
@@ -474,14 +673,31 @@ public sealed class RunReconciliationTests
             CancellationToken cancellationToken = default)
             => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
-        public async ValueTask TouchHeartbeatAsync(
+        public async ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
         {
-            await inner.TouchHeartbeatAsync(runIds, at, cancellationToken).ConfigureAwait(false);
+            if (FailedTouches < failures)
+            {
+                Interlocked.Increment(ref _failedTouches);
+
+                throw new InvalidOperationException("the run store blinked");
+            }
+
+            var requests = await inner.TouchHeartbeatAsync(runIds, at, cancellationToken).ConfigureAwait(false);
+            Interlocked.Add(ref _requestsSeen, requests.Count);
             Interlocked.Increment(ref _touchCalls);
+
+            return requests;
         }
+
+        public ValueTask<bool> RequestCancellationAsync(
+            Guid runId,
+            string tenantId,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
         public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
             DateTimeOffset staleBefore,

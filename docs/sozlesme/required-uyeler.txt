@@ -276,6 +276,9 @@ Tracon.RunAgentStatistics.TotalRuns
 Tracon.RunAuthorizationRequest.Access
 Tracon.RunAuthorizationRequest.TenantId
 Tracon.RunAuthorizationResult.IsAllowed
+Tracon.RunCancellationRequest.RequestedAt
+Tracon.RunCancellationRequest.RunId
+Tracon.RunCancellationRequest.TenantId
 Tracon.RunCompletion.CompletedAt
 Tracon.RunCompletion.RunId
 Tracon.RunCompletion.Status
