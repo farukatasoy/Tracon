@@ -44,6 +44,11 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Tracon.Sqlite.IntegrationTests")]
 [assembly: InternalsVisibleTo("Tracon.Core.UnitTests")]
 
+// Phase 265: the two-node acceptance set runs two hosts on one SQL database and drives them through HTTP, the job
+// queue and the distributed cache (WebhookSigner, the cancellation registry), so it reaches the same internals the
+// functional tests do.
+[assembly: InternalsVisibleTo("Tracon.TwoNode.IntegrationTests")]
+
 // The voice tests register the attachment guard Tracon.Voice resolves, and the
 // shared provider tests (tests/Shared/Providers) build an egress guard for each
 // of the four adapters - both became internal with the evidence pass over the

@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Phase 265 (F-768): the two-node acceptance set. Two in-process hosts share ONE database - PostgreSQL or SQL
+    Server in a container - and the same scenarios run on both. K-1113 promises two replicas; this project is the
+    proof, and it is the reason the project exists apart from the provider integration projects: those reference
+    one SQL provider and no HTTP host, while every behaviour here crosses an HTTP request, the job queue, a
+    distributed cache and a database in one test.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
+    <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+    <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <!-- Fake model provider (FakeModelProvider): Phase 39, rationale in K-007 section 39.1. -->
+    <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.MsSql" />
+    <!--
+      TestHost, not Microsoft.AspNetCore.Mvc.Testing: Tracon is a library with no entry point (see
+      Tracon.AspNetCore.FunctionalTests). OpenApi: the linked TraconTestHost registers the product document when
+      a test asks for it; these tests never do, but the file compiles against it.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <!--
+    The host and the helpers every scenario uses, LINKED from the functional test project, not copied (K-411): one
+    copy of the host means a change to how a test host is built reaches both projects.
+  -->
+  <ItemGroup>
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/TraconTestHost.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/ProductOpenApiDocument.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/HangingModelProvider.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/ManualTimeProvider.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/TestData.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/RecordingLoggerProvider.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/McpOAuthKit.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/OAuthProtectedMcpServer.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/OAuthFlowClient.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/LookupMcpServer.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/QueuedWorkflowHarness.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

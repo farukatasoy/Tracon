@@ -731,8 +731,12 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # SQL metni snapshot'i) Tracon.Sql.Shared.UnitTests'te yasar. Tek bir Use*
     # dosyasina dokunan degisiklik onlari da secmezse kayma yalniz tam kosumda
     # gorunur.
-    "Tracon.PostgreSql": ("Tracon.PostgreSql.IntegrationTests", "Tracon.Sql.Shared.UnitTests"),
-    "Tracon.SqlServer": ("Tracon.SqlServer.IntegrationTests", "Tracon.Sql.Shared.UnitTests"),
+    # Faz 265: iki dugumlu kabul seti her iki sunucu saglayicisinda calisir; bir saglayicinin sorgusu (sayac
+    # upsert'i, kira, iptal istegi) degisince onu da secer. Tracon.Sqlite secilmez: SQLite bu sette yoktur.
+    "Tracon.PostgreSql": (
+        "Tracon.PostgreSql.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests"),
+    "Tracon.SqlServer": (
+        "Tracon.SqlServer.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests"),
     "Tracon.Sqlite": ("Tracon.Sqlite.IntegrationTests", "Tracon.Sql.Shared.UnitTests"),
     "Tracon.OpenAI": ("Tracon.OpenAI.UnitTests", "Tracon.Generators.UnitTests"),
     "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests",),

@@ -16,6 +16,14 @@
   </ItemGroup>
 
   <!--
+    Phase 265: the two-node acceptance set drives the management API of two hosts that share a SQL database. It reuses
+    the functional tests' request builders (the workflow save request among them), so it reaches the same internals.
+  -->
+  <ItemGroup Label="Internal visibility - two-node acceptance tests">
+    <InternalsVisibleTo Include="Tracon.TwoNode.IntegrationTests" />
+  </ItemGroup>
+
+  <!--
     Tracon.UI registers the ITraconUiProvider that MapTracon serves the
     management UI through. The interface is a first-party plumbing seam: the
     asset list, caching and fallback rules belong to the one shipped

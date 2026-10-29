@@ -45,6 +45,8 @@
     <InternalsVisibleTo Include="Tracon.SqlServer.IntegrationTests" />
     <InternalsVisibleTo Include="Tracon.Sqlite.IntegrationTests" />
     <InternalsVisibleTo Include="Tracon.Sql.Shared.UnitTests" />
+    <!-- Phase 265: the two-node acceptance set drives HTTP, the queue, the distributed cache and two SQL providers in one test. -->
+    <InternalsVisibleTo Include="Tracon.TwoNode.IntegrationTests" />
   </ItemGroup>
 
   <!--

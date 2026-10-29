@@ -6,3 +6,7 @@ using System.Runtime.CompilerServices;
 // key builder) to seed an expired token and to shorten the polling intervals; neither is a
 // consumer seam.
 [assembly: InternalsVisibleTo("Tracon.AspNetCore.FunctionalTests")]
+
+// Phase 265: the two-node acceptance set runs the same OAuth scenarios on PostgreSQL and SQL Server, with the same
+// shortened polling intervals.
+[assembly: InternalsVisibleTo("Tracon.TwoNode.IntegrationTests")]

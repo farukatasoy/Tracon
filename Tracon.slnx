@@ -45,6 +45,7 @@
     <Project Path="tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj" />
     <Project Path="tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj" />
     <Project Path="tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj" />
+    <Project Path="tests/Tracon.TwoNode.IntegrationTests/Tracon.TwoNode.IntegrationTests.csproj" />
     <Project Path="tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj" />
     <Project Path="tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj" />
     <Project Path="tests/Tracon.Ui.E2ETests/Tracon.Ui.E2ETests.csproj" />
