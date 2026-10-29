@@ -1,0 +1,14 @@
+-- Phase 262 (F-764) -- cross-instance run cancellation.
+--
+-- cancel_requested_at records that an operator asked for the run to stop while the run
+-- was executing on ANOTHER instance. The instance that owns the run reads the column in
+-- the same UPDATE that writes its heartbeat and cancels the run itself, so no second query
+-- and no second table exist (user decision, 2026-10-29).
+--
+-- The column can stay NULL: every row written before this migration, and every run that
+-- was cancelled through the local registry or the job queue, has no value. The value is
+-- the time of the FIRST request and it stays on the row after the run ends.
+--
+-- No index: the value is only read by primary key, in the heartbeat UPDATE of a run this
+-- process owns.
+ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS cancel_requested_at timestamptz;
