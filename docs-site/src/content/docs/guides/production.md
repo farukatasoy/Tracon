@@ -754,6 +754,34 @@ workers moved the work; it did not create more of it.
 is one machine, one database and one clock. Network partition, clock skew and
 inter-machine latency were not measured and are not implied.
 
+### Adding a second HTTP host
+
+The same synthetic workload was measured against one and two HTTP hosts on the same database, each host with its own
+leasing worker and `MaxConcurrentJobs` of 8, at a constant 16 requests in flight. The driver sent each call to the next
+host in turn, so the read that followed a request usually reached the other host. Measured on 2026-10-29 at commit
+`647aa02e` on Darwin 27.0.0 (Apple Silicon), 10 logical processors, 16 GiB, .NET 10.0.402 and PostgreSQL 18.4 in the
+`pgvector/pgvector:pg18` image; three repeats of 60 seconds after a 10-second warm-up.
+
+| Path | Hosts | p50 | p95 | Throughput | Queue wait p95 |
+|---|---:|---:|---:|---:|---:|
+| Buffered | 1 | 1053 ms | 1076 ms | 14.90 runs/s | — |
+| Buffered | 2 | 1057 ms | 1081 ms | 14.84 runs/s | — |
+| Queued | 1 | 2109 ms | 2357 ms | 6.98 runs/s | about 1135 ms |
+| Queued | 2 | 1320 ms | 1333 ms | 11.85 runs/s | about 100 ms |
+
+A second host did not slow a request that runs inside the request: the buffered path is the same within noise, and
+that path is limited by the 16 requests in flight and the one second of model time, not by the host. The queued path
+improved because `MaxConcurrentJobs` is per instance: with one host, 8 of the 16 queued runs wait for a slot, and with two
+hosts all 16 have one. Read it as "a second instance adds job slots", not as a scaling law: it does not say what a third
+host does, and the shape changes with your `MaxConcurrentJobs` and your provider.
+
+All twelve cells reconciled. No accepted run was missing from the store, no event stream had a gap, no content differed
+from what was sent, and nothing was recorded under the wrong tenant; a read of one tenant's run with the other tenant's
+header was refused on both hosts.
+
+**This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew and
+inter-machine latency were not measured, and the number of hosts was never above two.
+
 ### Thirty minutes at a steady load
 
 An equal mix of the three paths at concurrency 8 — the highest step the queued
@@ -770,8 +798,8 @@ than minutes 10–15. Steady-state p99 was 1081 ms buffered, 1251 ms streaming a
 
 These figures are tied to the versions and commits named above. They are a
 shipped claim, so they are not carried forward to a later release without
-re-measuring. The manifests, summaries, reports and charts for all four runs are
-kept in the repository under `bench/capacity/measurements/`, and
+re-measuring. The manifests, summaries, reports and charts for these runs, and for the
+two-host run above, are kept in the repository under `bench/capacity/measurements/`, and
 `bench/capacity/README.md` describes how to reproduce them.
 
 ## Release and capacity caveats

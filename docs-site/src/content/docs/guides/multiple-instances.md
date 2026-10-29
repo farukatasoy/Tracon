@@ -87,7 +87,22 @@ Each behavior was also shown to fail when its setting is off. A test that cannot
 
 ## What two instances cost
 
-{{CAPACITY}}
+One machine measured one host and two hosts on the same database at a constant 16 requests in flight (2026-10-29,
+commit `647aa02e`, three repeats of 60 seconds):
+
+| Path | One host | Two hosts |
+|---|---|---|
+| Buffered (the run is inside the request): throughput, p50 | 14.90 runs/s, 1053 ms | 14.84 runs/s, 1057 ms |
+| Queued: throughput, p50 | 6.98 runs/s, 2109 ms | 11.85 runs/s, 1320 ms |
+| Queued: queue wait p95 | about 1135 ms | about 100 ms |
+
+A second host does not slow a request that runs inside the request. It adds job slots, because
+`Scheduling:MaxConcurrentJobs` is per instance: the queued path waited less because 16 slots served 16 runs. Every cell
+reconciled with the store: no missing run, no gap in an event stream, nothing under the wrong tenant. The full table, the
+conditions and the caveats are in [Adding a second HTTP host](/guides/production/#adding-a-second-http-host).
+
+**This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew, inter-machine
+latency and more than two hosts were not measured.
 
 ## What you still own
 

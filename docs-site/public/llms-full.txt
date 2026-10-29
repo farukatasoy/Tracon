@@ -227,7 +227,7 @@ experiment, and automatic rollback is off until you configure it.
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `TraconEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
-| Production profile gate | `RequireProductionProfile()` | Off by default, and it changes no setting and secures nothing by itself. It refuses to start the host while any of its production decisions is still on its permissive default and the risk has not been accepted by name; [the decisions are listed here](/guides/embedding/#make-a-production-decision-required) |
+| Production profile gate | `RequireProductionProfile()` | Off by default, and it changes no setting and secures nothing by itself. It refuses to start the host while any of its production decisions is still on its permissive default and the risk has not been accepted by name; [the decisions are listed here](/guides/embedding/#make-a-production-decision-required). Declaring `Tracon:Deployment:Instances` above `1` adds five decisions for [two instances on one database](/guides/multiple-instances/) |
 
 An API-key scope never grants a role. Effective authority is the intersection of the
 caller's role and key scopes. See the complete scope table in
@@ -8805,7 +8805,9 @@ list and the lane-cardinality guard.
 ## Singleton services and orphaned-run recovery
 
 Two more background concerns sit next to the job queue, both off by default and
-both meant for a multi-instance deployment.
+both meant for a multi-instance deployment. A deployment that declares more than one
+instance (`Tracon:Deployment:Instances`) is asked by the production profile to turn both on; see
+[Run more than one instance](/guides/multiple-instances/).
 
 **Singleton execution** (`Tracon:SingletonExecution`) elects one active
 instance for periodic background services that must not run twice at once:
@@ -8981,7 +8983,8 @@ whose status is no longer `Pending`; see
 
 :::caution[Production caveat]
 In-memory job and schedule stores disappear when the process stops and cannot
-coordinate multiple instances. Use PostgreSQL or SQL Server for durable workers.
+coordinate multiple instances. Use PostgreSQL or SQL Server for durable workers; two
+instances on one database are supported ([Run more than one instance](/guides/multiple-instances/)).
 SQLite is suitable for one process only. Keep the lease longer than the longest
 normal operation between cancellation checks, and make all external side effects
 idempotent.
@@ -11365,6 +11368,11 @@ repeat it:
 | `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
 | `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
 | `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Sign the audit chain with a key](/guides/audit-chain-key/) |
+| `InstanceLocalState` | `Tracon:Deployment:Instances` is above `1` and the store keeps its state in one process (memory, or a SQLite file), so each instance sees its own runs, sessions and job queue | `UsePostgreSql` or `UseSqlServer`, with one database that every instance reaches |
+| `UnreconciledRuns` | `Instances` is above `1` and run reconciliation is off, so a cancel that reaches the other instance answers `409` and a run whose instance died stays `Running` | `Tracon:RunReconciliation:Enabled` |
+| `UnelectedBackgroundWork` | `Instances` is above `1` and single-executor election is off, so every instance runs the periodic background work at the same time | `Tracon:SingletonExecution:Enabled` |
+| `InstanceLocalRateLimit` | `Instances` is above `1`, request rate is limited, and each instance counts in its own memory, so the deployment admits the limit once per instance | `Tracon:RateLimit:Scope` set to `Deployment` |
+| `InstanceLocalMcpTokens` | `Instances` is above `1` and the OAuth tokens of MCP servers live in the memory of one process | `Tracon:Mcp:OAuthTokenStore` set to `DistributedCache`, on a cache that every instance shares; or accept it when no MCP server uses OAuth |
 
 Some rows are not asked in every composition:
 
@@ -11377,6 +11385,12 @@ Some rows are not asked in every composition:
 - `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows` exist only when
   `UseTenancy(...)` or `UseWorkflows(...)` is in the chain. `UnlimitedTenantWorkflows`
   is also not asked while `Tracon:Workflows:Enabled` is `false`.
+- The five instance decisions (`InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`,
+  `InstanceLocalRateLimit` and `InstanceLocalMcpTokens`) are asked only when `Tracon:Deployment:Instances` is above
+  `1`. At the default of `1` each is reported as not applicable, so a host that never declared a second instance is
+  asked exactly what it was asked before. `InstanceLocalRateLimit` is also not asked while the rate limit is off,
+  and `InstanceLocalMcpTokens` exists only when `UseMcp()` is in the chain. See
+  [Run more than one instance](/guides/multiple-instances/).
 - `UnkeyedAuditChain` is not asked while the audit log is Tracon's in-memory one: that chain lives in the process
   and goes with it, so no one writes to a table behind the host's back. A database audit log, or one you
   registered, is asked.
@@ -14410,6 +14424,133 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 
 ---
 
+# Run more than one instance
+
+Source: https://tracon.dev/guides/multiple-instances/
+
+Tracon supports **two instances** that share **one PostgreSQL or SQL Server database**. This page is the support
+statement. Each line says whether a behavior is supported, which setting it needs, and how it was shown.
+
+:::caution[A narrow promise, not a service level]
+Two instances are tested and measured. Three or more are not measured, so they are not supported. The numbers on this
+page describe one machine, one database and one date. They are not an SLA and they are not a guaranteed capacity.
+:::
+
+## Declare the shape
+
+Tracon cannot see how many replicas your orchestrator starts. You tell it:
+
+```json
+{
+  "Tracon": {
+    "Deployment": { "Instances": 2 },
+    "SingletonExecution": { "Enabled": true },
+    "RunReconciliation": { "Enabled": true },
+    "RateLimit": { "Enabled": true, "Scope": "Deployment" },
+    "Mcp": { "OAuthTokenStore": "DistributedCache" }
+  }
+}
+```
+
+`Tracon:Deployment:Instances` changes nothing at run time. It decides what `RequireProductionProfile()` asks.
+The default is `1`. A value below `1` stops the host at start.
+
+With `Instances` above `1`, the profile asks five more decisions. Each one is its own risk, with its own `Accept` line,
+like every other decision of the profile. With the default of `1` none of them is asked, so a host that never declared a
+second instance starts exactly as before.
+
+| Risk | What the profile checks | What goes wrong when it is permissive |
+|---|---|---|
+| `InstanceLocalState` | The storage provider is `UsePostgreSql` or `UseSqlServer` | The state lives in one process (memory, or a SQLite file). Each instance sees its own runs, sessions and job queue |
+| `UnreconciledRuns` | `Tracon:RunReconciliation:Enabled` is `true` | A cancel that reaches the other instance answers `409`. A run whose instance died stays `Running` |
+| `UnelectedBackgroundWork` | `Tracon:SingletonExecution:Enabled` is `true` | Every instance runs the periodic background work at the same time: approval expiry, canary rollback, workflow request expiry, the orphaned-run scan, the model health probe |
+| `InstanceLocalRateLimit` | `Tracon:RateLimit:Scope` is `Deployment`. Not asked while the rate limit is off | Each instance counts in its own memory. Two instances admit the limit twice |
+| `InstanceLocalMcpTokens` | `Tracon:Mcp:OAuthTokenStore` is `DistributedCache` on a cache that every instance shares. Asked only when `UseMcp()` is on the chain | An authorization that one instance started cannot finish on the other, and a token that one instance obtained is not used by the other |
+
+Tracon cannot tell at start whether an MCP server uses OAuth: the servers are rows in the store. If none of yours does,
+accept the last risk by name.
+
+```csharp
+builder.AddTracon()
+       .UsePostgreSql(builder.Configuration.GetConnectionString("Tracon")!)
+       .RequireProductionProfile(profile => profile
+           .Accept(TraconProductionRisk.InstanceLocalMcpTokens));
+```
+
+The profile checks that the settings are on. It does not check that your instances really share one database: it
+reads the declaration and the composition, not the network. See
+[Production deployment](/guides/production/#start-from-a-production-registration).
+
+## What is supported
+
+| Class | Behavior |
+|---|---|
+| Supported, needs a setting | A SQL store on PostgreSQL or SQL Server · `SingletonExecution:Enabled` · `RunReconciliation:Enabled` (cancel across instances, orphaned runs) · `RateLimit:Scope = Deployment` · `Mcp:OAuthTokenStore = DistributedCache` with content protection on and a cache that every instance shares |
+| Supported, needs no setting | The job queue and its leases · approvals · idempotency keys · quotas · webhooks · the run event stream (the stream reads the database, so any instance serves it) · MCP Tasks · the compiled agent cache (it is keyed by the definition's content) · the model health cache (a request fills it) |
+| Per instance, on purpose | `Scheduling:MaxConcurrentJobs` · the workflow `MaxConcurrentRuns` · `ModelConcurrency` limits · the circuit breaker · the live voice session limit (a WebSocket stays on the instance that accepted it) · the rate limit with `Scope = Instance` |
+| Not supported | SQLite with more than one process · the in-memory stores · more than two instances · a live voice session that moves to another instance |
+
+"Per instance" means the number applies to each instance. With two instances, `MaxConcurrentJobs: 8` allows 16 jobs
+at once. Size the total against your provider limits and your database.
+
+## What the acceptance set shows
+
+Two hosts run in one test, on one database in a container. Each host has its own DI container, its own
+cancellation registry, its own job worker, its own MCP catalog and its own pending OAuth flows. The same scenarios run
+on PostgreSQL and on SQL Server on every build.
+
+| Behavior | What the test shows |
+|---|---|
+| Cancel across instances | A cancel that lands on one instance stops a direct run and a queued run that the other instance executes |
+| A shared rate limit | With `Scope = Deployment`, two instances admit the limit once. This holds for the API, for each tenant, and for the inbound trigger |
+| OAuth across instances | The provider's redirect completes the flow on the instance that did not start it. A token that one instance obtained serves a tool call on the other. Two instances that refresh together call the token endpoint once. A token belongs to the tenant that authorized it |
+| MCP tools | Both instances list the tools of an MCP server while `SingletonExecution` is on |
+| Job lease takeover | When a worker process is killed, its job is not taken before the lease expires, it is taken after, and the two workers never run it at the same time. Separate operating-system processes, killed with `SIGKILL` |
+| Workflow concurrency | `MaxConcurrentRunsPerTenant` holds in the queue across both instances: a tenant at its ceiling holds one slot, and another tenant still runs |
+
+Each behavior was also shown to fail when its setting is off. A test that cannot fail proves nothing.
+
+## What two instances cost
+
+One machine measured one host and two hosts on the same database at a constant 16 requests in flight (2026-10-29,
+commit `647aa02e`, three repeats of 60 seconds):
+
+| Path | One host | Two hosts |
+|---|---|---|
+| Buffered (the run is inside the request): throughput, p50 | 14.90 runs/s, 1053 ms | 14.84 runs/s, 1057 ms |
+| Queued: throughput, p50 | 6.98 runs/s, 2109 ms | 11.85 runs/s, 1320 ms |
+| Queued: queue wait p95 | about 1135 ms | about 100 ms |
+
+A second host does not slow a request that runs inside the request. It adds job slots, because
+`Scheduling:MaxConcurrentJobs` is per instance: the queued path waited less because 16 slots served 16 runs. Every cell
+reconciled with the store: no missing run, no gap in an event stream, nothing under the wrong tenant. The full table, the
+conditions and the caveats are in [Adding a second HTTP host](/guides/production/#adding-a-second-http-host).
+
+**This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew, inter-machine
+latency and more than two hosts were not measured.
+
+## What you still own
+
+- **Clocks.** The deployment rate-limit windows are cut from the Unix epoch. Keep the clocks of your instances
+  synchronised with NTP. The stored window never moves back, so an instance whose clock jumps ahead holds a partition
+  closed for as long as the jump lasts.
+- **A shared cache for OAuth.** `DistributedCache` needs an `IDistributedCache` that every instance reaches, for example
+  Redis. `AddDistributedMemoryCache` lives in one process; the application starts with a warning, and the production
+  profile refuses it when you declare more than one instance.
+- **The callback address.** `Tracon:Mcp:OAuthCallbackBaseUri` ends with `/`. See
+  [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
+- **A third instance.** It may work. Nobody measured it, so Tracon does not say it is supported.
+
+## Related
+
+- [Production deployment](/guides/production/): the process topology, the cost of the deployment rate-limit scope and the
+  measured failures.
+- [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
+- [Background work](/guides/background-work/): the job queue, leases and `RunWorker`.
+- [Compatibility](/reference/compatibility/): the production profile as a versioned set.
+
+---
+
 # Observability
 
 Source: https://tracon.dev/guides/observability/
@@ -15601,6 +15742,11 @@ header and the workflow slots one tenant may take are asked only when tenants ar
 separated, and the endpoint role policies only of a host that mapped the Tracon
 endpoints before it started.
 
+A deployment that runs more than one instance declares it with `Tracon:Deployment:Instances`. Above `1`, the profile also
+asks whether the store, reconciliation, single-executor election, the rate-limit scope and the MCP token store suit
+more than one instance. At the default of `1` it asks none of them. See
+[Run more than one instance](/guides/multiple-instances/).
+
 Accepting is per item on purpose: there is no way to accept them all at once, so each
 accepted risk is one line a reviewer can see. An accepted risk is written to the log
 at information level, by name, every time the host starts.
@@ -15773,6 +15919,10 @@ flowchart LR
     W1 --> DB
     DB --- NOTE["Leases coordinate workers.<br/>MaxConcurrentJobs is per process."]
 ```
+
+Two instances that share one PostgreSQL or SQL Server database are supported. [Run more than one
+instance](/guides/multiple-instances/) lists what that needs and what stays per instance; the paragraphs below give
+the detail for the job queue, cancel and the rate limit.
 
 SQL job leases coordinate worker nodes. `MaxConcurrentJobs` is per process, so size
 the total concurrency against provider rate limits and database capacity. The
@@ -16043,9 +16193,11 @@ observed rather than as a guarantee.
 
 :::caution[Measured, not promised]
 These observations describe how one Tracon version behaves against one SQL
-store. They are not a statement that Tracon supports multiple nodes, and
-they set no service level. SQLite remains a single-process store; run the
-scenarios below on PostgreSQL or SQL Server.
+store, and they set no service level. Two instances on one PostgreSQL or SQL
+Server database are supported ([Run more than one
+instance](/guides/multiple-instances/)); more than two are not measured.
+SQLite remains a single-process store; run the scenarios below on PostgreSQL or
+SQL Server.
 :::
 
 ### A worker process dies mid-job
@@ -16262,6 +16414,34 @@ workers moved the work; it did not create more of it.
 is one machine, one database and one clock. Network partition, clock skew and
 inter-machine latency were not measured and are not implied.
 
+### Adding a second HTTP host
+
+The same synthetic workload was measured against one and two HTTP hosts on the same database, each host with its own
+leasing worker and `MaxConcurrentJobs` of 8, at a constant 16 requests in flight. The driver sent each call to the next
+host in turn, so the read that followed a request usually reached the other host. Measured on 2026-10-29 at commit
+`647aa02e` on Darwin 27.0.0 (Apple Silicon), 10 logical processors, 16 GiB, .NET 10.0.402 and PostgreSQL 18.4 in the
+`pgvector/pgvector:pg18` image; three repeats of 60 seconds after a 10-second warm-up.
+
+| Path | Hosts | p50 | p95 | Throughput | Queue wait p95 |
+|---|---:|---:|---:|---:|---:|
+| Buffered | 1 | 1053 ms | 1076 ms | 14.90 runs/s | — |
+| Buffered | 2 | 1057 ms | 1081 ms | 14.84 runs/s | — |
+| Queued | 1 | 2109 ms | 2357 ms | 6.98 runs/s | about 1135 ms |
+| Queued | 2 | 1320 ms | 1333 ms | 11.85 runs/s | about 100 ms |
+
+A second host did not slow a request that runs inside the request: the buffered path is the same within noise, and
+that path is limited by the 16 requests in flight and the one second of model time, not by the host. The queued path
+improved because `MaxConcurrentJobs` is per instance: with one host, 8 of the 16 queued runs wait for a slot, and with two
+hosts all 16 have one. Read it as "a second instance adds job slots", not as a scaling law: it does not say what a third
+host does, and the shape changes with your `MaxConcurrentJobs` and your provider.
+
+All twelve cells reconciled. No accepted run was missing from the store, no event stream had a gap, no content differed
+from what was sent, and nothing was recorded under the wrong tenant; a read of one tenant's run with the other tenant's
+header was refused on both hosts.
+
+**This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew and
+inter-machine latency were not measured, and the number of hosts was never above two.
+
 ### Thirty minutes at a steady load
 
 An equal mix of the three paths at concurrency 8 — the highest step the queued
@@ -16278,8 +16458,8 @@ than minutes 10–15. Steady-state p99 was 1081 ms buffered, 1251 ms streaming a
 
 These figures are tied to the versions and commits named above. They are a
 shipped claim, so they are not carried forward to a later release without
-re-measuring. The manifests, summaries, reports and charts for all four runs are
-kept in the repository under `bench/capacity/measurements/`, and
+re-measuring. The manifests, summaries, reports and charts for these runs, and for the
+two-host run above, are kept in the repository under `bench/capacity/measurements/`, and
 `bench/capacity/README.md` describes how to reproduce them.
 
 ## Release and capacity caveats
@@ -24748,7 +24928,7 @@ tests. The registration and provider-specific configuration still change.
 | Capability | In memory | PostgreSQL | SQL Server | SQLite |
 |---|---:|---:|---:|---:|
 | Survives process restart | No | Yes | Yes | Yes |
-| Intended for multiple application nodes | No | Yes | Yes | No; use it for one node or local work |
+| Intended for multiple application nodes | No | Yes; two instances are supported, see [Run more than one instance](/guides/multiple-instances/) | Yes; two instances are supported, see [Run more than one instance](/guides/multiple-instances/) | No; use it for one node or local work |
 | Run, event, session, job, eval, workflow, audit, and governance stores | Process lifetime | Durable | Durable | Durable |
 | Conversation branching | No | Yes | Yes | Yes |
 | Vector knowledge search | No | Yes, with pgvector | No; knowledge answers `501` | No; knowledge answers `501` |
@@ -24919,7 +25099,14 @@ this way. The decisions added after the first six (tenant separation, session ow
 at-rest content protection, content inspection, request rate limiting and retention) are
 `UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
 `UnverifiedTenantHeader`, `UnlimitedTenantWorkflows` and `UnkeyedAuditChain`; `CHANGELOG.md` gives the reason for
-each. The current list is the one table in [Make a production decision
+each.
+
+Five more exist only for a deployment that declares more than one instance with `Tracon:Deployment:Instances`:
+`InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`, `InstanceLocalRateLimit` and
+`InstanceLocalMcpTokens`. They are added the same way and each has its own `Accept` line. At the default of `1`
+each is reported as not applicable, so a host that never declared a second instance starts exactly as before; a host that
+declares two or more is asked them. Tracon cannot count replicas by itself, so a deployment that runs two and does not
+declare it is not checked. The current list is the one table in [Make a production decision
 required](/guides/embedding/#make-a-production-decision-required).
 
 A decision can also gain a second answer without the set growing. `UncheckedToolCalls` was
@@ -25178,6 +25365,7 @@ still runs as the same operating-system user and reads what that user can read.
 | `Attachments:AllowedMediaTypes` | `image/png`, `image/jpeg`, `image/webp`, `image/gif`, `application/pdf`, `text/plain`, `audio/*` |
 | `Audit:ActorClaimType` | `null`; resolution tries name identifier, name, then `sub` |
 | `Audit:ChainKeyId` | `null`; entries are written without a signing key. The id of the key that signs the audit hash chain |
+| `Deployment:Instances` | `1`. How many instances run against the same store; at least `1`. It changes nothing at run time: above `1`, `RequireProductionProfile()` asks five more decisions. See [Run more than one instance](/guides/multiple-instances/) |
 | `AuditChainKeys:<id>` | none. The base64 value of one chain key, at least 32 bytes; every key the chain was ever signed with stays here. Keep it in a secret store |
 
 The attachment guard checks file signatures. It does not trust the client's
