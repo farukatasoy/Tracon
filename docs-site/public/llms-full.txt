@@ -6828,8 +6828,8 @@ carries the provider's exception as its inner exception.
 ### Acting on another tenant
 
 A few endpoints take the tenant from the request instead of the caller: another
-tenant's provider bindings and egress policy (`/api/tenants/{tenantId}/providers`,
-`/api/tenants/{tenantId}/egress`) and the tenant records (`/api/tenants`). The
+tenant's provider bindings, egress policy and tool policy (`/api/tenants/{tenantId}/providers`,
+`/api/tenants/{tenantId}/egress`, `/api/tenants/{tenantId}/tools`) and the tenant records (`/api/tenants`). The
 caller's own tenant needs only the role and scope the endpoint names. Another tenant
 needs platform authority, and each identity proves it differently:
 
