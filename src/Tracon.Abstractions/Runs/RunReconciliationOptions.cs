@@ -15,11 +15,22 @@ public sealed class RunReconciliationOptions
     /// single-instance development setup, no one expects a background writer,
     /// and no query goes to the lease table.
     /// </summary>
+    /// <remarks>
+    /// A multi-instance deployment needs it for one more reason. The heartbeat is also how a
+    /// run learns of a cancel request that reached another instance, so
+    /// <c>POST /api/runs/{runId}/cancel</c> stops a run that a different instance executes only
+    /// while this is <see langword="true"/>. With it off, that call returns <c>409</c>.
+    /// </remarks>
     public bool Enabled { get; set; }
 
     /// <summary>
     /// The interval at which a running run writes its "I'm still here" signal.
     /// </summary>
+    /// <remarks>
+    /// It is also the longest a cancel request from another instance waits before the instance
+    /// that owns the run reads it. A shorter interval cuts that wait and adds one
+    /// <c>UPDATE</c> per active run per interval.
+    /// </remarks>
     public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>

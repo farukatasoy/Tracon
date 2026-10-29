@@ -2925,7 +2925,8 @@ connection.
 A run ends **once**, and which ending it gets is decided by what actually happened
 rather than by the exception type that surfaced. `Canceled` means somebody asked
 for the run to stop — the caller's request went away, or a cancel request reached
-the process that owns the run. A model call that simply never came back is
+the run, on the process that owns it or from another instance (`RunRecord.CancelRequestedAt`
+holds the time of a request that came through the run's row). A model call that simply never came back is
 `Failed` with the `Timeout` error class, even though .NET reports an `HttpClient`
 timeout as a `TaskCanceledException`. The distinction matters when you alert on
 these: cancellations are user behaviour, timeouts are an outage.
@@ -8843,6 +8844,16 @@ longer than `OrphanThreshold` and marks them `Failed`.
 }
 ```
 
+The same heartbeat carries run cancellation between instances. When
+`POST /api/runs/{runId}/cancel` reaches an instance that does not execute the run, that
+instance writes the request onto the run's row and answers `202`. The instance that owns
+the run reads it in the statement that writes its heartbeat, so the cancel costs no extra
+query, and it cancels the run itself. The delay is at most one `HeartbeatInterval` (30
+seconds by default). A shorter interval cuts the delay and costs one more `UPDATE` per
+active run per interval. A queued run does not wait for the heartbeat: the endpoint
+cancels its job, and the worker that runs it stops the handler within `Scheduling.PollInterval`.
+With reconciliation off, a cancel that reaches the wrong instance returns `409`.
+
 Both settings work with the in-memory lease store, but that store only
 coordinates within one process. Run PostgreSQL or SQL Server to get real
 cross-instance election.
@@ -8872,7 +8883,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
 | `SingletonExecution.Enabled` | `false` | `true` elects one instance for the singleton services above |
 | `SingletonExecution.LeaseDuration` | 60 seconds | Renewal at one third of this duration; at least 3 seconds while enabled |
-| `RunReconciliation.Enabled` | `false` | `true` closes orphaned `Running` rows after a crash |
+| `RunReconciliation.Enabled` | `false` | `true` closes orphaned `Running` rows after a crash and lets a cancel reach a run another instance executes |
 | `RunReconciliation.HeartbeatInterval` | 30 seconds | How often an active run's process signals it is alive |
 | `RunReconciliation.OrphanThreshold` | 5 minutes | Silence beyond this marks a run orphaned |
 | `RunReconciliation.ScanInterval` | 1 minute | Wait between reconciliation passes |
@@ -8938,7 +8949,9 @@ whose status is no longer `Pending`; see
   built-in handlers also check `JobContext.IsCancelledAsync` between items. A
   handler that ignores its token runs on until it asks. A cancelled job stays
   `Cancelled`, even when its handler throws on the way out, and a job cancelled
-  before its handler starts does not start.
+  before its handler starts does not start. `POST /api/runs/{runId}/cancel` cancels the
+  job of a queued run before it stops the handler, so a cancelled run is never leased again
+  and its job reads `Cancelled`, whatever `AsyncRun.MaxAttempts` is.
 - A time limit bounds each attempt: the job's `maxDuration`, or
   `Scheduling.MaxDurationByHandlerKey` for its handler key. Past it the worker
   cancels the handler's token; a handler that stops fails the attempt with
@@ -8974,6 +8987,8 @@ idempotent.
 | More jobs run than expected | Multiply `MaxConcurrentJobs` by the number of worker processes |
 | Cancellation takes time | It is a request, not a forced thread abort. The handler's token falls at the worker's next status read, within one `PollInterval`; a handler that does not pass its token on runs until it calls `JobContext.IsCancelledAsync` |
 | A job fails with `tracon.job.max-duration-exceeded` | An attempt ran past the job's `maxDuration` or the limit `Scheduling.MaxDurationByHandlerKey` maps its key to; raise the limit or shorten the work |
+| `POST /api/runs/{id}/cancel` returns `409` for a `Running` run | The run executes on another instance and `RunReconciliation` is off on the instance that took the request. Enable it on the instances; the run then stops within one `HeartbeatInterval` |
+| A cancelled run keeps running for up to 30 seconds | The owner reads the request on its next heartbeat. `cancelRequestedAt` on the run shows the request was recorded; lower `RunReconciliation.HeartbeatInterval` to shorten the wait |
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |
@@ -15599,11 +15614,18 @@ singleton-execution guard coordinates periodic services such as health refresh a
 orphan reconciliation; the job queue already has its own leases and does not use that
 guard.
 
-Direct-run cancellation is registered in the process that owns the live execution.
-A cancel request routed to another instance, or sent after the owner restarts, returns
-`409`. Use sticky routing or provide a distributed `IRunCancellationRegistry` when
-cross-node cancellation is a requirement. Queued-run cancellation is durable because
-it uses the shared job store.
+A cancel request reaches the run whichever instance receives it. A queued run is
+cancelled through the shared job store: the worker that executes it stops the handler
+within its `Scheduling.PollInterval` (10 seconds by default). A run that another
+instance executes directly needs `Tracon:RunReconciliation:Enabled`. The receiving
+instance writes the request onto the run's row (`cancelRequestedAt` in
+`GET /api/runs/{id}`), the owner reads it on its next heartbeat, and the run ends within
+one `RunReconciliation:HeartbeatInterval` (30 seconds by default) plus the time it takes
+to notice its token. Without reconciliation nobody would read the request, so the call
+returns `409` instead of a `202` it cannot keep. If the owner stopped before it read the
+request, reconciliation closes the row as `Failed` (`orphaned`), not `Canceled`, and does
+not continue the run. No sticky routing and no custom `IRunCancellationRegistry` is
+needed for this.
 
 Rate limits are per process for the same reason. The endpoint limiter
 (`Tracon:RateLimit`) and the inbound trigger limiter both count in the memory
@@ -16389,9 +16411,15 @@ waiting record closes as `orphaned` too instead of staying `Queued` for good. An
 never closed by the scan, however old it is. Heartbeat-write failures are logged, and the
 next interval tries again.
 
+The heartbeat also delivers a cancel that reached another instance. The endpoint writes the
+request onto the run's row, and the owner reads it in the statement that writes its heartbeat
+and cancels the run, so the run stops within one `HeartbeatInterval`. If the owner stopped
+before it read the request, the scan closes the row as `Failed`, not `Canceled`, and does not
+open a continuation for it.
+
 | Setting | Default | Validation or effect |
 |---|---:|---|
-| `RunReconciliation.Enabled` | `false` | No heartbeats or scan until enabled |
+| `RunReconciliation.Enabled` | `false` | No heartbeats, scan or cross-instance cancel until enabled |
 | `HeartbeatInterval` | 30 seconds | 1 ms to about 49.7 days |
 | `OrphanThreshold` | 5 minutes | Must be positive and at least the heartbeat interval |
 | `ScanInterval` | 1 minute | 1 ms to about 49.7 days |
@@ -19730,22 +19758,24 @@ public sealed class MyRunStore : IRunStore
     public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken ct = default) { /* ... */ }
-    public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<bool> RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken ct = default) { /* ... */ }
 }
 ```
 
-Nineteen methods, and eight behavior axes the contract suite checks that a compiler
+Twenty methods, and nine behavior axes the contract suite checks that a compiler
 cannot:
 
 | Axis | Rule |
 |---|---|
 | Idempotency | `StartRunAsync` is an UPSERT. A second call with the same `RunId` updates the row instead of opening a new one; `UserId`, `Labels` and `ContinuedFromRunId` are COALESCED (a `null` value on the call leaves the previous value in place), and the **returned** record reflects that COALESCE, not the raw call arguments. Workflow recovery depends on the link: it writes a continuation's row with `ContinuedFromRunId`, and the engine writes the same row again without it |
-| Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
+| Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync`, `RequestCancellationAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
 | Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
 | Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `TraconException` |
 | Completion overrides | `CompleteRunAsync` may correct the model attribution a run started with: `RunCompletion.ModelId` and `RunCompletion.ModelProvider` each **overwrite** the stored value when set, and **leave it unchanged** when `null` — the common case, since only a `ModelBinding.Fallbacks` link answering makes a completion carry them. Persisting `ModelId` but forgetting `ModelProvider` costs the run its provider attribution silently, and the cost resolver then falls back to matching by model name alone |
 | Non-token cost | What a run reports beyond tokens is a total of its own, never a term of the token cost. `CompleteRunAsync` stores `RunCompletion.NonTokenCost` on the run, and `RunRecord.NonTokenCost` and `TreeNonTokenCost` read it back: `null` means the run reported nothing and is never `0`, an item that carried no amount keeps its count in `UnsummedItemCount` with an `Amount` of `null`, and the tree total counts the run itself and every run below it once. `RecordNonTokenUsageAsync` writes an item at once, and when `NonTokenUsageRecord.TenantId` is set it writes only for a run of that tenant. `ListNonTokenUsageAsync` returns the run's own items, not its children's, in the order they were reported, and an empty list for a run that does not exist or belongs to another tenant |
+| Cancellation requests | `RequestCancellationAsync` writes the request on a `Running` or `Queued` row of the expected tenant and returns `true`; for a run that does not exist, belongs to another tenant or has ended it writes nothing and returns `false`. A second call keeps the **first** time (`RunRecord.CancelRequestedAt`) and still returns `true`. `TouchHeartbeatAsync` returns, in the same call that writes the heartbeat, a `RunCancellationRequest` for every id you were given whose row is still `Running` or `Queued` and carries a request, with the run's own tenant; the owner cancels the run, so return the same request on every call until the run ends. A second `StartRunAsync` must not clear the request |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
 
@@ -19909,6 +19939,11 @@ Two more rules carry the
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
   row that never sent a heartbeat belongs to the job queue and is never closed by it.
   A second `StartRunAsync` leaves the heartbeat as it was.
+- **`IRunStore` carries cancellation requests across instances.**
+  `RequestCancellationAsync` records a request on the row and `TouchHeartbeatAsync` hands it
+  to the instance that owns the run. A store that returns an empty list from
+  `TouchHeartbeatAsync` still compiles and passes most scenarios, but a cancel that reached
+  another instance is then never delivered; `RunStoreContract` checks both members.
 
 `ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
 per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are
@@ -25102,6 +25137,10 @@ registers more than one image provider or a custom keyed generator.
 
 `UseScheduling()` changes worker settings from code; it does not create a second
 queue. `AddTracon()` already registers the core job contracts.
+
+`RunReconciliation:Enabled` also switches on cross-instance run cancellation, and
+`RunReconciliation:HeartbeatInterval` is then its delay. See
+[run reconciliation](/guides/background-work/#singleton-services-and-orphaned-run-recovery).
 
 Every interval that drives a background timer must be between 1 millisecond and about
 49.7 days, the .NET timer range: `Scheduling:PollInterval`,

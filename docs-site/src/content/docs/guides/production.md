@@ -261,11 +261,18 @@ singleton-execution guard coordinates periodic services such as health refresh a
 orphan reconciliation; the job queue already has its own leases and does not use that
 guard.
 
-Direct-run cancellation is registered in the process that owns the live execution.
-A cancel request routed to another instance, or sent after the owner restarts, returns
-`409`. Use sticky routing or provide a distributed `IRunCancellationRegistry` when
-cross-node cancellation is a requirement. Queued-run cancellation is durable because
-it uses the shared job store.
+A cancel request reaches the run whichever instance receives it. A queued run is
+cancelled through the shared job store: the worker that executes it stops the handler
+within its `Scheduling.PollInterval` (10 seconds by default). A run that another
+instance executes directly needs `Tracon:RunReconciliation:Enabled`. The receiving
+instance writes the request onto the run's row (`cancelRequestedAt` in
+`GET /api/runs/{id}`), the owner reads it on its next heartbeat, and the run ends within
+one `RunReconciliation:HeartbeatInterval` (30 seconds by default) plus the time it takes
+to notice its token. Without reconciliation nobody would read the request, so the call
+returns `409` instead of a `202` it cannot keep. If the owner stopped before it read the
+request, reconciliation closes the row as `Failed` (`orphaned`), not `Canceled`, and does
+not continue the run. No sticky routing and no custom `IRunCancellationRegistry` is
+needed for this.
 
 Rate limits are per process for the same reason. The endpoint limiter
 (`Tracon:RateLimit`) and the inbound trigger limiter both count in the memory

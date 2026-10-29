@@ -9,8 +9,8 @@ namespace Tracon;
 /// <para>
 /// The registry is <strong>in-process</strong> and registered as a singleton, and it
 /// stays that way: it does not have to be distributed. In a multi-instance deployment, a request may land on an
-/// instance that does not run the run. The cancellation endpoint then takes one of
-/// three paths, in this order:
+/// instance that does not run the run. The cancellation endpoint then tries these paths, in this
+/// order, and the first two can both apply:
 /// </para>
 /// <list type="number">
 /// <item>

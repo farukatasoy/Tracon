@@ -304,7 +304,9 @@ internal sealed class SqlRunStore : IRunStore
     /// <inheritdoc />
     [TenantAgnostic(
         "The ids come from the CALLING process's OWN IRunCancellationRegistry ledger and are " +
-        "already scoped to runs that process is actually executing; this is a maintenance signal, it reads no data.")]
+        "already scoped to runs that process is actually executing; this is a maintenance signal. It reads " +
+        "back only the tenant and the cancellation request of the rows it names, and each request carries " +
+        "its own row's tenant.")]
     public async ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
         DateTimeOffset at,

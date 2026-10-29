@@ -45,7 +45,9 @@ public sealed class MyRunStoreTests : RunStoreContract
 
 `dotnet test` then runs every scenario `RunStoreContract` defines —
 idempotent `StartRunAsync`, tenant isolation (both directions), event
-ordering, statistics aggregation, and more — against your implementation.
+ordering, statistics aggregation, cancellation requests that cross instances
+(`RequestCancellationAsync` and the requests `TouchHeartbeatAsync` hands back),
+and more — against your implementation.
 A method your store does not implement makes the inherited test fail with
 your own exception; it does not fail to compile.
 

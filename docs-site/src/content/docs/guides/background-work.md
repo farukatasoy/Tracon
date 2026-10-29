@@ -635,6 +635,16 @@ longer than `OrphanThreshold` and marks them `Failed`.
 }
 ```
 
+The same heartbeat carries run cancellation between instances. When
+`POST /api/runs/{runId}/cancel` reaches an instance that does not execute the run, that
+instance writes the request onto the run's row and answers `202`. The instance that owns
+the run reads it in the statement that writes its heartbeat, so the cancel costs no extra
+query, and it cancels the run itself. The delay is at most one `HeartbeatInterval` (30
+seconds by default). A shorter interval cuts the delay and costs one more `UPDATE` per
+active run per interval. A queued run does not wait for the heartbeat: the endpoint
+cancels its job, and the worker that runs it stops the handler within `Scheduling.PollInterval`.
+With reconciliation off, a cancel that reaches the wrong instance returns `409`.
+
 Both settings work with the in-memory lease store, but that store only
 coordinates within one process. Run PostgreSQL or SQL Server to get real
 cross-instance election.
@@ -664,7 +674,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
 | `SingletonExecution.Enabled` | `false` | `true` elects one instance for the singleton services above |
 | `SingletonExecution.LeaseDuration` | 60 seconds | Renewal at one third of this duration; at least 3 seconds while enabled |
-| `RunReconciliation.Enabled` | `false` | `true` closes orphaned `Running` rows after a crash |
+| `RunReconciliation.Enabled` | `false` | `true` closes orphaned `Running` rows after a crash and lets a cancel reach a run another instance executes |
 | `RunReconciliation.HeartbeatInterval` | 30 seconds | How often an active run's process signals it is alive |
 | `RunReconciliation.OrphanThreshold` | 5 minutes | Silence beyond this marks a run orphaned |
 | `RunReconciliation.ScanInterval` | 1 minute | Wait between reconciliation passes |
@@ -730,7 +740,9 @@ whose status is no longer `Pending`; see
   built-in handlers also check `JobContext.IsCancelledAsync` between items. A
   handler that ignores its token runs on until it asks. A cancelled job stays
   `Cancelled`, even when its handler throws on the way out, and a job cancelled
-  before its handler starts does not start.
+  before its handler starts does not start. `POST /api/runs/{runId}/cancel` cancels the
+  job of a queued run before it stops the handler, so a cancelled run is never leased again
+  and its job reads `Cancelled`, whatever `AsyncRun.MaxAttempts` is.
 - A time limit bounds each attempt: the job's `maxDuration`, or
   `Scheduling.MaxDurationByHandlerKey` for its handler key. Past it the worker
   cancels the handler's token; a handler that stops fails the attempt with
@@ -766,6 +778,8 @@ idempotent.
 | More jobs run than expected | Multiply `MaxConcurrentJobs` by the number of worker processes |
 | Cancellation takes time | It is a request, not a forced thread abort. The handler's token falls at the worker's next status read, within one `PollInterval`; a handler that does not pass its token on runs until it calls `JobContext.IsCancelledAsync` |
 | A job fails with `tracon.job.max-duration-exceeded` | An attempt ran past the job's `maxDuration` or the limit `Scheduling.MaxDurationByHandlerKey` maps its key to; raise the limit or shorten the work |
+| `POST /api/runs/{id}/cancel` returns `409` for a `Running` run | The run executes on another instance and `RunReconciliation` is off on the instance that took the request. Enable it on the instances; the run then stops within one `HeartbeatInterval` |
+| A cancelled run keeps running for up to 30 seconds | The owner reads the request on its next heartbeat. `cancelRequestedAt` on the run shows the request was recorded; lower `RunReconciliation.HeartbeatInterval` to shorten the wait |
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |

@@ -104,6 +104,8 @@ public sealed class CrossInstanceRunCancelTests
 
         try
         {
+            // The endpoint's own tenant check answers 404 before any write. The store's filter is
+            // proven by RunStoreContract.RequestCancellationAsync_ignores_another_tenants_run.
             using var wrongTenant = await SendAsync(pair.B, CancelUri(runId), tenant: "tenant-b");
 
             wrongTenant.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -156,11 +158,12 @@ public sealed class CrossInstanceRunCancelTests
     }
 
     [Fact]
-    public async Task Cancel_of_an_orphaned_run_is_closed_by_reconciliation_as_Failed()
+    public async Task Cancel_of_an_orphaned_run_leaves_its_request_and_the_claim_closes_it_as_Failed()
     {
         // The owner died before it read the request (nobody registers the run): the request stays
         // on the row, and reconciliation closes the row as Failed. The process died; the cancel
-        // was not what ended the run (open question 2).
+        // was not what ended the run (open question 2). The claim is called by hand: the service
+        // that calls it on a timer is covered by RunReconciliationTests.
         await using var pair = await StartAsync(new HangingModelProvider("hanging", respectsCancellation: true), reconciliation: true);
 
         var runId = TraconId.NewId();

@@ -50,22 +50,24 @@ public sealed class MyRunStore : IRunStore
     public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken ct = default) { /* ... */ }
-    public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<bool> RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken ct = default) { /* ... */ }
 }
 ```
 
-Nineteen methods, and eight behavior axes the contract suite checks that a compiler
+Twenty methods, and nine behavior axes the contract suite checks that a compiler
 cannot:
 
 | Axis | Rule |
 |---|---|
 | Idempotency | `StartRunAsync` is an UPSERT. A second call with the same `RunId` updates the row instead of opening a new one; `UserId`, `Labels` and `ContinuedFromRunId` are COALESCED (a `null` value on the call leaves the previous value in place), and the **returned** record reflects that COALESCE, not the raw call arguments. Workflow recovery depends on the link: it writes a continuation's row with `ContinuedFromRunId`, and the engine writes the same row again without it |
-| Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
+| Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync`, `RequestCancellationAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
 | Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
 | Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `TraconException` |
 | Completion overrides | `CompleteRunAsync` may correct the model attribution a run started with: `RunCompletion.ModelId` and `RunCompletion.ModelProvider` each **overwrite** the stored value when set, and **leave it unchanged** when `null` — the common case, since only a `ModelBinding.Fallbacks` link answering makes a completion carry them. Persisting `ModelId` but forgetting `ModelProvider` costs the run its provider attribution silently, and the cost resolver then falls back to matching by model name alone |
 | Non-token cost | What a run reports beyond tokens is a total of its own, never a term of the token cost. `CompleteRunAsync` stores `RunCompletion.NonTokenCost` on the run, and `RunRecord.NonTokenCost` and `TreeNonTokenCost` read it back: `null` means the run reported nothing and is never `0`, an item that carried no amount keeps its count in `UnsummedItemCount` with an `Amount` of `null`, and the tree total counts the run itself and every run below it once. `RecordNonTokenUsageAsync` writes an item at once, and when `NonTokenUsageRecord.TenantId` is set it writes only for a run of that tenant. `ListNonTokenUsageAsync` returns the run's own items, not its children's, in the order they were reported, and an empty list for a run that does not exist or belongs to another tenant |
+| Cancellation requests | `RequestCancellationAsync` writes the request on a `Running` or `Queued` row of the expected tenant and returns `true`; for a run that does not exist, belongs to another tenant or has ended it writes nothing and returns `false`. A second call keeps the **first** time (`RunRecord.CancelRequestedAt`) and still returns `true`. `TouchHeartbeatAsync` returns, in the same call that writes the heartbeat, a `RunCancellationRequest` for every id you were given whose row is still `Running` or `Queued` and carries a request, with the run's own tenant; the owner cancels the run, so return the same request on every call until the run ends. A second `StartRunAsync` must not clear the request |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
 
@@ -229,6 +231,11 @@ Two more rules carry the
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
   row that never sent a heartbeat belongs to the job queue and is never closed by it.
   A second `StartRunAsync` leaves the heartbeat as it was.
+- **`IRunStore` carries cancellation requests across instances.**
+  `RequestCancellationAsync` records a request on the row and `TouchHeartbeatAsync` hands it
+  to the instance that owns the run. A store that returns an empty list from
+  `TouchHeartbeatAsync` still compiles and passes most scenarios, but a cancel that reached
+  another instance is then never delivered; `RunStoreContract` checks both members.
 
 `ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
 per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are

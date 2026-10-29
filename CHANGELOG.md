@@ -34,6 +34,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is not asked to sign. The shared `AuditLogContract` gains the signed-chain cases and two optional hooks,
   `CreateKeyedLogAsync` and `KeyedLogsShareStorage`; an implementation that does not override them skips those cases.
 
+- **A cancel request reaches a run whichever instance takes it. A custom `IRunStore` must implement one new member and one changed signature.**
+  `IRunStore.TouchHeartbeatAsync` now returns `ValueTask<IReadOnlyList<RunCancellationRequest>>` instead of `ValueTask`, and
+  `IRunStore.RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken)` is new. A store
+  that compiled before fails to build (`CS0535`, `CS0738`) until it has both; return an empty list from `TouchHeartbeatAsync`
+  and `false` from `RequestCancellationAsync` to keep the old behavior, or implement them as the `RunStoreContract` cases
+  describe. `RunStoreContract` gains eleven cases for the two members. New public types: `RunCancellationRequest`, and
+  `RunRecord.CancelRequestedAt` (also `cancelRequestedAt` in `GET /api/runs/{id}` and the generated clients).
+- **`POST /api/runs/{runId}/cancel` answers `202` where it answered `409` for a run another instance executes, when
+  `Tracon:RunReconciliation:Enabled` is `true`.** The receiving instance writes the request onto the run's row
+  (`runs.cancel_requested_at`) and the owner reads it on its next heartbeat, so the run ends within one
+  `RunReconciliation:HeartbeatInterval` (30 seconds by default). With reconciliation off the call still returns `409`, and its
+  message now names the setting. A run that belongs to a queued job needs neither: the endpoint cancels the job and the worker
+  stops the handler within `Scheduling:PollInterval`. A run whose owner stopped before it read the request is closed `Failed`
+  (`orphaned`) by reconciliation and is not continued.
+- **A queued run cancelled while it runs now leaves its job `Cancelled`.** The endpoint stopped the handler first and
+  cancelled the job second, so the worker took the stop for a failure: the job showed `Failed` and, with
+  `AsyncRun:MaxAttempts` above `1`, it was leased again and the run, closed `Canceled`, went back to `Running` and called the
+  model a second time. The endpoint now cancels the job first. A job-monitoring script that matched a cancelled run's job on
+  `Failed` (queued agent runs showed `TaskCanceledException failed.`, queued workflow runs `tracon.workflow-run.failed`) must
+  match `Cancelled`; the `tracon.job.executions` metric counts it under `Cancelled`.
+- **Migrations for the cancel request.** PostgreSQL `0069`, SQL Server `0057` and SQLite `0056`. With `AutoApplyMigrations`
+  (the default) they run at startup. Each adds one nullable column, `runs.cancel_requested_at`. No row is backfilled and no
+  index is added.
+
 - **The `Tracon` package no longer brings PostgreSQL.** It now carries the HTTP API, workflows, MCP, the OpenAI
   provider, and the console, and no storage engine, so a host on SQL Server, SQLite, or the in-memory stores no longer
   takes Npgsql. A host that calls `UsePostgreSql` and references only `Tracon` fails to build (`CS1061`: `ITraconBuilder`

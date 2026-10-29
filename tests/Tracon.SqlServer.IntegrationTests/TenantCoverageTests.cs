@@ -82,11 +82,16 @@ public sealed class TenantCoverageTests
         // RecordNonTokenUsageAsync (the expected-tenant guard) and
         // ListNonTokenUsageAsync (the read-side tenant join) joined them with
         // NonTokenUsageContract, which asserts both directions.
+        // RequestCancellationAsync joined them on 2026-10-29 with the same
+        // expected-tenant guard: RunStoreContract asserts that a request for
+        // another tenant's run writes nothing and that the ambient tenant is
+        // not consulted.
         ["SqlRunStore"] =
             ["StartRunAsync", "GetRunAsync", "QueryRunsAsync", "ReadEventsAsync", "ListToolInvocationsAsync",
              "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
              "AppendEventAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync",
-             "CompleteLateToolInvocationAsync", "RecordNonTokenUsageAsync", "ListNonTokenUsageAsync"],
+             "CompleteLateToolInvocationAsync", "RecordNonTokenUsageAsync", "ListNonTokenUsageAsync",
+             "RequestCancellationAsync"],
         ["SqlSessionStore"] =
             ["SaveAsync", "GetAsync", "DeleteAsync", "QueryAsync", "TryCreateAsync", "TryUpdateAsync",
              "GetOwnerTenantIdAsync"],

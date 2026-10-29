@@ -462,6 +462,10 @@ registers more than one image provider or a custom keyed generator.
 `UseScheduling()` changes worker settings from code; it does not create a second
 queue. `AddTracon()` already registers the core job contracts.
 
+`RunReconciliation:Enabled` also switches on cross-instance run cancellation, and
+`RunReconciliation:HeartbeatInterval` is then its delay. See
+[run reconciliation](/guides/background-work/#singleton-services-and-orphaned-run-recovery).
+
 Every interval that drives a background timer must be between 1 millisecond and about
 49.7 days, the .NET timer range: `Scheduling:PollInterval`,
 `RunReconciliation:HeartbeatInterval`, `RunReconciliation:ScanInterval`,

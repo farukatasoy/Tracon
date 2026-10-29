@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -1000,11 +1001,11 @@ internal static class RunEndpoints
     /// has ended (or waits for a person): <c>409</c> is returned along with the current status.
     /// </item>
     /// <item>
-    /// Otherwise the request takes the first of three paths that applies, in this order, and
-    /// returns <c>202</c>. <strong>1.</strong> The run's job (a queued run and its job share one
+    /// Otherwise the request tries two paths, in this order, and returns <c>202</c> when either
+    /// reached the run. <strong>1.</strong> The run's job (a queued run and its job share one
     /// id) is canceled in the queue. <strong>2.</strong> The run is registered in this process's
-    /// <see cref="IRunCancellationRegistry"/>, and its source is canceled. <strong>3.</strong> The
-    /// request is written onto the <c>runs</c> row
+    /// <see cref="IRunCancellationRegistry"/>, and its source is canceled. When neither did,
+    /// <strong>3.</strong> the request is written onto the <c>runs</c> row
     /// (<see cref="IRunStore.RequestCancellationAsync"/>) and the instance that owns the run
     /// reads it on its next heartbeat; this path needs <c>Tracon:RunReconciliation:Enabled</c>, and
     /// without it the call returns <c>409</c>.
@@ -1077,11 +1078,36 @@ internal static class RunEndpoints
         // Canceled, is written Running again by the second attempt. Only a run with a queued job
         // (K-305: Job.Id == Run.Id) pays the write; for a direct run it is a keyed UPDATE that
         // finds no row.
-        var jobCanceled = await jobs.CancelAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false);
+        //
+        // A job store that cannot answer must not stop this process from stopping a run it runs
+        // itself: the local source is still tried, and the failure surfaces only when the job
+        // store was the one path left (a Queued run that nothing in this process holds).
+        var jobCanceled = false;
+        Exception? jobStoreFailure = null;
+
+        try
+        {
+            jobCanceled = await jobs.CancelAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            jobStoreFailure = exception;
+
+            loggerFactory.CreateLogger("Tracon.RunEndpoints").LogWarning(
+                exception,
+                "Could not cancel the job of run {RunId}; the run is still canceled where this process holds it.",
+                runId);
+        }
 
         // Registered here means this process is executing the run, whatever its status shows: a workflow
         // run that waits for a concurrency slot is Queued and its runner holds the registration (Phase 240).
         var registered = cancellations.TryCancel(runId, tenants.TenantId);
+
+        if (jobStoreFailure is not null && !registered && run.Status == RunStatus.Queued)
+        {
+            // The job may be the only thing that holds this run, and it could not be cancelled.
+            ExceptionDispatchInfo.Capture(jobStoreFailure).Throw();
+        }
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
 

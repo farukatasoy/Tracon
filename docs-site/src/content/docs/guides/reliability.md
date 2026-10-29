@@ -287,9 +287,15 @@ waiting record closes as `orphaned` too instead of staying `Queued` for good. An
 never closed by the scan, however old it is. Heartbeat-write failures are logged, and the
 next interval tries again.
 
+The heartbeat also delivers a cancel that reached another instance. The endpoint writes the
+request onto the run's row, and the owner reads it in the statement that writes its heartbeat
+and cancels the run, so the run stops within one `HeartbeatInterval`. If the owner stopped
+before it read the request, the scan closes the row as `Failed`, not `Canceled`, and does not
+open a continuation for it.
+
 | Setting | Default | Validation or effect |
 |---|---:|---|
-| `RunReconciliation.Enabled` | `false` | No heartbeats or scan until enabled |
+| `RunReconciliation.Enabled` | `false` | No heartbeats, scan or cross-instance cancel until enabled |
 | `HeartbeatInterval` | 30 seconds | 1 ms to about 49.7 days |
 | `OrphanThreshold` | 5 minutes | Must be positive and at least the heartbeat interval |
 | `ScanInterval` | 1 minute | 1 ms to about 49.7 days |

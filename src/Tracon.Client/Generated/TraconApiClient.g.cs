@@ -3272,7 +3272,7 @@ namespace Tracon.Client.Generated
         /// Requests cancellation of a running run.
         /// </summary>
         /// <remarks>
-        /// 202 only reports that cancellation was REQUESTED; the final status is read from 'GET /api/runs/{id}'. Returns 409 if the run is not executing on this instance (a different instance, or a restarted process). Canceling a root run also stops every child run in the tree; canceling a child run on its own does not affect the root.
+        /// 202 only reports that cancellation was REQUESTED; the final status is read from 'GET /api/runs/{id}'. The request reaches the run whichever instance receives it: a run that belongs to a queued job is canceled through the job queue (the worker stops it within its poll interval, 10 seconds by default), and any other run executing on a different instance reads the request on its next heartbeat ('cancelRequestedAt' on the run shows it; 30 seconds by default). That second path needs 'Tracon:RunReconciliation:Enabled'; without it the call returns 409 when the run is not executing on the receiving instance. Returns 409 as well when the run has already ended. Canceling a root run also stops every child run in the tree; canceling a child run on its own does not affect the root.
         /// </remarks>
         /// <returns>Accepted</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -25111,6 +25111,13 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("continuedFromRunId")]
         public System.Guid? ContinuedFromRunId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the time an operator first requested this run's cancellation, or
+        /// <br/>`null` when none was requested.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cancelRequestedAt")]
+        public System.DateTimeOffset? CancelRequestedAt { get; set; } = default!;
 
     }
 
