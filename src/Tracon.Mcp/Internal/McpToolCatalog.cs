@@ -292,7 +292,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             _connections.TryRemove(key, out _);
         }
 
-        var tokenCache = _tokenCaches.GetOrCreate(tenantId, server.Name);
+        var tokenCache = _tokenCaches.GetOrCreate(tenantId, server);
 
         var (connection, connectUnreachable) = await McpConnection
             .ConnectAsync(

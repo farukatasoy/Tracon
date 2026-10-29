@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,6 +28,13 @@ namespace Tracon;
 ///   <item><description><see cref="CompleteAsync"/> forwards the code to the pending
 ///   background task and awaits the outcome of the token exchange.</description></item>
 /// </list>
+/// <para>
+/// <strong>A pending flow is keyed by the SDK's OWN <c>state</c>.</strong> The SDK puts
+/// a <c>state</c> of its own into the authorization address and refuses an answer that
+/// carries another one; the provider sends that value back to <c>/oauth/callback</c>. This
+/// class once keyed its flows by a <c>state</c> it generated itself, a value that never
+/// left the server, so no callback could match and no token was ever obtained.
+/// </para>
 /// <para>
 /// After a successful exchange, the tokens are shared with
 /// <see cref="McpToolCatalog"/>'s background reconnections through
@@ -108,12 +114,11 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
             return new McpOAuthStartResult { Status = McpOAuthOperationStatus.NotConfigured };
         }
 
-        var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-
+        // The flow is registered under the SDK's state once the SDK has built the
+        // authorization address (RunAuthorizationAsync's callback handler).
         var pending = new PendingAuthorization(tenantId, serverName);
-        _pending[state] = pending;
 
-        _ = RunAuthorizationAsync(state, server, baseUri, pending);
+        _ = RunAuthorizationAsync(server, baseUri, pending);
 
         using var timeout = new CancellationTokenSource(mcpOptions.ConnectionTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
@@ -126,7 +131,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
             {
                 Status = McpOAuthOperationStatus.Ok,
                 AuthorizationUri = authorizationUri,
-                State = state,
+                State = pending.State,
             };
         }
         catch (Exception)
@@ -135,7 +140,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
             // produced) or the background connection attempt failed before
             // reaching the OAuth step (e.g. a DNS/TLS error); both are the
             // same "could not connect" outcome.
-            _pending.TryRemove(state, out _);
+            Forget(pending);
 
             return new McpOAuthStartResult { Status = McpOAuthOperationStatus.ConnectionFailed };
         }
@@ -196,11 +201,11 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
     /// once the authorization address is ready, and
     /// <see cref="PendingAuthorization.Completed"/> once the process finishes.
     /// </summary>
-    private async Task RunAuthorizationAsync(string state, McpServerDefinition server, Uri baseUri, PendingAuthorization pending)
+    private async Task RunAuthorizationAsync(McpServerDefinition server, Uri baseUri, PendingAuthorization pending)
     {
         try
         {
-            var tokenCache = _tokenCaches.GetOrCreate(pending.TenantId, pending.ServerName);
+            var tokenCache = _tokenCaches.GetOrCreate(pending.TenantId, server);
 
             var transportOptions = new HttpClientTransportOptions
             {
@@ -221,6 +226,14 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
                     TokenCache = tokenCache,
                     AuthorizationCallbackHandler = async (context, callbackToken) =>
                     {
+                        // The callback carries the state the SDK put into this address, so
+                        // the flow is found by that value (see the class remarks).
+                        var state = ReadState(context.AuthorizationUri)
+                            ?? throw new InvalidOperationException(
+                                "The MCP SDK built an authorization address without a 'state' parameter.");
+
+                        pending.State = state;
+                        _pending[state] = pending;
                         pending.AuthorizationUriReady.TrySetResult(context.AuthorizationUri);
 
                         return await pending.CodeReceived.Task.WaitAsync(callbackToken).ConfigureAwait(false);
@@ -261,8 +274,44 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         }
         finally
         {
-            _pending.TryRemove(state, out _);
+            Forget(pending);
         }
+    }
+
+    /// <summary>Removes every entry that points at the flow.</summary>
+    /// <remarks>
+    /// The SDK can call the authorization handler more than once in one flow (a scope
+    /// step-up builds a new address with a new state); each value it registered goes.
+    /// </remarks>
+    private void Forget(PendingAuthorization pending)
+    {
+        foreach (var (state, entry) in _pending)
+        {
+            if (ReferenceEquals(entry, pending))
+            {
+                _pending.TryRemove(state, out _);
+            }
+        }
+    }
+
+    /// <summary>Reads the <c>state</c> query parameter of an authorization address.</summary>
+    /// <param name="authorizationUri">The address the SDK built.</param>
+    /// <returns>The value; <see langword="null"/> when the address carries none.</returns>
+    internal static string? ReadState(Uri authorizationUri)
+    {
+        foreach (var pair in authorizationUri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = pair.IndexOf('=', StringComparison.Ordinal);
+
+            if (separator > 0
+                && string.Equals(Uri.UnescapeDataString(pair[..separator]), "state", StringComparison.Ordinal)
+                && Uri.UnescapeDataString(pair[(separator + 1)..]) is { Length: > 0 } state)
+            {
+                return state;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Clears pending entries that have expired (the administrator abandoned the flow).</summary>
@@ -287,6 +336,12 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         public string ServerName { get; } = serverName;
 
         public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
+
+        /// <summary>
+        /// The state the SDK put into the authorization address; set before
+        /// <see cref="AuthorizationUriReady"/> completes, so a reader that awaited it sees it.
+        /// </summary>
+        public string? State { get; set; }
 
         public TaskCompletionSource<Uri> AuthorizationUriReady { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);

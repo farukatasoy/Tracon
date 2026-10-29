@@ -44,13 +44,34 @@ public sealed class McpTenantServerKeyTests
     {
         var registry = new McpOAuthTokenCacheRegistry();
 
-        var first = registry.GetOrCreate("acme", "prod");
-        var second = registry.GetOrCreate("acme", "prod");
+        var first = registry.GetOrCreate("acme", Server("prod"));
+        var second = registry.GetOrCreate("acme", Server("prod"));
 
         // The registry's whole purpose: a token obtained by the interactive OAuth
         // flow must be visible to the catalog's background reconnection.
         ReferenceEquals(first, second).ShouldBeTrue(
             "the same pair must keep sharing one cache; otherwise the OAuth flow's token is lost.");
+    }
+
+    /// <summary>
+    /// 🚨 A token belongs to the resource it was issued for. The MCP SDK sends a valid
+    /// cached token to whatever endpoint the transport points at, so a cache found by the
+    /// server's name alone handed the token to a new endpoint (kusur-giderme, 2026-10-29).
+    /// </summary>
+    [Theory]
+    [InlineData("https://other.example.com/mcp", "client")]
+    [InlineData("https://mcp.example.com/mcp", "another-client")]
+    public void A_changed_endpoint_or_client_id_gets_an_empty_cache(string endpoint, string clientId)
+    {
+        var registry = new McpOAuthTokenCacheRegistry();
+
+        var before = registry.GetOrCreate("acme", Server("prod"));
+        var after = registry.GetOrCreate("acme", Server("prod", endpoint, clientId));
+
+        ReferenceEquals(before, after).ShouldBeFalse(
+            "a token obtained for one endpoint and client id must not be offered to another.");
+        ReferenceEquals(after, registry.GetOrCreate("acme", Server("prod", endpoint, clientId))).ShouldBeTrue(
+            "the new definition keeps sharing its own cache.");
     }
 
     [Theory]
@@ -64,8 +85,8 @@ public sealed class McpTenantServerKeyTests
     {
         var registry = new McpOAuthTokenCacheRegistry();
 
-        var first = registry.GetOrCreate(firstTenant, firstServer);
-        var second = registry.GetOrCreate(secondTenant, secondServer);
+        var first = registry.GetOrCreate(firstTenant, Server(firstServer));
+        var second = registry.GetOrCreate(secondTenant, Server(secondServer));
 
         ReferenceEquals(first, second).ShouldBeFalse(
             $"('{firstTenant}','{firstServer}') and ('{secondTenant}','{secondServer}') are different " +
@@ -90,4 +111,18 @@ public sealed class McpTenantServerKeyTests
 
         found.ShouldBe("connection");
     }
+
+    private static McpServerDefinition Server(
+        string name,
+        string endpoint = "https://mcp.example.com/mcp",
+        string clientId = "client")
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = "acme",
+            Name = name,
+            Endpoint = new Uri(endpoint),
+            OAuthEnabled = true,
+            OAuthClientId = clientId,
+        };
 }

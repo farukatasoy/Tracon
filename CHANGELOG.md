@@ -317,6 +317,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The OAuth authorization of an MCP server completes.** `POST /api/mcp-servers/{name}/oauth/start` opened the
+  provider's consent page, but the callback always answered "The authorization session was not found or has expired"
+  and no token was obtained. The MCP SDK puts a `state` of its own into the authorization address and refuses an answer
+  that carries another; the provider sends that value back, and Tracon looked the flow up by a `state` it had made
+  itself. The flow is now found by the SDK's value, and the `state` that `oauth/start` returns is that value.
+- **An MCP server whose endpoint or OAuth client id changes no longer sends its old access token to the new endpoint.**
+  The SDK sends a valid cached token to whatever endpoint it connects to, and Tracon kept the token under the server's
+  name. A changed endpoint or client id now starts with no token, and the server asks for authorization again.
 - **`DELETE /v1/conversations/{id}` deletes the attachments of the conversation.** It deleted the session and the copy
   of its content that conversation memory keeps, and left the files uploaded to it: nothing could name them any more, so
   they stayed until retention. `DELETE /api/sessions/{id}` already deleted them; both endpoints, and the Microsoft Agent

@@ -44,7 +44,7 @@ internal static class McpShortLivedConnection
             return (McpOperationStatus.ConnectionFailed, null);
         }
 
-        var tokenCache = tokenCaches.GetOrCreate(tenantId, server.Name);
+        var tokenCache = tokenCaches.GetOrCreate(tenantId, server);
         var transportOptions = McpTransportFactory.BuildTransportOptions(
             server,
             configuration,
