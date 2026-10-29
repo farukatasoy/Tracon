@@ -132,11 +132,17 @@ public static class TraconMcpBuilderExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconMcpOptions>, TraconMcpOptionsValidator>());
 
+        // The token store mode needs services that only the container knows: the check runs
+        // where the options are validated at start, and a missing service stops the application.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconMcpOptions>, McpOAuthTokenStoreValidator>());
+
         if (configure is not null)
         {
             services.Configure(configure);
         }
 
+        services.TryAddSingleton(McpOAuthDistributedBackend.FromServices);
         services.TryAddSingleton<McpOAuthTokenCacheRegistry>();
         services.TryAddSingleton<McpToolCatalog>();
 
@@ -228,5 +234,15 @@ public static class TraconMcpBuilderExtensions
             nameof(TraconMcpOptions.OAuthCallbackBaseUri),
             static o => o.OAuthCallbackBaseUri,
             static (o, v) => o.OAuthCallbackBaseUri = v);
+
+        read.Enum<McpOAuthTokenStore>(
+            nameof(TraconMcpOptions.OAuthTokenStore),
+            static o => o.OAuthTokenStore,
+            static (o, v) => o.OAuthTokenStore = v);
+
+        read.TimeSpan(
+            nameof(TraconMcpOptions.OAuthTokenSlidingLifetime),
+            static o => o.OAuthTokenSlidingLifetime,
+            static (o, v) => o.OAuthTokenSlidingLifetime = v);
     }
 }

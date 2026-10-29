@@ -28,6 +28,8 @@ public sealed class McpOptionsConfigurationBindingTests
             ["Tracon:Mcp:MaxResourceBytesPerResource"] = "1024",
             ["Tracon:Mcp:MaxResourceBytesTotal"] = "4096",
             ["Tracon:Mcp:OAuthCallbackBaseUri"] = "https://myapp.example.com/",
+            ["Tracon:Mcp:OAuthTokenStore"] = "DistributedCache",
+            ["Tracon:Mcp:OAuthTokenSlidingLifetime"] = "7.00:00:00",
         });
 
         options.Enabled.ShouldBeFalse();
@@ -37,6 +39,8 @@ public sealed class McpOptionsConfigurationBindingTests
         options.MaxResourceBytesPerResource.ShouldBe(1024);
         options.MaxResourceBytesTotal.ShouldBe(4096);
         options.OAuthCallbackBaseUri.ShouldBe(new Uri("https://myapp.example.com/"));
+        options.OAuthTokenStore.ShouldBe(McpOAuthTokenStore.DistributedCache);
+        options.OAuthTokenSlidingLifetime.ShouldBe(TimeSpan.FromDays(7));
     }
 
     [Fact]
@@ -53,6 +57,8 @@ public sealed class McpOptionsConfigurationBindingTests
         options.MaxResourceBytesPerResource.ShouldBe(defaults.MaxResourceBytesPerResource);
         options.MaxResourceBytesTotal.ShouldBe(defaults.MaxResourceBytesTotal);
         options.OAuthCallbackBaseUri.ShouldBeNull();
+        options.OAuthTokenStore.ShouldBe(McpOAuthTokenStore.Memory);
+        options.OAuthTokenSlidingLifetime.ShouldBe(TimeSpan.FromDays(30));
     }
 
     /// <summary>
@@ -89,6 +95,10 @@ public sealed class McpOptionsConfigurationBindingTests
 
         services.AddTracon()
             .UseMcp(configuration.GetSection(TraconMcpOptions.SectionName), configure);
+
+        // What Tracon:Mcp:OAuthTokenStore = DistributedCache needs to start (the startup check reads the container).
+        services.AddSingleton<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(new RecordingDistributedCache());
+        services.AddSingleton<IContentProtector>(McpOAuthTestKit.Protector());
 
         using var provider = services.BuildServiceProvider();
 

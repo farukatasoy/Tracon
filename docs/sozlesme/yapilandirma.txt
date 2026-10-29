@@ -65,6 +65,8 @@ Tracon:Mcp:MaxResourceBytesPerResource
 Tracon:Mcp:MaxResourceBytesTotal
 Tracon:Mcp:MaxToolsPerServer
 Tracon:Mcp:OAuthCallbackBaseUri
+Tracon:Mcp:OAuthTokenSlidingLifetime
+Tracon:Mcp:OAuthTokenStore
 Tracon:Mcp:RefreshInterval
 Tracon:Mcp:StaleToolRetention
 Tracon:ModelConcurrency:MaxConcurrentCallsPerProvider

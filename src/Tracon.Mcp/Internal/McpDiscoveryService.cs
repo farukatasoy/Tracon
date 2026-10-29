@@ -19,35 +19,35 @@ namespace Tracon;
 /// A remote server may change its tool definitions; the cache is realigned
 /// with reality at this interval.
 /// </para>
+/// <para>
+/// <strong>Every instance discovers, also while single-executor selection is on.</strong>
+/// The catalog is a cache of the process and holds the live connection a tool call goes through;
+/// every instance needs both, so a lease that let one instance discover left the others with no MCP
+/// tool at all (measured: 1 tool on the leader, 0 on the other instance). The cost is one connection
+/// per server and one listing per refresh interval on every instance; with two instances that is
+/// small.
+/// </para>
 /// </remarks>
 internal sealed class McpDiscoveryService : BackgroundService
 {
     private readonly McpToolCatalog _catalog;
     private readonly IOptions<TraconMcpOptions> _options;
-    private readonly ISingletonLeaseStore _leaseStore;
-    private readonly IOptionsMonitor<SingletonExecutionOptions> _singletonOptionsMonitor;
     private readonly SchemaReadyGate _schemaReadyGate;
     private readonly ILogger<McpDiscoveryService> _logger;
 
     public McpDiscoveryService(
         McpToolCatalog catalog,
         IOptions<TraconMcpOptions> options,
-        ISingletonLeaseStore leaseStore,
-        IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
         SchemaReadyGate schemaReadyGate,
         ILogger<McpDiscoveryService> logger)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(leaseStore);
-        ArgumentNullException.ThrowIfNull(singletonOptionsMonitor);
         ArgumentNullException.ThrowIfNull(schemaReadyGate);
         ArgumentNullException.ThrowIfNull(logger);
 
         _catalog = catalog;
         _options = options;
-        _leaseStore = leaseStore;
-        _singletonOptionsMonitor = singletonOptionsMonitor;
         _schemaReadyGate = schemaReadyGate;
         _logger = logger;
     }
@@ -76,55 +76,39 @@ internal sealed class McpDiscoveryService : BackgroundService
             return;
         }
 
-        // Single-executor selection (Phase 42): when disabled (the default),
-        // guard.IsHeld is always true and RunAsync returns immediately
-        // without issuing any query to the store.
-        var guard = new SingletonGuard(_leaseStore, _singletonOptionsMonitor, "mcp-discovery", _logger);
-        var guardTask = guard.RunAsync(stoppingToken);
-
-        try
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                if (guard.IsHeld)
-                {
-                    try
-                    {
-                        var outcome = await _catalog.RefreshAsync(stoppingToken).ConfigureAwait(false);
+                var outcome = await _catalog.RefreshAsync(stoppingToken).ConfigureAwait(false);
 
-                        if (_logger.IsEnabled(LogLevel.Information))
-                        {
-                            _logger.LogInformation(
-                                "MCP discovery completed: {ToolCount} tools available.",
-                                outcome.ToolCount);
-                        }
-                    }
-                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        // The refresh loop must never die: on error, the next
-                        // pass retries and the last good list in the cache
-                        // keeps being used.
-                        _logger.LogError(ex, "MCP discovery failed; retrying in {Interval}.", interval);
-                    }
-                }
-
-                try
+                if (_logger.IsEnabled(LogLevel.Information))
                 {
-                    await Task.Delay(interval, stoppingToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
+                    _logger.LogInformation(
+                        "MCP discovery completed: {ToolCount} tools available.",
+                        outcome.ToolCount);
                 }
             }
-        }
-        finally
-        {
-            await guardTask.ConfigureAwait(false);
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                // The refresh loop must never die: on error, the next
+                // pass retries and the last good list in the cache
+                // keeps being used.
+                _logger.LogError(ex, "MCP discovery failed; retrying in {Interval}.", interval);
+            }
+
+            try
+            {
+                await Task.Delay(interval, stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 }

@@ -40,10 +40,28 @@ namespace Tracon;
 /// <see cref="McpToolCatalog"/>'s background reconnections through
 /// <see cref="McpOAuthTokenCacheRegistry"/>; they are never written to the database.
 /// </para>
+/// <para>
+/// <strong>Two instances.</strong> The flow lives in the process that started it: the SDK's connection
+/// call waits there, and so does the PKCE verifier. With
+/// <see cref="McpOAuthTokenStore.Memory"/> only that instance can finish the flow. With
+/// <see cref="McpOAuthTokenStore.DistributedCache"/> the provider's redirect may reach any instance:
+/// the instance that receives it leaves the code in the distributed cache
+/// (<see cref="McpOAuthRendezvous"/>), the owner takes it and exchanges it, and the instance that
+/// received the redirect answers the browser with the owner's result.
+/// </para>
 /// </remarks>
 internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
 {
     private static readonly TimeSpan AuthorizationWindow = TimeSpan.FromMinutes(10);
+
+    // The instance that gets a callback it does not know cannot tell a callback that belongs to
+    // another instance from one that expired or was forged; the text names both.
+    private const string UnknownStateInMemoryMode =
+        "The authorization session was not found or has expired. Try again. " +
+        "If this application runs on more than one instance, this instance may not have started the authorization; " +
+        "set Tracon:Mcp:OAuthTokenStore=DistributedCache.";
+
+    private const string ExchangeTimedOut = "The token exchange timed out.";
 
     private readonly IMcpServerStore _servers;
     private readonly IConfiguration _configuration;
@@ -54,6 +72,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
     private readonly McpToolCatalog _catalog;
     private readonly EgressSocketGuard? _egressGuard;
     private readonly McpKeySpace _keySpace;
+    private readonly McpOAuthRendezvous? _rendezvous;
 
     private readonly ConcurrentDictionary<string, PendingAuthorization> _pending = new(StringComparer.Ordinal);
 
@@ -64,6 +83,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         ILoggerFactory loggerFactory,
         McpOAuthTokenCacheRegistry tokenCaches,
         McpToolCatalog catalog,
+        McpOAuthDistributedBackend backend,
         IOptions<TraconOptions> coreOptions,
         EgressSocketGuard? egressGuard = null,
         IOptions<TraconMcpSecurityOptions>? securityOptions = null)
@@ -75,6 +95,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         ArgumentNullException.ThrowIfNull(coreOptions);
         ArgumentNullException.ThrowIfNull(tokenCaches);
         ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(backend);
 
         _servers = servers;
         _configuration = configuration;
@@ -85,6 +106,9 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         _catalog = catalog;
         _egressGuard = egressGuard;
         _keySpace = McpKeySpace.From(securityOptions, coreOptions);
+        _rendezvous = backend.Enabled
+            ? new McpOAuthRendezvous(backend, loggerFactory.CreateLogger<McpOAuthRendezvous>())
+            : null;
     }
 
     /// <inheritdoc />
@@ -157,7 +181,9 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
 
         if (!_pending.TryGetValue(state, out var pending))
         {
-            return new McpOAuthCompleteResult { Status = McpOAuthOperationStatus.InvalidState };
+            return _rendezvous is null
+                ? new McpOAuthCompleteResult { Status = McpOAuthOperationStatus.InvalidState, Error = UnknownStateInMemoryMode }
+                : await CompleteOnOtherInstanceAsync(_rendezvous, state, code, iss, cancellationToken).ConfigureAwait(false);
         }
 
         if (string.IsNullOrEmpty(code))
@@ -190,10 +216,103 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
             {
                 Status = McpOAuthOperationStatus.AuthorizationFailed,
                 ServerName = pending.ServerName,
-                Error = "The token exchange timed out.",
+                Error = ExchangeTimedOut,
             };
         }
     }
+
+    /// <summary>
+    /// Handles a callback whose flow another instance started: leaves the code in the distributed
+    /// cache for that instance and answers with the result it leaves back.
+    /// </summary>
+    private async ValueTask<McpOAuthCompleteResult> CompleteOnOtherInstanceAsync(
+        McpOAuthRendezvous rendezvous,
+        string state,
+        string? code,
+        string? iss,
+        CancellationToken cancellationToken)
+    {
+        // 🚨 This is the callback endpoint (no bearer token, no rate limit) writing to a shared cache. Nothing is written
+        // until the state is shaped like one the SDK generates, the values are small, and an
+        // instance announced a flow under that state.
+        if (!McpOAuthRendezvous.IsAcceptableState(state) || !McpOAuthRendezvous.AreAcceptableValues(code, iss))
+        {
+            return new McpOAuthCompleteResult { Status = McpOAuthOperationStatus.InvalidState };
+        }
+
+        try
+        {
+            if (!await rendezvous.IsAnnouncedAsync(state, cancellationToken).ConfigureAwait(false))
+            {
+                return new McpOAuthCompleteResult { Status = McpOAuthOperationStatus.InvalidState };
+            }
+
+            await rendezvous
+                .DepositCallbackAsync(state, string.IsNullOrEmpty(code) ? null : code, iss, cancellationToken)
+                .ConfigureAwait(false);
+
+            var outcome = await rendezvous.AwaitOutcomeAsync(state, cancellationToken).ConfigureAwait(false);
+
+            if (outcome is null)
+            {
+                return new McpOAuthCompleteResult
+                {
+                    Status = McpOAuthOperationStatus.AuthorizationFailed,
+                    Error = ExchangeTimedOut,
+                };
+            }
+
+            if (outcome.Success)
+            {
+                // The token is in the shared cache; this instance lists the server's tools now
+                // instead of at the next refresh interval.
+                RefreshCatalogInBackground();
+            }
+
+            return new McpOAuthCompleteResult
+            {
+                Status = outcome.Success ? McpOAuthOperationStatus.Ok : McpOAuthOperationStatus.AuthorizationFailed,
+                ServerName = outcome.ServerName,
+                Error = outcome.Error,
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new McpOAuthCompleteResult
+            {
+                Status = McpOAuthOperationStatus.AuthorizationFailed,
+                Error = ExchangeTimedOut,
+            };
+        }
+        catch (Exception ex)
+        {
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            _logger.LogWarning(
+                ex,
+                "Could not hand an MCP OAuth callback to the instance that started the authorization. (ref: {CorrelationId})",
+                correlationId);
+
+            return new McpOAuthCompleteResult
+            {
+                Status = McpOAuthOperationStatus.AuthorizationFailed,
+                Error = SafeErrorText.ForPersistence(ex, correlationId),
+            };
+        }
+    }
+
+    private void RefreshCatalogInBackground()
+        => _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _catalog.RefreshAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "The MCP tool catalog could not be refreshed after an authorization that finished on another instance.");
+            }
+        });
 
     /// <summary>
     /// Starts a <c>McpClient.CreateAsync</c> connection with interactive
@@ -232,11 +351,33 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
                             ?? throw new InvalidOperationException(
                                 "The MCP SDK built an authorization address without a 'state' parameter.");
 
-                        pending.State = state;
+                        pending.Register(state);
                         _pending[state] = pending;
+
+                        if (_rendezvous is not null)
+                        {
+                            // The marker goes in BEFORE the address goes out: no redirect can come
+                            // earlier than the administrator's click, and another instance accepts
+                            // a redirect only for a state it finds announced.
+                            await _rendezvous.AnnounceAsync(state, callbackToken).ConfigureAwait(false);
+                        }
+
                         pending.AuthorizationUriReady.TrySetResult(context.AuthorizationUri);
 
-                        return await pending.CodeReceived.Task.WaitAsync(callbackToken).ConfigureAwait(false);
+                        using var stopPolling = CancellationTokenSource.CreateLinkedTokenSource(callbackToken);
+                        var polling = _rendezvous is null
+                            ? Task.CompletedTask
+                            : TakeCodeFromOtherInstanceAsync(_rendezvous, state, pending, stopPolling.Token);
+
+                        try
+                        {
+                            return await pending.CodeReceived.Task.WaitAsync(callbackToken).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            await stopPolling.CancelAsync().ConfigureAwait(false);
+                            await polling.ConfigureAwait(false);
+                        }
                     },
                 },
             };
@@ -251,7 +392,10 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
 
             try
             {
-                pending.Completed.TrySetResult((true, null));
+                if (pending.Completed.TrySetResult((true, null)))
+                {
+                    await PublishOutcomeAsync(pending, success: true, error: null).ConfigureAwait(false);
+                }
 
                 // New tokens are ready; refresh the catalog now so tools
                 // become visible immediately instead of waiting for the next
@@ -267,14 +411,77 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         {
             var correlationId = SafeErrorText.NewCorrelationId();
 
+            var error = SafeErrorText.ForPersistence(ex, correlationId);
+
             pending.AuthorizationUriReady.TrySetException(ex);
-            pending.Completed.TrySetResult((false, SafeErrorText.ForPersistence(ex, correlationId)));
+
+            if (pending.Completed.TrySetResult((false, error)))
+            {
+                await PublishOutcomeAsync(pending, success: false, error).ConfigureAwait(false);
+            }
 
             _logger.LogWarning(ex, "OAuth authorization for MCP server '{ServerName}' failed. (ref: {CorrelationId})", server.Name, correlationId);
         }
         finally
         {
             Forget(pending);
+
+            if (_rendezvous is not null)
+            {
+                foreach (var state in pending.States)
+                {
+                    await _rendezvous.ForgetAsync(state).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Takes the code an instance that received the provider's redirect left in the distributed
+    /// cache, and hands it to the flow as if the redirect had arrived here.
+    /// </summary>
+    private async Task TakeCodeFromOtherInstanceAsync(
+        McpOAuthRendezvous rendezvous,
+        string state,
+        PendingAuthorization pending,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var envelope = await rendezvous.AwaitCallbackAsync(state, cancellationToken).ConfigureAwait(false);
+
+            // Set before the code is handed over: the outcome goes back to the instance that is waiting for it.
+            pending.RendezvousState = state;
+
+            if (McpOAuthRendezvous.ToAuthorizationResult(state, envelope) is { } result)
+            {
+                pending.CodeReceived.TrySetResult(result);
+            }
+            else
+            {
+                pending.CodeReceived.TrySetException(
+                    new InvalidOperationException("The provider did not return an authorization code; the user may have declined."));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The flow ended by another way: the code came here, or the time was over.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Waiting for the callback of an MCP OAuth flow in the distributed cache failed.");
+            pending.CodeReceived.TrySetException(ex);
+        }
+    }
+
+    /// <summary>Leaves the result of the flow for the instance that received the redirect, when one did.</summary>
+    private async ValueTask PublishOutcomeAsync(PendingAuthorization pending, bool success, string? error)
+    {
+        if (_rendezvous is not null && pending.RendezvousState is { } state)
+        {
+            await _rendezvous
+                .PublishOutcomeAsync(state, new McpOutcomeEnvelope(success, pending.ServerName, error))
+                .ConfigureAwait(false);
         }
     }
 
@@ -331,6 +538,8 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
 
     private sealed class PendingAuthorization(string tenantId, string serverName)
     {
+        private readonly List<string> _states = [];
+
         public string TenantId { get; } = tenantId;
 
         public string ServerName { get; } = serverName;
@@ -341,7 +550,37 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         /// The state the SDK put into the authorization address; set before
         /// <see cref="AuthorizationUriReady"/> completes, so a reader that awaited it sees it.
         /// </summary>
-        public string? State { get; set; }
+        public string? State { get; private set; }
+
+        /// <summary>
+        /// Gets the state of the redirect another instance handed over; the result of the flow goes
+        /// back under it. <see langword="null"/> when the redirect came to this instance.
+        /// </summary>
+        public string? RendezvousState { get; set; }
+
+        /// <summary>Gets every state the flow registered, a scope step-up adding one.</summary>
+        public IReadOnlyCollection<string> States
+        {
+            get
+            {
+                lock (_states)
+                {
+                    return [.. _states];
+                }
+            }
+        }
+
+        /// <summary>Records a state the SDK put into an authorization address of this flow.</summary>
+        /// <param name="state">The state.</param>
+        public void Register(string state)
+        {
+            lock (_states)
+            {
+                _states.Add(state);
+            }
+
+            State = state;
+        }
 
         public TaskCompletionSource<Uri> AuthorizationUriReady { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);

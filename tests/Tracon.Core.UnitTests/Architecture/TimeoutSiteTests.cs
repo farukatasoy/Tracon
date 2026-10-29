@@ -42,6 +42,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Core/Voice/VoiceConversationDriver.cs"] = "VoiceConversationOptions.IdleTimeout / MaxConnectionDuration — VoiceConversationOptionsValidator",
         ["src/Tracon.Core/Webhooks/WebhookDeliveryJobHandler.cs"] = "TraconWebhookOptions.Timeout — TraconWebhookOptionsValidator",
         ["src/Tracon.Mcp/Internal/McpConnection.cs"] = "TraconMcpOptions.ConnectionTimeout — TraconMcpOptionsValidator",
+        ["src/Tracon.Mcp/Internal/McpOAuthPoll.cs"] = "constant intervals and limits (McpOAuthDistributedTiming) that no operator sets",
         ["src/Tracon.Mcp/Internal/McpShortLivedConnection.cs"] = "TraconMcpOptions.ConnectionTimeout — TraconMcpOptionsValidator",
         ["src/Tracon.Mcp/McpOAuthAuthorizationCoordinator.cs"] = "TraconMcpOptions.ConnectionTimeout — TraconMcpOptionsValidator",
         ["src/Tracon.OpenAI/Live/OpenAILiveSideband.cs"] = "constant 10 s",

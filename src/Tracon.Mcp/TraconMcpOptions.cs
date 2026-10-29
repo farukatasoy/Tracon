@@ -78,4 +78,43 @@ public sealed class TraconMcpOptions
     /// <c>/oauth/start</c> answers that OAuth is not configured.
     /// </summary>
     public Uri? OAuthCallbackBaseUri { get; set; }
+
+    /// <summary>
+    /// Where the OAuth tokens of the servers that use OAuth are kept. The default is
+    /// <see cref="McpOAuthTokenStore.Memory"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// With <see cref="McpOAuthTokenStore.Memory"/> a token lives in the memory of one process.
+    /// With two instances, the instance that did not start an authorization cannot finish it,
+    /// and the instance that did not obtain a token cannot use it.
+    /// </para>
+    /// <para>
+    /// With <see cref="McpOAuthTokenStore.DistributedCache"/> the token is kept in the
+    /// application's <c>IDistributedCache</c>, encrypted with <c>IContentProtector</c>; the
+    /// encryption key stays in configuration and the token is never written to the Tracon
+    /// database. The application does not start when no <c>IDistributedCache</c> is registered or
+    /// content protection is off. A cache that lives in one process
+    /// (<c>AddDistributedMemoryCache</c>) starts with a warning: it is not shared between instances.
+    /// </para>
+    /// <para>
+    /// Every time the MCP client needs the token it reads the cache; the process keeps no copy,
+    /// because a copy could refresh with a refresh token the provider has already replaced.
+    /// </para>
+    /// </remarks>
+    public McpOAuthTokenStore OAuthTokenStore { get; set; }
+
+    /// <summary>
+    /// How long a token stays in the distributed cache without being written. The default is 30
+    /// days. It applies only to <see cref="McpOAuthTokenStore.DistributedCache"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every write of the token starts the time again. An entry for a server that was deleted, or
+    /// that nobody uses, leaves the cache after this time. When the time passes for a server in use,
+    /// the server asks for authorization again. The value is an estimate, not a measurement: a
+    /// provider does not tell how long its refresh token lives. Must be greater than zero.
+    /// </para>
+    /// </remarks>
+    public TimeSpan OAuthTokenSlidingLifetime { get; set; } = TimeSpan.FromDays(30);
 }

@@ -144,9 +144,13 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
         try
         {
+            // Taken BEFORE the servers are listed: a server that is saved and authorized while
+            // this refresh runs is not in the list and must not look deleted (see ForgetDeletedServersAsync).
+            var knownTokenKeys = _tokenCaches.Keys;
             var tenantIds = await ResolveTenantIdsAsync(cancellationToken).ConfigureAwait(false);
             var byTenant = new Dictionary<string, McpTenantTools>(StringComparer.Ordinal);
             var live = new HashSet<McpTenantServerKey>();
+            var registered = new HashSet<McpTenantServerKey>();
             var total = 0;
             var hadUnreachableServers = false;
 
@@ -163,6 +167,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                     // one of theirs that is missing from the snapshot then reads as
                     // an UNRESOLVED remote source, never as a code tool (F-283).
                     serverNames.Add(server.Name);
+                    registered.Add(new McpTenantServerKey(tenantId, server.Name));
 
                     if (!server.Enabled)
                     {
@@ -210,6 +215,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             }
 
             await CloseRemovedConnectionsAsync(live).ConfigureAwait(false);
+            await ForgetDeletedServersAsync(knownTokenKeys, tenantIds, registered, cancellationToken).ConfigureAwait(false);
 
             _byTenant = byTenant;
 
@@ -316,6 +322,38 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _connections[key] = connection;
 
         return (connection, false);
+    }
+
+    /// <summary>
+    /// Forgets the OAuth token of a server that was deleted: one this process held a token cache
+    /// for, whose tenant was listed in this pass, and that the tenant no longer lists.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A disabled server is still listed, so its token stays. A tenant that was not listed in this
+    /// pass (the tenant list failed and only the default tenant was read) is skipped: a failure to
+    /// list must not turn into "every server of that tenant was deleted" and a forgotten token,
+    /// which the administrator would have to authorize again.
+    /// </para>
+    /// <para>
+    /// In the distributed mode the entry is removed from the shared cache, so every instance sees
+    /// the token gone. An instance that never held a cache for the server removes nothing; the entry
+    /// then ends by itself (<see cref="TraconMcpOptions.OAuthTokenSlidingLifetime"/>).
+    /// </para>
+    /// </remarks>
+    private async ValueTask ForgetDeletedServersAsync(
+        IReadOnlyCollection<McpTenantServerKey> knownTokenKeys,
+        IReadOnlyCollection<string> listedTenants,
+        HashSet<McpTenantServerKey> registered,
+        CancellationToken cancellationToken)
+    {
+        foreach (var key in knownTokenKeys)
+        {
+            if (listedTenants.Contains(key.TenantId, StringComparer.Ordinal) && !registered.Contains(key))
+            {
+                await _tokenCaches.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     private async ValueTask CloseRemovedConnectionsAsync(HashSet<McpTenantServerKey> live)

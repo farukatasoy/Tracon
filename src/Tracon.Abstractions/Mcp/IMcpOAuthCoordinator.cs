@@ -19,7 +19,9 @@ internal enum McpOAuthOperationStatus
     /// <summary>Could not connect to the server to get the authorization address (including timeout).</summary>
     ConnectionFailed = 3,
 
-    /// <summary>The <c>state</c> is unknown or has expired (CSRF protection).</summary>
+    /// <summary>
+    /// The <c>state</c> is unknown or has expired (CSRF protection), or no instance announced a flow under it.
+    /// </summary>
     InvalidState = 4,
 
     /// <summary>The provider rejected the code exchange, or the user cancelled authorization.</summary>
@@ -69,14 +71,26 @@ internal sealed record McpOAuthCompleteResult
 /// </para>
 /// <para>
 /// <strong>Tokens are never written to the database.</strong> At the end of a
-/// successful flow, the access and refresh tokens are kept only in memory,
-/// bounded by the process lifetime.
+/// successful flow, the access and refresh tokens are kept where
+/// <c>Tracon:Mcp:OAuthTokenStore</c> says. With <c>Memory</c> (the default) they stay in the
+/// memory of the process that ran the flow, bounded by the process lifetime. With
+/// <c>DistributedCache</c> they are kept, encrypted with <see cref="IContentProtector"/>,
+/// in the application's <c>IDistributedCache</c>, and every instance that shares that cache uses them.
+/// </para>
+/// <para>
+/// <strong>Two instances.</strong> The pending flow always lives in the process that ran
+/// <see cref="StartAsync"/>. With <c>Memory</c>, only that instance completes it; a callback that
+/// reaches another instance answers <see cref="McpOAuthOperationStatus.InvalidState"/>, with an
+/// <see cref="McpOAuthCompleteResult.Error"/> that names the setting. With <c>DistributedCache</c>,
+/// the instance that receives the callback leaves the code in the cache, the instance that ran
+/// <see cref="StartAsync"/> takes it and exchanges it, and the instance that received the callback returns
+/// the result.
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
 /// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
 /// a consumer does not implement it. A singleton is required, not
-/// incidental: the in-memory tokens and pending-flow state (matched by
+/// incidental: the pending-flow state (matched by
 /// <c>state</c> between <see cref="StartAsync"/> and <see cref="CompleteAsync"/>)
 /// must survive across the two separate HTTP requests of one OAuth round trip,
 /// which a scoped registration could not guarantee. An implementation must be

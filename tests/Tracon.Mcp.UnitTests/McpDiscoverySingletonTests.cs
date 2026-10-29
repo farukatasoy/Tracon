@@ -7,66 +7,50 @@ using Microsoft.Extensions.Primitives;
 namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
-/// End-to-end scenario where two real <see cref="McpDiscoveryService"/>
-/// instances share the SAME lease store (Phase 42, DoD: "Two instances are
-/// set up; MCP discovery runs on only one"). No MCP server is registered;
-/// the goal is to observe that discovery runs on ONLY ONE instance, not
-/// discovery itself — so the completion log
-/// (<c>"MCP discovery completed"</c>) is used as the signal.
+/// Two real <see cref="McpDiscoveryService"/> instances: BOTH discover.
 /// </summary>
+/// <remarks>
+/// <para>
+/// 🚨 This test says the opposite of what it said until phase 264. Phase 42 put discovery behind a
+/// single-executor lease and this class asserted that it ran on ONLY ONE instance. That choice was
+/// wrong: the catalog is a cache of the process and holds the live connection a tool call goes
+/// through, so an instance that did not discover had no MCP tool at all (measured on two hosts:
+/// 1 tool on the leader, 0 on the other). No MCP server is registered here; the goal is to observe
+/// that discovery runs on every instance, not discovery itself, so the completion log
+/// (<c>"MCP discovery completed"</c>) is the signal. The two-host consequence, with single-executor
+/// selection on, is <c>McpDiscoveryEveryInstanceTests</c> in the functional tests.
+/// </para>
+/// </remarks>
 public sealed class McpDiscoverySingletonTests
 {
     private const string DiscoveryCompleted = "MCP discovery completed";
 
     [Fact]
-    public async Task Discovery_runs_on_only_one_instance()
+    public async Task Discovery_runs_on_every_instance()
     {
-        var leaseStore = new InMemorySingletonLeaseStore();
-        // 🚨 The lease MUST NOT be able to expire inside the test window:
-        // renewal runs at one third of the lease but never faster than
-        // SingletonGuard.MinimumRenewInterval, so a 1-second lease used to
-        // expire under its live owner and the second instance took over -
-        // this assertion then depended on the window staying under a second.
-        // SingletonExecutionOptionsValidator rejects that configuration now (K-743).
-        var singletonOptions = Options(new SingletonExecutionOptions
-        {
-            Enabled = true,
-            LeaseDuration = TimeSpan.FromMinutes(5),
-        });
-
         var mcpOptions = Options(new TraconMcpOptions { RefreshInterval = TimeSpan.FromMilliseconds(60) });
 
         var loggerA = new RecordingLogger<McpDiscoveryService>();
         var loggerB = new RecordingLogger<McpDiscoveryService>();
 
-        var serviceA = BuildService(mcpOptions, leaseStore, singletonOptions, loggerA);
-        var serviceB = BuildService(mcpOptions, leaseStore, singletonOptions, loggerB);
+        var serviceA = BuildService(mcpOptions, loggerA);
+        var serviceB = BuildService(mcpOptions, loggerB);
 
         await serviceA.StartAsync(CancellationToken.None);
         await serviceB.StartAsync(CancellationToken.None);
 
-        // Phase 184: a fixed 500 ms stood here - the shape Phase 173 removed from
-        // ModelHealthSingletonTests. Under load neither 60 ms tick fit into it
-        // and the XOR below failed on 0/0, a question the test was not asking.
-        // Three passes in total give the losing instance at least two refresh
-        // intervals in which it could have (wrongly) run as well.
+        // Neither instance waits for the other: each one completes its own passes. Two passes
+        // on each, not a window of time (phase 184 removed the fixed delay this test once had).
         await WaitUntil.TrueAsync(
-            () => loggerA.CountContaining(DiscoveryCompleted) + loggerB.CountContaining(DiscoveryCompleted) >= 3,
-            "three MCP discovery passes");
+            () => loggerA.CountContaining(DiscoveryCompleted) >= 2 && loggerB.CountContaining(DiscoveryCompleted) >= 2,
+            "two MCP discovery passes on each instance");
 
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
-
-        var completedA = loggerA.CountContaining(DiscoveryCompleted);
-        var completedB = loggerB.CountContaining(DiscoveryCompleted);
-
-        (completedA > 0 ^ completedB > 0).ShouldBeTrue($"completedA={completedA}, completedB={completedB}");
     }
 
     private static McpDiscoveryService BuildService(
         IOptions<TraconMcpOptions> mcpOptions,
-        ISingletonLeaseStore leaseStore,
-        IOptionsMonitor<SingletonExecutionOptions> singletonOptions,
         ILogger<McpDiscoveryService> logger)
     {
         var catalog = new McpToolCatalog(
@@ -86,8 +70,7 @@ public sealed class McpDiscoverySingletonTests
         // itself, and discovery starts without waiting (K-354).
         var schemaReadyGate = new SchemaReadyGate([]);
 
-        return new McpDiscoveryService(
-            catalog, mcpOptions, leaseStore, singletonOptions, schemaReadyGate, logger);
+        return new McpDiscoveryService(catalog, mcpOptions, schemaReadyGate, logger);
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);

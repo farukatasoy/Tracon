@@ -6,8 +6,10 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Single-executor election uses it to coordinate background jobs such as MCP
-/// discovery and model health probing, which must not repeat on several replicas. The
+/// Single-executor election uses it to coordinate background jobs such as model
+/// health probing, which must not repeat on several replicas. The MCP OAuth token refresh
+/// uses it too, to let one instance at a time refresh a token (the lease is named for the
+/// server, not for a job that runs on a schedule). The
 /// lease is a table, not a session lock: it behaves the same way on all three SQL
 /// providers (PostgreSQL, SQL Server, SQLite), and SQLite has no session lock
 /// equivalent.
@@ -23,7 +25,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> A lease name identifies a
-/// protected JOB (<c>"mcp-discovery"</c>, a health-probe job id), not a tenant; leases
+/// protected JOB (<c>"run-reconciliation"</c>, a health-probe job id) or action, not a tenant; leases
 /// are not scoped by tenant at all.
 /// </para>
 /// <para>

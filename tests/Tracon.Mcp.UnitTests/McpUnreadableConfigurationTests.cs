@@ -237,6 +237,15 @@ public sealed class McpUnreadableConfigurationTests
             return (current is TimeSpan span ? span : TimeSpan.Zero) + TimeSpan.FromSeconds(7);
         }
 
+        if (underlying.IsEnum)
+        {
+            // The next member: the options' own validation accepts it because Compose registers
+            // what the distributed token store needs.
+            var members = Enum.GetValues(underlying);
+
+            return members.GetValue(((current is null ? 0 : Array.IndexOf(members, current)) + 1) % members.Length)!;
+        }
+
         throw new NotSupportedException($"{nameof(TraconMcpOptions)} has a scalar of type {underlying.Name}: teach {nameof(Changed)} to change it.");
     }
 
@@ -268,6 +277,11 @@ public sealed class McpUnreadableConfigurationTests
 
         services.AddTracon()
             .UseMcp(configuration.GetSection(TraconMcpOptions.SectionName), configure);
+
+        // What Tracon:Mcp:OAuthTokenStore = DistributedCache needs to start: a probe that switches the
+        // setting must fail on the text it wrote, not on a service it did not register.
+        services.AddSingleton<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(new RecordingDistributedCache());
+        services.AddSingleton<IContentProtector>(McpOAuthTestKit.Protector());
 
         return services.BuildServiceProvider();
     }

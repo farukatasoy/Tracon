@@ -65,6 +65,21 @@ field is removed, and a save that still sends it returns `400`.
 
 This way, the database backup, the audit trail, and the UI response never carry a secret.
 
+## OAuth tokens and more than one instance
+
+A server that uses OAuth keeps its token out of the database. By default the token stays in the memory of the
+process that obtained it, so only the instance that started an authorization can finish it. With two or more
+instances, keep the token in your `IDistributedCache` instead:
+
+```json
+{ "Tracon": { "Mcp": { "OAuthTokenStore": "DistributedCache" } } }
+```
+
+The token is encrypted with the content protector (`AddContentProtection`); the application does not start in this
+mode without an `IDistributedCache` and content protection. The provider's redirect may then reach either instance.
+Discovery runs on every instance in both modes, because each instance keeps its own tool catalog and live connection.
+See [MCP tools and OAuth across instances](https://tracon.dev/guides/production/#mcp-tools-and-oauth-across-instances).
+
 ## Tool names
 
 Discovered tools are named in the form `{server}_{tool}`. The prefix is

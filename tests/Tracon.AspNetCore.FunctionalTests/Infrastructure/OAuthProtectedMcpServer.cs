@@ -15,15 +15,27 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// for any authorization code. It exposes one tool, <c>lookup</c>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// It records every <c>Authorization</c> header that reached <c>/mcp</c> and every token
 /// request, so a test can prove which token went where and whether PKCE was used.
+/// </para>
+/// <para>
+/// The refresh token ROTATES, as providers that harden against theft do: a refresh grant makes the
+/// refresh token it used worthless and issues a new one, and a refresh token that was already used is
+/// refused with <c>invalid_grant</c> (counted in <see cref="RejectedRefreshes"/>). Two instances that
+/// refresh with the same token therefore show up as a rejection.
+/// </para>
 /// </remarks>
 internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
 {
     private readonly WebApplication _app;
     private readonly ConcurrentQueue<string> _authorizationHeaders;
     private readonly ConcurrentQueue<TokenRequest> _tokenRequests;
+    private readonly Lock _refreshGate = new();
     private int _disposed;
+    private int _refreshGrants;
+    private int _rejectedRefreshes;
+    private string _currentRefreshToken = string.Empty;
 
     private OAuthProtectedMcpServer(
         WebApplication app,
@@ -51,9 +63,28 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
     /// <summary>Every request that reached the token endpoint.</summary>
     public IReadOnlyCollection<TokenRequest> TokenRequests => [.. _tokenRequests];
 
+    /// <summary>Gets how many refresh grants the server accepted.</summary>
+    public int RefreshGrants => Volatile.Read(ref _refreshGrants);
+
+    /// <summary>Gets how many refresh grants the server refused because the refresh token had been used already.</summary>
+    public int RejectedRefreshes => Volatile.Read(ref _rejectedRefreshes);
+
+    /// <summary>Gets the refresh token the server accepts now.</summary>
+    public string CurrentRefreshToken
+    {
+        get
+        {
+            lock (_refreshGate)
+            {
+                return _currentRefreshToken;
+            }
+        }
+    }
+
     /// <summary>Starts a server.</summary>
+    /// <param name="refreshDelay">How long a refresh grant takes to answer; it widens the window two refreshes can meet in.</param>
     /// <returns>The running server.</returns>
-    public static async Task<OAuthProtectedMcpServer> StartAsync()
+    public static async Task<OAuthProtectedMcpServer> StartAsync(TimeSpan refreshDelay = default)
     {
         var accessToken = $"access-{Guid.NewGuid():N}";
         var authorizationHeaders = new ConcurrentQueue<string>();
@@ -101,27 +132,44 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
         app.MapGet("/.well-known/oauth-protected-resource", () => Results.Json(ResourceMetadata(Base())));
         app.MapGet("/.well-known/oauth-authorization-server", () => Results.Json(ServerMetadata(Base())));
         app.MapGet("/.well-known/openid-configuration", () => Results.Json(ServerMetadata(Base())));
+        OAuthProtectedMcpServer? self = null;
+
         app.MapPost("/token", async (HttpContext context) =>
         {
             var form = await context.Request.ReadFormAsync();
+            var grantType = form["grant_type"].ToString();
+
             tokenRequests.Enqueue(new TokenRequest(
-                form["grant_type"].ToString(),
+                grantType,
                 form["code"].ToString(),
                 !string.IsNullOrEmpty(form["code_verifier"].ToString())));
 
-            return Results.Json(new Dictionary<string, object>(StringComparer.Ordinal)
+            if (string.Equals(grantType, "refresh_token", StringComparison.Ordinal))
             {
-                ["access_token"] = accessToken,
-                ["token_type"] = "Bearer",
-                ["expires_in"] = 3600,
-                ["refresh_token"] = $"refresh-{Guid.NewGuid():N}",
-            });
+                if (refreshDelay > TimeSpan.Zero)
+                {
+                    await Task.Delay(refreshDelay, context.RequestAborted); // delay: simulated
+                }
+
+                if (!self!.TryRotate(form["refresh_token"].ToString(), out var rotated))
+                {
+                    return Results.Json(
+                        new Dictionary<string, object>(StringComparer.Ordinal) { ["error"] = "invalid_grant" },
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                return Results.Json(TokenResponse(accessToken, rotated));
+            }
+
+            return Results.Json(TokenResponse(accessToken, self!.Issue()));
         });
 
         app.MapMcp("/mcp");
         await app.StartAsync();
 
-        return new OAuthProtectedMcpServer(app, new Uri($"{Base()}/mcp"), accessToken, authorizationHeaders, tokenRequests);
+        self = new OAuthProtectedMcpServer(app, new Uri($"{Base()}/mcp"), accessToken, authorizationHeaders, tokenRequests);
+
+        return self;
     }
 
     /// <summary>Stops the server. The second call does nothing.</summary>
@@ -135,6 +183,45 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
 
         await _app.StopAsync();
         await _app.DisposeAsync();
+    }
+
+    private static Dictionary<string, object> TokenResponse(string accessToken, string refreshToken)
+        => new(StringComparer.Ordinal)
+        {
+            ["access_token"] = accessToken,
+            ["token_type"] = "Bearer",
+            ["expires_in"] = 3600,
+            ["refresh_token"] = refreshToken,
+        };
+
+    private string Issue()
+    {
+        lock (_refreshGate)
+        {
+            _currentRefreshToken = $"refresh-{Guid.NewGuid():N}";
+
+            return _currentRefreshToken;
+        }
+    }
+
+    private bool TryRotate(string presented, out string rotated)
+    {
+        lock (_refreshGate)
+        {
+            if (!string.Equals(presented, _currentRefreshToken, StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref _rejectedRefreshes);
+                rotated = string.Empty;
+
+                return false;
+            }
+
+            _currentRefreshToken = $"refresh-{Guid.NewGuid():N}";
+            rotated = _currentRefreshToken;
+            Interlocked.Increment(ref _refreshGrants);
+
+            return true;
+        }
     }
 
     private static Dictionary<string, object> ResourceMetadata(string address)

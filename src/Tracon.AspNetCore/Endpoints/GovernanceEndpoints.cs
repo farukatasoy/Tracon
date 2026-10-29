@@ -80,7 +80,7 @@ internal static class GovernanceEndpoints
     private static string DescribeOAuthFailure(McpOAuthCompleteResult result)
         => result.Status switch
         {
-            McpOAuthOperationStatus.InvalidState => "The authorization session was not found or has expired. Try again.",
+            McpOAuthOperationStatus.InvalidState => result.Error ?? "The authorization session was not found or has expired. Try again.",
             McpOAuthOperationStatus.AuthorizationFailed => result.Error ?? "Authorization was rejected by the provider.",
             _ => "An unexpected error occurred.",
         };
