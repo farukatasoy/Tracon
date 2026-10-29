@@ -119,6 +119,10 @@ public sealed class SqlProviderRegistrationParityTests
         [typeof(SqlPersistenceRegistrationMarker)] =
             "holds no state: each provider adds one (AddSingleton, not Replace), and /api/diagnostics reports " +
             "their count as RegisteredPersistenceProviders",
+        [typeof(StateSharing)] =
+            "says whether the provider's state is shared between processes, not where it is stored: each provider " +
+            "Replaces Core's in-process default with its own value, and only the production profile reads it " +
+            "(Tracon:Deployment:Instances above one)",
     };
 
     /// <summary>

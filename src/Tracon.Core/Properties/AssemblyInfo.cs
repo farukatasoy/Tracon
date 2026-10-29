@@ -49,6 +49,10 @@ using System.Runtime.CompilerServices;
 // functional tests do.
 [assembly: InternalsVisibleTo("Tracon.TwoNode.IntegrationTests")]
 
+// Phase 265: the registration parity gate classifies every contract type a SQL provider registers, and the provider
+// now registers Core's internal StateSharing marker next to the stores.
+[assembly: InternalsVisibleTo("Tracon.Sql.Shared.UnitTests")]
+
 // The voice tests register the attachment guard Tracon.Voice resolves, and the
 // shared provider tests (tests/Shared/Providers) build an egress guard for each
 // of the four adapters - both became internal with the evidence pass over the

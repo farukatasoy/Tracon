@@ -11368,7 +11368,7 @@ repeat it:
 | `InstanceLocalState` | `Tracon:Deployment:Instances` is above `1` and the store keeps its state in one process (memory, or a SQLite file), so each instance sees its own runs, sessions and job queue | `UsePostgreSql` or `UseSqlServer`, with one database that every instance reaches |
 | `UnreconciledRuns` | `Instances` is above `1` and run reconciliation is off, so a cancel that reaches the other instance answers `409` and a run whose instance died stays `Running` | `Tracon:RunReconciliation:Enabled` |
 | `UnelectedBackgroundWork` | `Instances` is above `1` and single-executor election is off, so every instance runs the periodic background work at the same time | `Tracon:SingletonExecution:Enabled` |
-| `InstanceLocalRateLimit` | `Instances` is above `1`, request rate is limited, and each instance counts in its own memory, so the deployment admits the limit once per instance | `Tracon:RateLimit:Scope` set to `Deployment` |
+| `InstanceLocalRateLimit` | `Instances` is above `1` and the request-rate limits are counted in the memory of each process, so the deployment admits them once per instance. The inbound trigger limit is always on, so this is asked while the endpoint limit is off too | `Tracon:RateLimit:Scope` set to `Deployment` |
 | `InstanceLocalMcpTokens` | `Instances` is above `1` and the OAuth tokens of MCP servers live in the memory of one process | `Tracon:Mcp:OAuthTokenStore` set to `DistributedCache`, on a cache that every instance shares; or accept it when no MCP server uses OAuth |
 
 Some rows are not asked in every composition:
@@ -11385,8 +11385,8 @@ Some rows are not asked in every composition:
 - The five instance decisions (`InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`,
   `InstanceLocalRateLimit` and `InstanceLocalMcpTokens`) are asked only when `Tracon:Deployment:Instances` is above
   `1`. At the default of `1` each is reported as not applicable, so a host that never declared a second instance is
-  asked exactly what it was asked before. `InstanceLocalRateLimit` is also not asked while the rate limit is off,
-  and `InstanceLocalMcpTokens` exists only when `UseMcp()` is in the chain. See
+  asked exactly what it was asked before. `InstanceLocalRateLimit` is asked whether or not the endpoint rate limit is on, because the
+  inbound trigger limit is always on; `InstanceLocalMcpTokens` exists only when `UseMcp()` is in the chain. See
   [Run more than one instance](/guides/multiple-instances/).
 - `UnkeyedAuditChain` is not asked while the audit log is Tracon's in-memory one: that chain lives in the process
   and goes with it, so no one writes to a table behind the host's back. A database audit log, or one you
@@ -14461,7 +14461,7 @@ second instance starts exactly as before.
 | `InstanceLocalState` | The storage provider is `UsePostgreSql` or `UseSqlServer` | The state lives in one process (memory, or a SQLite file). Each instance sees its own runs, sessions and job queue |
 | `UnreconciledRuns` | `Tracon:RunReconciliation:Enabled` is `true` | A cancel that reaches the other instance answers `409`. A run whose instance died stays `Running` |
 | `UnelectedBackgroundWork` | `Tracon:SingletonExecution:Enabled` is `true` | Every instance runs the periodic background work at the same time: approval expiry, canary rollback, workflow request expiry, the orphaned-run scan, the model health probe |
-| `InstanceLocalRateLimit` | `Tracon:RateLimit:Scope` is `Deployment`. Not asked while the rate limit is off | Each instance counts in its own memory. Two instances admit the limit twice |
+| `InstanceLocalRateLimit` | `Tracon:RateLimit:Scope` is `Deployment`. Asked also while `Tracon:RateLimit:Enabled` is off, because the inbound trigger limit is always on | Each instance counts in its own memory. Two instances admit the limit twice |
 | `InstanceLocalMcpTokens` | `Tracon:Mcp:OAuthTokenStore` is `DistributedCache` on a cache that every instance shares. Asked only when `UseMcp()` is on the chain | An authorization that one instance started cannot finish on the other, and a token that one instance obtained is not used by the other |
 
 Tracon cannot tell at start whether an MCP server uses OAuth: the servers are rows in the store. If none of yours does,
@@ -14474,8 +14474,10 @@ builder.AddTracon()
            .Accept(TraconProductionRisk.InstanceLocalMcpTokens));
 ```
 
-The profile checks that the settings are on. It does not check that your instances really share one database: it
-reads the declaration and the composition, not the network. See
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package and `UseSqlServer` from `Tracon.SqlServer`.
+
+The profile checks that the settings are on. It does not check that your instances really share one database: it reads the
+declaration and the composition, not the network. See
 [Production deployment](/guides/production/#start-from-a-production-registration).
 
 ## What is supported
@@ -14521,7 +14523,7 @@ on PostgreSQL and on SQL Server on every build.
 | Job lease takeover | When a worker process is killed, its job is not taken before the lease expires, it is taken after, and the two workers never run it at the same time. Separate operating-system processes, killed with `SIGKILL` |
 | Workflow concurrency | `MaxConcurrentRunsPerTenant` holds in the queue across both instances: a tenant at its ceiling holds one slot, and another tenant still runs |
 
-Each behavior was also shown to fail when its setting is off. A test that cannot fail proves nothing.
+Four of them were also shown to fail when their setting is off: the rate-limit scope, the tenant ceiling in the queue, run reconciliation and the OAuth token store. A test that cannot fail proves nothing. The other behaviors have no setting to switch off, so they were not tried that way.
 
 ## Cancel, rate limits and MCP across instances
 
@@ -14641,9 +14643,12 @@ commit `647aa02e`, three repeats of 60 seconds):
 | Queued: throughput, p50 | 6.98 runs/s, 2109 ms | 11.8 runs/s, 1320 ms |
 | Queued: queue wait p95 | 1.13-1.14 s | 0.10 s |
 
-A second host does not slow a request that runs inside the request. It adds job slots, because
-`Scheduling:MaxConcurrentJobs` is per instance: the queued path waited less because 16 slots served 16 runs. Every cell
-reconciled with the store: no missing run, no gap in an event stream, nothing under the wrong tenant. The full table, the
+A second host does not slow a request that runs inside the request, and it is not free: the two hosts together used more processor
+time than one host did over the same window, on both paths (the kept report lists it, and does not say where the extra time went). The queued path waited less, and the likely reason is that
+`Scheduling:MaxConcurrentJobs` is per instance, so 16 slots served 16 runs; no control cell was measured to prove the cause. The
+hosts ran with the shipped defaults, so reconciliation, single-executor election and the rate-limit counter writes of a declared
+two-instance deployment are not in these numbers. Every cell reconciled with the store: no missing run, no gap in an event
+stream, nothing under the wrong tenant. The full table, the
 conditions and the caveats are in [Adding a second HTTP host](/guides/production/#adding-a-second-http-host).
 
 **This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew, inter-machine
@@ -14663,8 +14668,7 @@ latency and more than two hosts were not measured.
 
 ## Read next
 
-- [Production deployment](/guides/production/): the process topology, the cost of the deployment rate-limit scope and the
-  measured failures.
+- [Production deployment](/guides/production/): the process topology, the measured capacity and the measured failures.
 - [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 - [Compatibility](/reference/compatibility/): the production profile as a versioned set.
 
@@ -16446,13 +16450,23 @@ This run was measured on 2026-10-29, at commit `647aa02e`, in another environmen
 
 A second host did not slow a request that runs inside the request: the buffered path is the same within noise, and
 that path is limited by the 16 requests in flight and the one second of model time, not by the host. The queued path
-improved because `MaxConcurrentJobs` is per instance: with one host, 8 of the 16 queued runs wait for a slot, and with two
-hosts all 16 have one. Read it as "a second instance adds job slots", not as a scaling law: it does not say what a third
-host does, and the shape changes with your `MaxConcurrentJobs` and your provider.
+improved, and the likely reason is that `MaxConcurrentJobs` is per instance: with one host, 8 of the 16 queued runs wait for a
+slot, and with two hosts all 16 have one. No control cell (one host with `MaxConcurrentJobs` of 16) was measured, so this is
+the arithmetic of the slots and not a measured cause. Read it as "a second instance adds job slots", not as a scaling law: it
+does not say what a third host does, and the shape changes with your `MaxConcurrentJobs` and your provider.
+
+The hosts ran with the shipped defaults for `RunReconciliation`, `SingletonExecution` and the rate limit, which are all off. The
+heartbeat writes, the lease renewals and the counter write of each counted request that a declared two-instance deployment
+adds are therefore not in these numbers; the cost of the counter is measured in
+[What the deployment scope costs](/guides/multiple-instances/#what-the-deployment-scope-costs).
+
+A second host is not free. The two hosts together used more processor time than one host did over the same window, on the
+buffered path as well as on the queued one. The kept report, `bench/capacity/measurements/nodes/report.md`, lists the
+processor time and the peak memory of every cell with the hosts added together, and it does not say where the extra time went.
 
 All twelve cells reconciled. No accepted run was missing from the store, no event stream had a gap, no content differed
 from what was sent, and nothing was recorded under the wrong tenant; a read of one tenant's run with the other tenant's
-header was refused on both hosts.
+header was refused.
 
 **This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew and
 inter-machine latency were not measured, and the number of hosts was never above two.
@@ -25948,7 +25962,7 @@ it stays one section to configure. It bounds both `headerConfigurationKeys` and
 `oauthClientSecretConfigurationKey`, and inside it a tenant's server names
 `{prefix}{tenant}:...`; a flat name belongs to the default tenant.
 
-`OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
+`Mcp:OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
 servers that use OAuth in your `IDistributedCache`, encrypted, and lets the provider's redirect reach any
 instance. The application does not start in that mode without an `IDistributedCache` and content protection.
 `OAuthTokenSlidingLifetime` is how long a token stays in the cache without a read or a write; it applies to

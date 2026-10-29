@@ -52,8 +52,10 @@ builder.AddTracon()
            .Accept(TraconProductionRisk.InstanceLocalMcpTokens));
 ```
 
-The profile checks that the settings are on. It does not check that your instances really share one database: it
-reads the declaration and the composition, not the network. See
+`UsePostgreSql` comes from the `Tracon.PostgreSql` package and `UseSqlServer` from `Tracon.SqlServer`.
+
+The profile checks that the settings are on. It does not check that your instances really share one database: it reads the
+declaration and the composition, not the network. See
 [Production deployment](/guides/production/#start-from-a-production-registration).
 
 ## What is supported
