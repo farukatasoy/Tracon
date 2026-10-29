@@ -106,7 +106,7 @@ mechanisms.
 
 Rate limits are not an isolation boundary: by default they count in one process's memory,
 so a `Tenant` partition splits that instance's own window
-([`Scope = Deployment`](/guides/production/#rate-limits-across-instances) shares it). A quota, counted in the
+([`Scope = Deployment`](/guides/multiple-instances/#rate-limits-across-instances) shares it). A quota, counted in the
 database, is what binds a tenant's total consumption.
 
 ### Attributing spend below the tenant
@@ -822,12 +822,10 @@ hidden raw copy for later inspection.
 
 ## Requiring a production decision
 
-Nearly everything on this page is off by default, and that is deliberate: a first
-run should surprise nobody. It is the wrong default for a production deployment,
-which can reach production having never separated tenants, never decided who owns a
-session and never registered a content guard — in silence.
-
-`RequireProductionProfile()` refuses to start such a host:
+Nearly everything on this page is off by default, and that is the wrong default for a
+production deployment, which can reach production having never separated tenants or
+decided who owns a session — in silence. `RequireProductionProfile()` refuses to start
+such a host:
 
 ```csharp
 builder.AddTracon()
@@ -849,9 +847,8 @@ same risk and **the strictest answer wins**, which is how the HTTP package adds 
 `UseTenancy(options => options.Enabled = false)` case the core cannot see — and how
 you add a decision of your own.
 
-Like `RequireCustomBinding<T>()`, this is a composition gate rather than a security
-proof: it reports that a feature is switched on, never that the policy behind it is
-right. The set of decisions is a versioned contract; see
+Like `RequireCustomBinding<T>()`, this is a composition gate, not a security proof. The set of
+decisions is a versioned contract; see
 [Compatibility](/reference/compatibility/#the-production-profile-is-a-versioned-contract).
 
 ## The document channel

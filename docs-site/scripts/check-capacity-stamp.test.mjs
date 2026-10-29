@@ -312,7 +312,8 @@ test('the shipped page has a marker on every capacity row', () => {
 
   // 🚨 One number, measured, in one place. The audit found this count written
   // three different ways across three documents and all three were wrong.
-  assert.deepEqual(census, { latency: 12, arrival: 4, storage: 3, value: 5 });
+  // Phase 265 added the host-axis table: four rows, two scenarios at one and two hosts.
+  assert.deepEqual(census, { latency: 12, arrival: 4, storage: 3, hosts: 4, value: 5 });
 });
 
 // --- storage, arrival and prose: the paths the phase-174 audit found untested -
@@ -490,4 +491,154 @@ test('deleting markers makes the gate louder, not quieter', (t) => {
   // marked, a page could drop every latency marker and stay green.
   const f = fixture(t);
   assert.match(run(f, { latency: 12 }), /1 'latency' row\(s\) carry a marker, expected 12/);
+});
+
+// --- Phase 265: the host axis and a run from another machine ---------------------------------------------------
+
+const NODES_COMMIT = 'fedcba0987654321fedcba0987654321fedcba09';
+
+const NODES_MANIFEST = {
+  ...MANIFEST,
+  commit: NODES_COMMIT,
+  operatingSystem: 'Darwin 27.0.0',
+  runtimeVersion: '10.0.402',
+};
+
+const HOSTS_MARKER = 'kind=hosts profile=nodes scenario=queued hosts=2';
+
+/** The host-axis cells: queued at two hosts (three windows) and buffered at one (no queue). */
+function nodesSummary() {
+  const row = (scenario, hosts, count, p50, p95, rate) => ({
+    scenario,
+    seedShape: 'empty',
+    concurrency: 16,
+    apiHostCount: hosts,
+    repeats: 3,
+    latency: { count, p50, p95, lowSampleP95: false, thinnestRepeat: Math.floor(count / 3) },
+    throughputPerSecond: rate,
+  });
+
+  return {
+    profile: 'nodes',
+    rows: [row('queued', 2, 2208, 1320.189, 1332.58, 11.8497), row('buffered', 1, 2736, 1053.467, 1076.071, 14.8983)],
+    evidence: [
+      { cellId: '009-queued-h2-r1', status: 'complete', queueWait: { p95: 102.119 } },
+      { cellId: '010-queued-h2-r2', status: 'complete', queueWait: { p95: 99.313 } },
+      { cellId: '011-queued-h2-r3', status: 'complete', queueWait: { p95: 100.382 } },
+      { cellId: '003-buffered-h1-r1', status: 'complete', queueWait: { p95: null } },
+    ],
+  };
+}
+
+function hostsPage({
+  marker = '<!-- capacity-environment: profiles=nodes -->',
+  paragraph = 'The host run measured commit `fedcba09` on Darwin 27.0.0 (Apple Silicon), 10 logical processors, 16 GiB, .NET 10.0.402, PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image.',
+  rows = [
+    `| Queued | 2 | 2 208 | 1320 ms | 1333 ms | 11.8 | 0.10 s <!-- capacity: ${HOSTS_MARKER} --> |`,
+    '| Buffered | 1 | 2 736 | 1053 ms | 1076 ms | 14.9 | — <!-- capacity: kind=hosts profile=nodes scenario=buffered hosts=1 --> |',
+  ],
+} = {}) {
+  return [
+    '## What one environment measured',
+    '',
+    'Measured on Darwin 25.6.0 (Apple Silicon), 10 logical processors, 16 GiB,',
+    '.NET 10.0.100, PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image.',
+    '',
+    'The load sweep measured Tracon packed from commit `abcdef12`.',
+    '',
+    '| Path | Concurrency | n | p50 | p95 | Completed/s |',
+    '|---|---|---|---|---|---|',
+    `| Buffered | 8 | 1 384 | 1048 ms | 1084 ms | 7.47 <!-- capacity: ${MARKER} --> |`,
+    '',
+    '### Adding a second host',
+    '',
+    marker,
+    paragraph,
+    '',
+    '| Path | Hosts | n | p50 | p95 | Completed/s | Queue wait p95 |',
+    '|---|---|---|---|---|---|---|',
+    ...rows,
+    '',
+    '## Another section',
+    '',
+  ].join('\n');
+}
+
+function hostsFixture(t, options = {}, { nodesProfile = 'nodes' } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'tracon-capacity-gate-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  const docs = join(root, 'docs');
+  const measurements = join(root, 'measurements');
+  mkdirSync(join(docs, 'guides'), { recursive: true });
+  writeFileSync(join(docs, 'guides/production.md'), hostsPage(options));
+
+  mkdirSync(join(measurements, 'sweep'), { recursive: true });
+  writeFileSync(join(measurements, 'sweep/manifest.json'), JSON.stringify(MANIFEST));
+  writeFileSync(join(measurements, 'sweep/summary.json'), JSON.stringify({ profile: 'sweep', rows: [cell()], evidence: [] }));
+
+  mkdirSync(join(measurements, nodesProfile), { recursive: true });
+  writeFileSync(join(measurements, nodesProfile, 'manifest.json'), JSON.stringify(NODES_MANIFEST));
+  writeFileSync(join(measurements, nodesProfile, 'summary.json'), JSON.stringify(nodesSummary()));
+
+  return { docs, measurements, root };
+}
+
+const runHosts = (f) => checkCapacityStamp(f.docs, f.measurements, { latency: 1, hosts: 2 }).join('\n');
+
+test('a run from another machine passes when its own marked paragraph states that machine', (t) => {
+  assert.equal(runHosts(hostsFixture(t)), '');
+});
+
+test('the same two machines without the marker are still a finding', (t) => {
+  const f = hostsFixture(t, { marker: '' });
+  assert.match(runHosts(f), /the stored runs disagree on operatingSystem \(nodes=Darwin 27\.0\.0, sweep=Darwin 25\.6\.0\)/);
+});
+
+test('a marked paragraph that leaves out the machine is a finding for that run', (t) => {
+  const f = hostsFixture(t, { paragraph: 'The host run measured commit `fedcba09` and nothing else about its machine.' });
+  assert.match(runHosts(f), /the environment paragraph for 'nodes' never states operatingSystem 'Darwin 27\.0\.0'/);
+});
+
+test('a marker cannot hide the main sentence: the sweep run is still checked against it', (t) => {
+  const f = hostsFixture(t);
+  writeFileSync(join(f.measurements, 'sweep/manifest.json'), JSON.stringify({ ...MANIFEST, processorCount: 64 }));
+  assert.match(runHosts(f), /never states processorCount '64 logical processors'/);
+});
+
+test('a marker that names a profile nobody stored is a finding', (t) => {
+  const f = hostsFixture(t, { marker: '<!-- capacity-environment: profiles=ghost -->' });
+  assert.match(runHosts(f), /environment marker names profile 'ghost', which has no stored manifest/);
+});
+
+test('a mistyped host-axis number is a finding', (t) => {
+  const f = hostsFixture(t, {
+    rows: [
+      `| Queued | 2 | 2 208 | 999 ms | 1333 ms | 11.8 | 0.10 s <!-- capacity: ${HOSTS_MARKER} --> |`,
+      '| Buffered | 1 | 2 736 | 1053 ms | 1076 ms | 14.9 | — <!-- capacity: kind=hosts profile=nodes scenario=buffered hosts=1 --> |',
+    ],
+  });
+  assert.match(runHosts(f), /p50 publishes '999 ms', measured '1320 ms'/);
+});
+
+test('the queue wait of a host row is the spread of its windows, and a path that never queues publishes a dash', (t) => {
+  const wrong = hostsFixture(t, {
+    rows: [
+      `| Queued | 2 | 2 208 | 1320 ms | 1333 ms | 11.8 | 0.5 s <!-- capacity: ${HOSTS_MARKER} --> |`,
+      '| Buffered | 1 | 2 736 | 1053 ms | 1076 ms | 14.9 | 0.2 s <!-- capacity: kind=hosts profile=nodes scenario=buffered hosts=1 --> |',
+    ],
+  });
+  const message = runHosts(wrong);
+  assert.match(message, /Queue wait p95 publishes '0\.5 s', measured '0\.10 s'/);
+  assert.match(message, /Queue wait p95 publishes '0\.2 s', measured '—'/);
+});
+
+test('a host row that cites a host count nobody measured is a finding', (t) => {
+  const f = hostsFixture(t, {
+    rows: [
+      `| Queued | 3 | 2 208 | 1320 ms | 1333 ms | 11.8 | 0.10 s <!-- capacity: kind=hosts profile=nodes scenario=queued hosts=3 --> |`,
+      '| Buffered | 1 | 2 736 | 1053 ms | 1076 ms | 14.9 | — <!-- capacity: kind=hosts profile=nodes scenario=buffered hosts=1 --> |',
+    ],
+  });
+  assert.match(runHosts(f), /no measured cell for scenario=queued hosts=3/);
 });

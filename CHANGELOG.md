@@ -253,7 +253,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   partition's counter until real time catches up, and the application logs a warning when the stored window is more than one
   window ahead of an instance's own.
   To count somewhere else (Redis, for example), implement `IRateLimitCounterStore`; `RateLimitCounterStoreContract` checks
-  the atomic count with 64 parallel callers. See [Rate limits across instances](/guides/production/#rate-limits-across-instances).
+  the atomic count with 64 parallel callers. See [Rate limits across instances](/guides/multiple-instances/#rate-limits-across-instances).
 - **The management API and the AG-UI endpoint keep a rate-limit counter each**, with either scope. This was already so and
   is now written down: an AG-UI request does not spend the management API's window.
 - **The console's Audit screen has a Verify chain button** that runs the walk and shows the status, the entries checked,

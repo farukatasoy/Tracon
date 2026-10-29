@@ -41,6 +41,12 @@ const PAGE = 'guides/production.md';
 const MARKER = /<!--\s*capacity:\s*([^>]*?)\s*-->/;
 
 /**
+ * Names the profiles that were measured on another machine than the page's main sentence describes; the paragraph
+ * under it states their environment (Phase 265).
+ */
+const ENVIRONMENT_MARKER = /<!--\s*capacity-environment:\s*profiles=([A-Za-z0-9,_-]+)\s*-->/g;
+
+/**
  * The columns each kind of capacity table publishes, in order.
  *
  * The header is compared exactly. A renamed or inserted column must come back
@@ -51,6 +57,9 @@ const SCHEMAS = {
   latency: ['Path', 'Concurrency', 'n', 'p50', 'p95', 'Completed/s'],
   arrival: ['Planned/s', 'Sent', 'Never sent', 'Completed', 'Queue wait p95'],
   storage: ['Path', 'Rows per run (3 repeats)', 'Bytes per run', 'Largest contributor'],
+  // Phase 265: the host axis. One row is one scenario at one host count; the queue wait is the spread of the
+  // windows, as in the arrival table, and a path that never queues publishes a dash.
+  hosts: ['Path', 'Hosts', 'n', 'p50', 'p95', 'Completed/s', 'Queue wait p95'],
 };
 
 /**
@@ -65,7 +74,7 @@ const SCHEMAS = {
  * Re-measuring the bench legitimately changes these numbers, and that is the
  * point: the change comes through this file, with the page, in one commit.
  */
-const EXPECTED_ROWS = { latency: 12, arrival: 4, storage: 3 };
+const EXPECTED_ROWS = { latency: 12, arrival: 4, storage: 3, hosts: 4 };
 
 /** Prose numbers carry a marker too, naming the field they quote. */
 const VALUE_FORMATS = {
@@ -270,6 +279,57 @@ function checkLatencyRow(errors, where, cells, attributes, summary) {
   return thin;
 }
 
+/**
+ * One row of the host axis (Phase 265): a scenario measured at one and at two HTTP hosts, at one fixed load.
+ *
+ * The queue wait is the spread of the windows, rounded at both ends by the page's one rule (as the arrival table
+ * does), because a single number would hide that the three windows differed. Only the queued path has one.
+ */
+function checkHostsRow(errors, where, cells, attributes, summary) {
+  const hosts = Number(attributes.hosts);
+  const cell = (summary.rows ?? []).find((row) => row.scenario === attributes.scenario && row.apiHostCount === hosts);
+
+  if (!cell) {
+    errors.push(`${where}: no measured cell for scenario=${attributes.scenario} hosts=${attributes.hosts}`);
+    return false;
+  }
+
+  const latency = cell.latency;
+  checkPathLabel(errors, where, cells[0], attributes.scenario);
+  compare(errors, where, 'Hosts', cells[1], String(cell.apiHostCount));
+  compare(errors, where, 'n', cells[2], formatCount(latency.count));
+  compare(errors, where, 'p50', cells[3], formatMilliseconds(latency.p50));
+  compare(errors, where, 'p95', cells[4], formatMilliseconds(latency.p95));
+  compare(errors, where, 'Completed/s', cells[5], formatRate(cell.throughputPerSecond));
+
+  const cellName = new RegExp(`-${attributes.scenario}-h${hosts}-r\\d+$`);
+  const windows = (summary.evidence ?? []).filter(
+    (entry) => entry.status !== 'invalid' && cellName.test(entry.cellId) && entry.queueWait?.p95 != null,
+  );
+  // The dash that says "no queue" is itself a published value, so it is compared raw; the normalisation below turns
+  // every dash into a hyphen, which is right for a range and would erase this one.
+  const queueWait = cells[6].replace(/[‒-―]/g, '-');
+
+  if (windows.length === 0) {
+    compare(errors, where, 'Queue wait p95', cells[6], '—');
+  } else {
+    const waits = windows.map((entry) => entry.queueWait.p95 / 1000);
+    const ends = [formatRate(Math.min(...waits)), formatRate(Math.max(...waits))];
+    compare(errors, where, 'Queue wait p95', queueWait, ends[0] === ends[1] ? `${ends[0]} s` : `${ends[0]}-${ends[1]} s`);
+  }
+
+  const thin = latency.lowSampleP95 === true || (latency.thinnestRepeat ?? 0) < P95_SAMPLE_FLOOR;
+  const declared = attributes.indicative === 'p95';
+
+  if (thin && !declared) {
+    errors.push(`${where}: p95 rests on ${latency.thinnestRepeat} samples in its thinnest repeat but the marker does not say indicative=p95`);
+  } else if (!thin && declared) {
+    errors.push(`${where}: marker says indicative=p95 but every repeat cleared the floor`);
+  }
+
+  return thin;
+}
+
 function checkStorageRow(errors, where, cells, attributes, summary) {
   const cell = findCell(summary, attributes);
 
@@ -407,7 +467,7 @@ export function checkCapacityStamp(docsRoot, measurementsRoot, expectedRows = EX
   const summaryFor = (profile) =>
     readArtifact(errors, measurementsRoot, profile, 'summary.json', seen);
 
-  const counted = { latency: 0, arrival: 0, storage: 0, value: 0 };
+  const counted = { latency: 0, arrival: 0, storage: 0, hosts: 0, value: 0 };
   let markedRows = 0;
 
   for (const table of findTables(lines)) {
@@ -487,6 +547,8 @@ export function checkCapacityStamp(docsRoot, measurementsRoot, expectedRows = EX
         anyThin = checkLatencyRow(errors, where, cells, attributes, summary) || anyThin;
       } else if (kind === 'storage') {
         checkStorageRow(errors, where, cells, attributes, summary);
+      } else if (kind === 'hosts') {
+        anyThin = checkHostsRow(errors, where, cells, attributes, summary) || anyThin;
       } else {
         checkArrivalRow(errors, where, cells, attributes, summary);
       }
@@ -728,6 +790,80 @@ function checkStamps(text, measurementsRoot, seen, collected) {
 
   // 2 - the environment sentence. Direction is one way on purpose (§174.3):
   // every measured value must appear, and the page may say more besides.
+  //
+  // Phase 265: a run measured on ANOTHER machine gets its own sentence, named by a marker in front of it:
+  //
+  //     <!-- capacity-environment: profiles=nodes -->
+  //     Measured on 2026-10-29 at commit `647aa02e` on Darwin 27.0.0 ...
+  //
+  // The paragraph under the marker (to the next blank line) is where that group's environment is checked. The runs
+  // WITHOUT a marker still share one sentence, and a disagreement among them is still a finding: a marker is how a
+  // page says "this run came from another machine", never a way to silence the gate. A marker that names a profile
+  // nobody stored, or one profile twice, is a finding too.
+  const groups = [];
+  const grouped = new Set();
+  let base = raw;
+
+  for (const match of raw.matchAll(ENVIRONMENT_MARKER)) {
+    const names = match[1].split(',').filter(Boolean);
+    const rest = raw.slice(match.index + match[0].length);
+    const end = rest.search(/\n\s*\n/);
+    const paragraph = (end < 0 ? rest : rest.slice(0, end)).replace(/\s+/g, ' ');
+    groups.push({ names, paragraph, text: match[0] + (end < 0 ? rest : rest.slice(0, end)) });
+
+    for (const name of names) {
+      if (!manifests.some(([profile]) => profile === name)) {
+        errors.push(`${PAGE}: the environment marker names profile '${name}', which has no stored manifest`);
+      } else if (grouped.has(name)) {
+        errors.push(`${PAGE}: profile '${name}' is named by more than one environment marker`);
+      }
+
+      grouped.add(name);
+    }
+  }
+
+  for (const group of groups) {
+    base = base.replace(group.text, '');
+  }
+
+  const baseBody = base.replace(/\s+/g, ' ');
+
+  errors.push(
+    ...checkEnvironment(
+      manifests.filter(([profile]) => !grouped.has(profile)),
+      baseBody,
+      '',
+    ),
+  );
+
+  for (const group of groups) {
+    errors.push(
+      ...checkEnvironment(
+        manifests.filter(([profile]) => group.names.includes(profile)),
+        group.paragraph,
+        ` for '${group.names.join('/')}'`,
+      ),
+    );
+  }
+
+  return errors;
+}
+
+/**
+ * The environment fields of one set of runs against the prose that must state them.
+ *
+ * @param {Array<[string, object]>} manifests The runs that share one environment sentence.
+ * @param {string} body The prose, whitespace collapsed.
+ * @param {string} scope What the sentence is for, empty for the page's main one.
+ * @returns {string[]} The findings.
+ */
+function checkEnvironment(manifests, body, scope) {
+  const errors = [];
+
+  if (manifests.length === 0) {
+    return errors;
+  }
+
   for (const [field, render] of ENVIRONMENT_FIELDS) {
     const stated = new Map();
 
@@ -745,7 +881,7 @@ function checkStamps(text, measurementsRoot, seen, collected) {
         .sort()
         .join(', ');
       errors.push(
-        `${PAGE}: the stored runs disagree on ${field} (${split}); ` +
+        `${PAGE}: the stored runs${scope} disagree on ${field} (${split}); ` +
           'one environment sentence cannot state both',
       );
       continue;
@@ -754,7 +890,7 @@ function checkStamps(text, measurementsRoot, seen, collected) {
     const [expected] = stated.keys();
 
     if (!body.includes(expected)) {
-      errors.push(`${PAGE}: the environment paragraph never states ${field} '${expected}'`);
+      errors.push(`${PAGE}: the environment paragraph${scope} never states ${field} '${expected}'`);
     }
   }
 
