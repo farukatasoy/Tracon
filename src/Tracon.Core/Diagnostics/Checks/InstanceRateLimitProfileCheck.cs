@@ -4,12 +4,19 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>
-/// Answers whether the request-rate limit is counted for the whole deployment.
+/// Answers whether the request-rate limits are counted for the whole deployment.
 /// </summary>
 /// <remarks>
-/// Not applicable while request rate is not limited: <see cref="TraconProductionRisk.UnlimitedRequestRate"/>
-/// asks that first, and a limit that is off has no scope to get wrong. Whether the counter store is one that
-/// instances share is <see cref="TraconProductionRisk.InstanceLocalState"/>'s question.
+/// <para>
+/// Two limiters follow <see cref="TraconRateLimitOptions.Scope"/>: the one on the endpoint groups, which
+/// <see cref="TraconRateLimitOptions.Enabled"/> switches, and the one on the inbound trigger accept endpoint, which is always
+/// on. The decision is therefore asked whether or not the endpoint limit is on: with the scope at
+/// <see cref="RateLimitScope.Instance"/> the trigger limit is counted per instance either way. A deployment that turned the
+/// endpoint limit off and uses no inbound trigger accepts the risk by name.
+/// </para>
+/// <para>
+/// Whether the counter store is one that instances share is <see cref="TraconProductionRisk.InstanceLocalState"/>'s question.
+/// </para>
 /// </remarks>
 internal sealed class InstanceRateLimitProfileCheck : InstanceProfileCheck
 {
@@ -22,20 +29,20 @@ internal sealed class InstanceRateLimitProfileCheck : InstanceProfileCheck
         var options = services.GetRequiredService<IOptions<TraconRateLimitOptions>>().Value;
         var setting = $"{TraconRateLimitOptions.SectionName}:{nameof(TraconRateLimitOptions.Scope)}";
 
-        if (!options.Enabled)
+        if (options.Scope == RateLimitScope.Deployment)
         {
-            return ProductionProfileResult.NotApplicable(
-                setting,
-                $"{TraconRateLimitOptions.SectionName}:{nameof(TraconRateLimitOptions.Enabled)} is off, so no limit is counted");
+            return ProductionProfileResult.Satisfied(setting);
         }
 
-        return options.Scope == RateLimitScope.Deployment
-            ? ProductionProfileResult.Satisfied(setting)
-            : ProductionProfileResult.Permissive(
-                setting,
-                $"{nameof(RateLimitScope.Instance)} with {instances} instances declared, so each instance counts in its " +
-                $"own memory and the deployment admits the limit {instances} times over",
-                $"set {setting} to {nameof(RateLimitScope.Deployment)}; the counter then lives in the SQL store and each " +
-                "request costs one database write");
+        var limits = options.Enabled
+            ? "the endpoint limit and the inbound trigger limit"
+            : "the inbound trigger limit, which is always on (the endpoint limit is off)";
+
+        return ProductionProfileResult.Permissive(
+            setting,
+            $"{nameof(RateLimitScope.Instance)} with {instances} instances declared, so each instance counts {limits} in its own " +
+            $"memory and the deployment admits them {instances} times over",
+            $"set {setting} to {nameof(RateLimitScope.Deployment)}; the counter then lives in the SQL store and each counted " +
+            "request costs one database write. If the endpoint limit is off and no inbound trigger is used, accept the risk by name");
     }
 }

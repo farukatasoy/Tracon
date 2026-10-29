@@ -26,7 +26,7 @@ public sealed class CellSpec
     /// <summary>The identifier of this cell, unique inside the run.</summary>
     public string CellId { get; set; } = "";
 
-    /// <summary>The profile that produced this cell (<c>smoke</c>, <c>sweep</c>, <c>arrival</c>, <c>workers</c>, <c>soak</c>).</summary>
+    /// <summary>The profile that produced this cell (<c>smoke</c>, <c>sweep</c>, <c>arrival</c>, <c>workers</c>, <c>soak</c>, <c>nodes</c>).</summary>
     public string Profile { get; set; } = "";
 
     /// <summary>The scenarios driven in this cell. More than one means an equal mix (the soak shape).</summary>

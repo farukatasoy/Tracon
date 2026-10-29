@@ -148,9 +148,9 @@ public sealed class InstanceProfileChecksTests
     [Theory]
     [InlineData(true, RateLimitScope.Instance, ProductionProfileState.Permissive)]
     [InlineData(true, RateLimitScope.Deployment, ProductionProfileState.Satisfied)]
-    [InlineData(false, RateLimitScope.Instance, ProductionProfileState.NotApplicable)]
-    [InlineData(false, RateLimitScope.Deployment, ProductionProfileState.NotApplicable)]
-    public void The_rate_limit_must_be_counted_for_the_deployment_when_it_is_on(
+    [InlineData(false, RateLimitScope.Instance, ProductionProfileState.Permissive)]
+    [InlineData(false, RateLimitScope.Deployment, ProductionProfileState.Satisfied)]
+    public void The_rate_limit_scope_decides_whether_or_not_the_endpoint_limit_is_on(
         bool limited,
         RateLimitScope scope,
         ProductionProfileState expected)
@@ -167,6 +167,22 @@ public sealed class InstanceProfileChecksTests
 
         result.State.ShouldBe(expected);
         result.Setting.ShouldBe("Tracon:RateLimit:Scope");
+    }
+
+    [Fact]
+    public void With_the_endpoint_limit_off_the_message_names_the_inbound_trigger_limit_that_is_always_on()
+    {
+        // The inbound trigger limiter is always on and follows the scope, so a deployment that turned the endpoint limit
+        // off still admits the trigger limit once per instance.
+        using var provider = Provider(
+            instances: 2,
+            configure: services => services.Configure<TraconRateLimitOptions>(options => options.Enabled = false));
+
+        var result = new InstanceRateLimitProfileCheck().Evaluate(provider);
+
+        result.State.ShouldBe(ProductionProfileState.Permissive);
+        result.Observed.ShouldContain("inbound trigger limit, which is always on", Case.Sensitive);
+        result.Remedy.ShouldContain("accept the risk by name", Case.Sensitive);
     }
 
     [Fact]

@@ -301,10 +301,16 @@ public sealed class CellRunner
                 return null;
             }
 
-            if (sampler.PeakRssBytes.TryGetValue("host", out var hostRss) && hostRss > _spec.Limits.HostRssBytes)
+            // Every host of the cell is held to the cap, not only the first: the second host of the host axis is a
+            // process of the system under measurement like the first.
+            foreach (var (role, hostRss) in sampler.PeakRssBytes)
             {
-                await window.CancelAsync().ConfigureAwait(false);
-                return $"host RSS {hostRss} exceeded the cap {_spec.Limits.HostRssBytes}";
+                if ((string.Equals(role, "host", StringComparison.Ordinal) || role.StartsWith("host-", StringComparison.Ordinal))
+                    && hostRss > _spec.Limits.HostRssBytes)
+                {
+                    await window.CancelAsync().ConfigureAwait(false);
+                    return $"{role} RSS {hostRss} exceeded the cap {_spec.Limits.HostRssBytes}";
+                }
             }
 
             if (sampler.PeakRssBytes.TryGetValue("driver", out var driverRss) && driverRss > _spec.Limits.DriverRssBytes)

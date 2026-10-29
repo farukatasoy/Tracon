@@ -752,7 +752,7 @@ it stays one section to configure. It bounds both `headerConfigurationKeys` and
 `oauthClientSecretConfigurationKey`, and inside it a tenant's server names
 `{prefix}{tenant}:...`; a flat name belongs to the default tenant.
 
-`OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
+`Mcp:OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
 servers that use OAuth in your `IDistributedCache`, encrypted, and lets the provider's redirect reach any
 instance. The application does not start in that mode without an `IDistributedCache` and content protection.
 `OAuthTokenSlidingLifetime` is how long a token stays in the cache without a read or a write; it applies to

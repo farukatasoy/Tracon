@@ -79,6 +79,7 @@ public abstract partial class TwoNodeAcceptanceContract
             var jobs = pair.B.Services.GetRequiredService<IJobStore>();
 
             gate.RunningFor("acme").ShouldBe(1);
+            gate.MostAtOnceFor("acme").ShouldBe(1);
 
             foreach (var sibling in siblings)
             {
@@ -96,10 +97,13 @@ public abstract partial class TwoNodeAcceptanceContract
 
             (await QueuedWorkflowHarness.WaitForJobAsync(pair.A, globex, "globex")).Status.ShouldBe(JobStatus.Completed);
 
-            // Across both nodes and on each of them: never more than one run of the tenant at once.
-            gate.MostAtOnceFor("acme").ShouldBe(1);
+            // On each node the limit is exact: never more than one run of the tenant at once in one process. Across both
+            // nodes it is not: once the gate opens the first job leaves, and the two workers lease the siblings from a count
+            // that is read and not locked, so both can take one at the same moment. That race is documented (a tenant can pass
+            // the limit by up to the number of workers), so the assertion is the exact per-node limit and the sum it allows.
             gate.MostAtOnceFor("acme", "A").ShouldBeLessThanOrEqualTo(1);
             gate.MostAtOnceFor("acme", "B").ShouldBeLessThanOrEqualTo(1);
+            gate.MostAtOnceFor("acme").ShouldBeLessThanOrEqualTo(2);
         }
         finally
         {

@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that runs two and forgets one gets no error. With the store in memory or in a SQLite file each instance sees its own runs;
   with run reconciliation off a cancel that reaches the other instance answers `409`; with single-executor election off
   every instance runs the periodic background work; with the rate-limit scope at `Instance` the deployment admits the limit
-  once per instance; with the MCP token store in `Memory` an authorization one instance started cannot finish on the other.
+  once per instance (the inbound trigger limit included, which is always on, so the decision is asked while `Tracon:RateLimit:Enabled` is off too); with the MCP token store in `Memory` an authorization one instance started cannot finish on the other.
   Answer each with the setting the failure message names, or accept it with `profile.Accept(TraconProductionRisk.X)`;
   `InstanceLocalMcpTokens` is accepted when no MCP server uses OAuth. Tracon cannot count replicas, so a deployment that
   runs two instances and does not declare them is not asked. New key: `Tracon:Deployment:Instances` (default `1`, at least

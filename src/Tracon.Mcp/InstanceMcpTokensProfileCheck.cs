@@ -22,8 +22,6 @@ namespace Tracon;
 /// </remarks>
 internal sealed class InstanceMcpTokensProfileCheck : InstanceProfileCheck
 {
-    private const string MemoryDistributedCacheTypeName = "Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache";
-
     /// <inheritdoc />
     public override TraconProductionRisk Risk => TraconProductionRisk.InstanceLocalMcpTokens;
 
@@ -46,7 +44,7 @@ internal sealed class InstanceMcpTokensProfileCheck : InstanceProfileCheck
 
         return string.Equals(
             services.GetService<IDistributedCache>()?.GetType().FullName,
-            MemoryDistributedCacheTypeName,
+            McpOAuthTokenStoreValidator.MemoryDistributedCacheTypeName,
             StringComparison.Ordinal)
             ? ProductionProfileResult.Permissive(
                 setting,

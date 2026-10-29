@@ -56,15 +56,15 @@ A store that refuses a write leaves the run green, so counting HTTP successes al
 | 000-buffered-h1-r1 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 409.44 MiB | 7.3 |
 | 001-buffered-h1-r2 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 419.16 MiB | 7.6 |
 | 002-buffered-h1-r3 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 483.92 MiB | 7.6 |
-| 003-buffered-h2-r1 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 270.02 MiB | 5.5 |
-| 004-buffered-h2-r2 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 232.14 MiB | 6.2 |
-| 005-buffered-h2-r3 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 262.97 MiB | 6.6 |
+| 003-buffered-h2-r1 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 540.97 MiB | 11.1 |
+| 004-buffered-h2-r2 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 470.38 MiB | 12.6 |
+| 005-buffered-h2-r3 | 912 | 912 | 0 | 0 | 0 | 0 | 0 | 2 | 526.61 MiB | 13.2 |
 | 006-queued-h1-r1 | 448 | 448 | 0 | 0 | 0 | 448 | 0 | 2 | 367.89 MiB | 13.7 |
 | 007-queued-h1-r2 | 448 | 448 | 0 | 0 | 0 | 448 | 0 | 2 | 415.19 MiB | 12.2 |
 | 008-queued-h1-r3 | 448 | 448 | 0 | 0 | 0 | 448 | 0 | 2 | 463.88 MiB | 15.9 |
-| 009-queued-h2-r1 | 736 | 736 | 0 | 0 | 0 | 736 | 0 | 2 | 396.25 MiB | 11.8 |
-| 010-queued-h2-r2 | 736 | 736 | 0 | 0 | 0 | 736 | 0 | 2 | 370.98 MiB | 11.7 |
-| 011-queued-h2-r3 | 736 | 736 | 0 | 0 | 0 | 736 | 0 | 2 | 438.48 MiB | 12 |
+| 009-queued-h2-r1 | 736 | 736 | 0 | 0 | 0 | 736 | 0 | 2 | 805.11 MiB | 24.6 |
+| 010-queued-h2-r2 | 736 | 736 | 0 | 0 | 0 | 736 | 0 | 2 | 738.23 MiB | 24.3 |
+| 011-queued-h2-r3 | 736 | 736 | 0 | 0 | 0 | 736 | 0 | 2 | 800.98 MiB | 24.5 |
 
 ## Write amplification
 
@@ -171,4 +171,5 @@ no ceiling was found inside the measured range
 
 - Measured on one machine, one database and one configuration. This is not an SLA and not a guaranteed capacity.
 - The hosts of the host axis are processes on one machine, with one database and one clock. Network partition, clock skew and inter-machine latency are out of scope, and nothing here says anything about more hosts than the axis names.
+- For a cell of more than one host, "Host CPU s" is the processor time of the hosts added together and "Host peak RSS" is the sum of each host's own peak, an upper bound because the peaks need not coincide.
 - Autovacuum ran inside at least one window; those cells' byte growth is flagged and excluded from the averages. Their row counts remain usable.

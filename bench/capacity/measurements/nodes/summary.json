@@ -1207,6 +1207,7 @@
   "caveats": [
     "Measured on one machine, one database and one configuration. This is not an SLA and not a guaranteed capacity.",
     "The hosts of the host axis are processes on one machine, with one database and one clock. Network partition, clock skew and inter-machine latency are out of scope, and nothing here says anything about more hosts than the axis names.",
+    "For a cell of more than one host, \u0022Host CPU s\u0022 is the processor time of the hosts added together and \u0022Host peak RSS\u0022 is the sum of each host\u0027s own peak, an upper bound because the peaks need not coincide.",
     "Autovacuum ran inside at least one window; those cells\u0027 byte growth is flagged and excluded from the averages. Their row counts remain usable."
   ]
 }

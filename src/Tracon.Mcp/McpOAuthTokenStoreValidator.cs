@@ -25,7 +25,12 @@ namespace Tracon;
 internal sealed class McpOAuthTokenStoreValidator(IServiceProvider services, ILoggerFactory loggerFactory)
     : IValidateOptions<TraconMcpOptions>
 {
-    private const string MemoryDistributedCacheTypeName = "Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache";
+    /// <summary>
+    /// The full name of the cache <c>AddDistributedMemoryCache</c> registers. Both this validator (a warning) and
+    /// <see cref="InstanceMcpTokensProfileCheck"/> (a refusal for a declared multi-instance deployment) recognise it by
+    /// this one name, so the two answers cannot drift apart.
+    /// </summary>
+    internal const string MemoryDistributedCacheTypeName = "Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache";
 
     private readonly ILogger _logger = loggerFactory.CreateLogger<McpOAuthTokenStoreValidator>();
 

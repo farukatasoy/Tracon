@@ -581,7 +581,7 @@ public sealed class TraconAttachmentOptions
 /// </para>
 /// <para>
 /// Read from the <c>Tracon:Deployment</c> configuration section. Two instances are measured and
-/// supported (K-1113); a larger number is accepted and is not measured.
+/// supported; a larger number is accepted and is not measured.
 /// </para>
 /// </remarks>
 public sealed class TraconDeploymentOptions

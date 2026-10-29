@@ -472,7 +472,7 @@ repeat it:
 | `InstanceLocalState` | `Tracon:Deployment:Instances` is above `1` and the store keeps its state in one process (memory, or a SQLite file), so each instance sees its own runs, sessions and job queue | `UsePostgreSql` or `UseSqlServer`, with one database that every instance reaches |
 | `UnreconciledRuns` | `Instances` is above `1` and run reconciliation is off, so a cancel that reaches the other instance answers `409` and a run whose instance died stays `Running` | `Tracon:RunReconciliation:Enabled` |
 | `UnelectedBackgroundWork` | `Instances` is above `1` and single-executor election is off, so every instance runs the periodic background work at the same time | `Tracon:SingletonExecution:Enabled` |
-| `InstanceLocalRateLimit` | `Instances` is above `1`, request rate is limited, and each instance counts in its own memory, so the deployment admits the limit once per instance | `Tracon:RateLimit:Scope` set to `Deployment` |
+| `InstanceLocalRateLimit` | `Instances` is above `1` and the request-rate limits are counted in the memory of each process, so the deployment admits them once per instance. The inbound trigger limit is always on, so this is asked while the endpoint limit is off too | `Tracon:RateLimit:Scope` set to `Deployment` |
 | `InstanceLocalMcpTokens` | `Instances` is above `1` and the OAuth tokens of MCP servers live in the memory of one process | `Tracon:Mcp:OAuthTokenStore` set to `DistributedCache`, on a cache that every instance shares; or accept it when no MCP server uses OAuth |
 
 Some rows are not asked in every composition:
@@ -489,8 +489,8 @@ Some rows are not asked in every composition:
 - The five instance decisions (`InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`,
   `InstanceLocalRateLimit` and `InstanceLocalMcpTokens`) are asked only when `Tracon:Deployment:Instances` is above
   `1`. At the default of `1` each is reported as not applicable, so a host that never declared a second instance is
-  asked exactly what it was asked before. `InstanceLocalRateLimit` is also not asked while the rate limit is off,
-  and `InstanceLocalMcpTokens` exists only when `UseMcp()` is in the chain. See
+  asked exactly what it was asked before. `InstanceLocalRateLimit` is asked whether or not the endpoint rate limit is on, because the
+  inbound trigger limit is always on; `InstanceLocalMcpTokens` exists only when `UseMcp()` is in the chain. See
   [Run more than one instance](/guides/multiple-instances/).
 - `UnkeyedAuditChain` is not asked while the audit log is Tracon's in-memory one: that chain lives in the process
   and goes with it, so no one writes to a table behind the host's back. A database audit log, or one you

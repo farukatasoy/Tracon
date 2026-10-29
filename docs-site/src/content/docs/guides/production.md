@@ -667,13 +667,23 @@ This run was measured on 2026-10-29, at commit `647aa02e`, in another environmen
 
 A second host did not slow a request that runs inside the request: the buffered path is the same within noise, and
 that path is limited by the 16 requests in flight and the one second of model time, not by the host. The queued path
-improved because `MaxConcurrentJobs` is per instance: with one host, 8 of the 16 queued runs wait for a slot, and with two
-hosts all 16 have one. Read it as "a second instance adds job slots", not as a scaling law: it does not say what a third
-host does, and the shape changes with your `MaxConcurrentJobs` and your provider.
+improved, and the likely reason is that `MaxConcurrentJobs` is per instance: with one host, 8 of the 16 queued runs wait for a
+slot, and with two hosts all 16 have one. No control cell (one host with `MaxConcurrentJobs` of 16) was measured, so this is
+the arithmetic of the slots and not a measured cause. Read it as "a second instance adds job slots", not as a scaling law: it
+does not say what a third host does, and the shape changes with your `MaxConcurrentJobs` and your provider.
+
+The hosts ran with the shipped defaults for `RunReconciliation`, `SingletonExecution` and the rate limit, which are all off. The
+heartbeat writes, the lease renewals and the counter write of each counted request that a declared two-instance deployment
+adds are therefore not in these numbers; the cost of the counter is measured in
+[What the deployment scope costs](/guides/multiple-instances/#what-the-deployment-scope-costs).
+
+A second host is not free. The two hosts together used more processor time than one host did over the same window, on the
+buffered path as well as on the queued one. The kept report, `bench/capacity/measurements/nodes/report.md`, lists the
+processor time and the peak memory of every cell with the hosts added together, and it does not say where the extra time went.
 
 All twelve cells reconciled. No accepted run was missing from the store, no event stream had a gap, no content differed
 from what was sent, and nothing was recorded under the wrong tenant; a read of one tenant's run with the other tenant's
-header was refused on both hosts.
+header was refused.
 
 **This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew and
 inter-machine latency were not measured, and the number of hosts was never above two.

@@ -83,6 +83,42 @@ public sealed class CapacityReportTests : IDisposable
     }
 
     [Fact]
+    public void A_two_host_cell_reports_both_hosts_resources_and_says_how_they_were_added()
+    {
+        // 🚨 Reading only the first host would make two hosts look cheaper than one by exactly the work the second did.
+        var cell = Cell("two", concurrency: 16, repeat: 1, throughput: 18);
+        cell.ApiHostCount = 2;
+        cell.Processes =
+        [
+            new() { Role = "driver", PeakRssBytes = 100 * 1024 * 1024, ProcessorSeconds = 1 },
+            new() { Role = "host", PeakRssBytes = 300L * 1024 * 1024, ProcessorSeconds = 5.5 },
+            new() { Role = "host-2", PeakRssBytes = 200L * 1024 * 1024, ProcessorSeconds = 4.5 },
+        ];
+        WriteCell(cell);
+
+        ReportBuilder.Build(_directory);
+
+        var markdown = File.ReadAllText(Path.Combine(_directory, "report.md"));
+
+        markdown.ShouldContain("| 500 MiB | 10 |", Case.Sensitive);
+        markdown.ShouldContain("added together", Case.Sensitive);
+        markdown.ShouldContain("processes on one machine", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_one_host_cell_keeps_the_original_closing_caveat()
+    {
+        WriteCell(Cell("one", concurrency: 8, repeat: 1, throughput: 10));
+
+        ReportBuilder.Build(_directory);
+
+        var markdown = File.ReadAllText(Path.Combine(_directory, "report.md"));
+
+        markdown.ShouldContain("nothing here says anything about multi-node behaviour", Case.Sensitive);
+        markdown.ShouldNotContain("added together", Case.Sensitive);
+    }
+
+    [Fact]
     public void Repeats_of_one_load_point_become_one_row_with_their_spread()
     {
         WriteCell(Cell("a", concurrency: 8, repeat: 1, throughput: 10));

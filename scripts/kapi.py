@@ -2589,7 +2589,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "kapasite",
         help="HTTP kapasite ölçümü - opt-in, kapı değil (scripts/capacity.py)")
     kapasite.add_argument("--profil", required=True,
-                          help="smoke | sweep | arrival | workers | soak")
+                          help="smoke | sweep | arrival | workers | soak | nodes")
     kapasite.add_argument("--surum", required=True,
                           help="ölçülecek exact paket sürümü; kayan sürüm reddedilir")
     kapasite.add_argument("--cikti", default=str(ARTIFACTS / "capacity"),

@@ -122,8 +122,9 @@ public enum TraconProductionRisk
     UnelectedBackgroundWork,
 
     /// <summary>
-    /// More than one instance is declared, request rate is limited, and the limit is counted in the
-    /// memory of each process, so the deployment admits the limit once per instance.
+    /// More than one instance is declared and the request-rate limits (the endpoint groups, and the inbound
+    /// trigger limit that is always on) are counted in the memory of each process, so the deployment admits
+    /// them once per instance.
     /// </summary>
     InstanceLocalRateLimit,
 

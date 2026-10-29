@@ -15,8 +15,9 @@ Tracon.CapacityDriver report --run artifacts/capacity/<run-id>
 ```
 
 `nodes` measured Tracon packed from commit `647aa02e` (2026-10-29, version `0.0.0-capacity265.647aa02`, clean tree). Its
-`report.md` was recomputed afterwards with a corrected closing caveat (the host axis names two processes on one machine, not
-"nothing about multi-node"); the cell results are untouched.
+`report.md` was recomputed afterwards: the closing caveat names two processes on one machine (not "nothing about multi-node"), and
+the processor time and peak memory of a two-host cell are the two hosts added together (the first version of the report read
+only the first host). The cell results are untouched.
 
 These are the runs the numbers in
 `docs-site/src/content/docs/guides/production.md` come from. `sweep` and

@@ -548,6 +548,29 @@ public static class ReportBuilder
     /// <summary>How much latency must grow at flat throughput before the plateau is a ceiling.</summary>
     private const double QueueingFloor = 0.5;
 
+    /// <summary>
+    /// What the HTTP hosts of one cell used together: every process whose role is <c>host</c> or <c>host-N</c>.
+    /// </summary>
+    /// <param name="cell">The cell.</param>
+    /// <returns>
+    /// The processor time summed over the hosts and the sum of each host's peak resident set, or <see langword="null"/>
+    /// when no host was sampled. The sum of peaks is an upper bound: the hosts' peaks need not coincide.
+    /// </returns>
+    /// <remarks>
+    /// Reading only the first host would make a two-host cell look cheaper than a one-host cell by exactly the work the
+    /// second host did, and the host axis exists to show that cost.
+    /// </remarks>
+    private static (long PeakRssBytes, double ProcessorSeconds)? HostTotals(CellResult cell)
+    {
+        var hosts = cell.Processes.FindAll(static p =>
+            string.Equals(p.Role, "host", StringComparison.Ordinal)
+            || p.Role.StartsWith("host-", StringComparison.Ordinal));
+
+        return hosts.Count == 0
+            ? null
+            : (hosts.Sum(static h => h.PeakRssBytes), hosts.Sum(static h => h.ProcessorSeconds));
+    }
+
     private static string DescribeBottleneck(List<CellResult> cells, List<SummaryRow> rows)
     {
         if (cells.Count == 0)
@@ -575,15 +598,15 @@ public static class ReportBuilder
             return $"the driver ran out of in-flight slots first in {first.CellId}; this is a client-side limit and is not reported as server capacity";
         }
 
-        var hostCpu = first.Processes.Find(static p => string.Equals(p.Role, "host", StringComparison.Ordinal));
+        var hostTotals = HostTotals(first);
         var driverCpu = first.Processes.Find(static p => string.Equals(p.Role, "driver", StringComparison.Ordinal));
 
-        if (hostCpu is null || driverCpu is null)
+        if (hostTotals is null || driverCpu is null)
         {
             return $"saturation appeared in {first.CellId}, but the process telemetry needed to attribute it was not available";
         }
 
-        return hostCpu.ProcessorSeconds > driverCpu.ProcessorSeconds
+        return hostTotals.Value.ProcessorSeconds > driverCpu.ProcessorSeconds
             ? $"saturation appeared in {first.CellId}; the host consumed more processor time than the driver, so the limit is on the server side of this topology"
             : $"saturation appeared in {first.CellId}, but the driver consumed more processor time than the host — this is not reported as server capacity";
     }
@@ -648,6 +671,11 @@ public static class ReportBuilder
                 ? "The hosts of the host axis are processes on one machine, with one database and one clock. Network partition, clock skew and inter-machine latency are out of scope, and nothing here says anything about more hosts than the axis names."
                 : "One machine, one database, one clock. Network partition, clock skew and inter-machine latency are out of scope, so nothing here says anything about multi-node behaviour.",
         };
+
+        if (cells.Exists(static c => c.ApiHostCount is > 1))
+        {
+            caveats.Add("For a cell of more than one host, \"Host CPU s\" is the processor time of the hosts added together and \"Host peak RSS\" is the sum of each host's own peak, an upper bound because the peaks need not coincide.");
+        }
 
         if (cells.Exists(static c => c.Storage.VacuumInterference))
         {
@@ -801,7 +829,7 @@ public static class ReportBuilder
         foreach (var cell in cells)
         {
             var reconciliation = cell.Reconciliation;
-            var host = cell.Processes.Find(static p => string.Equals(p.Role, "host", StringComparison.Ordinal));
+            var host = HostTotals(cell);
 
             text.Append("| ").Append(cell.CellId)
                 .Append(" | ").Append(reconciliation.AcceptedRunIds.ToString(CultureInfo.InvariantCulture))

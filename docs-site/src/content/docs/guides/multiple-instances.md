@@ -39,7 +39,7 @@ second instance starts exactly as before.
 | `InstanceLocalState` | The storage provider is `UsePostgreSql` or `UseSqlServer` | The state lives in one process (memory, or a SQLite file). Each instance sees its own runs, sessions and job queue |
 | `UnreconciledRuns` | `Tracon:RunReconciliation:Enabled` is `true` | A cancel that reaches the other instance answers `409`. A run whose instance died stays `Running` |
 | `UnelectedBackgroundWork` | `Tracon:SingletonExecution:Enabled` is `true` | Every instance runs the periodic background work at the same time: approval expiry, canary rollback, workflow request expiry, the orphaned-run scan, the model health probe |
-| `InstanceLocalRateLimit` | `Tracon:RateLimit:Scope` is `Deployment`. Not asked while the rate limit is off | Each instance counts in its own memory. Two instances admit the limit twice |
+| `InstanceLocalRateLimit` | `Tracon:RateLimit:Scope` is `Deployment`. Asked also while `Tracon:RateLimit:Enabled` is off, because the inbound trigger limit is always on | Each instance counts in its own memory. Two instances admit the limit twice |
 | `InstanceLocalMcpTokens` | `Tracon:Mcp:OAuthTokenStore` is `DistributedCache` on a cache that every instance shares. Asked only when `UseMcp()` is on the chain | An authorization that one instance started cannot finish on the other, and a token that one instance obtained is not used by the other |
 
 Tracon cannot tell at start whether an MCP server uses OAuth: the servers are rows in the store. If none of yours does,
@@ -99,7 +99,7 @@ on PostgreSQL and on SQL Server on every build.
 | Job lease takeover | When a worker process is killed, its job is not taken before the lease expires, it is taken after, and the two workers never run it at the same time. Separate operating-system processes, killed with `SIGKILL` |
 | Workflow concurrency | `MaxConcurrentRunsPerTenant` holds in the queue across both instances: a tenant at its ceiling holds one slot, and another tenant still runs |
 
-Each behavior was also shown to fail when its setting is off. A test that cannot fail proves nothing.
+Four of them were also shown to fail when their setting is off: the rate-limit scope, the tenant ceiling in the queue, run reconciliation and the OAuth token store. A test that cannot fail proves nothing. The other behaviors have no setting to switch off, so they were not tried that way.
 
 ## Cancel, rate limits and MCP across instances
 
@@ -219,9 +219,12 @@ commit `647aa02e`, three repeats of 60 seconds):
 | Queued: throughput, p50 | 6.98 runs/s, 2109 ms | 11.8 runs/s, 1320 ms |
 | Queued: queue wait p95 | 1.13-1.14 s | 0.10 s |
 
-A second host does not slow a request that runs inside the request. It adds job slots, because
-`Scheduling:MaxConcurrentJobs` is per instance: the queued path waited less because 16 slots served 16 runs. Every cell
-reconciled with the store: no missing run, no gap in an event stream, nothing under the wrong tenant. The full table, the
+A second host does not slow a request that runs inside the request, and it is not free: the two hosts together used more processor
+time than one host did over the same window, on both paths (the kept report lists it, and does not say where the extra time went). The queued path waited less, and the likely reason is that
+`Scheduling:MaxConcurrentJobs` is per instance, so 16 slots served 16 runs; no control cell was measured to prove the cause. The
+hosts ran with the shipped defaults, so reconciliation, single-executor election and the rate-limit counter writes of a declared
+two-instance deployment are not in these numbers. Every cell reconciled with the store: no missing run, no gap in an event
+stream, nothing under the wrong tenant. The full table, the
 conditions and the caveats are in [Adding a second HTTP host](/guides/production/#adding-a-second-http-host).
 
 **This is not an SLA.** It is one machine, one database and one clock. Network partition, clock skew, inter-machine
@@ -241,7 +244,6 @@ latency and more than two hosts were not measured.
 
 ## Read next
 
-- [Production deployment](/guides/production/): the process topology, the cost of the deployment rate-limit scope and the
-  measured failures.
+- [Production deployment](/guides/production/): the process topology, the measured capacity and the measured failures.
 - [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 - [Compatibility](/reference/compatibility/): the production profile as a versioned set.
