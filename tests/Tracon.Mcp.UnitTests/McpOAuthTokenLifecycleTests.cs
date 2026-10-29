@@ -73,13 +73,16 @@ public sealed class McpOAuthTokenLifecycleTests
     public async Task A_cache_that_fails_does_not_stop_the_removal()
     {
         var cache = new RecordingDistributedCache();
-        var registry = Registry(cache);
+        var logs = new RecordingLoggerFactory();
+        var registry = new McpOAuthTokenCacheRegistry(McpOAuthTestKit.Backend(cache), logs);
 
         await registry.GetOrCreate("acme", McpOAuthTestKit.Server()).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
         cache.Failing = true;
 
         // The entry ends by itself (sliding lifetime); the refresh that asked must not fail over it.
-        await registry.RemoveAsync(new McpTenantServerKey("acme", "prod"), CancellationToken.None);
+        await Should.NotThrowAsync(async () => await registry.RemoveAsync(new McpTenantServerKey("acme", "prod"), CancellationToken.None));
+
+        logs.Count(Microsoft.Extensions.Logging.LogLevel.Warning, "could not be removed").ShouldBe(1);
     }
 
     [Fact]
@@ -99,6 +102,29 @@ public sealed class McpOAuthTokenLifecycleTests
 
         cache.Peek(McpOAuthCacheKeys.Token(new McpTenantServerKey("default", "deleted"))).ShouldBeNull();
         cache.Peek(McpOAuthCacheKeys.Token(new McpTenantServerKey("default", "kept"))).ShouldNotBeNull();
+    }
+
+    /// <summary>
+    /// Forgetting a token is cleanup. A request that is cancelled while the cache answers must not fail the refresh:
+    /// the list of this pass is published before the cleanup runs.
+    /// </summary>
+    [Fact]
+    public async Task A_refresh_that_is_cancelled_during_the_cleanup_still_completes()
+    {
+        var (catalog, servers, cache) = Catalog();
+        var deleted = McpOAuthTestKit.Server("deleted", tenantId: "default");
+        using var cancellation = new CancellationTokenSource();
+
+        await servers.SaveAsync(deleted, CancellationToken.None);
+        await catalog.Registry.GetOrCreate("default", deleted).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
+        await servers.DeleteAsync("default", "deleted", CancellationToken.None);
+
+        cache.OnRemove = cancellation.Cancel;
+
+        var outcome = await catalog.RefreshAsync(cancellation.Token);
+
+        outcome.ToolCount.ShouldBe(0);
+        cancellation.IsCancellationRequested.ShouldBeTrue("the cache was asked to remove the token, and the request was cancelled there.");
     }
 
     [Fact]
@@ -188,7 +214,7 @@ public sealed class McpOAuthTokenLifecycleTests
     {
         public McpOAuthTokenCacheRegistry Registry { get; } = registry;
 
-        public ValueTask<McpRefreshOutcome> RefreshAsync() => catalog.RefreshAsync();
+        public ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default) => catalog.RefreshAsync(cancellationToken);
     }
 
     /// <summary>A server store that runs an action once, in the middle of the first listing.</summary>

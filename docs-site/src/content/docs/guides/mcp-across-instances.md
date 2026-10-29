@@ -96,18 +96,24 @@ These rules apply to `OAuthTokenStore = DistributedCache`:
   and it refuses a `state` that is not 16 to 128 URL-safe characters or a code longer than 4096 characters before it
   touches the cache. Every entry ends by itself, and the code and the result are encrypted. The endpoint has no rate
   limit of its own: it is outside the management API's limiter. Limit requests to it in your ingress.
-- The cache entry of a token ends after `Tracon:Mcp:OAuthTokenSlidingLifetime` without a write (30 days by default).
-  When it ends for a server in use, the server asks for authorization again. The 30 days is an estimate: a provider does
-  not tell how long its refresh token lives.
+- The cache entry of a token ends after `Tracon:Mcp:OAuthTokenSlidingLifetime` without a read or a write (30 days by
+  default); a read starts the time again. A server that is switched on is read at each refresh interval, so its entry
+  does not end. The entry of a deleted server ends after that time, unless the refresh that notices the deletion removes
+  it first. A server that stays switched off is not read: after that time its entry ends and the server asks for
+  authorization again. The 30 days is an estimate: a provider does not tell how long its refresh token lives.
 - The cache key is a digest of the tenant and the server name; no name and no `state` is in a key.
 - One instance at a time refreshes a token. The instance that reads an expired token takes a lease in the lease store; the
   other instance reads the cache until the new token is there, for at most 30 seconds, and then uses what it has. The lease
   is "eventually correct, not strictly exclusive" (see `ISingletonLeaseStore`): it makes two refreshes with one refresh
   token rare, not impossible. A provider that rotates refresh tokens and refuses a token it has seen can ask for a new
-  authorization after such a refresh.
+  authorization after such a refresh. The lease is released when the new token is stored. When the refresh fails (the
+  provider answers with an error), nothing is stored and the lease ends by itself after 30 seconds; the other instance
+  then waits for those 30 seconds, and after them it behaves as it does without the lease.
 - A cache that fails does not stop the application. A read that fails returns no token and logs a warning, so the server's
   tools drop out of the next refresh as they do for a server that cannot be reached. A write that fails ends the
-  authorization that stored the token.
+  authorization that stored the token. When it fails after a refresh, and the provider rotated the refresh token, the new
+  token is lost and the old refresh token no longer works: the server asks for authorization again. The
+  `Memory` mode has no such path: it keeps the token in the process.
 - The process keeps no second copy of a token, because a copy could refresh with a refresh token the provider has
   replaced. The MCP client therefore reads the cache for each HTTP request it sends: connecting and listing the tools
   took two requests and two reads (measured 2026-10-29, `ModelContextProtocol.Core` 2.3.0, a token in the cache).

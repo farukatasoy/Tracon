@@ -450,6 +450,10 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         {
             var envelope = await rendezvous.AwaitCallbackAsync(state, cancellationToken).ConfigureAwait(false);
 
+            // The code is used once. The announcement goes now, not when the flow ends: a redirect the provider
+            // repeats while the token exchange runs finds no flow on the other instance and leaves nothing.
+            await rendezvous.ForgetAsync(state).ConfigureAwait(false);
+
             // Set before the code is handed over: the outcome goes back to the instance that is waiting for it.
             pending.RendezvousState = state;
 

@@ -215,9 +215,19 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             }
 
             await CloseRemovedConnectionsAsync(live).ConfigureAwait(false);
-            await ForgetDeletedServersAsync(knownTokenKeys, tenantIds, registered, cancellationToken).ConfigureAwait(false);
 
             _byTenant = byTenant;
+
+            // After the swap: forgetting a token is cleanup, and a request that is cancelled while the
+            // cache answers must not leave the list of this pass unpublished.
+            try
+            {
+                await ForgetDeletedServersAsync(knownTokenKeys, tenantIds, registered, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The next refresh forgets them.
+            }
 
             return new McpRefreshOutcome { ToolCount = total, HadUnreachableServers = hadUnreachableServers };
         }

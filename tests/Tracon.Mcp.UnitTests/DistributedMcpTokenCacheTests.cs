@@ -227,6 +227,48 @@ public sealed class DistributedMcpTokenCacheTests
         read.AccessToken.ShouldContain("-1-", Case.Sensitive);
     }
 
+    /// <summary>
+    /// The SDK stores a token only when its refresh worked. When the provider answers with an error nothing is
+    /// stored and nothing releases the lease, so the lease has to end by itself.
+    /// </summary>
+    [Fact]
+    public async Task A_lease_that_nothing_releases_ends_by_itself()
+    {
+        var leases = new InMemorySingletonLeaseStore();
+        var timing = McpOAuthTestKit.FastTiming with { RefreshLease = TimeSpan.FromMilliseconds(100) };
+        var backend = McpOAuthTestKit.Backend(new RecordingDistributedCache(), leases, timing: timing);
+        var tokens = Cache(backend);
+        var leaseName = McpOAuthCacheKeys.RefreshLease(Key);
+
+        await tokens.StoreTokensAsync(Expired(), CancellationToken.None);
+        await tokens.GetTokensAsync(CancellationToken.None);
+
+        // The refresh failed: no Store call follows. The other instance is refused first, then the lease is its own.
+        await WaitUntil.ValueAsync(
+            async () => await leases.TryAcquireAsync(leaseName, "another-instance", TimeSpan.FromSeconds(30)),
+            static acquired => acquired,
+            "the lease of the failed refresh to end by itself");
+    }
+
+    [Fact]
+    public async Task The_wait_for_the_new_token_ends_with_cancellation()
+    {
+        var leases = new RecordingLeaseStore(new InMemorySingletonLeaseStore());
+        var backend = McpOAuthTestKit.Backend(new RecordingDistributedCache(), leases);
+        var refreshing = Cache(backend);
+        using var cancellation = new CancellationTokenSource();
+
+        await refreshing.StoreTokensAsync(Expired(), CancellationToken.None);
+        await refreshing.GetTokensAsync(CancellationToken.None);
+
+        var waiting = Cache(backend).GetTokensAsync(cancellation.Token).AsTask();
+        await WaitUntil.TrueAsync(() => leases.Refused == 1, "the second instance to be refused the lease");
+
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await waiting);
+    }
+
     [Fact]
     public async Task A_token_the_sdk_still_uses_takes_no_lease()
     {

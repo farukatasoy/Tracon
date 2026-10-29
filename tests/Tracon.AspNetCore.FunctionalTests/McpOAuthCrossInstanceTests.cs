@@ -157,9 +157,15 @@ public sealed class McpOAuthCrossInstanceTests
 
         (await OAuthFlowClient.CallbackAsync(pair.B, state)).ShouldContain("Authorization complete", Case.Sensitive);
 
-        // A browser that reloads the page, or a provider that retries: the flow is over and nothing is left to answer.
+        // A browser that reloads the page, or a provider that retries: the announcement went when the owner took the
+        // code, so the other instance leaves nothing and answers at once.
         (await OAuthFlowClient.CallbackAsync(pair.B, state)).ShouldContain("not found or has expired", Case.Sensitive);
-        (await OAuthFlowClient.CallbackAsync(pair.A, state)).ShouldContain("not found or has expired", Case.Sensitive);
+
+        // The owner answers the same once its flow has ended (it ends after the catalog refresh that follows the exchange).
+        await WaitUntil.ValueAsync(
+            () => OAuthFlowClient.CallbackAsync(pair.A, state),
+            static page => page.Contains("not found or has expired", StringComparison.Ordinal),
+            "the owner to forget the flow");
 
         server.TokenRequests.ShouldHaveSingleItem();
     }
@@ -179,6 +185,11 @@ public sealed class McpOAuthCrossInstanceTests
         var page = await declined.Content.ReadAsStringAsync();
 
         page.ShouldContain("Authorization failed", Case.Sensitive);
+
+        // The owner ended the flow with the failure it was handed. A page that waited out the result would say the
+        // exchange timed out, and no reference would be there.
+        page.ShouldNotContain("timed out", Case.Sensitive);
+        page.ShouldContain("(ref:", Case.Sensitive);
         server.TokenRequests.ShouldBeEmpty();
     }
 
@@ -227,7 +238,7 @@ public sealed class McpOAuthCrossInstanceTests
     }
 
     [Fact]
-    public async Task The_cache_holds_no_plaintext_token_or_code()
+    public async Task The_cache_holds_no_plaintext_token()
     {
         await using var server = await OAuthProtectedMcpServer.StartAsync();
         var cache = new SharedCache();
@@ -235,7 +246,7 @@ public sealed class McpOAuthCrossInstanceTests
 
         await OAuthFlowClient.SaveServerAsync(pair.A, server.Endpoint);
         var state = await OAuthFlowClient.StartFlowAsync(pair.A);
-        (await OAuthFlowClient.CallbackAsync(pair.B, state, code: "a-distinctive-code-5e2f")).ShouldContain("Authorization complete", Case.Sensitive);
+        (await OAuthFlowClient.CallbackAsync(pair.B, state)).ShouldContain("Authorization complete", Case.Sensitive);
 
         cache.Keys.ShouldNotBeEmpty();
 
@@ -245,7 +256,6 @@ public sealed class McpOAuthCrossInstanceTests
 
             text.ShouldNotContain(server.AccessToken, Case.Sensitive);
             text.ShouldNotContain("refresh-", Case.Sensitive);
-            text.ShouldNotContain("a-distinctive-code-5e2f", Case.Sensitive);
         }
 
         // The token was written at all: an empty cache would prove nothing.

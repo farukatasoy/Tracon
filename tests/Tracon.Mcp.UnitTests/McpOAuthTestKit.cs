@@ -131,6 +131,9 @@ internal sealed class RecordingDistributedCache : IDistributedCache
     /// <summary>Gets or sets a value indicating whether every call throws.</summary>
     public bool Failing { get; set; }
 
+    /// <summary>Gets or sets an action that runs inside a removal, before the cache looks at the token it was given.</summary>
+    public Action? OnRemove { get; set; }
+
     /// <summary>Gets how many times a value was written.</summary>
     public int Writes => Volatile.Read(ref _writes);
 
@@ -181,6 +184,8 @@ internal sealed class RecordingDistributedCache : IDistributedCache
     public Task RemoveAsync(string key, CancellationToken token = default)
     {
         ThrowIfFailing();
+        OnRemove?.Invoke();
+        token.ThrowIfCancellationRequested();
         _entries.TryRemove(key, out _);
 
         return Task.CompletedTask;

@@ -47,6 +47,10 @@ public sealed class McpDiscoverySingletonTests
 
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
+
+        // Both, not one: the lease selection this class used to assert would have left one at zero.
+        loggerA.CountContaining(DiscoveryCompleted).ShouldBeGreaterThanOrEqualTo(2);
+        loggerB.CountContaining(DiscoveryCompleted).ShouldBeGreaterThanOrEqualTo(2);
     }
 
     private static McpDiscoveryService BuildService(

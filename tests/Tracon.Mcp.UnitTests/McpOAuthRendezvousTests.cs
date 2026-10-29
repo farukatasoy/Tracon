@@ -154,6 +154,21 @@ public sealed class McpOAuthRendezvousTests
     }
 
     [Fact]
+    public async Task A_cache_that_fails_for_a_moment_does_not_end_the_wait_for_the_result()
+    {
+        var cache = new RecordingDistributedCache { Failing = true };
+        var rendezvous = Rendezvous(cache);
+
+        var waiting = rendezvous.AwaitOutcomeAsync(State, CancellationToken.None);
+
+        // The owner finished while the cache was away; the instance that waits still gets the answer.
+        cache.Failing = false;
+        await rendezvous.PublishOutcomeAsync(State, new McpOutcomeEnvelope(Success: true, "prod", Error: null));
+
+        (await waiting).ShouldNotBeNull().Success.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task The_wait_for_a_result_ends_when_the_owner_leaves_none()
     {
         var timing = McpOAuthTestKit.FastTiming with { OutcomeWait = TimeSpan.FromMilliseconds(80) };

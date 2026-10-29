@@ -247,12 +247,22 @@ internal sealed class McpOAuthRendezvous
             .UntilAsync(
                 async token =>
                 {
-                    var bytes = await _backend.Cache.GetAsync(key, token).ConfigureAwait(false);
+                    try
+                    {
+                        var bytes = await _backend.Cache.GetAsync(key, token).ConfigureAwait(false);
 
-                    return bytes is not null
-                        && McpOAuthEnvelope.TryOpen(_backend.Protector, bytes, McpOAuthJsonContext.Default.McpOutcomeEnvelope, out var outcome)
-                            ? outcome
-                            : null;
+                        return bytes is not null
+                            && McpOAuthEnvelope.TryOpen(_backend.Protector, bytes, McpOAuthJsonContext.Default.McpOutcomeEnvelope, out var outcome)
+                                ? outcome
+                                : null;
+                    }
+                    catch (Exception ex) when (OperationCancellation.IsFailure(ex, token))
+                    {
+                        // The owner may be done: one failed read is not an answer.
+                        _logger.LogWarning(ex, "The distributed cache could not be read while an MCP OAuth callback waited for the result.");
+
+                        return null;
+                    }
                 },
                 _backend.Timing.OutcomePoll,
                 _backend.Timing.OutcomeWait,

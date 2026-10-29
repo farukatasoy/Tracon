@@ -754,7 +754,7 @@ it stays one section to configure. It bounds both `headerConfigurationKeys` and
 `OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
 servers that use OAuth in your `IDistributedCache`, encrypted, and lets the provider's redirect reach any
 instance. The application does not start in that mode without an `IDistributedCache` and content protection.
-`OAuthTokenSlidingLifetime` is how long a token stays in the cache without a write; it applies to
+`OAuthTokenSlidingLifetime` is how long a token stays in the cache without a read or a write; it applies to
 `DistributedCache` only and must be greater than zero. See
 [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 

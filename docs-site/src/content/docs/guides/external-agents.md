@@ -91,7 +91,9 @@ and the model sees the new definition.
   wins, so a remote server cannot replace it.
 - New MCP tools require approval by default.
 - Discovery is tenant-scoped and limited to 100 tools per server by default.
-- OAuth tokens live in memory. Plan for reauthorization after a process restart.
+- OAuth tokens live in memory by default, so plan for reauthorization after a process restart. With
+  `Tracon:Mcp:OAuthTokenStore` set to `DistributedCache` they live, encrypted, in your `IDistributedCache` and
+  survive a restart; see [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 
 An agent can also receive static MCP resources at run start through
 `AgentDefinition.McpResourceUris`. Each entry is `{server}:{uri}`. The limits are

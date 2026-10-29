@@ -209,7 +209,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   instance at a time refreshes a token, through a lease in the lease store (`ISingletonLeaseStore`, a SQL provider for a
   lease that two instances share). The application does not start in this mode when no `IDistributedCache` is registered or
   content protection is off, and starts with a warning when the cache or the lease store lives in one process. The new
-  `Tracon:Mcp:OAuthTokenSlidingLifetime` (default 30 days) sets how long a token stays in the cache without a write. New public
+  `Tracon:Mcp:OAuthTokenSlidingLifetime` (default 30 days) sets how long a token stays in the cache without a read or a write. New public
   types: `McpOAuthTokenStore`, `TraconMcpOptions.OAuthTokenStore` and `TraconMcpOptions.OAuthTokenSlidingLifetime`. In this
   mode the MCP client reads the cache for each HTTP request it sends to the server, because a copy kept in the process
   could refresh with a refresh token the provider has already replaced. Without this setting, a callback that reaches the

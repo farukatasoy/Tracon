@@ -11,7 +11,7 @@ namespace Tracon;
 /// <see cref="RunAsync"/> runs its own lease/renew loop at an interval that is
 /// ONE THIRD of <see cref="SingletonExecutionOptions.LeaseDuration"/>; this
 /// keeps the lease alive in cases where the calling service's own work
-/// interval (e.g. MCP discovery's 5-minute refresh interval) may be much
+/// interval (e.g. a model-health refresh interval of minutes) may be much
 /// longer than the lease duration. The calling service reads only
 /// <see cref="IsHeld"/> on each of its own ticks - this is synchronous and
 /// free, it produces no extra database round-trip.

@@ -111,15 +111,17 @@ public sealed class TraconMcpOptions
     public McpOAuthTokenStore OAuthTokenStore { get; set; }
 
     /// <summary>
-    /// How long a token stays in the distributed cache without being written. The default is 30
-    /// days. It applies only to <see cref="McpOAuthTokenStore.DistributedCache"/>.
+    /// How long a token stays in the distributed cache without being read or written. The default is
+    /// 30 days. It applies only to <see cref="McpOAuthTokenStore.DistributedCache"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every write of the token starts the time again. An entry for a server that was deleted, or
-    /// that nobody uses, leaves the cache after this time. When the time passes for a server in use,
-    /// the server asks for authorization again. The value is an estimate, not a measurement: a
-    /// provider does not tell how long its refresh token lives. Must be greater than zero.
+    /// This is the cache's sliding expiration: a read starts the time again, as does a write. A server
+    /// that is switched on is read at every refresh interval, so its entry does not end. The entry of a
+    /// server that was deleted ends after this time unless the refresh that notices the deletion
+    /// removes it first. The entry of a server that stays switched off, and so is never read, ends too,
+    /// and the server then asks for authorization again. The value is an estimate, not a measurement:
+    /// a provider does not tell how long its refresh token lives. Must be greater than zero.
     /// </para>
     /// </remarks>
     public TimeSpan OAuthTokenSlidingLifetime { get; set; } = TimeSpan.FromDays(30);
