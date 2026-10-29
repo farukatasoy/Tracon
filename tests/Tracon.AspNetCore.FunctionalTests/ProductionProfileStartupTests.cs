@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -406,13 +408,25 @@ public sealed class ProductionProfileStartupTests
                     builder.RequireProductionProfile();
                 }));
 
-        foreach (var risk in Enum.GetValues<TraconProductionRisk>().Where(static risk => risk != TraconProductionRisk.SingleTenant))
+        // The five instance decisions are asked only of a host that declared more than one instance (default
+        // one), so a host that declared nothing is not asked them; the tests below declare two.
+        var asked = Enum.GetValues<TraconProductionRisk>()
+            .Where(static risk => risk != TraconProductionRisk.SingleTenant && !InstanceRisks.Contains(risk))
+            .ToArray();
+
+        foreach (var risk in asked)
         {
             exception.Message.ShouldContain($"  {risk}");
         }
 
         exception.Message.ShouldNotContain($"  {nameof(TraconProductionRisk.SingleTenant)}");
-        exception.Message.ShouldContain($"{Enum.GetValues<TraconProductionRisk>().Length - 1} production decisions");
+
+        foreach (var risk in InstanceRisks)
+        {
+            exception.Message.ShouldNotContain($"  {risk}");
+        }
+
+        exception.Message.ShouldContain($"{asked.Length} production decisions");
     }
 
     [Fact]
@@ -734,6 +748,169 @@ public sealed class ProductionProfileStartupTests
             entry => entry.Contains($"{nameof(TraconProductionRisk.UnkeyedAuditChain)} is satisfied", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// The decisions that exist only for a deployment that declared more than one instance (Phase 265).
+    /// </summary>
+    private static readonly TraconProductionRisk[] InstanceRisks =
+    [
+        TraconProductionRisk.InstanceLocalState,
+        TraconProductionRisk.UnreconciledRuns,
+        TraconProductionRisk.UnelectedBackgroundWork,
+        TraconProductionRisk.InstanceLocalRateLimit,
+        TraconProductionRisk.InstanceLocalMcpTokens,
+    ];
+
+    [Fact]
+    public async Task A_host_that_declares_two_instances_and_answers_nothing_is_asked_every_instance_decision()
+    {
+        // Every other decision is answered, so the message can only be about the instance shape. Reporting
+        // only the first open decision would turn five failures into five restarts.
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, null);
+                    builder.UseMcp();
+                    DeclareInstances(builder, 2);
+                    builder.RequireProductionProfile();
+                }));
+
+        foreach (var risk in InstanceRisks)
+        {
+            exception.Message.ShouldContain($"  {risk}");
+        }
+
+        exception.Message.ShouldContain("5 production decisions");
+        exception.Message.ShouldContain("2 instances are declared");
+    }
+
+    [Theory]
+    [InlineData(TraconProductionRisk.InstanceLocalState)]
+    [InlineData(TraconProductionRisk.UnreconciledRuns)]
+    [InlineData(TraconProductionRisk.UnelectedBackgroundWork)]
+    [InlineData(TraconProductionRisk.InstanceLocalRateLimit)]
+    [InlineData(TraconProductionRisk.InstanceLocalMcpTokens)]
+    public async Task One_instance_decision_left_open_stops_the_host_and_names_only_it(TraconProductionRisk left)
+    {
+        // Four of the five are answered, so the failure can only be about the one left behind. A single test
+        // that leaves all five open would pass even if four of the checks were broken.
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: builder =>
+                {
+                    AnswerAllExcept(builder, null);
+                    builder.UseMcp();
+                    DeclareInstances(builder, 2);
+                    AnswerInstanceShape(builder, except: left);
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain($"  {left}");
+        exception.Message.ShouldContain("1 production decision is");
+
+        foreach (var answered in InstanceRisks.Where(risk => risk != left))
+        {
+            exception.Message.ShouldNotContain($"  {answered}");
+        }
+    }
+
+    [Fact]
+    public async Task A_host_that_declares_two_instances_and_answers_every_decision_starts()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, null);
+                builder.UseMcp();
+                DeclareInstances(builder, 2);
+                AnswerInstanceShape(builder, except: null);
+                builder.RequireProductionProfile();
+            });
+
+        using var response = await host.Client.GetAsync("/tracon/api/meta", TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.InstanceLocalState)} is satisfied", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task An_instance_decision_can_be_accepted_by_name()
+    {
+        // The deployment runs two instances and carries the per-instance rate limit knowingly. The acceptance
+        // is a decision, so it is logged by name, like every other accepted risk.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, null);
+                builder.UseMcp();
+                DeclareInstances(builder, 2);
+                AnswerInstanceShape(builder, except: TraconProductionRisk.InstanceLocalRateLimit);
+                builder.RequireProductionProfile(static profile => profile.Accept(TraconProductionRisk.InstanceLocalRateLimit));
+            });
+
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.InstanceLocalRateLimit)} is accepted", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_host_that_declares_one_instance_is_not_asked_the_instance_decisions()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, null);
+                builder.UseMcp();
+                DeclareInstances(builder, 1);
+                builder.RequireProductionProfile();
+            });
+
+        foreach (var risk in InstanceRisks)
+        {
+            host.Logs.Entries.ShouldContain(
+                entry => entry.Contains($"{risk} is not applicable", StringComparison.Ordinal),
+                $"{risk} must be reported as not applicable, not asked.");
+        }
+    }
+
+    private static void DeclareInstances(ITraconBuilder builder, int instances)
+        => builder.Services.Configure<TraconOptions>(options => options.Deployment.Instances = instances);
+
+    /// <summary>
+    /// Answers the five instance decisions with the setting each one asks for, except the one that is left open.
+    /// </summary>
+    private static void AnswerInstanceShape(ITraconBuilder builder, TraconProductionRisk? except)
+    {
+        var services = builder.Services;
+
+        if (except != TraconProductionRisk.InstanceLocalState)
+        {
+            services.Replace(ServiceDescriptor.Singleton(StateSharing.DatabaseServer("PostgreSQL")));
+        }
+
+        if (except != TraconProductionRisk.UnreconciledRuns)
+        {
+            services.Configure<RunReconciliationOptions>(static options => options.Enabled = true);
+        }
+
+        if (except != TraconProductionRisk.UnelectedBackgroundWork)
+        {
+            services.Configure<SingletonExecutionOptions>(static options => options.Enabled = true);
+        }
+
+        if (except != TraconProductionRisk.InstanceLocalRateLimit)
+        {
+            services.Configure<TraconRateLimitOptions>(static options => options.Scope = RateLimitScope.Deployment);
+        }
+
+        if (except != TraconProductionRisk.InstanceLocalMcpTokens)
+        {
+            services.AddSingleton<IDistributedCache, SharedCacheStub>();
+            services.AddSingleton(McpOAuthKit.Protector());
+            services.Configure<TraconMcpOptions>(static options => options.OAuthTokenStore = McpOAuthTokenStore.DistributedCache);
+        }
+    }
+
     private static void AnswerAllExcept(ITraconBuilder builder, TraconProductionRisk? left)
         => AnswerAllExceptThese(builder, left is { } one ? [one] : []);
 
@@ -823,6 +1000,15 @@ public sealed class ProductionProfileStartupTests
                     new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["test"] = new byte[32] }));
                 break;
 
+            case TraconProductionRisk.InstanceLocalState:
+            case TraconProductionRisk.UnreconciledRuns:
+            case TraconProductionRisk.UnelectedBackgroundWork:
+            case TraconProductionRisk.InstanceLocalRateLimit:
+            case TraconProductionRisk.InstanceLocalMcpTokens:
+                // Asked only of a host that declared more than one instance, and this host declared one:
+                // nothing to answer. The tests that declare two answer them through AnswerInstanceShape.
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(nameof(risk), risk, "Unknown production risk.");
         }
@@ -887,6 +1073,33 @@ public sealed class ProductionProfileStartupTests
         configureTracon(tracon);
 
         return builder.Build();
+    }
+
+    /// <summary>A cache whose type is not the in-process one, so the check treats it as shared. Never called.</summary>
+    private sealed class SharedCacheStub : IDistributedCache
+    {
+        public byte[]? Get(string key) => null;
+
+        public Task<byte[]?> GetAsync(string key, CancellationToken token = default) => Task.FromResult<byte[]?>(null);
+
+        public void Refresh(string key)
+        {
+        }
+
+        public Task RefreshAsync(string key, CancellationToken token = default) => Task.CompletedTask;
+
+        public void Remove(string key)
+        {
+        }
+
+        public Task RemoveAsync(string key, CancellationToken token = default) => Task.CompletedTask;
+
+        public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
+        {
+        }
+
+        public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
+            => Task.CompletedTask;
     }
 
     private sealed class StubTenantContext : ITenantContext

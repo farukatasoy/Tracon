@@ -73,6 +73,20 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 $"must be between 0 and 1048576. Actual value: {recording.MaxPayloadLength}.");
         }
 
+        var deployment = options.Deployment;
+
+        if (deployment is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconOptions)}.{nameof(TraconOptions.Deployment)} cannot be empty.");
+        }
+        else if (deployment.Instances < 1)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconDeploymentOptions)}.{nameof(TraconDeploymentOptions.Instances)} " +
+                $"must be at least 1. Actual value: {deployment.Instances}.");
+        }
+
         var circuitBreaker = options.CircuitBreaker;
 
         if (circuitBreaker is null)

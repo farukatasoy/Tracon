@@ -142,6 +142,11 @@ public static class TraconMcpBuilderExtensions
             services.Configure(configure);
         }
 
+        // The production decision this mode answers when the deployment declares more than one instance
+        // (Tracon:Deployment:Instances, Phase 265).
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceMcpTokensProfileCheck>());
+
         services.TryAddSingleton(McpOAuthDistributedBackend.FromServices);
         services.TryAddSingleton<McpOAuthTokenCacheRegistry>();
         services.TryAddSingleton<McpToolCatalog>();

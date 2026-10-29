@@ -99,4 +99,38 @@ public enum TraconProductionRisk
     /// can change an entry and recompute every hash after it.
     /// </summary>
     UnkeyedAuditChain,
+
+    /// <summary>
+    /// More than one instance is declared (<c>Tracon:Deployment:Instances</c>), and the store keeps its
+    /// state inside one process: in memory, or in a SQLite file. Each instance then sees its own runs,
+    /// sessions and job queue, and a request that lands on the other instance finds none of them.
+    /// </summary>
+    InstanceLocalState,
+
+    /// <summary>
+    /// More than one instance is declared and run reconciliation is off. A cancel that reaches the
+    /// instance that does not run the run answers <c>409</c>, and a run whose instance died stays
+    /// <c>Running</c> until someone closes it by hand.
+    /// </summary>
+    UnreconciledRuns,
+
+    /// <summary>
+    /// More than one instance is declared and single-executor election is off, so every instance runs
+    /// the periodic background work (approval expiry, canary rollback, workflow request expiry, the
+    /// orphaned-run scan, the model health probe) at the same time.
+    /// </summary>
+    UnelectedBackgroundWork,
+
+    /// <summary>
+    /// More than one instance is declared, request rate is limited, and the limit is counted in the
+    /// memory of each process, so the deployment admits the limit once per instance.
+    /// </summary>
+    InstanceLocalRateLimit,
+
+    /// <summary>
+    /// More than one instance is declared and the OAuth tokens of MCP servers live in the memory of one
+    /// process, so an authorization the other instance started cannot finish, and a token the other
+    /// instance obtained cannot be used. Accept it when no MCP server uses OAuth.
+    /// </summary>
+    InstanceLocalMcpTokens,
 }

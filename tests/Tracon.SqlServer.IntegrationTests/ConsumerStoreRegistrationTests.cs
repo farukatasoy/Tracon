@@ -52,6 +52,16 @@ public sealed class ConsumerStoreRegistrationTests
             .ShouldBeOfType<SqlTenantStore>();
     }
 
+    [Fact]
+    public void UseSqlServer_says_its_state_is_shared_between_processes()
+    {
+        // The production profile reads this to refuse a declared multi-instance host whose store serves one
+        // process (Phase 265). A database server is the answer it accepts.
+        using var provider = Build(static _ => { });
+
+        provider.GetRequiredService<StateSharing>().AcrossProcesses.ShouldBeTrue();
+    }
+
     private static ServiceProvider Build(Action<IServiceCollection> registerConsumerStores)
     {
         var services = new ServiceCollection();

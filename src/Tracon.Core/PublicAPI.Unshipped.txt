@@ -334,6 +334,10 @@ Tracon.TraconContentProtectionOptions.Enabled.get -> bool
 Tracon.TraconContentProtectionOptions.Enabled.set -> void
 Tracon.TraconContentProtectionOptions.Keys.get -> System.Collections.Generic.IDictionary<string!, string!>!
 Tracon.TraconContentProtectionOptions.TraconContentProtectionOptions() -> void
+Tracon.TraconDeploymentOptions
+Tracon.TraconDeploymentOptions.Instances.get -> int
+Tracon.TraconDeploymentOptions.Instances.set -> void
+Tracon.TraconDeploymentOptions.TraconDeploymentOptions() -> void
 Tracon.TraconDiagnostics
 Tracon.TraconDiagnostics.Tags
 Tracon.TraconDiagnosticsCollector
@@ -420,6 +424,8 @@ Tracon.TraconOptions.CircuitBreaker.get -> Tracon.TraconCircuitBreakerOptions!
 Tracon.TraconOptions.CircuitBreaker.set -> void
 Tracon.TraconOptions.DefaultTenantId.get -> string!
 Tracon.TraconOptions.DefaultTenantId.set -> void
+Tracon.TraconOptions.Deployment.get -> Tracon.TraconDeploymentOptions!
+Tracon.TraconOptions.Deployment.set -> void
 Tracon.TraconOptions.Health.get -> Tracon.TraconHealthOptions!
 Tracon.TraconOptions.Health.set -> void
 Tracon.TraconOptions.MaxParameterValueLength.get -> int

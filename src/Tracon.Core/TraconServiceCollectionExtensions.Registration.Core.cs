@@ -100,6 +100,14 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, ToolAuthorizationProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, TenantEgressProfileCheck>());
 
+        // The decisions that exist only when the deployment declares more than one instance
+        // (Tracon:Deployment:Instances, Phase 265). Each is not applicable at the default of one, so a host
+        // that never declared a second instance is asked exactly what it was asked before.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceStateProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceReconciliationProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceBackgroundWorkProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceRateLimitProfileCheck>());
+
         // The checks only a step after Build() can answer (phase 259: MapTracon knows which role
         // policies are registered). The validator reads them with the registered ones.
         services.TryAddSingleton<LateProductionProfileChecks>();

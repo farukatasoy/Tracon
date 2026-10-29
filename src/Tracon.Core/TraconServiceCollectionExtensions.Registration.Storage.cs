@@ -163,6 +163,10 @@ public static partial class TraconServiceCollectionExtensions
         // that calls the store, so the endpoint filter and the inbound trigger
         // limiter share the same failure fallback and metric.
         services.TryAddTraconDefault<IRateLimitCounterStore, InMemoryRateLimitCounterStore>();
+
+        // What the bound storage provider shares between processes (Phase 265). Not a store and not a contract
+        // a consumer replaces: each provider package overwrites it, and only the production profile reads it.
+        services.TryAddSingleton(StateSharing.InProcessMemory);
         services.TryAddSingleton(static provider => new DeploymentRateLimiter(
             provider.GetRequiredService<IRateLimitCounterStore>(),
             provider.GetService<TimeProvider>(),

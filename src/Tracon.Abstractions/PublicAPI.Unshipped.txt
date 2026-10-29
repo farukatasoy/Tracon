@@ -3824,15 +3824,20 @@ Tracon.TraconPreflightOptions.ReserveRatio.get -> double
 Tracon.TraconPreflightOptions.ReserveRatio.set -> void
 Tracon.TraconPreflightOptions.TraconPreflightOptions() -> void
 Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.InstanceLocalMcpTokens = 16 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.InstanceLocalRateLimit = 15 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.InstanceLocalState = 12 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.SingleTenant = 0 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnboundedRetention = 5 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UncheckedToolCalls = 7 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnelectedBackgroundWork = 14 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnencryptedContentAtRest = 2 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UninspectedContent = 3 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnkeyedAuditChain = 11 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnlimitedRequestRate = 4 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnlimitedTenantWorkflows = 10 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnownedSessions = 1 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnreconciledRuns = 13 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnregisteredRolePolicies = 6 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnrestrictedTenantEgress = 8 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnverifiedTenantHeader = 9 -> Tracon.TraconProductionRisk

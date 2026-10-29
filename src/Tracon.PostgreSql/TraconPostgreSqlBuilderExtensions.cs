@@ -288,6 +288,9 @@ public static class TraconPostgreSqlBuilderExtensions
         // a multi-instance deployment.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
+        // The state lives in a database server, so every instance that reaches it shares the state (Phase 265).
+        services.Replace(ServiceDescriptor.Singleton(StateSharing.DatabaseServer("PostgreSQL")));
+
         // Shared rate-limit counter (Phase 263). Replaces the in-memory
         // InMemoryRateLimitCounterStore; what makes Tracon:RateLimit:Scope =
         // Deployment hold across instances. Scope = Instance never calls it.

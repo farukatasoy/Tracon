@@ -41,6 +41,16 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public void UsePostgreSql_says_its_state_is_shared_between_processes()
+    {
+        // The production profile reads this to refuse a declared multi-instance host whose store serves one
+        // process (Phase 265). A database server is the answer it accepts.
+        using var provider = BuildProvider();
+
+        provider.GetRequiredService<StateSharing>().AcrossProcesses.ShouldBeTrue();
+    }
+
+    [Fact]
     public void UsePostgreSql_registers_the_chat_history_provider()
     {
         using var provider = BuildProvider();

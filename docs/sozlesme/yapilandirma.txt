@@ -36,6 +36,7 @@ Tracon:ContentProtection:Columns:*
 Tracon:ContentProtection:Enabled
 Tracon:ContentProtection:Keys:*
 Tracon:DefaultTenantId
+Tracon:Deployment:Instances
 Tracon:Drain:Enabled
 Tracon:Drain:Timeout
 Tracon:Egress:AllowPrivateNetworkTargets

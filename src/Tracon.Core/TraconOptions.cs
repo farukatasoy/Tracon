@@ -30,6 +30,9 @@ public sealed class TraconOptions
     /// <summary>Gets or sets audit-trail options.</summary>
     public TraconAuditOptions Audit { get; set; } = new();
 
+    /// <summary>Gets or sets the declaration of how many instances run against one store.</summary>
+    public TraconDeploymentOptions Deployment { get; set; } = new();
+
     /// <summary>Gets or sets skill-loading limits.</summary>
     public TraconSkillOptions Skills { get; set; } = new();
 
@@ -560,6 +563,38 @@ public sealed class TraconAttachmentOptions
         "text/plain",
         "audio/*",
     };
+}
+
+/// <summary>
+/// Declares the shape of the deployment: how many instances of the application run against one store.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Tracon cannot see how many replicas an orchestrator starts, so the deployment says it. The number
+/// changes nothing at run time. It decides what <c>RequireProductionProfile()</c> asks: with
+/// <see cref="Instances"/> above one, the profile also refuses a host whose settings keep state or
+/// work inside one process (<see cref="TraconProductionRisk.InstanceLocalState"/>,
+/// <see cref="TraconProductionRisk.UnreconciledRuns"/>,
+/// <see cref="TraconProductionRisk.UnelectedBackgroundWork"/>,
+/// <see cref="TraconProductionRisk.InstanceLocalRateLimit"/> and
+/// <see cref="TraconProductionRisk.InstanceLocalMcpTokens"/>).
+/// </para>
+/// <para>
+/// Read from the <c>Tracon:Deployment</c> configuration section. Two instances are measured and
+/// supported (K-1113); a larger number is accepted and is not measured.
+/// </para>
+/// </remarks>
+public sealed class TraconDeploymentOptions
+{
+    /// <summary>
+    /// Gets or sets how many instances of the application run against the same store. The default is
+    /// <c>1</c>.
+    /// </summary>
+    /// <remarks>
+    /// Must be at least <c>1</c>; startup fails otherwise. With <c>1</c> the deployment-shape decisions
+    /// of the production profile do not apply and the profile asks exactly what it asked before.
+    /// </remarks>
+    public int Instances { get; set; } = 1;
 }
 
 /// <summary>Defines options for audit-trail actor resolution.</summary>

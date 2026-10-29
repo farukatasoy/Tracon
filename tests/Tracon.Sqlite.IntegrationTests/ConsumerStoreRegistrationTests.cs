@@ -52,6 +52,16 @@ public sealed class ConsumerStoreRegistrationTests
             .ShouldBeOfType<SqlTenantStore>();
     }
 
+    [Fact]
+    public void UseSqlite_says_its_state_stays_in_one_process()
+    {
+        // The production profile reads this to refuse a declared multi-instance host whose store serves one
+        // process (Phase 265). A SQLite file is exactly that.
+        using var provider = Build(static _ => { });
+
+        provider.GetRequiredService<StateSharing>().AcrossProcesses.ShouldBeFalse();
+    }
+
     private static ServiceProvider Build(Action<IServiceCollection> registerConsumerStores)
     {
         var services = new ServiceCollection();

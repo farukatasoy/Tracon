@@ -220,6 +220,10 @@ public static class TraconSqliteBuilderExtensions
         // a multi-instance deployment.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
+        // A SQLite file serves one process (Phase 265): the production profile refuses it when the
+        // deployment declares more than one instance.
+        services.Replace(ServiceDescriptor.Singleton(StateSharing.SqliteFile));
+
         // Shared rate-limit counter (Phase 263). Replaces the in-memory
         // InMemoryRateLimitCounterStore; what makes Tracon:RateLimit:Scope =
         // Deployment hold across instances. Scope = Instance never calls it.

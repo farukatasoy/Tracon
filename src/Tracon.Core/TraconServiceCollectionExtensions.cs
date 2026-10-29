@@ -90,6 +90,7 @@ public static partial class TraconServiceCollectionExtensions
         BindCircuitBreaker(section.GetSection(nameof(TraconOptions.CircuitBreaker)), options.CircuitBreaker, options);
         BindHealth(section.GetSection(nameof(TraconOptions.Health)), options.Health, options);
         BindAudit(section.GetSection(nameof(TraconOptions.Audit)), options.Audit);
+        BindDeployment(section.GetSection(nameof(TraconOptions.Deployment)), options.Deployment, options);
         BindSkills(section.GetSection(nameof(TraconOptions.Skills)), options.Skills, options);
         BindAgentGraph(section.GetSection(nameof(TraconOptions.AgentGraph)), options.AgentGraph, options);
         BindAttachments(section.GetSection(nameof(TraconOptions.Attachments)), options.Attachments, options);

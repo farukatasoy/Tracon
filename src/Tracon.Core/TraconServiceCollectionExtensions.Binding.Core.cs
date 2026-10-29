@@ -128,6 +128,22 @@ public static partial class TraconServiceCollectionExtensions
         }
     }
 
+    /// <summary>Binds the <c>Tracon:Deployment</c> section.</summary>
+    private static void BindDeployment(IConfigurationSection section, TraconDeploymentOptions options, TraconOptions root)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        var read = ConfigurationValueReader.For(section, options, root);
+
+        read.Int32(
+            nameof(TraconDeploymentOptions.Instances),
+            static o => o.Instances,
+            static (o, v) => o.Instances = v);
+    }
+
     private static void BindSkills(IConfigurationSection section, TraconSkillOptions options, TraconOptions root)
     {
         if (!section.Exists())
