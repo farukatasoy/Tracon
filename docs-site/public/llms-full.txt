@@ -15709,7 +15709,7 @@ partition write the same row, so they take turns on it. A `Global` partition is 
 the worst case: one row for every caller. Prefer the `Tenant` partition on a busy
 deployment; its rows are spread by tenant.
 
-The numbers below show the cost of the statement and the row lock, not of a network: the
+The numbers below are a one-off measurement, not a gate. They show the cost of the statement and the row lock, not of a network: the
 database ran in a container on the same machine as the two instances.
 
 | Measured 2026-10-29 | PostgreSQL 18 | SQL Server 2022 |
