@@ -469,6 +469,11 @@ repeat it:
 | `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
 | `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
 | `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Sign the audit chain with a key](/guides/audit-chain-key/) |
+| `InstanceLocalState` | `Tracon:Deployment:Instances` is above `1` and the store keeps its state in one process (memory, or a SQLite file), so each instance sees its own runs, sessions and job queue | `UsePostgreSql` or `UseSqlServer`, with one database that every instance reaches |
+| `UnreconciledRuns` | `Instances` is above `1` and run reconciliation is off, so a cancel that reaches the other instance answers `409` and a run whose instance died stays `Running` | `Tracon:RunReconciliation:Enabled` |
+| `UnelectedBackgroundWork` | `Instances` is above `1` and single-executor election is off, so every instance runs the periodic background work at the same time | `Tracon:SingletonExecution:Enabled` |
+| `InstanceLocalRateLimit` | `Instances` is above `1`, request rate is limited, and each instance counts in its own memory, so the deployment admits the limit once per instance | `Tracon:RateLimit:Scope` set to `Deployment` |
+| `InstanceLocalMcpTokens` | `Instances` is above `1` and the OAuth tokens of MCP servers live in the memory of one process | `Tracon:Mcp:OAuthTokenStore` set to `DistributedCache`, on a cache that every instance shares; or accept it when no MCP server uses OAuth |
 
 Some rows are not asked in every composition:
 
@@ -481,6 +486,12 @@ Some rows are not asked in every composition:
 - `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows` exist only when
   `UseTenancy(...)` or `UseWorkflows(...)` is in the chain. `UnlimitedTenantWorkflows`
   is also not asked while `Tracon:Workflows:Enabled` is `false`.
+- The five instance decisions (`InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`,
+  `InstanceLocalRateLimit` and `InstanceLocalMcpTokens`) are asked only when `Tracon:Deployment:Instances` is above
+  `1`. At the default of `1` each is reported as not applicable, so a host that never declared a second instance is
+  asked exactly what it was asked before. `InstanceLocalRateLimit` is also not asked while the rate limit is off,
+  and `InstanceLocalMcpTokens` exists only when `UseMcp()` is in the chain. See
+  [Run more than one instance](/guides/multiple-instances/).
 - `UnkeyedAuditChain` is not asked while the audit log is Tracon's in-memory one: that chain lives in the process
   and goes with it, so no one writes to a table behind the host's back. A database audit log, or one you
   registered, is asked.

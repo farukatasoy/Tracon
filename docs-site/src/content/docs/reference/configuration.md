@@ -184,6 +184,7 @@ still runs as the same operating-system user and reads what that user can read.
 | `Attachments:AllowedMediaTypes` | `image/png`, `image/jpeg`, `image/webp`, `image/gif`, `application/pdf`, `text/plain`, `audio/*` |
 | `Audit:ActorClaimType` | `null`; resolution tries name identifier, name, then `sub` |
 | `Audit:ChainKeyId` | `null`; entries are written without a signing key. The id of the key that signs the audit hash chain |
+| `Deployment:Instances` | `1`. How many instances run against the same store; at least `1`. It changes nothing at run time: above `1`, `RequireProductionProfile()` asks five more decisions. See [Run more than one instance](/guides/multiple-instances/) |
 | `AuditChainKeys:<id>` | none. The base64 value of one chain key, at least 32 bytes; every key the chain was ever signed with stays here. Keep it in a secret store |
 
 The attachment guard checks file signatures. It does not trust the client's

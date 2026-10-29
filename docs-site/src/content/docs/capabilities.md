@@ -216,6 +216,7 @@ experiment, and automatic rollback is off until you configure it.
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `TraconEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
+| Two instances on one database | `Tracon:Deployment:Instances`, with `RequireProductionProfile()` | Supported for two instances on PostgreSQL or SQL Server; not measured for more. Declaring the count turns on five more decisions of the production profile. [What is shared and what stays per instance](/guides/multiple-instances/) |
 | Production profile gate | `RequireProductionProfile()` | Off by default, and it changes no setting and secures nothing by itself. It refuses to start the host while any of its production decisions is still on its permissive default and the risk has not been accepted by name; [the decisions are listed here](/guides/embedding/#make-a-production-decision-required) |
 
 An API-key scope never grants a role. Effective authority is the intersection of the

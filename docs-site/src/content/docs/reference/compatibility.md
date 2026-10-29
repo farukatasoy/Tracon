@@ -103,7 +103,7 @@ tests. The registration and provider-specific configuration still change.
 | Capability | In memory | PostgreSQL | SQL Server | SQLite |
 |---|---:|---:|---:|---:|
 | Survives process restart | No | Yes | Yes | Yes |
-| Intended for multiple application nodes | No | Yes | Yes | No; use it for one node or local work |
+| Intended for multiple application nodes | No | Yes; two instances are supported, see [Run more than one instance](/guides/multiple-instances/) | Yes; two instances are supported, see [Run more than one instance](/guides/multiple-instances/) | No; use it for one node or local work |
 | Run, event, session, job, eval, workflow, audit, and governance stores | Process lifetime | Durable | Durable | Durable |
 | Conversation branching | No | Yes | Yes | Yes |
 | Vector knowledge search | No | Yes, with pgvector | No; knowledge answers `501` | No; knowledge answers `501` |
@@ -274,7 +274,14 @@ this way. The decisions added after the first six (tenant separation, session ow
 at-rest content protection, content inspection, request rate limiting and retention) are
 `UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
 `UnverifiedTenantHeader`, `UnlimitedTenantWorkflows` and `UnkeyedAuditChain`; `CHANGELOG.md` gives the reason for
-each. The current list is the one table in [Make a production decision
+each.
+
+Five more exist only for a deployment that declares more than one instance with `Tracon:Deployment:Instances`:
+`InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`, `InstanceLocalRateLimit` and
+`InstanceLocalMcpTokens`. They are added the same way and each has its own `Accept` line. At the default of `1`
+each is reported as not applicable, so a host that never declared a second instance starts exactly as before; a host that
+declares two or more is asked them. Tracon cannot count replicas by itself, so a deployment that runs two and does not
+declare it is not checked. The current list is the one table in [Make a production decision
 required](/guides/embedding/#make-a-production-decision-required).
 
 A decision can also gain a second answer without the set growing. `UncheckedToolCalls` was

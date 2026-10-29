@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **`RequireProductionProfile()` asks five new decisions, but only of a host that declares more than one instance with
+  `Tracon:Deployment:Instances`. At the default of `1` a host that calls it starts exactly as before.** `TraconProductionRisk`
+  gains `InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`, `InstanceLocalRateLimit` and
+  `InstanceLocalMcpTokens`, each with its own `Accept` line. Why they were added: Tracon now supports two instances on one
+  PostgreSQL or SQL Server database, and the settings that make two instances work are all off by default, so a deployment
+  that runs two and forgets one gets no error. With the store in memory or in a SQLite file each instance sees its own runs;
+  with run reconciliation off a cancel that reaches the other instance answers `409`; with single-executor election off
+  every instance runs the periodic background work; with the rate-limit scope at `Instance` the deployment admits the limit
+  once per instance; with the MCP token store in `Memory` an authorization one instance started cannot finish on the other.
+  Answer each with the setting the failure message names, or accept it with `profile.Accept(TraconProductionRisk.X)`;
+  `InstanceLocalMcpTokens` is accepted when no MCP server uses OAuth. Tracon cannot count replicas, so a deployment that
+  runs two instances and does not declare them is not asked. New key: `Tracon:Deployment:Instances` (default `1`, at least
+  `1`). New public types: `TraconDeploymentOptions`, `TraconOptions.Deployment`. The guide *Run more than one instance*
+  lists what two instances share and what stays per instance.
+
 - **MCP discovery runs on every instance, also with `Tracon:SingletonExecution:Enabled` on.** It ran under the
   single-executor lease, so only the instance that held the lease refreshed its tool catalog and the other instance had no
   MCP tool at all (two instances on one database: 1 tool on the lease holder, 0 on the other, with or without OAuth on the

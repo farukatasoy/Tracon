@@ -585,7 +585,9 @@ list and the lane-cardinality guard.
 ## Singleton services and orphaned-run recovery
 
 Two more background concerns sit next to the job queue, both off by default and
-both meant for a multi-instance deployment.
+both meant for a multi-instance deployment. A deployment that declares more than one
+instance (`Tracon:Deployment:Instances`) is asked by the production profile to turn both on; see
+[Run more than one instance](/guides/multiple-instances/).
 
 **Singleton execution** (`Tracon:SingletonExecution`) elects one active
 instance for periodic background services that must not run twice at once:
@@ -761,7 +763,8 @@ whose status is no longer `Pending`; see
 
 :::caution[Production caveat]
 In-memory job and schedule stores disappear when the process stops and cannot
-coordinate multiple instances. Use PostgreSQL or SQL Server for durable workers.
+coordinate multiple instances. Use PostgreSQL or SQL Server for durable workers; two
+instances on one database are supported ([Run more than one instance](/guides/multiple-instances/)).
 SQLite is suitable for one process only. Keep the lease longer than the longest
 normal operation between cancellation checks, and make all external side effects
 idempotent.

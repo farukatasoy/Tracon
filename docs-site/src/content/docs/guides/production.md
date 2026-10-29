@@ -82,6 +82,11 @@ header and the workflow slots one tenant may take are asked only when tenants ar
 separated, and the endpoint role policies only of a host that mapped the Tracon
 endpoints before it started.
 
+A deployment that runs more than one instance declares it with `Tracon:Deployment:Instances`. Above `1`, the profile also
+asks whether the store, reconciliation, single-executor election, the rate-limit scope and the MCP token store suit
+more than one instance. At the default of `1` it asks none of them. See
+[Run more than one instance](/guides/multiple-instances/).
+
 Accepting is per item on purpose: there is no way to accept them all at once, so each
 accepted risk is one line a reviewer can see. An accepted risk is written to the log
 at information level, by name, every time the host starts.
@@ -254,6 +259,10 @@ flowchart LR
     W1 --> DB
     DB --- NOTE["Leases coordinate workers.<br/>MaxConcurrentJobs is per process."]
 ```
+
+Two instances that share one PostgreSQL or SQL Server database are supported. [Run more than one
+instance](/guides/multiple-instances/) lists what that needs and what stays per instance; the paragraphs below give
+the detail for the job queue, cancel and the rate limit.
 
 SQL job leases coordinate worker nodes. `MaxConcurrentJobs` is per process, so size
 the total concurrency against provider rate limits and database capacity. The
@@ -524,9 +533,11 @@ observed rather than as a guarantee.
 
 :::caution[Measured, not promised]
 These observations describe how one Tracon version behaves against one SQL
-store. They are not a statement that Tracon supports multiple nodes, and
-they set no service level. SQLite remains a single-process store; run the
-scenarios below on PostgreSQL or SQL Server.
+store, and they set no service level. Two instances on one PostgreSQL or SQL
+Server database are supported ([Run more than one
+instance](/guides/multiple-instances/)); more than two are not measured.
+SQLite remains a single-process store; run the scenarios below on PostgreSQL or
+SQL Server.
 :::
 
 ### A worker process dies mid-job

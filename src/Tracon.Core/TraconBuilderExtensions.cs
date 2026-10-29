@@ -145,6 +145,16 @@ public static partial class TraconBuilderExtensions
     /// way to accept them all at once.
     /// </para>
     /// <para>
+    /// A deployment that runs more than one instance declares it with <c>Tracon:Deployment:Instances</c>. Above
+    /// <c>1</c> the profile also asks five decisions that exist only for that shape:
+    /// <see cref="TraconProductionRisk.InstanceLocalState"/>, <see cref="TraconProductionRisk.UnreconciledRuns"/>,
+    /// <see cref="TraconProductionRisk.UnelectedBackgroundWork"/>,
+    /// <see cref="TraconProductionRisk.InstanceLocalRateLimit"/> and
+    /// <see cref="TraconProductionRisk.InstanceLocalMcpTokens"/>. At the default of <c>1</c> each is not applicable,
+    /// so a host that never declared a second instance is asked exactly what it was asked before. Tracon cannot
+    /// count replicas, so a deployment that runs two and does not declare them is not asked.
+    /// </para>
+    /// <para>
     /// The endpoint role policies are known only once <c>MapTracon</c> has run, so
     /// that decision is asked only of a host that called <c>MapTracon</c> before it
     /// started. An embedded host with no HTTP surface is not asked.
