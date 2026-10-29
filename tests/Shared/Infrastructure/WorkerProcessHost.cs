@@ -55,6 +55,7 @@ internal static class WorkerProcessHost
             [WorkerHarnessContract.WorkSecondsVariable] = Seconds(options.WorkDuration),
             [WorkerHarnessContract.MaxAttemptsVariable] = options.MaxAttempts.ToString(CultureInfo.InvariantCulture),
             [WorkerHarnessContract.WorkflowVariable] = options.Workflow ? "1" : "0",
+            [WorkerHarnessContract.ProviderVariable] = options.Provider,
         };
 
         return ProcessRunner.StartAsync(
@@ -96,6 +97,12 @@ internal sealed record WorkerProcessOptions
 
     /// <summary>The database the process connects to.</summary>
     public required string ConnectionString { get; init; }
+
+    /// <summary>
+    /// The storage provider the process connects with: <see cref="WorkerHarnessContract.PostgreSqlProvider"/>
+    /// or <see cref="WorkerHarnessContract.SqlServerProvider"/>.
+    /// </summary>
+    public string Provider { get; init; } = WorkerHarnessContract.PostgreSqlProvider;
 
     /// <summary>The schema the process reads and writes - the test migrates it first.</summary>
     public required string SchemaName { get; init; }

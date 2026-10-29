@@ -16,6 +16,9 @@ internal sealed record WorkerHarnessSettings
 {
     public required WorkerHarnessMode Mode { get; init; }
 
+    /// <summary>The storage provider the harness connects with.</summary>
+    public required WorkerHarnessProvider Provider { get; init; }
+
     public required string ConnectionString { get; init; }
 
     public required string SchemaName { get; init; }
@@ -49,6 +52,13 @@ internal sealed record WorkerHarnessSettings
                 var other => throw new InvalidOperationException(
                     $"{WorkerHarnessContract.ModeVariable} must be 'worker' or 'api'; it was '{other}'."),
             },
+            Provider = Environment.GetEnvironmentVariable(WorkerHarnessContract.ProviderVariable) switch
+            {
+                null or "" or WorkerHarnessContract.PostgreSqlProvider => WorkerHarnessProvider.PostgreSql,
+                WorkerHarnessContract.SqlServerProvider => WorkerHarnessProvider.SqlServer,
+                var other => throw new InvalidOperationException(
+                    $"{WorkerHarnessContract.ProviderVariable} must be 'postgresql' or 'sqlserver'; it was '{other}'."),
+            },
             ConnectionString = Read(WorkerHarnessContract.ConnectionVariable),
             SchemaName = Read(WorkerHarnessContract.SchemaVariable),
             ExecutionLogPath = Read(WorkerHarnessContract.LogVariable),
@@ -70,6 +80,16 @@ internal sealed record WorkerHarnessSettings
 
     private static TimeSpan ReadSeconds(string name)
         => TimeSpan.FromSeconds(double.Parse(Read(name), CultureInfo.InvariantCulture));
+}
+
+/// <summary>The storage provider the harness connects with.</summary>
+internal enum WorkerHarnessProvider
+{
+    /// <summary>PostgreSQL.</summary>
+    PostgreSql,
+
+    /// <summary>SQL Server.</summary>
+    SqlServer,
 }
 
 /// <summary>The process shape the harness runs as.</summary>

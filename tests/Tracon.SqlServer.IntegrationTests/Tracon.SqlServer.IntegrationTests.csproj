@@ -12,6 +12,28 @@
     <ProjectReference Include="../../src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
   </ItemGroup>
 
+  <!--
+    Phase 265: the two-process failure proof starts tests/Tracon.WorkerHarness as a real, separate host and kills it,
+    on SQL Server as it already does on PostgreSQL. ReferenceOutputAssembly=false for the reason the PostgreSQL project
+    gives: the harness is a SUBJECT, not a library.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.WorkerHarness/Tracon.WorkerHarness.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Shared process infrastructure. Linked, not copied (K-411). -->
+  <ItemGroup>
+    <Compile Include="../Shared/Infrastructure/ProcessResult.cs" Link="Infrastructure/Shared/ProcessResult.cs" />
+    <Compile Include="../Shared/Infrastructure/ProcessRunner.cs" Link="Infrastructure/Shared/ProcessRunner.cs" />
+    <Compile Include="../Shared/Infrastructure/ManagedProcess.cs" Link="Infrastructure/Shared/ManagedProcess.cs" />
+    <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
+    <Compile Include="../Shared/Infrastructure/WorkerProcessHost.cs" Link="Infrastructure/Shared/WorkerProcessHost.cs" />
+    <Compile Include="../Shared/Infrastructure/WorkerHarnessContract.cs" Link="Infrastructure/Shared/WorkerHarnessContract.cs" />
+    <Compile Include="../Shared/Infrastructure/HarnessExecutionLog.cs" Link="Infrastructure/Shared/HarnessExecutionLog.cs" />
+    <Compile Include="../Shared/Infrastructure/TwoProcessLeaseTakeoverContract.cs" Link="Infrastructure/Shared/TwoProcessLeaseTakeoverContract.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Testcontainers.MsSql" />
   </ItemGroup>

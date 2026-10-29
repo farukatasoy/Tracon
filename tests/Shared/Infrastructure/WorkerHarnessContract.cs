@@ -26,6 +26,15 @@ internal static class WorkerHarnessContract
     /// <summary>Set to <c>1</c> to register the two-step workflow with recovery on.</summary>
     public const string WorkflowVariable = "TRACON_HARNESS_WORKFLOW";
 
+    /// <summary>
+    /// The storage provider the harness connects with: <see cref="PostgreSqlProvider"/> (the default when the
+    /// variable is not set) or <see cref="SqlServerProvider"/> (Phase 265).
+    /// </summary>
+    public const string ProviderVariable = "TRACON_HARNESS_PROVIDER";
+
+    public const string PostgreSqlProvider = "postgresql";
+    public const string SqlServerProvider = "sqlserver";
+
     public const string WorkerMode = "worker";
     public const string ApiMode = "api";
 

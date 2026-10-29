@@ -31,19 +31,30 @@ builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.Configure<WorkerHarnessSettingsHolder>(holder => holder.Settings = settings);
 
-var tracon = builder.Services.AddTracon()
-    .UsePostgreSql(options =>
+var tracon = builder.Services.AddTracon();
+
+// The test owns the schema: it migrates once, then starts both processes
+// against it. Migrating here as well would make the harness's startup time
+// part of what the lease clock measures, and K-354's gate still opens on this
+// path - MigrationHostedService calls MarkReady even when auto-apply is off.
+if (settings.Provider == WorkerHarnessProvider.SqlServer)
+{
+    tracon.UseSqlServer(options =>
     {
         options.ConnectionString = settings.ConnectionString;
         options.SchemaName = settings.SchemaName;
-
-        // The test owns the schema: it migrates once, then starts both
-        // processes against it. Migrating here as well would make the
-        // harness's startup time part of what the lease clock measures, and
-        // K-354's gate still opens on this path - MigrationHostedService calls
-        // MarkReady even when auto-apply is off.
         options.AutoApplyMigrations = false;
     });
+}
+else
+{
+    tracon.UsePostgreSql(options =>
+    {
+        options.ConnectionString = settings.ConnectionString;
+        options.SchemaName = settings.SchemaName;
+        options.AutoApplyMigrations = false;
+    });
+}
 
 tracon.AddJobHandler<LongRunningJobHandler>(WorkerHarnessContract.HandlerKey);
 
