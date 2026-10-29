@@ -298,13 +298,12 @@ public sealed class RedisRateLimitCounterStore(IDatabase redis) : IRateLimitCoun
     public async ValueTask<RateLimitWindowCount> IncrementAsync(
         string partitionKey, DateTimeOffset windowStart, CancellationToken cancellationToken = default)
     {
-        // One key for each (partition, window). The key expires with the window, so nothing is cleaned up.
+        cancellationToken.ThrowIfCancellationRequested();   // before the write, as for every store
+
+        // One key for each (partition, window). The key expires after the window, so nothing is cleaned up.
         var key = $"tracon:rl:{partitionKey}:{windowStart.ToUnixTimeMilliseconds()}";
         var count = await redis.StringIncrementAsync(key);
-        if (count == 1)
-        {
-            await redis.KeyExpireAsync(key, TimeSpan.FromHours(2));
-        }
+        await redis.KeyExpireAsync(key, TimeSpan.FromHours(2), ExpireWhen.HasNoExpiry);
 
         return new RateLimitWindowCount { WindowStart = windowStart, Count = count };
     }
