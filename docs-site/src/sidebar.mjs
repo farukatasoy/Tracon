@@ -101,7 +101,7 @@ export const sidebar = [
       { label: 'TypeScript client', slug: 'guides/typescript-client' },
       { label: 'Production deployment', slug: 'guides/production' },
       { label: 'Upgrading a production deployment', slug: 'guides/production-upgrades' },
-      { label: 'Sign the audit chain with a key', slug: 'guides/audit-chain-key' },
+      { label: 'Audit chain key', slug: 'guides/audit-chain-key' },
       { label: 'Embedding into a host application', slug: 'guides/embedding' },
       { label: 'Two connection planes: EF Core and Tracon', slug: 'guides/ef-core' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },

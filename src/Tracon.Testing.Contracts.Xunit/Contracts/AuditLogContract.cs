@@ -527,7 +527,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         entries.OrderBy(static entry => entry.Entity, StringComparer.Ordinal).Select(static entry => entry.KeyId)
             .ShouldBe(["old", "old", "new", "new"]);
 
-        // Removing the old key from configuration is an operations failure, not a forgery.
+        // Removing the old key from configuration leaves rows the walk cannot check: UnknownKey, never Valid.
         var removed = await oldKeyRemoved.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
 
         removed.Status.ShouldBe(AuditChainStatus.UnknownKey);
@@ -562,6 +562,44 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
 
         result.Status.ShouldBe(AuditChainStatus.Broken);
         result.FirstFailingEntryId.ShouldBe(unsignedRow.Id);
+    }
+
+    [Fact]
+    public async Task Two_writers_with_a_mixed_key_configuration_leave_the_chain_broken_at_the_unsigned_entry_for_good()
+    {
+        // 🚨 The rollout trap. Two replicas of one host write the same tenant while the key is being turned on: one
+        // already has it, the other has not restarted yet (or is the previous release). The unsigned row lands after
+        // a signed one, the walk reads that as a downgrade, and the row cannot be re-signed afterwards because
+        // re-signing would rewrite history. Every later row, signed or not, leaves the chain where it is: broken at
+        // the FIRST unsigned row. The guide tells the operator to move every replica to the key in one restart.
+        const string Tenant = "tenant-key-mixed-writers";
+
+        if (!KeyedLogsShareStorage || await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } restarted)
+        {
+            return;
+        }
+
+        await restarted.WriteAsync(Entry(Tenant, "agent.update", "agent:1-signed"));
+        await Log.WriteAsync(Entry(Tenant, "agent.update", "agent:2-unsigned-by-the-old-replica"));
+        await restarted.WriteAsync(Entry(Tenant, "agent.update", "agent:3-signed"));
+
+        var entries = await restarted.QueryAsync(new AuditQuery { TenantId = Tenant });
+        var firstUnsigned = entries.Single(static entry => entry.KeyId is null);
+
+        var first = await restarted.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        first.Status.ShouldBe(AuditChainStatus.Broken);
+        first.FirstFailingEntryId.ShouldBe(firstUnsigned.Id);
+        firstUnsigned.Entity.ShouldBe("agent:2-unsigned-by-the-old-replica");
+
+        // More signed writes do not heal it, and the unsigned row is still the first failing one.
+        await restarted.WriteAsync(Entry(Tenant, "agent.update", "agent:4-signed"));
+
+        var later = await restarted.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+
+        later.Status.ShouldBe(AuditChainStatus.Broken);
+        later.FirstFailingEntryId.ShouldBe(firstUnsigned.Id);
+        later.EntriesChecked.ShouldBe(4);
     }
 
     [Fact]

@@ -17,8 +17,10 @@ public enum AuditChainStatus
 
     /// <summary>
     /// An entry names a signing key the configuration does not hold, so the walk cannot check it.
-    /// This is not a sign of tampering: the key was removed from the configuration or never
-    /// reached this host. Put the key back under <c>Tracon:AuditChainKeys</c> and verify again.
+    /// A key may have been removed from the configuration or never reached this host, or the entry's
+    /// key id may have been changed by hand: the walk cannot tell which, and it is never <c>Valid</c>.
+    /// Put the key back under <c>Tracon:AuditChainKeys</c>, verify again, and compare the key id the
+    /// entry names with the history of your keys.
     /// </summary>
     UnknownKey = 3,
 }

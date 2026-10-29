@@ -79,7 +79,7 @@ describe('AuditScreen chain verification', () => {
 
     expect(text).toContain('Unknown key');
     expect(text).not.toContain('Broken');
-    expect(text).toContain('not evidence of tampering');
+    expect(text).toContain('changed by hand');
   });
 
   it('treats a missing unkeyedEntries as zero', async () => {

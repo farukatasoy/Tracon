@@ -44,7 +44,7 @@ public static class AgentParameterValidator
     public const string ValueTooLongCode = ValidationCodes.ValueTooLong;
 
     private static readonly Regex IdentifierPattern = new(
-        @"^[A-Za-z_][A-Za-z0-9_]*$",
+        @"^[A-Za-z_][A-Za-z0-9_]*\z",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 

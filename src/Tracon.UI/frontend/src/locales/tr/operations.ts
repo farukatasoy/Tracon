@@ -38,7 +38,7 @@ export const trOperations: Pick<Messages, keyof typeof enOperations> = {
   "audit.verify.validHint": 'Her kayıt içeriğiyle ve kendinden öncekine bağıyla tutarlıdır.',
   "audit.verify.brokenHint": 'Bir kayıt yazıldıktan sonra değiştirilmiş ya da imzalı bir kaydın ardından imzasız bir kayıt gelmiştir.',
   "audit.verify.gapHint": 'İki kayıt arasındaki bir satır yok: silinmiş ya da bir yazım hiç tamamlanmamıştır.',
-  "audit.verify.unknownKeyHint": 'Bir kayıt, bu host’un taşımadığı bir imza anahtarını adlandırır. Anahtarı Tracon:AuditChainKeys altına geri koyun ve yeniden doğrulayın. Bu, kurcalama kanıtı değildir.',
+  "audit.verify.unknownKeyHint": 'Bir kayıt, bu host’un taşımadığı bir imza anahtarını adlandırır; kayıt denetlenemedi. Anahtar kaldırılmış ya da bu host’a hiç ulaşmamış olabilir, ya da kaydın anahtar kimliği elle değiştirilmiş olabilir. Anahtarı Tracon:AuditChainKeys altına geri koyun, yeniden doğrulayın ve kimliği anahtar geçmişinizle karşılaştırın.',
   "audit.verify.checked": 'Denetlenen kayıt',
   "audit.verify.unkeyed": 'İmzasız kayıt',
   "audit.verify.unkeyedHint": 'Düz hash ile denetlenir. İlk kaydından imzalı bir zincirde değer 0’dır.',

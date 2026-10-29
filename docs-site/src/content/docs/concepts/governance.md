@@ -50,8 +50,8 @@ path also has to be enabled explicitly — an HTTP header is not proof of identi
 
 ### What a tenant identifier may be
 
-A tenant identifier matches `^[a-zA-Z0-9_.-]+$` and is at most 64 characters. A
-value that is **sent** and does not match is refused, not resolved: a malformed
+A tenant identifier is 1 to 64 characters of `[a-zA-Z0-9_.-]` with nothing after the last one: a
+trailing line feed is refused too. A value that is **sent** and does not match is refused, not resolved: a malformed
 header answers `400` (`Tenant header malformed`), and a malformed claim of an
 authenticated identity answers `403` (`Tenant claim malformed`), because the
 client cannot correct a claim its identity provider issued. On the endpoints
@@ -60,10 +60,9 @@ response never repeats the value. The check applies while tenancy is on and the
 value source is active: with a claim type set the header is not read, so it
 cannot be malformed.
 
-The check lives in Tracon's endpoint filter. An endpoint you map yourself that
-reads `ITenantContext` still resolves a malformed value to the default tenant:
-check the value with `HttpTenantContext.IsValidTenantId` before it reaches that
-endpoint, or reject it in front of Tracon.
+The check lives in Tracon's endpoint filter: an endpoint you map yourself that reads
+`ITenantContext` still resolves a malformed value to the default tenant, so check it
+with `HttpTenantContext.IsValidTenantId` first.
 
 A value that is **not sent** is not malformed. No header, an empty header and a
 missing claim still resolve to the default tenant. Authentication comes first: a
@@ -76,45 +75,39 @@ both sides, the admin routes, and every store, on the write path and the query
 path alike. `AmbientTenantScope.Normalize` is that rule, and a store you write
 yourself must apply it too.
 
-Folding the value, rather than comparing case-insensitively at query time, is
-what makes the three storage providers agree. A plain `=` predicate then means
-the same thing on PostgreSQL, SQLite and SQL Server whatever collation the
-database was created with, the primary key keeps rejecting duplicates on all
-three, and the index stays usable. Without it a deployment answers "same
-tenant" or "different tenant" for the same pair depending on which layer is
-asked: SQL Server's default collation is case-insensitive, PostgreSQL's and
-SQLite's are not.
+Folding the value, not comparing case-insensitively at query time, is what makes the
+three storage providers agree: a plain `=` means the same thing on PostgreSQL, SQLite
+and SQL Server whatever the database collation, the primary key keeps rejecting
+duplicates, and the index stays usable. SQL Server's default collation is
+case-insensitive and PostgreSQL's and SQLite's are not, so without the fold the same
+pair is one tenant or two depending on the layer asked.
 
 Two consequences are worth planning for:
 
-- `Tracon:DefaultTenantId` is **rejected at startup** when it is not already
-  lower case. Tracon does not fold it silently, because a value you wrote as
-  `Acme` and then read back as `acme` in the audit trail gives you nothing to
-  search for.
-- Migrations **refuse to run** against a database that still holds a
-  non-canonical `tenant_id`, and they name the tables. Tracon does not fold
-  those rows for you: on a case-sensitive engine `Acme` and `acme` may be two
-  real tenants, and merging two tenants cannot be undone. Decide per table
+- `Tracon:DefaultTenantId` is **rejected at startup** when it is not already lower
+  case: folding it silently would show a value you wrote as `Acme` as `acme` in the
+  audit trail, with nothing to search for.
+- Migrations **refuse to run** against a database that still holds a non-canonical
+  `tenant_id`, and they name the tables. On a case-sensitive engine `Acme` and `acme`
+  may be two real tenants, and merging two tenants cannot be undone: decide per table
   whether the rows are one tenant or two, then start again.
 
-Isolation is enforced by contract tests that check it in both directions, across the
-in-memory store and all three SQL providers, with a coverage gate requiring every
-public store method to be either tested or exempted with a documented reason.
+Contract tests check isolation in both directions across the in-memory store and all
+three SQL providers, and a coverage gate requires every public store method to be tested
+or exempted with a documented reason.
 
-Isolation lives in the application layer, and that is a deliberate choice. Every
-query carries the resolved tenant; Tracon does not create database row level
-security policies, and it does not assume your database has them. Two reasons: the
-coverage gate above already makes an untested store method a build failure, and
-SQLite has no row level security at all, so adding it would make the three
-providers behave differently. You are free to add such policies in your own
-database. If you do, keep the tenant that Tracon resolves and the tenant your
-policy binds to the connection in agreement — they are two separate mechanisms.
+Isolation lives in the application layer, deliberately: every query carries the
+resolved tenant, and Tracon neither creates row level security policies nor assumes you
+have them. The coverage gate already makes an untested store method a build failure,
+and SQLite has no row level security, so adding it would make the providers behave
+differently. If you add such policies yourself, keep the tenant Tracon resolves and the
+tenant your policy binds to the connection in agreement — they are two separate
+mechanisms.
 
-Rate limits are not an isolation boundary. `Tracon:RateLimit` and the inbound
-trigger limit count in the memory of one process, so a `Tenant` partition splits
-that instance's own window per tenant rather than a window shared across the
-deployment. What binds a tenant's total consumption is a quota, and quotas are
-counted in the database.
+Rate limits are not an isolation boundary: `Tracon:RateLimit` and the inbound trigger
+limit count in one process's memory, so a `Tenant` partition splits that instance's own
+window, not a deployment-wide one. A quota, counted in the database, is what binds a
+tenant's total consumption.
 
 ### Attributing spend below the tenant
 
@@ -316,42 +309,35 @@ in the logs.
 ### Tamper detection
 
 Every entry carries a hash of its own content and the hash of the entry before it,
-chained per tenant. With a chain key (below), the hash is an HMAC-SHA256 under a key only
-the host holds, and the entry names the key's id. `GET /api/audit/verify` walks the chain
-and reports one of four outcomes:
+chained per tenant. `GET /api/audit/verify` walks the chain and reports one of four
+outcomes:
 
 | Status | Meaning |
 |---|---|
 | `Valid` | Every entry's hash matches its content and links to the one before it |
-| `Broken` | An entry's stored hash no longer matches its content — it was altered after it was written — or an entry without a key follows one with a key |
+| `Broken` | An entry's stored hash no longer matches its content — it was altered after it was written — or an unsigned entry follows a signed one |
 | `Gap` | A link between two entries is missing — a row was deleted, or a write never completed |
-| `UnknownKey` | An entry names a signing key this host does not hold, so the walk cannot check it. This is an operations failure, not evidence of tampering: put the key back and verify again |
+| `UnknownKey` | An entry names a key this host does not hold: removed, or the row's `key_id` was changed by hand. Never `Valid`; restore the key, verify again, compare the id with your key history |
 
-`Broken`, `Gap` and `UnknownKey` name the first entry where the walk stopped.
-`unkeyedEntries` counts the walked entries that carry no key; read it with the status.
+`Broken`, `Gap` and `UnknownKey` name the first failing entry; `unkeyedEntries` counts
+the entries without a key.
 
 ```bash
 curl 'http://localhost:5081/tracon/api/audit/verify'
 # {"status":"Valid","entriesChecked":42,"firstFailingEntryId":null,"unkeyedEntries":7}
 ```
 
-The console's Audit screen runs the same walk with its **Verify chain** button and shows the
-status, the entries checked, the unsigned count and the first failing entry.
-
-With a chain key the hash is an HMAC under a value only the host holds. [Sign the audit chain with a
-key](/guides/audit-chain-key/) covers the setup, the rotation and what the key does not protect.
-
 :::caution[Without a key the chain detects a change; it does not resist one]
 The hash is SHA-256 over the entry and the previous hash, with no key. It catches a change made
-without recomputing the chain: a manual edit, a partial restore, a bug in another writer. Anyone
+without recomputing the chain — a manual edit, a partial restore, a bug in another writer. Anyone
 who can write to the audit table can also recompute every hash after the change, and the walk then
-reports `Valid`. A chain key closes that for an actor who cannot read the host's configuration, and
-only for that actor; `unkeyedEntries` is the number to read beside the status.
+reports `Valid`. A chain key closes that for an actor who cannot read the host's
+configuration, and only for that actor: [Sign the audit chain with a key](/guides/audit-chain-key/).
 :::
 
 :::note[Entries written before this feature ships have no hash]
-They are excluded from the walk rather than misreported as tampered — a chain starts
-at the first entry written after upgrading, not retroactively.
+They are excluded from the walk, not reported as tampered: a chain starts at the first
+entry written after upgrading.
 :::
 
 ## Approvals
@@ -856,10 +842,6 @@ answered by turning the feature on or accepted by name. A decision the compositi
 cannot have is reported as not applicable and never stops the host. Accepting is per
 item, so each accepted risk is one reviewable line, and every accept is written to
 the log at information level each time the host starts.
-
-Content inspection shows why the gate reads registrations rather than flags: there
-is no "inspection enabled" setting to read, so the question it asks is whether any
-`IContentGuard` is registered at all.
 
 `IProductionProfileCheck` is the seam behind it. More than one check may carry the
 same risk and **the strictest answer wins**, which is how the HTTP package adds the

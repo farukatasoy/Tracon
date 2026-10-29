@@ -33,7 +33,7 @@ export const enOperations = {
   "audit.verify.validHint": 'Every entry matches its content and links to the one before it.',
   "audit.verify.brokenHint": 'An entry was changed after it was written, or an unsigned entry follows a signed one.',
   "audit.verify.gapHint": 'A row between two entries is missing: it was deleted, or a write never completed.',
-  "audit.verify.unknownKeyHint": 'An entry names a signing key this host does not hold. Put the key back under Tracon:AuditChainKeys and verify again. This is not evidence of tampering.',
+  "audit.verify.unknownKeyHint": 'An entry names a signing key this host does not hold, so it could not be checked. A key may have been removed or never reached this host, or its key id may have been changed by hand. Put the key back under Tracon:AuditChainKeys, verify again, and compare the id with your key history.',
   "audit.verify.checked": 'Entries checked',
   "audit.verify.unkeyed": 'Unsigned entries',
   "audit.verify.unkeyedHint": 'Checked with a plain hash. A chain signed from its first entry shows 0.',

@@ -106,7 +106,7 @@ public sealed class AuditChainKeyTests
                 .GetProperty("id").GetGuid();
         }
 
-        // The deployment lost the key: no value, no id. It is an operations failure and the answer says so.
+        // The deployment lost the key: no value, no id. The rows cannot be checked and the answer says so (UnknownKey).
         await using var restarted = await StartAsync(database, withKey: false);
 
         var verification = await VerifyAsync(restarted);

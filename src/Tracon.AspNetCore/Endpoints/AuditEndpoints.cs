@@ -112,9 +112,11 @@ internal static class AuditEndpoints
                 "follows one with a key (a signed chain does not go back to unsigned). 'Gap' means " +
                 "a link between two entries is missing — a row was deleted, or a write never " +
                 "completed. 'UnknownKey' means an entry names a signing key this host does not " +
-                "hold, so the walk cannot check it: the key was removed from configuration or " +
-                "never reached this host. That is not evidence of tampering; put the key back under " +
-                "Tracon:AuditChainKeys and verify again. 'firstFailingEntryId' names where the " +
+                "hold, so the walk cannot check it: a key may have been removed from configuration " +
+                "or never reached this host, or the entry's key id may have been changed by hand. The " +
+                "walk cannot tell which and the answer is never 'Valid'; put the key back under " +
+                "Tracon:AuditChainKeys, verify again, and compare the key id the entry names with " +
+                "the history of your keys. 'firstFailingEntryId' names where the " +
                 "walk stopped. 'unkeyedEntries' counts the walked entries that carry no key: " +
                 "entries written before Tracon:Audit:ChainKeyId was set are checked with the plain " +
                 "hash they were written with and are counted here. A chain signed from its first " +

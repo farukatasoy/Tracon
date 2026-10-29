@@ -59,6 +59,23 @@ public sealed class AuditChainWalkerKeyTests
     }
 
     [Fact]
+    public void A_tampered_entry_whose_key_id_was_pointed_at_a_key_the_host_does_not_hold_is_unknown_key_and_never_valid()
+    {
+        // 🚨 An unknown key is not proof of tampering, and that is only half the story: an
+        // actor who cannot read the key can change a row's content AND its `key_id` to an id nobody holds, and the walk
+        // cannot check that row, so it answers UnknownKey and not Broken. It is never Valid, and it names the row.
+        // The wording of the answer must therefore ask for the key history to be compared, not call the row innocent.
+        var chain = BuildChain(3, static _ => "a");
+        chain[1] = chain[1] with { After = """{"version":999}""", KeyId = "someone-else" };
+
+        var result = AuditChainWalker.Verify(chain, keys: Ring("a"));
+
+        result.Status.ShouldBe(AuditChainStatus.UnknownKey);
+        result.Status.ShouldNotBe(AuditChainStatus.Valid);
+        result.FirstFailingEntryId.ShouldBe(chain[1].Id);
+    }
+
+    [Fact]
     public void A_keyed_entry_changed_in_content_is_broken()
     {
         var chain = BuildChain(3, static _ => "a");

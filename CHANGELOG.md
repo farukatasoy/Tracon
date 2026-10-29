@@ -16,14 +16,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   least 32 bytes, base64, under `Tracon:AuditChainKeys:<id>` and setting `Tracon:Audit:ChainKeyId` to `<id>`; or accept it
   with `profile.Accept(TraconProductionRisk.UnkeyedAuditChain)`. It is not asked while the audit log is Tracon's in-memory
   one. The failure message names the two settings and carries no value.
-- **A name that ends in a line feed is no longer a valid name.** Six validators wrote their pattern as `^…$`, and in .NET
+- **A name that ends in a line feed is no longer a valid name.** Seven validators wrote their pattern as `^…$`, and in .NET
   `$` also matches before a trailing `\n`, so `"acme\n"` passed. They now end the match at the end of the text: the tenant
   id (`HttpTenantContext.IsValidTenantId`), a custom run event type, a job handler key, a job lane, a knowledge collection
-  name and an MCP server or tool name. A tenant claim that ends in a line feed now answers `403` (`Tenant claim
+  name, an MCP server or tool name and an agent parameter name (`POST /api/agents/validate` and a save now report a
+  parameter name that ends in a line feed as "not a valid identifier"; rename it). A tenant claim that ends in a line feed now answers `403` (`Tenant claim
   malformed`), and a route tenant that ends in one answers `400`. A tenant saved earlier under such a name (only a
   claim or a route segment could carry the character) is unreachable by that name: its rows are still in the database.
   Rename them or save the tenant again under the name without the line feed. `AnchoredPatternTests` fails when a new
-  whole-value pattern ends in `$`.
+  whole-value pattern ends in `$`, whether it is written as `[GeneratedRegex]`, `new Regex("…")` or a static `Regex` call.
 - **Migrations for the audit chain key.** PostgreSQL `0067`, SQL Server `0055` and SQLite `0054`. With `AutoApplyMigrations`
   (the default) they run at startup. Each adds one nullable column, `audit_log.key_id`. No row is backfilled and none is
   re-signed: an entry written before the upgrade keeps `NULL` and its plain SHA-256, which the walk still checks.
@@ -162,7 +163,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   carry the key's id in `keyId`; the key value is read from configuration at start and never written to the database, a
   log, the diagnostics report or a response. A bad key stops the host and the message names the configuration key, not the
   value. `GET /api/audit/verify` checks each entry with the key it names and answers `UnknownKey` for a key the host does not
-  hold (not tampering: put it back), `Broken` for an unsigned entry after a signed one (a downgrade), and counts the
+  hold (a key was removed, or the row's `key_id` was changed by hand; never `Valid`: put the key back and compare the id with your key history), `Broken` for an unsigned entry after a signed one (a downgrade), and counts the
   entries written without a key in `unkeyedEntries`. Entries written before the key was set stay valid and are counted. To
   rotate, add a new key under a new id, point `ChainKeyId` at it and restart, keeping the old value. Turning the key off keeps
   writing entries unsigned and logs one warning per tenant. It protects against someone who can write to the audit table

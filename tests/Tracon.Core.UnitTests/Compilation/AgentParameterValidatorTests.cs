@@ -70,6 +70,8 @@ public sealed class AgentParameterValidatorTests
     [InlineData("a-b")]
     [InlineData("a b")]
     [InlineData("")]
+    [InlineData("city\n")]
+    [InlineData("_\n")]
     public void Invalid_identifier_is_rejected(string name)
     {
         var definition = TestData.Definition() with { Parameters = [Param(name)] };
@@ -77,6 +79,20 @@ public sealed class AgentParameterValidatorTests
         var errors = AgentParameterValidator.ValidateSchema(definition);
 
         errors.ShouldContain(error => error.Contains("valid identifier", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("city")]
+    [InlineData("_city2")]
+    public void A_valid_identifier_is_accepted_without_the_line_feed_that_the_same_name_is_refused_with(string name)
+    {
+        // The pair of the case above: the line feed is the only difference, so a validator that refuses every
+        // name cannot pass.
+        var accepted = AgentParameterValidator.ValidateSchema(TestData.Definition() with { Parameters = [Param(name)] });
+        var refused = AgentParameterValidator.ValidateSchema(TestData.Definition() with { Parameters = [Param(name + "\n")] });
+
+        accepted.ShouldNotContain(static error => error.Contains("valid identifier", StringComparison.Ordinal));
+        refused.ShouldContain(static error => error.Contains("valid identifier", StringComparison.Ordinal));
     }
 
     [Fact]

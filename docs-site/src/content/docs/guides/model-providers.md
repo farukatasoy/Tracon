@@ -76,11 +76,9 @@ tracon
     .UseLiveVoice();
 ```
 
-The provider runs the whole spoken conversation and carries the audio straight to the
-browser; your agents handle the work it delegates. The API key stays on the server.
-The tenant's egress policy and its own `openai` binding apply to a live session as to
-a model call; see [tenant policy and credentials](/guides/live-voice/#tenant-policy-and-credentials).
-See [provider-hosted live voice](/guides/live-voice/) for what
+The provider runs the whole conversation and your agents handle the work it delegates;
+the API key stays on the server. [Provider-hosted live
+voice](/guides/live-voice/#tenant-policy-and-credentials) has the tenant policy and what
 that trade gives up.
 
 ## Image generation providers
@@ -149,10 +147,10 @@ tracon.AddAgent(new AgentDefinition
 Use a current model name from the provider. Tracon does not pin one for you.
 
 Provider registration is host configuration, not a console operation. The console
-never accepts or displays provider secrets. Its Models screen shows the catalog and
-cached health for providers that the host already registered. The agent editor can
-select a provider and model, but it does not currently edit `ProviderSettings`; set
-vendor-specific keys in code or through the management HTTP API.
+never accepts or displays provider secrets; its Models screen shows the catalog and
+cached health of the providers the host registered. The agent editor selects a provider
+and model but does not edit `ProviderSettings`: set vendor-specific keys in code or
+through the management HTTP API.
 
 ## OpenAI and compatible endpoints
 
@@ -887,9 +885,9 @@ as a rejection, since there is nothing to compare the prompt against.
 | Circuit breaker | On; 5 consecutive failures; one half-open attempt after 30 seconds |
 | Model catalog | Empty until the host supplies entries |
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
-| Fallback chain | Empty; an unavailable primary throws, same as before this feature existed |
+| Fallback chain | Empty; an unavailable primary throws |
 | Tenant provider binding | None; every tenant uses the global setup-time credential until one is saved |
-| Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall. `Tracon:TenantProviders:RequireEgressPolicy` (default `false`) turns a missing policy into a refusal |
+| Tenant egress policy | Unrestricted; a saved policy only restricts. `Tracon:TenantProviders:RequireEgressPolicy` (default `false`) turns a missing policy into a refusal |
 | Allowed configuration prefix for a binding | `Tracon:ProviderKeys:{tenant}:`; a flat name belongs to the default tenant, and any other name is rejected with `400` |
 | Response cache | Off; a binding with `ResponseCache.Enabled = true` and no registered `IDistributedCache` fails to compile |
 | Response cache lifetime | 10 minutes, when caching is enabled |

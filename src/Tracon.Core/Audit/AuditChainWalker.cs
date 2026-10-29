@@ -85,8 +85,9 @@ internal static class AuditChainWalker
 
             if (entry.KeyId is { } keyId)
             {
-                // A key the ring does not hold is an operations failure, not a forgery: the walk cannot
-                // check the row, and says so with its own status instead of "Broken".
+                // A key the ring does not hold: the walk cannot check the row, and says so with its own
+                // status instead of "Broken". The row may be innocent (the key was removed) or may have had its
+                // key id changed by hand; the walk cannot tell which, and the answer is never Valid.
                 if (!keys.TryGet(keyId, out var value))
                 {
                     return Failure(AuditChainStatus.UnknownKey, entries.Count, entry.Id, unkeyed);

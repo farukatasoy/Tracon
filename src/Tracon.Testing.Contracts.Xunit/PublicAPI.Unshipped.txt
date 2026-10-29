@@ -178,6 +178,7 @@ Tracon.Testing.Contracts.Storage.AuditLogContract.The_write_path_sets_the_key_id
 Tracon.Testing.Contracts.Storage.AuditLogContract.Turning_the_key_off_keeps_the_entry_and_the_walk_reports_the_downgrade() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Two_tenants_chains_verify_independently() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Two_tenants_keyed_chains_verify_independently() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Two_writers_with_a_mixed_key_configuration_leave_the_chain_broken_at_the_unsigned_entry_for_good() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Unkeyed_history_before_the_first_keyed_entry_stays_valid_and_is_counted() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_reports_valid_for_a_normally_written_chain() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_with_null_tenant_checks_the_ambient_tenants_own_chain() -> System.Threading.Tasks.Task!

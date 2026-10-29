@@ -9,6 +9,7 @@ detection](/concepts/governance/#tamper-detection) for the four answers it gives
 that hash is a plain SHA-256 of a public form, so anyone who can write to the audit table can change
 an entry, recompute every hash after it and still get `Valid`. With a chain key the hash is an
 HMAC-SHA256 under a value only your host holds, and each entry names the key's **id**, never its value.
+The console's Audit screen runs the same walk with its **Verify chain** button.
 
 ## Turn the key on
 
@@ -41,11 +42,22 @@ dotnet user-secrets set 'Tracon:AuditChainKeys:2026-10' '<the value>'
   not re-signed, because re-signing would rewrite history. The walk counts them in `unkeyedEntries`.
   After the first signed entry, an unsigned entry is a downgrade and the walk reports `Broken`.
 
+## Turn the key on across replicas
+
+Upgrade every replica to this release **first**, with no key. Then give every replica the same `ChainKeyId` and the
+same values and restart them together. A replica that writes without the key after another has written a signed entry
+for the same tenant leaves an unsigned entry behind a signed one: the walk reads that as a downgrade and reports
+`Broken` from that entry on, for good, because the entry cannot be re-signed without rewriting history. Two things
+produce it: a replica that has not restarted yet, and a replica still on an older release. Tracon's own tests pin
+this (`AuditLogContract.Two_writers_with_a_mixed_key_configuration_leave_the_chain_broken_at_the_unsigned_entry_for_good`).
+
 ## Rotate the key
 
 Add a new key under a new id, set `ChainKeyId` to it and restart. Keep the old
 value in configuration: the entries it signed are checked with it for as long as they exist. Remove it
-and those entries report `UnknownKey`.
+and those entries report `UnknownKey`. The same answer appears when a row's `key_id` was changed by hand to an id
+no one holds, and the walk cannot tell the two apart: it is never `Valid`, so compare the id the row names with the
+history of your keys.
 
 ## Turn the key off
 
