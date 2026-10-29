@@ -43,10 +43,12 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis"));
 
 builder.AddTracon()
-       .UsePostgreSql(connectionString)
        .AddContentProtection()
        .UseMcp(builder.Configuration.GetSection(TraconMcpOptions.SectionName), configure: null);
 ```
+
+Register your SQL provider on the same chain, as in [Persistence](/getting-started/persistence/). The refresh lease lives
+in that provider's lease table; without a provider the lease lives in one process (see the list below).
 
 The mode checks what it needs when the application starts:
 
