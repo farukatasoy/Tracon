@@ -63,7 +63,7 @@ public sealed class AuditTests(BrowserFixture browsers)
         // Not walked on open: the panel waits for the operator.
         await Expect(session.Page.GetByTestId("audit-verify-result")).ToHaveCountAsync(0);
 
-        await session.Page.GetByRole(Microsoft.Playwright.AriaRole.Button, new() { Name = "Verify chain" }).ClickAsync();
+        await session.Page.GetByRole(Microsoft.Playwright.AriaRole.Button, new() { Name = "Verify chain", Exact = true }).ClickAsync();
 
         var result = session.Page.GetByTestId("audit-verify-result");
 
