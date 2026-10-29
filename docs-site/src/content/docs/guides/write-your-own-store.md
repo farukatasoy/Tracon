@@ -295,17 +295,34 @@ example, or when the rate limit database write is too slow for your traffic.
 ```csharp
 public sealed class RedisRateLimitCounterStore(IDatabase redis) : IRateLimitCounterStore
 {
+    // One hash for each partition holds the window (w) and the count (c). The script runs atomically, restarts the
+    // count when the caller's window is later, counts in the stored window when it is earlier, and keeps the key for
+    // a day: longer than any window you configure, so a key never expires inside a window.
+    private const string Script = """
+        local w = tonumber(redis.call('HGET', KEYS[1], 'w'))
+        local c
+        if w == nil or tonumber(ARGV[1]) > w then
+          w = tonumber(ARGV[1])
+          redis.call('HSET', KEYS[1], 'w', ARGV[1], 'c', 1)
+          c = 1
+        else
+          c = redis.call('HINCRBY', KEYS[1], 'c', 1)
+        end
+        redis.call('PEXPIRE', KEYS[1], 86400000)
+        return { w, c }
+        """;
+
     public async ValueTask<RateLimitWindowCount> IncrementAsync(
         string partitionKey, DateTimeOffset windowStart, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();   // before the write, as for every store
 
-        // One key for each (partition, window). The key expires after the window, so nothing is cleaned up.
-        var key = $"tracon:rl:{partitionKey}:{windowStart.ToUnixTimeMilliseconds()}";
-        var count = await redis.StringIncrementAsync(key);
-        await redis.KeyExpireAsync(key, TimeSpan.FromHours(2), ExpireWhen.HasNoExpiry);
+        var result = (long[])(await redis.ScriptEvaluateAsync(
+            Script,
+            [(RedisKey)("tracon:rl:" + partitionKey)],
+            [(RedisValue)windowStart.ToUnixTimeMilliseconds()]))!;
 
-        return new RateLimitWindowCount { WindowStart = windowStart, Count = count };
+        return new RateLimitWindowCount { WindowStart = DateTimeOffset.FromUnixTimeMilliseconds(result[0]), Count = result[1] };
     }
 }
 ```
@@ -317,7 +334,9 @@ Tracon owns the algorithm — it aligns the window, compares the count with `Per
 |---|---|
 | The count is atomic | Two instances that increment at the same moment must both be counted. A read followed by a write loses increments under load, and a limit that loses increments admits more than it promises. `RateLimitCounterStoreContract` increments one partition from 64 callers at once and requires 64 different counts |
 | A later window restarts the count at one | The window Tracon passes moves forward every `Window`. The sketch above gets this from the key; a store that keeps one row for each partition must reset it |
-| An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. A store with one key for each window cannot honour this and may ignore it, at the price of a burst at the boundary |
+| An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. The contract checks it, so keep one record for each partition, as the sketch does, and not one key for each window |
+| A record outlives its window | A record that expires inside a window restarts the count and lifts the limit for the rest of that window. Tracon does not pass the window length, so choose an expiry longer than the longest `Window` you configure (the inbound trigger limit uses one minute) |
+| The call has a limit of its own | Tracon waits for the store, with the request's token only. A store that can hang (a network call) must bound its own wait, so the instance falls back to its own limit instead of waiting for the client to leave |
 | The partition key is opaque | Tracon builds it (`endpoint:tracon:tenant:acme`, `endpoint:agui:global`, `trigger:<id>`). Do not parse it, change it or cut it short |
 | A failure throws | Tracon catches it, counts it on `tracon.rate_limit.store_failures` and applies the instance's own limit for that request. Do not swallow it and return a count |
 

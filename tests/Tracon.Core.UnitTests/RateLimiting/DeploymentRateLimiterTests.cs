@@ -139,6 +139,46 @@ public sealed class DeploymentRateLimiterTests
     }
 
     [Fact]
+    public async Task A_stored_window_more_than_one_window_ahead_of_this_clock_is_warned_about_once_a_minute()
+    {
+        // A clock that jumped forward on another instance moved the stored window ahead; it never moves back, so the
+        // partition stays spent until real time catches up. The request is still decided from the stored window.
+        var clock = new ManualTimeProvider(Start.AddSeconds(15));
+        var logger = new SpyLogger();
+        var store = new FixedAnswerStore(Start.AddMinutes(10), count: 7);
+        var limiter = new DeploymentRateLimiter(store, clock, logger: logger);
+
+        var decision = (await Count(limiter)).ShouldNotBeNull();
+
+        decision.Allowed.ShouldBeFalse();
+        decision.RetryAfter.ShouldBe(TimeSpan.FromSeconds(645));
+
+        await Count(limiter);
+        await Count(limiter);
+
+        logger.Warnings.Count.ShouldBe(1);
+        logger.Warnings[0].ShouldContain("synchronised");
+        logger.Warnings[0].ShouldContain("endpoint:tracon:tenant:acme");
+
+        clock.Advance(DeploymentRateLimiter.WarningInterval + TimeSpan.FromSeconds(1));
+        await Count(limiter);
+
+        logger.Warnings.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task A_stored_window_exactly_one_window_ahead_is_the_ordinary_boundary_and_is_not_warned_about()
+    {
+        var clock = new ManualTimeProvider(Start.AddSeconds(59));
+        var logger = new SpyLogger();
+        var limiter = new DeploymentRateLimiter(new FixedAnswerStore(Start.AddMinutes(1), count: 1), clock, logger: logger);
+
+        await Count(limiter);
+
+        logger.Warnings.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void The_warning_about_a_counter_only_this_process_can_see_is_written_once()
     {
         var logger = new SpyLogger();
@@ -179,6 +219,15 @@ public sealed class DeploymentRateLimiterTests
             DateTimeOffset windowStart,
             CancellationToken cancellationToken = default)
             => throw (failure ?? new InvalidOperationException("The database is down."));
+    }
+
+    private sealed class FixedAnswerStore(DateTimeOffset windowStart, long count) : IRateLimitCounterStore
+    {
+        public ValueTask<RateLimitWindowCount> IncrementAsync(
+            string partitionKey,
+            DateTimeOffset requestedWindowStart,
+            CancellationToken cancellationToken = default)
+            => new(new RateLimitWindowCount { WindowStart = windowStart, Count = count });
     }
 
     private sealed class CancellationAwareStore : IRateLimitCounterStore

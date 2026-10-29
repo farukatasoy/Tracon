@@ -287,12 +287,44 @@ limit for the deployment as a whole:
   request (see [the cost](#what-the-deployment-scope-costs)), it needs `QueueLimit` to
   be `0`, and when the database cannot be reached an instance falls back to its own
   limit for the requests that fail. See
-  [Where a rate limit counts](/concepts/governance/#where-a-rate-limit-counts).
+  [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits).
 - **Count it in the ingress.** A gateway in front of the instances shares one counter
   at no database cost, but it does not know the tenant: Tracon resolves the tenant from
   the API key or the claim, behind the gateway.
 - **Use a quota.** A ceiling on total consumption is a quota: quotas count in the
   database, so the instance count does not change them.
+
+### Rate limits across instances
+
+`Tracon:RateLimit:Scope` chooses where the counter lives, for both rate limiters (the endpoint groups and the inbound
+trigger accept endpoint):
+
+| `Scope` | Counter | With two instances | Cost |
+|---|---|---|---|
+| `Instance` (default) | The memory of each process | Each instance admits the limit: a `PermitLimit` of 100 admits 200 between two | None |
+| `Deployment` | The database (`rate_limit_counters`), through `IRateLimitCounterStore` | The limit, and its `Tenant` partition, hold across both | One database write per counted request |
+
+A rejected request counts too, which a fixed window accepts. These rules apply to `Scope = Deployment`:
+
+- It needs a counter store that every instance can reach. Each SQL provider (`UsePostgreSql`, `UseSqlServer`,
+  `UseSqlite`) registers one. Without a provider the counter stays in the memory of the process, the limit applies per
+  instance, and the application logs a warning at startup. To count somewhere else (Redis, for example), implement
+  `IRateLimitCounterStore` and register it; see
+  [Write your own store](/guides/write-your-own-store/#count-rate-limits-somewhere-else).
+- The windows are cut from the Unix epoch, so every instance closes a window at the same moment, within the drift between
+  their clocks. A request counted by an instance whose clock is behind lands in the window the database already holds,
+  never in an earlier one. A request cancelled after it was counted stays counted.
+- Keep the instances' clocks synchronised (NTP). The stored window never moves back, so an instance whose clock jumps
+  far ahead moves the window forward for everyone, and the counter does not restart until real time catches up. With a
+  one-minute window and a ten-minute jump, a partition is spent for ten minutes. The application logs a warning, at most
+  once a minute for each partition, when the stored window is more than one window ahead of the instance's own.
+- `QueueLimit` must be `0`: a database counter has no waiting line, so a request over the limit gets `429` at once. A larger
+  value together with `Deployment` stops the application at startup.
+- The management API and the AG-UI endpoint each keep a counter of their own with either scope: an AG-UI request does not
+  spend the management API's window. The console polls the API like any other client and spends the window too.
+- If the counter store fails, the instance applies its own in-memory limit for that request and carries on. The limit is never
+  lifted and no request is refused only because the database is down. The failure is logged once a minute for each partition and
+  counted on `tracon.rate_limit.store_failures`; while it is above zero, the limit holds per instance, not for the deployment.
 
 ### What the deployment scope costs
 
@@ -302,7 +334,7 @@ partition write the same row, so they take turns on it. A `Global` partition is 
 the worst case: one row for every caller. Prefer the `Tenant` partition on a busy
 deployment; its rows are spread by tenant.
 
-The numbers below show the cost of the statement and the row lock, not of a network: the
+The numbers below are a one-off measurement, not a gate. They show the cost of the statement and the row lock, not of a network: the
 database ran in a container on the same machine as the two instances.
 
 | Measured 2026-10-29 | PostgreSQL 18 | SQL Server 2022 |

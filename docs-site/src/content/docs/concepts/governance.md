@@ -104,12 +104,10 @@ differently. If you add such policies yourself, keep the tenant Tracon resolves 
 tenant your policy binds to the connection in agreement — they are two separate
 mechanisms.
 
-Rate limits are not an isolation boundary: by default `Tracon:RateLimit` and the inbound
-trigger limit count in one process's memory, so a `Tenant` partition splits that
-instance's own window, not a deployment-wide one. Setting `Tracon:RateLimit:Scope` to
-`Deployment` counts them in the database instead (see
-[Quotas and rate limits](#quotas-and-rate-limits)). A quota, counted in the database, is
-what binds a tenant's total consumption.
+Rate limits are not an isolation boundary: by default they count in one process's memory,
+so a `Tenant` partition splits that instance's own window
+([`Scope = Deployment`](/guides/production/#rate-limits-across-instances) shares it). A quota, counted in the
+database, is what binds a tenant's total consumption.
 
 ### Attributing spend below the tenant
 
@@ -618,44 +616,6 @@ budget is scoped to one run's tree (for a workflow, the whole chain of runs that
 another) and is checked between model turns, so it *does* cut a long tool loop off mid-run. It also
 keeps a tool call from starting once it is spent (see [A spent budget stops a tool call from
 starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting)).
-
-### Where a rate limit counts
-
-`Tracon:RateLimit:Scope` chooses where the counter lives. It covers both rate limiters:
-the one on the endpoint groups and the one on the inbound trigger accept endpoint.
-
-| `Scope` | Counter | With two instances | Cost |
-|---|---|---|---|
-| `Instance` (default) | The memory of each process | Each instance admits the limit: `PermitLimit` of 100 admits 200 between two | None |
-| `Deployment` | The database (`rate_limit_counters`), through `IRateLimitCounterStore` | The limit holds for both together | One database write per counted request |
-
-With `Deployment`, every counted request adds one to the row of its partition and the
-instance compares the count with `PermitLimit`. A `Tenant` partition then gives each
-tenant one window across all instances, and a `Global` partition gives every caller one.
-The windows are cut from the Unix epoch, so every instance closes a window at the same
-moment, within the drift between their clocks. A request counted by an instance whose clock
-is behind lands in the window the database already holds, never in an earlier one. A
-rejected request counts too, which a fixed window accepts: the counter starts
-again when the window ends. A request that is cancelled after it was counted stays counted.
-
-- The setting needs a counter store that every instance can reach. Each SQL provider
-  (`UsePostgreSql`, `UseSqlServer`, `UseSqlite`) registers one. Without a provider the
-  counter stays in the memory of the process, the limit applies per instance, and the
-  application logs a warning at startup. To count somewhere else (Redis, for example),
-  implement `IRateLimitCounterStore` and register it; see
-  [Write your own store](/guides/write-your-own-store/#count-rate-limits-somewhere-else).
-- `QueueLimit` must be `0`: a database counter has no waiting line, so a request over the
-  limit gets `429` at once. A larger value together with `Deployment` stops the application
-  at startup.
-- The management API and the AG-UI endpoint each keep a counter of their own with either
-  scope: an AG-UI request does not spend the management API's window.
-- If the counter store fails, the instance applies its own in-memory limit for that request
-  and carries on. The limit is never lifted and no request is refused only because the
-  database is down. The failure is logged once a minute for each partition and counted on
-  the `tracon.rate_limit.store_failures` metric; while it is above zero, the limit holds per
-  instance, not for the deployment.
-- The console polls the API like any other client, so its requests spend the window under
-  both scopes.
 
 ## Retention
 

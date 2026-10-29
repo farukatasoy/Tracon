@@ -16,8 +16,9 @@ namespace Tracon;
 /// <see cref="RateLimitGroups"/> (they hold no <c>:</c>), the tenant is the last segment, in the
 /// canonical lower-case form <see cref="AmbientTenantScope.Normalize"/> returns, and the trigger id
 /// is a GUID in the <c>D</c> format. Two different partitions
-/// therefore never share a key, whatever text a tenant identifier holds. The key holds no control
-/// character.
+/// therefore never share a key, whatever text a tenant identifier holds. The fixed segments hold no
+/// control character; the tenant identifier is the tenant context's own (the stock HTTP tenant
+/// context accepts letters, digits and <c>_.-</c> only).
 /// </para>
 /// </remarks>
 // K-525: a key that carries a tenant is typed; no caller joins the segments by hand.

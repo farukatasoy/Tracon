@@ -171,7 +171,7 @@ together, and the trigger limit is then one window for each trigger across all i
 The trigger limit is always on and `Tracon:RateLimit:Enabled` does not switch it; the scope
 only decides where it is counted. The signature is still checked before the request is counted, so an
 unsigned request never spends the sender's allowance. See
-[Where a rate limit counts](/concepts/governance/#where-a-rate-limit-counts).
+[Rate limits across instances](/guides/production/#rate-limits-across-instances).
 :::
 
 ## Manage triggers

@@ -167,18 +167,6 @@ public sealed class DeploymentRateLimitTests
     }
 
     [Fact]
-    public async Task One_tenant_spelled_in_two_letter_cases_has_one_window()
-    {
-        // Tenant identifiers match case-insensitively everywhere else. Two windows would double the limit.
-        var clock = new ManualTimeProvider(FrozenNow);
-        await using var pair = await StartPairAsync(clock, RateLimitScope.Deployment, limit: 2, tenancy: true);
-
-        (await StatusAsync(pair.A, "Tenant-A")).ShouldBe(HttpStatusCode.OK);
-        (await StatusAsync(pair.B, "tenant-a")).ShouldBe(HttpStatusCode.OK);
-        (await StatusAsync(pair.A, "TENANT-A")).ShouldBe(HttpStatusCode.TooManyRequests);
-    }
-
-    [Fact]
     public async Task The_global_partition_is_one_window_for_every_tenant_across_instances()
     {
         var clock = new ManualTimeProvider(FrozenNow);

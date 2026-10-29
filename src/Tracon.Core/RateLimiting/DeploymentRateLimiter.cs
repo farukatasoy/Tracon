@@ -33,6 +33,7 @@ internal sealed class DeploymentRateLimiter
     private readonly TraconMetrics? _metrics;
     private readonly ILogger _logger;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastWarning = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastSkewWarning = new(StringComparer.Ordinal);
     private int _scopeWarningLogged;
 
     /// <summary>Creates a new deployment rate limiter.</summary>
@@ -103,6 +104,13 @@ internal sealed class DeploymentRateLimiter
         {
             var counted = await _store.IncrementAsync(key.Value, windowStart, cancellationToken).ConfigureAwait(false);
 
+            // The stored window never moves back, so a clock that jumped far ahead holds the partition's counter
+            // until real time catches up. One window ahead is the ordinary case at a boundary; more is skew.
+            if (counted.WindowStart - windowStart > window)
+            {
+                WarnClockSkew(key, counted.WindowStart - windowStart, now);
+            }
+
             return FixedWindowDecision.Decide(counted, permitLimit, window, now);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
@@ -113,13 +121,33 @@ internal sealed class DeploymentRateLimiter
         }
     }
 
+    private static bool DueForWarning(ConcurrentDictionary<string, DateTimeOffset> lastWarnings, string key, DateTimeOffset now)
+    {
+        var last = lastWarnings.GetOrAdd(key, DateTimeOffset.MinValue);
+
+        return now - last >= WarningInterval && lastWarnings.TryUpdate(key, now, last);
+    }
+
+    private void WarnClockSkew(RateLimitPartitionKey key, TimeSpan ahead, DateTimeOffset now)
+    {
+        if (!DueForWarning(_lastSkewWarning, key.Value, now))
+        {
+            return;
+        }
+
+        _logger.LogWarning(
+            "The stored rate-limit window of partition '{Partition}' starts {Ahead} ahead of this instance's clock. " +
+            "A clock that jumped forward on one instance holds the counter of the partition until real time catches up; " +
+            "check that the clocks of all instances are synchronised.",
+            key.Value,
+            ahead);
+    }
+
     private void RecordFailure(RateLimitPartitionKey key, string limiter, Exception exception, DateTimeOffset now)
     {
         _metrics?.RecordRateLimitStoreFailure(limiter);
 
-        var last = _lastWarning.GetOrAdd(key.Value, DateTimeOffset.MinValue);
-
-        if (now - last < WarningInterval || !_lastWarning.TryUpdate(key.Value, now, last))
+        if (!DueForWarning(_lastWarning, key.Value, now))
         {
             return;
         }

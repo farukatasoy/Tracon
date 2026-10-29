@@ -212,8 +212,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   still in the memory of the process and the application logs a warning at startup. If the counter store fails, the
   instance applies its own in-memory limit for that request, the limit is never lifted and no request is refused for it, and
   the new `tracon.rate_limit.store_failures` counter (tag `tracon.rate_limit.limiter`: `endpoint` or `trigger`) counts it.
+  The stored window never moves back, so keep the instances' clocks synchronised: a clock that jumps far ahead holds the
+  partition's counter until real time catches up, and the application logs a warning when the stored window is more than one
+  window ahead of an instance's own.
   To count somewhere else (Redis, for example), implement `IRateLimitCounterStore`; `RateLimitCounterStoreContract` checks
-  the atomic count with 64 parallel callers. See [Quotas and rate limits](/concepts/governance/#where-a-rate-limit-counts).
+  the atomic count with 64 parallel callers. See [Rate limits across instances](/guides/production/#rate-limits-across-instances).
 - **The management API and the AG-UI endpoint keep a rate-limit counter each**, with either scope. This was already so and
   is now written down: an AG-UI request does not spend the management API's window.
 - **The console's Audit screen has a Verify chain button** that runs the walk and shows the status, the entries checked,

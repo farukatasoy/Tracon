@@ -192,8 +192,9 @@ each term means inside Tracon.
 **Quota.** A tenant or agent usage rule checked before a run. An enabled subsystem with no rule
   rejects nothing.
 
-**Rate limit.** A fixed-window HTTP admission limit partitioned by tenant, API key, or remote
-  address. It is separate from spend and token quotas.
+**Rate limit.** A fixed-window HTTP admission limit partitioned by tenant or global, counted
+  per instance or, with `Scope = Deployment`, for the whole deployment. It is separate from spend
+  and token quotas.
 
 **Audit record.** An append-only administrative change with actor, action, entity, and masked
   before/after data.

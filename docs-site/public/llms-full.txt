@@ -216,7 +216,7 @@ experiment, and automatic rollback is off until you configure it.
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
 | Session ownership | `Tracon:SessionOwnership` | A second boundary drawn under the tenant; off by default (`false`)<!-- claim:option TraconSessionOwnershipOptions.Enabled=false -->, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; every run of a call tree adds its own tokens and cost when it ends, a background child after its root included; a crossed threshold can also be written into the triggering run's own event stream, off by default |
-| Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
+| Rate limiting | HTTP requests | Off by default; partition by tenant or globally; counted per instance, or for the whole deployment with `Tracon:RateLimit:Scope = Deployment` |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain that an HMAC key from `Tracon:Audit:ChainKeyId` signs; best-effort except for [eight fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, credential headers by configuration key name, retry jobs, and failure disablement |
@@ -1820,12 +1820,10 @@ differently. If you add such policies yourself, keep the tenant Tracon resolves 
 tenant your policy binds to the connection in agreement — they are two separate
 mechanisms.
 
-Rate limits are not an isolation boundary: by default `Tracon:RateLimit` and the inbound
-trigger limit count in one process's memory, so a `Tenant` partition splits that
-instance's own window, not a deployment-wide one. Setting `Tracon:RateLimit:Scope` to
-`Deployment` counts them in the database instead (see
-[Quotas and rate limits](#quotas-and-rate-limits)). A quota, counted in the database, is
-what binds a tenant's total consumption.
+Rate limits are not an isolation boundary: by default they count in one process's memory,
+so a `Tenant` partition splits that instance's own window
+([`Scope = Deployment`](/guides/production/#rate-limits-across-instances) shares it). A quota, counted in the
+database, is what binds a tenant's total consumption.
 
 ### Attributing spend below the tenant
 
@@ -2334,44 +2332,6 @@ budget is scoped to one run's tree (for a workflow, the whole chain of runs that
 another) and is checked between model turns, so it *does* cut a long tool loop off mid-run. It also
 keeps a tool call from starting once it is spent (see [A spent budget stops a tool call from
 starting](/guides/reliability/#a-spent-budget-stops-a-tool-call-from-starting)).
-
-### Where a rate limit counts
-
-`Tracon:RateLimit:Scope` chooses where the counter lives. It covers both rate limiters:
-the one on the endpoint groups and the one on the inbound trigger accept endpoint.
-
-| `Scope` | Counter | With two instances | Cost |
-|---|---|---|---|
-| `Instance` (default) | The memory of each process | Each instance admits the limit: `PermitLimit` of 100 admits 200 between two | None |
-| `Deployment` | The database (`rate_limit_counters`), through `IRateLimitCounterStore` | The limit holds for both together | One database write per counted request |
-
-With `Deployment`, every counted request adds one to the row of its partition and the
-instance compares the count with `PermitLimit`. A `Tenant` partition then gives each
-tenant one window across all instances, and a `Global` partition gives every caller one.
-The windows are cut from the Unix epoch, so every instance closes a window at the same
-moment, within the drift between their clocks. A request counted by an instance whose clock
-is behind lands in the window the database already holds, never in an earlier one. A
-rejected request counts too, which a fixed window accepts: the counter starts
-again when the window ends. A request that is cancelled after it was counted stays counted.
-
-- The setting needs a counter store that every instance can reach. Each SQL provider
-  (`UsePostgreSql`, `UseSqlServer`, `UseSqlite`) registers one. Without a provider the
-  counter stays in the memory of the process, the limit applies per instance, and the
-  application logs a warning at startup. To count somewhere else (Redis, for example),
-  implement `IRateLimitCounterStore` and register it; see
-  [Write your own store](/guides/write-your-own-store/#count-rate-limits-somewhere-else).
-- `QueueLimit` must be `0`: a database counter has no waiting line, so a request over the
-  limit gets `429` at once. A larger value together with `Deployment` stops the application
-  at startup.
-- The management API and the AG-UI endpoint each keep a counter of their own with either
-  scope: an AG-UI request does not spend the management API's window.
-- If the counter store fails, the instance applies its own in-memory limit for that request
-  and carries on. The limit is never lifted and no request is refused only because the
-  database is down. The failure is logged once a minute for each partition and counted on
-  the `tracon.rate_limit.store_failures` metric; while it is above zero, the limit holds per
-  instance, not for the deployment.
-- The console polls the API like any other client, so its requests spend the window under
-  both scopes.
 
 ## Retention
 
@@ -12498,7 +12458,7 @@ together, and the trigger limit is then one window for each trigger across all i
 The trigger limit is always on and `Tracon:RateLimit:Enabled` does not switch it; the scope
 only decides where it is counted. The signature is still checked before the request is counted, so an
 unsigned request never spends the sender's allowance. See
-[Where a rate limit counts](/concepts/governance/#where-a-rate-limit-counts).
+[Rate limits across instances](/guides/production/#rate-limits-across-instances).
 :::
 
 ## Manage triggers
@@ -15702,12 +15662,44 @@ limit for the deployment as a whole:
   request (see [the cost](#what-the-deployment-scope-costs)), it needs `QueueLimit` to
   be `0`, and when the database cannot be reached an instance falls back to its own
   limit for the requests that fail. See
-  [Where a rate limit counts](/concepts/governance/#where-a-rate-limit-counts).
+  [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits).
 - **Count it in the ingress.** A gateway in front of the instances shares one counter
   at no database cost, but it does not know the tenant: Tracon resolves the tenant from
   the API key or the claim, behind the gateway.
 - **Use a quota.** A ceiling on total consumption is a quota: quotas count in the
   database, so the instance count does not change them.
+
+### Rate limits across instances
+
+`Tracon:RateLimit:Scope` chooses where the counter lives, for both rate limiters (the endpoint groups and the inbound
+trigger accept endpoint):
+
+| `Scope` | Counter | With two instances | Cost |
+|---|---|---|---|
+| `Instance` (default) | The memory of each process | Each instance admits the limit: a `PermitLimit` of 100 admits 200 between two | None |
+| `Deployment` | The database (`rate_limit_counters`), through `IRateLimitCounterStore` | The limit, and its `Tenant` partition, hold across both | One database write per counted request |
+
+A rejected request counts too, which a fixed window accepts. These rules apply to `Scope = Deployment`:
+
+- It needs a counter store that every instance can reach. Each SQL provider (`UsePostgreSql`, `UseSqlServer`,
+  `UseSqlite`) registers one. Without a provider the counter stays in the memory of the process, the limit applies per
+  instance, and the application logs a warning at startup. To count somewhere else (Redis, for example), implement
+  `IRateLimitCounterStore` and register it; see
+  [Write your own store](/guides/write-your-own-store/#count-rate-limits-somewhere-else).
+- The windows are cut from the Unix epoch, so every instance closes a window at the same moment, within the drift between
+  their clocks. A request counted by an instance whose clock is behind lands in the window the database already holds,
+  never in an earlier one. A request cancelled after it was counted stays counted.
+- Keep the instances' clocks synchronised (NTP). The stored window never moves back, so an instance whose clock jumps
+  far ahead moves the window forward for everyone, and the counter does not restart until real time catches up. With a
+  one-minute window and a ten-minute jump, a partition is spent for ten minutes. The application logs a warning, at most
+  once a minute for each partition, when the stored window is more than one window ahead of the instance's own.
+- `QueueLimit` must be `0`: a database counter has no waiting line, so a request over the limit gets `429` at once. A larger
+  value together with `Deployment` stops the application at startup.
+- The management API and the AG-UI endpoint each keep a counter of their own with either scope: an AG-UI request does not
+  spend the management API's window. The console polls the API like any other client and spends the window too.
+- If the counter store fails, the instance applies its own in-memory limit for that request and carries on. The limit is never
+  lifted and no request is refused only because the database is down. The failure is logged once a minute for each partition and
+  counted on `tracon.rate_limit.store_failures`; while it is above zero, the limit holds per instance, not for the deployment.
 
 ### What the deployment scope costs
 
@@ -20109,18 +20101,34 @@ example, or when the rate limit database write is too slow for your traffic.
 ```csharp
 public sealed class RedisRateLimitCounterStore(IDatabase redis) : IRateLimitCounterStore
 {
+    // One hash for each partition holds the window (w) and the count (c). The script runs atomically, restarts the
+    // count when the caller's window is later, counts in the stored window when it is earlier, and keeps the key for
+    // a day: longer than any window you configure, so a key never expires inside a window.
+    private const string Script = """
+        local w = tonumber(redis.call('HGET', KEYS[1], 'w'))
+        local c
+        if w == nil or tonumber(ARGV[1]) > w then
+          w = tonumber(ARGV[1])
+          redis.call('HSET', KEYS[1], 'w', ARGV[1], 'c', 1)
+          c = 1
+        else
+          c = redis.call('HINCRBY', KEYS[1], 'c', 1)
+        end
+        redis.call('PEXPIRE', KEYS[1], 86400000)
+        return { w, c }
+        """;
+
     public async ValueTask<RateLimitWindowCount> IncrementAsync(
         string partitionKey, DateTimeOffset windowStart, CancellationToken cancellationToken = default)
     {
-        // One key for each (partition, window). The key expires with the window, so nothing is cleaned up.
-        var key = $"tracon:rl:{partitionKey}:{windowStart.ToUnixTimeMilliseconds()}";
-        var count = await redis.StringIncrementAsync(key);
-        if (count == 1)
-        {
-            await redis.KeyExpireAsync(key, TimeSpan.FromHours(2));
-        }
+        cancellationToken.ThrowIfCancellationRequested();   // before the write, as for every store
 
-        return new RateLimitWindowCount { WindowStart = windowStart, Count = count };
+        var result = (long[])(await redis.ScriptEvaluateAsync(
+            Script,
+            [(RedisKey)("tracon:rl:" + partitionKey)],
+            [(RedisValue)windowStart.ToUnixTimeMilliseconds()]))!;
+
+        return new RateLimitWindowCount { WindowStart = DateTimeOffset.FromUnixTimeMilliseconds(result[0]), Count = result[1] };
     }
 }
 ```
@@ -20132,7 +20140,9 @@ Tracon owns the algorithm — it aligns the window, compares the count with `Per
 |---|---|
 | The count is atomic | Two instances that increment at the same moment must both be counted. A read followed by a write loses increments under load, and a limit that loses increments admits more than it promises. `RateLimitCounterStoreContract` increments one partition from 64 callers at once and requires 64 different counts |
 | A later window restarts the count at one | The window Tracon passes moves forward every `Window`. The sketch above gets this from the key; a store that keeps one row for each partition must reset it |
-| An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. A store with one key for each window cannot honour this and may ignore it, at the price of a burst at the boundary |
+| An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. The contract checks it, so keep one record for each partition, as the sketch does, and not one key for each window |
+| A record outlives its window | A record that expires inside a window restarts the count and lifts the limit for the rest of that window. Tracon does not pass the window length, so choose an expiry longer than the longest `Window` you configure (the inbound trigger limit uses one minute) |
+| The call has a limit of its own | Tracon waits for the store, with the request's token only. A store that can hang (a network call) must bound its own wait, so the instance falls back to its own limit instead of waiting for the client to leave |
 | The partition key is opaque | Tracon builds it (`endpoint:tracon:tenant:acme`, `endpoint:agui:global`, `trigger:<id>`). Do not parse it, change it or cut it short |
 | A failure throws | Tracon catches it, counts it on `tracon.rate_limit.store_failures` and applies the instance's own limit for that request. Do not swallow it and return a count |
 
@@ -25965,8 +25975,9 @@ each term means inside Tracon.
 **Quota.** A tenant or agent usage rule checked before a run. An enabled subsystem with no rule
   rejects nothing.
 
-**Rate limit.** A fixed-window HTTP admission limit partitioned by tenant, API key, or remote
-  address. It is separate from spend and token quotas.
+**Rate limit.** A fixed-window HTTP admission limit partitioned by tenant or global, counted
+  per instance or, with `Scope = Deployment`, for the whole deployment. It is separate from spend
+  and token quotas.
 
 **Audit record.** An append-only administrative change with actor, action, entity, and masked
   before/after data.
