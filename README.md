@@ -17,7 +17,7 @@ You write the AI harness; you operate it at `/tracon`. Start with
 > [changelog](https://tracon.dev/reference/changelog/).
 >
 > - Runs recorded with spans, metrics and cost; tenants isolated; audit trail
->   hash-chained per tenant, so an edit that skips the chain shows in `GET /api/audit/verify`
+>   hash-chained per tenant and signed with a key you hold, so an edit made without the key shows in `GET /api/audit/verify`
 > - Agents exposed over MCP and A2A; `pgvector` semantic search; API keys narrow access
 > - A tenant can bring its own provider key (BYOK) under an egress policy — an
 >   unauthorised provider is rejected at compile time

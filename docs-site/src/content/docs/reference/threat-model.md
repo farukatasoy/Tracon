@@ -41,6 +41,7 @@ some form of legitimate access.
 | A malicious MCP server | A remote server Tracon connects to, abusing the tools or resources it advertises, or the content it returns |
 | An operator with console or API access | A legitimately authorized identity, acting outside — deliberately or accidentally — what that authorization was meant to cover |
 | Someone with direct database read access | A stolen backup, a misconfigured grant, a decommissioned disk — reads storage without ever going through Tracon's HTTP surface |
+| Someone who can write to the audit table | A database administrator, a restored backup or another application's connection that can change audit rows but cannot read this host's configuration |
 
 ## Assets
 
@@ -119,6 +120,16 @@ more — the audit trail raises `tracon.audit.write_failures` and a run raises
 `tracon.run.recording_failures`, tagged with the stage the record was lost at. Both
 counters are reporting, not prevention: they tell you evidence is missing, they do not
 keep it.
+:::
+
+:::caution[The audit chain key does not stop someone who holds the key]
+With `Tracon:Audit:ChainKeyId` set, the audit trail's hash is an HMAC under a key kept in configuration, so
+someone who can write the audit table but cannot read the configuration can no longer change an entry and
+recompute the hashes after it. Someone who can read both can still forge the whole trail, and nothing outside
+the database anchors it. A chain without a key detects a change made without recomputing it and nothing more.
+Rewriting every entry from the first signed one onward without a key leaves a chain the walk calls `Valid`, with
+`unkeyedEntries` equal to `entriesChecked`. [Sign the audit chain with a key](/guides/audit-chain-key/) has the
+setup and the rotation.
 :::
 
 :::caution[A granted script runs with the server's operating-system identity]

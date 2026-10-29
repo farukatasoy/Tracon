@@ -8,6 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **`RequireProductionProfile()` asks a new decision: `UnkeyedAuditChain`. A host that calls it and keeps its audit
+  trail in a database does not start until the decision is answered or accepted by name.** `TraconProductionRisk` gains
+  `UnkeyedAuditChain`. A host that never calls the method sees nothing change. Why it was added: the audit trail's
+  hash was a plain SHA-256 of a public form, so anyone who could write to the audit table could change an entry,
+  recompute every hash after it and still get `Valid` from `GET /api/audit/verify`. Answer it by putting a random key of at
+  least 32 bytes, base64, under `Tracon:AuditChainKeys:<id>` and setting `Tracon:Audit:ChainKeyId` to `<id>`; or accept it
+  with `profile.Accept(TraconProductionRisk.UnkeyedAuditChain)`. It is not asked while the audit log is Tracon's in-memory
+  one. The failure message names the two settings and carries no value.
+- **A name that ends in a line feed is no longer a valid name.** Six validators wrote their pattern as `^…$`, and in .NET
+  `$` also matches before a trailing `\n`, so `"acme\n"` passed. They now end the match at the end of the text: the tenant
+  id (`HttpTenantContext.IsValidTenantId`), a custom run event type, a job handler key, a job lane, a knowledge collection
+  name and an MCP server or tool name. A tenant claim that ends in a line feed now answers `403` (`Tenant claim
+  malformed`), and a route tenant that ends in one answers `400`. A tenant saved earlier under such a name (only a
+  claim or a route segment could carry the character) is unreachable by that name: its rows are still in the database.
+  Rename them or save the tenant again under the name without the line feed. `AnchoredPatternTests` fails when a new
+  whole-value pattern ends in `$`.
+- **Migrations for the audit chain key.** PostgreSQL `0067`, SQL Server `0055` and SQLite `0054`. With `AutoApplyMigrations`
+  (the default) they run at startup. Each adds one nullable column, `audit_log.key_id`. No row is backfilled and none is
+  re-signed: an entry written before the upgrade keeps `NULL` and its plain SHA-256, which the walk still checks.
+- **Public types changed.** `AuditEntry` gains `KeyId`, `AuditChainVerification` gains `UnkeyedEntries`, `AuditChainStatus`
+  gains `UnknownKey = 3` and `TraconAuditOptions` gains `ChainKeyId`. Code that switches over the three
+  `AuditChainStatus` values (a generated client included) must handle `UnknownKey`. A custom `IAuditLog` that computes its own chain
+  is not asked to sign. The shared `AuditLogContract` gains the signed-chain cases and two optional hooks,
+  `CreateKeyedLogAsync` and `KeyedLogsShareStorage`; an implementation that does not override them skips those cases.
+
 - **The `Tracon` package no longer brings PostgreSQL.** It now carries the HTTP API, workflows, MCP, the OpenAI
   provider, and the console, and no storage engine, so a host on SQL Server, SQLite, or the in-memory stores no longer
   takes Npgsql. A host that calls `UsePostgreSql` and references only `Tracon` fails to build (`CS1061`: `ITraconBuilder`
@@ -132,6 +157,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **The audit trail's hash chain can be signed with a key.** Set `Tracon:Audit:ChainKeyId` to the id of a key whose
+  base64 value is under `Tracon:AuditChainKeys:<id>` (at least 32 bytes). New entries are then hashed with HMAC-SHA256 and
+  carry the key's id in `keyId`; the key value is read from configuration at start and never written to the database, a
+  log, the diagnostics report or a response. A bad key stops the host and the message names the configuration key, not the
+  value. `GET /api/audit/verify` checks each entry with the key it names and answers `UnknownKey` for a key the host does not
+  hold (not tampering: put it back), `Broken` for an unsigned entry after a signed one (a downgrade), and counts the
+  entries written without a key in `unkeyedEntries`. Entries written before the key was set stay valid and are counted. To
+  rotate, add a new key under a new id, point `ChainKeyId` at it and restart, keeping the old value. Turning the key off keeps
+  writing entries unsigned and logs one warning per tenant. It protects against someone who can write to the audit table
+  but cannot read the host's configuration; it does not anchor the chain outside the database.
+- **The console's Audit screen has a Verify chain button** that runs the walk and shows the status, the entries checked,
+  the unsigned entries and the first failing entry.
 - **A tenant can have a tool policy: the tools its runs may call.** `ITenantToolPolicyStore` (in memory by default, and on
   PostgreSQL, SQL Server and SQLite through a new `tenant_tool_policies` table) holds two closed lists per tenant: the
   tool names it may run and the permissions it holds. A call passes when its tool name is listed or the permission its

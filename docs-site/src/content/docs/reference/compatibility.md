@@ -273,7 +273,7 @@ The set has grown since the first release that carried it, and each growth was a
 this way. The decisions added after the first six (tenant separation, session ownership,
 at-rest content protection, content inspection, request rate limiting and retention) are
 `UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
-`UnverifiedTenantHeader` and `UnlimitedTenantWorkflows`; `CHANGELOG.md` gives the reason for
+`UnverifiedTenantHeader`, `UnlimitedTenantWorkflows` and `UnkeyedAuditChain`; `CHANGELOG.md` gives the reason for
 each. The current list is the one table in [Make a production decision
 required](/guides/embedding/#make-a-production-decision-required).
 

@@ -18,6 +18,8 @@ Tracon:AsyncRun:MaxAttempts
 Tracon:Attachments:AllowedMediaTypes:*
 Tracon:Attachments:MaxBytes
 Tracon:Audit:ActorClaimType
+Tracon:Audit:ChainKeyId
+Tracon:AuditChainKeys:*
 Tracon:Canary:AutoRollbackEnabled
 Tracon:Canary:ScanInterval
 Tracon:CircuitBreaker:BreakDuration

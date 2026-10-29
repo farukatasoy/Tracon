@@ -93,4 +93,10 @@ public enum TraconProductionRisk
     /// wait.
     /// </summary>
     UnlimitedTenantWorkflows,
+
+    /// <summary>
+    /// The audit trail's hash chain has no key, so anyone who can write to the audit table
+    /// can change an entry and recompute every hash after it.
+    /// </summary>
+    UnkeyedAuditChain,
 }

@@ -168,6 +168,6 @@ public static partial class JobHandlerKeys
     public static bool IsReserved(string? key)
         => key is not null && key.StartsWith(ReservedPrefix, StringComparison.Ordinal);
 
-    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{0,127}$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{0,127}\\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex KeyPattern();
 }

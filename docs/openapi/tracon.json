@@ -7235,7 +7235,7 @@
           "Governance"
         ],
         "summary": "Walks the tenant\u0027s audit trail hash chain and reports whether it is intact.",
-        "description": "\u0027Valid\u0027 means every entry\u0027s hash matches its content and links to the one before it. \u0027Broken\u0027 means an entry\u0027s stored hash no longer matches its content \u2014 it was altered after it was written. \u0027Gap\u0027 means a link between two entries is missing \u2014 a row was deleted, or a write never completed; \u0027firstFailingEntryId\u0027 names where. An entry written before this feature shipped carries no hash and is excluded from the walk, not misreported as broken. Without \u0027?after=\u0027/\u0027?before=\u0027 the whole tenant history is walked; a narrower range is cheaper but cannot judge a break exactly at its own edge, because the entry just before the range is not read.",
+        "description": "\u0027Valid\u0027 means every entry\u0027s hash matches its content and links to the one before it. \u0027Broken\u0027 means an entry\u0027s stored hash no longer matches its content \u2014 it was altered after it was written \u2014 or an entry without a signing key follows one with a key (a signed chain does not go back to unsigned). \u0027Gap\u0027 means a link between two entries is missing \u2014 a row was deleted, or a write never completed. \u0027UnknownKey\u0027 means an entry names a signing key this host does not hold, so the walk cannot check it: the key was removed from configuration or never reached this host. That is not evidence of tampering; put the key back under Tracon:AuditChainKeys and verify again. \u0027firstFailingEntryId\u0027 names where the walk stopped. \u0027unkeyedEntries\u0027 counts the walked entries that carry no key: entries written before Tracon:Audit:ChainKeyId was set are checked with the plain hash they were written with and are counted here. A chain signed from its first entry shows 0; a count equal to \u0027entriesChecked\u0027 on a host that has always had a key means every entry was rewritten without one. An entry written before hash chaining existed carries no hash and is excluded from the walk, not misreported as broken. Without \u0027?after=\u0027/\u0027?before=\u0027 the whole tenant history is walked and this is the answer to trust; a narrower range is cheaper but cannot judge a break exactly at its own edge, because the entry just before the range is not read, and it cannot see a signed entry before the range, so an unsigned entry at the start of the range is judged by its own hash alone.",
         "operationId": "TraconVerifyAuditChain",
         "parameters": [
           {
@@ -10317,7 +10317,8 @@
         "enum": [
           "Valid",
           "Broken",
-          "Gap"
+          "Gap",
+          "UnknownKey"
         ],
         "description": "The result of walking a tenant\u0027s audit trail hash chain."
       },
@@ -10348,6 +10349,15 @@
             ],
             "description": "Gets the id of the first entry where the chain fails; \u0060null\u0060\nwhen AuditChainStatus AuditChainVerification.Status is \u0060AuditChainStatus.Valid\u0060.",
             "format": "uuid"
+          },
+          "unkeyedEntries": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of walked entries that carry no signing key.",
+            "format": "int32"
           }
         },
         "description": "The result of verifying one tenant\u0027s audit trail hash chain."
@@ -10417,7 +10427,14 @@
               "null",
               "string"
             ],
-            "description": "Gets the hash of this entry: a SHA-256 over a canonical form of its\nfields that also includes the previous entry\u0027s hash, so changing an\nearlier entry breaks every later link. The write path computes this\nvalue; a caller-supplied value is ignored."
+            "description": "Gets the hash of this entry: a hash over a canonical form of its\nfields that also includes the previous entry\u0027s hash, so changing an\nearlier entry breaks every later link. It is an HMAC-SHA256 when\n\u0060KeyId\u0060 is set and a plain SHA-256 when it is not. The write\npath computes this value; a caller-supplied value is ignored."
+          },
+          "keyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the id of the key that signed this entry, or \u0060null\u0060\nfor an entry written without a key."
           }
         },
         "description": "A row in the audit trail that records who changed which entity and when."

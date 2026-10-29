@@ -20,6 +20,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
 {
     private readonly ConcurrentDictionary<string, List<AuditEntry>> _byTenant = new(StringComparer.Ordinal);
     private readonly ITenantContext _tenantContext;
+    private readonly AuditChainKeyRing _keys;
 
     /// <summary>Creates a new in-memory audit log.</summary>
     /// <param name="tenantContext">
@@ -28,9 +29,14 @@ internal sealed class InMemoryAuditLog : IAuditLog
     /// <see langword="null"/> or empty. Defaults to
     /// <see cref="FixedTenantContext.Default"/> when constructed outside DI.
     /// </param>
-    public InMemoryAuditLog(ITenantContext? tenantContext = null)
+    /// <param name="keys">
+    /// The keys that sign and verify the chain. Defaults to none, which writes and checks every entry
+    /// without a key.
+    /// </param>
+    public InMemoryAuditLog(ITenantContext? tenantContext = null, AuditChainKeyRing? keys = null)
     {
         _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        _keys = keys ?? AuditChainKeyRing.None;
     }
 
     /// <inheritdoc />
@@ -53,9 +59,10 @@ internal sealed class InMemoryAuditLog : IAuditLog
                 entry.Entity,
                 entry.Before,
                 entry.After,
-                entry.CreatedAt);
+                entry.CreatedAt,
+                _keys.Active);
 
-            chain.Add(entry with { PreviousHash = previousHash, Hash = hash });
+            chain.Add(entry with { PreviousHash = previousHash, Hash = hash, KeyId = _keys.Active?.Id });
         }
 
         return ValueTask.CompletedTask;
@@ -86,7 +93,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
             .ThenBy(static entry => entry.Id)
             .ToList();
 
-        return new ValueTask<AuditChainVerification>(AuditChainWalker.Verify(ordered, hasLowerBound: query.After is not null));
+        return new ValueTask<AuditChainVerification>(AuditChainWalker.Verify(ordered, hasLowerBound: query.After is not null, keys: _keys));
     }
 
     /// <inheritdoc />

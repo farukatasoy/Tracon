@@ -1,0 +1,27 @@
+-- ---------------------------------------------------------------------------
+-- 0067 -- Audit trail chain key (phase 260, F-758)
+--
+-- Adds `key_id` to `audit_log`: the id of the key that signed the row, or NULL for a row
+-- written without one.
+--
+-- WHY. Until now the chain hash was a plain SHA-256 (0031). Anyone who could write to the
+-- table could change a row, recompute that row's hash and every hash after it with the same
+-- public algorithm, and the verify endpoint still answered `Valid`. With a key the hash is
+-- an HMAC-SHA256 (AuditChainHasher): a writer who cannot read the host's configuration
+-- cannot produce a hash the walk accepts. The tenant's chain keeps the same shape; only the
+-- function that links two rows changed.
+--
+-- THE KEY VALUE IS NOT HERE. `key_id` is a NAME (`2026-10`). The value lives in
+-- configuration (`Tracon:AuditChainKeys:<id>`) and is never written to the database, a log
+-- or a response (K-059). The id is also part of the signed text, so pointing a stored row
+-- at another known key breaks that row's hash.
+--
+-- NO BACKFILL. A row written before this migration has no key and keeps its plain SHA-256;
+-- re-signing it would rewrite history, which is exactly what an audit trail must not allow.
+-- The walk reads such a row as before and counts it (`unkeyedEntries`). After the first
+-- signed row, an unsigned row is a downgrade and the walk reports `Broken`.
+--
+-- NO INDEX. `key_id` is read with the row and never searched.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE {schema}.audit_log ADD COLUMN IF NOT EXISTS key_id text;

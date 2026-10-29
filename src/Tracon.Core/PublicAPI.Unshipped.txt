@@ -294,6 +294,8 @@ Tracon.TraconAttachmentOptions.TraconAttachmentOptions() -> void
 Tracon.TraconAuditOptions
 Tracon.TraconAuditOptions.ActorClaimType.get -> string?
 Tracon.TraconAuditOptions.ActorClaimType.set -> void
+Tracon.TraconAuditOptions.ChainKeyId.get -> string?
+Tracon.TraconAuditOptions.ChainKeyId.set -> void
 Tracon.TraconAuditOptions.TraconAuditOptions() -> void
 Tracon.TraconCircuitBreakerOptions
 Tracon.TraconCircuitBreakerOptions.BreakDuration.get -> System.TimeSpan

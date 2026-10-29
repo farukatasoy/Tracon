@@ -41,6 +41,7 @@ public sealed class ProductionProfileStartupTests
     [InlineData(TraconProductionRisk.UnrestrictedTenantEgress)]
     [InlineData(TraconProductionRisk.UnverifiedTenantHeader)]
     [InlineData(TraconProductionRisk.UnlimitedTenantWorkflows)]
+    [InlineData(TraconProductionRisk.UnkeyedAuditChain)]
     public async Task One_permissive_decision_stops_the_host_and_is_named(TraconProductionRisk left)
     {
         // Every decision but one is answered, so the failure can only be about
@@ -401,6 +402,7 @@ public sealed class ProductionProfileStartupTests
                         options.AllowHeaderResolution = true;
                     });
                     builder.UseWorkflows();
+                    Open(builder, TraconProductionRisk.UnkeyedAuditChain);
                     builder.RequireProductionProfile();
                 }));
 
@@ -685,6 +687,53 @@ public sealed class ProductionProfileStartupTests
         exception.Message.ShouldContain("Tracon:Tools:RequireTenantPolicy");
     }
 
+    [Fact]
+    public async Task The_audit_chain_key_decision_is_not_applicable_while_the_audit_log_is_the_in_memory_one()
+    {
+        // The in-memory chain lives in the process and goes with it: no one writes to a table behind the host's
+        // back. Reporting the decision as open would make every default host stop under the profile.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExceptThese(builder, TraconProductionRisk.UnkeyedAuditChain);
+                builder.Services.AddSingleton<IAuditLog>(static provider => new InMemoryAuditLog(provider.GetRequiredService<ITenantContext>()));
+                builder.RequireProductionProfile();
+            });
+
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.UnkeyedAuditChain)} is not applicable", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_database_audit_log_with_no_key_names_the_setting_and_the_key_section_and_no_value()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, TraconProductionRisk.UnkeyedAuditChain);
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain($"  {nameof(TraconProductionRisk.UnkeyedAuditChain)}");
+        exception.Message.ShouldContain("Tracon:Audit:ChainKeyId");
+        exception.Message.ShouldContain("Tracon:AuditChainKeys:<id>");
+    }
+
+    [Fact]
+    public async Task A_database_audit_log_with_a_key_satisfies_the_audit_chain_key_decision()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, null);
+                builder.RequireProductionProfile();
+            });
+
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.UnkeyedAuditChain)} is satisfied", StringComparison.Ordinal));
+    }
+
     private static void AnswerAllExcept(ITraconBuilder builder, TraconProductionRisk? left)
         => AnswerAllExceptThese(builder, left is { } one ? [one] : []);
 
@@ -764,6 +813,16 @@ public sealed class ProductionProfileStartupTests
                 builder.UseWorkflows(static options => options.MaxConcurrentRunsPerTenant = 2);
                 break;
 
+            case TraconProductionRisk.UnkeyedAuditChain:
+                // The decision is asked only of an audit log that is not the in-memory one, and answered by
+                // a key in the ring. The ring is handed in whole: the key VALUES come from configuration,
+                // which this host does not have, and a registered ring wins over the one AddTracon builds.
+                Open(builder, TraconProductionRisk.UnkeyedAuditChain);
+                builder.Services.AddSingleton(AuditChainKeyRing.Create(
+                    "test",
+                    new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["test"] = new byte[32] }));
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(nameof(risk), risk, "Unknown production risk.");
         }
@@ -787,6 +846,10 @@ public sealed class ProductionProfileStartupTests
 
             case TraconProductionRisk.UnlimitedTenantWorkflows:
                 builder.UseWorkflows();
+                break;
+
+            case TraconProductionRisk.UnkeyedAuditChain:
+                builder.Services.AddSingleton<IAuditLog, DatabaseLikeAuditLog>();
                 break;
         }
     }
@@ -829,6 +892,24 @@ public sealed class ProductionProfileStartupTests
     private sealed class StubTenantContext : ITenantContext
     {
         public string TenantId => "stub-tenant";
+    }
+
+    /// <summary>
+    /// An audit log that is not Tracon's in-memory one, so the chain key decision is asked. It keeps its
+    /// entries in memory like the default; only its TYPE differs, which is all the check reads.
+    /// </summary>
+    private sealed class DatabaseLikeAuditLog : IAuditLog
+    {
+        private readonly InMemoryAuditLog _inner = new();
+
+        public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
+            => _inner.WriteAsync(entry, cancellationToken);
+
+        public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
+            => _inner.QueryAsync(query, cancellationToken);
+
+        public ValueTask<AuditChainVerification> VerifyChainAsync(AuditChainQuery query, CancellationToken cancellationToken = default)
+            => _inner.VerifyChainAsync(query, cancellationToken);
     }
 
     private sealed class StubToolAuthorizationHandler : IToolAuthorizationHandler

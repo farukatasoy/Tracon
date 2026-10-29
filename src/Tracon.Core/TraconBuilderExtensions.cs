@@ -135,9 +135,11 @@ public static partial class TraconBuilderExtensions
     /// The decisions are the values of <see cref="TraconProductionRisk"/>: tenant
     /// separation, session ownership, at-rest content protection, content
     /// inspection, request rate limiting, retention, the endpoint role
-    /// policies, tool authorization, tenant egress, the tenant header and the
-    /// workflow slots one tenant may take. A decision a composition cannot have
-    /// (tenant egress with one tenant, for example) is reported as not
+    /// policies, tool authorization, tenant egress, the tenant header, the
+    /// workflow slots one tenant may take and the key that signs the audit
+    /// trail's hash chain. A decision a composition cannot have
+    /// (tenant egress with one tenant, or the chain key while the audit log is the
+    /// in-memory one) is reported as not
     /// applicable and never stops the host. Each one is either answered by turning
     /// the feature on, or accepted by name. Acceptance is per item and there is no
     /// way to accept them all at once.

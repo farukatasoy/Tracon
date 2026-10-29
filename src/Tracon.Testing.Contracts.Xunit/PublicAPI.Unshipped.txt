@@ -153,10 +153,14 @@ Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Listing_filters_by_sess
 Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Record_metadata_is_stored_correctly() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Session_based_delete_does_not_delete_the_others_attachments() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract
+Tracon.Testing.Contracts.Storage.AuditLogContract.A_chain_signed_by_two_keys_verifies_after_rotation() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.A_keyed_chain_verifies_as_valid() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Action_and_entity_filter_works() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.AuditLogContract() -> void
+Tracon.Testing.Contracts.Storage.AuditLogContract.Concurrent_keyed_writes_for_one_tenant_produce_a_single_valid_chain() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Concurrent_writes_for_one_tenant_produce_a_single_valid_chain() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Deleting_a_row_directly_is_detected_as_a_gap() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Downgrading_a_keyed_entry_is_detected_as_broken() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Entries_are_returned_newest_to_oldest() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Entry_with_unknown_actor_carries_null() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.First_entry_of_a_tenant_carries_no_previous_hash() -> System.Threading.Tasks.Task!
@@ -165,9 +169,16 @@ Tracon.Testing.Contracts.Storage.AuditLogContract.Log.get -> Tracon.IAuditLog!
 Tracon.Testing.Contracts.Storage.AuditLogContract.No_leakage_between_tenants() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Null_tenant_follows_the_ambient_tenant_when_it_changes() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Null_tenant_resolves_to_the_ambient_tenant_and_does_not_leak_others() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Re_signing_under_another_key_id_is_detected_as_broken() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Recomputing_a_keyed_row_without_the_key_is_detected_as_broken() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Second_entry_links_to_the_first() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Tampering_a_keyed_row_directly_is_detected_as_broken() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Tampering_a_row_directly_is_detected_as_broken() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.The_write_path_sets_the_key_id_and_ignores_a_caller_supplied_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Turning_the_key_off_keeps_the_entry_and_the_walk_reports_the_downgrade() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Two_tenants_chains_verify_independently() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Two_tenants_keyed_chains_verify_independently() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Unkeyed_history_before_the_first_keyed_entry_stays_valid_and_is_counted() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_reports_valid_for_a_normally_written_chain() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_with_null_tenant_checks_the_ambient_tenants_own_chain() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Written_entry_round_trips() -> System.Threading.Tasks.Task!
@@ -1025,8 +1036,10 @@ virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.SkipReason.
 virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.SleepScript.get -> string!
 virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.StopTolerance.get -> System.TimeSpan
 virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.TempMarkerScript(string! marker) -> string!
+virtual Tracon.Testing.Contracts.Storage.AuditLogContract.CreateKeyedLogAsync(string? signingKeyId, System.Collections.Generic.IReadOnlyDictionary<string!, byte[]!>! keys) -> System.Threading.Tasks.ValueTask<Tracon.IAuditLog?>
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.ExecuteRawAsync(string! sql) -> System.Threading.Tasks.ValueTask
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.FormatIdForRawSql(System.Guid id) -> string!
+virtual Tracon.Testing.Contracts.Storage.AuditLogContract.KeyedLogsShareStorage.get -> bool
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.QualifiedAuditLogTable.get -> string!
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.SupportsRawTamper.get -> bool
 virtual Tracon.Testing.Contracts.Storage.EvalStoreContract.ExecuteRawAsync(string! sql) -> System.Threading.Tasks.ValueTask

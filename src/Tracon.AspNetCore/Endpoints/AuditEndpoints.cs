@@ -108,12 +108,23 @@ internal static class AuditEndpoints
             .WithDescription(
                 "'Valid' means every entry's hash matches its content and links to the one " +
                 "before it. 'Broken' means an entry's stored hash no longer matches its content " +
-                "— it was altered after it was written. 'Gap' means a link between two entries " +
-                "is missing — a row was deleted, or a write never completed; " +
-                "'firstFailingEntryId' names where. An entry written before this feature shipped " +
-                "carries no hash and is excluded from the walk, not misreported as broken. " +
-                "Without '?after='/'?before=' the whole tenant history is walked; a narrower " +
-                "range is cheaper but cannot judge a break exactly at its own edge, because the " +
-                "entry just before the range is not read.");
+                "— it was altered after it was written — or an entry without a signing key " +
+                "follows one with a key (a signed chain does not go back to unsigned). 'Gap' means " +
+                "a link between two entries is missing — a row was deleted, or a write never " +
+                "completed. 'UnknownKey' means an entry names a signing key this host does not " +
+                "hold, so the walk cannot check it: the key was removed from configuration or " +
+                "never reached this host. That is not evidence of tampering; put the key back under " +
+                "Tracon:AuditChainKeys and verify again. 'firstFailingEntryId' names where the " +
+                "walk stopped. 'unkeyedEntries' counts the walked entries that carry no key: " +
+                "entries written before Tracon:Audit:ChainKeyId was set are checked with the plain " +
+                "hash they were written with and are counted here. A chain signed from its first " +
+                "entry shows 0; a count equal to 'entriesChecked' on a host that has always had a " +
+                "key means every entry was rewritten without one. An entry written before hash " +
+                "chaining existed carries no hash and is excluded from the walk, not misreported " +
+                "as broken. Without '?after='/'?before=' the whole tenant history is walked and " +
+                "this is the answer to trust; a narrower range is cheaper but cannot judge a break " +
+                "exactly at its own edge, because the entry just before the range is not read, " +
+                "and it cannot see a signed entry before the range, so an unsigned entry at the " +
+                "start of the range is judged by its own hash alone.");
     }
 }

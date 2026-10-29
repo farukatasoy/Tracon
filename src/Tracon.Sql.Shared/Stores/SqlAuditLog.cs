@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
 using System.Data.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tracon;
 
@@ -20,6 +23,13 @@ namespace Tracon;
 /// read-then-insert-with-retry pattern <c>SqlIdempotencyStore</c> uses for its
 /// own uniqueness race, just retried instead of reported. No cross-connection
 /// lock (advisory/applock) is needed: the constraint IS the serialization point.
+/// </para>
+/// <para>
+/// <strong>Signing.</strong> When the host holds an active key (<c>Tracon:Audit:ChainKeyId</c>), the hash is an
+/// HMAC-SHA256 under that key and the key id is written to <c>key_id</c>; without one the entry is written with the
+/// plain SHA-256 it always had. The key VALUE never reaches the database. Turning the key off does not stop the
+/// write (an audit entry must not be lost); the next verification reports the unsigned row as a downgrade, and
+/// the first such write per tenant logs a warning.
 /// </para>
 /// </remarks>
 internal sealed class SqlAuditLog : IAuditLog
@@ -46,6 +56,12 @@ internal sealed class SqlAuditLog : IAuditLog
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
+    private readonly AuditChainKeyRing _keys;
+    private readonly ILogger _logger;
+
+    // One entry per tenant that has already been warned about, for the life of the process. The set is as
+    // large as the number of tenants that write while the key is off, which is the number of tenants.
+    private readonly ConcurrentDictionary<string, byte> _warnedTenants = new(StringComparer.Ordinal);
 
     /// <summary>Creates a new audit trail ledger.</summary>
     /// <param name="context">The store context.</param>
@@ -54,8 +70,16 @@ internal sealed class SqlAuditLog : IAuditLog
     /// <see cref="VerifyChainAsync"/> when their query's <c>TenantId</c> is
     /// <see langword="null"/> or empty — the same pattern <c>SqlRunStore</c> uses.
     /// </param>
+    /// <param name="keys">
+    /// The keys that sign and verify the chain. Defaults to none, which writes and checks every entry without a key.
+    /// </param>
+    /// <param name="logger">The logger for the key-off warning. Defaults to a logger that writes nowhere.</param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
-    public SqlAuditLog(SqlStoreContext context, ITenantContext tenantContext)
+    public SqlAuditLog(
+        SqlStoreContext context,
+        ITenantContext tenantContext,
+        AuditChainKeyRing? keys = null,
+        ILogger<SqlAuditLog>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -63,6 +87,8 @@ internal sealed class SqlAuditLog : IAuditLog
         _context = context;
         _sql = context.Sql;
         _tenantContext = tenantContext;
+        _keys = keys ?? AuditChainKeyRing.None;
+        _logger = logger ?? NullLogger<SqlAuditLog>.Instance;
     }
 
     /// <summary>The gateway for provider-specific behavior.</summary>
@@ -81,7 +107,11 @@ internal sealed class SqlAuditLog : IAuditLog
 
         for (var attempt = 1; ; attempt++)
         {
-            var previousHash = await ReadLastHashAsync(entry.TenantId, cancellationToken).ConfigureAwait(false);
+            var tail = await ReadTailAsync(entry.TenantId, cancellationToken).ConfigureAwait(false);
+            var previousHash = tail?.Hash;
+
+            WarnWhenTheKeyIsOffAfterASignedEntry(entry.TenantId, tail);
+
             var hash = AuditChainHasher.ComputeHash(
                 previousHash,
                 entry.TenantId,
@@ -90,7 +120,8 @@ internal sealed class SqlAuditLog : IAuditLog
                 entry.Entity,
                 entry.Before,
                 entry.After,
-                createdAt);
+                createdAt,
+                _keys.Active);
 
             var command = CreateCommand(_sql.InsertAuditEntry);
             DbHelpers.Add(command, "id", id);
@@ -103,6 +134,7 @@ internal sealed class SqlAuditLog : IAuditLog
             Dialect.AddTimestamp(command, "created_at", createdAt);
             AddNullableText(command, "prev_hash", previousHash);
             AddNullableText(command, "hash", hash);
+            AddNullableText(command, "key_id", _keys.Active?.Id);
 
             try
             {
@@ -166,7 +198,7 @@ internal sealed class SqlAuditLog : IAuditLog
 
         var entries = await DbHelpers.ReadListAsync(command, ReadEntry, cancellationToken).ConfigureAwait(false);
 
-        return AuditChainWalker.Verify(entries, hasLowerBound: query.After is not null);
+        return AuditChainWalker.Verify(entries, hasLowerBound: query.After is not null, keys: _keys);
     }
 
     /// <summary>
@@ -176,15 +208,49 @@ internal sealed class SqlAuditLog : IAuditLog
     /// </summary>
     private string ResolveTenantId(string? tenantId) => tenantId is { Length: > 0 } ? tenantId : _tenantContext.TenantId;
 
-    private async ValueTask<string?> ReadLastHashAsync(string tenantId, CancellationToken cancellationToken)
+    private async ValueTask<ChainTail?> ReadTailAsync(string tenantId, CancellationToken cancellationToken)
     {
         var command = CreateCommand(_sql.SelectLastAuditHash);
         DbHelpers.AddTenant(command, tenantId);
 
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
-
-        return result as string;
+        return await DbHelpers.ReadSingleAsync(
+            command,
+            static reader => new ChainTail(
+                DbHelpers.GetNullableString(reader, 0),
+                DbHelpers.GetNullableString(reader, 1)),
+            cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Logs, once per tenant per process, that an entry is about to follow a signed one without a signature.
+    /// </summary>
+    /// <remarks>
+    /// The write goes ahead: refusing it would lose an audit entry, and losing one is worse than writing it
+    /// unsigned. The cost is visible later, as a downgrade at the next verification, so the operator is told now.
+    /// The retry loop may run this more than once for one write; the set makes that harmless.
+    /// </remarks>
+    private void WarnWhenTheKeyIsOffAfterASignedEntry(string tenantId, ChainTail? tail)
+    {
+        if (_keys.Active is not null || tail?.KeyId is not { } signedWith)
+        {
+            return;
+        }
+
+        if (_warnedTenants.TryAdd(tenantId, 0) && _logger.IsEnabled(LogLevel.Warning))
+        {
+            _logger.LogWarning(
+                "The audit chain of tenant {TenantId} was signed with key {KeyId}, but {Setting} is not set. " +
+                "The entry is written without a signature and the chain will verify as Broken from this entry on.",
+                tenantId,
+                signedWith,
+                AuditChainKeyRing.ChainKeyIdSetting);
+        }
+    }
+
+    /// <summary>The newest row of a tenant's chain: the hash the next entry links to and the key that signed it.</summary>
+    /// <param name="Hash">The newest row's hash, or <see langword="null"/> for a row written before the chain existed.</param>
+    /// <param name="KeyId">The key id the newest row names, or <see langword="null"/> when it was written without one.</param>
+    private sealed record ChainTail(string? Hash, string? KeyId);
 
     /// <summary>
     /// Creates a command on the transaction a store lent to the current flow, or on a
@@ -216,6 +282,7 @@ internal sealed class SqlAuditLog : IAuditLog
             CreatedAt = DbHelpers.GetTimestamp(reader, 7),
             PreviousHash = DbHelpers.GetNullableString(reader, 8),
             Hash = DbHelpers.GetNullableString(reader, 9),
+            KeyId = DbHelpers.GetNullableString(reader, 10),
         };
 
     private void AddNullableText(DbCommand command, string name, string? value)

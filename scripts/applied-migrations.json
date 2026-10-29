@@ -49,8 +49,11 @@
     "src/Tracon.PostgreSql/Migrations/0066_cache_write_cost.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
     "src/Tracon.SqlServer/Migrations/0054_cache_write_cost.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
     "src/Tracon.Sqlite/Migrations/0053_cache_write_cost.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
+    "src/Tracon.PostgreSql/Migrations/0067_audit_chain_key.sql": "82ea89a91a18cee82c79eb557eae6610756fabcd",
     "src/Tracon.PostgreSql/Migrations/0068_tenant_tool_policies.sql": "12be0ae96abdcd7e51fa3f6a00650a120419fc2a",
+    "src/Tracon.SqlServer/Migrations/0055_audit_chain_key.sql": "82ea89a91a18cee82c79eb557eae6610756fabcd",
     "src/Tracon.SqlServer/Migrations/0056_tenant_tool_policies.sql": "12be0ae96abdcd7e51fa3f6a00650a120419fc2a",
+    "src/Tracon.Sqlite/Migrations/0054_audit_chain_key.sql": "82ea89a91a18cee82c79eb557eae6610756fabcd",
     "src/Tracon.Sqlite/Migrations/0055_tenant_tool_policies.sql": "12be0ae96abdcd7e51fa3f6a00650a120419fc2a"
   }
 }

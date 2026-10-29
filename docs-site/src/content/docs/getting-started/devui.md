@@ -51,7 +51,8 @@ that the recommendation above leaves to you.
 - **Definitions you can move backwards.** An agent is data, versioned, with rollback.
 - **A tenant boundary.** Optional. When you enable it, a `tenant_id` scopes every query.
 - **An audit trail you can check.** `audit_log` is hash-chained, and
-  `GET /api/audit/verify` reports whether the chain is intact.
+  `GET /api/audit/verify` reports whether the chain is intact. The Audit screen runs the same walk with
+  its **Verify chain** button.
 
 ## What this page does not claim
 

@@ -15898,7 +15898,7 @@ namespace Tracon.Client.Generated
         /// Walks the tenant's audit trail hash chain and reports whether it is intact.
         /// </summary>
         /// <remarks>
-        /// 'Valid' means every entry's hash matches its content and links to the one before it. 'Broken' means an entry's stored hash no longer matches its content — it was altered after it was written. 'Gap' means a link between two entries is missing — a row was deleted, or a write never completed; 'firstFailingEntryId' names where. An entry written before this feature shipped carries no hash and is excluded from the walk, not misreported as broken. Without '?after='/'?before=' the whole tenant history is walked; a narrower range is cheaper but cannot judge a break exactly at its own edge, because the entry just before the range is not read.
+        /// 'Valid' means every entry's hash matches its content and links to the one before it. 'Broken' means an entry's stored hash no longer matches its content — it was altered after it was written — or an entry without a signing key follows one with a key (a signed chain does not go back to unsigned). 'Gap' means a link between two entries is missing — a row was deleted, or a write never completed. 'UnknownKey' means an entry names a signing key this host does not hold, so the walk cannot check it: the key was removed from configuration or never reached this host. That is not evidence of tampering; put the key back under Tracon:AuditChainKeys and verify again. 'firstFailingEntryId' names where the walk stopped. 'unkeyedEntries' counts the walked entries that carry no key: entries written before Tracon:Audit:ChainKeyId was set are checked with the plain hash they were written with and are counted here. A chain signed from its first entry shows 0; a count equal to 'entriesChecked' on a host that has always had a key means every entry was rewritten without one. An entry written before hash chaining existed carries no hash and is excluded from the walk, not misreported as broken. Without '?after='/'?before=' the whole tenant history is walked and this is the answer to trust; a narrower range is cheaper but cannot judge a break exactly at its own edge, because the entry just before the range is not read, and it cannot see a signed entry before the range, so an unsigned entry at the start of the range is judged by its own hash alone.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -19644,6 +19644,9 @@ namespace Tracon.Client.Generated
         [System.Runtime.Serialization.EnumMember(Value = @"Gap")]
         Gap = 2,
 
+        [System.Runtime.Serialization.EnumMember(Value = @"UnknownKey")]
+        UnknownKey = 3,
+
     }
 
     /// <summary>
@@ -19671,6 +19674,12 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("firstFailingEntryId")]
         public System.Guid? FirstFailingEntryId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the number of walked entries that carry no signing key.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("unkeyedEntries")]
+        public int UnkeyedEntries { get; set; } = default!;
 
     }
 
@@ -19742,13 +19751,21 @@ namespace Tracon.Client.Generated
         public string? PreviousHash { get; set; } = default!;
 
         /// <summary>
-        /// Gets the hash of this entry: a SHA-256 over a canonical form of its
+        /// Gets the hash of this entry: a hash over a canonical form of its
         /// <br/>fields that also includes the previous entry's hash, so changing an
-        /// <br/>earlier entry breaks every later link. The write path computes this
-        /// <br/>value; a caller-supplied value is ignored.
+        /// <br/>earlier entry breaks every later link. It is an HMAC-SHA256 when
+        /// <br/>`KeyId` is set and a plain SHA-256 when it is not. The write
+        /// <br/>path computes this value; a caller-supplied value is ignored.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("hash")]
         public string? Hash { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the id of the key that signed this entry, or `null`
+        /// <br/>for an entry written without a key.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("keyId")]
+        public string? KeyId { get; set; } = default!;
 
     }
 

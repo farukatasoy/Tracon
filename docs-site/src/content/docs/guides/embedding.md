@@ -468,6 +468,7 @@ repeat it:
 | `UnrestrictedTenantEgress` | A tenant with no egress policy may call every provider | `Tracon:TenantProviders:RequireEgressPolicy`, then save a policy for each tenant |
 | `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
 | `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
+| `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Sign the audit chain with a key](/guides/audit-chain-key/) |
 
 Some rows are not asked in every composition:
 
@@ -480,6 +481,9 @@ Some rows are not asked in every composition:
 - `UnverifiedTenantHeader` and `UnlimitedTenantWorkflows` exist only when
   `UseTenancy(...)` or `UseWorkflows(...)` is in the chain. `UnlimitedTenantWorkflows`
   is also not asked while `Tracon:Workflows:Enabled` is `false`.
+- `UnkeyedAuditChain` is not asked while the audit log is Tracon's in-memory one: that chain lives in the process
+  and goes with it, so no one writes to a table behind the host's back. A database audit log, or one you
+  registered, is asked.
 - `UnregisteredRolePolicies` is known only once `MapTracon` has run, so it is asked of a
   host that mapped the endpoints before it started. A host with no HTTP surface is not
   asked it.

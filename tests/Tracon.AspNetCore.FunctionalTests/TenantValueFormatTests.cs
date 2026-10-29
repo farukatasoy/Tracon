@@ -371,6 +371,93 @@ public sealed class TenantValueFormatTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    // ---- a value that ends in a line feed (phase 260, F-756) --------------------------
+    // .NET's `$` matches before a trailing '\n' as well as at the very end, so a pattern written
+    // `^...$` accepted "acme\n". A header cannot carry the character (the transport forbids it), so the
+    // two places it can arrive are a claim an identity provider issued and a route segment.
+
+    [Theory]
+    [InlineData("acme\n")]
+    [InlineData("acme\r\n")]
+    [InlineData("a\n")]
+    public void A_tenant_id_that_ends_in_a_line_break_is_not_well_formed(string value)
+    {
+        HttpTenantContext.IsValidTenantId(value).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_tenant_id_without_the_line_break_is_still_well_formed()
+    {
+        HttpTenantContext.IsValidTenantId("acme").ShouldBeTrue();
+        HttpTenantContext.IsValidTenantId("Acme.Inc_1-x").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_claim_that_ends_in_a_line_feed_is_403_and_is_not_the_acme_tenant()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.UseTenancy(static options =>
+            {
+                options.Enabled = true;
+                options.ClaimType = TenantClaim;
+                options.AllowHeaderResolution = false;
+            }),
+            configureServices: static services => services
+                .AddAuthentication(EncodedClaimHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, EncodedClaimHandler>(
+                    EncodedClaimHandler.SchemeName,
+                    configureOptions: null));
+
+        using var response = await host.Client.SendAsync(Get(CurrentTenant, EncodedClaimHandler.Header, "acme%0A"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        await AssertProblemAsync(response, "Tenant claim malformed", "acme\n");
+
+        // The same claim without the trailing character still resolves, so the test above fails for the
+        // line feed and not for the handler.
+        using var clean = await host.Client.SendAsync(Get(CurrentTenant, EncodedClaimHandler.Header, "acme"));
+
+        clean.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadTenantAsync(clean)).ShouldBe("acme");
+    }
+
+    [Fact]
+    public async Task A_route_tenant_that_ends_in_a_line_feed_is_400_on_the_egress_endpoint()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/tracon/api/tenants/acme%0A/egress", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { allowedProviders = new[] { "openai" } }),
+        };
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        // Nothing was saved under a name no request can ever resolve to.
+        using var read = await host.Client.GetAsync(
+            new Uri("/tracon/api/tenants/acme/egress", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        (await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldNotContain("openai");
+    }
+
+    [Fact]
+    public async Task A_route_tenant_that_ends_in_a_line_feed_is_400_when_a_tenant_record_is_created()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/tracon/api/tenants/acme%0A", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { displayName = "Acme" }),
+        };
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
     // ---- helpers -------------------------------------------------------------------
 
     private static Task<TraconTestHost> StartWithHeaderAsync()
@@ -445,6 +532,33 @@ public sealed class TenantValueFormatTests
         if (sentValue.Trim().Length > 0)
         {
             body.ShouldNotContain(sentValue);
+        }
+    }
+
+    /// <summary>
+    /// Authenticates every request; the tenant claim is the PERCENT-DECODED value of a test header, so a test
+    /// can issue a claim that holds a character a header value cannot (a line feed).
+    /// </summary>
+    private sealed class EncodedClaimHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    {
+        public const string SchemeName = "EncodedClaim";
+        public const string Header = "X-Test-Claim-Tenant-Encoded";
+
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var claims = new List<Claim> { new(ClaimTypes.Name, "claim-user") };
+
+            if (Request.Headers.TryGetValue(Header, out var tenant))
+            {
+                claims.Add(new Claim(TenantClaim, Uri.UnescapeDataString(tenant.ToString())));
+            }
+
+            var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, SchemeName));
+
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName)));
         }
     }
 

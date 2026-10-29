@@ -126,6 +126,136 @@ public sealed class AuditChainHasherTests
         string.Equals(a, b, StringComparison.Ordinal).ShouldBeFalse();
     }
 
+    // --- Golden vectors (phase 260) ---
+    // 🚨 These two hashes were computed BEFORE the keyed form existed, by an independent
+    // implementation of the canonical form (Python hashlib over the same text), and checked against
+    // the code of phase 259. An entry written without a key must hash to exactly these values
+    // for as long as 1.x lasts: every chain a deployment has written is verified against them.
+
+    [Fact]
+    public void An_unkeyed_entry_hashes_to_the_value_phase_259_wrote()
+    {
+        const string Expected = "c043d7125e46c067498c9377a77ed5189f9f8a957b09814dfb285ee52fa7e5e9";
+
+        var hash = AuditChainHasher.ComputeHash(
+            previousHash: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            tenantId: "acme",
+            actor: "user-1",
+            action: "agent.update",
+            entity: "agent:support",
+            before: "{\"version\":1}",
+            after: "{\"version\":2,\"note\":\"line\nbreak \\\"q\\\" back\\\\slash\"}",
+            createdAt: new DateTimeOffset(2026, 10, 29, 12, 34, 56, TimeSpan.Zero).AddTicks(1234567));
+
+        hash.ShouldBe(Expected);
+    }
+
+    [Fact]
+    public void An_unkeyed_genesis_entry_with_null_fields_hashes_to_the_value_phase_259_wrote()
+    {
+        const string Expected = "6f103deeb516efe08ca462704e64788d73f9b8228ea6209d5b46ab5d7da32803";
+
+        var hash = AuditChainHasher.ComputeHash(
+            previousHash: null,
+            tenantId: "default",
+            actor: null,
+            action: "agent.create",
+            entity: "agent:x",
+            before: null,
+            after: null,
+            createdAt: new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero));
+
+        hash.ShouldBe(Expected);
+    }
+
+    // --- Keyed form (phase 260) ---
+
+    private static readonly byte[] KeyBytes = Enumerable.Range(1, 32).Select(static i => (byte)i).ToArray();
+
+    [Fact]
+    public void A_keyed_entry_hashes_to_an_hmac_over_the_canonical_form_with_the_key_id_appended()
+    {
+        // Computed by an independent implementation (Python hmac over the same text), not by this code.
+        const string Expected = "62f14ea0c0c17e1c7288cc8be22d708630d50ea5e4d21fc9bac081495c6e1533";
+
+        var hash = AuditChainHasher.ComputeHash(
+            previousHash: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            tenantId: "acme",
+            actor: "user-1",
+            action: "agent.update",
+            entity: "agent:support",
+            before: "{\"version\":1}",
+            after: "{\"version\":2}",
+            createdAt: new DateTimeOffset(2026, 10, 29, 12, 34, 56, TimeSpan.Zero).AddTicks(1234567),
+            key: new AuditChainKey("2026-10", KeyBytes));
+
+        hash.ShouldBe(Expected);
+    }
+
+    [Fact]
+    public void The_keyed_canonical_form_ends_with_the_key_id_and_the_unkeyed_form_does_not_carry_one()
+    {
+        var keyed = AuditChainHasher.BuildCanonicalForm(null, "t", null, "a", "e", null, null, SampleCreatedAt, "2026-10");
+        var unkeyed = AuditChainHasher.BuildCanonicalForm(null, "t", null, "a", "e", null, null, SampleCreatedAt);
+
+        keyed.ShouldEndWith(",\"keyId\":\"2026-10\"}");
+        unkeyed.ShouldNotContain("keyId");
+        keyed[..^",\"keyId\":\"2026-10\"}".Length].ShouldBe(unkeyed[..^1]);
+    }
+
+    [Fact]
+    public void The_same_key_bytes_under_another_key_id_give_another_hash()
+    {
+        // 🚨 The id is inside the signed text: re-pointing a stored row at a second known key must break it.
+        var first = ComputeSample(key: new AuditChainKey("2026-10", KeyBytes));
+        var second = ComputeSample(key: new AuditChainKey("2026-11", KeyBytes));
+
+        string.Equals(first, second, StringComparison.Ordinal).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Another_key_gives_another_hash()
+    {
+        var other = Enumerable.Range(2, 32).Select(static i => (byte)i).ToArray();
+
+        var first = ComputeSample(key: new AuditChainKey("2026-10", KeyBytes));
+        var second = ComputeSample(key: new AuditChainKey("2026-10", other));
+
+        string.Equals(first, second, StringComparison.Ordinal).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_keyed_hash_is_not_the_plain_sha256_of_any_form_an_unkeyed_writer_can_compute()
+    {
+        var keyed = ComputeSample(key: new AuditChainKey("2026-10", KeyBytes));
+        var unkeyed = ComputeSample();
+
+        string.Equals(keyed, unkeyed, StringComparison.Ordinal).ShouldBeFalse();
+        keyed.Length.ShouldBe(64);
+        keyed.ShouldAllBe(static c => Uri.IsHexDigit(c) && !char.IsUpper(c));
+    }
+
+    private static string ComputeSample(
+        AuditChainKey? key,
+        string? previousHash = null,
+        string tenantId = "tenant-a",
+        string? actor = "user-1",
+        string action = "agent.update",
+        string entity = "agent:support",
+        string? before = """{"version":1}""",
+        string? after = """{"version":2}""",
+        DateTimeOffset? createdAt = null)
+        => AuditChainHasher.ComputeHash(
+            previousHash,
+            tenantId,
+            actor,
+            action,
+            entity,
+            before,
+            after,
+            createdAt ?? SampleCreatedAt,
+            key);
+
     private static string ComputeSample(
         string? previousHash = null,
         string tenantId = "tenant-a",

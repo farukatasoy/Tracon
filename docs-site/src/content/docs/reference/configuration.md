@@ -183,6 +183,8 @@ still runs as the same operating-system user and reads what that user can read.
 | `Attachments:MaxBytes` | `20971520` bytes, or 20 MiB |
 | `Attachments:AllowedMediaTypes` | `image/png`, `image/jpeg`, `image/webp`, `image/gif`, `application/pdf`, `text/plain`, `audio/*` |
 | `Audit:ActorClaimType` | `null`; resolution tries name identifier, name, then `sub` |
+| `Audit:ChainKeyId` | `null`; entries are written without a signing key. The id of the key that signs the audit hash chain |
+| `AuditChainKeys:<id>` | none. The base64 value of one chain key, at least 32 bytes; every key the chain was ever signed with stays here. Keep it in a secret store |
 
 The attachment guard checks file signatures. It does not trust the client's
 `Content-Type` header.

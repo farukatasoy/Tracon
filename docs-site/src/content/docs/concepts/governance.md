@@ -316,29 +316,37 @@ in the logs.
 ### Tamper detection
 
 Every entry carries a hash of its own content and the hash of the entry before it,
-chained per tenant. `GET /api/audit/verify` walks the chain and reports one of three
-outcomes:
+chained per tenant. With a chain key (below), the hash is an HMAC-SHA256 under a key only
+the host holds, and the entry names the key's id. `GET /api/audit/verify` walks the chain
+and reports one of four outcomes:
 
 | Status | Meaning |
 |---|---|
 | `Valid` | Every entry's hash matches its content and links to the one before it |
-| `Broken` | An entry's stored hash no longer matches its content — it was altered after it was written |
+| `Broken` | An entry's stored hash no longer matches its content — it was altered after it was written — or an entry without a key follows one with a key |
 | `Gap` | A link between two entries is missing — a row was deleted, or a write never completed |
+| `UnknownKey` | An entry names a signing key this host does not hold, so the walk cannot check it. This is an operations failure, not evidence of tampering: put the key back and verify again |
 
-`Broken` and `Gap` both name the first entry where the chain fails.
+`Broken`, `Gap` and `UnknownKey` name the first entry where the walk stopped.
+`unkeyedEntries` counts the walked entries that carry no key; read it with the status.
 
 ```bash
 curl 'http://localhost:5081/tracon/api/audit/verify'
-# {"status":"Valid","entriesChecked":42,"firstFailingEntryId":null}
+# {"status":"Valid","entriesChecked":42,"firstFailingEntryId":null,"unkeyedEntries":7}
 ```
 
-:::caution[The chain detects a change; it does not resist one]
-The hash is SHA-256 over the entry and the previous hash, with no key. It catches a
-change made without recomputing the chain — a manual edit, a partial restore, a bug in
-another writer. Anyone who can write to the audit table can also recompute every hash
-after the change, and the walk then reports `Valid`. Protect the trail from a database
-administrator or an attacker with write access through the database's own access
-controls and backups, not through this check.
+The console's Audit screen runs the same walk with its **Verify chain** button and shows the
+status, the entries checked, the unsigned count and the first failing entry.
+
+With a chain key the hash is an HMAC under a value only the host holds. [Sign the audit chain with a
+key](/guides/audit-chain-key/) covers the setup, the rotation and what the key does not protect.
+
+:::caution[Without a key the chain detects a change; it does not resist one]
+The hash is SHA-256 over the entry and the previous hash, with no key. It catches a change made
+without recomputing the chain: a manual edit, a partial restore, a bug in another writer. Anyone
+who can write to the audit table can also recompute every hash after the change, and the walk then
+reports `Valid`. A chain key closes that for an actor who cannot read the host's configuration, and
+only for that actor; `unkeyedEntries` is the number to read beside the status.
 :::
 
 :::note[Entries written before this feature ships have no hash]

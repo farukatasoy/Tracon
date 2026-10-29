@@ -238,7 +238,7 @@ public sealed partial class HttpTenantContext : ITenantContext
         return false;
     }
 
-    [GeneratedRegex("^[a-zA-Z0-9_.-]+$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex("^[a-zA-Z0-9_.-]+\\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex TenantIdPattern();
 }
 

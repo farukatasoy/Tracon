@@ -62,6 +62,7 @@ public static partial class TraconServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         RegisterOptions(services, configurationSection);
+        RegisterAuditChain(services, configurationSection);
         RegisterCoreInfrastructure(services);
         RegisterStorageAndJobs(services);
         RegisterCatalogAssembly(services);

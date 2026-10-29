@@ -318,8 +318,8 @@ Preview a retention rule before you execute it. If archival is enabled but no
 `IArchiveSink` is registered, Tracon does not delete the rows.
 
 Retention removes data by age; it never touches `audit_log`, which is a separate,
-hash-chained trail (`GET /api/audit/verify`) and stays outside any retention
-target on purpose. If a data subject request (export or erasure by identity, not
+hash-chained trail (`GET /api/audit/verify`, signed with a key you set in
+`Tracon:Audit:ChainKeyId`) and stays outside any retention target on purpose. If a data subject request (export or erasure by identity, not
 age) is part of your compliance posture, register an `IDataSubjectResolver` — see
 [Data subject rights](/concepts/governance/#data-subject-rights). Without
 one, the export and erasure endpoints return `409` rather than a silent no-op.
@@ -347,6 +347,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node or a tool call from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
+| Audit chain key | Off. The audit trail's hash is a plain SHA-256, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a random key of at least 32 bytes under `Tracon:AuditChainKeys:<id>` in a secret store and set `Tracon:Audit:ChainKeyId` to `<id>`. Keep every old key's value in configuration for as long as the entries it signed exist. [Sign the audit chain with a key](/guides/audit-chain-key/) has the rotation and what the key does not protect |
 | Tenant egress policy | A tenant with no egress policy may call every provider the deployment has | In a multi-tenant host set `Tracon:TenantProviders:RequireEgressPolicy` to `true` and save a policy for each tenant, the default tenant included: a tenant without one then calls no provider, and a provider binding cannot be saved for it. A tenant with a policy is judged by its list alone |
 | Tool authorization | The built-in handler allows every tool call for every caller, and a tenant with no tool policy runs every tool | Register your own `IToolAuthorizationHandler`, or in a multi-tenant host set `Tracon:Tools:RequireTenantPolicy` to `true` and save a [tool policy](/concepts/tools/#per-tenant-tool-policy) for each tenant, the default tenant included: a tenant without one then runs no tool. A tenant with a policy is judged by its two lists alone, and the policy comes in front of your handler |
 

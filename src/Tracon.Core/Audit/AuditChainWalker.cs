@@ -18,6 +18,10 @@ internal static class AuditChainWalker
     /// history, so <paramref name="entries"/>[0] IS the tenant's genesis entry and its
     /// <see cref="AuditEntry.PreviousHash"/> must be <see langword="null"/>.
     /// </param>
+    /// <param name="keys">
+    /// The keys the host holds, or <see langword="null"/> for none. An entry that names a key is
+    /// checked with that key; an entry that names none is checked with a plain SHA-256.
+    /// </param>
     /// <returns>The verification result.</returns>
     /// <remarks>
     /// <para>
@@ -27,9 +31,13 @@ internal static class AuditChainWalker
     ///   <item><description>
     ///     <strong>Self-consistency.</strong> Each entry's stored <see cref="AuditEntry.Hash"/> is
     ///     recomputed from its own content and its own stored
-    ///     <see cref="AuditEntry.PreviousHash"/>. A mismatch means the row was altered
-    ///     (any field, including <c>PreviousHash</c> itself) after it was written —
-    ///     <see cref="AuditChainStatus.Broken"/>. This pass runs first and wins over
+    ///     <see cref="AuditEntry.PreviousHash"/>, with the key the entry names (a plain SHA-256 when it
+    ///     names none). A mismatch means the row was altered
+    ///     (any field, including <c>PreviousHash</c> itself and the key id) after it was written —
+    ///     <see cref="AuditChainStatus.Broken"/>. An entry that names a key the ring does not hold is
+    ///     <see cref="AuditChainStatus.UnknownKey"/>, and an entry without a key that follows an entry with
+    ///     one is <see cref="AuditChainStatus.Broken"/> (a downgrade). The first failing row decides.
+    ///     This pass runs first and wins over
     ///     the next two: an altered row also breaks the link to its neighbor, but
     ///     "the row was altered" is the more specific and more useful diagnosis.
     ///   </description></item>
@@ -50,12 +58,50 @@ internal static class AuditChainWalker
     ///   </description></item>
     /// </list>
     /// </remarks>
-    public static AuditChainVerification Verify(IReadOnlyList<AuditEntry> entries, bool hasLowerBound = false)
+    public static AuditChainVerification Verify(
+        IReadOnlyList<AuditEntry> entries,
+        bool hasLowerBound = false,
+        AuditChainKeyRing? keys = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
 
+        keys ??= AuditChainKeyRing.None;
+
+        var unkeyed = 0;
+
         foreach (var entry in entries)
         {
+            if (entry.KeyId is null)
+            {
+                unkeyed++;
+            }
+        }
+
+        var seenKeyed = false;
+
+        foreach (var entry in entries)
+        {
+            AuditChainKey? key = null;
+
+            if (entry.KeyId is { } keyId)
+            {
+                // A key the ring does not hold is an operations failure, not a forgery: the walk cannot
+                // check the row, and says so with its own status instead of "Broken".
+                if (!keys.TryGet(keyId, out var value))
+                {
+                    return Failure(AuditChainStatus.UnknownKey, entries.Count, entry.Id, unkeyed);
+                }
+
+                key = new AuditChainKey(keyId, value);
+            }
+            else if (seenKeyed)
+            {
+                // 🚨 Downgrade. An unsigned row after a signed one is what an actor sees as the cheap way
+                // out: rewrite the row, drop `key_id`, recompute a plain SHA-256 that needs no key. The
+                // chain starts unsigned and only ever turns signed, so this order cannot be honest.
+                return Failure(AuditChainStatus.Broken, entries.Count, entry.Id, unkeyed);
+            }
+
             var expectedHash = AuditChainHasher.ComputeHash(
                 entry.PreviousHash,
                 entry.TenantId,
@@ -64,42 +110,44 @@ internal static class AuditChainWalker
                 entry.Entity,
                 entry.Before,
                 entry.After,
-                entry.CreatedAt);
+                entry.CreatedAt,
+                key);
 
             if (!string.Equals(expectedHash, entry.Hash, StringComparison.Ordinal))
             {
-                return new AuditChainVerification
-                {
-                    Status = AuditChainStatus.Broken,
-                    EntriesChecked = entries.Count,
-                    FirstFailingEntryId = entry.Id,
-                };
+                return Failure(AuditChainStatus.Broken, entries.Count, entry.Id, unkeyed);
             }
+
+            seenKeyed |= key is not null;
         }
 
         if (!hasLowerBound && entries.Count > 0 && entries[0].PreviousHash is not null)
         {
-            return new AuditChainVerification
-            {
-                Status = AuditChainStatus.Gap,
-                EntriesChecked = entries.Count,
-                FirstFailingEntryId = entries[0].Id,
-            };
+            return Failure(AuditChainStatus.Gap, entries.Count, entries[0].Id, unkeyed);
         }
 
         for (var i = 1; i < entries.Count; i++)
         {
             if (!string.Equals(entries[i].PreviousHash, entries[i - 1].Hash, StringComparison.Ordinal))
             {
-                return new AuditChainVerification
-                {
-                    Status = AuditChainStatus.Gap,
-                    EntriesChecked = entries.Count,
-                    FirstFailingEntryId = entries[i].Id,
-                };
+                return Failure(AuditChainStatus.Gap, entries.Count, entries[i].Id, unkeyed);
             }
         }
 
-        return new AuditChainVerification { Status = AuditChainStatus.Valid, EntriesChecked = entries.Count };
+        return new AuditChainVerification
+        {
+            Status = AuditChainStatus.Valid,
+            EntriesChecked = entries.Count,
+            UnkeyedEntries = unkeyed,
+        };
     }
+
+    private static AuditChainVerification Failure(AuditChainStatus status, int entriesChecked, Guid firstFailingEntryId, int unkeyed)
+        => new()
+        {
+            Status = status,
+            EntriesChecked = entriesChecked,
+            FirstFailingEntryId = firstFailingEntryId,
+            UnkeyedEntries = unkeyed,
+        };
 }
