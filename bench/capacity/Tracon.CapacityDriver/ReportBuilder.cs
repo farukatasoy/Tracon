@@ -58,6 +58,9 @@ public sealed class CellEvidence
     /// <summary>How many worker processes leased, for the worker axis.</summary>
     public int? WorkerCount { get; set; }
 
+    /// <summary>How many HTTP hosts the requests were spread over, for the host axis.</summary>
+    public int? ApiHostCount { get; set; }
+
     /// <summary>How long the measured window lasted.</summary>
     public double MeasuredSeconds { get; set; }
 
@@ -109,6 +112,9 @@ public sealed class SummaryRow
 
     /// <summary>How many worker processes leased, for the worker axis.</summary>
     public int? WorkerCount { get; set; }
+
+    /// <summary>How many HTTP hosts the requests were spread over, for the host axis.</summary>
+    public int? ApiHostCount { get; set; }
 
     /// <summary>How many repeats were merged into this row.</summary>
     public int Repeats { get; set; }
@@ -196,6 +202,7 @@ public static class ReportBuilder
             Status = cell.Status,
             ArrivalRatePerSecond = cell.ArrivalRatePerSecond,
             WorkerCount = cell.WorkerCount,
+            ApiHostCount = cell.ApiHostCount,
             MeasuredSeconds = cell.MeasuredSeconds,
             DrainSeconds = cell.DrainSeconds,
             Arrival = cell.Arrival,
@@ -343,7 +350,7 @@ public static class ReportBuilder
         var groups = cells
             .Where(static c => !string.Equals(c.Status, CellStatus.Invalid, StringComparison.Ordinal))
             .SelectMany(static c => c.Scenarios.Select(scenario => (Cell: c, Scenario: scenario)))
-            .GroupBy(static pair => (pair.Scenario, pair.Cell.SeedShape, pair.Cell.Concurrency, pair.Cell.ArrivalRatePerSecond, pair.Cell.WorkerCount));
+            .GroupBy(static pair => (pair.Scenario, pair.Cell.SeedShape, pair.Cell.Concurrency, pair.Cell.ArrivalRatePerSecond, pair.Cell.WorkerCount, pair.Cell.ApiHostCount));
 
         foreach (var group in groups)
         {
@@ -428,6 +435,7 @@ public static class ReportBuilder
                 Concurrency = group.Key.Concurrency,
                 ArrivalRatePerSecond = group.Key.ArrivalRatePerSecond,
                 WorkerCount = group.Key.WorkerCount,
+                ApiHostCount = group.Key.ApiHostCount,
                 Repeats = members.Count,
                 CompleteRepeats = members.Count(static m => string.Equals(m.Cell.Status, CellStatus.Complete, StringComparison.Ordinal)),
                 StorageRepeats = cleanStorage.Count,
@@ -463,6 +471,11 @@ public static class ReportBuilder
             if (workers != 0)
             {
                 return workers;
+            }
+            var hosts = Nullable.Compare(left.ApiHostCount, right.ApiHostCount);
+            if (hosts != 0)
+            {
+                return hosts;
             }
             var rate = Nullable.Compare(left.ArrivalRatePerSecond, right.ArrivalRatePerSecond);
             return rate != 0 ? rate : left.Concurrency.CompareTo(right.Concurrency);
@@ -581,7 +594,7 @@ public static class ReportBuilder
     private static string? DescribePlateau(List<SummaryRow> rows)
     {
         foreach (var group in rows
-            .FindAll(static r => r.WorkerCount is null && r.ArrivalRatePerSecond is null)
+            .FindAll(static r => r.WorkerCount is null && r.ApiHostCount is null && r.ArrivalRatePerSecond is null)
             .GroupBy(static r => (r.Scenario, r.SeedShape)))
         {
             var steps = group.OrderBy(static r => r.Concurrency).ToList();
@@ -690,14 +703,15 @@ public static class ReportBuilder
 
         text.AppendLine("## Load points");
         text.AppendLine();
-        text.AppendLine("| Scenario | Seed | Workers | Rate/s | Concurrency | Repeats | n | p50 ms | p95 ms | p99 ms | Throughput/s | Bytes/run | Rows/run |");
-        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+        text.AppendLine("| Scenario | Seed | Workers | Hosts | Rate/s | Concurrency | Repeats | n | p50 ms | p95 ms | p99 ms | Throughput/s | Bytes/run | Rows/run |");
+        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 
         foreach (var row in summary.Rows)
         {
             text.Append("| ").Append(row.Scenario)
                 .Append(" | ").Append(row.SeedShape)
                 .Append(" | ").Append(row.WorkerCount?.ToString(CultureInfo.InvariantCulture) ?? "—")
+                .Append(" | ").Append(row.ApiHostCount?.ToString(CultureInfo.InvariantCulture) ?? "—")
                 .Append(" | ").Append(row.ArrivalRatePerSecond?.ToString("0.##", CultureInfo.InvariantCulture) ?? "—")
                 .Append(" | ").Append(row.Concurrency.ToString(CultureInfo.InvariantCulture))
                 .Append(" | ").Append(row.Repeats.ToString(CultureInfo.InvariantCulture))
@@ -978,7 +992,9 @@ public static class ReportBuilder
                     latency.ConvertAll(static r => (
                         Label: r.WorkerCount is { } w
                             ? w.ToString(CultureInfo.InvariantCulture) + "w"
-                            : r.Concurrency.ToString(CultureInfo.InvariantCulture),
+                            : r.ApiHostCount is { } h
+                                ? h.ToString(CultureInfo.InvariantCulture) + "h"
+                                : r.Concurrency.ToString(CultureInfo.InvariantCulture),
                         Value: r.Latency.P95 ?? 0))));
 
             File.WriteAllText(
@@ -988,7 +1004,9 @@ public static class ReportBuilder
                     latency.ConvertAll(static r => (
                         Label: r.WorkerCount is { } w
                             ? w.ToString(CultureInfo.InvariantCulture) + "w"
-                            : r.Concurrency.ToString(CultureInfo.InvariantCulture),
+                            : r.ApiHostCount is { } h
+                                ? h.ToString(CultureInfo.InvariantCulture) + "h"
+                                : r.Concurrency.ToString(CultureInfo.InvariantCulture),
                         Value: r.ThroughputPerSecond))));
         }
     }

@@ -119,6 +119,17 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
         if value <= 0:
             problems.append(f"workerCounts sıfırdan büyük olmalı: {value}")
 
+    for value in profile.get("apiHostCounts", []):
+        if value <= 0:
+            problems.append(f"apiHostCounts sıfırdan büyük olmalı: {value}")
+
+    # Üç eksen (worker sayısı, host sayısı, varış hızı) birbirini çaprazlamaz: her biri kendi sabit
+    # yüküyle ölçülür. Birlikte verilirse plan_cells yalnız birini koşar ve diğeri sessizce düşerdi.
+    axes = [name for name in ("workerCounts", "apiHostCounts", "arrivalRates") if profile.get(name)]
+
+    if len(axes) > 1:
+        problems.append(f"{' ve '.join(axes)} ayrı eksenlerdir; yalnız birini ver")
+
     for shape in profile.get("seedShapes", ["empty"]):
         if shape not in ("empty", "full"):
             problems.append(f"bilinmeyen seed şekli: {shape}")
@@ -163,6 +174,21 @@ def plan_cells(profile: dict[str, Any], run_id: str) -> list[dict[str, Any]]:
                     concurrency=concurrency, workerCount=workers,
                     label=f"queued-w{workers}-r{repeat}",
                 )
+        return cells
+
+    if profile.get("apiHostCounts"):
+        # Host sayısı da AYRI bir eksendir (Faz 265): sabit yükte yalnız HTTP host'larının sayısı değişir.
+        # Her host kendi worker'ıyla kira alır - iki replika böyle çalışır.
+        concurrency = profile["fixedConcurrency"]
+        for group in groups:
+            name = group[0] if len(group) == 1 else "mixed"
+            for hosts in profile["apiHostCounts"]:
+                for repeat in range(1, repeats + 1):
+                    add(
+                        group, seed_shapes[0], repeat,
+                        concurrency=concurrency, apiHostCount=hosts,
+                        label=f"{name}-h{hosts}-r{repeat}",
+                    )
         return cells
 
     if profile.get("arrivalRates"):
@@ -688,10 +714,13 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
     connection = database.connection_for(name)
     executable = host_executable(consumer, HOST_PROJECT)
     worker_count = cell.get("workerCount")
+    api_host_count = cell.get("apiHostCount")
     port = free_port()
 
     host = None
     workers: list[subprocess.Popen[str]] = []
+    extra_hosts: list[subprocess.Popen[str]] = []
+    extra_ports: list[int] = []
 
     try:
         host = start_host(
@@ -706,6 +735,24 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
             "CAPACITY-HOST-READY",
             "host",
         )
+
+        # Host ekseni: ilk host'tan sonraki her HTTP host'u kendi portunda ve kendi in-process worker'ıyla
+        # açılır, aynı veritabanını paylaşır. Ölçüm penceresinden ÖNCE hazırdırlar, aşağıdaki worker'lar gibi.
+        for index in range(1, api_host_count or 1):
+            extra_port = free_port()
+            extra_ports.append(extra_port)
+            extra_hosts.append(start_host(
+                executable,
+                host_environment(
+                    connection=connection, schema=schema, mode="api", name=f"host-{index + 1}",
+                    workload=profile["workload"], executions=executions, port=extra_port,
+                    worker_axis=False,
+                    max_jobs=profile.get("maxConcurrentJobs", 8),
+                    pool=profile.get("maxPoolSize", 100),
+                ),
+                "CAPACITY-HOST-READY",
+                f"host-{index + 1}",
+            ))
 
         # 🚨 Worker process'leri ÖLÇÜM PENCERESİNDEN ÖNCE ayağa kalkar ve
         # hazır satırını yazar. Faz 157'nin devir notu bunu açıkça ister:
@@ -735,6 +782,9 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
             "arrivalRatePerSecond": cell.get("arrivalRatePerSecond"),
             "workerCount": worker_count,
             "workerPids": [w.pid for w in workers],
+            "apiHostCount": api_host_count,
+            "extraBaseAddresses": [f"http://127.0.0.1:{p}/tracon" for p in extra_ports],
+            "extraHostPids": [h.pid for h in extra_hosts],
             "hostPid": host.pid,
             "warmupSeconds": profile.get("warmupSeconds", 0),
             "measureSeconds": profile.get("measureSeconds", 0),
@@ -777,6 +827,9 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
     finally:
         for index, worker in enumerate(workers):
             stop(worker, f"worker-{index + 1}")
+
+        for index, extra in enumerate(extra_hosts):
+            stop(extra, f"host-{index + 2}")
 
         stop(host, "host")
 

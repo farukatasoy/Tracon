@@ -1,0 +1,46 @@
+{
+  "name": "nodes",
+  "description": "The host-count axis. The offered load is held CONSTANT; only the number of HTTP hosts changes, each with its own leasing worker, all on one database. The driver sends each call to the next host in turn, so the read that follows a request usually reaches the other host. This measures what a second replica costs and buys on one machine, one database and one clock - it is not an SLA and not a statement about three or more replicas.",
+  "scenarios": [
+    "buffered",
+    "queued"
+  ],
+  "scenarioGrouping": "separate",
+  "concurrency": [
+    16
+  ],
+  "fixedConcurrency": 16,
+  "apiHostCounts": [
+    1,
+    2
+  ],
+  "seedShapes": [
+    "empty"
+  ],
+  "repeats": 3,
+  "warmupSeconds": 10,
+  "measureSeconds": 60,
+  "runsPerTenant": 0,
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 1000,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 4294967296,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 5368709120,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "requestTimeoutSeconds": 120,
+  "drainTimeoutSeconds": 300,
+  "maxConcurrentJobs": 8,
+  "maxPoolSize": 100,
+  "resourceSampleIntervalSeconds": 1,
+  "seedRuns": 10000
+}

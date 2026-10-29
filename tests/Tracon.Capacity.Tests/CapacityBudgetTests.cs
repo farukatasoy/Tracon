@@ -111,6 +111,76 @@ public sealed class CapacityBudgetTests
     }
 
     [Fact]
+    public void The_host_axis_refuses_an_address_count_that_does_not_match_its_label()
+    {
+        // 🚨 The label on the axis is the number of hosts the driver spread its requests over. "2" with one address
+        // would be one host and a series that says otherwise.
+        var spec = Valid();
+        spec.ApiHostCount = 2;
+        spec.ExtraBaseAddresses = [];
+        spec.ExtraHostPids = [];
+
+        spec.Validate().ShouldContain(p => p.Contains("0 extra addresses and 0 extra pids", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_host_axis_with_its_extra_hosts_is_a_usable_spec()
+    {
+        var spec = Valid();
+        spec.ApiHostCount = 2;
+        spec.ExtraBaseAddresses = ["http://127.0.0.1:5200/tracon"];
+        spec.ExtraHostPids = [4242];
+
+        spec.Validate().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void The_host_axis_and_the_worker_axis_are_not_measured_together()
+    {
+        var spec = Valid();
+        spec.Scenarios = [CapacityScenario.Queued];
+        spec.ApiHostCount = 1;
+        spec.WorkerCount = 1;
+        spec.WorkerPids = [111];
+
+        spec.Validate().ShouldContain(p => p.Contains("measured apart", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Requests_go_to_the_hosts_in_turn()
+    {
+        var spec = Valid();
+        spec.ApiHostCount = 2;
+        spec.ExtraBaseAddresses = ["http://127.0.0.1:5200/tracon"];
+        spec.ExtraHostPids = [4242];
+
+        using var http = new HttpClient();
+        var client = new ScenarioClient(http, spec);
+
+        // A run's request and the read that follows it reach different hosts: what a replica reads is what the
+        // shared store holds, and that is the claim the host axis measures.
+        var order = Enumerable.Range(0, 4).Select(_ => client.NextBase()).ToArray();
+
+        order.ShouldBe(
+        [
+            "http://127.0.0.1:5199/tracon",
+            "http://127.0.0.1:5200/tracon",
+            "http://127.0.0.1:5199/tracon",
+            "http://127.0.0.1:5200/tracon",
+        ]);
+    }
+
+    [Fact]
+    public void One_host_never_changes_address()
+    {
+        using var http = new HttpClient();
+        var client = new ScenarioClient(http, Valid());
+
+        Enumerable.Range(0, 3).Select(_ => client.NextBase()).Distinct(StringComparer.Ordinal).ShouldHaveSingleItem()
+            .ShouldBe("http://127.0.0.1:5199/tracon");
+    }
+
+    [Fact]
     public void A_zero_or_negative_limit_is_refused()
     {
         var spec = Valid();

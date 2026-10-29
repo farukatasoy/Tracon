@@ -60,6 +60,7 @@ public sealed class CellRunner
             Concurrency = _spec.Concurrency,
             ArrivalRatePerSecond = _spec.ArrivalRatePerSecond,
             WorkerCount = _spec.WorkerCount,
+            ApiHostCount = _spec.ApiHostCount,
         };
 
         Directory.CreateDirectory(_spec.OutputDirectory);
@@ -75,6 +76,30 @@ public sealed class CellRunner
                 "the host's effective Scheduling:RunWorker is true, so the worker axis would be shifted by one");
             await WriteAsync(result, cancellationToken).ConfigureAwait(false);
             return result;
+        }
+
+        // 🚨 The host axis is two replicas that BOTH serve and BOTH lease. A host that cannot be read, or one whose
+        // worker is off, would turn "2 hosts" into one host and a bystander, and the series would not say so.
+        if (_spec.ApiHostCount is not null)
+        {
+            if (!settings.RunWorker)
+            {
+                result.Invalidate("the first host's effective Scheduling:RunWorker is false, so the host axis would not lease on it");
+                await WriteAsync(result, cancellationToken).ConfigureAwait(false);
+                return result;
+            }
+
+            foreach (var address in _spec.ExtraBaseAddresses)
+            {
+                var other = await new HostProbe(_client, address).ReadSettingsAsync(cancellationToken).ConfigureAwait(false);
+
+                if (!other.RunWorker)
+                {
+                    result.Invalidate($"the host at {address} has Scheduling:RunWorker off, so the host axis would not lease on it");
+                    await WriteAsync(result, cancellationToken).ConfigureAwait(false);
+                    return result;
+                }
+            }
         }
 
         var accountant = new StorageAccountant(_connectionString, _spec.Schema);
@@ -104,6 +129,16 @@ public sealed class CellRunner
         if (!sampler.Track("host", _spec.HostPid))
         {
             missingProcesses.Add("host");
+        }
+
+        for (var i = 0; i < _spec.ExtraHostPids.Count; i++)
+        {
+            var role = "host-" + (i + 2).ToString(CultureInfo.InvariantCulture);
+
+            if (!sampler.Track(role, _spec.ExtraHostPids[i]))
+            {
+                missingProcesses.Add(role);
+            }
         }
 
         for (var i = 0; i < _spec.WorkerPids.Count; i++)

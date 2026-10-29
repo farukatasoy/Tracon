@@ -97,6 +97,12 @@ class ShippedProfileTests(unittest.TestCase):
         self.assertEqual(soak["concurrency"], [8])
         self.assertEqual(soak["measureSeconds"], 1800)
 
+    def test_the_nodes_profile_measures_one_and_two_hosts_at_one_fixed_load(self):
+        nodes = capacity.load_profile("nodes")
+        self.assertEqual(nodes["apiHostCounts"], [1, 2])
+        self.assertIn("fixedConcurrency", nodes)
+        self.assertIn("not an SLA", nodes["description"])
+
     def test_the_worker_axis_is_separate_and_not_crossed_with_the_sweep_steps(self):
         workers = capacity.load_profile("workers")
         self.assertEqual(workers["workerCounts"], [1, 2, 4])
@@ -130,6 +136,25 @@ class CellPlanTests(unittest.TestCase):
         self.assertEqual(len(cells), 3 * 2)
         self.assertTrue(all(c["concurrency"] == 8 for c in cells))
         self.assertEqual(sorted({c["workerCount"] for c in cells}), [1, 2, 4])
+
+    def test_the_host_axis_is_separate_and_never_multiplies_the_concurrency_list(self):
+        cells = capacity.plan_cells(
+            profile(scenarios=["buffered", "queued"], concurrency=[1, 8, 32],
+                    fixedConcurrency=16, apiHostCounts=[1, 2], repeats=2),
+            "run")
+        self.assertEqual(len(cells), 2 * 2 * 2)
+        self.assertTrue(all(c["concurrency"] == 16 for c in cells))
+        self.assertEqual(sorted({c["apiHostCount"] for c in cells}), [1, 2])
+        self.assertEqual(len({c["cellId"] for c in cells}), len(cells))
+
+    def test_two_axes_together_are_refused(self):
+        # Birlikte verilirse plan_cells yalnız birini koşardı ve diğeri sessizce düşerdi.
+        problems = capacity.validate_profile(profile(apiHostCounts=[1, 2], workerCounts=[1, 2]))
+        self.assertTrue(any("ayrı eksen" in p for p in problems))
+
+    def test_a_zero_host_count_is_refused(self):
+        problems = capacity.validate_profile(profile(apiHostCounts=[0]))
+        self.assertTrue(any("apiHostCounts" in p for p in problems))
 
     def test_the_arrival_axis_is_also_separate(self):
         cells = capacity.plan_cells(

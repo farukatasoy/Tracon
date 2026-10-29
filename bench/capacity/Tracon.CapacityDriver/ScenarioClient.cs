@@ -21,6 +21,8 @@ public sealed class ScenarioClient
 {
     private readonly HttpClient _client;
     private readonly CellSpec _spec;
+    private readonly string[] _bases;
+    private int _next = -1;
 
     /// <summary>Creates a client bound to one cell's host and workload.</summary>
     /// <param name="client">The HTTP client, already pointed at the host.</param>
@@ -29,9 +31,19 @@ public sealed class ScenarioClient
     {
         _client = client;
         _spec = spec;
+        _bases = [spec.BaseAddress, .. spec.ExtraBaseAddresses];
     }
 
-    private Uri RunUri => new($"{_spec.BaseAddress}/api/agents/{_spec.Agent}/run", UriKind.Absolute);
+    /// <summary>
+    /// The Tracon prefix of the host that takes the NEXT call: the hosts in turn, as a round-robin balancer in front
+    /// of two replicas sends them. Every call picks again, so the read that follows a run's request usually lands on
+    /// the other host - what a replica reads is what the shared store holds, and that is the claim being measured.
+    /// </summary>
+    /// <returns>The host's base address.</returns>
+    public string NextBase()
+        => _bases.Length == 1 ? _bases[0] : _bases[(uint)Interlocked.Increment(ref _next) % (uint)_bases.Length];
+
+    private Uri RunUri => new($"{NextBase()}/api/agents/{_spec.Agent}/run", UriKind.Absolute);
 
     /// <summary>Runs one request in the given scenario.</summary>
     /// <param name="scenario">One of the three scenario names.</param>
@@ -300,7 +312,7 @@ public sealed class ScenarioClient
         long started,
         CancellationToken cancellationToken)
     {
-        var uri = new Uri($"{_spec.BaseAddress}/api/runs/{sample.RunId}/events", UriKind.Absolute);
+        var uri = new Uri($"{NextBase()}/api/runs/{sample.RunId}/events", UriKind.Absolute);
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         request.Headers.TryAddWithoutValidation(CapacityContract.TenantHeader, tenant);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
@@ -405,7 +417,7 @@ public sealed class ScenarioClient
         string foreignTenant,
         CancellationToken cancellationToken)
     {
-        var uri = new Uri($"{_spec.BaseAddress}/api/runs/{runId}", UriKind.Absolute);
+        var uri = new Uri($"{NextBase()}/api/runs/{runId}", UriKind.Absolute);
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         request.Headers.TryAddWithoutValidation(CapacityContract.TenantHeader, foreignTenant);
 

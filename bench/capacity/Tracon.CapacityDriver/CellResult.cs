@@ -30,6 +30,9 @@ public sealed class CellResult
     /// <summary>The number of worker processes, when the worker axis was measured.</summary>
     public int? WorkerCount { get; set; }
 
+    /// <summary>The number of HTTP hosts the requests were spread over, when the host axis was measured.</summary>
+    public int? ApiHostCount { get; set; }
+
     /// <summary><c>complete</c>, <c>incomplete/...</c> or <c>invalid/...</c>.</summary>
     /// <remarks>
     /// 🚨 Slowness never produces <c>invalid</c>. Invalid means the measurement

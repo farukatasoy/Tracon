@@ -53,6 +53,18 @@ public sealed class CellSpec
     /// <summary>The HTTP host's process id, sampled separately from the driver's.</summary>
     public int HostPid { get; set; }
 
+    /// <summary>
+    /// How many HTTP hosts serve the cell, each with its own leasing worker, or <see langword="null"/> when the axis
+    /// is not measured (one host).
+    /// </summary>
+    public int? ApiHostCount { get; set; }
+
+    /// <summary>The Tracon prefix of every host after the first, for the host axis.</summary>
+    public List<string> ExtraBaseAddresses { get; set; } = [];
+
+    /// <summary>The process ids of every host after the first, for the host axis.</summary>
+    public List<int> ExtraHostPids { get; set; } = [];
+
     /// <summary>Seconds of load thrown away before measurement starts.</summary>
     public double WarmupSeconds { get; set; }
 
@@ -226,6 +238,26 @@ public sealed class CellSpec
                 // and records the pids; this is the driver's own check that the
                 // number of processes matches the label on the axis.
                 problems.Add($"workerCount is {workers} but {WorkerPids.Count} worker pids were supplied");
+            }
+        }
+
+        if (ApiHostCount is { } hosts)
+        {
+            if (hosts <= 0)
+            {
+                problems.Add("apiHostCount must be greater than zero when present");
+            }
+            else if (ExtraBaseAddresses.Count != hosts - 1 || ExtraHostPids.Count != hosts - 1)
+            {
+                // The label on the axis is the number of hosts the driver actually spread its requests over; the
+                // driver's own check that the two agree, as for the worker axis.
+                problems.Add(
+                    $"apiHostCount is {hosts} but {ExtraBaseAddresses.Count} extra addresses and {ExtraHostPids.Count} extra pids were supplied");
+            }
+
+            if (WorkerCount is not null)
+            {
+                problems.Add("the host axis and the worker axis are measured apart; set one of apiHostCount and workerCount");
             }
         }
 

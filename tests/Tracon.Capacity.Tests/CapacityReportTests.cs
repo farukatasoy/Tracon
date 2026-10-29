@@ -63,6 +63,26 @@ public sealed class CapacityReportTests : IDisposable
         };
 
     [Fact]
+    public void One_host_and_two_hosts_at_the_same_load_are_two_rows_not_one()
+    {
+        // 🚨 The repeats of a load point are merged by their samples. A cell of one host and a cell of two hosts are not
+        // repeats of the same point, and merging them would publish a number nobody measured.
+        var one = Cell("one", concurrency: 16, repeat: 1, throughput: 10);
+        one.ApiHostCount = 1;
+        var two = Cell("two", concurrency: 16, repeat: 1, throughput: 18);
+        two.ApiHostCount = 2;
+
+        WriteCell(one);
+        WriteCell(two);
+
+        var rows = ReportBuilder.Build(_directory).Rows;
+
+        rows.Count.ShouldBe(2);
+        rows.Select(static r => r.ApiHostCount).ShouldBe([1, 2]);
+        rows.Select(static r => r.ThroughputPerSecond).ShouldBe([10d, 18d]);
+    }
+
+    [Fact]
     public void Repeats_of_one_load_point_become_one_row_with_their_spread()
     {
         WriteCell(Cell("a", concurrency: 8, repeat: 1, throughput: 10));
