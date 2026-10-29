@@ -149,10 +149,11 @@ jobs:
       # dort kapinin dordu de yesil kalir ve nupkg BAYAT harita sevk eder. Bu adim
       # o bosluktur; hicbir npm bagimliligi istemez.
       #
-      # `reference/changelog.md` .gitignore'dadir (CHANGELOG.md'den uretilir,
-      # kaynagiyla iki kopya olmasin diye) ama build-agent-map.mjs onu hala
-      # `reference/` dizininden okur - llmsBudgetBytes yorumu bu sayfanin
-      # llms.txt'ten DUSURULEMEYECEGINI acikca soyler. Taze bir checkout'ta dosya
+      # `reference/changelog.md` ve surum basina sayfalar (`reference/releases/`,
+      # F-710) .gitignore'dadir (CHANGELOG.md'den uretilir, kaynagiyla iki kopya
+      # olmasin diye) ama build-agent-map.mjs onlari hala `reference/` dizininden
+      # okur - llmsBudgetBytes yorumu bu sayfanin llms.txt'ten DUSURULEMEYECEGINI
+      # acikca soyler. Taze bir checkout'ta dosya
       # yokken --check calisirsa harita bu sayfayi dislar ve COMMIT edilmis
       # (sayfayi iceren) surumle sonsuza dek uyusmaz; build-changelog.mjs de npm
       # bagimliligi istemedigi icin buraya eklemek yukaridaki yorumu bozmaz.

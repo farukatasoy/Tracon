@@ -197,6 +197,10 @@ internal sealed partial class CodeAgentSource : IAgentSource
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
+            // The agent still resolves, so the name is not added to _bypassWarned: the factory runs
+            // on every resolve and the lookup is tried again. Debug keeps a trace without a line per resolve at Warning.
+            ModelRingCheckSkipped(_logger, exception, agentName);
+
             return;
         }
 
@@ -243,6 +247,13 @@ internal sealed partial class CodeAgentSource : IAgentSource
                   "which also applies the tenant provider key and egress policy and names the model in the run record. " +
                   "This message is written once per agent name.")]
     private static partial void ModelRingsBypassed(ILogger logger, string agentName);
+
+    [LoggerMessage(
+        EventId = 4,
+        Level = LogLevel.Debug,
+        Message = "Code agent '{AgentName}' was not checked for the model rings: looking up its chat client threw. " +
+                  "The check is advice, so the agent still resolves; it is tried again on the next resolve.")]
+    private static partial void ModelRingCheckSkipped(ILogger logger, Exception exception, string agentName);
 
     [LoggerMessage(
         EventId = 2,

@@ -29,8 +29,36 @@ public sealed record EvalExpectedToolCall
     /// </para>
     /// <para>
     /// A <c>null</c> value expects the argument to be absent or <c>null</c>: the
-    /// check does not see a <c>null</c> argument a model sent.
+    /// check does not see a <c>null</c> argument a model sent. A <see langword="default"/>
+    /// <see cref="JsonElement"/> has no value; setting it reads as a <c>null</c> value,
+    /// which is how every store keeps it.
     /// </para>
     /// </remarks>
-    public IReadOnlyDictionary<string, JsonElement>? Arguments { get; init; }
+    public IReadOnlyDictionary<string, JsonElement>? Arguments
+    {
+        get;
+        init => field = WithoutUndefined(value);
+    }
+
+    // A default JsonElement cannot be serialized and the SQL stores write it as null. Without this the
+    // in-memory store kept the value the SQL stores change, and a response that carried it failed to write.
+    private static IReadOnlyDictionary<string, JsonElement>? WithoutUndefined(
+        IReadOnlyDictionary<string, JsonElement>? arguments)
+    {
+        if (arguments is null || !arguments.Values.Any(static value => value.ValueKind == JsonValueKind.Undefined))
+        {
+            return arguments;
+        }
+
+        using var nullDocument = JsonDocument.Parse("null");
+        var nullValue = nullDocument.RootElement.Clone();
+        var copy = new Dictionary<string, JsonElement>(arguments.Count, StringComparer.Ordinal);
+
+        foreach (var (name, value) in arguments)
+        {
+            copy[name] = value.ValueKind == JsonValueKind.Undefined ? nullValue : value;
+        }
+
+        return copy;
+    }
 }

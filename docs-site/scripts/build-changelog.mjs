@@ -12,8 +12,18 @@
 //   Each version gets an explicit `v<version>` anchor because the package metadata
 //   links straight to one release: the auto-generated heading slug would drop the
 //   dots from `1.0.0-preview.1` and change again whenever the date changes.
+//
+// Why one page per release (F-710):
+//
+//   The single page grew with every release and crossed its weight ceiling at the
+//   1.0.0-preview.6 cut. A reader lands on one version's anchor, so the notes are
+//   split: `/reference/changelog/` is the index and keeps every `v<version>` anchor
+//   with the date, a summary and a link, and each release body lives on its own page
+//   under `/reference/releases/<version>/`. An anchor that package metadata or a
+//   GitHub release body already links to still lands on that version's entry.
+//   The release pages stay out of the sidebar: the index is the way in.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,6 +33,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
 const changelogPath = join(repositoryRoot, 'CHANGELOG.md');
 const outputPath = join(here, '../src/content/docs/reference/changelog.md');
+const releasesDirectory = join(here, '../src/content/docs/reference/releases');
 
 main();
 
@@ -35,12 +46,26 @@ function main() {
 
   mkdirSync(dirname(outputPath), { recursive: true });
 
+  // A release removed from CHANGELOG.md must not keep a page of its own.
+  rmSync(releasesDirectory, { recursive: true, force: true });
+
   // No released version is a legitimate state, not a broken changelog: nothing
   // has been pushed to NuGet or npm yet. This used to throw, which is why the
   // changelog kept a version section for a release that never happened - the
   // build demanded one. The page now says so plainly instead of naming a
   // version a reader cannot install.
-  writeFileSync(outputPath, releases.length === 0 ? renderUnreleased() : render(releases));
+  if (releases.length === 0) {
+    writeFileSync(outputPath, renderUnreleased());
+    return;
+  }
+
+  mkdirSync(releasesDirectory, { recursive: true });
+
+  for (const release of releases) {
+    writeFileSync(join(releasesDirectory, `${release.version}.md`), renderRelease(release));
+  }
+
+  writeFileSync(outputPath, renderIndex(releases));
 }
 
 /**
@@ -77,13 +102,14 @@ function parseReleases(text) {
     releases.push({
       version: match.groups.version,
       date: match.groups.date,
-      // The body's own `### Added` headings drop one level: the version becomes
-      // an `###` under `## Releases`, and `## Read next` stays the last `##` the
+      // The body's own `### Added` headings rise one level: on the release page
+      // they are the `##` sections, and `## Read next` stays the last `##` the
       // closing-section gate looks for.
       body: onThisSite(
         section
           .slice(heading.length)
-          .replace(/^### /gm, '#### ')
+          .replace(/^#### /gm, '### ')
+          .replace(/^### /gm, '## ')
           .trim(),
       ),
     });
@@ -134,12 +160,56 @@ metadata will link straight to it.
 `;
 }
 
-function render(releases) {
+/**
+ * What the index says about a release: its opening paragraph when the entry has one, otherwise
+ * the sections it carries and how many entries each holds.
+ */
+function summarize(release) {
+  const lead = release.body.split(/^## /m)[0].trim();
+
+  if (lead) {
+    return lead;
+  }
+
+  const sections = release.body
+    .split(/^## /m)
+    .slice(1)
+    .map((section) => {
+      const name = section.slice(0, section.indexOf('\n')).trim();
+      const entries = (section.match(/^- /gm) ?? []).length;
+
+      return `${name} (${entries})`;
+    });
+
+  return `This release carries ${sections.join(', ')}.`;
+}
+
+function renderRelease(release) {
+  return `---
+title: Tracon ${release.version} release notes
+description: What changed in Tracon ${release.version}, released on ${release.date}, grouped as the changelog groups it.
+slug: reference/releases/${release.version}
+---
+
+Released on ${release.date}. This entry covers every NuGet package of the family and the npm client
+at version ${release.version}. [Release notes](/reference/changelog/) lists every version.
+
+${release.body}
+
+## Read next
+
+- [Release notes](/reference/changelog/) — every published version, newest first
+- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
+`;
+}
+
+function renderIndex(releases) {
   const entries = releases
     .map(
       (release) =>
         `<a id="v${release.version}"></a>\n\n` +
-        `### ${release.version} — ${release.date}\n\n${release.body}\n`,
+        `### ${release.version} — ${release.date}\n\n${summarize(release)}\n\n` +
+        `[Read the ${release.version} entry](/reference/releases/${release.version}/)\n`,
     )
     .join('\n');
 
@@ -150,11 +220,12 @@ description: What changed in every published Tracon version, with the entry each
 
 Every Tracon package is cut from one version line, so a release below covers
 every NuGet package of the family and the npm client at once. Each package's release-notes
-metadata links straight to the entry for the version you installed.
+metadata links straight to the entry for the version you installed; the entry itself is
+the page this list links to.
 
 Read [Versions and upgrades](/reference/versioning/) before you move between
-previews: it carries the pinning rules and the upgrade sequence this page's
-entries assume.
+previews: it carries the pinning rules and the upgrade sequence these entries
+assume.
 
 ## Releases
 

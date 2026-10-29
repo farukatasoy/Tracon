@@ -351,6 +351,23 @@ public sealed class FactoryAgentDiagnosticsTests
     }
 
     [Fact]
+    public async Task An_agent_whose_GetService_throws_leaves_a_debug_line_naming_it()
+    {
+        // F-590: the check is skipped without a word otherwise, and it is tried again on every resolve.
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent("broken-agent", static _ => new ClientlessAgent(throwsOnGetService: true)));
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+        (await catalog.ResolveAsync("broken-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        host.Logs.Entries
+            .Where(static line => line.StartsWith("Debug Tracon.CodeAgentSource ", StringComparison.Ordinal))
+            .ShouldContain(static line => line.Contains("'broken-agent'", StringComparison.Ordinal)
+                && line.Contains("was not checked for the model rings", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_definition_backed_code_agent_does_not_warn()
     {
         await using var host = await TraconTestHost.StartAsync(

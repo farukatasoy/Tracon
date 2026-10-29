@@ -159,11 +159,12 @@ private sealed class PolicyNoticeProvider : AIContextProvider
 }
 ```
 
-The sample puts the name in the definition of the agent. A stored definition does the same
-with `extensionNames`, and the console offers the registered names in the agent editor:
+The sample puts the names in the definition of the agent: this extension, and the model call
+log of the next section. A stored definition does the same with `extensionNames`, and the
+console offers the registered names in the agent editor:
 
 ```csharp
-ExtensionNames = [PolicyNoticeExtensionRegistration.ExtensionName],
+ExtensionNames = [PolicyNoticeExtensionRegistration.ExtensionName, ModelCallLogExtensionRegistration.ExtensionName],
 ```
 
 ### Add a chat client ring

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
 
@@ -39,7 +40,63 @@ public sealed class SubAgentToolModeCompilationTests
         Should.NotThrow(() => compiler.Compile(definition, callable));
     }
 
-    private static AgentDefinitionCompiler BuildCompiler(out ResolvedCallableAgents callable)
+    [Fact]
+    public void The_agent_tool_is_in_the_options_an_extension_sees()
+    {
+        // F-609: the agent tool joins the tool list before the extensions run, so the guard's baseline
+        // holds it. Moving the AddRange behind the extension call would break no other test.
+        var seen = new List<string>();
+        var compiler = BuildCompiler(
+            out var callable,
+            new DelegateAgentExtension(
+                "probe",
+                context => seen.AddRange(context.ChatAgentOptions!.ChatOptions!.Tools!.Select(static tool => tool.Name)),
+                null));
+
+        _ = compiler.Compile(ToolModeDefinition(), callable);
+
+        seen.ShouldContain("support_agent", StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void An_extension_that_takes_the_agent_tool_out_of_the_options_fails_the_compile()
+    {
+        var compiler = BuildCompiler(
+            out var callable,
+            new DelegateAgentExtension(
+                "probe",
+                static context => context.ChatAgentOptions!.ChatOptions!.Tools!.Clear(),
+                null));
+
+        var exception = Should.Throw<TraconCompilationException>(() => compiler.Compile(ToolModeDefinition(), callable));
+
+        exception.Message.ShouldContain("'probe'");
+        exception.Message.ShouldContain("ChatOptions.Tools");
+    }
+
+    [Fact]
+    public void An_extension_that_adds_a_tool_next_to_the_agent_tool_fails_the_compile()
+    {
+        var compiler = BuildCompiler(
+            out var callable,
+            new DelegateAgentExtension(
+                "probe",
+                static context => context.ChatAgentOptions!.ChatOptions!.Tools!.Add(AIFunctionFactory.Create(static () => "extra", "extra")),
+                null));
+
+        Should.Throw<TraconCompilationException>(() => compiler.Compile(ToolModeDefinition(), callable))
+            .Message.ShouldContain("ChatOptions.Tools");
+    }
+
+    private static AgentDefinition ToolModeDefinition()
+        => TestData.Definition() with
+        {
+            CallableAgents = ["support-agent"],
+            SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
+            ExtensionNames = ["probe"],
+        };
+
+    private static AgentDefinitionCompiler BuildCompiler(out ResolvedCallableAgents callable, params IAgentExtension[] extensions)
     {
         var options = Options.Create(new TraconOptions());
         var catalog = new FakeAgentCatalog(
@@ -53,6 +110,7 @@ public sealed class SubAgentToolModeCompilationTests
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(TestData.Tool("support_agent")),
             callableAgents: new CallableAgentResolver(catalog),
-            tenantContext: new SingleTenantContext(options));
+            tenantContext: new SingleTenantContext(options),
+            agentExtensions: extensions);
     }
 }

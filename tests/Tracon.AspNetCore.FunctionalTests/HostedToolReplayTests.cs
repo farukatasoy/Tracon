@@ -47,14 +47,46 @@ public sealed class HostedToolReplayTests
         tools.Any(static tool => tool is HostedWebSearchTool).ShouldBe(offered);
     }
 
-    private static async ValueTask<Guid> SeedAsync(TraconTestHost host)
+    [Theory]
+    [InlineData("ReplayTools", false)]
+    [InlineData("NoTools", false)]
+    [InlineData("LiveTools", true)]
+    public async Task A_replay_offers_the_harness_web_search_only_in_live_mode(string toolMode, bool offered)
+    {
+        // F-610: the harness turns the same hosted tool on without a name in the tool list, so the
+        // name filter above never sees it.
+        var provider = new ContentModelProvider([new TextContent("replayed")], ProviderName);
+
+        await using var host = await TraconTestHost.StartAsync(builder => builder
+            .AddModelProvider(provider)
+            .AddTool((Func<string>)(static () => "42"), name: "lookup", description: "Looks something up."));
+
+        var runId = await SeedAsync(host, harness: new HarnessSettings { EnableWebSearch = true }, toolNames: ["lookup"]);
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri($"/tracon/api/runs/{runId}/replay", UriKind.Relative),
+            new { toolMode },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        var tools = provider.Options.ShouldHaveSingleItem()?.Tools ?? [];
+
+        tools.Any(static tool => tool is HostedWebSearchTool).ShouldBe(offered);
+    }
+
+    private static async ValueTask<Guid> SeedAsync(
+        TraconTestHost host,
+        HarnessSettings? harness = null,
+        IReadOnlyList<string>? toolNames = null)
     {
         await host.Services.GetRequiredService<IAgentDefinitionStore>().SaveAsync(new AgentDefinition
         {
             Name = AgentName,
             Instructions = "Answer briefly.",
             Model = new ModelBinding { Provider = ProviderName, Model = $"{ProviderName}-1" },
-            ToolNames = ["search", "lookup"],
+            ToolNames = [.. toolNames ?? ["search", "lookup"]],
+            Harness = harness,
         });
 
         var runs = host.Services.GetRequiredService<IRunStore>();

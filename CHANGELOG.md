@@ -445,6 +445,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   called as a tool are still read from the messages of the answer.
 - A tool row of a run that does not stream carries its `duration`, and its `createdAt` is the moment the call settled.
   Before, `duration` was empty and every row of the run carried the moment the run was written.
+- **A replay that plays tools back or runs none no longer runs the harness's web search.** `ReplayTools` and `NoTools` took a
+  hosted tool out of the tool list by its name, but `HarnessSettings.EnableWebSearch` turns the same provider-run tool on
+  without a name, so the replay of a harness agent searched again and the search was billed again. Both modes now turn it
+  off; `LiveTools` keeps it.
+- **`EvalExpectedToolCall.Arguments` keeps a `default` `JsonElement` as a `null` value in every store.** The SQL stores
+  already wrote it as `null`; the in-memory store kept the value that cannot be serialized, so a response that carried it
+  failed to write.
+- **`toolCallArgsMatch` still compares an object or an array argument for an eval item that an `IEvalEvaluatorFactory`
+  copied.** A copy lost the exact form of the expectation, the expected object arrived as its JSON text, and the call
+  carried the object, so equal values reported `args mismatch`. That path now compares the text, as the framework's own check
+  does: key order and white space decide there.
+- **`UseOpenAISpeech` with `UseAsDefault` says so when the default stays with another registration.** The default is
+  registered with `TryAdd`, so a host that called `UseVoice` first kept speaking with ElevenLabs while the option said
+  OpenAI, and nothing was written. A warning now names it at startup; call `UseOpenAISpeech` before `UseVoice`, or leave
+  `UseAsDefault` off. The registration rule is unchanged.
 
 ## [1.0.0-preview.6] - 2026-10-27
 

@@ -398,6 +398,41 @@ public sealed class SubAgentToolModeTests
         root.Status.ShouldBe(RunStatus.Completed);
     }
 
+    [Fact]
+    public async Task The_http_stream_of_a_tool_mode_parent_carries_the_child_answer_and_links_the_child_run()
+    {
+        // F-609: MT-UIAG-065 was the only check of the streamed HTTP endpoint in tool mode.
+        var provider = Provider(static router => router
+            .CallsTool(ChildTool, new { query = "sub task" })
+            .EchoesLastToolResult("Delegated: "));
+
+        await using var host = await StartAsync(provider);
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/yonlendirici/run", UriKind.Relative),
+            new AgentRunRequest { Message = "start" },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+
+        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken));
+
+        frames[^1].Event.ShouldBe("done");
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        frames.Where(static frame => string.Equals(frame.Event, "update", StringComparison.Ordinal))
+            .Select(static frame => frame.Data)
+            .ShouldContain(static data => data.Contains("Sub task done", StringComparison.Ordinal));
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var all = await runs.QueryRunsAsync(new RunQuery { OnlyRootRuns = false });
+        var root = all.Single(static run => run.Depth == 0);
+        var child = all.Single(static run => run.Depth == 1);
+
+        child.ParentRunId.ShouldBe(root.Id);
+        child.Status.ShouldBe(RunStatus.Completed);
+    }
+
     private static FakeModelProvider Provider(
         Action<FakeModelProvider> router,
         Action<FakeModelProvider>? researcher = null)

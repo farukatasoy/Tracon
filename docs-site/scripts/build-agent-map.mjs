@@ -91,6 +91,9 @@ export const outputs = {
   llmsFull: join(siteRoot, 'public/llms-full.txt'),
 };
 
+/** The slug prefix of the per-release pages `build-changelog.mjs` writes (F-710). */
+export const releasePagesSlug = 'reference/releases/';
+
 /** Hand-written pages, in reading order. The generated references are excluded. */
 const fullTextOrder = ['getting-started', 'concepts', 'guides', 'reference'];
 const fullTextRootPages = ['capabilities.md', 'packages.md', 'troubleshooting.md', 'ui.md', 'http-api.md'];
@@ -116,7 +119,10 @@ export function build() {
   // facts, and the one thing only a networked reader can act on - a link per
   // page. The map itself names both site artifacts, so a reader who only has the
   // shipped copy learns they exist too.
-  const llms = `${agentMap}${renderIndex(pages)}`;
+  // A release page is in the full text and not in the index: the index has a byte budget, the
+  // release notes page links to every entry, and one line per version would spend the budget
+  // on pages a reader reaches from there.
+  const llms = `${agentMap}${renderIndex(pages.filter((page) => !page.slug.startsWith(releasePagesSlug)))}`;
 
   return { agentMap, llms, llmsFull };
 }

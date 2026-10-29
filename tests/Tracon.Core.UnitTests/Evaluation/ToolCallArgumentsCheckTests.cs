@@ -253,6 +253,40 @@ public sealed class ToolCallArgumentsCheckTests
     }
 
     [Fact]
+    public void An_item_a_factory_copied_still_meets_an_object_and_an_array_expectation()
+    {
+        // F-611: a copy does not carry the exact form, so the expected object arrives as its JSON
+        // text while the call carries the object. MAF's check compares the text, and so does this one.
+        var original = ItemOf(
+            [("lookup", Dict(("address", Dict(("city", "Izmir"))), ("tags", new object[] { "a", "b" })))],
+            new EvalExpectedToolCall { Name = "lookup", Arguments = Args(("address", """{"city":"Izmir"}"""), ("tags", """["a","b"]""")) });
+
+        ToolCallArgumentsCheck.Evaluate(CopyOf(original)).Passed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void An_item_a_factory_copied_judges_an_object_by_its_text_as_MAF_does()
+    {
+        var original = ItemOf(
+            [("lookup", Dict(("address", Dict(("city", "Izmir"), ("zip", "35000")))))],
+            new EvalExpectedToolCall { Name = "lookup", Arguments = Args(("address", """{"zip":"35000","city":"Izmir"}""")) });
+
+        // The item the run built keeps the exact form, where key order plays no part.
+        ToolCallArgumentsCheck.Evaluate(original).Passed.ShouldBeTrue();
+        ToolCallArgumentsCheck.Evaluate(CopyOf(original)).Passed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void An_item_a_factory_copied_keeps_a_text_expectation_apart_from_a_number()
+    {
+        var original = ItemOf(
+            [("lookup", Dict(("id", 2)))],
+            new EvalExpectedToolCall { Name = "lookup", Arguments = Args(("id", "\"2\"")) });
+
+        ToolCallArgumentsCheck.Evaluate(CopyOf(original)).Passed.ShouldBeFalse();
+    }
+
+    [Fact]
     public void The_registry_builds_the_check_from_its_kind_name()
     {
         var registry = new EvalCheckRegistry([]);
@@ -295,6 +329,14 @@ public sealed class ToolCallArgumentsCheckTests
 
         return item;
     }
+
+    // What an IEvalEvaluatorFactory that rebuilds each item hands the checks: the conversation and
+    // MAF's form of the expectations, without the table entry Attach made.
+    private static EvalItem CopyOf(EvalItem item)
+        => new(item.Query, item.Response, [.. item.Conversation])
+        {
+            ExpectedToolCalls = item.ExpectedToolCalls,
+        };
 
     private static Dictionary<string, object?> Dict(params (string Name, object? Value)[] values)
         => values.ToDictionary(static value => value.Name, static value => value.Value, StringComparer.Ordinal);

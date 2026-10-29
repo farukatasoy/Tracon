@@ -6,6 +6,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OpenAI;
 using Tracon.OpenAI.UnitTests.Infrastructure;
 
@@ -196,6 +198,72 @@ public sealed class OpenAISpeechTests
         using var provider = services.BuildServiceProvider();
 
         provider.GetRequiredService<ISpeechSynthesizer>().ShouldBeSameAs(own);
+    }
+
+    [Fact]
+    public async Task A_default_that_stays_is_named_in_one_warning_at_start()
+    {
+        // F-586: TryAdd keeps the first default, and the loser used to say nothing.
+        using var logs = new RecordingLoggerProvider();
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddProvider(logs).SetMinimumLevel(LogLevel.Trace));
+        services.AddSingleton<ISpeechSynthesizer>(new OwnSynthesizer());
+        services.AddTracon().UseOpenAI(TestData.ApiKey).UseOpenAISpeech(static options =>
+        {
+            options.SynthesisModel = "tts-1";
+            options.TranscriptionModel = "whisper-1";
+            options.UseAsDefault = true;
+        });
+        await using var provider = services.BuildServiceProvider();
+
+        await StartWarningAsync(provider);
+
+        var warnings = logs.Entries
+            .Where(static line => line.StartsWith("Warning Tracon.OpenAISpeechDefaultWarning ", StringComparison.Ordinal))
+            .ToList();
+
+        // The synthesizer default was taken, the transcriber default was free.
+        var warning = warnings.ShouldHaveSingleItem();
+
+        warning.ShouldContain("'openai'");
+        warning.ShouldContain("ISpeechSynthesizer");
+        warning.ShouldContain("UseOpenAISpeech before");
+    }
+
+    [Fact]
+    public async Task A_default_that_was_not_asked_for_says_nothing()
+    {
+        using var logs = new RecordingLoggerProvider();
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddProvider(logs).SetMinimumLevel(LogLevel.Trace));
+        services.AddSingleton<ISpeechSynthesizer>(new OwnSynthesizer());
+        services.AddTracon().UseOpenAI(TestData.ApiKey).UseOpenAISpeech(static options =>
+        {
+            options.SynthesisModel = "tts-1";
+        });
+        await using var provider = services.BuildServiceProvider();
+
+        await StartWarningAsync(provider);
+
+        logs.Entries.ShouldNotContain(static line => line.Contains("OpenAISpeechDefaultWarning", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_default_that_was_free_is_taken_without_a_warning()
+    {
+        using var logs = new RecordingLoggerProvider();
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddProvider(logs).SetMinimumLevel(LogLevel.Trace));
+        services.AddTracon().UseOpenAI(TestData.ApiKey).UseOpenAISpeech(static options =>
+        {
+            options.SynthesisModel = "tts-1";
+            options.UseAsDefault = true;
+        });
+        await using var provider = services.BuildServiceProvider();
+
+        await StartWarningAsync(provider);
+
+        logs.Entries.ShouldNotContain(static line => line.Contains("OpenAISpeechDefaultWarning", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -601,6 +669,15 @@ public sealed class OpenAISpeechTests
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(AnswerType);
 
             return response;
+        }
+    }
+
+    // Only the service under test: the other hosted services of a Tracon host are not what these cases probe.
+    private static async Task StartWarningAsync(IServiceProvider provider)
+    {
+        foreach (var hosted in provider.GetServices<IHostedService>().OfType<OpenAISpeechDefaultWarning>())
+        {
+            await hosted.StartAsync(TestContext.Current.CancellationToken);
         }
     }
 

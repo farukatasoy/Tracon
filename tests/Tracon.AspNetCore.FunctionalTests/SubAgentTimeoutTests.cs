@@ -95,6 +95,39 @@ public sealed class SubAgentTimeoutTests
     }
 
     [Fact]
+    public async Task Hard_cutoff_abandons_a_child_that_ignores_cancellation_in_tool_mode()
+    {
+        // F-609: SubAgentToolModeTests proves the cooperative limit in tool mode; this is the hard one.
+        var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: false);
+        await using var host = await StartAsync(
+            hanging,
+            harness: false,
+            childDeadline: TimeSpan.FromMilliseconds(50),
+            waitTimeout: TimeSpan.FromMilliseconds(150),
+            callMode: SubAgentCallMode.Tool);
+
+        try
+        {
+            var agent = await ResolveRouterAsync(host);
+            var response = await agent.RunAsync("start").WaitAsync(TimeSpan.FromSeconds(10));
+
+            response.Text.ShouldContain("did not respond in time", Case.Sensitive);
+
+            var (types, timedOut) = await ReadRootEventsAsync(host);
+            types.ShouldContain(RunEventType.ChildRunTimedOut);
+            timedOut.HardCutoff.ShouldBeTrue();
+
+            // The abandoned child never finished by the time the tree gave up on it.
+            types.ShouldNotContain(RunEventType.ChildRunCompleted);
+        }
+        finally
+        {
+            // Let the abandoned call finish so it does not outlive the test host.
+            hanging.Release("late result");
+        }
+    }
+
+    [Fact]
     public async Task Harness_path_produces_the_same_hard_cutoff_behavior()
     {
         var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: false);
@@ -260,9 +293,21 @@ public sealed class SubAgentTimeoutTests
             new Uri($"/tracon/api/runs/{root.Id}/events", UriKind.Relative));
     }
 
-    private static FakeModelProvider BuildRouterProvider()
+    private static FakeModelProvider BuildRouterProvider(SubAgentCallMode? callMode = null)
     {
         var provider = new FakeModelProvider(RouterProviderName);
+
+        if (callMode == SubAgentCallMode.Tool)
+        {
+            // Tool mode: the callable agent is one tool named after it.
+            provider.ForModel(
+                RouterModel,
+                static cfg => cfg
+                    .CallsTool("arastirmaci", new { query = "sub task" })
+                    .EchoesLastToolResult(string.Empty, inputTokens: 4, outputTokens: 6));
+
+            return provider;
+        }
 
         provider.ForModel(RouterModel, cfg =>
         {
@@ -286,11 +331,15 @@ public sealed class SubAgentTimeoutTests
     }
 
     private static Task<TraconTestHost> StartAsync(
-        IModelProvider researcher, bool harness, TimeSpan childDeadline, TimeSpan waitTimeout)
+        IModelProvider researcher,
+        bool harness,
+        TimeSpan childDeadline,
+        TimeSpan waitTimeout,
+        SubAgentCallMode? callMode = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
-                builder.AddModelProvider(BuildRouterProvider());
+                builder.AddModelProvider(BuildRouterProvider(callMode));
                 builder.AddModelProvider(researcher);
 
                 builder.AddAgent(new AgentDefinition
@@ -309,7 +358,12 @@ public sealed class SubAgentTimeoutTests
                     Instructions = "Delegate.",
                     Model = RouterBinding,
                     CallableAgents = ["arastirmaci"],
-                    SubAgents = new SubAgentSettings { ChildDeadline = childDeadline, WaitTimeout = waitTimeout },
+                    SubAgents = new SubAgentSettings
+                    {
+                        CallMode = callMode ?? SubAgentCallMode.Background,
+                        ChildDeadline = childDeadline,
+                        WaitTimeout = waitTimeout,
+                    },
                     Harness = harness ? new HarnessSettings() : null,
                     Origin = AgentDefinitionOrigin.Code,
                 });

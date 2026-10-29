@@ -112,6 +112,7 @@ docs-site/.astro/
 docs-site/src/content/docs/api/
 docs-site/src/content/docs/http-api/
 docs-site/src/content/docs/reference/changelog.md
+docs-site/src/content/docs/reference/releases/
 docs-site/src/generated/
 docs-site/public/openapi/
 docs-site/public/landing/

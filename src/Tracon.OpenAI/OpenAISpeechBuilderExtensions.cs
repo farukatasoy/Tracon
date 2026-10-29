@@ -87,6 +87,7 @@ public static class OpenAISpeechBuilderExtensions
 
             if (options.UseAsDefault)
             {
+                OpenAISpeechDefaultWarning.RecordWhenTaken<ISpeechSynthesizer>(services, options.SynthesizerName);
                 services.TryAddSingleton<ISpeechSynthesizer>(provider => provider.GetRequiredKeyedService<ISpeechSynthesizer>(
                     NamedRegistration(SpeechProviderKind.Synthesizer, options.SynthesizerName)));
             }
@@ -107,6 +108,7 @@ public static class OpenAISpeechBuilderExtensions
 
             if (options.UseAsDefault)
             {
+                OpenAISpeechDefaultWarning.RecordWhenTaken<ISpeechTranscriber>(services, options.TranscriberName);
                 services.TryAddSingleton<ISpeechTranscriber>(provider => provider.GetRequiredKeyedService<ISpeechTranscriber>(
                     NamedRegistration(SpeechProviderKind.Transcriber, options.TranscriberName)));
             }

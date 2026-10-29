@@ -3,7 +3,8 @@ import { checkConsoleScreens } from './check-console-screens.mjs';
 import { checkLandingCaptures } from './landing-captures.mjs';
 // Product-documentation invariants that are cheap enough to run on every build.
 //
-// 🚨 This script needs the GENERATED pages on disk. `reference/changelog.md` is
+// 🚨 This script needs the GENERATED pages on disk. `reference/changelog.md` and the
+// per-release pages under `reference/releases/` are
 // gitignored and written by `npm run generate`, which npm runs as `prebuild`,
 // so on a fresh checkout it does not exist until `astro build` has run once.
 // `npm run check` used to call this first, and all three of its findings were
@@ -22,7 +23,7 @@ import { checkLandingCaptures } from './landing-captures.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build as buildAgentMap, outputs as agentMapOutputs, verifyBudget } from './build-agent-map.mjs';
+import { build as buildAgentMap, outputs as agentMapOutputs, releasePagesSlug, verifyBudget } from './build-agent-map.mjs';
 import { formerHosts, repositoryIsPublic, repositoryUrl, site, siteUrl } from '../site.config.mjs';
 import { hasInternalHistory } from './internal-history.mjs';
 import { portableRelative as relative } from './path-utils.mjs';
@@ -626,6 +627,11 @@ const manualContent = handWrittenContent.filter(
   (file) => basename(file) !== '404.md',
 );
 
+// One page per release (F-710). The release notes page is the way in and is in the sidebar and the
+// page index; a release page is reached from it, so it is in neither. Every other rule that reads a
+// hand-written page still reads it: the exemption is per rule, not per page.
+const isReleasePage = (file) => relative(docsRoot, file).startsWith(releasePagesSlug);
+
 const capabilityText = readFileSync(join(docsRoot, 'capabilities.md'), 'utf8');
 for (const evidence of requiredCapabilityEvidence) {
   if (!capabilityText.includes(evidence)) {
@@ -674,7 +680,7 @@ for (const file of manualContent) {
   const derivedSlug = label.replace(/\.(?:md|mdx)$/, '').replace(/\/index$/, '');
   const slug = explicitSlug ?? derivedSlug;
 
-  if (label !== 'index.mdx' && !sidebarSlugs.has(slug)) {
+  if (label !== 'index.mdx' && !isReleasePage(file) && !sidebarSlugs.has(slug)) {
     errors.push(`${label}: manual page is not reachable from the sidebar`);
   }
 
@@ -823,7 +829,7 @@ const indexed = new Set(
 );
 
 for (const file of manualContent) {
-  if (file === join(docsRoot, 'index.mdx')) continue;
+  if (file === join(docsRoot, 'index.mdx') || isReleasePage(file)) continue;
 
   const declared = /^slug:\s*(.+)$/m.exec(/^---\n([\s\S]*?)\n---/.exec(readFileSync(file, 'utf8'))?.[1] ?? '');
 
@@ -975,7 +981,7 @@ const countedClaims = [
 for (const file of manualContent) {
   const slug = relative(docsRoot, file);
 
-  if (slug.startsWith('release') || slug.includes('changelog')) {
+  if (slug.startsWith('release') || slug.includes('changelog') || isReleasePage(file)) {
     continue;
   }
 
@@ -1125,7 +1131,7 @@ let defaultPhraseMentions = 0;
 for (const file of manualContent) {
   const slug = relative(docsRoot, file);
 
-  if (slug.startsWith('release') || slug.includes('changelog')) continue;
+  if (slug.startsWith('release') || slug.includes('changelog') || isReleasePage(file)) continue;
 
   defaultPhraseMentions += [
     ...readFileSync(file, 'utf8').matchAll(/\bdefaults? to\b|\bby default\b/gi),
@@ -1283,7 +1289,9 @@ for (const file of manualContent) {
   const text = readFileSync(file, 'utf8');
   const size = Buffer.byteLength(text);
   const shows = /```mermaid|<img\s|!\[/.test(text);
-  const reason = DIAGRAM_EXEMPT.get(label);
+  const reason =
+    DIAGRAM_EXEMPT.get(label) ??
+    (isReleasePage(file) ? 'one release of a dated list, with no flow between entries' : undefined);
 
   if (reason && shows) {
     errors.push(`${label}: listed as a table page but now shows a figure; drop the exemption`);

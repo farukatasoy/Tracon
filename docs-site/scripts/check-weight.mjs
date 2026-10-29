@@ -67,19 +67,19 @@ const dist = resolve(here, '../dist');
 // locally. Ceiling unchanged.
 const CEILING = 59_000;
 
-// The release notes page is generated from CHANGELOG.md and is the one page whose
-// size grows with every release, not with what a reader needs from one visit: a
-// reader lands on one version's anchor (each package's PackageReleaseNotes links
-// there). Measured 2026-10-15 at the 1.0.0-preview.4 cut: 97 534 B gzip, of which
-// the 1.0.0-preview.4 section alone is 44 221 B of gzipped Markdown - so splitting
-// the page per release would not bring that release under CEILING either. Ceiling
-// 110 000 B, about 13% headroom. When a release crosses it, the notes move to one
-// page per release with this page as the index; the anchors then stay on the index.
-//
-// The 1.0.0-preview.6 cut crossed it on 2026-10-27: 131 792 B gzip. The maintainer
-// chose to raise the ceiling for that release and to split the page before the next
-// one (F-710). Ceiling 150 000 B, about 14% headroom.
-//
+// The release notes were one generated page that grew with every release, not with what a reader
+// needs from one visit: a reader lands on one version's anchor (each package's PackageReleaseNotes
+// links there). It crossed its ceiling twice - 97 534 B at the 1.0.0-preview.4 cut (ceiling 110 000 B),
+// 131 792 B at the 1.0.0-preview.6 cut (raised to 150 000 B once, with the split promised for the
+// next release). Split 2026-10-29 (F-710): `reference/changelog/` is the index (a summary and a link
+// per version, under CEILING) and every release has its own page under `reference/releases/`.
+// Measured the same day: 1.0.0-preview.6 stays under CEILING; 1.0.0-preview.4 does not, at 75 956 B
+// (its section alone is 131 194 B of Markdown, 44 221 B gzipped, on top of the 23 925 B every page
+// shares). That release is closed: its section cannot grow, so the exception is a ceiling for that
+// one page, 80 000 B, about 5% headroom, and not a pattern. A later release that crosses CEILING is
+// split or measured the same way.
+const PAGE_CEILINGS_RELEASE = [['reference/releases/1.0.0-preview.4/index.html', 80_000]];
+
 // The generated API page of TraconBuilderExtensions is the second page that grows with the product and
 // not with what a reader needs from one visit: DocFX writes one page per type, and every capability of the
 // Tracon chain is a method of this one static class. Measured 2026-10-28 (phase 258): 61 137 B gzip after
@@ -91,7 +91,7 @@ const CEILING = 59_000;
 // pages. Ceiling 64 000 B, about 4.7% headroom, which also covers the roughly 60 B by which a CI build
 // differs from a local one.
 const PAGE_CEILINGS = new Map([
-  ['reference/changelog/index.html', 150_000],
+  ...PAGE_CEILINGS_RELEASE,
   ['api/tracon.traconbuilderextensions/index.html', 64_000],
 ]);
 

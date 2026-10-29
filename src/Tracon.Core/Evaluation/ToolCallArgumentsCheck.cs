@@ -34,9 +34,10 @@ namespace Tracon;
 /// An <see cref="EvalItem"/> cannot carry a <see cref="JsonElement"/> that
 /// MAF's own check could also read, so the run attaches the case's exact
 /// expectations to the item (<see cref="Attach"/>) and MAF's form is filled in
-/// next to them. An item without the exact form - one a consumer built - is read
-/// from MAF's form, where an object or array value arrives as its JSON text and
-/// compares as a string.
+/// next to them. An item without the exact form - one a consumer built, or one a
+/// factory copied - is read from MAF's form, where an object or array value arrives
+/// as its JSON text. There the expected text is compared with the raw text of an
+/// object or array the call carried, as MAF does: key order and white space decide.
 /// </para>
 /// </remarks>
 internal static class ToolCallArgumentsCheck
@@ -75,8 +76,9 @@ internal static class ToolCallArgumentsCheck
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        var expected = Exact.TryGetValue(item, out var exact)
-            ? exact
+        var hasExactForm = Exact.TryGetValue(item, out var exact);
+        var expected = hasExactForm
+            ? exact!
             : FromMafCalls(item.ExpectedToolCalls);
 
         if (expected.Count == 0)
@@ -103,7 +105,7 @@ internal static class ToolCallArgumentsCheck
                 matched++;
                 lines.Add($"  {wanted.Name}: called (args not checked)");
             }
-            else if (sameName.Exists(call => CarriesAll(call.Arguments, wanted.Arguments)))
+            else if (sameName.Exists(call => CarriesAll(call.Arguments, wanted.Arguments, comparesStructuresAsText: !hasExactForm)))
             {
                 matched++;
                 lines.Add($"  {wanted.Name}: args match");
@@ -204,7 +206,8 @@ internal static class ToolCallArgumentsCheck
 
     private static bool CarriesAll(
         Dictionary<string, JsonElement>? carried,
-        IReadOnlyDictionary<string, JsonElement> wanted)
+        IReadOnlyDictionary<string, JsonElement> wanted,
+        bool comparesStructuresAsText)
     {
         foreach (var (name, value) in wanted)
         {
@@ -216,7 +219,7 @@ internal static class ToolCallArgumentsCheck
             // means "absent or null".
             var matches = value.ValueKind == JsonValueKind.Null
                 ? !present || actual.ValueKind == JsonValueKind.Null
-                : present && JsonValueEquals(value, actual);
+                : present && ArgumentEquals(value, actual, comparesStructuresAsText);
 
             if (!matches)
             {
@@ -226,6 +229,15 @@ internal static class ToolCallArgumentsCheck
 
         return true;
     }
+
+    // MAF's form turns an expected object or array into its JSON text, so the string that arrives
+    // here is the text of a structure while the call carries the structure itself.
+    private static bool ArgumentEquals(JsonElement expected, JsonElement actual, bool comparesStructuresAsText)
+        => comparesStructuresAsText
+           && expected.ValueKind == JsonValueKind.String
+           && actual.ValueKind is JsonValueKind.Object or JsonValueKind.Array
+            ? string.Equals(expected.GetString(), actual.GetRawText(), StringComparison.Ordinal)
+            : JsonValueEquals(expected, actual);
 
     private static List<(string Name, Dictionary<string, JsonElement>? Arguments)> CalledTools(EvalItem item)
     {

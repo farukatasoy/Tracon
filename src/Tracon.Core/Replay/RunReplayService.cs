@@ -419,7 +419,8 @@ internal sealed class RunReplayService
     /// a sub-agent would spend a real model call (and real money) — breaking
     /// the "no tool actually runs" promise. A hosted tool is the fourth: the provider runs
     /// it inside the model call and the replay transform cannot reach it, so a web search would run
-    /// and bill again. Its name leaves the tool list in both modes.
+    /// and bill again. Its name leaves the tool list in both modes, and so does the harness's own
+    /// web search (<c>HarnessSettings.EnableWebSearch</c>), which is the same hosted tool without a name.
     /// </remarks>
     private AgentDefinition ApplyOverrides(AgentDefinition definition, RunReplayRequest request)
     {
@@ -439,6 +440,11 @@ internal sealed class RunReplayService
             if (hostedTools.Selected(effective).Count > 0)
             {
                 effective = effective with { ToolNames = [.. effective.ToolNames.Where(name => !hostedTools.Contains(name))] };
+            }
+
+            if (effective.Harness is { EnableWebSearch: true } harness)
+            {
+                effective = effective with { Harness = harness with { EnableWebSearch = false } };
             }
         }
 
