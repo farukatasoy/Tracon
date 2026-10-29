@@ -6,7 +6,9 @@ machine, at one configuration.
 > **This is a measurement, not a guarantee.** Every number produced here
 > describes the machine, database and configuration named in its own
 > `manifest.json`. It is not an SLA, not a guaranteed capacity, and it says
-> nothing about multi-node behaviour: one machine, one database, one clock.
+> nothing about multi-node behaviour: one machine, one database, one clock. The `nodes` profile
+> puts two HTTP hosts on that one machine and database; it says what a second host costs and buys there, nothing about
+> network, clock skew or more than two hosts.
 
 ---
 
@@ -18,6 +20,7 @@ python3 scripts/kapi.py kapasite --profil sweep    --surum 1.0.0-preview.N
 python3 scripts/kapi.py kapasite --profil arrival  --surum 1.0.0-preview.N
 python3 scripts/kapi.py kapasite --profil workers  --surum 1.0.0-preview.N
 python3 scripts/kapi.py kapasite --profil soak     --surum 1.0.0-preview.N
+python3 scripts/kapi.py kapasite --profil nodes    --surum 1.0.0-preview.N
 ```
 
 `--surum` takes an **exact** version. A floating version (`*`, `*-*`) is
@@ -54,7 +57,7 @@ published.
 | `Tracon.CapacityHost/` | The system under measurement. Consumes `Tracon` by `PackageReference` at one exact version. Four modes: `api`, `worker`, `seed`, `migrate` |
 | `Tracon.CapacityDriver/` | A separate process that speaks only HTTP and read-only SQL. Runs one cell, or merges finished cells into a report |
 | `Tracon.Capacity.Acceptance/` | Short checks against a real packed host and a real database. Run only by the `smoke` profile |
-| `profiles/*.json` | The five load shapes |
+| `profiles/*.json` | The six load shapes |
 | `Directory.Build.props`, `Directory.Packages.props` | Deliberately cut off from the repository's own MSBuild inheritance |
 
 `tests/Tracon.Capacity.Tests` is the only capacity project the normal suite
@@ -146,7 +149,15 @@ afterwards. An extra attempt is legitimate (`IJobHandler` is at-least-once); an
 nearly every job the run reports "contention could not be measured" rather than
 claiming a scaling result.
 
-🚨 None of this says multiple nodes are supported. It is one machine, one
+### The host axis
+
+`nodes` holds the offered load constant and changes only the number of HTTP hosts: one, then two, each with its own
+leasing worker, on one database. The driver sends each call to the next host in turn, so the read that follows a
+request usually reaches the other host. Both hosts must lease (`Scheduling:RunWorker` on), or the cell is invalid: a
+host that only serves would make "2 hosts" one host and a bystander. Every cell still reconciles what was sent with
+what the store holds, so a run that one host wrote and the other lost shows as a missing run.
+
+🚨 None of this says more than two nodes are supported. It is one machine, one
 database and one clock; network partition, clock skew and inter-machine latency
 are out of scope.
 

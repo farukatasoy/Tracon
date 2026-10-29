@@ -14,6 +14,10 @@ be recomputed from a run directory with:
 Tracon.CapacityDriver report --run artifacts/capacity/<run-id>
 ```
 
+`nodes` measured Tracon packed from commit `647aa02e` (2026-10-29, version `0.0.0-capacity265.647aa02`, clean tree). Its
+`report.md` was recomputed afterwards with a corrected closing caveat (the host axis names two processes on one machine, not
+"nothing about multi-node"); the cell results are untouched.
+
 These are the runs the numbers in
 `docs-site/src/content/docs/guides/production.md` come from. `sweep` and
 `arrival` measured Tracon packed from commit `d3696d94`; `workers` and `soak`
@@ -29,6 +33,7 @@ commit off another run's manifest.
 | `arrival` | What happens when the send plan does not wait for the previous answer | 12, all complete |
 | `workers` | How queued work spreads across 1, 2 and 4 leasing processes at constant offered load | 9, all complete |
 | `soak` | Whether thirty minutes at a chosen load accumulates anything | 1, complete |
+| `nodes` | What a second HTTP host, with its own leasing worker, costs and buys at constant offered load, on one database | 12, all complete |
 
 > Every number in these files describes one machine, one PostgreSQL version and
 > one configuration. None of it is an SLA or a guaranteed capacity, and none of

@@ -644,7 +644,9 @@ public static class ReportBuilder
         {
             manifest?.Disclaimer
                 ?? "Measured on one machine, one database and one configuration. This is not an SLA and not a guaranteed capacity.",
-            "One machine, one database, one clock. Network partition, clock skew and inter-machine latency are out of scope, so nothing here says anything about multi-node behaviour.",
+            cells.Exists(static c => c.ApiHostCount is > 1)
+                ? "The hosts of the host axis are processes on one machine, with one database and one clock. Network partition, clock skew and inter-machine latency are out of scope, and nothing here says anything about more hosts than the axis names."
+                : "One machine, one database, one clock. Network partition, clock skew and inter-machine latency are out of scope, so nothing here says anything about multi-node behaviour.",
         };
 
         if (cells.Exists(static c => c.Storage.VacuumInterference))
