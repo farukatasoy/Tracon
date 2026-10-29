@@ -156,6 +156,19 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddTraconDefault<IJobStore, InMemoryJobStore>();
         services.TryAddTraconDefault<IJobScheduleStore, InMemoryJobScheduleStore>();
 
+        // Rate-limit counter (Phase 263): the shared counter behind
+        // Tracon:RateLimit:Scope = Deployment. The in-memory default adds no
+        // database call and is what Scope = Instance never touches (K-165);
+        // each SQL provider replaces it. DeploymentRateLimiter is the one place
+        // that calls the store, so the endpoint filter and the inbound trigger
+        // limiter share the same failure fallback and metric.
+        services.TryAddTraconDefault<IRateLimitCounterStore, InMemoryRateLimitCounterStore>();
+        services.TryAddSingleton(static provider => new DeploymentRateLimiter(
+            provider.GetRequiredService<IRateLimitCounterStore>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetService<TraconMetrics>(),
+            provider.GetService<ILogger<DeploymentRateLimiter>>()));
+
         // Inbound triggers (Phase 66): an external, signed event queues a run
         // through the SAME job queue as everything else. The store is always
         // registered (K-018); the accept endpoint is unauthenticated by
@@ -171,7 +184,9 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IOptions<TraconOptions>>()));
         services.TryAddSingleton(static provider => new InboundTriggerRateLimiter(
             provider.GetRequiredService<IOptionsMonitor<TraconInboundTriggerOptions>>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            provider.GetRequiredService<IOptionsMonitor<TraconRateLimitOptions>>(),
+            provider.GetRequiredService<DeploymentRateLimiter>()));
         services.TryAddSingleton(static provider => new InboundTriggerDispatcher(
             provider.GetRequiredService<IInboundTriggerStore>(),
             provider.GetRequiredService<InboundTriggerSecretResolver>(),

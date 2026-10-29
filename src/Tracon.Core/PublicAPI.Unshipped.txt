@@ -1,4 +1,6 @@
 #nullable enable
+const Tracon.TraconDiagnostics.RateLimitStoreFailureCounterName = "tracon.rate_limit.store_failures" -> string!
+const Tracon.TraconDiagnostics.Tags.Limiter = "tracon.rate_limit.limiter" -> string!
 Tracon.AgentDecoratorPipeline
 Tracon.AgentDefinitionCompiler
 Tracon.AgentDefinitionCompiler.Compile(Tracon.AgentDefinition! definition) -> Microsoft.Agents.AI.AIAgent!
@@ -473,6 +475,8 @@ Tracon.TraconRateLimitOptions.PermitLimit.get -> int
 Tracon.TraconRateLimitOptions.PermitLimit.set -> void
 Tracon.TraconRateLimitOptions.QueueLimit.get -> int
 Tracon.TraconRateLimitOptions.QueueLimit.set -> void
+Tracon.TraconRateLimitOptions.Scope.get -> Tracon.RateLimitScope
+Tracon.TraconRateLimitOptions.Scope.set -> void
 Tracon.TraconRateLimitOptions.TraconRateLimitOptions() -> void
 Tracon.TraconRateLimitOptions.Window.get -> System.TimeSpan
 Tracon.TraconRateLimitOptions.Window.set -> void

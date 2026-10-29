@@ -185,6 +185,27 @@ public sealed class UpsertRaceTests(SqlServerSchemaFixture schema) : IClassFixtu
     }
 
     /// <summary>
+    /// A counter race loses nothing: every writer of a fresh partition is counted, and the next call sees
+    /// exactly one more.
+    /// </summary>
+    [Fact]
+    public async Task Racing_first_rate_limit_increments_of_a_partition_are_all_counted()
+    {
+        await schema.ResetAsync();
+        var store = schema.Context.RateLimitCounters;
+        var window = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        await RaceAsync(round => store.IncrementAsync($"endpoint:tracon:tenant:race-{round}", window).AsTask());
+
+        for (var round = 0; round < Rounds; round++)
+        {
+            var next = await store.IncrementAsync($"endpoint:tracon:tenant:race-{round}", window, TestContext.Current.CancellationToken);
+
+            next.Count.ShouldBe(Writers + 1);
+        }
+    }
+
+    /// <summary>
     /// Starts <see cref="Writers"/> writes of one key at once, <see cref="Rounds"/>
     /// times, with a new key each round.
     /// </summary>

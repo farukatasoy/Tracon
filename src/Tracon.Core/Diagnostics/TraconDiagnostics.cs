@@ -99,6 +99,17 @@ public static class TraconDiagnostics
     /// </remarks>
     public const string RunRecordingFailureCounterName = "tracon.run.recording_failures";
 
+    /// <summary>Gets the counter name for rate-limit counter store failures.</summary>
+    /// <remarks>
+    /// With <see cref="RateLimitScope.Deployment"/> every counted request calls the
+    /// <see cref="IRateLimitCounterStore"/>. When that call fails, the instance applies its own
+    /// local limit for that request, so the limit holds per instance until the store answers
+    /// again. One measurement is one failed call, separated by <see cref="Tags.Limiter"/>
+    /// (<c>endpoint</c> or <c>trigger</c>). A non-zero value means the limit is not holding for the
+    /// deployment as a whole.
+    /// </remarks>
+    public const string RateLimitStoreFailureCounterName = "tracon.rate_limit.store_failures";
+
     /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
     public static class Tags
     {
@@ -110,6 +121,9 @@ public static class TraconDiagnostics
 
         /// <summary>Gets the tenant identifier tag name.</summary>
         public const string TenantId = "tracon.tenant.id";
+
+        /// <summary>Gets the rate limiter tag name: <c>endpoint</c> or <c>trigger</c>.</summary>
+        public const string Limiter = "tracon.rate_limit.limiter";
 
         /// <summary>Gets the session identifier tag name.</summary>
         public const string SessionId = "tracon.session.id";

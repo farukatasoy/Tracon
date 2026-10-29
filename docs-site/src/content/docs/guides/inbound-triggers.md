@@ -146,7 +146,7 @@ endpoint follows: a write that cannot be audited is not applied.
 |---|---:|---|
 | `TimestampTolerance` | 5 minutes | Requests outside this window are rejected (`401`) regardless of signature validity |
 | `MaxBodyBytes` | 256 KB | A larger body is rejected (`413`) before it is fully read |
-| `MaxRequestsPerMinute` | 60 | Per trigger, per process (`429` beyond the limit) |
+| `MaxRequestsPerMinute` | 60 | Per trigger (`429` beyond the limit); counted per process unless `Tracon:RateLimit:Scope` is `Deployment` |
 | `AllowedConfigurationPrefix` | `Tracon:TriggerSecrets:` | The only prefix a signing secret's configuration key name may start with; inside it, a tenant uses `{prefix}{tenant}:` and a flat name belongs to the default tenant |
 
 ```json
@@ -162,10 +162,16 @@ endpoint follows: a write that cannot be audited is not applied.
 }
 ```
 
-:::caution[The rate limit is per process]
-Like Tracon's general rate limiter, the trigger limit lives in process
-memory — there is no distributed counter. In a multi-instance deployment the
-limit applies per instance, not per trigger across the whole deployment.
+:::caution[The rate limit is per process unless you ask for the deployment]
+Like Tracon's general rate limiter, the trigger limit lives in process memory by
+default. In a multi-instance deployment the limit then applies per instance, not per
+trigger across the whole deployment. Set `Tracon:RateLimit:Scope` to `Deployment` to
+count it in the database: the setting covers the endpoint limiter and the trigger limiter
+together, and the trigger limit is then one window for each trigger across all instances.
+The trigger limit is always on and `Tracon:RateLimit:Enabled` does not switch it; the scope
+only decides where it is counted. The signature is still checked before the request is counted, so an
+unsigned request never spends the sender's allowance. See
+[Where a rate limit counts](/concepts/governance/#where-a-rate-limit-counts).
 :::
 
 ## Manage triggers

@@ -1,7 +1,7 @@
 # Tracon.Testing.Contracts.Xunit
 
 Behavior contract suites for Tracon's extension points — the store
-interfaces (`IRunStore` and 29 others), `IModelProvider`, `IRunJudge`,
+interfaces (`IRunStore` and 32 others), `IModelProvider`, `IRunJudge`,
 `IAgentSource`, `IJobHandler`, `ISkillScriptExecutor`, and code-defined custom tools — packaged as
 xunit.v3 test base classes.
 
@@ -57,11 +57,19 @@ your own exception; it does not fail to compile.
 
 One abstract class per `Tracon.Abstractions` store interface:
 `RunStoreContract`, `SessionStoreContract`, `AgentDefinitionStoreContract`,
-`ExperimentStoreContract`, and 28 more. Every one derives from
+`ExperimentStoreContract`, and 29 more. Every one derives from
 `TenantIsolationContract<TStore>`, which supplies the shared lifecycle
 plumbing (`InitializeAsync`/`DisposeAsync`) and the two-directional tenant
 check every store must pass: a tenant reads its own records, and never
 another tenant's.
+
+`RateLimitCounterStoreContract` is the one to run if you count rate limits somewhere
+other than the SQL provider's database (Redis, for example): implement
+`IRateLimitCounterStore` and derive the class. Its centre is one scenario that
+increments a single partition from 64 callers at once and requires 64 different
+counts, because a counter that reads and then writes loses increments under load. A
+counter has no tenant dimension (the tenant is part of the opaque partition key), so
+that class derives from `StoreCancellationContract<TStore>`, as the lease store's does.
 
 `TestData` supplies ready-made sample records (`TestData.Run(...)`,
 `TestData.Session(...)`, and so on) for writing additional scenarios beside

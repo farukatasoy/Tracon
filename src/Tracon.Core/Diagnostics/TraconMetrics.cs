@@ -134,6 +134,11 @@ internal sealed class TraconMetrics : IDisposable
             TraconDiagnostics.RunRecordingFailureCounterName,
             unit: "{failure}",
             description: "Run-record write attempts whose record was lost, tagged by stage, and by tenant when IncludeTenantTag is on.");
+
+        RateLimitStoreFailures = _meter.CreateCounter<long>(
+            TraconDiagnostics.RateLimitStoreFailureCounterName,
+            unit: "{failure}",
+            description: "Rate-limit counter store calls that failed, tagged by limiter (endpoint or trigger). The instance applied its local limit instead.");
     }
 
     /// <summary>Run counter. Tags: agent, status, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
@@ -172,6 +177,9 @@ internal sealed class TraconMetrics : IDisposable
     /// <summary>Run-recording failure counter. Tags: stage, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     public Counter<long> RunRecordingFailures { get; }
 
+    /// <summary>Rate-limit counter store failure counter. Tags: limiter (endpoint/trigger).</summary>
+    public Counter<long> RateLimitStoreFailures { get; }
+
     /// <summary>Finished-job counter. Tags: lane, kind, status, and tenant when <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.</summary>
     /// <remarks>
     /// Only a TERMINAL status is counted. A lease renewal or a release for
@@ -187,6 +195,11 @@ internal sealed class TraconMetrics : IDisposable
     /// earlier attempts ended in a retry, which is not a terminal status.
     /// </remarks>
     public Histogram<double> JobDuration { get; }
+
+    /// <summary>Records one failed call to the rate-limit counter store.</summary>
+    /// <param name="limiter">Which limiter asked: <c>endpoint</c> or <c>trigger</c>.</param>
+    public void RecordRateLimitStoreFailure(string limiter)
+        => RateLimitStoreFailures.Add(1, new KeyValuePair<string, object?>(TraconDiagnostics.Tags.Limiter, limiter));
 
     /// <summary>Records the result of a run.</summary>
     /// <param name="agentName">Agent name.</param>

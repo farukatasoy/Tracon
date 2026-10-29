@@ -2019,6 +2019,32 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@name, @owner_id, @expires_at, @now);
             """;
 
+        // Rate-limit window counter (Phase 263). MERGE is not used (K-177): the two-branch
+        // pattern of AcquireSingletonLease, inside the transaction ExecuteUpsertAsync opens.
+        // Every column reference on the right of SET reads the row as it was BEFORE the
+        // update, so the two CASE expressions see the same stored window. A later window
+        // restarts the count; an earlier one is counted in the stored window and does not
+        // move it back. Both branches return the same two columns; DbHelpers.ReadSingleAsync
+        // falls through to the second result set when the UPDATE touched no row (K-188).
+        IncrementRateLimitCounter = $"""
+            DECLARE @updated int;
+
+            UPDATE {Schema}.rate_limit_counters WITH (UPDLOCK, SERIALIZABLE)
+               SET permit_count = CASE WHEN @window_start > window_start THEN 1 ELSE permit_count + 1 END,
+                   window_start = CASE WHEN @window_start > window_start THEN @window_start ELSE window_start END
+            OUTPUT inserted.window_start, inserted.permit_count
+             WHERE partition_key = @partition_key;
+
+            SET @updated = @@ROWCOUNT;
+
+            IF @updated = 0 AND NOT EXISTS (
+                SELECT 1 FROM {Schema}.rate_limit_counters WITH (UPDLOCK, SERIALIZABLE)
+                 WHERE partition_key = @partition_key)
+            INSERT INTO {Schema}.rate_limit_counters (partition_key, window_start, permit_count)
+            OUTPUT inserted.window_start, inserted.permit_count
+            VALUES (@partition_key, @window_start, 1);
+            """;
+
         // Plain INSERT: a uniqueness violation is caught with
         // SqlDialect.IsUniqueViolation, the caller reads the existing row with
         // SelectIdempotencyKey.

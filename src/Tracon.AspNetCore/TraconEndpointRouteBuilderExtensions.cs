@@ -154,9 +154,9 @@ public static class TraconEndpointRouteBuilderExtensions
         // (K-165). The filter applies only to Tracon's own endpoint group;
         // it does not compete with a consumer's general limit set up via
         // AddRateLimiter().
-        if (services.GetService<IOptionsMonitor<TraconRateLimitOptions>>() is { } rateLimitOptions)
+        if (TraconRateLimitFilter.ForManagementApi(services) is { } rateLimitFilter)
         {
-            group.AddEndpointFilter(new TraconRateLimitFilter(rateLimitOptions));
+            group.AddEndpointFilter(rateLimitFilter);
         }
 
         if (options.AuthorizationPolicy is { Length: > 0 } policy)

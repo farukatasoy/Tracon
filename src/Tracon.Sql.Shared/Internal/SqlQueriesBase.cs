@@ -1061,6 +1061,14 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string AcquireSingletonLease { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the query that adds one to a rate-limit partition's window counter and returns
+    /// <c>window_start, permit_count</c> after the add. It inserts the row when the partition is new,
+    /// restarts the count when the caller's window is later than the stored one, and never moves the
+    /// stored window back.
+    /// </summary>
+    public string IncrementRateLimitCounter { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that extends a held singleton lease.</summary>
     public string RenewSingletonLease { get; protected set; } = string.Empty;
 

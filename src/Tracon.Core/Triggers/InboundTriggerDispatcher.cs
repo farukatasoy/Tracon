@@ -209,7 +209,7 @@ internal sealed class InboundTriggerDispatcher
             return new InboundTriggerValidationResult { Outcome = InboundTriggerOutcome.Unauthorized };
         }
 
-        if (!_rateLimiter.TryAcquire(trigger.Id))
+        if (!await _rateLimiter.TryAcquireAsync(trigger.Id, cancellationToken).ConfigureAwait(false))
         {
             return new InboundTriggerValidationResult { Outcome = InboundTriggerOutcome.RateLimited };
         }

@@ -392,6 +392,18 @@ public sealed class PostgresSingletonLeaseStoreContractTests(PostgresSchemaFixtu
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresRateLimitCounterStoreContractTests(PostgresSchemaFixture schema)
+    : RateLimitCounterStoreContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IRateLimitCounterStore> CreateStoreAsync()
+    {
+        await schema.ResetAsync();
+        return schema.Context.RateLimitCounters;
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresIdempotencyStoreContractTests(PostgresSchemaFixture schema)
     : IdempotencyStoreContract, IClassFixture<PostgresSchemaFixture>
 {

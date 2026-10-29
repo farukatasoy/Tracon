@@ -1131,6 +1131,8 @@ Tracon.IQuotaStore.GetUsageAsync(Tracon.QuotaUsageQuery! query, System.Threading
 Tracon.IQuotaStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.QuotaDefinition!>!>
 Tracon.IQuotaStore.SaveAsync(Tracon.QuotaDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.QuotaDefinition!>
 Tracon.IQuotaStore.TryClaimThresholdNotificationAsync(string! tenantId, string! agentName, Tracon.QuotaPeriod period, System.DateOnly periodStart, Tracon.QuotaMetric metric, int thresholdPercent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.IRateLimitCounterStore
+Tracon.IRateLimitCounterStore.IncrementAsync(string! partitionKey, System.DateTimeOffset windowStart, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RateLimitWindowCount!>
 Tracon.IRetentionPolicyStore
 Tracon.IRetentionPolicyStore.AppendRunProgressAsync(System.Guid runId, long deletedDelta, long archivedDelta, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRetentionPolicyStore.CompleteRunAsync(System.Guid runId, System.DateTimeOffset completedAt, string? errorMessage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -1198,6 +1200,17 @@ Tracon.ISamplingSupport.SamplingLimits.get -> Tracon.SamplingLimits!
 Tracon.ISamplingSupport.SupportedSamplingFields.get -> Tracon.SamplingFields
 Tracon.IResponseSchemaSupport
 Tracon.IResponseSchemaSupport.DescribeResponseSchema(Tracon.ModelBinding! binding, System.Text.Json.JsonElement schema) -> Tracon.ResponseSchemaShape!
+Tracon.RateLimitScope
+Tracon.RateLimitScope.Deployment = 1 -> Tracon.RateLimitScope
+Tracon.RateLimitScope.Instance = 0 -> Tracon.RateLimitScope
+Tracon.RateLimitWindowCount
+Tracon.RateLimitWindowCount.<Clone>$() -> Tracon.RateLimitWindowCount!
+Tracon.RateLimitWindowCount.Count.get -> long
+Tracon.RateLimitWindowCount.Count.init -> void
+Tracon.RateLimitWindowCount.Equals(Tracon.RateLimitWindowCount? other) -> bool
+Tracon.RateLimitWindowCount.RateLimitWindowCount() -> void
+Tracon.RateLimitWindowCount.WindowStart.get -> System.DateTimeOffset
+Tracon.RateLimitWindowCount.WindowStart.init -> void
 Tracon.ResponseSchemaShape
 Tracon.ResponseSchemaShape.<Clone>$() -> Tracon.ResponseSchemaShape!
 Tracon.ResponseSchemaShape.EffectiveSchema.get -> System.Text.Json.JsonElement
@@ -1215,6 +1228,9 @@ Tracon.ResponseSchemaShape.Strict.init -> void
 override Tracon.CallableAgentReference.Equals(object? obj) -> bool
 override Tracon.CallableAgentReference.GetHashCode() -> int
 override Tracon.CallableAgentReference.ToString() -> string!
+override Tracon.RateLimitWindowCount.Equals(object? obj) -> bool
+override Tracon.RateLimitWindowCount.GetHashCode() -> int
+override Tracon.RateLimitWindowCount.ToString() -> string!
 override Tracon.ResponseSchemaShape.Equals(object? obj) -> bool
 override Tracon.ResponseSchemaShape.GetHashCode() -> int
 override Tracon.ResponseSchemaShape.ToString() -> string!
@@ -1222,6 +1238,8 @@ static Tracon.CallableAgentReference.FromName(string! name) -> Tracon.CallableAg
 static Tracon.CallableAgentReference.implicit operator Tracon.CallableAgentReference!(string! name) -> Tracon.CallableAgentReference!
 static Tracon.CallableAgentReference.operator !=(Tracon.CallableAgentReference? left, Tracon.CallableAgentReference? right) -> bool
 static Tracon.CallableAgentReference.operator ==(Tracon.CallableAgentReference? left, Tracon.CallableAgentReference? right) -> bool
+static Tracon.RateLimitWindowCount.operator !=(Tracon.RateLimitWindowCount? left, Tracon.RateLimitWindowCount? right) -> bool
+static Tracon.RateLimitWindowCount.operator ==(Tracon.RateLimitWindowCount? left, Tracon.RateLimitWindowCount? right) -> bool
 static Tracon.ResponseSchemaShape.operator !=(Tracon.ResponseSchemaShape? left, Tracon.ResponseSchemaShape? right) -> bool
 static Tracon.ResponseSchemaShape.operator ==(Tracon.ResponseSchemaShape? left, Tracon.ResponseSchemaShape? right) -> bool
 Tracon.ISessionStore

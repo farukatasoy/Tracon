@@ -21,7 +21,9 @@ internal sealed class RateLimitProfileCheck : IProductionProfileCheck
             : ProductionProfileResult.Permissive(
                 setting,
                 "off, so one caller can take as much of the deployment's model budget as it asks for",
-                $"set {setting} to true and size the window. The counter is per process, so a " +
-                "multi-instance deployment admits the limit once per instance");
+                $"set {setting} to true and size the window. By default the counter is per process, so a " +
+                $"multi-instance deployment admits the limit once per instance; set " +
+                $"{TraconRateLimitOptions.SectionName}:{nameof(TraconRateLimitOptions.Scope)} to " +
+                $"{nameof(RateLimitScope.Deployment)} to count it in the database for the whole deployment");
     }
 }

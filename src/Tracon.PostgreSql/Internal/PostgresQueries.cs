@@ -1762,6 +1762,23 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING name;
             """;
 
+        // Rate-limit window counter (Phase 263). One atomic upsert; ON CONFLICT DO UPDATE
+        // locks the row, so concurrent callers are counted one after the other. Every
+        // right-hand side reads the row as it was BEFORE the update, so the CASE and
+        // GREATEST see the same stored window. A later window restarts the count; an
+        // earlier one (a slow clock) is counted in the stored window and does not move it back.
+        IncrementRateLimitCounter = $"""
+            INSERT INTO {Schema}.rate_limit_counters (partition_key, window_start, permit_count)
+            VALUES (@partition_key, @window_start, 1)
+            ON CONFLICT (partition_key) DO UPDATE SET
+                permit_count = CASE
+                    WHEN EXCLUDED.window_start > {Schema}.rate_limit_counters.window_start THEN 1
+                    ELSE {Schema}.rate_limit_counters.permit_count + 1
+                END,
+                window_start = GREATEST({Schema}.rate_limit_counters.window_start, EXCLUDED.window_start)
+            RETURNING window_start, permit_count;
+            """;
+
         // A PLAIN INSERT, not a DO NOTHING/UPDATE conflict clause: the caller
         // catches the violation with SqlDialect.IsUniqueViolation and reads
         // the existing record with SelectIdempotencyKey (DIFFERENT from

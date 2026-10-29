@@ -205,6 +205,7 @@ Tracon:RateLimit:Enabled
 Tracon:RateLimit:Partition
 Tracon:RateLimit:PermitLimit
 Tracon:RateLimit:QueueLimit
+Tracon:RateLimit:Scope
 Tracon:RateLimit:Window
 Tracon:Retention:Attachments:Archive
 Tracon:Retention:Attachments:MaxAgeDays

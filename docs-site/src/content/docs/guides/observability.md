@@ -77,6 +77,7 @@ activity source and meter are both named `Tracon`. The root run span is
 | `tracon.job.queue.depth` | Outstanding jobs per lane and open status, when enabled |
 | `tracon.audit.write_failures` | Audit entries that could not be written, tagged by outcome |
 | `tracon.run.recording_failures` | Run records that could not be written, tagged by the stage they were lost at |
+| `tracon.rate_limit.store_failures` | Calls to the rate-limit counter store that failed, tagged by limiter; the instance applied its own limit instead |
 
 ### The attribute names
 
@@ -110,6 +111,7 @@ metric names above.
 | `tracon.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 | `tracon.audit.action` | `tracon.audit.write_failures` | The action that could not be recorded, such as `approval.decision` |
 | `tracon.audit.outcome` | `tracon.audit.write_failures` | `swallowed` if the operation continued, `refused` if it was stopped |
+| `tracon.rate_limit.limiter` | `tracon.rate_limit.store_failures` | Which rate limiter asked: `endpoint` for the endpoint groups, `trigger` for the inbound trigger accept endpoint |
 | `tracon.recording.stage` | `tracon.run.recording_failures` | Which write was lost: `start`, `event`, `tool_invocation`, `non_token_usage`, `completion`, `sink`, or `input` |
 
 Three spans and one tool name are not metrics at all, and are named here because a
@@ -229,6 +231,19 @@ do not page the same person for them.
 The run identity is deliberately **not** a tag here, for the same reason it is not one
 anywhere else: it is unbounded. It is in the log entry that accompanies every one of
 these measurements.
+
+### What a failed rate-limit counter call looks like
+
+With `Tracon:RateLimit:Scope` set to `Deployment`, every counted request calls the counter store. When
+that call fails, the instance does not lift the limit and does not refuse the request: it applies the
+limit it keeps in its own memory, built from the same settings, for that request.
+`tracon.rate_limit.store_failures` counts those calls, tagged by `tracon.rate_limit.limiter`
+(`endpoint` or `trigger`). A warning in the log names the partition, at most once a minute for each.
+
+While the counter is above zero the limit holds **per instance**, not for the deployment: two
+instances admit the limit twice. A short burst after a database restart is expected. A counter that
+keeps rising means the database that holds the limit is the one that is failing; alert on a sustained
+rate, not on a single failure.
 
 ### What the job metrics count
 

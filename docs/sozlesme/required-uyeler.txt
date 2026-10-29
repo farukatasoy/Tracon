@@ -259,6 +259,8 @@ Tracon.QuotaUsageRecord.Period
 Tracon.QuotaUsageRecord.PeriodStart
 Tracon.QuotaUsageRecord.TenantId
 Tracon.QuotaUsageRecord.UpdatedAt
+Tracon.RateLimitWindowCount.Count
+Tracon.RateLimitWindowCount.WindowStart
 Tracon.ResponseSchemaShape.EffectiveSchema
 Tracon.ResponseSchemaShape.Strict
 Tracon.RetentionPolicy.CreatedAt

@@ -514,6 +514,7 @@ not enable sampling.
 | `RateLimit:Window` | 1 minute |
 | `RateLimit:QueueLimit` | `0` |
 | `RateLimit:Partition` | `Tenant` |
+| `RateLimit:Scope` | `Instance`. `Deployment` counts both rate limiters in the database; it needs `QueueLimit` of `0`, which is checked at startup |
 | `Idempotency:Enabled` | `true` |
 | `Idempotency:MaxKeyLength` | `255` |
 | `ContentGuard:InspectInput` | `true` |

@@ -58,6 +58,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (the default) they run at startup. Each adds one nullable column, `runs.cancel_requested_at`. No row is backfilled and no
   index is added.
 
+- **Migrations for the rate-limit counter.** PostgreSQL `0070`, SQL Server `0058` and SQLite `0057`. With
+  `AutoApplyMigrations` (the default) they run at startup. Each creates one table, `rate_limit_counters`
+  (`partition_key`, `window_start`, `permit_count`), with no tenant column and no index beyond the primary key. The table
+  stays empty and is never written while `Tracon:RateLimit:Scope` is `Instance`, which is the default.
+- **New public types for the rate-limit counter.** `IRateLimitCounterStore`, `RateLimitWindowCount` and `RateLimitScope` in
+  `Tracon.Abstractions`; `TraconRateLimitOptions.Scope`; `RateLimitCounterStoreContract` in
+  `Tracon.Testing.Contracts.Xunit`; `TraconDiagnostics.RateLimitStoreFailureCounterName` and `TraconDiagnostics.Tags.Limiter`.
+  A host that registers nothing keeps the in-memory counter, and the setting that uses it is off by default, so nothing
+  changes for it.
+
 - **The `Tracon` package no longer brings PostgreSQL.** It now carries the HTTP API, workflows, MCP, the OpenAI
   provider, and the console, and no storage engine, so a host on SQL Server, SQLite, or the in-memory stores no longer
   takes Npgsql. A host that calls `UsePostgreSql` and references only `Tracon` fails to build (`CS1061`: `ITraconBuilder`
@@ -192,6 +202,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   rotate, add a new key under a new id, point `ChainKeyId` at it and restart, keeping the old value. Turning the key off keeps
   writing entries unsigned and logs one warning per tenant. It protects against someone who can write to the audit table
   but cannot read the host's configuration; it does not anchor the chain outside the database.
+- **The rate limit can hold for the whole deployment.** `Tracon:RateLimit:Scope` is new. `Instance` (the default) is
+  today's behavior: each process counts in its own memory, so two instances with a `PermitLimit` of 100 admit 200 requests
+  per window. `Deployment` counts in the database instead, through the new `IRateLimitCounterStore` (the three SQL
+  providers register one that writes the `rate_limit_counters` table), so the limit and its `Tenant` partition hold across
+  every instance. One setting covers both limiters, the one on the endpoint groups and the one on the inbound trigger accept
+  endpoint, and it costs one database write for each counted request. `QueueLimit` above `0` together with `Deployment`
+  stops the application at startup, because a database counter has no waiting line. Without a SQL provider the counter is
+  still in the memory of the process and the application logs a warning at startup. If the counter store fails, the
+  instance applies its own in-memory limit for that request, the limit is never lifted and no request is refused for it, and
+  the new `tracon.rate_limit.store_failures` counter (tag `tracon.rate_limit.limiter`: `endpoint` or `trigger`) counts it.
+  To count somewhere else (Redis, for example), implement `IRateLimitCounterStore`; `RateLimitCounterStoreContract` checks
+  the atomic count with 64 parallel callers. See [Quotas and rate limits](/concepts/governance/#where-a-rate-limit-counts).
+- **The management API and the AG-UI endpoint keep a rate-limit counter each**, with either scope. This was already so and
+  is now written down: an AG-UI request does not spend the management API's window.
 - **The console's Audit screen has a Verify chain button** that runs the walk and shows the status, the entries checked,
   the unsigned entries and the first failing entry.
 - **A tenant can have a tool policy: the tools its runs may call.** `ITenantToolPolicyStore` (in memory by default, and on
@@ -340,6 +364,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   say that a run that does not stream has no duration (no schema change).
 
 ### Fixed
+
+- **The documentation of `RateLimitPartitionKind.Global` no longer claims a limit shared across the whole deployment.** It
+  was shared by every caller of one instance only; the whole deployment shares it with `Tracon:RateLimit:Scope` set to
+  `Deployment`, which is new in this release.
 
 - **The OAuth authorization of an MCP server completes.** `POST /api/mcp-servers/{name}/oauth/start` opened the
   provider's consent page, but the callback always answered "The authorization session was not found or has expired"

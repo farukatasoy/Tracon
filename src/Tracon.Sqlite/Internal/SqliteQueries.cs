@@ -1722,6 +1722,21 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING name;
             """;
 
+        // Rate-limit window counter (Phase 263). Same upsert as PostgreSQL (K-194). The
+        // timestamp is the fixed-width UTC text AddTimestamp writes, so comparing and MAX()
+        // order by time; scalar MAX(a, b) is the two-argument form.
+        IncrementRateLimitCounter = $"""
+            INSERT INTO {Schema}rate_limit_counters (partition_key, window_start, permit_count)
+            VALUES (@partition_key, @window_start, 1)
+            ON CONFLICT (partition_key) DO UPDATE SET
+                permit_count = CASE
+                    WHEN excluded.window_start > {Schema}rate_limit_counters.window_start THEN 1
+                    ELSE {Schema}rate_limit_counters.permit_count + 1
+                END,
+                window_start = MAX({Schema}rate_limit_counters.window_start, excluded.window_start)
+            RETURNING window_start, permit_count;
+            """;
+
         // Plain INSERT: a uniqueness violation is caught by
         // SqlDialect.IsUniqueViolation, the caller reads the existing record
         // with SelectIdempotencyKey.

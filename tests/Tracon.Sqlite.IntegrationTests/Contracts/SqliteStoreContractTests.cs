@@ -400,6 +400,18 @@ public sealed class SqliteSingletonLeaseStoreContractTests(SqliteSchemaFixture s
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteRateLimitCounterStoreContractTests(SqliteSchemaFixture schema)
+    : RateLimitCounterStoreContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IRateLimitCounterStore> CreateStoreAsync()
+    {
+        await schema.ResetAsync();
+        return schema.Context.RateLimitCounters;
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteIdempotencyStoreContractTests(SqliteSchemaFixture schema)
     : IdempotencyStoreContract, IClassFixture<SqliteSchemaFixture>
 {

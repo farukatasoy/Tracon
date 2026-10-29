@@ -392,6 +392,18 @@ public sealed class SqlServerSingletonLeaseStoreContractTests(SqlServerSchemaFix
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerRateLimitCounterStoreContractTests(SqlServerSchemaFixture schema)
+    : RateLimitCounterStoreContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IRateLimitCounterStore> CreateStoreAsync()
+    {
+        await schema.ResetAsync();
+        return schema.Context.RateLimitCounters;
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerIdempotencyStoreContractTests(SqlServerSchemaFixture schema)
     : IdempotencyStoreContract, IClassFixture<SqlServerSchemaFixture>
 {

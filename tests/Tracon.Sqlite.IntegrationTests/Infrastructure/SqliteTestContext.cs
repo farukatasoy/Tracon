@@ -85,6 +85,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
         RunScores = new SqlRunScoreStore(wrapped, TenantContext);
         SingletonLeases = new SqlSingletonLeaseStore(wrapped);
+        RateLimitCounters = new SqlRateLimitCounterStore(wrapped);
         IdempotencyKeys = new SqlIdempotencyStore(wrapped);
         RunInputs = new SqlRunInputStore(wrapped);
         ConversationBranches = new SqlConversationBranchStore(wrapped);
@@ -208,6 +209,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
     /// <summary>Single-executor election lease store (Phase 42).</summary>
     public SqlSingletonLeaseStore SingletonLeases { get; }
+
+    /// <summary>The shared rate-limit counter store.</summary>
+    public SqlRateLimitCounterStore RateLimitCounters { get; }
 
     /// <summary>Idempotency store (Phase 43).</summary>
     public SqlIdempotencyStore IdempotencyKeys { get; }

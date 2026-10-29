@@ -274,15 +274,59 @@ request, reconciliation closes the row as `Failed` (`orphaned`), not `Canceled`,
 not continue the run. No sticky routing and no custom `IRunCancellationRegistry` is
 needed for this.
 
-Rate limits are per process for the same reason. The endpoint limiter
+Rate limits are per process by default for the same reason. The endpoint limiter
 (`Tracon:RateLimit`) and the inbound trigger limiter both count in the memory
-of one instance; Tracon ships no distributed counter. Two instances with a
-`PermitLimit` of 100 admit 200 requests per window between them, and a `Tenant`
-partition splits each instance's own window rather than a window shared across
-the deployment. Size the limit per instance, or put a shared limiter in the
-ingress in front of them. A ceiling that must hold for the deployment as a whole
-is a quota instead: quotas count in the database, so the instance count does not
-change them.
+of one instance. Two instances with a `PermitLimit` of 100 admit 200 requests per
+window between them, and a `Tenant` partition splits each instance's own window
+rather than a window shared across the deployment. There are three ways to hold a
+limit for the deployment as a whole:
+
+- **Count it in the database.** Set `Tracon:RateLimit:Scope` to `Deployment`. Both
+  limiters then count in the `rate_limit_counters` table, so the limit and its `Tenant`
+  partition hold across all instances. It costs one database write for each counted
+  request (see [the cost](#what-the-deployment-scope-costs)), it needs `QueueLimit` to
+  be `0`, and when the database cannot be reached an instance falls back to its own
+  limit for the requests that fail. See
+  [Where a rate limit counts](/concepts/governance/#where-a-rate-limit-counts).
+- **Count it in the ingress.** A gateway in front of the instances shares one counter
+  at no database cost, but it does not know the tenant: Tracon resolves the tenant from
+  the API key or the claim, behind the gateway.
+- **Use a quota.** A ceiling on total consumption is a quota: quotas count in the
+  database, so the instance count does not change them.
+
+### What the deployment scope costs
+
+`Scope = Deployment` adds one `INSERT … ON CONFLICT DO UPDATE` (SQL Server: an `UPDATE`
+followed by an `INSERT` when the row is new) to every counted request. All requests of one
+partition write the same row, so they take turns on it. A `Global` partition is therefore
+the worst case: one row for every caller. Prefer the `Tenant` partition on a busy
+deployment; its rows are spread by tenant.
+
+The numbers below show the cost of the statement and the row lock, not of a network: the
+database ran in a container on the same machine as the two instances.
+
+| Measured 2026-10-29 | PostgreSQL 18 | SQL Server 2022 |
+|---|---:|---:|
+| Counter call, one caller (`p50` / `p95`) | 0.29 / 0.38 ms | 2.4 / 4.8 ms |
+| `Tenant` partition, 16 callers (`p50` / `p95`) | 0.94 / 2.1 ms | 6.4 / 10.2 ms |
+| `Global` partition, 16 callers (`p50` / `p95`) | 0.95 / 2.0 ms | 25.4 / 34.2 ms |
+| `Global` partition, 64 callers (`p50` / `p95`) | 3.1 / 15.6 ms | 97.3 / 113.6 ms |
+| `Global` partition, highest rate seen | about 14,500 calls/s | about 640 calls/s |
+| `Tenant` partition, highest rate seen | about 24,000 calls/s | about 2,700 calls/s |
+
+Read them as an order of magnitude, not as capacity. One Apple silicon laptop ran two
+connection pools and the database in a Docker container; the PostgreSQL image is native
+(arm64) and the SQL Server 2022 image is amd64, so it ran under emulation and its
+absolute numbers are lower than a native server's. The ratio is what
+carries over: on both engines a `Tenant` partition spreads the load, and a `Global`
+partition queues every request on one row. On SQL Server the queue is steep, since the
+`UPDATE … WITH (UPDLOCK, SERIALIZABLE)` and the `INSERT` of a new row hold their locks
+until the transaction ends. Use a `Tenant` partition there. In every run the
+total admitted under a limit of 500 was exactly 500 (40,000 attempts from 32 callers
+through two pools), and SQL Server reported no deadlock.
+
+The requests that the limiter does not count (a disabled limit, or `Scope` left at
+`Instance`) cost no database call at all.
 
 ## Add readiness, liveness, and diagnostics
 

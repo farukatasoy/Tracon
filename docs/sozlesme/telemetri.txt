@@ -21,6 +21,7 @@ attribute tracon.model.provider
 attribute tracon.quota.metric
 attribute tracon.quota.period
 attribute tracon.quota.scope
+attribute tracon.rate_limit.limiter
 attribute tracon.recording.stage
 attribute tracon.run.depth
 attribute tracon.run.id
@@ -46,6 +47,7 @@ instrument tracon.judge.score Histogram<double> unit={score} attributes=tracon.a
 instrument tracon.model.cache Counter<long> unit={lookup} attributes=tracon.model.cache.result,tracon.model.provider
 instrument tracon.quota.limit ObservableGauge<double>
 instrument tracon.quota.usage ObservableGauge<double>
+instrument tracon.rate_limit.store_failures Counter<long> unit={failure} attributes=tracon.rate_limit.limiter
 instrument tracon.run.cost Counter<double> unit={cost} attributes=tracon.agent.name,tracon.cost.currency,tracon.model.id
 instrument tracon.run.duration Histogram<double> unit=s attributes=tracon.agent.name,tracon.agent.version,tracon.run.status
 instrument tracon.run.recording_failures Counter<long> unit={failure} attributes=tracon.recording.stage

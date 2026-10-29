@@ -78,6 +78,7 @@ public sealed class AuditCoverageTests
         [typeof(IJobScheduleStore)] = "machine-written: scheduler bookkeeping",
         [typeof(IIdempotencyStore)] = "machine-written: request de-duplication keys",
         [typeof(ISingletonLeaseStore)] = "machine-written: coordination lease",
+        [typeof(IRateLimitCounterStore)] = "machine-written: rate-limit request counters",
         [typeof(IQuotaStore)] = "machine-written: usage counters",
         [typeof(IRetentionStore)] = "machine-written: retention sweep bookkeeping",
         [typeof(IWorkflowCheckpointStore)] = "machine-written: workflow execution state",

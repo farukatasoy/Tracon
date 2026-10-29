@@ -49,7 +49,8 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         // Phase 209 added the `workflow_requests` table: 51 -> 52.
         // Phase 248 added the `agent_definition_version_counters` table: 52 -> 53.
         // Phase 261 added the `tenant_tool_policies` table: 53 -> 54.
-        tableCount.ShouldBe(54);
+        // Phase 263 added the `rate_limit_counters` table: 54 -> 55.
+        tableCount.ShouldBe(55);
     }
 
     [Fact]

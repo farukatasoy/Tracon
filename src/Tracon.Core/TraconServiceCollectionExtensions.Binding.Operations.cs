@@ -184,6 +184,11 @@ public static partial class TraconServiceCollectionExtensions
             nameof(TraconRateLimitOptions.Partition),
             static o => o.Partition,
             static (o, v) => o.Partition = v);
+
+        read.Enum<RateLimitScope>(
+            nameof(TraconRateLimitOptions.Scope),
+            static o => o.Scope,
+            static (o, v) => o.Scope = v);
     }
 
     /// <summary>Binds the <c>Tracon:Idempotency</c> section.</summary>

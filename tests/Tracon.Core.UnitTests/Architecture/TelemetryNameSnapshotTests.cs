@@ -52,8 +52,9 @@ public sealed class TelemetryNameSnapshotTests
         var constants = InstrumentConstants();
         var published = PublishInstruments().Select(static instrument => instrument.Name).ToList();
 
-        // 2026-10-24: 14 counters and histograms of TraconMetrics, 3 observable gauges.
-        published.Count.ShouldBe(17);
+        // 2026-10-29: 15 counters and histograms of TraconMetrics (Phase 263 added the rate-limit store
+        // failure counter), 3 observable gauges.
+        published.Count.ShouldBe(18);
 
         published.Except(constants.Values, StringComparer.Ordinal).ShouldBeEmpty(
             "An instrument is published under a name that TraconDiagnostics does not declare. Declare it there.");
@@ -210,6 +211,7 @@ public sealed class TelemetryNameSnapshotTests
         metrics.RecordAgentSourceFailure("source-a", "list");
         metrics.RecordAuditWriteFailure("tenant-a", "approval.decision", "swallowed");
         metrics.RecordRunRecordingFailure("tenant-a", "start");
+        metrics.RecordRateLimitStoreFailure("endpoint");
         metrics.RecordJob("default", "handler-a", JobStatus.Completed, "tenant-a", TimeSpan.FromSeconds(1));
     }
 

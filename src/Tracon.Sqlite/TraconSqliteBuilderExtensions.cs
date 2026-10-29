@@ -220,6 +220,11 @@ public static class TraconSqliteBuilderExtensions
         // a multi-instance deployment.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
+        // Shared rate-limit counter (Phase 263). Replaces the in-memory
+        // InMemoryRateLimitCounterStore; what makes Tracon:RateLimit:Scope =
+        // Deployment hold across instances. Scope = Instance never calls it.
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRateLimitCounterStore, SqlRateLimitCounterStore>());
+
         // Voice session recording (Phase 29). Only writes anything if
         // UseVoiceConversation() was called; the store stays empty if it was
         // not. NOT decorated with the audit log: recording is a byproduct of

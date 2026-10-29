@@ -10,7 +10,7 @@ pin the exact version for reproducible builds.
 
 The three built-in providers (`Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
 most deployments. When none of them fit — a document database, an existing
-event-sourced system, a managed table service — `IRunStore` and the 32 other store
+event-sourced system, a managed table service — `IRunStore` and the 36 other store
 interfaces in `Tracon.Abstractions` are the extension point. This guide covers the
 largest and most-documented one, `IRunStore`, using its behavior contract to verify
 the result.
@@ -192,7 +192,7 @@ The same three things every store contract leaves to you, regardless of interfac
 ## Other store interfaces
 
 `IRunStore` is the largest and most heavily documented seam, but the same package
-ships a contract class for 31 of the other store interfaces in `Tracon.Abstractions` —
+ships a contract class for 32 of the other store interfaces in `Tracon.Abstractions` —
 sessions, agent definitions, jobs, evals, experiments, webhooks, and more. Each follows
 the same shape: derive the matching `*Contract` class, supply a store instance, run
 `dotnet test`.
@@ -284,6 +284,54 @@ its own. Three rules the contract checks, and that a custom store has to honor:
 - Take **no tenant argument and apply no tenant filter**. Like `LeaseAsync`, this is
   a question about the worker pool, which leases across every tenant. The shipped SQL
   stores answer it from the same partial index that backs leasing.
+
+## Count rate limits somewhere else
+
+`IRateLimitCounterStore` is the smallest store interface: one method. It is the counter behind
+`Tracon:RateLimit:Scope = Deployment`, and each SQL provider already registers an implementation
+that counts in its own database. Write your own when you want the counter elsewhere, in Redis for
+example, or when the rate limit database write is too slow for your traffic.
+
+```csharp
+public sealed class RedisRateLimitCounterStore(IDatabase redis) : IRateLimitCounterStore
+{
+    public async ValueTask<RateLimitWindowCount> IncrementAsync(
+        string partitionKey, DateTimeOffset windowStart, CancellationToken cancellationToken = default)
+    {
+        // One key for each (partition, window). The key expires with the window, so nothing is cleaned up.
+        var key = $"tracon:rl:{partitionKey}:{windowStart.ToUnixTimeMilliseconds()}";
+        var count = await redis.StringIncrementAsync(key);
+        if (count == 1)
+        {
+            await redis.KeyExpireAsync(key, TimeSpan.FromHours(2));
+        }
+
+        return new RateLimitWindowCount { WindowStart = windowStart, Count = count };
+    }
+}
+```
+
+Tracon owns the algorithm — it aligns the window, compares the count with `PermitLimit` and computes
+`Retry-After` — so the store only counts. The rules the contract suite checks:
+
+| Rule | Why |
+|---|---|
+| The count is atomic | Two instances that increment at the same moment must both be counted. A read followed by a write loses increments under load, and a limit that loses increments admits more than it promises. `RateLimitCounterStoreContract` increments one partition from 64 callers at once and requires 64 different counts |
+| A later window restarts the count at one | The window Tracon passes moves forward every `Window`. The sketch above gets this from the key; a store that keeps one row for each partition must reset it |
+| An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. A store with one key for each window cannot honour this and may ignore it, at the price of a burst at the boundary |
+| The partition key is opaque | Tracon builds it (`endpoint:tracon:tenant:acme`, `endpoint:agui:global`, `trigger:<id>`). Do not parse it, change it or cut it short |
+| A failure throws | Tracon catches it, counts it on `tracon.rate_limit.store_failures` and applies the instance's own limit for that request. Do not swallow it and return a count |
+
+Register the store with `services.AddSingleton<IRateLimitCounterStore, RedisRateLimitCounterStore>()`
+(your registration wins over the provider's), then prove it:
+
+```csharp
+public sealed class RedisRateLimitCounterStoreTests : RateLimitCounterStoreContract
+{
+    protected override ValueTask<IRateLimitCounterStore> CreateStoreAsync()
+        => new(new RedisRateLimitCounterStore(/* your connection */));
+}
+```
 
 ## Read next
 

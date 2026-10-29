@@ -242,6 +242,14 @@ public sealed class InMemorySingletonLeaseStoreContractTests : SingletonLeaseSto
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryRateLimitCounterStoreContractTests : RateLimitCounterStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IRateLimitCounterStore> CreateStoreAsync()
+        => ValueTask.FromResult<IRateLimitCounterStore>(new InMemoryRateLimitCounterStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryIdempotencyStoreContractTests : IdempotencyStoreContract
 {
     /// <inheritdoc />

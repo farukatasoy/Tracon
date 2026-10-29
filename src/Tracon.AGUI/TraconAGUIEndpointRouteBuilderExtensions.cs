@@ -78,10 +78,11 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
         group.WithMetadata(new SseKeepAliveMetadata(endpointOptions.StreamKeepAliveInterval));
         group.AddEndpointFilter(new TraconEndpointFilter(endpointOptions));
 
-        // Off by default, like the management API's (K-165).
-        if (services.GetService<IOptionsMonitor<TraconRateLimitOptions>>() is { } rateLimitOptions)
+        // Off by default, like the management API's (K-165). The group counts its own window: an AG-UI
+        // request does not spend the management API's, with Scope Instance or Deployment alike.
+        if (TraconRateLimitFilter.ForAgUi(services) is { } rateLimitFilter)
         {
-            group.AddEndpointFilter(new TraconRateLimitFilter(rateLimitOptions));
+            group.AddEndpointFilter(rateLimitFilter);
         }
 
         if (endpointOptions.AuthorizationPolicy is { Length: > 0 } policy)
