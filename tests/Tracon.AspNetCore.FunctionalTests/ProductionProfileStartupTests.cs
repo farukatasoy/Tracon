@@ -388,6 +388,46 @@ public sealed class ProductionProfileStartupTests
     }
 
     [Fact]
+    public async Task The_phase_259_decisions_carry_no_configured_value_into_the_log_when_they_are_accepted()
+    {
+        // F-757: the canary above reads the failure. An accepted decision takes the other road, the
+        // "<risk> is accepted. <setting> is permissive: <observed>." line, and it must hold no configured value either.
+        const string CanaryHeader = "X-Canary-Header-9b2f4a";
+        const string CanaryPrefix = "CanaryProviderKeys-9b2f4a:";
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExceptThese(
+                    builder,
+                    TraconProductionRisk.UnregisteredRolePolicies,
+                    TraconProductionRisk.UncheckedToolCalls,
+                    TraconProductionRisk.UnrestrictedTenantEgress,
+                    TraconProductionRisk.UnverifiedTenantHeader,
+                    TraconProductionRisk.UnlimitedTenantWorkflows);
+
+                builder.Services.Configure<TraconTenancyOptions>(static options => options.HeaderName = CanaryHeader);
+                builder.Services.Configure<TraconTenantProviderOptions>(static options =>
+                    options.AllowedConfigurationPrefix = CanaryPrefix);
+
+                builder.RequireProductionProfile(static profile => profile
+                    .Accept(TraconProductionRisk.UnregisteredRolePolicies)
+                    .Accept(TraconProductionRisk.UncheckedToolCalls)
+                    .Accept(TraconProductionRisk.UnrestrictedTenantEgress)
+                    .Accept(TraconProductionRisk.UnverifiedTenantHeader)
+                    .Accept(TraconProductionRisk.UnlimitedTenantWorkflows));
+            });
+
+        host.Logs.Entries.Count(static entry => entry.Contains(" is accepted.", StringComparison.Ordinal)).ShouldBeGreaterThanOrEqualTo(5);
+
+        foreach (var entry in host.Logs.Entries)
+        {
+            entry.ShouldNotContain(CanaryHeader);
+            entry.ShouldNotContain(CanaryPrefix);
+        }
+    }
+
+    [Fact]
     public async Task A_multi_tenant_host_that_answers_nothing_has_every_decision_but_SingleTenant_open()
     {
         // SingleTenant cannot be open together with the tenant egress, tenant header and workflow slot
@@ -614,6 +654,45 @@ public sealed class ProductionProfileStartupTests
         exception.Message.ShouldContain("2 of the 3 role policies are not registered");
         exception.Message.ShouldContain(TraconPolicies.Operator);
         exception.Message.ShouldContain(TraconPolicies.Admin);
+    }
+
+    [Fact]
+    public async Task Mapping_Tracon_twice_leaves_the_role_decision_open_once_and_naming_the_missing_policies_once()
+    {
+        // F-757: each MapTracon call adds a check and the strictest answer wins, so a second call must neither
+        // answer for the first nor repeat its finding.
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExceptThese(builder, TraconProductionRisk.UnregisteredRolePolicies);
+                    TestAuthenticationHandler.Add(builder.Services)
+                        .AddAuthorizationBuilder()
+                        .AddPolicy(TraconPolicies.Reader, static policy => policy.RequireAssertion(static _ => true));
+                    builder.RequireProductionProfile();
+                },
+                configureAfterMap: static app => app.MapTracon("/second")));
+
+        exception.Message.Split("2 of the 3 role policies are not registered").Length.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Requiring_role_policies_stops_the_host_at_the_mapping_before_the_profile_is_read()
+    {
+        // F-757: with RequireRolePolicies on, a missing policy is refused by MapTracon itself (the profile is not asked).
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExceptThese(builder, TraconProductionRisk.UnregisteredRolePolicies);
+                    TestAuthenticationHandler.Add(builder.Services);
+                    builder.RequireProductionProfile();
+                },
+                configureEndpoints: static options => options.RequireRolePolicies = true));
+
+        exception.Message.ShouldContain("RequireRolePolicies is on");
+        exception.Message.ShouldContain(TraconPolicies.Reader);
+        exception.Message.ShouldNotContain(nameof(TraconProductionRisk.UnregisteredRolePolicies));
     }
 
     [Fact]

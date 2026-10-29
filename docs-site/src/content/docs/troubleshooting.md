@@ -393,6 +393,12 @@ help until the migrations are applied. A store that cannot be reached at all
 answers `503` as well, with the title `Persistence store unavailable`; that one
 usually clears on its own.
 
+A tool call is the exception. The tenant's tool policy is read before every tool call,
+and while its table (`tenant_tool_policies`) does not exist that read fails and the
+call is denied: every tool of every tenant answers "The authorization check failed.",
+and the log says `The tenant tool policy could not be read` for each call. Apply the
+migrations before the first request.
+
 ## Knowledge and memory
 
 ### Knowledge endpoints return `501`

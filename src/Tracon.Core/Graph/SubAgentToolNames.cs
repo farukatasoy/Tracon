@@ -30,6 +30,29 @@ internal static class SubAgentToolNames
     // provider whenever the definition names a skill, so the three tools are always there then.
     private static readonly string[] SkillToolNames = ["load_skill", "read_skill_resource", "run_skill_script"];
 
+    // The harness's task list and agent mode tools. The framework keeps these names private, so they are
+    // measured: a provider run on a fake chat client offered exactly these (Microsoft.Agents.AI 1.26.0), and
+    // SubAgentToolNamesTests pins the list against the providers so a framework change shows there.
+    internal static readonly string[] TodoToolNames =
+        ["todos_add", "todos_complete", "todos_remove", "todos_get_remaining", "todos_get_all"];
+
+    internal static readonly string[] AgentModeToolNames = ["mode_get", "mode_set"];
+
+    // The framework's public names for the file memory tools (FileMemoryProvider). Tracon builds that
+    // provider when the definition turns file memory on.
+#pragma warning disable MAAI001 // FileMemoryProvider is "evaluation purposes only"; the same rationale as K-020.
+    internal static readonly string[] FileMemoryToolNames =
+    [
+        FileMemoryProvider.WriteToolName,
+        FileMemoryProvider.ReadFileToolName,
+        FileMemoryProvider.DeleteFileToolName,
+        FileMemoryProvider.LsToolName,
+        FileMemoryProvider.GrepToolName,
+        FileMemoryProvider.ReplaceToolName,
+        FileMemoryProvider.ReplaceLinesToolName,
+    ];
+#pragma warning restore MAAI001
+
     /// <summary>Gets the name of the tool that calls <paramref name="agentName"/>.</summary>
     /// <param name="agentName">The callable agent's name.</param>
     /// <returns>The agent name with each run of characters other than letters and digits replaced by one underscore.</returns>
@@ -85,6 +108,35 @@ internal static class SubAgentToolNames
             foreach (var name in SkillToolNames)
             {
                 taken.TryAdd(name, $"the skill tool '{name}'");
+            }
+        }
+
+        // The providers that offer fixed names: a harness agent has the task list and the agent mode on unless
+        // it turns them off, a plain agent has the task list only when its memory asks for it, and file memory
+        // is on for either when the memory settings ask for it.
+        var harness = definition.Harness;
+
+        if (harness is null ? definition.Memory is { EnableTodo: true } : !harness.DisableTodoProvider)
+        {
+            foreach (var name in TodoToolNames)
+            {
+                taken.TryAdd(name, $"the task list tool '{name}'");
+            }
+        }
+
+        if (harness is { DisableAgentModeProvider: false })
+        {
+            foreach (var name in AgentModeToolNames)
+            {
+                taken.TryAdd(name, $"the agent mode tool '{name}'");
+            }
+        }
+
+        if (definition.Memory is { EnableFileMemory: true } && harness is not { DisableFileMemory: true })
+        {
+            foreach (var name in FileMemoryToolNames)
+            {
+                taken.TryAdd(name, $"the file memory tool '{name}'");
             }
         }
 

@@ -451,8 +451,9 @@ its own run row, linked to the caller with `ParentRunId`, and the caller's strea
 - **The name must be free.** The tool name is the agent name with each run of characters
   other than letters and digits replaced by one underscore, so `support-agent` becomes
   `support_agent`. A name that another tool of the agent already has — a tool in
-  `ToolNames`, a skill tool, `search_knowledge` while semantic search is on, or the tool of
-  another callable agent — fails validation with `sub_agent_tool_name_conflict` and the path
+  `ToolNames`, a skill tool, `search_knowledge` while semantic search is on, a task list
+  (`todos_*`), agent mode (`mode_get`, `mode_set`) or file memory (`file_memory_*`) tool the
+  agent has switched on, or the tool of another callable agent — fails validation with `sub_agent_tool_name_conflict` and the path
   `callableAgents[i].name`. A save returns `400` and names both. A definition written in code
   fails the compilation with the same message.
 - **The agent tool skips the tool chain.** It is not a registered tool, so Tracon does not

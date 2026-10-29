@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Tracon.AGUI.FunctionalTests.Infrastructure;
@@ -104,6 +105,80 @@ public sealed class AGUIToolBoundaryTests
 
         response.Status.ShouldBe(HttpStatusCode.Forbidden, response.Body);
         response.Body.ShouldNotContain(TestAgents.OpenPage, Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_client_tool_of_the_experiment_arm_is_checked_even_when_the_current_version_does_not_carry_it()
+    {
+        // F-667: the check read the latest definition while the run took the arm's version. The arm carries the tool,
+        // the front end did not declare it: the run would call it and wait for a result nobody can produce.
+        await using var host = await StartExperimentAsync(armCarriesTool: true);
+
+        var response = await host.RunAsync(VersionedAgent, AGUIInputs.User("t-arm", "open it"));
+
+        response.Status.ShouldBe(HttpStatusCode.BadRequest, response.Body);
+        response.Problem.GetProperty("title").GetString().ShouldBe("Client tools not declared");
+        response.Problem.GetProperty("detail").GetString()!.ShouldContain(TestAgents.OpenPage, Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_client_tool_only_the_current_version_carries_does_not_refuse_a_run_of_the_arm_that_lacks_it()
+    {
+        await using var host = await StartExperimentAsync(armCarriesTool: false);
+
+        var response = await host.RunAsync(VersionedAgent, AGUIInputs.User("t-arm-free", "hi"));
+
+        response.Status.ShouldBe(HttpStatusCode.OK, response.Body);
+        response.Text.ShouldBe("Echo: hi");
+    }
+
+    private const string VersionedAgent = "versioned-agent";
+
+    // Version 1 is the experiment's only arm, version 2 is the current one; exactly one of them carries the client tool.
+    private static async Task<AGUITestHost> StartExperimentAsync(bool armCarriesTool)
+    {
+        var model = new FakeModelProvider("arm-model").EchoesUserMessage();
+        var host = await AGUITestHost.StartAsync(builder => builder
+            .AddModelProvider(model)
+            .AddClientTool(
+                TestAgents.OpenPage,
+                "Opens a page in the user's browser.",
+                JsonDocument.Parse(TestAgents.OpenPageSchema).RootElement.Clone()));
+
+        try
+        {
+            var store = host.Services.GetRequiredService<IAgentDefinitionStore>();
+
+            await store.SaveAsync(
+                TestAgents.Definition(VersionedAgent, "arm-model", armCarriesTool ? [TestAgents.OpenPage] : []),
+                TestContext.Current.CancellationToken);
+            await store.SaveAsync(
+                TestAgents.Definition(VersionedAgent, "arm-model", armCarriesTool ? [] : [TestAgents.OpenPage]),
+                TestContext.Current.CancellationToken);
+
+            using var created = await host.Client.PutAsJsonAsync(
+                new Uri("/tracon/api/experiments/arm-tools", UriKind.Relative),
+                new
+                {
+                    agentName = VersionedAgent,
+                    variants = new[] { new { name = "control", version = 1, weight = 100 } },
+                },
+                TestContext.Current.CancellationToken);
+            created.EnsureSuccessStatusCode();
+
+            using var started = await host.Client.PostAsJsonAsync(
+                new Uri("/tracon/api/experiments/arm-tools/start", UriKind.Relative),
+                new { },
+                TestContext.Current.CancellationToken);
+            started.EnsureSuccessStatusCode();
+
+            return host;
+        }
+        catch
+        {
+            await host.DisposeAsync();
+            throw;
+        }
     }
 
     private sealed class DenyAllHandler : IRunAuthorizationHandler

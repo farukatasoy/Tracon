@@ -335,6 +335,35 @@ if (packageRowCount !== packageCount) {
   errors.push(`compatibility.md package table has ${packageRowCount} row(s), expected ${packageCount}`);
 }
 
+// A package README states its Native AOT status in its own words, and so does the table above. The
+// table is the one place that measures; a README sentence that disagrees with it sends a consumer of
+// that package to the wrong answer on nuget.org (F-575). The README's claim is read as one of three
+// classes: it says the package is not AOT-compatible (or does not support Native AOT, or that the
+// status is not measured), it says the package is AOT-compatible, or it says nothing.
+const aotCell = new Map(
+  [...packagesSection.matchAll(/^\| `(Tracon[^`]*)` \|[^|]*\|[^|]*\| ([^|]+) \|/gm)].map(([, name, cell]) => [name, cell.trim()]),
+);
+const aotNegative =
+  /\bnot\s+(?:Native\s+)?AOT[- ]compatible|does not support Native AOT|AOT status is not measured/i;
+const aotPositive = /\b(?:Native\s+)?AOT[- ]compatible\b/i;
+
+for (const [name, cell] of aotCell) {
+  const readme = join(repositoryRoot, 'src', name, 'README.md');
+
+  if (!existsSync(readme)) continue;
+
+  const text = readFileSync(readme, 'utf8').replaceAll('**', '').replace(/\s+/g, ' ');
+  const claim = aotNegative.test(text) ? 'negative' : aotPositive.test(text) ? 'positive' : null;
+
+  if (claim === 'positive' && cell !== 'Yes') {
+    errors.push(`src/${name}/README.md says the package is AOT-compatible, but the compatibility table says "${cell}"`);
+  }
+
+  if (claim === 'negative' && cell === 'Yes') {
+    errors.push(`src/${name}/README.md says the package is not AOT-compatible, but the compatibility table says "Yes"`);
+  }
+}
+
 // Counts the code decides and prose restates (F-561, F-446). Nobody recomputes a sentence:
 // the store guide said 29 contracts where the package ships 30, the compatibility page said
 // "six" families beside a seventh constant, and the README said 654 public types for weeks

@@ -460,6 +460,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   registered with `TryAdd`, so a host that called `UseVoice` first kept speaking with ElevenLabs while the option said
   OpenAI, and nothing was written. A warning now names it at startup; call `UseOpenAISpeech` before `UseVoice`, or leave
   `UseAsDefault` off. The registration rule is unchanged.
+- **The AG-UI endpoint checks the client-side tools of the definition the run takes.** It read the current definition before
+  the experiment assigned a version, so an experiment arm that carried a client-side tool the front end had not declared
+  started a run that waited for a result nobody could produce, and a current version that carried one the arm did not
+  refused a run that needed nothing. The check now runs inside the turn preparation, with the assigned version.
+- **A callable agent in tool mode can no longer take the name of a task list, agent mode or file memory tool.** The rule
+  checked the agent's own tools, skill tools, `search_knowledge` and the session workspace, but not the tools a harness agent
+  has by default (`todos_*`, `mode_get`, `mode_set`) or file memory adds (`file_memory_*`). An agent named `todos-add` made two
+  tools of one name and the model provider refused the request with `400`. Validation and the compiler now report it.
 
 ## [1.0.0-preview.6] - 2026-10-27
 

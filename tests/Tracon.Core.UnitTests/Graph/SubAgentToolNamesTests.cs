@@ -92,6 +92,69 @@ public sealed class SubAgentToolNamesTests
     }
 
     [Fact]
+    public async Task The_fixed_tool_names_are_the_names_the_framework_providers_offer()
+    {
+        // F-608: the task list and agent mode names are private to the framework. They were measured, and this pins
+        // them: a provider run on a fake chat client must offer exactly the names the rule checks.
+        var client = new FakeChatClient();
+        var agent = client.AsAIAgent(new ChatClientAgentOptions
+        {
+            AIContextProviders = [new TodoProvider(new TodoProviderOptions()), new AgentModeProvider(new AgentModeProviderOptions())],
+        });
+
+        await agent.RunAsync("hi");
+
+        var offered = client.LastOptions!.Tools!.Select(static tool => tool.Name).ToList();
+
+        offered.Where(static name => name.StartsWith("todos_", StringComparison.Ordinal))
+            .ShouldBe(SubAgentToolNames.TodoToolNames, ignoreOrder: true);
+        offered.Where(static name => name.StartsWith("mode_", StringComparison.Ordinal))
+            .ShouldBe(SubAgentToolNames.AgentModeToolNames, ignoreOrder: true);
+    }
+
+    [Fact]
+    public void A_harness_agent_has_the_task_list_and_the_agent_mode_tools_unless_it_turns_them_off()
+    {
+        var harness = Definition(callable: ["todos-add", "mode-get"]) with { Harness = new HarnessSettings() };
+
+        var problems = SubAgentToolNames.FindProblems(harness);
+
+        problems.Count.ShouldBe(2);
+        problems[0].Message.ShouldContain("'todos_add'");
+        problems[1].Message.ShouldContain("'mode_get'");
+
+        SubAgentToolNames.FindProblems(harness with
+        {
+            Harness = new HarnessSettings { DisableTodoProvider = true, DisableAgentModeProvider = true },
+        }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_plain_agent_has_the_task_list_tools_only_when_its_memory_asks_for_them()
+    {
+        SubAgentToolNames.FindProblems(Definition(callable: ["todos-add"])).ShouldBeEmpty();
+
+        SubAgentToolNames.FindProblems(Definition(callable: ["todos-add"]) with
+        {
+            Memory = new MemorySettings { EnableTodo = true },
+        }).ShouldHaveSingleItem().Message.ShouldContain("'todos_add'");
+
+        // The agent mode is a harness provider: a plain agent never has it.
+        SubAgentToolNames.FindProblems(Definition(callable: ["mode-get"])).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void The_file_memory_tool_names_are_taken_only_while_file_memory_is_on()
+    {
+        SubAgentToolNames.FindProblems(Definition(callable: ["file-memory-write"])).ShouldBeEmpty();
+
+        SubAgentToolNames.FindProblems(Definition(callable: ["file-memory-write"]) with
+        {
+            Memory = new MemorySettings { EnableFileMemory = true },
+        }).ShouldHaveSingleItem().Message.ShouldContain("'file_memory_write'");
+    }
+
+    [Fact]
     public void The_semantic_search_tool_name_is_taken_only_while_semantic_search_is_on()
     {
         SubAgentToolNames.FindProblems(Definition(callable: ["search-knowledge"])).ShouldBeEmpty();

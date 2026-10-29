@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Tracon;
 
 /// <summary>
@@ -114,7 +117,9 @@ internal static class AuditChainWalker
                 entry.CreatedAt,
                 key);
 
-            if (!string.Equals(expectedHash, entry.Hash, StringComparison.Ordinal))
+            // The keyed hash is a message authentication code: compared in constant time, so a caller who can
+            // read the answer of the verify endpoint learns nothing from how long the comparison took (F-763).
+            if (!HashEquals(expectedHash, entry.Hash))
             {
                 return Failure(AuditChainStatus.Broken, entries.Count, entry.Id, unkeyed);
             }
@@ -142,6 +147,10 @@ internal static class AuditChainWalker
             UnkeyedEntries = unkeyed,
         };
     }
+
+    private static bool HashEquals(string expected, string? actual)
+        => actual is not null
+           && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(actual));
 
     private static AuditChainVerification Failure(AuditChainStatus status, int entriesChecked, Guid firstFailingEntryId, int unkeyed)
         => new()

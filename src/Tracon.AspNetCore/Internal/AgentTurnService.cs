@@ -130,6 +130,12 @@ internal static class AgentTurnService
     /// The surface the request came in on when it is not the management API's run endpoint (<c>ag-ui</c>); it is written
     /// into the audit row of an approval decision so the two can be told apart.
     /// </param>
+    /// <param name="checkAssignedVersion">
+    /// A surface's own check of the definition this run is going to use, called with the version the experiment
+    /// assigned (<see langword="null"/> when the run takes the current one) before the agent is compiled. Returns the
+    /// refusal, or <see langword="null"/> to go on. A check made before the assignment would read another version than
+    /// the run resolves.
+    /// </param>
     /// <returns>The turn that is ready to run, or the refusal to answer with.</returns>
     public static async ValueTask<TurnPreparation> PrepareAsync(
         string name,
@@ -137,7 +143,8 @@ internal static class AgentTurnService
         string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken,
-        string? surface = null)
+        string? surface = null,
+        Func<int?, ValueTask<IResult?>>? checkAssignedVersion = null)
     {
         var services = httpContext.RequestServices;
         var catalog = services.GetRequiredService<IAgentCatalog>();
@@ -216,6 +223,12 @@ internal static class AgentTurnService
         var assignment = await experimentAssignment
             .ResolveAsync(tenantContext.TenantId, name, assignmentKey, cancellationToken)
             .ConfigureAwait(false);
+
+        if (checkAssignedVersion is not null &&
+            await checkAssignedVersion(assignment?.Version).ConfigureAwait(false) is { } versionProblem)
+        {
+            return TurnPreparation.Refused(versionProblem);
+        }
 
         // 🚨 Missing/unknown parameters are checked BEFORE the run starts, so
         // the response is a proper ProblemDetails - this is not possible once

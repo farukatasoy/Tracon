@@ -151,6 +151,10 @@ internal static class AGUIInputMapper
     /// </summary>
     /// <param name="agentName">The agent.</param>
     /// <param name="input">The request body.</param>
+    /// <param name="version">
+    /// The version of the definition the run takes: the experiment arm's, or <see langword="null"/> for the current one.
+    /// The tools of the run are the tools of that version, not of the latest.
+    /// </param>
     /// <param name="httpContext">The request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
@@ -173,6 +177,7 @@ internal static class AGUIInputMapper
     public static async ValueTask<ToolBoundary> CheckToolsAsync(
         string agentName,
         RunAgentInput input,
+        int? version,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
@@ -188,8 +193,18 @@ internal static class AGUIInputMapper
             return ToolBoundary.None;
         }
 
+        var toolNames = descriptor.ToolNames;
+
+        if (version is { } assigned &&
+            await services.GetRequiredService<IAgentDefinitionStore>()
+                .GetVersionAsync(agentName, assigned, cancellationToken)
+                .ConfigureAwait(false) is { } pinned)
+        {
+            toolNames = pinned.ToolNames;
+        }
+
         var carried = services.GetRequiredService<IToolRegistry>().List()
-            .Where(tool => tool.RunsOnClient && descriptor.ToolNames.Contains(tool.Name, StringComparer.Ordinal))
+            .Where(tool => tool.RunsOnClient && toolNames.Contains(tool.Name, StringComparer.Ordinal))
             .Select(static tool => tool.Name)
             .ToHashSet(StringComparer.Ordinal);
 

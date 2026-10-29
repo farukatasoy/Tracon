@@ -93,13 +93,6 @@ internal static class AGUIRunEndpoint
             return gateProblem;
         }
 
-        var tools = await AGUIInputMapper.CheckToolsAsync(agentName, input, httpContext, cancellationToken).ConfigureAwait(false);
-
-        if (tools.Problem is { } toolProblem)
-        {
-            return toolProblem;
-        }
-
         var resume = await AGUIInputMapper.MapResumeAsync(input, httpContext, cancellationToken).ConfigureAwait(false);
 
         if (resume.Problem is { } resumeProblem)
@@ -109,8 +102,26 @@ internal static class AGUIRunEndpoint
 
         request = request with { Approvals = resume.Approvals, InputResponses = resume.Inputs };
 
+        // The tools of the run are the tools of the version the experiment assigns, which is known inside the
+        // preparation; a check before it read the latest definition (F-667).
+        var tools = ToolBoundary.None;
+
         var preparation = await AgentTurnService
-            .PrepareAsync(agentName, request, prefix: string.Empty, httpContext, cancellationToken, Surface)
+            .PrepareAsync(
+                agentName,
+                request,
+                prefix: string.Empty,
+                httpContext,
+                cancellationToken,
+                Surface,
+                async version =>
+                {
+                    tools = await AGUIInputMapper
+                        .CheckToolsAsync(agentName, input, version, httpContext, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    return tools.Problem;
+                })
             .ConfigureAwait(false);
 
         if (preparation.Turn is not { } turn)
