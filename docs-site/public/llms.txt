@@ -313,6 +313,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Inbound triggers](https://tracon.dev/guides/inbound-triggers/) — Let an external system such as Slack start a queued agent or workflow run over a signed HTTP request, with no bearer token.
 - [Knowledge and RAG](https://tracon.dev/guides/knowledge/) — Ingest, chunk, embed, search, and bind tenant-scoped knowledge so agents can retrieve evidence through a controlled tool.
 - [Provider-hosted live voice](https://tracon.dev/guides/live-voice/) — Let the provider host a full-duplex spoken conversation over WebRTC while Tracon creates the session, applies its gates, and turns delegations into runs.
+- [MCP tools and OAuth across instances](https://tracon.dev/guides/mcp-across-instances/) — Run an MCP server that uses OAuth on two instances - where the token lives, how the provider's redirect reaches either one, and what the mode checks at start.
 - [Model providers](https://tracon.dev/guides/model-providers/) — Register OpenAI, Anthropic, Google, Azure OpenAI, or a compatible endpoint, then bind each agent without storing credentials.
 - [Multimodal input and generated images](https://tracon.dev/guides/multimodal/) — Upload images, documents, text, and audio safely, attach them to a run, or generate a durable image attachment with an agent tool.
 - [Observability](https://tracon.dev/guides/observability/) — Record and inspect runs, export OpenTelemetry signals, configure health checks, and diagnose storage, provider, and pricing failures.

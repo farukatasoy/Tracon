@@ -554,7 +554,7 @@ server itself advertises; accepting arbitrary URIs would be an SSRF tool.
 OAuth tokens are **never written to the database**. By default they are held in memory,
 per tenant and server, in the process that obtained them. With more than one instance, set
 `Tracon:Mcp:OAuthTokenStore` to `DistributedCache`: the tokens are then kept, encrypted, in
-your `IDistributedCache`. See [MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
+your `IDistributedCache`. See [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 
 ### A server asks the user for input
 

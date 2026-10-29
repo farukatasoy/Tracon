@@ -78,7 +78,7 @@ instances, keep the token in your `IDistributedCache` instead:
 The token is encrypted with the content protector (`AddContentProtection`); the application does not start in this
 mode without an `IDistributedCache` and content protection. The provider's redirect may then reach either instance.
 Discovery runs on every instance in both modes, because each instance keeps its own tool catalog and live connection.
-See [MCP tools and OAuth across instances](https://tracon.dev/guides/production/#mcp-tools-and-oauth-across-instances).
+See [MCP tools and OAuth across instances](https://tracon.dev/guides/mcp-across-instances/).
 
 ## Tool names
 

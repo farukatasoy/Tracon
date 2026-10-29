@@ -130,7 +130,7 @@ Someone who can read both gets them. Nothing then limits what that token may do 
 scope the provider granted. Keep the encryption key out of the cache's reach, and give the cache the same access control
 you give any store of credentials. The callback endpoint takes no bearer token and writes to that cache, but only for an
 authorization an instance announced; see
-[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
+[MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 :::
 
 :::caution[The audit chain key does not stop someone who holds the key]

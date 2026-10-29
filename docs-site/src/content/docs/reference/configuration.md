@@ -756,7 +756,7 @@ servers that use OAuth in your `IDistributedCache`, encrypted, and lets the prov
 instance. The application does not start in that mode without an `IDistributedCache` and content protection.
 `OAuthTokenSlidingLifetime` is how long a token stays in the cache without a write; it applies to
 `DistributedCache` only and must be greater than zero. See
-[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
+[MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 
 The remaining keys belong to `TraconMcpOptions`. `UseMcp()` without arguments uses
 those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:

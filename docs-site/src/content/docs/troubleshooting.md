@@ -445,7 +445,7 @@ If more than one instance serves the application, the provider's redirect may ha
 not start the authorization. With the default `Tracon:Mcp:OAuthTokenStore` (`Memory`) only the instance that
 started it can finish it. Set `Tracon:Mcp:OAuthTokenStore` to `DistributedCache`, with a shared `IDistributedCache`
 and content protection; see
-[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances). With one instance,
+[MCP tools and OAuth across instances](/guides/mcp-across-instances/). With one instance,
 the session ended after 10 minutes: start the authorization again.
 
 ### An MCP server's tools appear on one instance only

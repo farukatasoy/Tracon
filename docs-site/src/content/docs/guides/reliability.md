@@ -418,7 +418,7 @@ leases, so turning on singleton execution does not reduce job-worker concurrency
 
 MCP discovery does not use it either. Each instance keeps its own catalog of remote tools and the
 live connection a tool call goes through, so every instance discovers. See
-[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
+[MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 
 ## Bound multi-agent trees
 

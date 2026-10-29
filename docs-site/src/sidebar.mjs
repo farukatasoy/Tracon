@@ -102,6 +102,7 @@ export const sidebar = [
       { label: 'Production deployment', slug: 'guides/production' },
       { label: 'Upgrading a production deployment', slug: 'guides/production-upgrades' },
       { label: 'Audit chain key', slug: 'guides/audit-chain-key' },
+      { label: 'MCP tools and OAuth across instances', slug: 'guides/mcp-across-instances' },
       { label: 'Embedding into a host application', slug: 'guides/embedding' },
       { label: 'Two connection planes: EF Core and Tracon', slug: 'guides/ef-core' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },

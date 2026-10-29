@@ -247,7 +247,7 @@ A token that an MCP server's OAuth flow returns is never written to the database
 memory of the process that obtained it. With more than one instance, `Tracon:Mcp:OAuthTokenStore = DistributedCache`
 keeps it in your `IDistributedCache`, encrypted with the content protector. The application does not start in that mode
 while content protection is off. See
-[MCP tools and OAuth across instances](/guides/production/#mcp-tools-and-oauth-across-instances).
+[MCP tools and OAuth across instances](/guides/mcp-across-instances/).
 
 ### Credential headers are declared by key name
 
