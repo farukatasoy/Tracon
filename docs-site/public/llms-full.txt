@@ -50,6 +50,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, model, factory)` | The catalog still applies Tracon decorators. The agent skips the compiler. With a declared model, `context.ChatClient` carries the model rings, the tenant provider key, and the egress policy, and the run record names the model and its cost; a request field on the binding is refused. `AddAgent(name, factory)` declares no model: it loses the key, the egress policy, and cost, and Tracon writes one warning per agent name. See [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) |
 | Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider` or a chat client ring, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
+| Definition transfer | Export agents, workflows, skills and MCP servers as one file; import it with a dry run first, version pins translated, nothing written unless the whole file is valid | `tracon export/import` | No history, run, `secret`, token or plain header value travels ([guide](/guides/move-definitions/)) |
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
@@ -166,7 +167,7 @@ is the list.
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
-| Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()`, `GetWorkflowFunction` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin (fixed in the graph, or read from a run parameter), and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
+| Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin (fixed in the graph, or read from a run parameter), and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
 | Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and a spent cost quota of the tenant does too (`tenant_quota_exceeded`), and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one from both; the ceiling is the logical run's, so a run that continues an earlier one (an answer, a resume, a recovery) starts from what the earlier runs spent; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `UseScheduling()` | A process can run workers or act only as an API node |
@@ -176,7 +177,7 @@ is the list.
 | Run reconciliation | `Tracon:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
 | Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
 | Workflow recovery | `UseWorkflows(o => o.ResumeInterruptedRuns = true)` | A queued workflow run or batch item interrupted by a crash, a deploy or a graceful stop continues from its latest checkpoint when its job is leased again, as a new run linked by `ContinuedFromRunId`, up to `MaxResumeAttempts`; the step in progress runs again |
-| Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
+| Workflow node retry | `AddWorkflowFunction(retryPolicy: ...)` | A transient provider error retries a single node without failing the run or costing an extra super-step |
 | Time limits | `options.Timeout`, `JobRequest.MaxDuration`, a node's `timeout`, a definition's `runTimeout`, `Tracon:Scheduling:MaxDurationByHandlerKey` | A workflow step past its timeout fails the run (`workflow_function_timeout`, `child_run_timeout`); a definition shortens its run timeout, or lengthens it up to `Tracon:Workflows:MaxRunTimeout`, and its `requestTimeout` closes a run nobody answered; a job past its limit has its handler's token cancelled and fails with `tracon.job.max-duration-exceeded`. A job cancel reaches a running handler within one `PollInterval` |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
@@ -695,6 +696,11 @@ Every save appends a version rather than overwriting. Nothing rewrites history:
 
 Rollback moving forward is the point: the rollback is itself auditable and can be
 rolled back in turn.
+
+A version number belongs to one installation. Another installation, or another tenant,
+numbers the same agent its own way. When you [move definitions between
+installations](/guides/move-definitions/), a pin to a version of an agent is translated
+to the version the target holds, and a pin the file cannot translate stops the import.
 
 A version number is an identity, and a name never gets one twice. `DELETE /api/agents/{name}`
 removes the definition and every version, but the numbering stays: create the agent again and
@@ -5588,6 +5594,11 @@ name again continues the numbering: after version 3 and a delete, the next save 
 4. The kept versions are not served over HTTP while the workflow is deleted. A workflow
 stored before versions were kept starts its history at the version it has today.
 
+A stored workflow can move to another installation or tenant as a file. The import writes it
+as a new version of the workflow the target already holds (or as its first version), and it
+translates an agent version a node pins to the version the target holds. See [Move
+definitions between installations](/guides/move-definitions/).
+
 ### A resume compiles the version the run recorded
 
 The row of a workflow run records the definition version it was compiled from, as
@@ -9799,6 +9810,8 @@ tracon --help
 | `tracon state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the session and workflow checkpoint state already in the database. Writes nothing |
 | `tracon health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
 | `tracon eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
+| `tracon export --url <base-url> [--token <token>] [--agent <name>]... [--workflow <name>]... [--types agents,workflows,skills,mcp-servers] [--output <file>]` | HTTP, with the bytes unchanged | Writes the definitions an installation keeps in its database as one `tracon.definitions` file, to `--output` or to standard output |
+| `tracon import --url <base-url> --file <file> [--token <token>] [--types agents,workflows,skills,mcp-servers] [--apply] [--json]` | HTTP, with the bytes unchanged | Plans and validates a `tracon.definitions` file. Writes it only with `--apply`, and only when every item is valid |
 | `tracon agent-skill [--format claude] [--output <directory>] [--force] [--json]` | The local file system | Writes the gate skill a coding agent's harness loads before it writes Tracon code. The only command that changes your working tree, and the only one that reaches neither the database nor HTTP |
 
 `--connection` and `--token` also accept the `TRACON_CONNECTION` and
@@ -9909,14 +9922,38 @@ regressions. `--max-regressions` without `--baseline` is an argument error
 regressions" when nothing was compared. On a suite's first run there is no
 earlier run; that is written to stderr and the gate is skipped, not failed.
 
+### `export` and `import`: moving definitions between installations
+
+`export` writes the agents, workflows, skills and MCP servers an installation
+keeps in its database as one file. `import` reads such a file into another
+installation or tenant. A call without `--apply` is a dry run: it writes nothing
+and says, for every item, what would happen (`create`, `newVersion`, `update`,
+`unchanged`, `rejected`, `blocked`) and which fields differ. `--apply` writes,
+and only a file in which every item is valid is written at all.
+
+```bash
+tracon export --url https://dev.example.com/tracon --agent triage --output bundle.json
+tracon import --url https://prod.example.com/tracon --file bundle.json            # dry run
+tracon import --url https://prod.example.com/tracon --file bundle.json --apply
+```
+
+These two commands send and receive the file as bytes and do not go through the
+typed client. A typed object that lacks a field a newer server adds would drop
+the field, and the next import would not be the file that was exported.
+`export` writes the file to `--output`, or to standard output when there is none;
+every message goes to standard error, so `tracon export ... > bundle.json` leaves a
+file that is only the file. The [Move definitions between installations](/guides/move-definitions/)
+guide covers what a file carries and leaves out, version pins, MCP servers and their
+tools, and what happens when a write stops half way.
+
 ### Exit codes
 
 | Code | Meaning |
 |---:|---|
 | `0` | Ran and passed the gate (or no gate was given) |
 | `1` | Argument error (missing/invalid flag, unknown command) |
-| `2` | Could not run: connection failed, HTTP error, timed out, or (`eval` only) the run itself ended `Failed`/`Cancelled` |
-| `3` | Ran, but the answer is bad: (`eval`) missed the quality gate, or (`state-check`) found state this build cannot read |
+| `2` | Could not run: connection failed, HTTP error, timed out, (`eval` only) the run itself ended `Failed`/`Cancelled`, or (`import` only) a store failed while writing, so running the same command again writes the rest |
+| `3` | Ran, but the answer is bad: (`eval`) missed the quality gate, (`state-check`) found state this build cannot read, or (`import`) the file is invalid or an item is `blocked` |
 | `4` | (`eval` only) Ran, but could not be compared against `--baseline` |
 
 The distinction between `2` and `3` is operational: `2` is an infrastructure
@@ -9925,7 +9962,8 @@ the wrong move. `4` is a third thing again — the baseline's per-case results
 have aged out of retention, it never completed, or it measures another suite.
 Folding it into `3` would send someone hunting for a regression that was never
 measured. `migrate`, `migrate status`, and `health` never return `3` or `4`;
-`state-check` never returns `4`. `agent-skill` returns only `0`, `1`, or `2`,
+`state-check` never returns `4`. `export` returns only `0`, `1`, or `2`, and `import`
+never returns `4`. `agent-skill` returns only `0`, `1`, or `2`,
 where `2` means the file could not be written.
 
 ## Read next
@@ -9933,6 +9971,7 @@ where `2` means the file could not be written.
 - [Persistence](/getting-started/persistence/) — what a migration actually does to the schema
 - [Every public type](/api/) — the full generated client surface
 - [Coding agents](/guides/coding-agents/) — what `agent-skill` writes, and why
+- [Move definitions between installations](/guides/move-definitions/) — what `export` and `import` carry, and how a pin is translated
 
 ---
 
@@ -14415,6 +14454,259 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 - [Reliable runs](/guides/reliability/) — provider fallback chains and outgoing concurrency limits
 - [Choosing packages](/packages/) — select the packages needed by your host and its integrations.
 - [Agents and definitions](/concepts/agents/) — configure and version the definitions that the catalog resolves.
+
+---
+
+# Move definitions between installations
+
+Source: https://tracon.dev/guides/move-definitions/
+
+You build an agent in a development installation. You try it and version it
+there. Then it has to run in staging and in production. This guide moves the
+definition as a file: you export it, you review it, and you import it with a dry
+run first.
+
+The import does one thing: it copies **definitions**. It does not copy history,
+runs, sessions, secrets, tokens or script permissions. Read
+[What a file carries](#what-a-file-carries) before you use it as a backup. It is
+not one.
+
+```mermaid
+flowchart LR
+    accTitle: Moving definitions from one installation to another
+    accDescr: The source installation exports a tracon.definitions file. A person reviews it. The import plans every item against the target, validates the whole file as if it were saved, and writes the items only when none is refused.
+    SRC["Source installation<br/>agents, workflows,<br/>skills, MCP servers"] -->|"GET /api/definitions/export"| FILE["tracon.definitions<br/>(one JSON file)"]
+    FILE -->|"review, commit, diff"| FILE
+    FILE -->|"POST /api/definitions/import<br/>dryRun=true (default)"| PLAN["Plan and validate<br/>every item"]
+    PLAN -->|"every item valid and dryRun=false"| TGT["Target installation<br/>writes in order"]
+    PLAN -->|"one item refused"| STOP["Nothing is written"]
+```
+
+## Export
+
+```bash
+# Everything the tenant keeps in its database
+tracon export --url https://dev.example.com/tracon --output bundle.json
+
+# One agent, and what it needs
+tracon export --url https://dev.example.com/tracon --agent triage --output bundle.json
+
+# Every skill and every MCP server, nothing else
+tracon export --url https://dev.example.com/tracon --types skills,mcp-servers --output bundle.json
+```
+
+The same call over HTTP: `GET /api/definitions/export`, with `?agent=` and
+`?workflow=` (each may repeat) or `?types=` (`agents`, `workflows`, `skills`,
+`mcpServers`; comma separated). Naming definitions and kinds in one call is
+refused with `400`.
+
+A selection by name brings **what the named definitions need**, so the file
+imports on its own:
+
+| A definition of this kind | brings |
+|---|---|
+| Agent | the stored skills it loads, the agent it takes shared instructions from, the agents it calls, the agents that review it in a loop, and the MCP servers whose tools or resources it uses |
+| Workflow | the agents of its list, its manager and its agent nodes (and what those agents need) |
+
+An MCP server is matched by name prefix: a tool `lookup_find` belongs to the
+server `lookup`. When two server names are both prefixes of one tool name, the
+file carries both. It may bring one server too many and never one too few.
+
+An agent defined in code, or in a custom agent source, is not exported: the
+importing installation has to carry it in its own code. When a selection by name
+reaches one, the file leaves it out and says so in `warnings`.
+
+The file is sorted by name. The same definitions always write the same bytes,
+so you can commit it and read the diff.
+
+Exporting needs the `Reader` role and the `AgentsRead` scope when you call with
+an API key. A file that holds workflows needs `WorkflowsRead` too; the answer is
+`403` and names the scope that is missing. Every export writes one line to the
+audit trail with the counts. The line never holds content.
+
+## What a file carries
+
+| Carried | Not carried |
+|---|---|
+| Agents, workflows, stored skills, remote MCP servers, in the shape of the save endpoint | Version history. Each definition travels as its current content, with the version it had in the source as `sourceVersion` |
+| For an MCP server: the **names** of its plain headers, and the names of the configuration keys its credentials are read from | A plain MCP header value. A response never returns one, so a file never carries one |
+| | The tenant. The import writes to the tenant of the caller |
+| | `secret` values, OAuth tokens, script permissions, runs, sessions, approvals |
+| | Skills defined in code or on disk, agents defined in code |
+
+A definition's `secret` stays where it is. The file moves the **name** of a
+configuration key, for example `Tracon:McpSecrets:acme:SearchKey`. The target
+has to hold a value under that key. A tenant may only name keys of its own key
+space, so a file exported from tenant `acme` is refused in tenant `beta` for
+every server that names an `acme` key.
+
+## Import
+
+```bash
+# Dry run: plans and validates, writes nothing (the default)
+tracon import --url https://prod.example.com/tracon --file bundle.json
+
+# Write it
+tracon import --url https://prod.example.com/tracon --file bundle.json --apply
+```
+
+Over HTTP: `POST /api/definitions/import`. `dryRun` **defaults to true**. A bare
+call never writes. `?dryRun=false` writes and needs the `Admin` role; a dry run
+needs `Operator`. Each kind needs its scope when you call with an API key:
+`AgentsAdmin` for agents, skills and MCP servers, `WorkflowsAdmin` for workflows.
+
+### What the report says
+
+Every item of the file gets one action:
+
+| Action | Meaning |
+|---|---|
+| `create` | The target has no such definition |
+| `newVersion` | The target has the agent or workflow with other content. The history grows by one version |
+| `update` | The target has the skill or MCP server with other content. It is overwritten in place, because neither keeps a history |
+| `unchanged` | The target already holds this content. Nothing is written |
+| `rejected` | A write rule refuses the item. `messages` says which |
+| `blocked` | The item waits for an earlier step. See [MCP servers and their tools](#mcp-servers-and-their-tools) |
+| `skipped` | The call left the item's kind out of `types` |
+
+`changedPaths` lists the JSON paths that differ. `current` and `incoming` hold
+the two definitions, so a reviewer can read the change. In the console the
+Transfer screen shows them side by side.
+
+Importing the same file twice is safe: the second run finds every item
+`unchanged` and writes nothing. That also makes a half-finished import
+recoverable. See [When a write stops half way](#when-a-write-stops-half-way).
+
+### The file is validated as if it were saved
+
+The import does not write its own rules. Every item passes the **same rules the
+save endpoints apply** (`POST /api/agents`, `PUT /api/workflows/{name}`,
+`PUT /api/skills/{name}`, `PUT /api/mcp-servers/{name}`), so a file the import
+accepts is a file you could have saved by hand. An item the save refuses, the
+import refuses with the same words.
+
+The target and the file are read together. An agent in the file may call, pin,
+review with, or take shared instructions from another agent of the same file,
+and may load a skill of the same file. None of them has to exist in the target
+yet. A dry run never changes what the target does: the agents of the file do not
+appear in the catalog, and a run of an existing agent still uses its saved
+content.
+
+**Nothing is written unless every item is valid.** One refused item stops the
+whole file. A dry run answers `200` with `"valid": false`. `?dryRun=false` on
+such a file answers `400` with the same report.
+
+### Version pins
+
+A pin names a version: a callable agent with a `version`, a loop reviewer with
+`reviewerAgentVersion`, a workflow node with `agentVersion`. The number is the
+**source** installation's. In the target, version 4 of an agent can be other
+content, or not exist.
+
+The import therefore translates every pin to the version the target holds after
+the import. If the file holds agent `x` as `sourceVersion: 4` and an agent pins
+`x` at 4, the pin becomes the version the target gives `x`. That is the new
+version when `x` changes, or the version it already has when `x` is
+`unchanged`. The report shows the mapping, for example `v4 -> v7`.
+
+A pin the import cannot translate stops it with `import_pin_untranslatable`: a
+pin to an agent the file does not hold, or to a version of an agent other than
+the one the file holds. Leave out the version to run the current one, or export
+the file again. The export warns about such a pin in `warnings`, next to its
+cause.
+
+### MCP servers and their tools
+
+A server's tool list comes from the live server, and the import cannot ask a
+server it has not saved yet. An agent that uses a tool of an MCP server the file
+would **create or change** is therefore `blocked` in the first pass. Import in
+two steps:
+
+```bash
+# 1. The servers only. Authorize OAuth afterwards if a server uses it.
+tracon import --url https://prod.example.com/tracon --file bundle.json \
+  --types mcp-servers --apply
+
+# 2. The rest. The servers are now `unchanged`, and the tools are read live.
+tracon import --url https://prod.example.com/tracon --file bundle.json --apply
+```
+
+Three more things need a person after an MCP server is imported. The report
+lists each as a warning:
+
+- A new server's **plain header values** have to be entered in the target. The file only names the headers. A server that exists in the target keeps the header values it has.
+- A server that uses OAuth has to be **authorized again** in the target. A token is not carried across.
+- A server that moves to another host keeps its stored headers, and they now go to the new host.
+
+A server that waives approval (`requiresApproval: false`) also needs the
+`SecurityAdmin` scope when you call with an API key, as it does when you save
+it directly.
+
+### Scripts
+
+A skill script's permission to run pins the content it was granted for. When an
+import changes a script, the old permission no longer holds. The report warns,
+and you grant it again in the target.
+
+### When a write stops half way
+
+The four stores share no transaction. Items are written one at a time through
+the same save the endpoints use, so the audit trail of each store records every
+item. When a store fails after some items were written, the answer is `200`
+with `"applied": false` and `"partial": true`. `written` lists what is in the
+target. Run the same command again: the written items read as `unchanged`, and
+the rest is written.
+
+Once the first item is written, the import does not stop when the caller drops
+the connection. A half-imported bundle left by a closed laptop would help no one.
+The write ends with one summary line in the audit trail (counts and the SHA-256
+of the file, never content). A dry run writes no audit line at all.
+
+There is no lock. Two imports at the same time, or an import and a save, are
+both written and the last write wins. The version history of each side stays
+whole.
+
+## Exit codes of the CLI
+
+| Code | `tracon import` | `tracon export` |
+|---:|---|---|
+| `0` | The file is valid (dry run), or it was written | The file was written |
+| `1` | Argument error | Argument error |
+| `2` | Could not run: connection, HTTP, timeout, or a store failed while writing. Run it again | Could not run |
+| `3` | The file is invalid, or an item is `blocked`. Running it again unchanged will not help | — |
+
+`--json` prints the report exactly as the server sent it. The CLI sends the file
+as bytes and does not read it through typed objects, so a field a newer server
+adds is never lost on the way.
+
+## The file format
+
+`format` is `tracon.definitions` and `formatVersion` is `1`. A file with a larger
+`formatVersion` is refused with `400`. So is a file with a member this version
+does not know, and the answer names the path of the member. A reader that
+dropped such a member silently would import a definition that is not the one in
+the file.
+
+```json
+{
+  "format": "tracon.definitions",
+  "formatVersion": 1,
+  "exportedAt": "2026-10-29T12:00:00Z",
+  "agents":     [ { "sourceVersion": 4, "definition": { "name": "triage", "...": "same shape as POST /api/agents" } } ],
+  "workflows":  [ { "name": "intake", "sourceVersion": 2, "definition": { "...": "same shape as PUT /api/workflows/{name}" } } ],
+  "skills":     [ { "sourceVersion": 3, "definition": { "name": "policy", "...": "same shape as PUT /api/skills/{name}" } } ],
+  "mcpServers": [ { "name": "search", "definition": { "...": "same shape as PUT /api/mcp-servers/{name}" }, "headerNames": ["X-Region"] } ],
+  "warnings": []
+}
+```
+
+An import reads at most 8 MiB. A larger body is refused with `413`.
+
+## Read next
+
+- [Typed client and CLI](/guides/cli/) — set up the CLI and read the other commands
+- [Agents](/concepts/agents/#versions) — how versions and pins work inside one installation
+- [Console](/ui/) — the Transfer screen
 
 ---
 
@@ -21594,7 +21886,7 @@ Tracon instance, from a separate application or from a terminal.
 | Package | What it does |
 |---|---|
 | `Tracon.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Every endpoint that answers with Server-Sent Events also gets a `...StreamAsync` method yielding one frame at a time. Takes no Tracon package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
-| `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result; `agent-skill` writes the gate skill a coding agent's harness loads before it writes Tracon code |
+| `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result; `agent-skill` writes the gate skill a coding agent's harness loads before it writes Tracon code; `export` and `import` move the agents, workflows, skills and MCP servers of an installation to another one as a file, with a dry run by default |
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 
@@ -28553,7 +28845,7 @@ table row is about 32 px tall.
 Navigation is split by the job you are doing. **Operate** holds what the airspace
 is doing right now — dashboard, playground, runs, sessions, approvals, jobs,
 evaluations, audit, diagnostics. **Configure** holds what is allowed to fly —
-agents, workflows, tools, skills, models, MCP servers, triggers, settings.
+agents, workflows, tools, skills, models, MCP servers, triggers, transfer, settings.
 
 There is one accent colour. Everything else that is coloured is a status, and the
 same status is the same colour on every screen:
@@ -29002,6 +29294,24 @@ Inbound triggers let an external system start a queued run with one signed reque
 no API key. A trigger's editor shows the exact URL to configure in that system, the
 target agent or workflow, and the name of the configuration key holding its signing
 secret — see [Inbound triggers](/guides/inbound-triggers/).
+
+### Transfer
+
+<a class="ui-shot" href="/screenshots/transfer.png"><img src="/screenshots/transfer.png" alt="The Transfer screen: an export panel with the agents and workflows to choose from, and an import panel with a file picker" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Moves agents, workflows, stored skills and MCP servers between installations as one
+`tracon.definitions` file. The **Export** panel lists your agents and workflows; leave
+both lists empty to export everything, or tick some to start from them. *Prepare the
+file* asks the server for the file and shows what it will hold, including the skills,
+agents and MCP servers the chosen definitions need, and any warning, before *Download*
+saves it. The **Import** panel takes a file and checks it first: the report lists every
+item with what the import would do (*Create*, *New version*, *Update*, *Unchanged*,
+*Refused*, *Blocked*, *Skipped*), the version an agent had in the source and the version
+it will have here (`v4 → v7`), and the findings. Opening a row puts the definition the
+target holds beside the one the file would write. *Apply* is lit only while a valid report
+is on the screen and only for the administrator role; an operator can check a file and
+cannot write it. The server enforces both. Nothing is written for a file with any refused
+item. See [Move definitions between installations](/guides/move-definitions/).
 
 ### Diagnostics
 
