@@ -53,6 +53,11 @@ builder.AddWorkflow("custom-graph", services =>
 });
 ```
 
+A graph built in code writes no spans unless its builder calls `.WithOpenTelemetry()`. With the call, its
+steps (`executor.process <id>`) join the trace of the run, next to the agent and chat spans; without it the
+trace is what it was. Pass no `ActivitySource`: the run trace listens to the framework's own source and to
+`Tracon`, and a source of your own is not read.
+
 ## Answering a request once
 
 A graph that asks a person through a `RequestPort` waits as `AwaitingInput`, and

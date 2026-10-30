@@ -215,6 +215,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Embedding, image and speech calls and the steps of a workflow are spans of the run trace.** Before, the trace of a
+  run held the agent, chat and tool spans and nothing else, so a slow query embedding, a 30-second image or a slow
+  workflow step read as one opaque tool span or as a gap. The consumer's `IEmbeddingGenerator` (the `search_knowledge`
+  tool, knowledge ingestion), the image generator (the `generate_image` tool and endpoint) and a Microsoft.Extensions.AI
+  speech client served as a Tracon speech provider now run inside the library's OpenTelemetry ring on the `Tracon`
+  source: an `embeddings` span, and a `generate_content` span for an image, a synthesis or a transcription, told apart
+  by `gen_ai.output.type` (`image`, `audio`, `text`). A workflow Tracon builds from a stored definition writes
+  `workflow.session`, `workflow_invoke` and one `executor.process <step>` span per step; message sends and edge groups
+  are off, because a run keeps at most `Tracon:Observability:MaxSpansPerRun` spans. A stored workflow of three steps (two
+  agent steps and one function step) keeps 13 spans of the 200. A graph built in code is the consumer's: Tracon cannot add
+  the ring to it, so the trace also listens to the framework's own `Microsoft.Agents.AI.Workflows` source, and a graph
+  that calls `.WithOpenTelemetry()` shows its steps while a graph that does not changes nothing. The rings never set
+  `EnableSensitiveData`; that switch stays yours, and `RecordSensitiveData` decides what the store keeps. A host that
+  already wraps its own generator with `UseOpenTelemetry` sees two spans per call in its exporter, one on its own source
+  and one on `Tracon`. An ingestion runs outside any run, so its span reaches your exporter and never a stored trace. No
+  new public type.
+
 - **MCP OAuth works on two instances. Set `Tracon:Mcp:OAuthTokenStore` to `DistributedCache`.** The default, `Memory`,
   keeps today's behavior: a token lives in the memory of the process that obtained it, and only the instance that started an
   authorization can finish it. With `DistributedCache` the token is kept in your `IDistributedCache`, encrypted with
@@ -405,6 +422,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`Tracon:Observability:RecordSensitiveData=false` did not keep the system instructions and every tool call's arguments
+  and result out of the span store when the host had turned on the content switch of its own exporter.** A host that set
+  `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` found `gen_ai.system_instructions`,
+  `gen_ai.tool.call.arguments` and `gen_ai.tool.call.result` in `GET /api/runs/{id}/trace`, because the store filter kept
+  only keys that do not contain `message`, `prompt` or `completion`, and those three keys contain none of them. The
+  filter now drops them and the framework's `executor.input` and `executor.output`; token counts stay. A host that never
+  set the variable was not affected. Spans already stored keep what they were written with: a host that ran with the
+  variable on should review its retained traces.
+- **The run trace of a workflow held its root span and nothing else.** The framework runs a graph on a task it starts, and
+  that task carried no ambient span, so every agent, chat and tool span of every step was a root of its own trace and
+  no run owned it. They are now spans of the workflow's run.
 - **A server's tools are listed on every instance when singleton execution is on.** See the first entry under "Upgrading".
 - **A token is forgotten when its server is deleted.** The refresh that notices a deleted server removes the token this
   process held a cache for (in the distributed cache, the shared entry); a disabled server keeps its token, and a tenant the

@@ -227,7 +227,7 @@ caller's role and key scopes. See the complete scope table in
 | Capability | Output | Control |
 |---|---|---|
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
-| OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; Tracon can also persist a sample |
+| OpenTelemetry traces | `ActivitySource` spans for runs, agents, chat calls, tools, embeddings, images, speech and workflow steps | Your exporter remains in control; Tracon can also persist a sample, and the stored spans carry no content unless you turn `RecordSensitiveData` on |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
 | Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free. `cost` is the token cost; what nodes and tools reported beyond tokens is `nonTokenCost` on the run |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |

@@ -239,6 +239,12 @@ on the model binding, not a global setting. See
 These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
 
+`RecordSensitiveData` filters what the trace store keeps, not what the rings that
+write the spans record. While it is `false` the store drops every content key from
+every span: message, prompt and completion text, system instructions, tool arguments
+and results, and workflow executor input and output. Token counts stay. See
+[content and the two switches](/guides/observability/#content-and-the-two-switches).
+
 `IncludeTenantTag` adds `tracon.tenant.id` to eight metrics (run, cost, judge,
 response cache, audit failures, recording failures and jobs). It is off by default,
 because it multiplies each series by the number of tenants. Spans and the quota

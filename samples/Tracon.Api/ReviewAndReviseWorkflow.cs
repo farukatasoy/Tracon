@@ -222,6 +222,14 @@ internal static class ReviewAndReviseWorkflow
             .AddEdge(render, qa)
             .WithOutputFrom(qa)
             .WithName(Name)
+
+            // The steps of this graph become spans of the run trace. Message sends and edge groups are left out: a
+            // graph with a way back sends many messages, and a run keeps at most MaxSpansPerRun spans.
+            .WithOpenTelemetry(static options =>
+            {
+                options.DisableMessageSend = true;
+                options.DisableEdgeGroupProcess = true;
+            })
             .Build();
     }
 

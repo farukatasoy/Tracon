@@ -106,6 +106,11 @@ static Workflow Build(IServiceProvider services)
         .AddEdge(approved, tts).AddEdge(tts, render).AddEdge(render, qa)
         .WithOutputFrom(qa)
         .WithName("review-and-revise")
+        .WithOpenTelemetry(options =>
+        {
+            options.DisableMessageSend = true;
+            options.DisableEdgeGroupProcess = true;
+        })
         .Build();
 }
 ```
