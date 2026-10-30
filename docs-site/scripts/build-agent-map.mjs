@@ -79,8 +79,13 @@ export const agentMapBudgetBytes = 11264;
  * measures 25,737 B, 137 B over the ceiling. A description shorter than the 70
  * characters the content gate allows would still have left it 48 B over, so
  * shortening the new line could not pay for it. 26 KiB leaves about 890 B.
+ *
+ * Raised a fourth time, from 26 KiB to 27 KiB, measured: the Aspire guide and the page that places Tracon next to
+ * Microsoft's control planes add two lines, and the index then measures 26,923 B, over the ceiling by 299 B. Both
+ * descriptions double as search snippets, and the two lines together cost 452 B, so shortening them could not pay for
+ * the pages. 27 KiB leaves about 720 B.
  */
-export const llmsBudgetBytes = 26624;
+export const llmsBudgetBytes = 27648;
 
 /** The byte ceiling of each budgeted artifact. */
 export const budgets = { agentMap: agentMapBudgetBytes, llms: llmsBudgetBytes };

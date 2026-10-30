@@ -27,6 +27,7 @@
 
   <Folder Name="/samples/">
     <Project Path="samples/Tracon.Api/Tracon.Api.csproj" />
+    <Project Path="samples/Tracon.AppHost/Tracon.AppHost.csproj" />
     <Project Path="samples/Tracon.Embedded/Tracon.Embedded.csproj" />
   </Folder>
 

@@ -218,6 +218,19 @@
   </ItemGroup>
 
   <!--
+    Faz 268: samples/Tracon.AppHost (Aspire) ve samples/Tracon.Api'nin kosullu OTLP cikisi. Bu paketler yalniz
+    samples/ altindadir, sevk edilen hicbir paketin grafina girmez (K-007); Tracon kendi `ActivitySource` ve `Meter`
+    adini acar, disa aktarimi tuketicinin uygulamasi secer (docs-site guides/observability.md).
+    `Aspire.AppHost.Sdk` sürümü csproj'un `Sdk=` ozniteliginde yasar (13.6.4); buradaki hosting paketi ile ayni olmali.
+  -->
+  <ItemGroup Label="Sample-only: Aspire ve OpenTelemetry (Faz 268)">
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.1" />
+  </ItemGroup>
+
+  <!--
     MCP istemcisi. `ModelContextProtocol` DEGIL, `.Core`: tam paket
     Microsoft.Extensions.Hosting.Abstractions ve Caching.Abstractions da ceker;
     bunlar sunucu barindirma icindir ve Tracon yalnizca istemcidir.

@@ -1,0 +1,27 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Tracon.AppHost</RootNamespace>
+    <!--
+      ASPIRE010 says the Aspire CLI bundle is off. The sample runs with `dotnet run`, which restores the dashboard and
+      the container orchestrator (DCP) as packages; the bundle only adds `aspire` CLI features this sample does not use.
+      Turning it on would make `dotnet run` fetch the CLI bundle at first start instead.
+    -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+    <!--
+      No UserSecretsId: the model provider keys stay in Tracon.Api's own user-secrets
+      (UserSecretsId `tracon-sample-api`). The AppHost holds no secret.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The AppHost starts the sample API as a child process and hands it the dashboard's OTLP address.
+      It references no Tracon package: Tracon is not a dependency of the orchestrator.
+    -->
+    <ProjectReference Include="../Tracon.Api/Tracon.Api.csproj" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+</Project>

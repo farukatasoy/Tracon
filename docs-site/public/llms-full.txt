@@ -6349,6 +6349,79 @@ including how long each target framework stays in the matrix.
 
 ---
 
+# Tracon and Microsoft's control planes
+
+Source: https://tracon.dev/getting-started/microsoft-control-planes/
+
+Microsoft sells several products that manage AI agents. Where does Tracon stand next to them? Tracon is a
+library in your own ASP.NET Core host. The four products below are services that Microsoft runs. They answer
+different questions, and none replaces another. This page draws the border and says what was tested.
+
+:::caution[Read on 2026-10-30]
+Every status below is a reading of the linked Microsoft Learn page on 2026-10-30. Microsoft changes these
+statuses and these pages. Open the source before you decide anything on the strength of a row.
+:::
+
+## The four products
+
+| Product | What Microsoft says it does | Status on Learn | Source |
+|---|---|---|---|
+| Foundry Control Plane | One interface for visibility, governance, and control of agents, models, and tools across a Foundry enterprise. It also lists agents that run on other platforms. Fleet, observability, compliance, and security views sit under **Operate** | **Preview** for the Operate panes (Overview, Assets, Compliance) and for Monitoring. Tracing is GA for prompt and hosted agents and Preview for external agents. Page updated 2026-09-23 | [Overview](https://learn.microsoft.com/azure/foundry/control-plane/overview) · [Feature readiness](https://learn.microsoft.com/azure/foundry/concepts/general-availability) |
+| Microsoft Entra Agent ID | An identity and security framework for agents: agent identities, blueprints, and OAuth 2.0, MCP, and A2A flows. It works with agents from Microsoft and other platforms. It is available to all Entra customers. Extending Entra security features to agents, such as Conditional Access for agents, needs a Microsoft Agent 365 license | **GA.** The What's new page announces general availability and carries the date 2026-05-01 | [What is Agent ID](https://learn.microsoft.com/entra/agent-id/what-is-microsoft-entra-agent-id) · [What's new](https://learn.microsoft.com/entra/agent-id/whats-new-agent-id) · [Conditional Access for agents](https://learn.microsoft.com/entra/identity/conditional-access/agent-id) |
+| Microsoft Agent 365 | A central registry of an organization's agents, with observe, govern, and secure functions through Microsoft 365 admin center, Entra, Purview, and Defender | **GA** since 2026-05-01 for the Commercial segment, licensed per user | [Overview](https://learn.microsoft.com/microsoft-agent-365/overview) |
+| Foundry Hosted Agents | Containerized agent applications that run on Microsoft-managed infrastructure. Each deployed agent gets its own Entra identity. An agent built with Microsoft Agent Framework is exposed through the Foundry Responses or Invocations protocol | **GA.** The page that says so is dated 2026-10-22 and gives no GA date. The hosting package for .NET, `Microsoft.Agents.AI.Foundry.Hosting`, is installed with `--prerelease` | [Agent Framework hosting page](https://learn.microsoft.com/agent-framework/hosting/foundry-hosted-agent) |
+
+## Where Tracon stands
+
+Tracon is a control plane for one host. It does not claim to be the control plane of an organization.
+
+| Question | Tracon | The Microsoft product |
+|---|---|---|
+| Where does the record of a run live? | In a store you run: PostgreSQL, SQL Server, or SQLite. Runs, events, tool calls, cost, and an audit chain | Foundry Control Plane reads traces and logs from the Application Insights resource of a Foundry project |
+| What does the host send out? | OpenTelemetry spans for runs, agent calls, model calls, and tools, and the `Tracon` meter. You choose the exporter | Foundry expects the OpenTelemetry semantic conventions for generative AI. See the next section |
+| Who lists every agent of the company? | Nobody. Tracon keeps a catalog of the agents of its own host, with versions | Foundry Control Plane (Assets) and the Agent 365 registry |
+| Who enforces policy across the fleet? | Nobody. Tracon enforces inside its host: quotas, cost budgets, tool approvals, an optional tenant boundary | Foundry compliance policies, and Defender and Purview alerts. Agent 365 |
+| Who issues an agent an identity? | Not Tracon. The host resolves the caller through ASP.NET Core and your own identity layer. `Tracon.Azure` accepts an Entra credential that you supply, to call Azure OpenAI | Entra Agent ID issues the identity. Conditional Access evaluates a token request to a resource that Entra protects. It does not cover a resource that an API key protects |
+| Where does the code run? | In your ASP.NET Core process, wherever you deploy it | Foundry Hosted Agents run containers that use the Foundry protocols. Tracon does not reference the Agent Framework Foundry hosting package |
+
+## How telemetry can reach Foundry
+
+Microsoft documents one route for an agent that is not built in Foundry and emits OpenTelemetry through OTLP. The agent
+sends OTLP to an OpenTelemetry Collector. The collector forwards it with the Azure Monitor exporter to the
+Application Insights resource of the Foundry project. Foundry Control Plane reads it from there.
+
+```mermaid
+flowchart LR
+    accTitle: The telemetry route Microsoft documents for an agent that is not built in Foundry
+    accDescr: A Tracon host sends spans over OTLP to an OpenTelemetry Collector. The collector forwards them with the Azure Monitor exporter to the Application Insights resource of a Foundry project, and Foundry Control Plane reads the traces there. The host also keeps its own run records in a SQL store. Microsoft documents this route for OTLP sources. It was not tested with Tracon.
+    HOST["Tracon host"] -->|"OTLP"| COL["OpenTelemetry Collector"]
+    COL -->|"Azure Monitor exporter"| AI["Application Insights<br/>of the Foundry project"]
+    AI --> CP["Foundry Control Plane<br/>Operate"]
+    HOST -.->|"run records"| STORE[("Your SQL store")]
+```
+
+Registering a host as a custom agent in Foundry adds conditions. Foundry puts an Azure API Management gateway in front
+of the agent, and clients must call the new address. The agent must expose an endpoint that Foundry can reach, and use
+HTTP or A2A. Foundry also looks for a span with the operation `create_agent` that carries the attribute
+`gen_ai.agent.id`. Tracon's own code emits no `create_agent` span, and the trace in the Aspire guide shows none. Without
+more instrumentation, Microsoft's page says the Foundry trace view shows only the HTTP call to the agent.
+
+## What this page does not claim
+
+- **No test.** Nobody registered a Tracon host in Foundry Control Plane, Agent 365, or Entra Agent ID, or ran one as a
+  Foundry hosted agent. The Aspire sample in this repository shows Tracon spans and metrics in the Aspire dashboard
+  only. See [Run Tracon with Aspire](/guides/aspire/).
+- **No ranking.** The tables list boundaries. They do not say that one product is better than another.
+- **No affiliation.** Tracon is not a Microsoft product, and no Microsoft product certifies it.
+
+## Read next
+
+- [Run Tracon with Aspire](/guides/aspire/): the one OpenTelemetry path that is tested, with the exporter code.
+- [Observability and cost](/guides/observability/): the spans, the meter, and the switches that decide what a span carries.
+- [Tracon and DevUI](/getting-started/devui/): the same boundary drawn against the framework's own interface.
+
+---
+
 # Persistence
 
 Source: https://tracon.dev/getting-started/persistence/
@@ -8144,6 +8217,159 @@ Answer these five questions before you write a factory agent:
 - [Move an agent from AddAIAgent to Tracon](/guides/from-maf-hosting/) — the calls of Microsoft Agent Framework hosting, and the Tracon door for each
 - [Write your own agent source](/guides/write-your-own-agent-source/) — the source contract, priority, and tenancy
 - [Agents and definitions](/concepts/agents/) — where the catalog gets its agents
+
+---
+
+# Run Tracon with Aspire
+
+Source: https://tracon.dev/guides/aspire/
+
+How do you add a Tracon host to an Aspire solution, and what do you see in the dashboard? Three decisions are
+specific to Tracon: the database image, the name of the connection string setting, and the telemetry
+registration. The rest is a normal AppHost.
+
+The repository shows all three in `samples/Tracon.AppHost`. Start it with one command. Docker, or another
+container runtime that Aspire supports, must be running:
+
+```bash
+dotnet run --project samples/Tracon.AppHost
+```
+
+The console prints a dashboard address with a login token. The AppHost starts PostgreSQL, then the sample API
+(`samples/Tracon.Api`), and opens no browser.
+
+```mermaid
+flowchart LR
+    accTitle: What the Aspire AppHost starts and how the parts connect
+    accDescr: The AppHost starts a PostgreSQL container built from the pgvector image, the Tracon host, and the Aspire dashboard. The Tracon host reads its database connection from one environment variable and sends spans and metrics to the dashboard over OTLP.
+    APP["AppHost"] -->|starts| PG[("PostgreSQL<br/>pgvector image")]
+    APP -->|"starts, sets the environment"| HOST["Tracon host<br/>your ASP.NET Core app"]
+    APP -->|starts| DASH["Aspire dashboard"]
+    HOST -->|"Tracon__PostgreSql__ConnectionString"| PG
+    HOST -->|"OTLP: spans and metrics"| DASH
+```
+
+## The AppHost
+
+The AppHost project uses `Aspire.AppHost.Sdk` and references your Tracon host project. It references no Tracon
+package.
+
+```xml
+<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../YourTraconHost/YourTraconHost.csproj" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
+  </ItemGroup>
+
+</Project>
+```
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithImage("pgvector/pgvector")
+    .WithImageTag("pg18");
+
+var database = postgres.AddDatabase("tracon");
+
+builder.AddProject<Projects.YourTraconHost>("tracon-host")
+    .WithEnvironment("Tracon__PostgreSql__ConnectionString", database)
+    .WaitFor(database);
+
+builder.Build().Run();
+```
+
+| Decision | What goes wrong if you skip it |
+|---|---|
+| Use the `pgvector/pgvector` image, not the default | The Tracon PostgreSQL migrations run `CREATE EXTENSION IF NOT EXISTS vector`. The database must provide that extension, and the official `postgres` image that `AddPostgres` starts by default does not ship it |
+| Set `Tracon__PostgreSql__ConnectionString` with `WithEnvironment` | `WithReference(database)` writes `ConnectionStrings__tracon`. Tracon reads `Tracon:PostgreSql:ConnectionString` and never that key, so the host starts without persistence. The environment variable also wins over a connection string that your user-secrets hold for another database |
+| Keep model keys out of the AppHost | The AppHost needs no secret. Put provider keys in the host project's own user-secrets, as you do without Aspire |
+
+The AppHost adds no data volume, so each start creates a new database. Stop the AppHost and Aspire removes the
+container.
+
+## Send Tracon telemetry to the dashboard
+
+Tracon does not choose an exporter. Your host does. The AppHost gives the host the standard `OTEL_*` variables,
+including the dashboard address, so the host registers the exporter only when those variables exist:
+
+```bash
+dotnet add package OpenTelemetry.Extensions.Hosting
+dotnet add package OpenTelemetry.Exporter.OpenTelemetryProtocol
+dotnet add package OpenTelemetry.Instrumentation.AspNetCore
+```
+
+```csharp
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+using Tracon;
+
+if (builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] is { Length: > 0 })
+{
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(tracing => tracing
+            .AddAspNetCoreInstrumentation()
+            .AddSource(TraconDiagnostics.ActivitySourceName)
+            .AddSource("Microsoft.Agents.AI.Workflows"))
+        .WithMetrics(metrics => metrics
+            .AddAspNetCoreInstrumentation()
+            .AddMeter(TraconDiagnostics.MeterName))
+        .UseOtlpExporter();
+}
+```
+
+Three details matter:
+
+- **The request span is the parent.** The ASP.NET Core instrumentation makes the HTTP request span the parent of
+  the `tracon.run` span, so the dashboard shows one tree for each request.
+- **The framework source is separate.** `Microsoft.Agents.AI.Workflows` carries the spans of a workflow that you
+  build in code and mark with `WithOpenTelemetry()`. Leave it out if you use no such workflow.
+- **Without the variable, nothing changes.** The condition keeps a host that runs outside Aspire exactly as it was.
+
+## What the dashboard shows
+
+Run an agent once, then open the Traces and Metrics pages. The sample API, run with its built-in echo provider
+on 2026-10-30, produced this trace:
+
+| Span | Source |
+|---|---|
+| `POST /tracon/api/agents/{name}/run` | ASP.NET Core instrumentation |
+| `tracon.run` | Tracon: the root span of a run |
+| `invoke_agent translator` | The agent invocation |
+| `chat echo-1` | The model call |
+
+The Metrics page lists the `Tracon` meter next to the ASP.NET Core meters. It showed `tracon.runs` and
+`tracon.run.duration`, and the `gen_ai.client.operation.*` instruments of the model call. See
+[Observability and cost](/guides/observability/#stable-metric-names) for the full metric list.
+
+## When something is missing
+
+| Symptom | Check |
+|---|---|
+| The dashboard lists the host but no `tracon.run` span | No run has happened yet, or the host process has no `OTEL_EXPORTER_OTLP_ENDPOINT`. Open the resource in the dashboard and read its environment variables |
+| The host stops at start with an error about the `vector` extension | The database image does not provide `vector`. Use `pgvector/pgvector` |
+| The host runs but reports a different database than the container | The `Tracon__PostgreSql__ConnectionString` variable is missing, so a user-secrets value is in use. `GET /api/diagnostics` shows the active provider when you turn it on |
+| The collector or dashboard is down | Runs still complete. The OpenTelemetry SDK drops what it cannot send. Measured: a run finished normally with the endpoint pointing at a closed port |
+
+## Microsoft's DevUI
+
+The Microsoft Agent Framework has its own Aspire hosting package for DevUI, `Aspire.Hosting.AgentFramework.DevUI`.
+On 2026-10-29 NuGet listed prerelease versions only, so the sample does not use it. See
+[Tracon and DevUI](/getting-started/devui/) for how the two user interfaces differ.
+
+## Read next
+
+- [Observability and cost](/guides/observability/): the metric names, the span tree, and the switches that decide what a span carries.
+- [Tracon and Microsoft's control planes](/getting-started/microsoft-control-planes/): where Tracon stands next to Foundry Control Plane, Agent 365, and Entra Agent ID.
+- [Run more than one instance](/guides/multiple-instances/): what two hosts on one database share.
 
 ---
 
@@ -14768,6 +14994,10 @@ Set the OTLP address, headers, protocol, sampling, and resource attributes throu
 the OpenTelemetry packages and configuration used by your application. Tracon's
 activity source and meter are both named `Tracon`. The root run span is
 `tracon.run`.
+
+To see these spans and metrics in a dashboard without running a collector, start the host from an Aspire AppHost.
+[Run Tracon with Aspire](/guides/aspire/) shows the exporter registration that reads the standard `OTEL_*`
+variables, and the span tree that the Aspire dashboard shows for one run.
 
 ### Stable metric names
 

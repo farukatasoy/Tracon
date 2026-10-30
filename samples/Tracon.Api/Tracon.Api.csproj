@@ -67,6 +67,15 @@
       `Tracon:Demo:RedisConnectionString` is set; see the cache registration in Program.cs.
     -->
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <!--
+      Telemetry export (phase 268). Used only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set - the Aspire AppHost
+      (samples/Tracon.AppHost) sets it; see the registration in Program.cs. Tracon takes none of these packages: a
+      consumer who wants the export adds them, exactly as here. The instrumentation set is the ASP.NET Core one only,
+      because the request span is the parent of the `tracon.run` span.
+    -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>

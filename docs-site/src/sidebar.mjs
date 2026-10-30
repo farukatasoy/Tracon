@@ -29,6 +29,7 @@ export const sidebar = [
     items: [
       { label: 'What Tracon is', slug: 'getting-started' },
       { label: 'Tracon and DevUI', slug: 'getting-started/devui' },
+      { label: 'Tracon and Microsoft control planes', slug: 'getting-started/microsoft-control-planes' },
       { label: 'Your first agent', slug: 'getting-started/first-agent' },
       { label: 'Complete capability map', slug: 'capabilities' },
       { label: 'Architecture', slug: 'concepts' },
@@ -82,6 +83,7 @@ export const sidebar = [
       { label: 'MCP server and A2A', slug: 'guides/external-agents' },
       { label: 'Client-side tools and the embeddable widget', slug: 'guides/client-side-tools' },
       { label: 'AG-UI front ends', slug: 'guides/ag-ui' },
+      { label: 'Run Tracon with Aspire', slug: 'guides/aspire' },
       { label: 'Inbound triggers', slug: 'guides/inbound-triggers' },
       { label: 'HTTP API conventions', slug: 'http-api' },
       { label: 'Coding agent integration', slug: 'guides/coding-agents' },

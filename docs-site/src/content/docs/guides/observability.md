@@ -56,6 +56,10 @@ the OpenTelemetry packages and configuration used by your application. Tracon's
 activity source and meter are both named `Tracon`. The root run span is
 `tracon.run`.
 
+To see these spans and metrics in a dashboard without running a collector, start the host from an Aspire AppHost.
+[Run Tracon with Aspire](/guides/aspire/) shows the exporter registration that reads the standard `OTEL_*`
+variables, and the span tree that the Aspire dashboard shows for one run.
+
 ### Stable metric names
 
 | Instrument | Meaning |

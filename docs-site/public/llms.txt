@@ -292,11 +292,13 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Tracon and DevUI](https://tracon.dev/getting-started/devui/) — What MAF's DevUI does, what its own documentation says it is not for, and which of the two belongs in a production host.
 - [Your first agent](https://tracon.dev/getting-started/first-agent/) — Install the Tracon template, configure a model, run an agent, and inspect its recorded execution in the embedded console.
 - [What Tracon is](https://tracon.dev/getting-started/) — What the packages give you, what they deliberately do not, and how to decide whether it fits.
+- [Tracon and Microsoft's control planes](https://tracon.dev/getting-started/microsoft-control-planes/) — Where Tracon stands next to Foundry Control Plane, Agent 365, Entra Agent ID, and Foundry Hosted Agents, with each status read from Microsoft Learn.
 - [Persistence](https://tracon.dev/getting-started/persistence/) — Choose PostgreSQL, SQL Server, or SQLite and operate Tracon migrations safely from development to production.
 - [Securing the endpoints](https://tracon.dev/getting-started/security/) — Protect Tracon with network boundaries, bearer tokens, scoped API keys, roles, tenancy, and outbound guards.
 - [Adding a tool](https://tracon.dev/getting-started/tools/) — Register a tool so an agent can do something, and understand the one rule that trips people up.
 - [AG-UI front ends](https://tracon.dev/guides/ag-ui/) — Run a Tracon agent from a front end that speaks AG-UI, such as CopilotKit, with front-end tools and approvals.
 - [Use any Microsoft Agent Framework feature](https://tracon.dev/guides/any-maf-feature/) — Reach a Microsoft Agent Framework feature that Tracon does not model, and see which Tracon rings each way keeps and which it loses.
+- [Run Tracon with Aspire](https://tracon.dev/guides/aspire/) — Start a Tracon host and a pgvector PostgreSQL from an Aspire AppHost, and read runs, spans, and metrics in the Aspire dashboard.
 - [Sign the audit chain with a key](https://tracon.dev/guides/audit-chain-key/) — Turn on the HMAC key that signs the audit trail's hash chain, rotate it, switch it off, and know what it does and does not protect against.
 - [Background work](https://tracon.dev/guides/background-work/) — Queue agent runs, schedule recurring work, operate workers, and understand leasing, retries, cancellation, and multi-instance behavior.
 - [Build diagnostics](https://tracon.dev/guides/build-diagnostics/) — What each TRC build diagnostic means, how to fix it or silence it, and how the same build writes the agent map that teaches a coding agent about Tracon.
