@@ -15088,23 +15088,31 @@ the agent, chat and tool spans, it holds the calls that used to be invisible:
 | Span name | What wrote it | `gen_ai.output.type` |
 |---|---|---|
 | `embeddings` | The embedding generator you registered: the `search_knowledge` tool and knowledge ingestion | |
-| `generate_content` | The image generator (`generate_image`, `POST /api/images/generate`) | `image` |
-| `generate_content` | A Microsoft.Extensions.AI text-to-speech client served as a speech provider | `audio` |
-| `generate_content` | A Microsoft.Extensions.AI speech-to-text client served as a speech provider | `text` |
-| `workflow.session`, `workflow_invoke`, `executor.process <step>` | A workflow made from a stored definition: one `executor.process` per step | |
+| `generate_content` | The image generator, when an agent calls the `generate_image` tool | `image` |
+| `generate_content` | A Microsoft.Extensions.AI text-to-speech client served as a speech provider, when an agent calls a voice tool | `audio` |
+| `generate_content` | A Microsoft.Extensions.AI speech-to-text client served as a speech provider, when an agent calls a voice tool | `text` |
+| `workflow.session`, `workflow_invoke`, `executor.process <step>` | A workflow made from a stored definition that lists its `nodes`: one `executor.process` per step | |
 
 The span name is the operation followed by the model, for example `embeddings text-embedding-3-small`
 or `generate_content gpt-image-1-mini`; `gen_ai.operation.name` holds the operation alone. A speech provider
 that is not a Microsoft.Extensions.AI client (the Google and ElevenLabs providers, or an
-`ISpeechSynthesizer` you wrote) writes no span of its own. An ingestion runs outside any run: its
-span reaches your exporter, and no stored trace holds it.
+`ISpeechSynthesizer` you wrote) writes no span of its own.
 
-A stored workflow leaves out message sends and edge groups, which are most of what the
-framework would write. A workflow of three steps, two of them agent steps and one a function,
-keeps 13 spans of the default 200. An agent step adds four spans (its executor, the agent's
-child run, the agent and its chat call), plus a tool span and a further chat span for each tool call;
-a function step adds one.
-Raise `MaxSpansPerRun` for a long graph or a graph with a way back.
+A span is stored only when a run made the call. An ingestion, and the HTTP endpoints
+`POST /api/images/generate` and `/api/voice/*`, are operator actions outside any run: their spans reach
+your exporter, and no stored trace holds them.
+
+A stored definition that names a pattern instead of listing `nodes` (`agentNames` with `Sequential`,
+`Concurrent`, `Handoff`, `GroupChat` or `Magentic`) writes the agents' own spans (`invoke_agent`, `chat`)
+but no `workflow.session`, `workflow_invoke` or `executor.process` span: the framework builds those graphs
+itself and offers no place to attach the telemetry.
+
+A stored workflow that lists its `nodes` leaves out message sends and edge groups, which are most of what the
+framework would write. A workflow of three steps, two of them agent steps and one a function, keeps 13 spans of
+the default 200: four for the run itself (the root run span, `workflow.session` and two `workflow_invoke`), four
+for each agent step (its executor, the agent's child run, the agent and its chat call) and one for the function
+step. A tool call adds a tool span and a further chat span. Raise `MaxSpansPerRun` for a long graph or a graph
+with a way back.
 
 A workflow you build in code is yours, so Tracon cannot add the telemetry to it. Call
 `WithOpenTelemetry()` on the builder and its steps join the trace of the run; a graph that does
@@ -15148,8 +15156,11 @@ Whether a span carries content is decided twice, by two different owners:
   `executor.input` and `executor.output`. `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`
   stay: the cost view reads them.
 
-A stored trace therefore never holds more than `RecordSensitiveData` allows, even on a host whose
-exporter records everything. If you wrap your own generator with `UseOpenTelemetry`, your exporter sees
+A stored trace therefore never holds the content keys the rings write while `RecordSensitiveData` is off,
+even on a host whose exporter records everything. One channel stays open: a ring whose content switch is on also
+copies the entries of a request's `AdditionalProperties` to tags under the names you chose, and the store cannot
+know those names. Keep user data out of `AdditionalProperties` while the content switch of a ring is on.
+If you wrap your own generator with `UseOpenTelemetry`, your exporter sees
 two spans for each call: yours on your source, and Tracon's on `Tracon`. The trace store keeps only the
 second.
 
