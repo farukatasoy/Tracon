@@ -41,6 +41,7 @@ internal static class DefinitionProjection
         [nameof(AgentSkillDefinition.Origin)] = "A bundle holds stored skills only.",
         [nameof(AgentSkillDefinition.CreatedAt)] = "Set by the store.",
         [nameof(AgentSkillDefinition.UpdatedAt)] = "Set by the store at every write.",
+        [nameof(AgentSkillDefinition.ScriptSetHash)] = "Computed from the scripts, which travel; the importing host works it out.",
     };
 
     /// <summary>Gets the members of <see cref="McpServerDefinition"/> a bundle does not carry, with the reason.</summary>
