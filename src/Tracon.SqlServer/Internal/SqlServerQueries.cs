@@ -753,7 +753,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
             -- Fifth result set: error class breakdown. Rows with a
             -- NULL error_class (written before the error class column existed)
-            -- fall into the Unknown (0) bucket -- the earlier decision does not backfill.
+            -- fall into the Unknown (0) bucket -- nothing backfills them.
             SELECT CAST(COALESCE(error_class, 0) AS smallint),
                    CAST(COUNT(*) AS bigint)
             FROM {Schema}.runs

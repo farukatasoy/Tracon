@@ -649,8 +649,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
             -- Fifth result set: error class breakdown. Rows with
             -- error_class NULL (written before error classification was
-            -- added) fall into the Unknown (0) bucket -- the earlier decision does not
-            -- backfill.
+            -- added) fall into the Unknown (0) bucket -- nothing
+            -- backfills them.
             SELECT COALESCE(error_class, 0),
                    COUNT(*)
             FROM {Schema}runs

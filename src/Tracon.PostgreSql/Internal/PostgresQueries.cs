@@ -651,8 +651,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
             -- Fifth result set: error class breakdown. Rows where
             -- error_class is NULL (written before the error class column
-            -- existed) fall into the Unknown (0) bucket -- the earlier decision does not
-            -- backfill.
+            -- existed) fall into the Unknown (0) bucket -- nothing
+            -- backfills them.
             SELECT COALESCE(error_class, 0)::smallint,
                    COUNT(*)::bigint
             FROM {Schema}.runs
