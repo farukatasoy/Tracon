@@ -124,6 +124,23 @@ public sealed class EvaluatorRunJudgeTests
     }
 
     [Fact]
+    public async Task A_categorical_value_cut_inside_a_surrogate_pair_keeps_no_half_of_it()
+    {
+        // F-241: the model's verdict text is cut at the stored limit. The 256th character is the
+        // high half of a pair here; the cut kept it alone, and the score write failed on encoding
+        // - and was retried, because a write failure is retryable.
+        var judge = Build("quality", new ScriptedEvaluator(
+            new StringMetric("Verdict", new string('x', RunScoreRules.MaxTextValueLength - 1) + "\U0001F600" + "tail", "long")));
+
+        var judgment = await judge.JudgeAsync(Context());
+
+        var kept = judgment.Scores.ShouldHaveSingleItem().TextValue.ShouldNotBeNull();
+
+        kept.Length.ShouldBe(RunScoreRules.MaxTextValueLength - 1);
+        ContentEventPayload.Sanitize(kept).ShouldBeSameAs(kept);
+    }
+
+    [Fact]
     public async Task A_metric_name_that_cannot_be_a_score_name_is_skipped()
     {
         var judge = Build("quality", new ScriptedEvaluator(
@@ -293,6 +310,22 @@ public sealed class EvaluatorRunJudgeTests
 
         judgment.EvaluatorVersion.ShouldNotBeNull().Length.ShouldBe(RunScoreRules.MaxEvaluatorVersionLength);
         judgment.Scores.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task A_version_cut_inside_a_surrogate_pair_keeps_no_half_of_it()
+    {
+        // F-241: the 128th character is the high half of a pair. The cut left it alone at the
+        // end of the stored version, and the score write failed on encoding.
+        var version = new string('9', RunScoreRules.MaxEvaluatorVersionLength - 1) + "\U0001F600";
+        var judge = Build("quality", EvaluatorInAssemblyWithVersion(version, new NumericMetric("Relevance", 4, "ok")));
+
+        var judgment = await judge.JudgeAsync(Context());
+
+        var kept = judgment.EvaluatorVersion.ShouldNotBeNull();
+
+        kept.Length.ShouldBe(RunScoreRules.MaxEvaluatorVersionLength - 1);
+        ContentEventPayload.Sanitize(kept).ShouldBeSameAs(kept);
     }
 
     private static double? Value(RunJudgment judgment, string name)

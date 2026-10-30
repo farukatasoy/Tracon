@@ -912,6 +912,34 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(len(violations), 1)
         self.assertIn("git tabanı", violations[0])
 
+    def test_okuma_gorunumu_dosyasi_da_git_tabanıyla_ayni_olmalidir(self):
+        # F-726: `MigrationsViews/*.sql` sevk edilir ve açılışta sağlama toplamıyla
+        # denetlenir; yerinde bir düzenleme CI'da değil, kullanıcının veritabanında
+        # yakalanıyordu. Kapı yalnız `Migrations` ve `MigrationsKnowledge` dizinlerini
+        # okuyordu.
+        for directory_name in ("Migrations", "MigrationsKnowledge", "MigrationsViews"):
+            with self.subTest(directory=directory_name), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                file = root / "src" / "Example" / directory_name / "0001_read_views.sql"
+                file.parent.mkdir(parents=True)
+                original = b"CREATE VIEW example_v1 AS SELECT 1;\n"
+                file.write_bytes(original)
+                relative = file.relative_to(root).as_posix()
+                source = lambda commit, path: original if (commit, path) == ("abcdef1", relative) else None
+
+                self.assertEqual(
+                    kapi.migration_integrity_violations(
+                        root, baseline_commit="abcdef1", source_commits={}, source_reader=source),
+                    [])
+
+                file.write_text("CREATE VIEW example_v1 AS SELECT 2;\n", encoding="utf-8")
+
+                violations = kapi.migration_integrity_violations(
+                    root, baseline_commit="abcdef1", source_commits={}, source_reader=source)
+
+                self.assertEqual(len(violations), 1)
+                self.assertIn(relative, violations[0])
+
 
 class PerformansKapisiTestleri(unittest.TestCase):
     """`scripts/kapi.py performans` (Faz 116) - karşılaştırma ve taban çizgisi

@@ -60,6 +60,7 @@ NUSPEC_DEPENDENCY_PATTERN = re.compile(r'<dependency id="(?P<id>[^"]+)" version=
 THIRD_PARTY_NOTICE_NAME = "THIRD-PARTY-NOTICES.txt"
 THIRD_PARTY_NOTICE_PACKAGES = {"Tracon.UI": pathlib.PurePath("src", "Tracon.UI", THIRD_PARTY_NOTICE_NAME)}
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
+APPLIED_MIGRATION_DIRECTORIES = ("Migrations", "MigrationsKnowledge", "MigrationsViews")
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # Faz 184: iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
 # timeout uretiyordu, Faz 100). Sabit beklemeler kosul-beklemeye donunce
@@ -478,8 +479,12 @@ def migration_integrity_violations(
                 return None
             return result.stdout if result.returncode == 0 else None
 
+    # `MigrationsViews` ships and is checksummed at startup like the other two
+    # sets, so an in-place edit must fail here, not in a user's database (F-726).
     migrations = sorted(
-        [*root.glob("src/*/Migrations/*.sql"), *root.glob("src/*/MigrationsKnowledge/*.sql")])
+        migration
+        for directory in APPLIED_MIGRATION_DIRECTORIES
+        for migration in root.glob(f"src/*/{directory}/*.sql"))
     found = {migration.relative_to(root).as_posix(): migration for migration in migrations}
     violations: list[str] = []
 

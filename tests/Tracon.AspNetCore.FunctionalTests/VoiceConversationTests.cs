@@ -103,6 +103,28 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
+    public async Task No_spoken_segment_is_longer_than_the_synthesizers_character_limit()
+    {
+        // F-358: the segmenter cut at 240 characters whatever the synthesizer
+        // accepted. A synthesizer limited to 50 characters received a segment
+        // five times as long and refused it after the captions had streamed.
+        var transcript = string.Join(' ', Enumerable.Repeat("word", 60));
+        var voice = new StubVoiceProvider { Transcript = transcript, MaxCharactersPerRequest = 50 };
+        await using var host = await StartAsync(voice);
+        await using var client = await ConnectAsync(host);
+
+        await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
+        await client.WaitForAsync("ready");
+
+        await client.SendAudioAsync(new byte[3200]);
+        await client.SendControlAsync(new { type = "commit" });
+        await client.WaitForAsync("done");
+
+        voice.Spoken.Count.ShouldBeGreaterThan(1);
+        voice.Spoken.ShouldAllBe(static segment => segment.Length <= 50);
+    }
+
+    [Fact]
     public async Task Each_turn_produces_a_normal_run_row()
     {
         // Voice does NOT change the run path; it only changes the input and

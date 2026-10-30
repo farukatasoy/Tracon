@@ -235,7 +235,7 @@ export function toNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-const WHOLE_NUMBER = /^-?\d+$/;
+const WHOLE_NUMBER = /^[+-]?\d+$/;
 
 /**
  * True when the seed text can be sent as it is: empty (not set), or a whole number a JavaScript number

@@ -338,11 +338,22 @@ internal static class SchedulingEndpoints
             return null;
         }
 
+        var agentBatch = string.Equals(handlerKey, JobHandlerKeys.AgentBatch, StringComparison.Ordinal);
+
         for (var index = 0; index < items.Count; index++)
         {
-            if (BatchItemInput.Parse(items[index]).Problem is { } problem)
+            var item = BatchItemInput.Parse(items[index]);
+
+            if (item.Problem is { } problem)
             {
                 return $"Item {index} of the payload: {problem}";
+            }
+
+            // F-434: the agent batch handler fails an item that names a session when it
+            // RUNS; refusing it here keeps the mistake out of a saved schedule.
+            if (agentBatch && item.SessionId is not null)
+            {
+                return $"Item {index} of the payload: {BatchItemInput.AgentBatchSessionProblem}";
             }
         }
 

@@ -152,6 +152,37 @@ public sealed class AgentBatchParameterTests
     }
 
     [Fact]
+    public async Task An_agent_batch_item_that_names_a_session_is_refused_when_the_schedule_is_saved_and_when_it_is_triggered()
+    {
+        // F-434: 'sessionId' belongs to a workflow batch item. The agent batch handler fails the
+        // item when it runs; the save and the trigger accepted it, so the mistake waited for the
+        // run - after the schedule had been saved and, for a cron schedule, after it had fired.
+        var provider = Provider();
+        await using var host = await StartAsync(provider);
+
+        using var saved = await host.Client.PutAsJsonAsync(
+            "/tracon/api/schedules/session-save",
+            Schedule(DefaultsOnly, """["fine", {"message":"x","sessionId":"production-7"}]"""));
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await saved.Content.ReadAsStringAsync());
+
+        var detail = (await TraconTestHost.ReadJsonAsync(saved)).GetProperty("detail").GetString().ShouldNotBeNull();
+
+        detail.ShouldContain("Item 1", Case.Sensitive);
+        detail.ShouldContain("sessionId", Case.Sensitive);
+
+        using var ok = await host.Client.PutAsJsonAsync("/tracon/api/schedules/session-ok", Schedule(DefaultsOnly, """["fine"]"""));
+
+        ok.EnsureSuccessStatusCode();
+
+        using var triggered = await host.Client.PostAsJsonAsync(
+            "/tracon/api/schedules/session-ok/trigger",
+            new { payload = JsonDocument.Parse("""[{"message":"x","sessionId":"production-7"}]""").RootElement });
+
+        triggered.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await triggered.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task A_consumers_own_handler_keeps_its_item_text_whatever_it_looks_like()
     {
         // Only the two built-in batch handlers read the structured shape. A

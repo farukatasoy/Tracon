@@ -61,6 +61,68 @@ public sealed class VoiceSpeechSegmenterTests
     }
 
     [Fact]
+    public void A_segment_never_exceeds_the_limit_it_was_given()
+    {
+        // F-358: a synthesizer accepts at most MaxCharactersPerRequest characters.
+        // The driver hands that limit to the segmenter; a smaller limit than the
+        // 240-character default must hold for every segment, including the tail.
+        var segmenter = new VoiceSpeechSegmenter(maxSegmentLength: 30);
+        var segments = new List<string>(segmenter.Append(string.Join(' ', Enumerable.Repeat("word", 40))));
+
+        if (segmenter.Flush() is { } tail)
+        {
+            segments.Add(tail);
+        }
+
+        segments.Count.ShouldBeGreaterThan(1);
+        segments.ShouldAllBe(static segment => segment.Length <= 30);
+        string.Join(' ', segments).ShouldBe(string.Join(' ', Enumerable.Repeat("word", 40)));
+    }
+
+    [Fact]
+    public void A_sentence_longer_than_the_limit_is_cut_inside_the_sentence()
+    {
+        // The sentence end arrives far past the limit in ONE chunk. The cut must
+        // not wait for the sentence end: that segment would reach the synthesizer
+        // longer than the limit.
+        var segmenter = new VoiceSpeechSegmenter(maxSegmentLength: 40);
+        var sentence = string.Join(' ', Enumerable.Repeat("word", 30)) + ". Next.";
+        var segments = new List<string>(segmenter.Append(sentence + " "));
+
+        segments.ShouldNotBeEmpty();
+        segments.ShouldAllBe(static segment => segment.Length <= 40);
+    }
+
+    [Fact]
+    public void A_limit_below_the_minimum_segment_length_still_cuts()
+    {
+        var segmenter = new VoiceSpeechSegmenter(maxSegmentLength: 5);
+        var segments = new List<string>(segmenter.Append("abcdefghijklmnop"));
+
+        segments.ShouldNotBeEmpty();
+        segments.ShouldAllBe(static segment => segment.Length <= 5);
+    }
+
+    [Fact]
+    public void A_limit_that_is_not_positive_is_refused()
+    {
+        Should.Throw<ArgumentOutOfRangeException>(static () => new VoiceSpeechSegmenter(maxSegmentLength: 0));
+    }
+
+    [Fact]
+    public void A_sentence_longer_than_the_default_limit_is_cut_inside_the_sentence()
+    {
+        // The sentence end arrives far past 240 characters in ONE chunk. The cut
+        // must not wait for it: the segment would reach the synthesizer uncut.
+        var segmenter = new VoiceSpeechSegmenter();
+        var sentence = string.Join(' ', Enumerable.Repeat("word", 150)) + ". Next.";
+        var segments = new List<string>(segmenter.Append(sentence + " "));
+
+        segments.ShouldNotBeEmpty();
+        segments.ShouldAllBe(static segment => segment.Length <= 240);
+    }
+
+    [Fact]
     public void Flush_returns_the_remainder_and_empties_the_buffer()
     {
         var segmenter = new VoiceSpeechSegmenter();

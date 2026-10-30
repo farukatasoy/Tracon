@@ -31,18 +31,33 @@ internal sealed class VoiceSpeechSegmenter
     private const int MinSegmentLength = 12;
 
     /// <summary>
-    /// The length at which a split happens even if no sentence boundary arrived.
+    /// The default length at which a split happens even if no sentence boundary arrived.
     /// </summary>
     /// <remarks>
     /// A model that does not use punctuation (or a response producing a
     /// list) would otherwise never split, and would wait for the end of the
     /// entire response before the first audio.
     /// </remarks>
-    private const int MaxSegmentLength = 240;
+    internal const int DefaultMaxSegmentLength = 240;
 
     private static readonly SearchValues<char> Terminators = SearchValues.Create(".!?;:\n…");
 
     private readonly StringBuilder _pending = new();
+    private readonly int _maxSegmentLength;
+
+    /// <summary>Creates a segmenter.</summary>
+    /// <param name="maxSegmentLength">
+    /// The longest segment it returns. A caller that hands segments to a
+    /// synthesizer passes <c>Math.Min(DefaultMaxSegmentLength, synthesizer.MaxCharactersPerRequest)</c>;
+    /// the default suits a caller with no such limit.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxSegmentLength"/> is not greater than zero.</exception>
+    public VoiceSpeechSegmenter(int maxSegmentLength = DefaultMaxSegmentLength)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxSegmentLength, 0);
+
+        _maxSegmentLength = maxSegmentLength;
+    }
 
     /// <summary>Appends a new text chunk and returns any segments that are ready.</summary>
     /// <param name="delta">A text chunk from the model.</param>
@@ -104,11 +119,17 @@ internal sealed class VoiceSpeechSegmenter
     /// <summary>Finds the cut point.</summary>
     /// <param name="text">The pending text.</param>
     /// <returns>The number of characters to cut; <c>0</c> if no cut should occur.</returns>
-    private static int FindCut(string text)
+    private int FindCut(string text)
     {
         var span = text.AsSpan();
 
-        for (var i = MinSegmentLength - 1; i < span.Length; i++)
+        // 🚨 A sentence end past the limit is not a cut point: the segment would be
+        // longer than the limit. The scan stops at the limit, so the window cut
+        // below takes over (F-358; before it, one chunk with a late full stop
+        // produced a 600-character segment).
+        var scanEnd = Math.Min(span.Length, _maxSegmentLength);
+
+        for (var i = MinSegmentLength - 1; i < scanEnd; i++)
         {
             if (!Terminators.Contains(span[i]))
             {
@@ -129,15 +150,15 @@ internal sealed class VoiceSpeechSegmenter
             }
         }
 
-        if (span.Length < MaxSegmentLength)
+        if (span.Length < _maxSegmentLength)
         {
             return 0;
         }
 
         // No punctuation arrived: cut at the last space, do not split a word in the middle.
-        var window = span[..MaxSegmentLength];
+        var window = span[.._maxSegmentLength];
         var lastSpace = window.LastIndexOf(' ');
 
-        return lastSpace > MinSegmentLength ? lastSpace + 1 : MaxSegmentLength;
+        return lastSpace > MinSegmentLength ? lastSpace + 1 : _maxSegmentLength;
     }
 }

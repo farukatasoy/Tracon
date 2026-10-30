@@ -38,7 +38,9 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
     /// <inheritdoc />
     public string ProviderName => "test-voice";
 
-    public int MaxCharactersPerRequest => 5000;
+    /// <inheritdoc />
+    /// <remarks>A test lowers it to prove the conversation driver respects the synthesizer's limit.</remarks>
+    public int MaxCharactersPerRequest { get; set; } = 5000;
 
     /// <inheritdoc />
     public async ValueTask<SpeechTranscript> TranscribeAsync(

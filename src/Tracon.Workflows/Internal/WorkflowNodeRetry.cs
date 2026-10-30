@@ -95,6 +95,17 @@ internal static class WorkflowNodeRetry
                     attempt < policy.MaxAttempts &&
                     IsTransient(classifier, logger, exception))
                 {
+                    // F-527: the attempt that is retried leaves no other trace. When a later
+                    // attempt ends in a different error (a spent budget refuses it), the run row
+                    // names that error only; this line is where the error that started the retry
+                    // stays. The last attempt is not logged: it is the exception the node throws.
+                    logger.LogWarning(
+                        exception,
+                        "A workflow node failed on attempt {Attempt} of {MaxAttempts} with a transient error; retrying in {Delay}.",
+                        attempt,
+                        policy.MaxAttempts,
+                        delay);
+
                     await Task.Delay(delay, timeProvider, cancellationToken).ConfigureAwait(false);
 
                     // F-280: capped where the delay can still wait. Unbounded, the

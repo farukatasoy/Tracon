@@ -54,7 +54,8 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     private readonly Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> _buildClient;
     private readonly IProviderRetryClassifier? _retryClassifier;
     private readonly ILoggerFactory? _loggerFactory;
-    private readonly Dictionary<int, IChatClient> _fallbackClients = [];
+    private readonly IChatClient?[] _fallbackClients;
+    private readonly SemaphoreSlim _buildGate = new(1, 1);
 
     /// <summary>Creates a new fallback client.</summary>
     /// <param name="primaryBinding">The primary binding, whose <see cref="ModelBinding.Fallbacks"/> is the chain.</param>
@@ -105,6 +106,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         _primaryBinding = primaryBinding;
         _primaryClient = primaryClient;
         _fallbacks = primaryBinding.Fallbacks;
+        _fallbackClients = new IChatClient?[_fallbacks.Count];
         _buildClient = buildClient;
         _retryClassifier = retryClassifier;
         _loggerFactory = loggerFactory;
@@ -457,30 +459,67 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         return linkOptions;
     }
 
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _buildGate.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+
+    /// <summary>Gets the client of a fallback link, building it the first time a run reaches it.</summary>
+    /// <remarks>
+    /// One compiled agent, and so one instance of this type, serves every concurrent run;
+    /// two runs that leave the primary together resolve the same link together. The build
+    /// runs under a gate and a run that waited finds the client already built. The gate
+    /// honours each run's OWN token, and a build that fails or is cancelled caches nothing,
+    /// so the next waiting run builds with its own token instead of inheriting the first
+    /// run's outcome. The gate is one for all links: a link is built once in the life of the
+    /// agent, so there is no contention worth a gate per link.
+    /// </remarks>
     private async ValueTask<IChatClient> ResolveFallbackClientAsync(int fallbackIndex, CancellationToken cancellationToken)
     {
-        if (_fallbackClients.TryGetValue(fallbackIndex, out var existing))
+        if (Volatile.Read(ref _fallbackClients[fallbackIndex]) is { } existing)
         {
             return existing;
         }
 
-        var link = _fallbacks[fallbackIndex];
+        // 🚨 F-641: this cache was a plain Dictionary; eight runs that fell back together
+        // built eight pipelines and wrote the dictionary at once.
+        await _buildGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-        // The link runs the same agent's tool loop, so it takes the primary's
-        // loop settings as ONE object: the tools' thread-safety does not change
-        // with the model, and a harness agent's iteration limit is the agent's,
-        // not the model's (F-315, K-892). Copying the members one by one left a
-        // new member at its default on every link.
-        var binding = new ModelBinding
+        try
         {
-            Provider = link.Provider,
-            Model = link.Model,
-            ToolLoop = _primaryBinding.ToolLoop,
-        };
+            if (_fallbackClients[fallbackIndex] is { } built)
+            {
+                return built;
+            }
 
-        var client = await _buildClient(binding, cancellationToken).ConfigureAwait(false);
-        _fallbackClients[fallbackIndex] = client;
-        return client;
+            var link = _fallbacks[fallbackIndex];
+
+            // The link runs the same agent's tool loop, so it takes the primary's
+            // loop settings as ONE object: the tools' thread-safety does not change
+            // with the model, and a harness agent's iteration limit is the agent's,
+            // not the model's (F-315, K-892). Copying the members one by one left a
+            // new member at its default on every link.
+            var binding = new ModelBinding
+            {
+                Provider = link.Provider,
+                Model = link.Model,
+                ToolLoop = _primaryBinding.ToolLoop,
+            };
+
+            var client = await _buildClient(binding, cancellationToken).ConfigureAwait(false);
+            Volatile.Write(ref _fallbackClients[fallbackIndex], client);
+            return client;
+        }
+        finally
+        {
+            _buildGate.Release();
+        }
     }
 
     private async ValueTask RecordFallbackUsedAsync(

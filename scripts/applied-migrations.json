@@ -60,6 +60,9 @@
     "src/Tracon.Sqlite/Migrations/0056_run_cancel_request.sql": "d9203c9307a294528b459fc236a53e70f360903d",
     "src/Tracon.PostgreSql/Migrations/0070_rate_limit_counters.sql": "06763879c6b1f265376cc0bcd82072685fccb09e",
     "src/Tracon.SqlServer/Migrations/0058_rate_limit_counters.sql": "06763879c6b1f265376cc0bcd82072685fccb09e",
-    "src/Tracon.Sqlite/Migrations/0057_rate_limit_counters.sql": "06763879c6b1f265376cc0bcd82072685fccb09e"
+    "src/Tracon.Sqlite/Migrations/0057_rate_limit_counters.sql": "06763879c6b1f265376cc0bcd82072685fccb09e",
+    "src/Tracon.PostgreSql/MigrationsViews/0002_read_views_cache_write.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
+    "src/Tracon.SqlServer/MigrationsViews/0002_read_views_cache_write.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf",
+    "src/Tracon.Sqlite/MigrationsViews/0002_read_views_cache_write.sql": "8d9e5b11603b043411adf6b3f963246ebb6085cf"
   }
 }

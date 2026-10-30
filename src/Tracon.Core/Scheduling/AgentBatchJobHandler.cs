@@ -114,9 +114,7 @@ internal sealed class AgentBatchJobHandler(
                 // names one fails rather than running with the id ignored.
                 if (input.SessionId is not null)
                 {
-                    throw new TraconException(
-                        "The batch item is malformed: 'sessionId' is for a workflow batch item; an agent batch runs " +
-                        "every item without a session.");
+                    throw new TraconException($"The batch item is malformed: {BatchItemInput.AgentBatchSessionProblem}");
                 }
 
                 // F-310: resolved again for every item. A batch can run for hours, and an

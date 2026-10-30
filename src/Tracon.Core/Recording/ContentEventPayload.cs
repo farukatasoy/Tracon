@@ -179,12 +179,7 @@ internal static class ContentEventPayload
             return value;
         }
 
-        if (length > 0 && char.IsHighSurrogate(value[length - 1]))
-        {
-            length--;
-        }
-
-        return string.Concat(value.AsSpan(0, length), RunEventWriter.TruncationMarker);
+        return string.Concat(value.AsSpan(0, SurrogateSafeText.PrefixLength(value, length)), RunEventWriter.TruncationMarker);
     }
 
     private static (string Text, string Payload) HostedTool(string tool, bool isCall, string callId)

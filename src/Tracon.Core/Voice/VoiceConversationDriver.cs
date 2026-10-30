@@ -679,7 +679,13 @@ internal sealed class VoiceConversationDriver
                 RunId = runId.ToString("D"),
             }).ConfigureAwait(false);
 
-            var segmenter = new VoiceSpeechSegmenter();
+            // F-358: a segment longer than the synthesizer accepts would be refused
+            // mid-turn, after the captions already streamed. A limit that is not
+            // positive is a broken implementation; the default limit then applies.
+            var segmenter = new VoiceSpeechSegmenter(
+                synthesizer.MaxCharactersPerRequest is > 0 and var limit
+                    ? Math.Min(VoiceSpeechSegmenter.DefaultMaxSegmentLength, limit)
+                    : VoiceSpeechSegmenter.DefaultMaxSegmentLength);
             var spokenCharacters = 0;
 
             using var audio = _options.PersistAudio ? new MemoryStream() : null;

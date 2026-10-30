@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
@@ -441,6 +442,68 @@ public sealed class WorkflowNodeRetryTests
 
         result.ShouldBe("done");
         attempts.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Every_failed_attempt_that_is_retried_is_logged_with_its_error()
+    {
+        // F-527: a retried failure left no trace. When the last attempt then ended
+        // in a different error (a spent budget refused the next attempt), the run
+        // row held that error only, and the transient error that started the
+        // retry was nowhere in the record.
+        using var logs = new CapturingLoggerProvider();
+        var failures = new List<TraconProviderUnavailableException>();
+
+        Func<string, IWorkflowContext, CancellationToken, ValueTask<string>> handler =
+            (_, _, _) =>
+            {
+                if (failures.Count < 2)
+                {
+                    var failure = new TraconProviderUnavailableException($"provider-x attempt {failures.Count + 1}");
+                    failures.Add(failure);
+
+                    throw failure;
+                }
+
+                return new ValueTask<string>("done");
+            };
+
+        var wrapped = WorkflowNodeRetry.Wrap(
+            handler,
+            new WorkflowNodeRetryPolicy { MaxAttempts = 3, InitialDelay = TimeSpan.FromMilliseconds(1) },
+            new FixedClassifier(RunErrorClass.ProviderUnavailable),
+            TimeProvider.System,
+            logs.CreateLogger("retry"));
+
+        (await wrapped("hello", null!, TestContext.Current.CancellationToken)).ShouldBe("done");
+
+        var warnings = logs.Entries.Where(static entry => entry.Level == LogLevel.Warning).ToList();
+
+        warnings.Count.ShouldBe(2);
+        warnings[0].Exception.ShouldBeSameAs(failures[0]);
+        warnings[0].Message.ShouldContain("attempt 1 of 3");
+        warnings[1].Exception.ShouldBeSameAs(failures[1]);
+        warnings[1].Message.ShouldContain("attempt 2 of 3");
+    }
+
+    [Fact]
+    public async Task The_last_failed_attempt_is_not_logged_because_it_is_thrown()
+    {
+        using var logs = new CapturingLoggerProvider();
+
+        var wrapped = WorkflowNodeRetry.Wrap(
+            (string _, IWorkflowContext _, CancellationToken _) =>
+                ValueTask.FromException<string>(new TraconProviderUnavailableException("provider-x")),
+            new WorkflowNodeRetryPolicy { MaxAttempts = 2, InitialDelay = TimeSpan.FromMilliseconds(1) },
+            new FixedClassifier(RunErrorClass.ProviderUnavailable),
+            TimeProvider.System,
+            logs.CreateLogger("retry"));
+
+        await Should.ThrowAsync<TraconProviderUnavailableException>(
+            () => wrapped("hello", null!, TestContext.Current.CancellationToken).AsTask());
+
+        // Two attempts: the first is retried and logged; the second is the thrown one.
+        logs.Entries.Count(static entry => entry.Level == LogLevel.Warning).ShouldBe(1);
     }
 
     /// <summary>

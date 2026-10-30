@@ -51,6 +51,13 @@ internal sealed record BatchItemInput
 {
     private static readonly string[] KnownMembers = ["message", "parameters", "documents", "sessionId"];
 
+    /// <summary>
+    /// Why an agent batch refuses an item that names a session. The one text both the schedule's
+    /// save and trigger and the handler's run read.
+    /// </summary>
+    internal const string AgentBatchSessionProblem =
+        "'sessionId' is for a workflow batch item; an agent batch runs every item without a session.";
+
     /// <summary>Gets the text to send as the user message.</summary>
     public required string Message { get; init; }
 

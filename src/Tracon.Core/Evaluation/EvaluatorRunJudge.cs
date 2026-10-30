@@ -359,9 +359,7 @@ internal sealed class EvaluatorRunJudge(
             return null;
         }
 
-        return version.Length > RunScoreRules.MaxEvaluatorVersionLength
-            ? version[..RunScoreRules.MaxEvaluatorVersionLength]
-            : version;
+        return SurrogateSafeText.Prefix(version, RunScoreRules.MaxEvaluatorVersionLength);
     }
 
     /// <summary>Maps one evaluation metric onto a score, or <see langword="null"/> when its shape has no equivalent.</summary>
@@ -409,9 +407,7 @@ internal sealed class EvaluatorRunJudge(
             {
                 Name = scoreName,
                 Kind = RunScoreKind.Categorical,
-                TextValue = text.Length > RunScoreRules.MaxTextValueLength
-                    ? text[..RunScoreRules.MaxTextValueLength]
-                    : text,
+                TextValue = SurrogateSafeText.Prefix(text, RunScoreRules.MaxTextValueLength),
                 Comment = comment,
             },
             _ => null,

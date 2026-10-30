@@ -49,6 +49,30 @@ public sealed class WorkflowRequestDescriptorTests
     public void An_event_with_no_request_id_anywhere_is_not_a_request()
         => WorkflowRequestDescriptor.Parse(Event(text: null, payload: "{\"portId\":\"p\"}")).ShouldBeNull();
 
+    [Fact]
+    public void A_tool_approval_prompt_cut_inside_a_surrogate_pair_keeps_no_half_of_it()
+    {
+        // F-241: the presenter's sentence is cut at 500 characters. Character 500 is the high half
+        // of a pair here; the cut kept it alone, and the request - stored as JSON - could not be
+        // written.
+        var presentation = new ToolApprovalPresentation { Message = new string('a', 499) + "\U0001F600" + "tail" };
+
+        var prompt = WorkflowRequestDescriptor.ToolApprovalPrompt("lookup", presentation);
+
+        prompt.ShouldBe("lookup: " + new string('a', 499) + "…");
+        System.Text.Json.JsonSerializer.Serialize(prompt).ShouldNotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void A_tool_approval_prompt_that_fits_is_not_cut()
+    {
+        // 498 characters and a pair: exactly the 500-character limit.
+        var presentation = new ToolApprovalPresentation { Message = new string('a', 498) + "\U0001F600" };
+
+        WorkflowRequestDescriptor.ToolApprovalPrompt("lookup", presentation)
+            .ShouldBe("lookup: " + new string('a', 498) + "\U0001F600");
+    }
+
     private static RunEvent Event(string? text, string payload)
         => new()
         {

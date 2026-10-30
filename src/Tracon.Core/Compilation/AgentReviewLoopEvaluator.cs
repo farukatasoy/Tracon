@@ -191,10 +191,7 @@ internal sealed class AgentReviewLoopEvaluator : LoopEvaluator
             return text;
         }
 
-        // Never between the two halves of a surrogate pair.
-        var cut = char.IsHighSurrogate(text[FeedbackLimit - 1]) ? FeedbackLimit - 1 : FeedbackLimit;
-
-        return string.Concat(text.AsSpan(0, cut), TruncationNote);
+        return string.Concat(text.AsSpan(0, SurrogateSafeText.PrefixLength(text, FeedbackLimit)), TruncationNote);
     }
 
     /// <summary>

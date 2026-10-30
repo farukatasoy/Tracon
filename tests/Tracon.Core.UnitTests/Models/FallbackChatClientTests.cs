@@ -416,6 +416,89 @@ public sealed class FallbackChatClientTests
         fallback.LastBinding.ShouldNotBeNull().ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task Runs_that_reach_the_same_link_together_build_its_client_once()
+    {
+        // F-641: one compiled agent is shared by every concurrent run, so every
+        // run that leaves the primary at the same moment resolves the same link.
+        // The cache was a plain Dictionary: eight runs built eight pipelines (and
+        // wrote the dictionary concurrently). The build is held open until all
+        // eight runs have asked for the client.
+        const int Runs = 8;
+        var builds = 0;
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var primaryClient = new FakeChatClient(
+            _ => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" });
+        var fallbackClient = new ConcurrentSafeChatClient("fallback answer");
+
+        async ValueTask<IChatClient> BuildAsync(ModelBinding binding, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref builds);
+            await gate.Task.WaitAsync(cancellationToken);
+            return fallbackClient;
+        }
+
+        using var chatClient = new FallbackChatClient(
+            Binding(primary: "primary", fallbackProvider: "fallback", fallbackModel: "fallback-model"),
+            primaryClient,
+            BuildAsync);
+
+        var calls = Enumerable.Range(0, Runs)
+            .Select(_ => chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken))
+            .ToArray();
+
+        gate.SetResult();
+
+        var responses = await Task.WhenAll(calls);
+
+        responses.ShouldAllBe(static response => response.Text == "fallback answer");
+        builds.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_run_that_cancels_while_another_builds_the_link_client_does_not_fail_the_other()
+    {
+        // F-641: the build is shared work. The first run's token must not decide
+        // the second run's outcome, and a failed build must not be cached.
+        var builds = 0;
+        var firstBuildStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var primaryClient = new FakeChatClient(
+            _ => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" });
+        var fallbackClient = new ConcurrentSafeChatClient("fallback answer");
+
+        async ValueTask<IChatClient> BuildAsync(ModelBinding binding, CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref builds) == 1)
+            {
+                firstBuildStarted.SetResult();
+                await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
+            }
+
+            return fallbackClient;
+        }
+
+        using var chatClient = new FallbackChatClient(
+            Binding(primary: "primary", fallbackProvider: "fallback", fallbackModel: "fallback-model"),
+            primaryClient,
+            BuildAsync);
+
+        using var firstRun = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var first = chatClient.GetResponseAsync(Messages, cancellationToken: firstRun.Token);
+
+        await firstBuildStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        var second = chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken);
+
+        await firstRun.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => first);
+
+        var response = await second;
+
+        response.Text.ShouldBe("fallback answer");
+        builds.ShouldBe(2);
+    }
+
     private static IChatClient RegistryWithFallback(FakeChatClient primaryClient, FakeChatClient fallbackClient)
     {
         var primary = new FakeModelProvider(primaryClient, name: "primary");
@@ -438,6 +521,24 @@ public sealed class FallbackChatClientTests
                 ? []
                 : [new ModelFallback { Provider = fallbackProvider, Model = fallbackModel! }],
         };
+
+    /// <summary>A client several runs call at once; <see cref="FakeChatClient"/> counts without a lock.</summary>
+    private sealed class ConcurrentSafeChatClient(string answer) : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, answer)));
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+        }
+    }
 
     /// <summary>A fake streaming client that yields (or not) then throws, for testing the "already streamed" rule.</summary>
     /// <summary>Mimics <c>System.ClientModel.ClientResultException</c> BY NAME, for classifier tests that cannot reference the real SDK type.</summary>

@@ -296,6 +296,7 @@ describe('seed', () => {
     expect(toRequest(withSeed('-7')).model.seed).toBe(-7);
     expect(toRequest(withSeed('0')).model.seed).toBe(0);
     expect(toRequest(withSeed(' 42 ')).model.seed).toBe(42);
+    expect(toRequest(withSeed('+5')).model.seed).toBe(5);
     expect(toRequest(withSeed(MAX_SAFE)).model.seed).toBe(Number.MAX_SAFE_INTEGER);
     expect(toRequest(withSeed(`-${MAX_SAFE}`)).model.seed).toBe(Number.MIN_SAFE_INTEGER);
   });
@@ -308,7 +309,7 @@ describe('seed', () => {
   });
 
   it('does not send text that is not a whole number, and says it is not valid', () => {
-    for (const text of ['1.5', 'abc', '12abc', '0x10', '1e3', '--1', '1,000', '4 2']) {
+    for (const text of ['1.5', 'abc', '12abc', '0x10', '1e3', '--1', '+-1', '++1', '+', '-', '1,000', '4 2']) {
       expect(isValidSeed(text), text).toBe(false);
       expect(toRequest(withSeed(text)).model.seed, text).toBeNull();
     }

@@ -312,7 +312,7 @@ internal static class WorkflowRequestDescriptor
     /// A presenter's text is bounded: the prompt is the last member of the payload and a payload that outgrows
     /// <c>MaxPayloadLength</c> is cut, and the facts the audit row needs come before it.
     /// </remarks>
-    private static string ToolApprovalPrompt(string toolName, ToolApprovalPresentation? presentation)
+    internal static string ToolApprovalPrompt(string toolName, ToolApprovalPresentation? presentation)
     {
         var detail = presentation switch
         {
@@ -326,8 +326,12 @@ internal static class WorkflowRequestDescriptor
             return toolName;
         }
 
-        return detail.Length > PresentationLimit
-            ? $"{toolName}: {detail[..PresentationLimit]}…"
+        // F-241: the cut keeps a whole character; the request is stored as JSON, and a lone
+        // high surrogate in it is not text.
+        var kept = SurrogateSafeText.Prefix(detail, PresentationLimit);
+
+        return kept.Length < detail.Length
+            ? $"{toolName}: {kept}…"
             : $"{toolName}: {detail}";
     }
 

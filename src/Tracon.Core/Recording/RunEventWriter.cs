@@ -751,7 +751,12 @@ public sealed class RunEventWriter
             return value;
         }
 
-        return string.Concat(value.AsSpan(0, _options.MaxPayloadLength), TruncationMarker);
+        // 🚨 F-241: never between the halves of a surrogate pair. A lone high surrogate in a
+        // stored event is not text; the store refuses it and the writer would give up on the
+        // run's recording from that event on.
+        return string.Concat(
+            value.AsSpan(0, SurrogateSafeText.PrefixLength(value, _options.MaxPayloadLength)),
+            TruncationMarker);
     }
 
     /// <summary>Gives up on the store for this run and records that the evidence was lost.</summary>
