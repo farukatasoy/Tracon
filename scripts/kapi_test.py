@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 import tempfile
 import time
@@ -2484,6 +2485,52 @@ class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
 
         self.assertEqual(found, [])
         self.assertEqual(skipped, 1)
+
+
+class MigrasyonTabaniGecmisteTestleri(unittest.TestCase):
+    """Bir ayna yeniden yazılmış geçmiş taşır: manifestin tabanı orada yoktur."""
+
+    def _depo(self, kok: pathlib.Path) -> str:
+        env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+        for komut in (["init", "-q"], ["commit", "-q", "--allow-empty", "-m", "x"]):
+            subprocess.run(["git", *komut], cwd=kok, check=True, capture_output=True, env=env)
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=kok, check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    def _manifest(self, kok: pathlib.Path, taban: str) -> None:
+        (kok / "scripts").mkdir()
+        (kok / kapi.APPLIED_MIGRATION_MANIFEST).write_text(
+            json.dumps({"baselineCommit": taban, "sourceCommits": {}}), encoding="utf-8")
+
+    def test_tabani_olmayan_tam_gecmis_dogrulanamadi_sayilir(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = pathlib.Path(gecici)
+            self._depo(kok)
+            self._manifest(kok, "0" * 40)
+
+            self.assertEqual(kapi.migration_anchor_not_in_history(kok), "0" * 40)
+
+    def test_tabani_olan_depo_dogrulanabilir(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = pathlib.Path(gecici)
+            self._manifest(kok, self._depo(kok))
+
+            self.assertIsNone(kapi.migration_anchor_not_in_history(kok))
+
+    def test_okunamayan_manifest_dogrulanamadi_sayilmaz(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = pathlib.Path(gecici)
+            self._depo(kok)
+
+            self.assertIsNone(kapi.migration_anchor_not_in_history(kok))
+
+    def test_git_olmayan_dizin_dogrulanamadi_sayilmaz(self):
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = pathlib.Path(gecici)
+            self._manifest(kok, "0" * 40)
+
+            self.assertIsNone(kapi.migration_anchor_not_in_history(kok))
 
 
 class KapasiteKomutuTestleri(unittest.TestCase):

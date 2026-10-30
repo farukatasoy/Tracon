@@ -418,9 +418,13 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     """Run the synchronization-copy, secret, migration-integrity, doc-reference and public-surface scans."""
     copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
     secrets, synthetic = find_secrets(root)
-    migrations = migration_integrity_violations(root)
+    foreign_anchor = migration_anchor_not_in_history(root)
+    migrations = [] if foreign_anchor else migration_integrity_violations(root)
     stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
     public_surface = public_surface_violations(root)
+    if foreign_anchor:
+        print(f"Tarama: ⚠️ uygulanmış migration bütünlüğü bu depoda doğrulanamadı: {APPLIED_MIGRATION_MANIFEST} "
+              f"tabanı ({foreign_anchor[:12]}) bu deponun geçmişinde yok. Doğrulama, tabanı taşıyan depoda koşar.")
     if not copies and not secrets and not migrations and not stale_docs and not public_surface:
         print("Tarama: ✅ temiz"
               + (f" ({synthetic} işaretli sentetik credential atlandı)" if synthetic else ""))
@@ -462,6 +466,33 @@ def _git(*args: str) -> list[str] | None:
     if result.returncode:
         return None
     return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def migration_anchor_not_in_history(root: pathlib.Path = ROOT) -> str | None:
+    """Return the manifest's base commit when the repository's COMPLETE history lacks it.
+
+    A mirror carries rewritten history, so the commits the manifest anchors to do not
+    exist there; the check cannot run and says so instead of failing every scan. A
+    shallow clone is different: it lacks old commits by construction, and the check
+    must stay red there rather than quietly pass.
+    """
+    try:
+        loaded = json.loads((root / APPLIED_MIGRATION_MANIFEST).read_text(encoding="utf-8"))
+        commit = loaded.get("baselineCommit") if isinstance(loaded, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(commit, str) or not GIT_COMMIT.fullmatch(commit):
+        return None
+    try:
+        shallow = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"], cwd=root, capture_output=True, text=True, check=False)
+        known = subprocess.run(
+            ["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=root, capture_output=True, check=False)
+    except OSError:
+        return None
+    if shallow.returncode or shallow.stdout.strip() != "false":
+        return None
+    return commit if known.returncode else None
 
 
 def migration_integrity_violations(
