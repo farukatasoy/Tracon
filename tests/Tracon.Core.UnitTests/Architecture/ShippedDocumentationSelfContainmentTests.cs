@@ -126,8 +126,8 @@ public sealed class ShippedDocumentationSelfContainmentTests
     ];
 
     /// <summary>
-    /// Files that name every forbidden pattern in order to define or test it, and files the mirror
-    /// withholds: the mirror workflow has to name the private script it runs, and no public reader
+    /// Files that name every forbidden pattern in order to define or test it, and a workflow that is
+    /// withheld from the public tree: it has to name a private path to run it, and no public reader
     /// ever receives it.
     /// </summary>
     private static readonly string[] SkippedFiles =
