@@ -122,7 +122,7 @@ internal sealed class AnthropicChatClientFactory
         // family, 2026-10-17): the budget form (`thinking.type=enabled`) is
         // rejected with 400 and the adaptive form is accepted. A model that
         // predates adaptive thinking (claude-haiku-4-5) is the reverse; it is
-        // selected with `anthropic.thinking.mode = enabled` and a budget (K-1017).
+        // selected with `anthropic.thinking.mode = enabled` and a budget.
         //
         // The decorator is always added: it also tells the validation report
         // which output limit this client sends when the binding sets none

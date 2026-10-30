@@ -166,7 +166,7 @@ public sealed class HostedToolRunTests
     public async Task A_call_of_a_tool_the_agent_did_not_select_is_a_content_event_and_is_billed(bool streaming)
     {
         // The harness adds its own web search, an extension may add another: a tool nobody registered.
-        // It keeps the content event K-1034 gave it, and its call is billed.
+        // It keeps the content event it was given, and its call is billed.
         var provider = new ContentModelProvider([new WebSearchToolCallContent("ws_1"), new TextContent("the answer")], ProviderName);
 
         await using var host = await StartAsync(provider, []);

@@ -419,7 +419,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // On a root run, a tool call that requests approval maps to AwaitingApproval
         // instead of Completed; the reason is in the SAME note inside RunCoreAsync
         // (the path/queue distinction was removed). A workflow
-        // step whose workflow waits for the answer closes the same way (K-1051).
+        // step whose workflow waits for the answer closes the same way.
         var waitsForApproval = WaitsForApproval(start.Scope);
         var pendingApprovalWaits = false;
 

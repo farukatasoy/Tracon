@@ -39,7 +39,7 @@ public sealed class SessionWorkspaceCompileTests
         _ = compiler.Compile(Definition() with { Workspace = On, Harness = new HarnessSettings(), ExtensionNames = ["probe"] });
 
         providers.ShouldNotBeNull().OfType<SessionWorkspaceProvider>().ShouldHaveSingleItem();
-        fileAccessStore.ShouldBeNull("the harness builds its own FileAccessProvider only when FileAccessStore is assigned (K-1069)");
+        fileAccessStore.ShouldBeNull("the harness builds its own FileAccessProvider only when FileAccessStore is assigned");
     }
 
     [Theory]

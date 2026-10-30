@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Every place in <c>src/</c> that gives a model request a tool is a known source, and each source is either run
-/// through the tool chain or named as one that stays outside it, with the decision that says so.
+/// through the tool chain or named as one that stays outside it, with the reason.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,8 +16,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <para>
 /// The gate does not read the code for meaning. A source is a call that makes a tool function or a framework provider
 /// that supplies tools (<see cref="Patterns"/>); a NEW one fails the test until someone adds it to
-/// <see cref="Chained"/> (and names the file that composes it) or to <see cref="Outside"/> (and names the decision
-/// that keeps it out). A source that disappears fails too, so the lists cannot go stale. A kind that appears
+/// <see cref="Chained"/> (and names the file that composes it) or to <see cref="Outside"/> (and says why
+/// it stays out). A source that disappears fails too, so the lists cannot go stale. A kind that appears
 /// twice in one file is counted, so a second call in a file that already has one is new too.
 /// </para>
 /// <para>
@@ -33,6 +33,9 @@ public sealed partial class ToolSourceGovernanceTests
     /// The files that build the chain for a tool: <c>ToolWrapperChain.Compose</c> directly, or
     /// <c>BuiltInToolGovernance.Govern</c>. A tool reaches the chain only through one of them.
     /// </summary>
+    /// <summary>A reason that is shorter than this is a label, not a sentence.</summary>
+    private const int MinimumReasonLength = 30;
+
     private static readonly string[] ChainEntries =
     [
         "src/Tracon.Core/Compilation/AgentDefinitionCompiler.Memory.cs",
@@ -65,11 +68,11 @@ public sealed partial class ToolSourceGovernanceTests
         ["src/Tracon.Core/Workspace/SessionWorkspaceProvider.cs :: Tracon context provider:SessionWorkspaceProvider"] = "src/Tracon.Core/Workspace/SessionWorkspaceProvider.cs",
     };
 
-    /// <summary>Sources whose tools stay outside the chain, each with the reason and the decision.</summary>
+    /// <summary>Sources whose tools stay outside the chain, each with the reason.</summary>
     private static readonly Dictionary<string, string> Outside = new(StringComparer.Ordinal)
     {
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.ChatOptions.cs :: HostedToolRegistry.Create"] =
-            "A hosted tool runs at the model provider; the call never reaches the process, so there is no body to wrap (K-1044).",
+            "A hosted tool runs at the model provider; the call never reaches the process, so there is no body to wrap.",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs :: SubAgentToolNames.CreateFunctions"] =
             "A sub-agent in tool mode: ChildAgentInvoker carries the depth, the budget, the tenant and the wait limits.",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.Agents.cs :: framework provider:BackgroundAgentsProvider"] =
@@ -85,7 +88,7 @@ public sealed partial class ToolSourceGovernanceTests
         ["src/Tracon.Core/Graph/SubAgentToolNames.cs :: AsAIFunction"] =
             "Makes the function of an agent called as a tool; the wrapper owns the depth, the budget, the tenant and the wait limits.",
         ["src/Tracon.Core/Extensions/AgentOptionsGuard.cs :: extension provider ×2"] =
-            "A provider an agent extension adds brings its own tools; the guard lets the provider through and does not inspect its tools (K-1030).",
+            "A provider an agent extension adds brings its own tools; the guard lets the provider through and does not inspect its tools.",
     };
 
     /// <summary>Sources the patterns see that add no tool to the request, and why.</summary>
@@ -123,7 +126,7 @@ public sealed partial class ToolSourceGovernanceTests
 
         unknown.ShouldBeEmpty(
             "A new source of tools was added. Run it through the tool chain (BuiltInToolGovernance.Govern, or register it in the " +
-            "tool registry) and add it to Chained, or, if it must stay outside, add it to Outside with the decision that says so.");
+            "tool registry) and add it to Chained, or, if it must stay outside, add it to Outside with the reason.");
         gone.ShouldBeEmpty("A known source of tools is gone; remove it from the lists.");
         Chained.Keys.Intersect(Outside.Keys, StringComparer.Ordinal).Concat(Chained.Keys.Intersect(NoTools.Keys, StringComparer.Ordinal))
             .Concat(Outside.Keys.Intersect(NoTools.Keys, StringComparer.Ordinal)).ShouldBeEmpty("A source is in more than one list.");
@@ -161,11 +164,13 @@ public sealed partial class ToolSourceGovernanceTests
     }
 
     [Fact]
-    public void A_source_outside_the_chain_names_a_decision()
+    public void A_source_outside_the_chain_says_why()
     {
         foreach (var (source, reason) in Outside)
         {
-            DecisionReference().IsMatch(reason).ShouldBeTrue($"'{source}' stays outside the chain and does not name the decision that says so.");
+            reason.Length.ShouldBeGreaterThanOrEqualTo(
+                MinimumReasonLength,
+                $"'{source}' stays outside the chain and does not say why in a sentence of its own.");
         }
     }
 
@@ -293,9 +298,6 @@ public sealed partial class ToolSourceGovernanceTests
 
     [GeneratedRegex(@"\bToolWrapperChain\.Compose\(|\.Govern\(", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 5000)]
     private static partial Regex ChainCall();
-
-    [GeneratedRegex(@"\b(?:K-\d+|Phase \d+|F-\d+)\b", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 5000)]
-    private static partial Regex DecisionReference();
 
     private static string FindRepositoryRoot()
     {

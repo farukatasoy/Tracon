@@ -48,7 +48,7 @@ internal static class WorkflowResponseFactory
         var portId = request.PortInfo.PortId;
 
         // A tool approval is answered from the request the checkpoint holds: the answer names no tool
-        // call, so a caller cannot approve one the workflow never asked about (K-1051).
+        // call, so a caller cannot approve one the workflow never asked about.
         if (WorkflowRequestDescriptor.IsToolApproval(request))
         {
             return CreateToolApproval(request, answer);

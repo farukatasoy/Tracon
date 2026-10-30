@@ -547,7 +547,7 @@ public sealed class SeamContractDocumentationTests
         string sentence)
     {
         // Adding an interface here is a claim that no guide, sample or contract suite asks
-        // anyone to implement it; removing one means that claim changed (a K-1013 decision).
+        // anyone to implement it; removing one means that claim changed.
         // ITraconBuilder words it differently on purpose: it allows a test double.
         SummaryAbove(relativePath, declaration).ShouldContain(
             sentence,

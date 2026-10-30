@@ -1678,7 +1678,7 @@ def dependency_floor_errors(project_id: str, nuspec: str) -> list[str]:
     """Hatalar: nuspec'in sabitlenmiş bir bağımlılığın alt sınırı `SHIPPED_DEPENDENCY_FLOORS`'tan farklıysa.
 
     Alt sınır `version="3.2.2"` (= `>= 3.2.2`) ya da `[3.2.2, )` yazar. Yükseltmek bir
-    güncelleme değil bir uyumluluk kararıdır (K-1018); bağımlılık hiç yoksa da hatadır,
+    güncelleme değil bir uyumluluk kararıdır; bağımlılık hiç yoksa da hatadır,
     yoksa kapı boş geçerdi."""
     errors: list[str] = []
     for dependency, floor in SHIPPED_DEPENDENCY_FLOORS.get(project_id, {}).items():
@@ -1692,7 +1692,7 @@ def dependency_floor_errors(project_id: str, nuspec: str) -> list[str]:
         wrong = sorted({value for value in ranges if value.replace(" ", "") not in (floor, f"[{floor},)")})
         if wrong:
             errors.append(
-                f"{dependency} alt sınırı {', '.join(wrong)}; sevk edilen alt sınır {floor} (K-1018) - "
+                f"{dependency} alt sınırı {', '.join(wrong)}; sevk edilen alt sınır {floor} - "
                 "yükseltmek tüketiciyi xunit.v3 4'e zorlar")
     return errors
 

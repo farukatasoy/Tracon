@@ -91,7 +91,7 @@ public static class WorkflowAgentBinding
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
 
         // A host (a ready-made pattern or an AIAgentBinding) turns the agent's tool approval into a workflow
-        // request and waits for the answer (K-1051).
+        // request and waits for the answer.
         return services.GetRequiredService<WorkflowAgentCache>()
             .Get(workflowName, agentName, description, hostsApproval: true);
     }

@@ -268,8 +268,8 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
 
     /// <summary>
     /// A row written before <c>ToolLoop</c> existed has no such key. The source-generated reader does
-    /// not run the initializer of a type with <c>required</c> members for an absent key (measured on
-    /// the lists in K-1031), so the setting must still come back as an object.
+    /// not run the initializer of a type with <c>required</c> members for an absent key (measured elsewhere:
+    /// the same lists), so the setting must still come back as an object.
     /// </summary>
     [Fact]
     public void A_payload_written_before_the_tool_loop_existed_reads_back_with_default_loop_settings()

@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Workspace;
 
 /// <summary>
-/// The shape of the paths of the session workspace. The shape is permanent (K-1068): a workspace written under
+/// The shape of the paths of the session workspace. The shape is permanent: a workspace written under
 /// one shape is not found under another.
 /// </summary>
 public sealed class SessionWorkspacePathsTests
@@ -89,6 +89,6 @@ public sealed class SessionWorkspacePathsTests
     private static void Differ(string actual, string other)
         => string.Equals(actual, other, StringComparison.Ordinal).ShouldBeFalse();
 
-    // SHA-256 of 4-byte little-endian length + UTF-8 bytes, per part (tenant, session); first 32 hex characters. Cross-checked with an independent implementation (K-1068).
+    // SHA-256 of 4-byte little-endian length + UTF-8 bytes, per part (tenant, session); first 32 hex characters. Cross-checked with an independent implementation.
     private const string PinnedKey = "ca623ece274a2fc48bb3e64ccb1c2551";
 }

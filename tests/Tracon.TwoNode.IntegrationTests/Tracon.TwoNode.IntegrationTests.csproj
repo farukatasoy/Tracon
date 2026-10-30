@@ -2,7 +2,7 @@
 
   <!--
     The two-node acceptance set. Two in-process hosts share ONE database - PostgreSQL or SQL
-    Server in a container - and the same scenarios run on both. K-1113 promises two replicas; this project is the
+    Server in a container - and the same scenarios run on both. The contract promises two replicas; this project is the
     proof, and it is the reason the project exists apart from the provider integration projects: those reference
     one SQL provider and no HTTP host, while every behaviour here crosses an HTTP request, the job queue, a
     distributed cache and a database in one test.

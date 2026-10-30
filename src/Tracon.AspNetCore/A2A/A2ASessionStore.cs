@@ -10,8 +10,8 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 // MAAI001: AgentSessionStore is marked "evaluation purposes only" since
-// Microsoft Agent Framework 1.22 (same rationale as TraconAgentSessionStore,
-// K-1016). This type is internal, so the experimental base never reaches
+// Microsoft Agent Framework 1.22 (same rationale as TraconAgentSessionStore).
+// This type is internal, so the experimental base never reaches
 // Tracon's public API; the suppression covers this file only.
 #pragma warning disable MAAI001
 

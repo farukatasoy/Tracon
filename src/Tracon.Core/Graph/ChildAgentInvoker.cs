@@ -631,7 +631,7 @@ public sealed class ChildAgentInvoker : AIAgent
             // bound none.
             ParameterValues = stepValues,
 
-            // A step's workflow waits for the answer to a tool approval (K-1051), so its row closes
+            // A step's workflow waits for the answer to a tool approval, so its row closes
             // AwaitingApproval. The sub-agent a step's agent calls builds its OWN options and never gets
             // this: below the step the approval is still refused.
             SuspendsWorkflowOnApproval = _hostsApproval,

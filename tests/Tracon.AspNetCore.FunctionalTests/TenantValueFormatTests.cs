@@ -25,7 +25,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// HTTP-level on purpose: the behavior lives in the endpoint filter and crosses the request, the
-/// authentication handler and the tenant context. The contract gate does not see it (K-1081 counts a
+/// authentication handler and the tenant context. The contract gate does not see it (it counts a
 /// documented 4xx as documentation), so these tests are the proof.
 /// </para>
 /// </remarks>

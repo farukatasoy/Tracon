@@ -174,7 +174,7 @@ public static class LiveVoiceBuilderExtensions
 
         // A name that is not a delegation mode stops the host at startup: the mode decides who runs
         // delegated work, so a setting that names another mode (the removed Responses mode, for one)
-        // must not run with a mode the operator did not ask for (K-1015).
+        // must not run with a mode the operator did not ask for.
         read.Enum<LiveVoiceDelegationMode>(
             "DelegationMode",
             static o => o.DelegationMode,

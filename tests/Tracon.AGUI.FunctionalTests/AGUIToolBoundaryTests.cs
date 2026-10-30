@@ -79,7 +79,7 @@ public sealed class AGUIToolBoundaryTests
     {
         // The model sees a client-side tool because the agent's definition names it. A tool the front end cannot run
         // would be called and then wait for a result nobody can produce, and a run cannot hide a tool of its definition
-        // from the model (K-1039). So the request is refused instead.
+        // from the model. So the request is refused instead.
         await using var host = await AGUITestHost.StartAsync(builder => TestAgents.AddClientTool(builder));
 
         var response = await host.RunAsync(TestAgents.ClientTool, AGUIInputs.User("t-missing", "open it"));

@@ -311,7 +311,7 @@ public sealed class ChildAgentInvokerTests
     [Fact]
     public async Task A_step_hosted_by_the_workflow_passes_a_tool_approval_on_and_its_row_waits_for_the_answer()
     {
-        // K-1051: the host turns the request into a workflow request, so the wrapper neither throws nor
+        // The host turns the request into a workflow request, so the wrapper neither throws nor
         // rewrites the answer, and the step's row closes the way a root run's does.
         var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
         var client = new FakeChatClient(_ => new ChatResponse(
