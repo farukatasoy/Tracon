@@ -297,7 +297,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 180 management and OpenAI-compatible
+The generated HTTP reference contains 182 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -329,8 +329,8 @@ authority is `role ∩ scopes`.
 |---|---|
 | `RunsRead` | Run summaries, event streams, statistics, traces, and other run reads |
 | `RunsWrite` | Starting and cancelling runs and deciding approvals |
-| `AgentsRead` | Agent, skill, tool, and model catalog reads |
-| `AgentsAdmin` | Agent and skill definition writes and version rollback |
+| `AgentsRead` | Agent, skill, tool, and model catalog reads, and exporting definitions |
+| `AgentsAdmin` | Agent, skill and MCP server definition writes, version rollback, and importing definitions (a file with workflows also needs `WorkflowsAdmin`) |
 | `ExternalInvoke` | Explicitly exposed MCP-server and A2A invocation surfaces |
 | `KnowledgeRead` | Knowledge collection listing and semantic search |
 | `KnowledgeAdmin` | Knowledge document upload and deletion |

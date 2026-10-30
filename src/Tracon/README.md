@@ -48,10 +48,10 @@ newer preview.
 | `Tracon.Abstractions` | The contracts everything is written against |
 | `Tracon.Core` | Runtime: catalog, definition compiler, tool registry, run recording |
 | `Tracon.OpenAI` | The OpenAI provider |
-| `Tracon.AspNetCore` | The HTTP API — 180 operations, layered access control |
+| `Tracon.AspNetCore` | The HTTP API — 182 operations, layered access control |
 | `Tracon.Workflows` | Multi-agent workflows, checkpoints, human-in-the-loop |
 | `Tracon.Mcp` | Tools from remote MCP servers |
-| `Tracon.UI` | The embedded management console — 30 screens, no `node_modules` |
+| `Tracon.UI` | The embedded management console — 31 screens, no `node_modules` |
 
 ## Install pieces instead
 

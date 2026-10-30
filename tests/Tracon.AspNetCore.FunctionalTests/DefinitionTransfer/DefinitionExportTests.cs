@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests.DefinitionTransfer;
@@ -82,6 +83,33 @@ public sealed class DefinitionExportTests
 
         Names(bundle, "agents", agent => agent["definition"]!["name"]!.GetValue<string>()).ShouldBe(["callee", "house-style", "lead"]);
         Names(bundle, "skills", skill => skill["definition"]!["name"]!.GetValue<string>()).ShouldBe(["policy"]);
+    }
+
+    [Fact]
+    public async Task A_named_agent_brings_the_MCP_servers_whose_tools_and_resources_it_uses()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        foreach (var server in new[] { "lookup-srv", "docs-srv", "unrelated", "a", "a_b" })
+        {
+            await host.CreateMcpServerAsync(server);
+        }
+
+        // Saved through the store: creating the agent over HTTP would need the tools to be live on a real server.
+        await host.Services.GetRequiredService<IAgentDefinitionStore>().SaveAsync(new AgentDefinition
+        {
+            Name = "finder",
+            Instructions = "Look things up.",
+            Model = TestData.Model(),
+            ToolNames = ["lookup-srv_lookup", "a_b_search", "some_code_tool"],
+            McpResourceUris = ["docs-srv:file://guide.md"],
+        });
+
+        var bundle = await host.ExportAsync("?agent=finder");
+
+        // A tool name belongs to every server whose name prefixes it ("a" and "a_b" both match "a_b_search"): the file may
+        // carry one server too many and never one too few. A name that matches no server (a code tool) brings nothing.
+        Names(bundle, "mcpServers", server => server["name"]!.GetValue<string>()).ShouldBe(["a", "a_b", "docs-srv", "lookup-srv"]);
     }
 
     [Fact]

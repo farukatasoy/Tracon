@@ -1,6 +1,6 @@
 ---
 title: Move definitions between installations
-description: Export the agents, workflows, skills and MCP servers one installation keeps in its database as a file, check what an import would do, and write it into another installation or tenant, with version pins translated and nothing written unless the whole file is valid.
+description: Export agents, workflows, skills and MCP servers as one file, check an import with a dry run, and write it into another installation only when the whole file is valid.
 ---
 
 You build an agent in a development installation. You try it and version it

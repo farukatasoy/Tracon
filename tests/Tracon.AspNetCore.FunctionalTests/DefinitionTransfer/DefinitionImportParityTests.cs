@@ -198,6 +198,86 @@ public sealed class DefinitionImportParityTests
         await AssertRefusedTheSameWayAsync(host, TransferHost.NewBundle().WithMcpServer("masked", definition), "mcpServer", "masked", detail);
     }
 
+    [Fact]
+    public async Task An_MCP_server_at_a_private_address_literal_is_refused_as_the_save_refuses_it()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var definition = TransferHost.McpDefinition("http://169.254.169.254/latest/meta-data");
+
+        var detail = await SaveRawRefusalAsync(host, HttpMethod.Put, "mcp-servers/metadata", definition, HttpStatusCode.BadRequest);
+
+        await AssertRefusedTheSameWayAsync(host, TransferHost.NewBundle().WithMcpServer("metadata", definition), "mcpServer", "metadata", detail);
+    }
+
+    [Fact]
+    public async Task An_OAuth_server_without_a_client_id_is_refused_as_the_save_refuses_it()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var definition = TransferHost.McpDefinition();
+
+        definition["oauthEnabled"] = true;
+
+        var detail = await SaveRawRefusalAsync(host, HttpMethod.Put, "mcp-servers/oauth", definition, HttpStatusCode.BadRequest);
+
+        await AssertRefusedTheSameWayAsync(host, TransferHost.NewBundle().WithMcpServer("oauth", definition), "mcpServer", "oauth", detail);
+    }
+
+    [Fact]
+    public async Task An_Authorization_key_beside_OAuth_is_refused_as_the_save_refuses_it()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var definition = TransferHost.McpDefinition();
+
+        definition["oauthEnabled"] = true;
+        definition["oauthClientId"] = "client-1";
+        definition["headerConfigurationKeys"] = new JsonObject { ["Authorization"] = "Tracon:McpSecrets:Token" };
+
+        var detail = await SaveRawRefusalAsync(host, HttpMethod.Put, "mcp-servers/both", definition, HttpStatusCode.BadRequest);
+
+        await AssertRefusedTheSameWayAsync(host, TransferHost.NewBundle().WithMcpServer("both", definition), "mcpServer", "both", detail);
+    }
+
+    [Fact]
+    public async Task A_credential_key_outside_the_allowed_prefix_is_refused_as_the_save_refuses_it()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var definition = TransferHost.McpDefinition();
+
+        definition["headerConfigurationKeys"] = new JsonObject { ["X-Api-Key"] = "Unrelated:Section:Key" };
+
+        var detail = await SaveRawRefusalAsync(host, HttpMethod.Put, "mcp-servers/stray", definition, HttpStatusCode.BadRequest);
+
+        await AssertRefusedTheSameWayAsync(host, TransferHost.NewBundle().WithMcpServer("stray", definition), "mcpServer", "stray", detail);
+    }
+
+    [Fact]
+    public async Task A_skill_with_a_repeated_resource_name_is_refused_as_the_save_refuses_it()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var skill = new AgentSkillRequest
+        {
+            Name = "twice",
+            Description = "A skill.",
+            Instructions = "Read.",
+            Resources =
+            [
+                new AgentSkillResourceDefinition { Name = "policy.md", Content = "One." },
+                new AgentSkillResourceDefinition { Name = "policy.md", Content = "Two." },
+            ],
+        };
+
+        var detail = await SaveRefusalAsync(host, HttpMethod.Put, "skills/twice", skill, expected: HttpStatusCode.BadRequest);
+        var bundle = TransferHost.NewBundle();
+
+        bundle["skills"]!.AsArray().Add(new JsonObject
+        {
+            ["sourceVersion"] = 1,
+            ["definition"] = JsonSerializer.SerializeToNode(skill, Web),
+        });
+
+        await AssertRefusedTheSameWayAsync(host, bundle, "skill", "twice", detail);
+    }
+
     private static async Task<string> SaveRefusalAsync<T>(TraconTestHost host, HttpMethod method, string path, T body, HttpStatusCode expected)
     {
         using var request = new HttpRequestMessage(method, TransferHost.Api(path)) { Content = JsonContent.Create(body) };

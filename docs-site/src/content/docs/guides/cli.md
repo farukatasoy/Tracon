@@ -258,4 +258,3 @@ where `2` means the file could not be written.
 - [Persistence](/getting-started/persistence/) — what a migration actually does to the schema
 - [Every public type](/api/) — the full generated client surface
 - [Coding agents](/guides/coding-agents/) — what `agent-skill` writes, and why
-- [Move definitions between installations](/guides/move-definitions/) — what `export` and `import` carry, and how a pin is translated

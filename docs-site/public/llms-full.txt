@@ -160,7 +160,7 @@ is the list.
 
 | Capability | Enable it | Storage and execution model |
 |---|---|---|
-| Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, and a step can pin a version of a stored agent |
+| Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, a step can pin a version of a stored agent, and a `Handoff` workflow names who may hand off to whom (`Handoffs`) with a per-run limit (`MaxHandoffs`, error type `handoff_limit_exceeded`) |
 | Tenant run cap | `MaxConcurrentRunsPerTenant` | One tenant cannot take every workflow slot of a process or the front of the job queue: its run over the limit waits `Queued` for a tenant slot and holds no shared one, and a worker leases queued workflow jobs of a tenant under the limit first; across processes the count is read, not locked |
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
 | Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; an agent's tool call that needs approval is a request of the form `ToolApproval` (approve or refuse it, give a reason, optionally save a rule), where a pattern hosts the agent; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`); `GET /api/workflows/requests` lists the tenant's waiting requests, and a `RequestTimeout` closes a run nobody answered (`run.failed`) so retention can release what it kept |
@@ -276,7 +276,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-180-operation HTTP reference.
+182-operation HTTP reference.
 
 ## Embedding points
 
@@ -5491,8 +5491,9 @@ stays optional on purpose.
 | `GroupChat` | A manager distributes turns among participants |
 | `Magentic` | A manager plans, tracks progress, and replans; a manager agent is required |
 
-`MaxIterations` bounds the turn count for `Handoff`, `GroupChat`, and `Magentic` — the
-only structural guard against two agents handing off to each other forever. Each
+`MaxIterations` bounds the turn count for `GroupChat` and `Magentic`, and the turns a
+`Handoff` agent goes on with by itself. A loop of handoffs has its own limit,
+`MaxHandoffs` (see [Who hands off to whom](#who-hands-off-to-whom)). Each
 participant call also carries the same two-layer wait limit a callable agent's
 sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agents)):
 a cooperative deadline, then a hard cutoff for a participant that ignores it. The
@@ -5530,6 +5531,123 @@ new WorkflowDefinition
 Which fields are required depends on the kind, and the definition is validated when it
 is **saved** using the same rules the compiler applies. A shape that could not run is
 rejected at write time rather than on the first execution.
+
+## Who hands off to whom
+
+A `Handoff` definition with no `Handoffs` is a **star**: the first agent in `AgentNames`
+(the coordinator) may hand off to every other agent, and none of them hands off. A
+specialist cannot return to the coordinator, and two specialists cannot pass a case to
+each other.
+
+`Handoffs` replaces the star with the edges you list. An edge is data — two agent names
+and an optional reason — so it can be saved, versioned, exported and edited in the
+console:
+
+```csharp
+new WorkflowDefinition
+{
+    Name = "triage",
+    Kind = WorkflowKind.Handoff,
+    AgentNames = ["frontline", "billing", "technical"],
+    Handoffs =
+    [
+        new WorkflowHandoff { From = "frontline", To = "billing", Reason = "Invoices and payments." },
+        new WorkflowHandoff { From = "frontline", To = "technical" },
+        new WorkflowHandoff { From = "billing", To = "frontline", Reason = "The billing question is answered." },
+    ],
+    MaxHandoffs = 6,
+}
+```
+
+```mermaid
+flowchart LR
+    accTitle: Handoff edges of the triage example
+    accDescr: The frontline agent may hand off to billing and to technical. Billing may hand the conversation back to frontline. Technical has no edge out of it, so it never hands off.
+    F["frontline<br/>(first agent)"] -->|"Invoices and payments."| B["billing"]
+    F --> T["technical"]
+    B -->|"The billing question is answered."| F
+```
+
+- **An edge goes one way.** `billing → frontline` does not let `frontline` hand off to
+  `billing`; that is a second edge.
+- **Only the listed edges exist.** An agent with no edge out of it never hands off: the
+  model of `technical` above is offered no handoff tool.
+- **`Reason` is a hint the model reads**, as the description of the handoff tool. Left
+  out, the framework uses the description of the target agent, or its name. A model can
+  hand off without a reason that fits, or not hand off when one does.
+- **The model decides when.** An edge says who *may* hand off. A condition you write is
+  code, and code does not go in a definition: build the graph in code
+  ([Graphs built in code](#graphs-built-in-code)).
+
+A save is refused with `400`, and the message names the field and the edge
+(`handoffs[2] to 'support' is not in agentNames`), when:
+
+- `Handoffs` or `MaxHandoffs` is set on another pattern, or `MaxStalls` or `MaxResets` is
+  set on a pattern that is not `Magentic`;
+- an edge names an agent that is not in `AgentNames`, or hands an agent off to itself;
+- the same pair appears twice;
+- a `Reason` is only white space;
+- the first agent has no edge out of it, or an agent cannot be reached from the first
+  agent by following the edges.
+
+`PUT /api/workflows/{name}` replaces the whole definition, so a save without `Handoffs`
+brings the star back.
+
+### Stop a loop with MaxHandoffs
+
+Edges that let two agents hand off to one another can loop, and the framework does not
+count handoffs. Tracon counts them for each run. When a run makes more than `MaxHandoffs`
+(10 when left out), the handoff that goes past the limit is stopped before the framework
+acts on it, and the run ends `Failed` with the error type `handoff_limit_exceeded` (class
+`QuotaExceeded`, the class of a spent budget). The message names the limit and the agent
+that asked for the handoff.
+
+```bash
+curl -sS -X PUT http://localhost:5081/tracon/api/workflows/triage \
+     -H 'Content-Type: application/json' -d '{
+       "kind": "Handoff",
+       "agentNames": ["frontline", "billing", "technical"],
+       "handoffs": [
+         { "from": "frontline", "to": "billing" },
+         { "from": "frontline", "to": "technical" },
+         { "from": "billing", "to": "frontline", "reason": "The billing question is answered." }
+       ],
+       "maxHandoffs": 6
+     }'
+```
+
+- The count is of one run. A run that continues after a person answers, or an operator
+  resumes it, is a new run and counts from zero.
+- The limit applies to a workflow stored as a definition. A workflow built in code is
+  yours to bound.
+- `MaxIterations` is a different limit: after an agent answers without a handoff, the
+  framework asks it to go on by itself that many times (8 when left out). Each turn is a
+  model call, and the closing answer can repeat.
+- Match the type with `TraconErrorTypes.HandoffLimitExceeded` when you read a run's `error`.
+
+### Change an edge on a workflow that waits
+
+The edges are the graph of the workflow. Adding or removing an edge is a different graph:
+a run that waits for input keeps resuming the version it recorded, and resuming it with the
+new version fails because its saved state belongs to the old graph (the same rule as a step
+added to a chain). A new `Reason`, a new `MaxHandoffs`, and writing the star out as the
+same edges are not a different graph. The console says so before it saves.
+
+### Magentic: stalls and resets
+
+A `Magentic` manager replans when the agents make no progress. `MaxStalls` is how many
+rounds without progress it tolerates before it replans (the framework's 3 when left out).
+`MaxResets` is how many times it may replan (no limit when left out). Both are 1 or more.
+
+When the manager has replanned `MaxResets` times, the next round does not run. The run
+ends **`Completed`**, not `Failed`: its output is a message that says the task stopped at
+the maximum reset count, in place of the manager's answer. The same is true of
+`MaxIterations`, the number of rounds. A consumer that must tell a finished task from a
+stopped one reads that message.
+
+The framework's `EnableReturnToPrevious` is not offered. It makes the next message go to
+the specialist that answered last, and it keeps that choice between runs; a Tracon run
+starts with no earlier state, so there is nothing to return to.
 
 ## Function nodes
 
@@ -5632,8 +5750,8 @@ To carry a waiting run over a fix, send the edited version in the optional
   version of a workflow defined in code answers `400` ("Definition version invalid"). The
   check runs before a stream opens or a job is queued.
 - The checkpoint belongs to the graph that wrote it. A version whose graph differs from it
-  — a step added, removed or reordered, another pattern, another stored form — fails the
-  run, and the error says the graph's structure differs. A version that differs only in
+  — a step added, removed or reordered, a handoff edge added or removed, another pattern,
+  another stored form — fails the run, and the error says the graph's structure differs. A version that differs only in
   settings, timeouts or an agent pin resumes: those are not part of a step's identity.
 
 ### Pin an agent step to a version
@@ -6294,8 +6412,8 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 180 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
-| **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
+| **HTTP API** | 182 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **Console** | 31 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
 | **Governance** | Roles, scoped API keys, tenancy, approvals, guards, quotas, retention, webhooks, and audit |
@@ -9971,7 +10089,6 @@ where `2` means the file could not be written.
 - [Persistence](/getting-started/persistence/) — what a migration actually does to the schema
 - [Every public type](/api/) — the full generated client surface
 - [Coding agents](/guides/coding-agents/) — what `agent-skill` writes, and why
-- [Move definitions between installations](/guides/move-definitions/) — what `export` and `import` carry, and how a pin is translated
 
 ---
 
@@ -21525,7 +21642,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-180 operations across 140 paths. This page is the shape they all share; the groups in
+182 operations across 142 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -22474,7 +22591,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 180 management and OpenAI-compatible
+The generated HTTP reference contains 182 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -22506,8 +22623,8 @@ authority is `role ∩ scopes`.
 |---|---|
 | `RunsRead` | Run summaries, event streams, statistics, traces, and other run reads |
 | `RunsWrite` | Starting and cancelling runs and deciding approvals |
-| `AgentsRead` | Agent, skill, tool, and model catalog reads |
-| `AgentsAdmin` | Agent and skill definition writes and version rollback |
+| `AgentsRead` | Agent, skill, tool, and model catalog reads, and exporting definitions |
+| `AgentsAdmin` | Agent, skill and MCP server definition writes, version rollback, and importing definitions (a file with workflows also needs `WorkflowsAdmin`) |
 | `ExternalInvoke` | Explicitly exposed MCP-server and A2A invocation surfaces |
 | `KnowledgeRead` | Knowledge collection listing and semantic search |
 | `KnowledgeAdmin` | Knowledge document upload and deletion |
@@ -29108,6 +29225,20 @@ form. Settings are stored with the workflow and shown to everyone who can read i
 the field says not to put a secret there. The server also refuses a chain whose step
 cannot take what the step before it passes on (see
 [Function nodes](/concepts/workflow-function-nodes/)); that answer names both steps.
+
+<a class="ui-shot" href="/screenshots/workflow-handoff-editor.png"><img src="/screenshots/workflow-handoff-editor.png" alt="The workflow editor of a Handoff workflow with three agents, the table of who hands off to whom, and the handoff limit" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+For a `Handoff` workflow the editor adds **Who hands off to whom**: one row for each edge,
+with the agent that hands off, the agent that receives the conversation, and a reason the
+model reads. An empty table is the star the pattern always had, and the screen says so;
+the first row you add replaces it, so only the rows in the table exist. Removing an agent
+from the chain removes its rows. **Max handoffs** bounds the handoffs of one run (10 when
+empty; see [Who hands off to whom](/concepts/workflows/#who-hands-off-to-whom)). A
+`Magentic` workflow has **Max stalled rounds** and **Max replans** in the same place. Save
+waits while a row has an end left to choose; every other rule is the server's answer and
+names the row. Adding or removing a row is a different graph, so the screen shows the same
+notice it shows for a changed step, and a new reason or limit does not. The version
+compare lists the edges of two versions line by line.
 
 An agent step of a stored agent has an **Agent version** field. *Current version* runs the
 agent's latest version each time the step runs; picking a version pins the step to it, so

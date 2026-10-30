@@ -107,4 +107,62 @@ public sealed class DefinitionImportOverlayTests
 
         (await target.AgentVersionCountAsync("stable")).ShouldBe(1);
     }
+
+    [Fact]
+    public async Task A_dry_run_does_not_change_what_the_cached_agent_tells_the_model()
+    {
+        // The compiled agent of "stable" is in the cache after its first run. A dry run that compiled the file's version
+        // through that path would leave the NEW instructions behind, and the next run would send them to the model.
+        var probe = new Tracon.Testing.FakeModelProvider("probe").EchoesUserMessage();
+
+        await using var target = await TraconTestHost.StartAsync(builder => builder.AddModelProvider(probe));
+
+        var stable = new AgentDefinitionRequest
+        {
+            Name = "stable",
+            Instructions = "OLD-WORDING",
+            Model = new ModelBinding { Provider = "probe", Model = "probe-1" },
+        };
+
+        await target.CreateAgentAsync(stable);
+        await RunAsync(target, "stable");
+
+        var dry = await target.ImportOkAsync(
+            TransferHost.NewBundle().WithAgent(stable with { Instructions = "NEW-WORDING" }),
+            dryRun: true);
+
+        TransferHost.Actions(dry, "agent").ShouldBe(["stable:newVersion"]);
+
+        await RunAsync(target, "stable");
+
+        var seen = SentToModel(probe);
+
+        seen.ShouldContain("OLD-WORDING");
+        seen.ShouldNotContain("NEW-WORDING");
+
+        // Applied, the same path does pick the new version up: the probe sees instructions, so this is not a vacuous check.
+        await target.ImportOkAsync(TransferHost.NewBundle().WithAgent(stable with { Instructions = "NEW-WORDING" }), dryRun: false);
+        await RunAsync(target, "stable");
+
+        SentToModel(probe).ShouldContain("NEW-WORDING");
+    }
+
+    private static async Task RunAsync(TraconTestHost host, string agent)
+    {
+        using var response = await host.Client.PostAsJsonAsync(
+            TransferHost.Api($"agents/{agent}/run"),
+            new AgentRunRequest { Message = "hello" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // The run is a stream: reading it to the end is what finishes the run.
+        _ = await response.Content.ReadAsStringAsync();
+    }
+
+    private static string SentToModel(Tracon.Testing.FakeModelProvider probe)
+    {
+        var request = probe.Requests[^1];
+
+        return string.Join(" ", request.Messages.Select(static message => message.Text)) + " " + request.Options?.Instructions;
+    }
 }

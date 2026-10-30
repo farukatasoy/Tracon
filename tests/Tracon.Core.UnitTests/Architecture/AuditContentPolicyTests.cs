@@ -43,6 +43,10 @@ public sealed class AuditContentPolicyTests
         "src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/CatalogEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/DataSubjectEndpoints.cs",
+        // Reviewed (phase 269): definitions.export and definitions.import write the COUNTS of the definitions of each
+        // kind and, for an import, the SHA-256 of the file - never a definition. The file holds instructions an
+        // administrator authored; the line names none of them (the trail is not protected at rest, K-779).
+        "src/Tracon.AspNetCore/Endpoints/DefinitionTransferEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/QuotaEndpoints.cs",

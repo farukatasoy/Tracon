@@ -52,7 +52,7 @@ where you create an agent that calls it. To define the agent in code instead, fo
 
 Dashboard, Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
 Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics, Settings —
-**30 screens across 36 routes**, lists and editors included.
+**31 screens across 37 routes**, lists and editors included.
 
 Written in React 19 and TypeScript, built with Vite, and embedded in the assembly
 **Brotli-compressed** — no JavaScript dependency reaches the consuming project and no
@@ -190,14 +190,14 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | `Tracon.Mcp` | PolyForm | Tool discovery from remote MCP servers — HTTP only, approval default |
 | `Tracon.Workflows` | PolyForm | Workflow execution — five patterns, checkpoints, resume, HITL |
 | `Tracon.AspNetCore` | PolyForm | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
-| `Tracon.UI` | PolyForm | Embedded React console — 30 screens, 36 routes, zero JS dependencies |
+| `Tracon.UI` | PolyForm | Embedded React console — 31 screens, 37 routes, zero JS dependencies |
 | `Tracon.AGUI` | PolyForm | The AG-UI endpoint — a front end that speaks the AG-UI protocol (CopilotKit and others) runs your agents, with client-side tools and tool approvals as interrupts. Takes the AG-UI SDK (MIT); **not in the meta package** |
 | `Tracon.Templates` | MIT | The `dotnet new tracon-api` template — not in the meta package |
 | `Tracon.Testing` | PolyForm | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; framework neutral, not in the meta package |
 | `Tracon.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource` or `IJobHandler`. Not in the meta package |
-| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 180 operations, zero Tracon dependency, no NuGet dependency beyond DI abstractions. Not in the meta package |
+| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 182 operations, zero Tracon dependency, no NuGet dependency beyond DI abstractions. Not in the meta package |
 | `Tracon.Cli` | PolyForm | The `tracon` global tool — `migrate`, `migrate status`, `health`, `eval`, `state-check`, `agent-skill`. Not a library; not in the meta package |
-| `@tracon/client` | PolyForm | **npm, not NuGet** — the same 180 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
+| `@tracon/client` | PolyForm | **npm, not NuGet** — the same 182 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0` — including `Tracon.Testing`, so an
 app on .NET 8 LTS is tested on .NET 8. Three differ: `Tracon.Templates` generates a
@@ -355,7 +355,7 @@ cd src/Tracon.UI/frontend && npm run dev
 
 **The user-facing product documentation is a separate site:**
 <https://tracon.dev> — installation, your first agent, concepts, a console tour,
-the HTTP API (180 operations), and an API reference for 638 public types. Its source
+the HTTP API (182 operations), and an API reference for 639 public types. Its source
 is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh)
 builds it, runs the four site gates, and publishes it behind the nginx stack in
 [`docs-site/deploy/`](docs-site/deploy/).

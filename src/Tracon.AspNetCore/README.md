@@ -19,7 +19,7 @@ app.MapTracon("/tracon");
 
 `UsePostgreSql` comes from the `Tracon.PostgreSql` package; add it with `dotnet add package Tracon.PostgreSql --prerelease`. Without a storage package every store is in memory.
 
-180 operations over 140 paths, all under the prefix you choose. The prefix appears in
+182 operations over 142 paths, all under the prefix you choose. The prefix appears in
 exactly one place; nothing else in your application has to know it.
 
 ## Two endpoint groups

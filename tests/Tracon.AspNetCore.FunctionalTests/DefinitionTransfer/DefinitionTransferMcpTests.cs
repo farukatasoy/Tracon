@@ -61,6 +61,56 @@ public sealed class DefinitionTransferMcpTests
     }
 
     [Fact]
+    public async Task No_report_ever_carries_a_plain_header_value_of_the_target_or_of_the_file()
+    {
+        const string TargetValue = "target-held-value-ap-1";
+        const string FileValue = "file-carried-value-eu-2";
+
+        await using var target = await TraconTestHost.StartAsync();
+
+        await target.CreateMcpServerAsync(
+            "search",
+            new { headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Region"] = TargetValue } });
+
+        // The file changes the server and, being written by hand, carries a plain value of its own.
+        var definition = TransferHost.McpDefinition();
+
+        definition["description"] = "Changed in the file.";
+        definition["headers"] = new JsonObject { ["X-Region"] = FileValue };
+
+        var bundle = TransferHost.NewBundle().WithMcpServer("search", definition, "X-Region");
+
+        var (dryResponse, dry) = await target.ImportAsync(bundle, dryRun: true);
+
+        using (dryResponse)
+        {
+            dryResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        TransferHost.Item(dry!, "mcpServer", "search")["changedPaths"]!.AsArray()
+            .Select(path => path!.GetValue<string>())
+            .ShouldContain(static path => string.Equals(path, "headers", StringComparison.Ordinal));
+
+        var (applyResponse, applied) = await target.ImportAsync(bundle, dryRun: false);
+
+        using (applyResponse)
+        {
+            applyResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        foreach (var text in new[] { dry!.ToJsonString(), applied!.ToJsonString() })
+        {
+            text.ShouldNotContain(TargetValue);
+            text.ShouldNotContain(FileValue);
+        }
+
+        // The file's value did reach the store: the report hides values, it does not drop them.
+        var stored = await target.Services.GetRequiredService<IMcpServerStore>().GetAsync("default", "search");
+
+        stored.ShouldNotBeNull().Headers["X-Region"].ShouldBe(FileValue);
+    }
+
+    [Fact]
     public async Task A_new_server_warns_that_its_header_values_have_to_be_entered_in_the_target()
     {
         await using var target = await TraconTestHost.StartAsync();
