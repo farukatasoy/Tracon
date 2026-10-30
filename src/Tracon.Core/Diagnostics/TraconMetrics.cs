@@ -93,17 +93,17 @@ internal sealed class TraconMetrics : IDisposable
         RunCost = _meter.CreateCounter<double>(
             TraconDiagnostics.RunCostCounterName,
             unit: "{cost}",
-            description: "Cost per run, in currency units. Does not include the tree total (K-151).");
+            description: "Cost per run, in currency units. Counts the run's own cost only, never the total of its sub-runs.");
 
         JudgeCost = _meter.CreateCounter<double>(
             TraconDiagnostics.JudgeCostCounterName,
             unit: "{cost}",
-            description: "The OWN cost of a single IRunJudge call (Phase 49). Not included in the scored agent's cost.");
+            description: "The OWN cost of a single IRunJudge call. Not included in the scored agent's cost.");
 
         JudgeScore = _meter.CreateHistogram<double>(
             TraconDiagnostics.JudgeScoreHistogramName,
             unit: "{score}",
-            description: "Score given by an IRunJudge, 0-100 (Phase 49).");
+            description: "Score given by an IRunJudge, 0-100.");
 
         ModelCacheLookups = _meter.CreateCounter<long>(
             TraconDiagnostics.ModelCacheLookupCounterName,

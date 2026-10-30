@@ -45,7 +45,7 @@ internal sealed class TraconSqlServerOptionsValidator : IValidateOptions<TraconS
         {
             (failures ??= []).Add(
                 $"{nameof(TraconSqlServerOptions)}.{nameof(TraconSqlServerOptions.SchemaName)} cannot be 'dbo'. " +
-                "Tracon never touches the consumer's default schema. Rationale: docs/KARARLAR.md, decision K-013.");
+                "Tracon never touches the consumer's default schema.");
         }
 
         if (options.CommandTimeoutSeconds is < 0 or > 3600)

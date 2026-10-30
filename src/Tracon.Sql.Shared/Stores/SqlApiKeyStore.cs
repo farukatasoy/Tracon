@@ -76,7 +76,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "The tenant is the OUTPUT of this call, not its input: while authenticating a request we do not yet know which tenant it belongs to (section 53.5).")]
+        "The tenant is the OUTPUT of this call, not its input: while authenticating a request we do not yet know which tenant it belongs to.")]
     public async ValueTask<ApiKeyRecord?> FindByHashAsync(ReadOnlyMemory<byte> keyHash, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectApiKeyByHash);
@@ -112,7 +112,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "This is a deployment health check (ExternalSurfaceGuard, section 53.4); it is not specific to any one tenant.")]
+        "This is a deployment health check (ExternalSurfaceGuard); it is not specific to any one tenant.")]
     public async ValueTask<bool> HasActiveScopeAsync(ApiKeyScope scope, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.HasApiKeyWithScope);

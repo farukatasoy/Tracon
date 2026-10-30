@@ -103,7 +103,7 @@ internal static class ToolMethodScanner
             // during scanning, where it reliably executes.
             throw new TraconException(
                 $"Method '{type.FullName}.{method.Name}' is an instance method and cannot be a tool. MAF supplies an " +
-                "empty provider as AIFunctionArguments.Services (K-218). Make the method `static`, create the target " +
+                "empty provider as AIFunctionArguments.Services, so an instance method cannot resolve its target. Make the method `static`, create the target " +
                 "during registration and use `AddTool(AIFunctionFactory.Create(...))`, or use `AddScopedTool(...)` " +
                 "if the dependency must be resolved per call.");
         }

@@ -47,7 +47,7 @@ internal sealed class TraconPostgreSqlOptionsValidator : IValidateOptions<Tracon
         {
             (failures ??= []).Add(
                 $"{nameof(TraconPostgreSqlOptions)}.{nameof(TraconPostgreSqlOptions.SchemaName)} cannot be 'public'. " +
-                "Tracon never touches the consumer's public schema. Rationale: docs/KARARLAR.md, decision K-013.");
+                "Tracon never touches the consumer's public schema.");
         }
 
         if (options.CommandTimeoutSeconds is < 0 or > 3600)

@@ -251,7 +251,7 @@ public sealed class ToolRegistrationTests
 
         exception.Message.ShouldContain(nameof(SampleClassWithMethod));
         exception.Message.ShouldContain("Greet");
-        exception.Message.ShouldContain("K-218");
+        exception.Message.ShouldContain("empty provider");
 
         // K-347 does NOT reopen (the instance method is still
         // rejected) - the rejection text now also names AddScopedTool, the

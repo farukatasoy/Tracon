@@ -235,7 +235,7 @@ public sealed class DiagnosticTests
         var diagnostics = result.DiagnosticsWithId("TRC0007");
         diagnostics.Count.ShouldBe(1);
         var message = diagnostics[0].GetMessage(CultureInfo.InvariantCulture);
-        message.ShouldContain("K-218");
+        message.ShouldContain("empty provider");
 
         // The runtime scanner rejects the same mistake with the same three
         // escapes (ToolRegistrationTests.AddToolsFrom_rejects_the_sample_method_at_scan_time).

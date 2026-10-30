@@ -774,7 +774,7 @@ internal sealed class SqlRunStore : IRunStore
         "The caller is the run's OWN event writer resuming a run it already holds, and it asks " +
         "only how far its own stream got. A tenant filter would answer 'no events' for a " +
         "legitimate takeover whose ambient tenant differs from the run's - the job queue and " +
-        "workflows both do that (K-355) - and the writer would restart at zero, causing the " +
+        "workflows both do that - and the writer would restart at zero, causing the " +
         "very sequence collision this query exists to avoid. It reads one number, never content.")]
     public async ValueTask<long?> GetLastEventSequenceAsync(
         Guid runId,
