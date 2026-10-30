@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// What the step after a harness-loop agent receives in a workflow: the final
-/// iteration's answer, never the earlier drafts or the loop's feedback (K-889).
+/// iteration's answer, never the earlier drafts or the loop's feedback.
 /// </summary>
 /// <remarks>
 /// A workflow runs its agent steps through the streaming path, and a streaming
@@ -16,7 +16,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// not a person watching it form, so a draft that reaches it is a draft the run
 /// acts on: a text-to-speech node would speak the rejected version.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class WorkflowLoopStepOutputTests
 {

@@ -11,7 +11,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 260 (F-758): the chain key VALUE is a <c>secret</c> (K-059) and reaches none of the four places a
+/// The chain key VALUE is a <c>secret</c> and reaches none of the four places a
 /// secret leaks to: the database, the log, the diagnostics report and an HTTP response.
 /// </summary>
 /// <remarks>

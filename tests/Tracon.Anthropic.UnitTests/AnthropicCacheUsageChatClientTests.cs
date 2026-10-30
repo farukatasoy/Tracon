@@ -6,7 +6,7 @@ using Tracon.Anthropic.UnitTests.Infrastructure;
 namespace Tracon.Anthropic.UnitTests;
 
 /// <summary>
-/// The ring that reads Anthropic's cache-write split (F-727): what it writes next to the adapter's
+/// The ring that reads Anthropic's cache-write split: what it writes next to the adapter's
 /// total, and how often it warns when the split is missing.
 /// </summary>
 public sealed class AnthropicCacheUsageChatClientTests

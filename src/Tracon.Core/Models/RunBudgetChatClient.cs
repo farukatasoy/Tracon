@@ -72,8 +72,8 @@ internal sealed class RunBudgetChatClient(
             {
                 if (content is UsageContent usageContent)
                 {
-                    // 🚨 SUMMED, not overwritten (F-349), the same rule as the
-                    // run recorder (F-317, K-889): a call that reports its usage in
+                    // 🚨 SUMMED, not overwritten, the same rule as the
+                    // run recorder: a call that reports its usage in
                     // more than one part charged the tree only for the last part.
                     // A fresh accumulator, so no UsageDetails owned by an inner
                     // client is modified.
@@ -115,7 +115,7 @@ internal sealed class RunBudgetChatClient(
 
         // The resolver is skipped entirely when nothing reads the answer: it is not
         // free (a catalog scan, then a configuration lookup). A cost cap reads it, and
-        // so does the tenant's quota (F-529): the tree's spend its counter has not seen
+        // so does the tenant's quota: the tree's spend its counter has not seen
         // is the budget's meter less what the tree wrote, and a meter that left model
         // calls out would make a running tree look cheaper than it is.
         var cost = budget.MeasuresCost

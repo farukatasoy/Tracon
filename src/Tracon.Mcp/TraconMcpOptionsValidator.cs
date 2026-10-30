@@ -21,7 +21,7 @@ internal sealed class TraconMcpOptionsValidator : IValidateOptions<TraconMcpOpti
         // Discovery waits RefreshInterval between passes with Task.Delay, inside
         // a hosted service. A negative value threw there and stopped the host
         // after startup; zero turned the loop into a busy loop against every
-        // configured server (F-278). While discovery is off no loop runs.
+        // configured server. While discovery is off no loop runs.
         if (options.Enabled && !TimerPeriod.IsValid(options.RefreshInterval))
         {
             (failures ??= []).Add(TimerPeriod.Failure(
@@ -30,7 +30,7 @@ internal sealed class TraconMcpOptionsValidator : IValidateOptions<TraconMcpOpti
                 $" when {nameof(TraconMcpOptions.Enabled)} is on"));
         }
 
-        // F-280: every connect, list, resource read, test connection and OAuth start
+        // Every connect, list, resource read, test connection and OAuth start
         // arms ConnectionTimeout with CancelAfter. Out of range, the connect and the
         // refresh threw outside their per-server handling and aborted discovery for
         // every tenant; zero made every server unreachable. The definition validator

@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 6 endpoints: telemetry, tool usage, tenants, MCP servers, and approval rules.
+/// endpoints: telemetry, tool usage, tenants, MCP servers, and approval rules.
 /// </summary>
 public sealed class GovernanceEndpointTests
 {
@@ -158,7 +158,7 @@ public sealed class GovernanceEndpointTests
     {
         // The server record never carries the authentication VALUE; it
         // only carries the NAME of the configuration key the value will be
-        // read from (decision K-059).
+        // read from.
         //
         // The test verifies this by sending an 'authorization' field that
         // does NOT exist in the contract: the field does not bind, is not
@@ -250,7 +250,7 @@ public sealed class GovernanceEndpointTests
         await using var host = await TraconTestHost.StartAsync();
 
         // X-Tenant: a name neither the audit secret filter nor the credential
-        // header rule recognizes, so its value is stored as sent (phase 190
+        // header rule recognizes, so its value is stored as sent (an earlier change
         // moved credential names out of plain headers; the mask covers the rest).
         foreach (var value in new[] { ApiKey, ApiKey + "-rotated" })
         {
@@ -419,7 +419,7 @@ public sealed class GovernanceEndpointTests
     [Fact]
     public async Task Prompt_and_resource_endpoints_return_501_when_Mcp_not_registered()
     {
-        // Prompts/Resources/OAuth (Phase 22) also depend on Tracon.Mcp;
+        // Prompts/Resources/OAuth also depend on Tracon.Mcp;
         // if not registered, they must show the same explicit "not
         // implemented" behavior.
         await using var host = await TraconTestHost.StartAsync();
@@ -535,8 +535,8 @@ public sealed class GovernanceEndpointTests
         // Read the RAW JSON text, not the deserialized C# object: a missing
         // [JsonConverter(typeof(JsonStringEnumConverter<...>))] on
         // ToolArgumentOperator would round-trip fine through matching C# types
-        // on both ends and only show up as a wire-level number (K-040's
-        // recurring trap, docs/hafiza/aspnetcore-json.md).
+        // on both ends and only show up as a wire-level number (that decision's
+        // recurring trap).
         created.GetProperty("argumentConditions")[0].GetProperty("operator").GetString()
             .ShouldBe("LessThanOrEqual");
 

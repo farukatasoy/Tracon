@@ -82,7 +82,7 @@ public static class TraconEndpointRouteBuilderExtensions
         // three-layer protection (legacy behavior).
         var roles = TraconRolePolicies.Resolve(services, options);
 
-        // Phase 259: the same answer is a production decision (UnregisteredRolePolicies). It is known
+        // The same answer is a production decision (UnregisteredRolePolicies). It is known
         // only here, after Build(), so it joins the profile checks the container registered instead of
         // being asked a second time. Nothing reads it unless the host called RequireProductionProfile.
         services.GetService<LateProductionProfileChecks>()?.Add(new RolePolicyProfileCheck(roles));
@@ -91,17 +91,17 @@ public static class TraconEndpointRouteBuilderExtensions
         var metaGroup = endpoints.MapGroup(normalizedPrefix).WithTags("Tracon");
         MetaEndpoints.Map(metaGroup, options, normalizedPrefix, roles);
 
-        // CORS (Phase 61). Off by default (AllowedOrigins is empty); added
+        // CORS. Off by default (AllowedOrigins is empty); added
         // before the idempotency/JSON-binding middleware below so a preflight
         // OPTIONS request (which never reaches a route handler) still gets a
         // CORS response.
         TraconCorsMiddleware.Map(endpoints, options, normalizedPrefix);
 
-        // Idempotency-Key support (Phase 43). Because the body can be consumed
+        // Idempotency-Key support. Because the body can be consumed
         // BEFORE the filter's InvokeAsync (by minimal API's automatic binding
         // on some endpoints), reading the raw bytes afterward is only possible
         // if they were buffered BEFOREHAND. For a request that does NOT carry
-        // the header, this middleware does nothing (K1: no silent cost).
+        // the header, this middleware does nothing (no silent cost).
         if (endpoints is IApplicationBuilder idempotencyApp)
         {
             idempotencyApp.Use(static (httpContext, next) =>
@@ -115,7 +115,7 @@ public static class TraconEndpointRouteBuilderExtensions
             });
         }
 
-        // HATA-S2-006/HATA-S2-007: when body binding hits a JsonException it
+        // When body binding hits a JsonException it
         // must fall into this library's own 400 contract, not a generic 500 —
         // see JsonBindingProblemMiddleware.
         if (endpoints is IApplicationBuilder jsonProblemApp)
@@ -123,7 +123,7 @@ public static class TraconEndpointRouteBuilderExtensions
             jsonProblemApp.Use(JsonBindingProblemMiddleware.InvokeAsync);
         }
 
-        // HATA-S1-015: a store that cannot answer must say so. Attached OUTSIDE
+        // A store that cannot answer must say so. Attached OUTSIDE
         // the binding mapping above so that it also covers a DbException thrown
         // while that middleware is unwinding.
         if (endpoints is IApplicationBuilder storeProblemApp)
@@ -134,7 +134,7 @@ public static class TraconEndpointRouteBuilderExtensions
         var idempotencyFilter = new IdempotencyFilter(
             services.GetRequiredService<IOptionsMonitor<TraconIdempotencyOptions>>());
 
-        // F-318: the workflow run endpoints stream unless the caller queues the
+        // The workflow run endpoints stream unless the caller queues the
         // run, so their key is accepted only with 'Prefer: respond-async'.
         var queuedOnlyIdempotencyFilter = new IdempotencyFilter(
             services.GetRequiredService<IOptionsMonitor<TraconIdempotencyOptions>>(),
@@ -144,14 +144,14 @@ public static class TraconEndpointRouteBuilderExtensions
         var group = endpoints.MapGroup(normalizedPrefix).WithTags("Tracon");
 
         // Every SSE stream under the group keeps itself alive at this cadence;
-        // SseWriter reads it from the endpoint (F-325).
+        // SseWriter reads it from the endpoint.
         group.WithMetadata(new SseKeepAliveMetadata(options.StreamKeepAliveInterval));
         group.AddEndpointFilter(new TraconEndpointFilter(options));
 
-        // Rate limiting (Phase 21). The filter is always added but is OFF BY
+        // Rate limiting. The filter is always added but is OFF BY
         // DEFAULT: until the setting is turned on no request is rejected, so
         // existing setups do not see an unexpected 429 after an upgrade
-        // (K-165). The filter applies only to Tracon's own endpoint group;
+        // The filter applies only to Tracon's own endpoint group;
         // it does not compete with a consumer's general limit set up via
         // AddRateLimiter().
         if (TraconRateLimitFilter.ForManagementApi(services) is { } rateLimitFilter)
@@ -227,7 +227,7 @@ public static class TraconEndpointRouteBuilderExtensions
         MapInboundTriggerAccept(endpoints, options, normalizedPrefix);
         MapVoiceConversation(endpoints, services, options, normalizedPrefix, roles);
 
-        // Phase 50: MapTraconMcpServer/MapTraconA2A are separate,
+        // MapTraconMcpServer/MapTraconA2A are separate,
         // optional endpoints but MUST use the SAME access protection
         // (loopback + bearer + policy). Registering with IServiceCollection is
         // NOT POSSIBLE (the app is already Build()-ed); IApplicationBuilder.Properties

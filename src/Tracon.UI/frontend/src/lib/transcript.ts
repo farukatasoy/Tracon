@@ -57,7 +57,7 @@ export type TranscriptItem =
       decided: 'approved' | 'rejected' | null;
       /**
        * The `IToolApprovalPresenter` result for this request, if any — arrives
-       * separately from the `approvals` SSE frame (server phase 142), never
+       * separately from the `approvals` SSE frame, never
        * inline with the raw `ToolApprovalRequestContent`, so it starts `null`
        * and is filled in by `applyApprovalPresentations` once the frame lands.
        */
@@ -96,7 +96,7 @@ export type TranscriptItem =
     }
   | {
       /**
-       * A harness loop iteration ended (server phase 241). A divider, not content: the
+       * A harness loop iteration ended. A divider, not content: the
        * streaming reply carries every iteration, and nothing in the `update` frames
        * says where one ends.
        *
@@ -340,7 +340,7 @@ function applyContent(state: TranscriptState, content: ChatContent, boundary = 0
 }
 
 /**
- * One entry of the `approvals` SSE frame (server phase 142) — the shape
+ * One entry of the `approvals` SSE frame — the shape
  * `AgentEndpoints.PendingApprovalAnnouncement` serializes.
  */
 export interface ApprovalPresentationAnnouncement {
@@ -606,7 +606,7 @@ export function foldUpdate(state: TranscriptState, update: { contents?: ChatCont
  * (`assistant/functionCall` then `tool/functionResult`) — folding each message
  * on its own would create a fresh 'running' tool item for the call and have
  * nowhere to apply the result, leaving it stuck 'running' forever with the
- * actual result text visible nowhere (HATA-S4-016). Folding runs against one
+ * actual result text visible nowhere. Folding runs against one
  * shared accumulator instead, exactly as `foldRunEvents` already does across a
  * run's events, so a later message's result content can still find and update
  * the tool item an earlier message's call content created. Each message keeps

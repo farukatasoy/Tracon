@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Approvals;
 /// <summary>
 /// <see cref="ToolArgumentConditionFingerprint"/>: the uniqueness key every
 /// approval rule store compares, and the value the SQL stores persist as
-/// <c>conditions_hash</c> (Phase 182, K-851).
+/// <c>conditions_hash</c>.
 /// </summary>
 /// <remarks>
 /// The store contract proves the two store-level outcomes (no merge, no

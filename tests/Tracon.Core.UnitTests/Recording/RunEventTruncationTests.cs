@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// An event text or payload cut at <c>MaxPayloadLength</c> is still text (F-241).
+/// An event text or payload cut at <c>MaxPayloadLength</c> is still text.
 /// </summary>
 /// <remarks>
 /// The writer cut by character count. A cut between the two halves of a surrogate pair left a lone

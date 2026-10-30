@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// F-320 / F-346 — the validation report warns when a binding leaves
+/// The validation report warns when a binding leaves
 /// <see cref="ModelBinding.MaxOutputTokens"/> empty and the provider's default
 /// is below the catalog's maximum, for a structured response or high reasoning
 /// effort. The warning never stops the definition.

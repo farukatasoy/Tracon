@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-328: every workflow participant is a <see cref="ChildAgentInvoker"/>,
+/// Every workflow participant is a <see cref="ChildAgentInvoker"/>,
 /// which for agent DELEGATION returns a wait limit, a budget refusal or a
 /// pending approval as the sub-agent's answer, so the calling model can react.
 /// A workflow step has no calling model: the refusal sentence became the next
@@ -113,7 +113,7 @@ public sealed class WorkflowStepRefusalTests
     [Fact]
     public async Task A_step_whose_provider_never_answered_fails_the_workflow_with_the_provider_fault()
     {
-        // K-737's distinction holds in a workflow too: no wait limit fired, so
+        // the distinction holds in a workflow too: no wait limit fired, so
         // the step fails with the provider's own fault, not with the limit.
         var timingOut = new TimingOutModelProvider("timing-out");
 
@@ -138,7 +138,7 @@ public sealed class WorkflowStepRefusalTests
         (await RootEventTypesAsync(host, workflow.Id)).ShouldNotContain(RunEventType.ChildRunTimedOut);
 
         // The workflow row names the step's own fault exactly as the step's row
-        // does (F-314). This fake throws HttpClient's raw TaskCanceledException;
+        // does. This fake throws HttpClient's raw TaskCanceledException;
         // a real SDK wraps it and the provider normalizer files it as Timeout.
         var step = (await host.Services.GetRequiredService<IRunStore>()
                 .QueryRunsAsync(new RunQuery { Take = 20, OnlyRootRuns = false }))

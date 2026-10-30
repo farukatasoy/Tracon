@@ -105,7 +105,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
             try
             {
-                // F-331: a source that can describe what it compiled does so
+                // A source that can describe what it compiled does so
                 // from the same definition read; the agent and its descriptor
                 // can no longer come from two different versions.
                 if (source is IDescribingAgentSource describing)
@@ -201,7 +201,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
             try
             {
-                // 🚨 F-331: the descriptor listed above is the CURRENT version's.
+                // The descriptor listed above is the CURRENT version's.
                 // The decorators read the response format, model and version
                 // off it, so a pinned run was validated against the current
                 // schema and recorded with the current model. The pinned

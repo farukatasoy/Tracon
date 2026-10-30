@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-418: the root read its tree from the run store once, while its own row
+/// The root read its tree from the run store once, while its own row
 /// closed. A background child that had not ended by then had no usage on its row,
 /// so its tokens and cost reached no counter, and a root that never waited
 /// (<c>start_task</c>, answer, done) left the child's whole spend outside the
@@ -153,7 +153,7 @@ public sealed class BackgroundChildQuotaTests
     [Fact]
     public async Task The_roots_run_completed_webhook_stays_the_tree_as_it_stood_when_the_root_closed()
     {
-        // F-418 decided the webhook is NOT the quota's twin: it is a picture of the moment the
+        // The earlier decision decided the webhook is NOT the quota's twin: it is a picture of the moment the
         // root closes. A child that ends later is in the counter and in GET /api/runs/{id},
         // and publishes nothing of its own - no second event, no changed payload.
         var gated = new GatedModelProvider(GatedProvider, ResearcherModel);

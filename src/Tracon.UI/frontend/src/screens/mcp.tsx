@@ -76,7 +76,7 @@ function credentialSummary(server: McpServerDefinition): string | null {
  * The body of the save request. A filled `authorizationKey` becomes the
  * `Authorization` entry of `headerConfigurationKeys`; an empty one sends NO
  * map at all, because an absent map keeps the stored one and `{}` would erase
- * it (K-870). With OAuth on the key is never sent: OAuth manages that header.
+ * it. With OAuth on the key is never sent: OAuth manages that header.
  *
  * A filled map REPLACES the stored one, and the form saves by name, so a name
  * that already exists would lose its other credential headers. The stored map
@@ -148,7 +148,7 @@ function parseScalar(token: string): string | number | boolean {
 
 /**
  * Builds the JSON value a condition row sends, following the operator's
- * expected shape (K2: no expressions, a closed operator set decides the shape).
+ * expected shape (no expressions, a closed operator set decides the shape).
  */
 function buildConditionValue(operator: ToolArgumentOperator, raw: string): ToolArgumentCondition['value'] {
   if (operator === 'In' || operator === 'NotIn') {
@@ -160,7 +160,7 @@ function buildConditionValue(operator: ToolArgumentOperator, raw: string): ToolA
         const value = parseScalar(token);
 
         // The server's In/NotIn only accepts text or numbers, never booleans
-        // (Phase 63, 63.2) — a "true"/"false"
+        // (63.2) — a "true"/"false"
         // token inside a list stays text rather than becoming an invalid element.
         return typeof value === 'boolean' ? token : value;
       });
@@ -615,7 +615,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                           {meta.roles.canAdminister && (
                             /* No confirmation step: §175.3 fails on both
                                 counts. The row carries an endpoint and
-                                configuration KEY NAMES (K-059), typed back
+                                configuration KEY NAMES, typed back
                                 from this form or the API; its header maps are
                                 set through the API and sent again from there. */
                             <Tooltip text={t('mcp.removeServerTitle')}>

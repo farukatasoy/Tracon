@@ -6,7 +6,7 @@ namespace Tracon.Voice.UnitTests.Infrastructure;
 /// Fake HTTP handler that records incoming requests and returns a canned response.
 /// </summary>
 /// <remarks>
-/// No test reaches a real voice provider (decision valid since Phase 3).
+/// No test reaches a real voice provider (decision valid).
 /// The request shape — path, header, body — is verified here.
 /// </remarks>
 internal sealed class StubHttpMessageHandler : HttpMessageHandler

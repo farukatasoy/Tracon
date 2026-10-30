@@ -1,4 +1,4 @@
-# Kanıtı olmayan ama bilinçli olarak public kalan tipler (Faz 182, F-259).
+# Kanıtı olmayan ama bilinçli olarak public kalan tipler.
 #
 # `scripts/public-yuzey-envanteri.py` bu dosyayı okur: burada adı geçen tip
 # "kanıtsız" değil "gerekçeli" sayılır ve imza kapanışı ondan da yayılır.

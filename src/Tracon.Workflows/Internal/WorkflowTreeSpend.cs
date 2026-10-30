@@ -41,7 +41,7 @@ internal static class WorkflowTreeSpend
             return own;
         }
 
-        // A sum across currencies is not an amount (F-419, CurrencyTotals): the tree keeps
+        // A sum across currencies is not an amount (CurrencyTotals): the tree keeps
         // no amount and counts its currencies, the same as when the store adds them.
         var differs = stored.Amount is not null && own.Amount is not null &&
                       !string.Equals(stored.Currency, own.Currency, StringComparison.OrdinalIgnoreCase);

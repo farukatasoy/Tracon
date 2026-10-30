@@ -12,8 +12,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <remarks>
 /// <para>
 /// The defect this guards was closed once before in exactly one place
-/// (<c>HATA-S3-006</c>, the <c>IRunInputStore</c> path) and reopened in 21
-/// others (Phase 119, BL-027/BL-037): a foreign exception's message can carry
+/// (<c>an earlier defect</c>, the <c>IRunInputStore</c> path) and reopened in 21
+/// others (BL-027/BL-037): a foreign exception's message can carry
 /// a request detail, an internal URL, a <c>host:port</c>, or a partial
 /// credential the exception's own producer put there, and nothing short of a
 /// human reviewing every new write site catches the next one.
@@ -33,7 +33,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// block (with or without a <c>when</c> filter) - the shape every one of the 21
 /// vakas had. A <c>catch</c> naming a specific, non-<see cref="TraconException"/>
 /// type (for example <c>catch (HttpRequestException ex)</c>) is NOT the shape
-/// this scan targets; those sites were reviewed individually during Phase 119
+/// this scan targets; those sites were reviewed individually
 /// and are expected to route through <c>SafeErrorText</c> or a narrower,
 /// already-reviewed exemption rather than appear here. The block's end is
 /// found by indentation (this repo's Allman brace style keeps a block's
@@ -54,7 +54,7 @@ public sealed class RawExceptionTextSiteTests
     /// <summary>
     /// A run event draft: its initializer writes to the event table, the stream
     /// and every sink, so it is a persistent write site even outside any
-    /// <c>catch</c> (F-334: the workflow event mapper put an executor's
+    /// <c>catch</c> (the workflow event mapper put an executor's
     /// exception message into <c>ExecutorFailed</c> from a pattern match).
     /// </summary>
     private static readonly Regex RunEventDraftCreation = new(
@@ -163,7 +163,7 @@ public sealed class RawExceptionTextSiteTests
     /// <summary>
     /// A run event draft that writes an exception's own message is a site even
     /// when no <c>catch</c> is near it — the shape of the workflow event
-    /// mapper before F-334.
+    /// mapper.
     /// </summary>
     [Fact]
     public void Scan_reports_a_run_event_draft_that_references_Message()

@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// endpoint that starts a run refuses an attribution that breaks a limit.
 /// </summary>
 /// <remarks>
-/// F-337: the workflow root built its <see cref="AgentRunScope"/> before it
+/// The workflow root built its <see cref="AgentRunScope"/> before it
 /// read the attribution, so a function node read <c>UserId == null</c>; its
 /// quota record carried no run or user, so the <c>quota.threshold</c> webhook
 /// named neither; and only the agent run endpoint called

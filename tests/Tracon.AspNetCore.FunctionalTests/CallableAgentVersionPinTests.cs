@@ -7,7 +7,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A callable agent can be pinned to a version of the callee (Phase 250, F-409): the callee runs that version in
+/// A callable agent can be pinned to a version of the callee: the callee runs that version in
 /// every call mode, the model reads the description of that version, a pinned parent runs the callee versions
 /// ITS definition names, and the save refuses a pin that cannot hold.
 /// </summary>
@@ -89,7 +89,7 @@ public sealed class CallableAgentVersionPinTests
         (await ChildRowAsync(host)).AgentVersion.ShouldBe(2);
     }
 
-    // --- A parent pinned to a version of its own runs the callee versions that version names (K-989 closed) ---
+    // --- A parent pinned to a version of its own runs the callee versions that version names ---
 
     [Fact]
     public async Task A_parent_resolved_at_a_version_runs_the_callee_versions_that_version_names()
@@ -131,7 +131,7 @@ public sealed class CallableAgentVersionPinTests
     public async Task A_pin_that_stopped_holding_fails_the_caller_by_name_instead_of_running_another_version()
     {
         // The callee was deleted and created again: its history went with the delete, and the numbering goes on
-        // (Phase 248), so version 1 names nothing and no later save can take its place.
+        // So version 1 names nothing and no later save can take its place.
         var provider = Provider(SubAgentCallMode.Tool);
         await using var host = await StartAsync(provider);
 

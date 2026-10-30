@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The defect (HATA-S4-002, manual run 2026-09-16):
+/// 🚨 The defect (manual run 2026-09-16):
 /// <c>PUT /api/schedules/{name}</c> with a body that omitted <c>payload</c>
 /// answered <c>500 InvalidOperationException</c>. The property kept
 /// <see cref="JsonValueKind.Undefined"/> - the one kind
@@ -65,7 +65,7 @@ public sealed class FreeFormJsonContractTests
     /// accessor never runs, so normalizing there does not reach it.
     /// </summary>
     /// <remarks>
-    /// 🚨 Measured 2026-10-12 (F-331 work): an eval case whose run threw was
+    /// 🚨 Measured 2026-10-12: an eval case whose run threw was
     /// recorded with no <c>Scores</c>; the in-memory store returned the record
     /// as it was, and <c>GET /api/evals/runs/{id}</c> failed with the same
     /// nameless <c>InvalidOperationException</c>. The SQL stores happened to

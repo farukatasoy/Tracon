@@ -24,42 +24,42 @@ namespace Tracon;
 [JsonSerializable(typeof(Experiment))]
 [JsonSerializable(typeof(CanaryRollbackAuditPayload))]
 
-// Conversation branching (Phase 47): reads the conversation identifier from the
+// Conversation branching: reads the conversation identifier from the
 // session state bag and writes it to the new session.
 [JsonSerializable(typeof(ChatHistoryState))]
 
-// Phase 62: the ModelFallbackUsed run-event payload.
+// The ModelFallbackUsed run-event payload.
 [JsonSerializable(typeof(ModelFallbackUsedEventPayload))]
 
-// Phase 131: the StructuredResponseRejected run-event payload.
+// The StructuredResponseRejected run-event payload.
 [JsonSerializable(typeof(StructuredResponseRejectedEventPayload))]
 
-// Phase 134: the StructuredResponseRepairAttempted run-event payload.
+// The StructuredResponseRepairAttempted run-event payload.
 [JsonSerializable(typeof(StructuredResponseRepairAttemptedEventPayload))]
 
-// Phase 142: the RunAwaitingInput run-event payload for a root run closing
+// The RunAwaitingInput run-event payload for a root run closing
 // with RunStatus.AwaitingApproval.
 [JsonSerializable(typeof(IReadOnlyList<PendingToolApprovalEventItem>))]
 
-// Phase 235: the RunAwaitingInput run-event payload for a root run closing
+// The RunAwaitingInput run-event payload for a root run closing
 // with RunStatus.AwaitingInput because a tool asked for user input.
 [JsonSerializable(typeof(IReadOnlyList<PendingToolInputEventItem>))]
 
-// Phase 235: the identities of the calls a suspended run left without a result, kept in the session.
+// The identities of the calls a suspended run left without a result, kept in the session.
 [JsonSerializable(typeof(List<string>))]
 
-// Phase 144: the ChildRunTimedOut run-event payload.
+// The ChildRunTimedOut run-event payload.
 [JsonSerializable(typeof(ChildRunTimedOutEventPayload))]
 
-// Phase 146: the quota threshold notice's Custom run-event payload.
+// The quota threshold notice's Custom run-event payload.
 [JsonSerializable(typeof(QuotaThresholdNoticePayload))]
 
-// Phase 204: the output truncation notice's Custom run-event payload.
+// The output truncation notice's Custom run-event payload.
 [JsonSerializable(typeof(OutputTruncatedEventPayload))]
 
-// Phase 251: the output filter notice's Custom run-event payload.
+// The output filter notice's Custom run-event payload.
 [JsonSerializable(typeof(OutputFilteredEventPayload))]
 
-// Phase 151: the LoopIterationCompleted run-event payload.
+// The LoopIterationCompleted run-event payload.
 [JsonSerializable(typeof(LoopIterationCompletedEventPayload))]
 internal sealed partial class TraconCoreJsonContext : JsonSerializerContext;

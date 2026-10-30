@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
 /// The name a callable agent gets as a tool in <see cref="SubAgentCallMode.Tool"/> mode, and the
-/// definitions whose tools would share one (Phase 228).
+/// definitions whose tools would share one.
 /// </summary>
 public sealed class SubAgentToolNamesTests
 {
@@ -94,7 +94,7 @@ public sealed class SubAgentToolNamesTests
     [Fact]
     public async Task The_fixed_tool_names_are_the_names_the_framework_providers_offer()
     {
-        // F-608: the task list and agent mode names are private to the framework. They were measured, and this pins
+        // The task list and agent mode names are private to the framework. They were measured, and this pins
         // them: a provider run on a fake chat client must offer exactly the names the rule checks.
         var client = new FakeChatClient();
         var agent = client.AsAIAgent(new ChatClientAgentOptions

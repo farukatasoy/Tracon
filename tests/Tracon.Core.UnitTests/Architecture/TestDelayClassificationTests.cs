@@ -4,14 +4,14 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Every <c>Task.Delay(</c> under <c>tests/</c> says why it is not a wait for
-/// a state (Phase 184).
+/// a state.
 /// </summary>
 /// <remarks>
 /// <para>
 /// A fixed delay before a POSITIVE assertion is a claim about the machine:
 /// under a loaded full-solution run the state arrives later and the test fails
 /// although the product is right. Six such failures were measured before
-/// Phase 184 converted every delay that waited for a state to
+/// converted every delay that waited for a state to
 /// <c>WaitUntil</c> (<c>tests/Shared/Waiting/WaitUntil.cs</c>). The delays
 /// that remain are not waits, and each line carries a <c>// delay: &lt;class&gt;</c>
 /// tag that says which kind it is:

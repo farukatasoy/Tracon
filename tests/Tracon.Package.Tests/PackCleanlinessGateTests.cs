@@ -4,7 +4,7 @@ namespace Tracon.Package.Tests;
 
 /// <summary>
 /// The MSBuild gate (<c>TraconValidateCleanWorkingTree</c>,
-/// <c>Directory.Build.targets</c>, Phase 136, 136.1/136.2) that refuses to
+/// <c>Directory.Build.targets</c>, 136.1/136.2) that refuses to
 /// pack a dirty working tree. Runs against THIS repository's own working
 /// tree - see <see cref="DirtMarker"/> for why, and <see cref="RepositoryTreeGate"/>
 /// for how it stays isolated from every other pack/build in this project.
@@ -53,7 +53,7 @@ public sealed class PackCleanlinessGateTests
     /// <summary>
     /// TraconSkipCleanWorkingTreeCheck is what lets `ReleaseArtifactFixture`
     /// and `TemplateFixture` - and `kapi.py kapanis`'s own pack step - keep
-    /// working on an uncommitted tree (Phase 136 independent-audit finding
+    /// working on an uncommitted tree (independent-audit finding
     /// #1: without an escape hatch, the closing gate could never pass before
     /// a commit). This fact locks the escape hatch itself so a future change
     /// cannot silently widen or remove it.

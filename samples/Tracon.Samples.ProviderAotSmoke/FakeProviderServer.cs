@@ -197,7 +197,7 @@ internal sealed class FakeProviderServer : IDisposable
             return ("application/json", Encoding.UTF8.GetBytes($"{{\"text\":\"{Transcript}\"}}"));
         }
 
-        // OpenAI and Azure OpenAI images (F-584): one image as base64, the shape gpt-image-1 answers.
+        // OpenAI and Azure OpenAI images: one image as base64, the shape gpt-image-1 answers.
         if (target.Contains("/images/generations", StringComparison.Ordinal))
         {
             return ("application/json", Encoding.UTF8.GetBytes(

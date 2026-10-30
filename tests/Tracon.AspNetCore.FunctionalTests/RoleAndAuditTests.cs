@@ -9,7 +9,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 9 — role-based authorization and the audit trail.
+/// Role-based authorization and the audit trail.
 /// </summary>
 public sealed class RoleAndAuditTests
 {
@@ -21,7 +21,7 @@ public sealed class RoleAndAuditTests
     public async Task All_endpoints_work_when_no_role_policy_is_registered()
     {
         // No Tracon.Reader/Operator/Admin policy was registered.
-        // Same rationale as K-042: the role model must not break upgrading setups.
+        // Same rationale: the role model must not break upgrading setups.
         await using var host = await TraconTestHost.StartAsync();
 
         using var list = await host.Client.GetAsync(Agents);
@@ -214,7 +214,7 @@ public sealed class RoleAndAuditTests
         entries.ShouldHaveSingleItem().GetProperty("entity").GetString().ShouldBe("agent:db-agent");
     }
 
-    // --- /api/stats/recalculate-costs (Phase 20) ---
+    // --- /api/stats/recalculate-costs ---
 
     [Fact]
     public async Task Recalculate_costs_is_protected_by_the_admin_policy()
@@ -258,7 +258,7 @@ public sealed class RoleAndAuditTests
     [Fact]
     public async Task Recalculate_costs_skips_an_already_priced_run_and_fills_in_an_unknown_one()
     {
-        // Phase 132, F-175: the maintenance endpoint is a repair tool, not a
+        // The maintenance endpoint is a repair tool, not a
         // full recalculation — a run that already carries a known price is
         // untouched, only PricingSource.Unknown rows are candidates. The other
         // recalculate-costs test above proves the audit trail with EMPTY data
@@ -352,7 +352,7 @@ public sealed class RoleAndAuditTests
         roles.GetProperty("canRead").GetBoolean().ShouldBeTrue();
     }
 
-    // --- Audit trail hash chain (Phase 64) ---
+    // --- Audit trail hash chain ---
 
     [Fact]
     public async Task Verify_reports_valid_for_a_freshly_written_chain()

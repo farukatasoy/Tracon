@@ -4,11 +4,11 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Keeps the recorded event stream's SSE frame names (<c>RunEndpoints.EventName</c>)
-/// complete and in sync with the console's <c>EVENT_STYLE</c> table (phase 145).
+/// complete and in sync with the console's <c>EVENT_STYLE</c> table.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before this phase, 21 of 31 <c>RunEventType</c> members fell through to the
+/// Before this change, 21 of 31 <c>RunEventType</c> members fell through to the
 /// <c>"unknown"</c> branch even though the method's own doc comment calls the
 /// mapping a "stable contract" and the console already carried a label for
 /// every member (<c>run-detail.tsx</c>'s <c>EVENT_STYLE</c>, which TypeScript's
@@ -24,9 +24,9 @@ namespace Tracon.Core.UnitTests.Architecture;
 public sealed class RunEventFrameNameContractTests
 {
     /// <summary>
-    /// The ten frame names shipped before this phase. These strings are FIXED —
+    /// The ten frame names shipped before this change. These strings are FIXED —
     /// a real client already depends on them; changing one is a breaking
-    /// change this phase must not make.
+    /// change this change must not make.
     /// </summary>
     private static readonly Dictionary<string, string> ShippedFrameNames = new(StringComparer.Ordinal)
     {
@@ -48,7 +48,7 @@ public sealed class RunEventFrameNameContractTests
         TimeSpan.FromSeconds(5));
 
     // Matches "RunEventType.<Name> => "<frame-name>"," in RunEndpoints.EventName,
-    // and the catch-all "_ => "unknown",". A K-642-class scan: this does NOT
+    // and the catch-all "_ => "unknown",". A that decision-class scan: this does NOT
     // assume the arm is on one line beyond what the source actually is today,
     // but each arm here IS single-line by construction (a plain switch
     // expression), so a regex that requires the whole arm on one line is safe.

@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A queued run of a graph built in code that its worker left half done is continued from its latest checkpoint
-/// (phase 211): the step that finished is not run again, and the continuation keeps the parameter values the run
+///The step that finished is not run again, and the continuation keeps the parameter values the run
 /// started with.
 /// </summary>
 /// <remarks>

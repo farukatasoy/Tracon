@@ -4,7 +4,6 @@ namespace Tracon.Generators.UnitTests;
 
 /// <summary>
 /// A host registers its own generated tools beside a tool library it references
-/// (F-289).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -13,11 +12,11 @@ namespace Tracon.Generators.UnitTests;
 /// extension methods with the same signature in the same namespace: its own and the
 /// library's. Calling <c>AddGeneratedTools()</c> was <c>CS0121</c>; a host without
 /// tools got <c>TRC0005</c> as well. Measured 2026-09-24 against the packed
-/// <c>1.0.0-preview.2.70</c> (<c>MT-PKG-150</c>).
+/// <c>1.0.0-preview.2.70</c> (<c>an earlier defect</c>).
 /// </para>
 /// <para>
 /// The extension is generated plumbing for its own compilation, so it is
-/// <c>internal</c> (the answer phase 52 had planned). A library hands its tools to a
+/// <c>internal</c> (the answer an earlier change had planned). A library hands its tools to a
 /// host through its own public extension, which calls <c>AddGeneratedTools()</c>
 /// inside the library - the pattern <c>samples/Tracon.Samples.CustomTool</c> proves
 /// under Native AOT.

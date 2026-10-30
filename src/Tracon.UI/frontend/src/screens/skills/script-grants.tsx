@@ -282,7 +282,7 @@ export function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
                       /* No confirmation step: §175.3 fails on both counts — an
                           administrator grants the script again. It had no
                           consequence sentence at all before, which is the gap
-                          this phase closes here. */
+                          this change closes here. */
                       <Tooltip text={t('skills.grants.revokeEffect')}>
                         <Button
                           tone="danger"

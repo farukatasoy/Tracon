@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <summary>
 /// The compiled-agent cache key measures a definition's CONTENT. These tests
 /// hold the property the version number lost the moment a name could be
-/// deleted and recreated (HATA-S4-004).
+/// deleted and recreated.
 /// </summary>
 public sealed class DefinitionFingerprintTests
 {

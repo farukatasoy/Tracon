@@ -11,7 +11,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-332. Retention and erasure ran a plain <c>DELETE</c> and never read
+/// Retention and erasure ran a plain <c>DELETE</c> and never read
 /// <c>external_uri</c>, so the bytes in <see cref="IAttachmentStorage"/>
 /// stayed forever. The attachment store deleted the row first and the bytes
 /// second, so a storage failure lost the location for good.
@@ -80,7 +80,7 @@ public sealed class AttachmentByteLifecycleTests(SqlServerSchemaFixture schema)
     [Fact]
     public async Task Archive_mode_deletes_the_bytes_and_rows_of_the_archived_attachments_only()
     {
-        // F-372: the archive mode deleted another batch than the one it
+        // The archive mode deleted another batch than the one it
         // archived. With bytes in IAttachmentStorage, it deletes the bytes of
         // the archived rows first, then those rows, and nothing else.
         for (var i = 0; i < 3; i++)

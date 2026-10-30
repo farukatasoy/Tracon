@@ -19,7 +19,7 @@ namespace Tracon;
 /// a key for a forbidden provider is a path that should not run at all.
 /// </para>
 /// </remarks>
-// One copy on purpose (K-483: a hand-copied rule drifts; F-306: live voice had
+// One copy on purpose (a hand-copied rule drifts;live voice had
 // no copy at all and sent a forbidden tenant's audio to OpenAI).
 internal static class TenantProviderAccess
 {
@@ -192,7 +192,7 @@ internal static class TenantProviderAccess
         {
             // A key outside the allowed prefix or the tenant's segment is the tenant's
             // own rule refusing too. The three callers used to wrap every error of
-            // this call themselves; one wrap here keeps the refusal one type (F-442).
+            // this call themselves; one wrap here keeps the refusal one type.
             throw new TraconTenantProviderRefusedException(exception.Message, exception);
         }
 

@@ -74,7 +74,7 @@ internal sealed class JobHandlerRegistry
             {
                 // 🚨 The SAME type under the SAME key is a no-op, not a clash.
                 // A registration is written with a plain Add (a setup-time
-                // extension must not inspect the collection -- K-251), so
+                // extension must not inspect the collection), so
                 // calling AddJobHandler<T>(key) twice, or AddTracon()
                 // twice, produces two identical entries. Treating that as a
                 // conflict would break the "registration is idempotent"

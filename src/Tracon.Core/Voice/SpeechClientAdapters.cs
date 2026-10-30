@@ -78,7 +78,7 @@ internal sealed class TextToSpeechClientSynthesizer : ISpeechSynthesizer
             binding.ProviderName,
             metadata?.ProviderName);
 
-        // Phase 266: the call is a span of the run that made it. The adapter is a singleton per registered name, so
+        // The call is a span of the run that made it. The adapter is a singleton per registered name, so
         // the ring is built once; it is not disposed with the adapter because that would dispose the consumer's
         // client. EnableSensitiveData stays the library's default (the consumer's switch): the trace store filter
         // decides what is kept.
@@ -187,7 +187,7 @@ internal sealed class TextToSpeechClientSynthesizer : ISpeechSynthesizer
 
     private static void RefuseAlignment(SpeechRequest request)
     {
-        // K-502: a timing request is refused, never answered without timing. MEAI has
+        // A timing request is refused, never answered without timing. MEAI has
         // no channel for alignment on either path.
         if (request.IncludeTimestamps)
         {
@@ -320,7 +320,7 @@ internal sealed class SpeechToTextClientTranscriber : ISpeechTranscriber
             binding.ProviderName,
             metadata?.ProviderName);
 
-        // Phase 266: see TextToSpeechClientSynthesizer.Create.
+        // See TextToSpeechClientSynthesizer.Create.
         var ring = new SpeechToTextClientBuilder(client)
             .UseOpenTelemetry(services.GetService<ILoggerFactory>(), TraconDiagnostics.ActivitySourceName)
             .Build();
@@ -391,7 +391,7 @@ internal static class SpeechClientNames
             return fromMetadata.Trim();
         }
 
-        // K-930: the tenant's egress policy is applied to this name. A provider
+        // The tenant's egress policy is applied to this name. A provider
         // without one would pass every policy, so the host does not start.
         throw new TraconException(
             $"The speech {noun} '{registrationName}' has no provider name. The client reports none, so set " +

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// K-269: Tracon.Testing.TraconTestHost and this project's own host share a
+// Tracon.Testing.TraconTestHost and this project's own host share a
 // name, so the package is imported one type at a time.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The work a queued run starts, and the run that resumes it after an approval
-/// decision, carry the user and the labels of the run they belong to (F-369).
+/// decision, carry the user and the labels of the run they belong to.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -24,7 +24,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// The attribution context answers inside a request and reports the ambient
 /// scope outside one, the shape a claims-bound context takes when it supports
-/// background work (K-692). The cases run through the real host: the value
+/// background work. The cases run through the real host: the value
 /// crosses the HTTP request, the job payload and the worker.
 /// </para>
 /// </remarks>

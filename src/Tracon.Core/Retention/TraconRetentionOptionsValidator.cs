@@ -26,7 +26,7 @@ internal sealed class TraconRetentionOptionsValidator : IValidateOptions<TraconR
         }
 
         // Zero means "no pause"; any other value goes to Task.Delay, which has
-        // the same ceiling as a timer (F-278).
+        // the same ceiling as a timer.
         if (options.BatchDelay < TimeSpan.Zero || options.BatchDelay.TotalMilliseconds > TimerPeriod.MaxMilliseconds)
         {
             (failures ??= []).Add(

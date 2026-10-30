@@ -38,7 +38,7 @@
 //   - `.UseWorkflows()` turns on the engine; `AddWorkflow(...)` defines a free-form
 //     graph in code
 //   - a workflow defined from the UI can only chain agents already in the
-//     catalog (decision K2)
+// catalog
 //   - each execution is one `runs` row; the agents inside it attach beneath it
 //   - a checkpoint is written at every super-step, so unfinished work can resume
 //
@@ -58,10 +58,8 @@
 //     is NOT a dependency of Tracon, the credential factory comes from the
 //     consumer
 //
-// See Phase 4, Phase 5, Phase 6,
-//     Phase 8, Phase 12,
-//     Phase 15, Phase 26,
-//     Phase 27
+// An earlier change,
+// An earlier change,
 //
 // Set secrets before running:
 //   dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "Host=localhost;Database=Tracon;Username=...;Password=..."
@@ -94,7 +92,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 
-// Telemetry export (phase 268). Tracon does not choose an exporter; this application does. The OTLP exporter is
+// Telemetry export. Tracon does not choose an exporter; this application does. The OTLP exporter is
 // registered ONLY when `OTEL_EXPORTER_OTLP_ENDPOINT` is set - the Aspire AppHost (samples/Tracon.AppHost) sets it, and
 // so can any collector setup. Without it nothing below runs and the sample behaves exactly as before.
 //
@@ -115,7 +113,7 @@ if (builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] is { Length: > 0 })
         .UseOtlpExporter();
 }
 
-// Role-based authorization (phase 9).
+// Role-based authorization.
 //
 // 🚨 Tracon defines only the policy NAMES (TraconPolicies.Reader /
 // Operator / Admin); the consumer binds them to its own identity system. When a
@@ -158,7 +156,7 @@ if (demoRolesEnabled)
 // called.
 builder.Services.AddOpenApi();
 
-// Run attribution (phase 68): who ran this, and for which job. Registered BEFORE
+// Run attribution: who ran this, and for which job. Registered BEFORE
 // AddTracon() so it wins the TryAdd — the consumer's binding to its own
 // identity pipeline always beats the built-in default.
 //
@@ -166,7 +164,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IRunAttributionContext, DemoRunAttributionContext>();
 
-// Run authorization (phase 154). Tracon ships AllowAllRunAuthorizationHandler
+// Run authorization. Tracon ships AllowAllRunAuthorizationHandler
 // by default, so without this block the seam is invisible here: every run is
 // allowed and no case can show one being refused. The alternative was to
 // hand-edit this file for a test and undo the edit afterwards, which is not a
@@ -205,15 +203,15 @@ if (builder.Configuration[DemoRunAuthorization.ModeKey] is { Length: > 0 } demoA
             provider.GetRequiredService<ILogger<DemoRunAuthorization>>()));
 }
 
-// Tool-approval presentation (phase 142): turns the cancel_order approval
+// Tool-approval presentation: turns the cancel_order approval
 // card's raw `{ "orderId": "ORD-1001" }` into "Cancel order for Priya Shah".
 // Registered BEFORE AddTracon() for the same reason as
 // IRunAttributionContext above — TryAddSingleton must not overwrite it.
 builder.Services.AddSingleton<IToolApprovalPresenter, OrderApprovalPresenter>();
 
-// 🚨 Tool authorization (phase 69). Tracon allows every tool call unless a
+// 🚨 Tool authorization. Tracon allows every tool call unless a
 // consumer refuses one, so this seam is invisible here by default. Same
-// reasoning as Tracon:Demo:RunAuthorization:Mode (K-834): a refusal that can
+// reasoning as Tracon:Demo:RunAuthorization:Mode: a refusal that can
 // only be produced by editing this file and undoing the edit is not a
 // mechanism. `deny-all` refuses every call.
 if (builder.Configuration["Tracon:Demo:ToolAuthorization:Mode"] is { Length: > 0 } toolAuthMode)
@@ -228,7 +226,7 @@ if (builder.Configuration["Tracon:Demo:ToolAuthorization:Mode"] is { Length: > 0
     builder.Services.AddSingleton<IToolAuthorizationHandler, DemoDenyAllToolAuthorization>();
 }
 
-// Response caching (Phase 81, F-45) needs an IDistributedCache; Tracon
+// Response caching needs an IDistributedCache; Tracon
 // never registers one itself (an agent that enables ResponseCache without
 // this line fails to compile with a message naming exactly this gap).
 // AddDistributedMemoryCache() is enough for a single-instance sample; a real
@@ -253,8 +251,8 @@ var tracon = builder.AddTracon()
     // warning. It finds every [TraconTool]-marked method in this assembly
     // (OrderTools). Use AddToolsFrom for tools defined in another assembly.
     .AddGeneratedTools()
-    // A client-side tool (Phase 61): its DECLARATION lives here, in code, like
-    // every other tool (K2), but the server never runs it. The model's call
+    // A client-side tool: its DECLARATION lives here, in code, like
+    // every other tool, but the server never runs it. The model's call
     // is returned to the caller (a browser), which reads its own shopping
     // cart from local storage — something only the browser can see — and
     // sends the result back via `toolResults` on the next run request.
@@ -270,7 +268,7 @@ var tracon = builder.AddTracon()
     // Settings are read from the `Tracon:Mcp` section; defaults apply if
     // the section is absent. 🚨 Without this overload, an environment
     // variable such as `Tracon:Mcp:RefreshInterval` did NOTHING, WITH NO
-    // ERROR AT ALL (measured; decision K-353).
+    // ERROR AT ALL.
     .UseMcp(builder.Configuration.GetSection(TraconMcpOptions.SectionName), configure: null)
     // The other side of the mirror — exposes Tracon's own agents to the
     // outside. "summarizer" is chosen deliberately: it carries no tool, so it
@@ -283,7 +281,7 @@ var tracon = builder.AddTracon()
         // 🚨 Which agents are exposed is a SECURITY decision, so the default is
         // the single agent this sample means to publish. The configuration key
         // exists for the same reason as Tracon:Demo:RunAuthorization:Mode
-        // (K-834): the guard that refuses to expose an agent carrying an
+        // The guard that refuses to expose an agent carrying an
         // approval-requiring tool can only be OBSERVED by exposing a different
         // agent, and a line that has to be edited and put back is not a
         // mechanism. An empty or absent key keeps the safe default.
@@ -311,7 +309,7 @@ var tracon = builder.AddTracon()
     .UseUI()
     // Content moderation. 🚨 WITHOUT this call, no prompt is filtered, no
     // response is inspected, and no ring is added to the model pipeline: the
-    // registration is the gate for K1 (zero surprises), not an Enabled flag.
+    // registration is the gate for the zero-surprise rule, not an Enabled flag.
     //
     // The sample app DELIBERATELY turns the guard on, so that this capability
     // is demonstrable. The built-in guard makes two decisions: a denied term
@@ -322,7 +320,7 @@ var tracon = builder.AddTracon()
     // and calling .AddContentGuard<T>(); multiple guards run in sequence and
     // the strictest verdict wins.
     // At-rest content protection. 🚨 WITHOUT this call, the settings below
-    // are read but never applied: the registration itself is K1's gate, same
+    // are read but never applied: the registration itself is the zero-surprise rule's gate, same
     // as the content guard above. Settings (Enabled/ActiveKeyId/Keys) live in
     // appsettings.json; the raw key material never does (see the "//" note
     // next to ContentProtection there) — only when a SQL provider is also
@@ -366,7 +364,7 @@ if (openAiEnabled)
     // those answers can be observed while the call is always made.
     //
     // `Tracon:Demo:SuppressRegistrations` takes a comma-separated list of the
-    // names below and skips those registrations. It follows K-834: a line that
+    // names below and skips those registrations. It follows one rule: a line that
     // has to be commented out and put back is not a mechanism. An empty or
     // absent key changes nothing.
     var suppressed = DemoSuppressedRegistrations(builder.Configuration);
@@ -390,7 +388,7 @@ if (openAiEnabled)
         tracon.UseOpenAIImages();
     }
 
-    // OpenAI speech as NAMED speech providers, next to the default UseVoice() binds (F-579).
+    // OpenAI speech as NAMED speech providers, next to the default UseVoice() binds.
     // A caller selects the synthesizer with "provider": "openai":
     //
     //   POST /tracon/api/voice/speak  {"text":"Merhaba","provider":"openai"}
@@ -407,7 +405,7 @@ if (openAiEnabled)
     });
 
     // Knowledge base / semantic search. Tracon does NOT choose an
-    // embedding model (the pattern behind K-032: model names change faster
+    // embedding model (model names change faster
     // than NuGet release cadence); the consumer registers their own provider.
     // The dimension (TraconKnowledgeOptions.Dimensions, default 1536)
     // matches "text-embedding-3-small".
@@ -421,7 +419,7 @@ else
     tracon.AddModelProvider(new EchoModelProvider());
 }
 
-// A model that takes its time (phase 196), for showing a step's own timeout against
+// A model that takes its time, for showing a step's own timeout against
 // a model that has not answered yet: `Tracon:Demo:SlowModel:Seconds=20` registers the
 // provider "slow" (model "slow-1"), which answers after that many seconds and stops
 // when its token is cancelled. Off unless the key is set, whatever provider is on.
@@ -463,7 +461,7 @@ if (googleEnabled)
     tracon.UseGoogle(google);
     tracon.UseGoogleImages();
 
-    // Gemini speech as a NAMED speech provider (F-297), next to the default UseVoice() binds. One voice:
+    // Gemini speech as a NAMED speech provider, next to the default UseVoice() binds. One voice:
     //
     //   POST /tracon/api/voice/speak  {"text":"Merhaba","provider":"gemini","voiceId":"Kore"}
     //
@@ -545,7 +543,7 @@ if (voiceEnabled)
 // engine is not exempt (PUT /tracon/api/tenants/default/egress).
 tracon.AddSpeechSynthesizer(ToneSpeechSynthesizer.Name, static _ => new ToneSpeechSynthesizer());
 
-// A priced TOOL (phase 243). `narrate` bills what the local "tone" engine would charge for the text, the way
+// A priced TOOL. `narrate` bills what the local "tone" engine would charge for the text, the way
 // the `speak` workflow node below does, and reports it from its own body. Once the call tree's budget is spent,
 // the next tool call does not start. Try it with the `double-narrator` agent, whose model asks for two narrate
 // calls in one turn, and a small ceiling:
@@ -556,7 +554,7 @@ tracon.AddSpeechSynthesizer(ToneSpeechSynthesizer.Name, static _ => new ToneSpee
 // The first call runs and passes the ceiling; the second is refused, the run ends Failed with
 // run_budget_exceeded, and GET /tracon/api/runs/{id}/tools lists both calls, the second as failed.
 // The tool is registered with a factory: it reads the price table at setup, because Microsoft Agent
-// Framework hands a tool an empty service provider at call time (K-218).
+// Framework hands a tool an empty service provider at call time.
 tracon.AddTool(provider => NarrateTool.Create(TonePricing.From(provider)));
 
 // A local model server example (Ollama/LM Studio). Setup is the SAME call as
@@ -582,8 +580,7 @@ tracon.AddTool(provider => NarrateTool.Create(TonePricing.From(provider)));
 //
 // A known difference: Ollama's tool_choice support varies by model; on
 // servers that do not send usage in the stream, RunRecord.TotalTokens stays
-// null — this is not a bug (see Phase 8, section
-// 8.2).
+// null — this is not a bug.
 
 var model = openAiEnabled
     ? new ModelBinding
@@ -595,9 +592,9 @@ var model = openAiEnabled
 
 // Online evaluation. 🚨 This call only registers WHICH model is USED as the
 // judge — by itself it SCORES nothing. The real gate is
-// `Tracon:OnlineEvaluation:Enabled` AND `:SampleRate` (K1); both are OFF
+// `Tracon:OnlineEvaluation:Enabled` AND `:SampleRate`; both are OFF
 // in the committed appsettings and are only turned on at runtime through an
-// environment variable (see Phase 49, DoD).
+// environment variable (DoD).
 if (openAiEnabled)
 {
     tracon.AddModelRunJudge(options =>
@@ -636,16 +633,16 @@ tracon
         Model = model,
         // cancel_order requires approval: when the model tries to call it, the
         // run pauses and an approval card appears in the UI. read_shopping_cart
-        // is a client-side tool (Phase 61): the server never runs it, and the
+        // is a client-side tool: the server never runs it, and the
         // model's call comes back to the caller as a pending FunctionCallContent.
-        // estimate_shipping_cost (F-176, 135.1) takes an OBJECT parameter -
+        // estimate_shipping_cost (135.1) takes an OBJECT parameter -
         // the model sends a nested JSON argument, not a scalar.
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order", "read_shopping_cart", "estimate_shipping_cost", "mark_preview_ready"],
     })
 
     // A harness-configured agent: context compaction and todo tracking are on.
     // File access is deliberately absent from HarnessSettings; in MAF it only
-    // activates when a value is assigned, and Tracon never assigns one (K-062).
+    // activates when a value is assigned, and Tracon never assigns one.
     .AddAgent(new AgentDefinition
     {
         Name = "researcher",
@@ -663,7 +660,7 @@ tracon
         },
     })
 
-    // Asks for two priced `narrate` calls in one turn (phase 243). With a small
+    // Asks for two priced `narrate` calls in one turn. With a small
     // Tracon:AgentGraph:MaxTotalCost the second call does not start.
     .AddAgent(new AgentDefinition
     {
@@ -675,7 +672,7 @@ tracon
         ToolNames = [NarrateTool.Name],
     })
 
-    // A factory agent that declares its model (phase 258). The factory builds the agent, so it owns the
+    // A factory agent that declares its model. The factory builds the agent, so it owns the
     // instructions and the tools; Tracon builds the chat client for the declared model and hands it over as
     // context.ChatClient. That client carries the tenant's own provider key and egress policy, and the declared
     // model is the model of the run record, so the run is priced and a cost quota applies. The tool is the one
@@ -711,7 +708,7 @@ tracon
     //
     // "support" was chosen DELIBERATELY as the sub-agent, not "researcher":
     // the researcher uses a harness, and the harness defect documented in
-    // K-053 (tool calls do not connect) would also hit the sub-run. Working
+    // That decision (tool calls do not connect) would also hit the sub-run. Working
     // samples come before samples that explain the architecture.
     .AddAgent(new AgentDefinition
     {
@@ -744,7 +741,7 @@ tracon
         Model = model,
     })
 
-    // Structured response validation (Phase 131). Tracon:StructuredResponse:Enabled
+    // Structured response validation. Tracon:StructuredResponse:Enabled
     // is on below, so a response that is not a valid JSON document fails the run
     // with RunErrorClass.StructuredResponseInvalid instead of closing successfully.
     .AddAgent(new AgentDefinition
@@ -761,7 +758,7 @@ tracon
         ToolNames = ["get_order_status"],
     })
 
-    // Response caching and concurrent tool calls (Phase 81, F-45/F-134). The
+    // Response caching and concurrent tool calls. The
     // SECOND identical run never reaches the model (usage is zero, no 'chat'
     // span) but the cached FunctionCallContent still runs get_order_status
     // again - a cache hit is not a shortcut around the tool loop.
@@ -780,7 +777,7 @@ tracon
         ToolNames = ["get_order_status", "list_recent_orders"],
     });
 
-// A loop stop criterion created from the application's services (Phase 201).
+// A loop stop criterion created from the application's services.
 // The factory takes the agent catalog: it runs on the first compilation of an
 // agent that names the kind, never at setup, where the catalog is still being
 // built. The console lists the kind with this description (GET
@@ -788,7 +785,7 @@ tracon
 // "reviewed-writer" below uses it; with no OpenAI key both agents run on the
 // local echo provider, whose reviewer fails round 1 and passes round 2.
 // "reviewed-writer-builtin" does the same job with the built-in agentReview
-// kind (Phase 242): the loop names a reviewer agent and nothing else.
+// kind: the loop names a reviewer agent and nothing else.
 #pragma warning disable MAAI001 // The loop types are "for evaluation purposes only".
 tracon.AddLoopEvaluator(
     DraftReviewCriterion.Kind,
@@ -796,14 +793,14 @@ tracon.AddLoopEvaluator(
     "The draft-reviewer agent approves the draft. A word count and a heading check are computed in code first.");
 #pragma warning restore MAAI001
 
-// An agent extension (Phase 222): code the host registers once and a definition
+// An agent extension: code the host registers once and a definition
 // selects by name. The console lists it in the agent editor (GET
 // /api/agent-extensions), and "house-style-demo" below names it. The agent keeps
 // the model ring, the tenant's provider credential, egress and cost, because it
 // still goes through the definition compiler.
 tracon.AddAgentExtension<HouseStyleExtension>();
 
-// An agent extension with a chat client ring (Phase 232): the ring sits inside the
+// An agent extension with a chat client ring: the ring sits inside the
 // tool-call loop and logs every model call of "house-style-demo" below.
 tracon.AddAgentExtension<ModelCallLoggingExtension>();
 
@@ -850,7 +847,7 @@ tracon
     })
     .AddAgent(new AgentDefinition
     {
-        // The reviewer of the built-in agentReview kind (Phase 242). The criterion reads one shape, a JSON object
+        // The reviewer of the built-in agentReview kind. The criterion reads one shape, a JSON object
         // with a boolean "approved" and a string "feedback", so the reviewer's OWN definition carries it as its
         // response format. "draft-reviewer" above answers another shape for the criterion written in code; one
         // agent that served both would have to carry both, so this one stands apart.
@@ -929,7 +926,7 @@ tracon
     });
 
 // A workflow defined in CODE. A free-form graph can only be built here -
-// the UI only defines ready-made patterns (design rule K2). This sample
+// the UI only defines ready-made patterns. This sample
 // uses the ready-made pattern factory; attaching custom `Executor` types
 // with `WorkflowBuilder` is also possible.
 tracon.AddWorkflow(
@@ -941,7 +938,6 @@ tracon.AddWorkflow(
             // DIRECTLY from the catalog. An agent taken directly opens its own
             // root `runs` row and the workflow tree appears empty. Measured:
             // in the sample app the tree returned one row instead of three
-            // (see Phase 15).
             services.GetWorkflowAgent("summarize-and-translate", "summarizer", "Summarizes incoming text in three bullet points."),
             services.GetWorkflowAgent("summarize-and-translate", "translator", "Translates incoming text into English."),
         ]),
@@ -951,13 +947,13 @@ tracon.AddWorkflow(
 // REQUEST PORT, execution pauses, the state is written to a checkpoint, and
 // the run closes as `AwaitingInput`. The response is given through
 // `POST /api/workflows/runs/{runId}/respond` and opens a NEW run - the event
-// stream is append-only (K-014).
+// stream is append-only.
 tracon.AddWorkflow(
     "summarize-and-approve",
     static services => BuildSummarizeAndApprove(services, "summarize-and-approve"),
     "Summarizes text, then waits for human approval to publish. Defined in code.");
 
-// The same graph, taking ONE answer per request (phase 208). A double click or a
+// The same graph, taking ONE answer per request. A double click or a
 // retried call with the same answer follows the run the first answer started;
 // a different answer is refused with 409. Every answer that starts a run is
 // written to the audit trail ('workflow.respond') before the run starts. The
@@ -971,7 +967,7 @@ tracon.AddWorkflow(
         options.ResponseMode = WorkflowResponseMode.SingleAnswer;
     });
 
-// The same graph with a time limit on the request (phase 209). A run that waits for a
+// The same graph with a time limit on the request. A run that waits for a
 // person keeps its request, checkpoints and input until somebody answers; a limit lets a
 // request nobody answers close its run, so retention can release what it kept. The limit
 // is two minutes here on purpose, so the expiry can be watched: GET /api/workflows/requests
@@ -986,7 +982,7 @@ tracon.AddWorkflow(
         options.RequestTimeout = TimeSpan.FromMinutes(2);
     });
 
-// A graph with a way BACK and a human gate (phase 211): a writer agent, a code check of its draft, a
+// A graph with a way BACK and a human gate: a writer agent, a code check of its draft, a
 // human review that can send the draft back with a note (a bounded loop), then three media nodes behind the
 // approval. The graph is built with WorkflowBuilder in ReviewAndReviseWorkflow.cs and takes its steps from
 // GetWorkflowAgentStep and GetWorkflowFunction, so the writer and the nodes have the timeout, retry, budget
@@ -1029,12 +1025,12 @@ tracon.AddReviewAndRevise(
     renderSeconds: builder.Configuration.GetValue<int?>("Tracon:Demo:ReviewAndRevise:RenderSeconds") ?? 2);
 
 
-// A code function usable as a workflow node (phase 71). AddWorkflowFunction
+// A code function usable as a workflow node. AddWorkflowFunction
 // registers the function by NAME; a Sequential definition's `nodes` list can
-// then mix it in with catalog agents (K2: only the name crosses into the
+// then mix it in with catalog agents (only the name crosses into the
 // definition, the body always lives in code - the same shape
 // AgentDefinition.ToolNames already uses for tools). This particular node
-// makes NO model call - it demonstrates the phase's own motivation: a real
+// makes NO model call - it demonstrates the change's own motivation: a real
 // pipeline has steps (formatting, counting, file I/O) that are not AI calls
 // and previously could not enter a workflow graph at all.
 //
@@ -1058,7 +1054,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
         options.Description = "Appends a word count to the incoming text. Runs no model call.";
 
         // A host that sets Tracon:AgentGraph:MaxTotalCost or MaxDuration stops a function node
-        // from STARTING once the tree has spent it (F-407). This node spends nothing, so it may
+        // from STARTING once the tree has spent it. This node spends nothing, so it may
         // still run after a costly one - say, a step that stores what the budget has just paid
         // for. The exemption is the node's code's to give; an operator cannot set it.
         options.StartsWhenBudgetIsSpent = true;
@@ -1090,7 +1086,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
     },
     "Prefixes the text with the run's 'voice' parameter. Runs no model call.");
 
-// A function with SETTINGS (F-295). The function's code declares the shape
+// A function with SETTINGS. The function's code declares the shape
 // (SpeakSettings); an operator writes values for it on the workflow's node, in the
 // console or over HTTP, so ONE registration serves several workflows with a
 // different voice in each:
@@ -1106,7 +1102,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 // are stored in the definition and shown to every reader of the workflow: never put a
 // secret in them. Name its configuration key instead (see SpeakSettings).
 //
-// 💰 A node reports what it spent beyond tokens (phase 199): characters spoken, GPU
+// 💰 A node reports what it spent beyond tokens: characters spoken, GPU
 // seconds, minutes of audio. Tracon does not price it: the node knows its provider's
 // rate and reports the AMOUNT. It joins the run's non-token total, which the budget,
 // the tenant's quota and the run.completed webhook count beside the token cost:
@@ -1141,7 +1137,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
     },
     static options => options.Description = "Pretends to read the text aloud: makes no sound and no model call, and reports the characters as an estimated, priced item. The voice and the loudness come from the node's settings.");
 
-// A SLOW step, for queued runs and their recovery (phase 197). It stands in for a
+// A SLOW step, for queued runs and their recovery. It stands in for a
 // render that takes minutes, so a run can be stopped halfway through it:
 //
 //   PUT /tracon/api/workflows/episode
@@ -1178,7 +1174,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, RenderSettings>
     },
     static options => options.Description = "Pretends to render the text: waits the node's 'seconds' setting, makes no model call and reports the seconds as an unpriced GPU item.");
 
-// Two functions with a TIMEOUT of their own (phase 196). `slow` waits ten seconds and
+// Two functions with a TIMEOUT of their own. `slow` waits ten seconds and
 // passes its token on, so its two-second timeout cancels it: the run ends Failed with
 // the error type workflow_function_timeout and no later node runs. A node can set its
 // own value, which wins over the registration's:
@@ -1283,7 +1279,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSetti
     },
     static options => options.Description = "Speaks the text with the speech synthesizer the node's settings name and saves the audio as an attachment.");
 
-// A function node that voices a DIALOGUE (phase 203): each non-empty line of the last
+// A function node that voices a DIALOGUE: each non-empty line of the last
 // message is one turn, and the voices in the settings take turns in order. With the
 // ElevenLabs key configured, the default synthesizer voices it:
 //
@@ -1297,7 +1293,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSetti
 //
 //   POST /tracon/api/workflows/two-voices/run   {"message":"Merhaba.\nSelam."}
 //
-// With the Google key configured, the Gemini engine voices it (F-297): exactly two voices, no timestamps,
+// With the Google key configured, the Gemini engine voices it: exactly two voices, no timestamps,
 // and the audio is a WAV file already:
 //
 //   {"name":"dialogue","kind":"Function","settings":{"provider":"gemini","voices":["Kore","Puck"]}}
@@ -1446,11 +1442,11 @@ if (openRouterEnabled)
         {
             Provider = "openrouter",
             // OpenRouter model identifiers carry a provider prefix; not
-            // "gpt-5.4-mini" but "openai/gpt-5.4-mini". Measured: Phase 8.
+            // "gpt-5.4-mini" but "openai/gpt-5.4-mini". Measured.
             Model = openRouter["DefaultModel"] ?? "openai/gpt-5.4-mini",
             // OpenRouter's credit check treats max_tokens as a "worst case";
             // the default (65536) produces HTTP 402 on low-balance keys.
-            // Measured: Phase 8.
+            // Measured.
             MaxOutputTokens = 512,
         },
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
@@ -1599,7 +1595,7 @@ if (voiceEnabled && openAiEnabled)
 // IEmbeddingGenerator are both registered; if either is missing, the build
 // stops with an explicit error. Document upload is an ADMIN operation
 // (POST /tracon/api/knowledge/{collection}/documents), not something the
-// agent does itself — see Phase 51, 51.6.
+// agent does itself6.
 if (openAiEnabled)
 {
     tracon.AddAgent(new AgentDefinition
@@ -1615,7 +1611,7 @@ if (openAiEnabled)
     });
 }
 
-// Session workspace (F-628). The agent lists, reads, searches, writes, edits and deletes files in a private
+// Session workspace. The agent lists, reads, searches, writes, edits and deletes files in a private
 // area that belongs to ONE session: another session does not see them, they are not the agent's file memory,
 // and they are deleted with the session (DELETE /api/sessions/{id}, an erasure of the data subject, or the
 // retention period). A tool that changes a file always waits for a person to approve it; reading is allowed
@@ -1634,7 +1630,7 @@ if (openAiEnabled)
     });
 }
 
-// Conversation memory (F-627). The agent finds what the SAME user said to it in earlier sessions. The
+// Conversation memory. The agent finds what the SAME user said to it in earlier sessions. The
 // records live in a vector store this host registers: here the PgVector connector over the same
 // PostgreSQL database, embedding with the embedding generator registered above (the store embeds; Tracon
 // does not see that call). Scope is tenant + agent + user: the demonstration identity (X-Demo-User)
@@ -1662,7 +1658,7 @@ if (openAiEnabled && builder.Configuration["Tracon:PostgreSql:ConnectionString"]
     });
 }
 
-// Hosted tools (F-603): a web search and a code interpreter the model PROVIDER
+// Hosted tools: a web search and a code interpreter the model PROVIDER
 // runs inside the model call. They are code, as every tool is: a definition
 // selects them by name in ToolNames, and an agent that does not is not offered
 // them. Tracon puts no timeout, approval or permission in front of a hosted
@@ -1742,7 +1738,7 @@ if (googleEnabled)
 //
 // 🚨 TWO PROVIDERS ARE NEVER REGISTERED AT THE SAME TIME. If both are
 // registered, the last call wins, and which database the data goes to
-// depends on call order; Tracon logs this as a startup warning (K-183).
+// depends on call order; Tracon logs this as a startup warning.
 // The sample therefore deliberately chooses a single provider.
 var postgreSql = builder.Configuration.GetSection(TraconPostgreSqlOptions.SectionName);
 var sqlServer = builder.Configuration.GetSection(TraconSqlServerOptions.SectionName);
@@ -1764,7 +1760,7 @@ else if (!string.IsNullOrWhiteSpace(sqlite["ConnectionString"]))
 }
 
 // Data retention and archiving. If IArchiveSink is NOT registered, a policy
-// with archive=true deletes no rows (K-007: no cloud SDK dependency is taken).
+// with archive=true deletes no rows (no cloud SDK dependency is taken).
 // This sample is a template that writes to the file system; in a real setup,
 // derive your own S3/Blob sink from this. It is only registered if a root
 // path is explicitly given in configuration.
@@ -1783,7 +1779,7 @@ if (!string.IsNullOrWhiteSpace(archivePath))
 // false case is its own documented behavior — UseTenancy(Enabled = false) is
 // still a single-tenant deployment, and the production profile must still
 // count it as one — and that cannot be observed if the call is skipped
-// whenever the value is false (K-834's reasoning).
+// whenever the value is false (the reasoning).
 if (builder.Configuration["Tracon:Tenancy:Enabled"] is { Length: > 0 })
 {
     tracon.UseTenancy(options =>
@@ -1807,13 +1803,13 @@ if (builder.Configuration["Tracon:Tenancy:Enabled"] is { Length: > 0 })
     });
 }
 
-// Production profile (phase 175). The gate refuses to start a host whose
+// Production profile. The gate refuses to start a host whose
 // permissive decisions have not been looked at. It is OFF here because this is
 // a sample — turning it on unconditionally would stop `dotnet run` for anyone
 // exploring the repository.
 //
 // 🚨 A demonstration flag rather than a hand-edit, for the same reason as
-// Tracon:Demo:RunAuthorization:Mode (K-834): a line that has to be added and
+// Tracon:Demo:RunAuthorization:Mode: a line that has to be added and
 // removed again is not a mechanism. `Tracon:Demo:ProductionProfile:Accept`
 // takes the comma-separated risk names to accept, so the "an accept covers
 // only the risk it names" behavior can be shown without editing this file.
@@ -1846,7 +1842,7 @@ if (builder.Configuration.GetValue<bool>("Tracon:Demo:ProductionProfile:Enabled"
 // consulted first and its Required/NotRequired answers override the stored
 // rules; a policy that answers Undecided leaves the rules in charge. 🚨 The
 // sample registers none by default, so the precedence — code beats data — is
-// not observable here. Same reasoning as the other demo hooks (K-834).
+// not observable here. Same reasoning as the other demo hooks.
 //
 // Format: comma-separated `tool=Decision`, for example
 // `refund_order=Required`. An unknown tool name is fine (the policy simply
@@ -1873,7 +1869,7 @@ foreach (var entry in (builder.Configuration["Tracon:Demo:ToolApprovalPolicy"] ?
 // it, and that difference is exactly what the production profile measures: the
 // UninspectedContent check asks whether an IContentGuard is REGISTERED, not
 // whether an options flag is set. Leaving it out is the only way to see that
-// check report, so it follows K-834 rather than a hand-edit.
+// check report, so it is a setting rather than a hand-edit.
 if (!DemoSuppressedRegistrations(builder.Configuration).Contains("ContentGuard"))
 {
     tracon.AddPatternContentGuard(options =>
@@ -1944,21 +1940,21 @@ app.MapTracon("/tracon", options =>
     // 🚨 A shipped option whose OFF position this sample could never SHOW.
     // MapOpenAIConversations is decided here, at MapTracon time, so the only
     // way to reach its false branch was a temporary edit of this file — the
-    // exact thing K-834 refuses. The key binds the REAL option; it adds no
+    // exact thing the project refuses. The key binds the REAL option; it adds no
     // behavior of its own, and its absence leaves the shipped default (true).
     if (builder.Configuration.GetValue<bool?>("Tracon:Demo:MapOpenAIConversations") is { } mapConversations)
     {
         options.MapOpenAIConversations = mapConversations;
     }
 
-    // CORS (Phase 61): empty by default (K1). Enables the embeddable chat
+    // CORS: empty by default. Enables the embeddable chat
     // widget to be hosted on a different origin than this API.
     foreach (string origin in builder.Configuration.GetSection("Tracon:Ui:AllowedOrigins").Get<string[]>() ?? [])
     {
         options.AllowedOrigins.Add(origin);
     }
 
-    // The diagnostics endpoint is OFF by default (K1: a surface that reveals
+    // The diagnostics endpoint is OFF by default (a surface that reveals
     // information is turned on explicitly). It is turned on here for
     // demonstration; even without the Admin role registered, it still goes
     // through the three-layer guard (loopback + bearer token).
@@ -1983,7 +1979,7 @@ app.MapTracon("/tracon", options =>
 app.MapTraconMcpServer();
 app.MapTraconA2A();
 
-// The AG-UI endpoint (phase 236): POST /tracon/agui/{agent}. A front end that speaks the AG-UI protocol (CopilotKit and others)
+// The AG-UI endpoint: POST /tracon/agui/{agent}. A front end that speaks the AG-UI protocol (CopilotKit and others)
 // runs a Tracon agent through it. Same protection, same run record, same approval audit as the management API's run
 // endpoint. `support` is the agent to try: it carries the client-side tool read_shopping_cart (the front end runs it) and
 // cancel_order (waits for approval, which arrives as an AG-UI interrupt). Like the two above it needs MapTracon first.

@@ -584,7 +584,7 @@ internal static class EvalEndpoints
                         writer.WriteString("runId", runId);
                         writer.WriteString("sourceKind", outcome.Case.SourceKind.ToString());
 
-                        // F-343: whether the case holds the run's whole input or
+                        // Whether the case holds the run's whole input or
                         // only the RunStarted text, and whether that text was cut.
                         writer.WriteString("inputSource", outcome.InputSource.ToString());
                         writer.WriteBoolean("queryTruncated", outcome.QueryTruncated);
@@ -772,7 +772,7 @@ internal static class EvalEndpoints
         {
             // 🚨 Never softened into an empty 200: a diff with no entries reads
             // as "nothing changed" and turns a CI gate green over a regression.
-            // The message is the store's own and is not translated (K-232).
+            // The message is the store's own and is not translated.
             return TypedResults.Problem(
                 title: "Eval runs cannot be compared",
                 detail: exception.Message,
@@ -886,7 +886,6 @@ internal static class EvalEndpoints
         // run's recorded input and output, and it writes a score for that run.
         // Asking for only one of them would leave the other reachable through
         // this route while it is refused on '/api/runs/{id}' next door
-        // (phase 147).
         foreach (var access in new[] { RunAccess.Read, RunAccess.Feedback })
         {
             if (await RunAuthorizationGate

@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for <c>Prefer: respond-async</c> support (Phase 46).</summary>
+/// <summary>Tests for <c>Prefer: respond-async</c> support.</summary>
 public sealed class AsyncRunTests
 {
     private const string PreferHeaderName = "Prefer";
@@ -44,7 +44,7 @@ public sealed class AsyncRunTests
     }
 
     /// <summary>
-    /// F-432: the placeholder row is written before the job. A queue that refuses
+    /// The placeholder row is written before the job. A queue that refuses
     /// the job must not leave the row <c>Queued</c> forever, with no job behind it.
     /// </summary>
     [Fact]

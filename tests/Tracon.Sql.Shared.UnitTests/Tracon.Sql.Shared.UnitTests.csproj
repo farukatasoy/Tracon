@@ -3,9 +3,9 @@
   <ItemGroup>
     <!--
       All three SQL providers, directly, not via Tracon.Sql.Shared (it has
-      no csproj of its own, K-176). The text-fidelity and completeness checks in
+      no csproj of its own). The text-fidelity and completeness checks in
       this project read the SqlQueriesBase-derived types by their concrete
-      provider name; no cross-assembly type unification is needed (K-247 does
+      provider name; no cross-assembly type unification is needed (the earlier decision does
       not apply here). No Docker/Testcontainers dependency: every check here
       builds a query-set object in memory and never opens a connection.
     -->
@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- In-memory configuration provider for the unreadable-value tests (phase 247). -->
+    <!-- In-memory configuration provider for the unreadable-value tests. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
 

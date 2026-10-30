@@ -5,7 +5,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 266: speech a run produces or transcribes is a span of the run.
+/// Speech a run produces or transcribes is a span of the run.
 /// </summary>
 /// <remarks>
 /// <para>

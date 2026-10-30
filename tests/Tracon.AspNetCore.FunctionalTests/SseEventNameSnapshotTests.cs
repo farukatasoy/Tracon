@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Pins the SSE event names the server writes to <c>docs/sozlesme/sse-olaylari.txt</c> (Phase 238, section 238.2).
+/// Pins the SSE event names the server writes to <c>docs/sozlesme/sse-olaylari.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>

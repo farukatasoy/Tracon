@@ -4,7 +4,7 @@ namespace Tracon.Package.Tests;
 
 /// <summary>
 /// The default (in-memory) combination must start up without any setup, and the
-/// catalog endpoint must return 200 (Phase 37 Completion Criteria).
+/// catalog endpoint must return 200 (an earlier change Completion Criteria).
 /// </summary>
 public sealed class TemplateRunTests(TemplateFixture fixture)
 {

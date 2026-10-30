@@ -148,7 +148,7 @@ public sealed class AesGcmContentProtectorTests
     [Fact]
     public void Unprotect_names_the_key_when_the_configured_key_does_not_match_the_stored_value()
     {
-        // HATA-S1-023: the key id resolves and the value is a valid 32-byte
+        // The key id resolves and the value is a valid 32-byte
         // key, but it is the WRONG key - the one the value was written with is
         // gone. The four resolution failures all name the key id; this fifth
         // branch let a raw AuthenticationTagMismatchException out instead, and
@@ -197,7 +197,7 @@ public sealed class AesGcmContentProtectorTests
 
         var exception = Should.Throw<TraconException>(() => reconfigured.Unprotect(stored));
 
-        // K-059: a diagnostic names the key, never its value - and never the
+        // A diagnostic names the key, never its value - and never the
         // protected payload either.
         exception.Message.ShouldNotContain(OtherValidKey);
         exception.Message.ShouldNotContain(ValidKey);

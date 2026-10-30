@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 133.2: the lane tag is the one value Tracon does not control, so
+/// The lane tag is the one value Tracon does not control, so
 /// its cardinality is bounded. These tests pin both ends of that guard — the
 /// overflow value, and the promise that a named lane keeps its name.
 /// </summary>

@@ -6,7 +6,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// An agent step of a graph built in code that reads its version from a run parameter (phase 249,
+/// An agent step of a graph built in code that reads its version from a run parameter (
 /// <see cref="WorkflowAgentStepOptions.AgentVersionParameter"/>): the two ways to choose a version exclude each
 /// other, and the cache holds the parameter's name, never a run's value.
 /// </summary>

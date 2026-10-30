@@ -252,7 +252,7 @@ internal sealed class InMemoryJobStore : IJobStore
 
         lock (_jobs)
         {
-            // A terminal job is never changed (F-326) — the same rule the SQL
+            // A terminal job is never changed — the same rule the SQL
             // stores apply with their status filter.
             if (_jobs.TryGetValue(completion.JobId, out var job) && job.Status is (JobStatus.Pending or JobStatus.Leased or JobStatus.Running))
             {
@@ -440,7 +440,7 @@ internal sealed class InMemoryJobStore : IJobStore
             // apply (`WHERE status = 0`). Overwriting a finished item let a late
             // report from a worker whose lease had expired rewrite the result the
             // job already gave, and a recovery marker (a Pending report) turned a
-            // finished item back into a pending one (F-321).
+            // finished item back into a pending one.
             if (log[index].Status != JobItemStatus.Pending)
             {
                 return default;

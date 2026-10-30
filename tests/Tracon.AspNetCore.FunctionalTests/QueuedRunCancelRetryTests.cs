@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 262 (F-765): a queued agent run that an operator cancels while it runs is not tried
+/// A queued agent run that an operator cancels while it runs is not tried
 /// again.
 /// </summary>
 /// <remarks>

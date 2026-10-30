@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Models;
 /// real distributed cache is used in) still share a hit.
 /// </summary>
 /// <remarks>
-/// Section 81.2's measured gap: MEAI's own <c>DistributedCachingChatClient.GetCacheKey</c>
+/// the measured gap: MEAI's own <c>DistributedCachingChatClient.GetCacheKey</c>
 /// does not separate by <see cref="ChatOptions.Tools"/> or by tenant. Every
 /// "does NOT share" test here fails if <see cref="TraconResponseCachingChatClient.GetCacheKey"/>
 /// were reduced back to <c>base.GetCacheKey(...)</c> alone.
@@ -127,7 +127,7 @@ public sealed class ResponseCacheKeyTests
 
     /// <summary>
     /// A request field the definition sets changes the answer the model gives, so two requests that differ in
-    /// only that field must not share an entry (F-598). The base key summarizes the options as a whole
+    /// only that field must not share an entry. The base key summarizes the options as a whole
     /// (measured, 2026-10-20); this row per field keeps it that way if the base key ever lists members.
     /// </summary>
     /// <param name="field">The member that differs.</param>

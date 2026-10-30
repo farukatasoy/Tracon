@@ -20,7 +20,7 @@ public sealed class AgentBatchJobHandlerTests
     [Fact]
     public async Task An_agent_whose_required_parameter_has_no_value_fails_the_job_before_any_item()
     {
-        // F-330: a batch carries no parameter values. The job fails once, up
+        // A batch carries no parameter values. The job fails once, up
         // front, instead of once per item with the same error.
         var agent = new ScriptedAgent();
         var guarded = new UnboundParameterGuard(
@@ -96,7 +96,7 @@ public sealed class AgentBatchJobHandlerTests
     }
 
     /// <summary>
-    /// F-310: a batch can run for hours. The handler resolved its agent once, and an
+    /// A batch can run for hours. The handler resolved its agent once, and an
     /// agent's MCP tools stay bound to the connection they were discovered on: after a
     /// server edit or delete, every later item called a closed connection. Each item
     /// now runs the agent the catalog resolves at that moment (a cache hit while
@@ -133,7 +133,7 @@ public sealed class AgentBatchJobHandlerTests
     }
 
     /// <summary>
-    /// F-348: the report of a completed item sat in the item's own <c>try</c>.
+    /// The report of a completed item sat in the item's own <c>try</c>.
     /// A store error while reporting it was taken for a run failure, and an
     /// item whose run had completed was recorded as Failed.
     /// </summary>

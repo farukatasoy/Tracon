@@ -173,7 +173,7 @@ internal static class TenantProviderEndpoints
 
         try
         {
-            // Defense in two layers (section 65.2): the resolver validates the
+            // Defense in two layers: the resolver validates the
             // SAME prefix and tenant rule again while resolving at call time.
             // The tenant is the binding's own (the route), not the caller's.
             resolver.ValidateKeyName(tenantId, request.ApiKeyConfigurationName);

@@ -6,7 +6,7 @@ namespace Tracon.Api;
 
 /// <summary>
 /// The <c>review-and-revise</c> workflow: a writer agent, a code check of its draft, a human review with a bounded
-/// revision loop, and three media nodes behind the approval. A graph built in code (phase 211).
+/// revision loop, and three media nodes behind the approval. A graph built in code.
 /// </summary>
 /// <remarks>
 /// <para>

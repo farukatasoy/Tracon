@@ -311,7 +311,7 @@ internal abstract class SqlDialect
     /// </remarks>
     public virtual string QualifyTable(string tableName) => Queries.QualifyTable(tableName);
 
-    // --- Tenant id canonical form (phase 179) ---
+    // --- Tenant id canonical form ---
 
     /// <summary>
     /// The query that lists the tables in the Tracon schema carrying a
@@ -354,7 +354,7 @@ internal abstract class SqlDialect
     public virtual string NonCanonicalTenantIdPredicate
         => "tenant_id IS NOT NULL AND tenant_id <> lower(tenant_id)";
 
-    // --- Retention (phase 25): data plane batch queries ---
+    // --- Retention: data plane batch queries ---
 
     /// <summary>
     /// Builds the SQL text that returns the number of rows in a target matching
@@ -541,7 +541,7 @@ internal abstract class SqlDialect
     public static string Combine(string predicate, string? extraPredicate)
         => string.IsNullOrWhiteSpace(extraPredicate) ? predicate : $"({predicate}) AND ({extraPredicate})";
 
-    // --- Data subject export/erasure (phase 64) ---
+    // --- Data subject export/erasure ---
 
     /// <summary>
     /// Builds a fragment that is true when <paramref name="column"/>'s value is one

@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
  *  2. A pair that drifts below AA. Every value here is measured, never judged
  *     by eye; the floor recorded below only ever moves up.
  *
- * Phase 163 measured the same two floors on the documentation site (5.49:1 text,
+ * measured the same two floors on the documentation site (5.49:1 text,
  * 3.74:1 non-text) and wrote them into the consumer-documentation quality
  * contract. This file is the console's half of that measurement.
  */
@@ -163,7 +163,7 @@ function main() {
   }
 
   // 🚨 A colour defined inside a @media query or a component rule is invisible
-  // to this gate and disappears when the theme flips. Phase 163 measured this
+  // to this gate and disappears when the theme flips. measured this
   // on the site; the same rule holds here.
   const declarations = [...css.matchAll(/(--tracon-[a-z0-9-]+):/g)].length;
   const expected = darkNames.length + lightNames.length;

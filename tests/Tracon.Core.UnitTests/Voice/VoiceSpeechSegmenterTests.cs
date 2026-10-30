@@ -63,7 +63,7 @@ public sealed class VoiceSpeechSegmenterTests
     [Fact]
     public void A_segment_never_exceeds_the_limit_it_was_given()
     {
-        // F-358: a synthesizer accepts at most MaxCharactersPerRequest characters.
+        // A synthesizer accepts at most MaxCharactersPerRequest characters.
         // The driver hands that limit to the segmenter; a smaller limit than the
         // 240-character default must hold for every segment, including the tail.
         var segmenter = new VoiceSpeechSegmenter(maxSegmentLength: 30);

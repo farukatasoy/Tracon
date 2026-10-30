@@ -6,7 +6,7 @@ using static Tracon.AspNetCore.FunctionalTests.OutputTruncationTests;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-320 — a tool-call turn that hit the output limit is an INTERMEDIATE
+/// A tool-call turn that hit the output limit is an INTERMEDIATE
 /// response. The tool loop runs the call and asks the model again; only the
 /// turn that ends the loop decides the run's outcome.
 /// </summary>
@@ -67,7 +67,7 @@ public sealed class OutputTruncationToolTurnTests
     [Fact]
     public async Task Streamed_plain_text_run_whose_intermediate_tool_turn_hit_the_limit_sends_no_notice()
     {
-        // Phase 207: the plain-text twin of the case above. A structured agent can
+        // The plain-text twin of the case above. A structured agent can
         // never get a notice frame (a cut structured answer throws instead), so only
         // a plain-text agent proves the rule: the tool turn's 'length' opens the
         // endpoint's notice scan, but the detector judges only the final turn and

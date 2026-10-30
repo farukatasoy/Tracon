@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Workspace;
 /// <see cref="TraconRunContext"/>, and each tool is invoked as the function-invoking client invokes it. Each test sets and
 /// clears that scope in its own body (it is an <c>AsyncLocal</c>).
 /// </remarks>
-// MAAI001: the context provider contexts and the file store are marked "evaluation purposes only" - see K-020.
+// MAAI001: the context provider contexts and the file store are marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class SessionWorkspaceProviderTests : IDisposable
 {

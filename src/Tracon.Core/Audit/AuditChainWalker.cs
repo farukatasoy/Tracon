@@ -118,7 +118,7 @@ internal static class AuditChainWalker
                 key);
 
             // The keyed hash is a message authentication code: compared in constant time, so a caller who can
-            // read the answer of the verify endpoint learns nothing from how long the comparison took (F-763).
+            // read the answer of the verify endpoint learns nothing from how long the comparison took.
             if (!HashEquals(expectedHash, entry.Hash))
             {
                 return Failure(AuditChainStatus.Broken, entries.Count, entry.Id, unkeyed);

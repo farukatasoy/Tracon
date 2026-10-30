@@ -69,7 +69,7 @@ public sealed class OpenAIModelProviderCredentialContractTests : ModelProviderCr
 /// </summary>
 /// <remarks>
 /// The setting is a boolean, so it has no closed set of values; a text that is
-/// not a boolean stands for the wrong value (Phase 245). The contract checks that the
+/// not a boolean stands for the wrong value. The contract checks that the
 /// message names the key and does not repeat the text.
 /// </remarks>
 public sealed class OpenAIModelProviderSettingsContractTests : ModelProviderSettingsContract

@@ -103,7 +103,7 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
     [Fact]
     public async Task Recursive_false_skips_matches_in_subdirectories()
     {
-        // Phase 51, Job A: the depth limit moved down to SQL
+        // Job A: the depth limit moved down to SQL
         // (prefix_deep_like). This test proves the behavior did not change.
         Enter(TenantA);
 
@@ -120,7 +120,7 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
     [Fact]
     public async Task Glob_filter_narrows_by_file_name()
     {
-        // Phase 51, Job A: glob moved down to SQL (name_like). `*` crosses
+        // Job A: glob moved down to SQL (name_like). `*` crosses
         // directory boundaries, matching the original .NET regex-based
         // behavior.
         Enter(TenantA);
@@ -139,11 +139,11 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
     [Fact]
     public async Task Search_in_a_large_store_returns_only_the_target_directory()
     {
-        // Phase 51, Job A: `LoadAllAsync` was removed. This test proves that
+        // Job A: `LoadAllAsync` was removed. This test proves that
         // the single match in the target directory is found correctly while
         // many UNRELATED files exist (the row-count measurement is done
         // separately with a Postgres-specific EXPLAIN, see
-        // Phase 51).
+        // An earlier change).
         Enter(TenantA);
 
         const int UnrelatedFileCount = 500;

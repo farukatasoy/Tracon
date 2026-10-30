@@ -8,7 +8,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// End-to-end tests for automatic interrupted-run continuation (Phase 87).
+/// End-to-end tests for automatic interrupted-run continuation.
 /// </summary>
 /// <remarks>
 /// A real process crash cannot be simulated in-process; a "crashed" run is
@@ -70,21 +70,21 @@ public sealed class RunContinuationTests
         }
 
         // The recorded (replayed) result must reach the model UNCHANGED —
-        // this is the phase's first (and most likely) failure mode: if the
+        // this is the change's first (and most likely) failure mode: if the
         // mismatch policy were not reversed for continuation, this run would
         // have stopped with a mismatch at the FIRST call instead of reaching Completed.
         events.Any(e => e.Type == RunEventType.ToolInvoked &&
             string.Equals(e.ToolName, "get_order_status", StringComparison.Ordinal))
             .ShouldBeTrue();
 
-        // Source run is untouched (K-014): still Failed, no lineage pointing forward.
+        // Source run is untouched: still Failed, no lineage pointing forward.
         var source = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(sourceRunId);
         source.ShouldNotBeNull();
         source.Status.ShouldBe(RunStatus.Failed);
     }
 
     /// <summary>
-    /// F-352 class scan: the continuation pinned the interrupted run's version
+    /// The continuation pinned the interrupted run's version
     /// but dropped its experiment arm, so the second half of the turn counted
     /// in no arm.
     /// </summary>
@@ -113,7 +113,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-369 class scan: the continuation opened no attribution scope, so the
+    /// The continuation opened no attribution scope, so the
     /// continued turn's tools and sub-agents ran under no user and no labels,
     /// and its own row carried neither.
     /// </summary>
@@ -148,7 +148,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-367: the continuation job runs with one attempt; a store error on the
+    /// The continuation job runs with one attempt; a store error on the
     /// session save failed the job while the continued run had completed.
     /// </summary>
     [Fact]
@@ -186,7 +186,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-370 class scan: a continued turn that asks for approval closed
+    /// A continued turn that asks for approval closed
     /// <c>AwaitingApproval</c>, but only the queued-run handler wrote the
     /// mailbox row, so nobody could answer it.
     /// </summary>
@@ -363,7 +363,7 @@ public sealed class RunContinuationTests
     [Fact]
     public async Task A_parameterized_agent_is_continued_with_the_values_its_run_recorded()
     {
-        // F-294: the interrupted run recorded the values it was bound with, and
+        // The interrupted run recorded the values it was bound with, and
         // the turn continues under the SAME instructions - not the defaults.
         ContinuationProbeTools.Reset();
 
@@ -500,7 +500,7 @@ public sealed class RunContinuationTests
     [Fact]
     public async Task A_hosted_tool_call_in_the_interrupted_run_does_not_block_continuation()
     {
-        // F-603: the provider ran the hosted call inside a model turn that already answered. A continuation sends the
+        // The provider ran the hosted call inside a model turn that already answered. A continuation sends the
         // history on and runs no hosted call again, so there is no effect to repeat. Before the phase a hosted call
         // was a content event, wrote no tool record, and never met this check.
         ContinuationProbeTools.Reset();
@@ -606,7 +606,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-344: continuation re-sends an agent turn's recorded input to its agent. A
+    /// Continuation re-sends an agent turn's recorded input to its agent. A
     /// workflow root has no such turn - its row records parameter values and no
     /// message - so the reconciler opened a continuation that could only fail, under
     /// the workflow's name, in the workflow's session. A workflow run resumes from its
@@ -660,7 +660,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-321 keeps one owner. With workflow recovery on, reconciliation still closes an
+    /// The earlier decision keeps one owner. With workflow recovery on, reconciliation still closes an
     /// orphaned workflow root and still does not continue it as an agent turn: the job
     /// that started the run resumes it from its checkpoint. Two owners would resume the
     /// same run twice. The refusal now names the job's recovery as well.
@@ -701,7 +701,7 @@ public sealed class RunContinuationTests
             .Text.ShouldNotBeNull().ShouldContain("ResumeInterruptedRuns", Case.Sensitive);
     }
 
-    /// <summary>F-321: a workflow step (a sub-run) is not continued on its own with recovery on either.</summary>
+    /// <summary>A workflow step (a sub-run) is not continued on its own with recovery on either.</summary>
     [Fact]
     public async Task With_workflow_recovery_on_an_orphaned_workflow_step_is_still_not_continued_on_its_own()
     {
@@ -719,7 +719,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-344 class scan: a step of a workflow is an agent run (<see cref="RunKind.Agent"/>)
+    /// A step of a workflow is an agent run (<see cref="RunKind.Agent"/>)
     /// below the workflow root, and it carries the root's session id. Continued on its
     /// own, it re-ran the step - tools and all - in the workflow's session, with nobody
     /// waiting for its answer.
@@ -739,7 +739,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-344 class scan: the same rule for a callable sub-agent's run below an agent.
+    /// The same rule for a callable sub-agent's run below an agent.
     /// Its session id is the caller's, so a continuation ran the sub-agent on the
     /// caller's conversation and saved it there.
     /// </summary>
@@ -758,7 +758,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-344: a continuation job that was already queued (by a version before the fix,
+    /// A continuation job that was already queued (by a version before the fix,
     /// or by hand) for a workflow run is refused by the handler too, with the same reason.
     /// </summary>
     [Fact]
@@ -838,7 +838,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-344 class scan: the reconciler has no ambient tenant. The refusal event read the
+    /// The reconciler has no ambient tenant. The refusal event read the
     /// run's events through the ambient tenant to find the next sequence, read none for
     /// another tenant's run, collided with the claim's own RunFailed event at sequence 0
     /// and was dropped - the run never said why it was not continued.
@@ -880,7 +880,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// F-344 class scan: the chain walk behind <see cref="TraconRunContinuationOptions.MaxAttempts"/>
+    /// The chain walk behind <see cref="TraconRunContinuationOptions.MaxAttempts"/>
     /// read each ancestor through the ambient tenant too. For another tenant it found
     /// none past the first link, so a chain already continued twice was continued a third time.
     /// </summary>
@@ -1128,7 +1128,7 @@ public sealed class RunContinuationTests
     /// finished the pass that decided whether to continue it.
     /// </summary>
     /// <remarks>
-    /// Phase 184: these tests used to sleep 500 ms and then assert both halves.
+    /// These tests used to sleep 500 ms and then assert both halves.
     /// Under load the scanner might not have run at all - "the run is Failed"
     /// then failed, and "no continuation was opened" passed without proof. A
     /// pass first closes a run and then decides its continuation, and passes

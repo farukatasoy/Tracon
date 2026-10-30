@@ -174,16 +174,16 @@ public sealed class LayoutTests(BrowserFixture browsers)
     [Fact]
     public async Task Remaining_screens_do_not_overflow_horizontally_at_375px_width()
     {
-        // The twin of `Proof_slice_screens_...`, over the screens phase 165
+        // The twin of `Proof_slice_screens_...`, over the screens an earlier change
         // rebuilt. 🚨 It seeds a real run FIRST, because an empty screen cannot
-        // overflow: the 375px case that existed before phase 164 walked empty
+        // overflow: the 375px case that existed before walked empty
         // tables for months and never saw the 87px the dashboard was leaking.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
         // 🚨 Every list on the walk has to have ROWS. An empty table cannot
         // overflow, so a walk over a fresh tenant proves nothing — the defect
-        // phase 164 found had hidden behind exactly that for months.
+        // An earlier change found had hidden behind exactly that for months.
         await SeedEveryListAsync(host);
 
         await session.Page.SetViewportSizeAsync(375, 812);
@@ -245,7 +245,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         // 🚨 The defect this pins, found by the walk above: the bubble is
         // centred on its trigger, so a described badge near the right edge of a
         // 375px screen pushed 224px of bubble past the viewport and scrolled
-        // the whole page sideways (104px on the models screen). Phase 165 is
+        // the whole page sideways (104px on the models screen). An earlier change is
         // what exposed it — it put tooltips on badges and column headings,
         // which is precisely where a trigger sits near the edge.
         await using var host = await UiHost.StartAsync();
@@ -260,7 +260,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         // to hold wherever the trigger happens to sit.
         var described = session.Page.Locator("span[aria-describedby][tabindex='0']");
 
-        // Phase 184: the count used to be read the moment the heading appeared.
+        // The count used to be read the moment the heading appeared.
         // The badges come with the model list, which loads after the heading;
         // under a parallel run the read found none. The list renders its rows
         // together, so once one badge is there, all of them are.
@@ -279,7 +279,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
     [Fact]
     public async Task A_link_reads_as_a_link_unless_its_call_site_dresses_it()
     {
-        // Phase 165 gave `Link` a default appearance, which changed 48 call
+        // An earlier change gave `Link` a default appearance, which changed 48 call
         // sites at once. Both halves matter: the bare link has to carry the
         // accent colour, and a call site that passes its own class has to keep
         // winning — a default that overrode them would repaint muted table

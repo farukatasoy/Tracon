@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-385: the binder read only the seven scalar keys. <c>Lanes</c>,
+/// The binder read only the seven scalar keys. <c>Lanes</c>,
 /// <c>MaxConcurrentJobsPerLane</c>, <c>LaneByHandlerKey</c> and
 /// <c>HttpSchedulableHandlerKeys</c> were listed as configuration keys on the
 /// site and bound nowhere, so a worker's <c>media</c> lane budget in
@@ -18,7 +18,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// lane. A consumer only saw it in production.
 /// </para>
 /// <para>
-/// The section is bound by hand without reflection (K-021, AOT), the same shape
+/// The section is bound by hand without reflection (AOT), the same shape
 /// <see cref="TraconImageOptionsBindingTests"/> covers.
 /// </para>
 /// </remarks>
@@ -117,7 +117,7 @@ public sealed class TraconSchedulingOptionsBindingTests
     [InlineData("LaneByHandlerKey", "media")]
     public void A_map_key_with_one_value_and_no_name_fails_at_startup(string key, string text)
     {
-        // F-704: the binder reads one entry per name, so a value written on the map key
+        // The binder reads one entry per name, so a value written on the map key
         // itself named nothing and vanished without a word.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -148,7 +148,7 @@ public sealed class TraconSchedulingOptionsBindingTests
     [Fact]
     public void The_max_duration_map_is_bound()
     {
-        // F-323: the fifth collection. Bound by hand like the other four; a key
+        // The fifth collection. Bound by hand like the other four; a key
         // with dots is a handler key, kept as written.
         var options = Bind(new Dictionary<string, string?>(StringComparer.Ordinal)
         {

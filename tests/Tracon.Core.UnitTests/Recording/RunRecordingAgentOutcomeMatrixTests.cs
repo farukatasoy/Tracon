@@ -6,12 +6,12 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// Phase 107 outcome matrix: proves the streaming and the non-streaming entry
+/// outcome matrix: proves the streaming and the non-streaming entry
 /// point reach the SAME status, terminal event, cancellation cleanup, and
 /// span closure for every outcome a root run can end in.
 /// </summary>
 /// <remarks>
-/// The phase 107 split moved every private helper of <see cref="RunRecordingAgent"/>
+/// The split moved every private helper of <see cref="RunRecordingAgent"/>
 /// (run preparation, event writing, completion, notifications) into separate
 /// partial files, but left <c>RunCoreAsync</c>/<c>RunCoreStreamingAsync</c>
 /// untouched. A helper move that quietly changed the behavior of only ONE of
@@ -86,7 +86,7 @@ public sealed class RunRecordingAgentOutcomeMatrixTests
 
         // The registry entry is written BEFORE the run row - RunRecordingAgent
         // registers first so a cancel can land during the start write. Waiting
-        // for the entry alone raced the read below (Phase 184).
+        // for the entry alone raced the read below.
         await WaitUntil.TrueAsync(async () =>
             harness.Registry.ActiveCount == 1 && (await harness.Store.QueryRunsAsync(new RunQuery())).Count == 1);
 
@@ -130,7 +130,7 @@ public sealed class RunRecordingAgentOutcomeMatrixTests
         harness.Registry.ActiveCount.ShouldBe(0);
         (await harness.RunSpanStatusTagAsync(run.Id)).ShouldBe(nameof(RunStatus.AwaitingApproval));
 
-        // Phase 142: Payload carries one entry per pending request — no
+        // Payload carries one entry per pending request — no
         // IToolApprovalPresenter is registered in this harness, so the
         // presentation fields stay absent and only the raw request survives.
         closingEvent.Payload.ShouldNotBeNull();

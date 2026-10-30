@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// The text of <c>eval_cases.expected_tool_calls</c> (F-605, phase 227). The codec is shared by the
+/// The text of <c>eval_cases.expected_tool_calls</c>. The codec is shared by the
 /// three SQL providers; the store contract proves the round trip against each database, and this
 /// class proves the reading rules a database cannot be made to produce - damaged text, a row
 /// older than the column.

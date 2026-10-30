@@ -4,7 +4,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// BL-039 (phase 122): a duplicate code-defined workflow name used to throw a raw
+/// BL-039: a duplicate code-defined workflow name used to throw a raw
 /// <see cref="ArgumentException"/> from <see cref="Dictionary{TKey,TValue}.ToDictionary"/> - the
 /// same defect <see cref="WorkflowFunctionRegistry"/> already avoided by rejecting a duplicate
 /// with a normalized <see cref="TraconException"/>.
@@ -12,7 +12,7 @@ namespace Tracon.Workflows.UnitTests;
 public sealed class WorkflowCatalogTests
 {
     /// <summary>
-    /// F-382: <c>GET /api/workflows/functions</c> matches before
+    /// <c>GET /api/workflows/functions</c> matches before
     /// <c>/api/workflows/{name}</c>, so a code workflow under that name could not be read back.
     /// </summary>
     [Theory]

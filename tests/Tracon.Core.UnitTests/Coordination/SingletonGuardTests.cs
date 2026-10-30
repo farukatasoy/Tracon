@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Coordination;
 
 /// <summary>
 /// Verifies <see cref="SingletonGuard"/>'s lease/renew state transitions
-/// (Phase 42). Does not require a real timer: <c>TickAsync</c> is called
+///Does not require a real timer: <c>TickAsync</c> is called
 /// directly, so the state machine is tested independently of PeriodicTimer.
 /// </summary>
 public sealed class SingletonGuardTests

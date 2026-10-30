@@ -26,7 +26,7 @@ import type { AgentDescriptor, ToolDescriptor, ToolUsage } from '../lib/server-t
  *
  * This screen is read only by design. Tools are defined in code and nowhere
  * else: a console that could write tool code would let anyone who reaches the
- * console run code on the server (rule K2, decision K-012).
+ * console run code on the server.
  */
 export function ToolsScreen(): ReactNode {
   const t = useT();
@@ -99,8 +99,8 @@ export function ToolsScreen(): ReactNode {
         <Panel>
           {/*
             🚨 No "create the first one" action, and that is deliberate rather
-            than an omission: a tool is defined in code and nowhere else (K-012,
-            rule K2), so the only honest next step this screen can offer is the
+            than an omission: a tool is defined in code and nowhere else,
+            so the only honest next step this screen can offer is the
             code that registers one. Same exception `approvals.tsx` takes, for
             the same reason — a fabricated primary action teaches the wrong
             thing about where the boundary is.
@@ -214,7 +214,7 @@ function timeoutSeconds(value: string): number {
 }
 
 /**
- * The tool's effect class (F-113). Read shows no badge — a neutral default
+ * The tool's effect class. Read shows no badge — a neutral default
  * would only add noise to the common case; Write/Destructive/External are
  * shown because they change what a caller should think about before using
  * the tool.

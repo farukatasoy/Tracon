@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-294: a value is as sensitive as a message, and unlike a message it also
+/// A value is as sensitive as a message, and unlike a message it also
 /// travels through error paths (a refused name, an over-long value, a failed
 /// step). The cases scan every sink a run writes - the host's logs, the run
 /// events of the whole tree, the span tags, a refusal body and a job item's error

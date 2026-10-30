@@ -2,7 +2,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Evaluation;
 
-/// <summary>Tests for the online evaluation sampler (Phase 49).</summary>
+/// <summary>Tests for the online evaluation sampler.</summary>
 public sealed class RunSamplerTests
 {
     private const string Tenant = "acme";

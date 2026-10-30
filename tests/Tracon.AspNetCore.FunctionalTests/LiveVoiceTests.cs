@@ -29,10 +29,10 @@ public sealed class LiveVoiceTests
     /// session reports instead of hanging the suite; when the condition is already
     /// true, a larger value costs nothing. Ten seconds was a claim about the
     /// machine, and a loaded full-solution run broke it twice — the fixes before
-    /// Phase 173 both corrected WHAT the test waits for and left the bound alone.
+    /// both corrected WHAT the test waits for and left the bound alone.
     /// The live-voice path is the slowest thing in this assembly (a real WebSocket
     /// handshake, a fake device, and a server round trip), so it gets the room.
-    /// Phase 184: one value for every live voice test class - three of them still
+    /// One value for every live voice test class - three of them still
     /// carried the ten seconds the lifecycle tests had outgrown.
     /// </remarks>
     internal static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
@@ -108,7 +108,7 @@ public sealed class LiveVoiceTests
     [Fact]
     public async Task A_delegation_becomes_a_real_run_and_its_answer_is_spoken_back()
     {
-        // This is the phase's whole reward: a spoken request becomes an ordinary
+        // This is the change's whole reward: a spoken request becomes an ordinary
         // Tracon run, with the same recording chain as POST /api/agents/{name}/run.
         await using var provider = await FakeGptLiveServer.StartAsync();
         await using var host = await StartAsync(provider);

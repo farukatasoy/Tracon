@@ -9,14 +9,14 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 35 — <c>tracon.run.cost</c> is verified end to end through a real
+/// <c>tracon.run.cost</c> is verified end to end through a real
 /// DI registration and a real HTTP request.
 /// </summary>
 /// <remarks>
 /// The unit tests in <c>Tracon.Core.UnitTests</c> wire up
 /// <see cref="RunRecordingAgent"/> by hand; this CAN MISS a wiring break in
 /// <c>AddTracon()</c>'s real registration chain (metric, provider, run
-/// recording wrapper) (Phase 28 lesson: "a probe program does not prove the
+/// recording wrapper) ("a probe program does not prove the
 /// real pipeline"). This test builds that chain FOR REAL with <c>TestHost</c>
 /// and, because <see cref="MeterListener"/> runs in the SAME process, can see
 /// the measurement <see cref="TraconMetrics"/> produces.

@@ -127,7 +127,7 @@ public static class TraconMcpBuilderExtensions
         var services = builder.Services;
 
         // Validated at startup: RefreshInterval feeds the discovery loop's
-        // delay, and a value it refuses stopped the host after startup (F-278).
+        // delay, and a value it refuses stopped the host after startup.
         UnreadableConfigurationValidator.Add<TraconMcpOptions>(services);
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconMcpOptions>, TraconMcpOptionsValidator>());
@@ -143,7 +143,7 @@ public static class TraconMcpBuilderExtensions
         }
 
         // The production decision this mode answers when the deployment declares more than one instance
-        // (Tracon:Deployment:Instances, Phase 265).
+        // (Tracon:Deployment:Instances).
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceMcpTokensProfileCheck>());
 

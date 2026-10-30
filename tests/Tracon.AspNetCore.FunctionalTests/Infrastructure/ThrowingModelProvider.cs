@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// Fakes a real provider SDK exception (e.g. Anthropic's <c>AnthropicApiException</c>,
 /// OpenAI's <c>ClientResultException</c>): it derives DIRECTLY from <see cref="Exception"/>,
 /// NOT from <see cref="TraconException"/>/<see cref="InvalidOperationException"/>/
-/// <see cref="HttpRequestException"/>. This is for the family H (HATA-S2-003/HATA-S3-005)
+/// <see cref="HttpRequestException"/>. This is for the family H
 /// regression tests: the non-streaming endpoints' narrow 'when' filter would have missed
 /// exactly this class.
 /// </summary>

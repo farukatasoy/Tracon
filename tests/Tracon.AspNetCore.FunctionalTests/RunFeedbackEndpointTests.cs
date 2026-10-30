@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the run/message score endpoints (Phase 31).</summary>
+/// <summary>Tests for the run/message score endpoints.</summary>
 public sealed class RunFeedbackEndpointTests
 {
     private const string TenantHeader = "X-Tracon-Tenant";
@@ -37,7 +37,7 @@ public sealed class RunFeedbackEndpointTests
     public async Task Row_count_does_NOT_grow_when_the_same_author_writes_a_second_time()
     {
         // Requires an authenticated actor: on an unauthenticated request,
-        // Author is always null and, by design (open question 4), every call
+        // Author is always null and, by design, every call
         // opens a new row -- the "same author" scenario is only testable on
         // an authenticated request.
         await using var host = await TraconTestHost.StartAsync(

@@ -5,14 +5,14 @@ namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
 /// The tenant isolation, cascade, and commit/rollback behavior of the SQLite
-/// implementation of <see cref="IDataSubjectStore"/> (phase 64).
+/// implementation of <see cref="IDataSubjectStore"/>.
 /// </summary>
 /// <remarks>
 /// SQLite port of <c>Tracon.PostgreSql.IntegrationTests.DataSubjectStoreTests</c>
 /// — the same scenarios, run against <c>SqlDataSubjectStore</c>'s
 /// <c>json_each</c>-based <see cref="SqlDialect.ArrayContains"/> implementation
-/// (K-198: shared code, but the dialect text is genuinely provider-specific and
-/// untested on this provider until this file existed — see the phase 64 audit
+/// (shared code, but the dialect text is genuinely provider-specific and
+/// untested on this provider until this file existed — see the audit
 /// finding that asked for this).
 /// </remarks>
 public sealed class DataSubjectStoreTests(SqliteFixture fixture)
@@ -123,7 +123,7 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
     [Fact]
     public async Task Erase_whose_callback_writes_the_audit_log_commits_both()
     {
-        // 🚨 F-644: the endpoint's callback writes the audit trail through IAuditLog
+        // The endpoint's callback writes the audit trail through IAuditLog
         // while the erasure transaction holds SQLite's single write lock. A write from a
         // second connection waited for that lock until the call timed out, and the
         // audit log's own lock retry multiplied the wait, so the request never returned.
@@ -212,10 +212,10 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
     [Fact]
     public async Task Erase_removes_the_workflow_checkpoints_of_the_subjects_sessions_and_runs()
     {
-        // 🚨 F-371: workflow_checkpoints carries tenant_id, session_id and run_id but
+        // Workflow_checkpoints carries tenant_id, session_id and run_id but
         // no foreign key to runs, so no cascade reaches it — and its state is the
         // serialized workflow, which can hold the subject's own messages. The run
-        // waits for input: erasure is a right, not retention, so K-888's "keep the
+        // waits for input: erasure is a right, not retention, so the "keep the
         // checkpoints of a waiting run" does not apply — the run row goes too.
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var waitingRunId = await SeedRunAsync(context, "tenant-a", status: (int)RunStatus.AwaitingInput);
@@ -260,7 +260,7 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
     [Fact]
     public async Task Erase_and_export_reach_the_scores_of_runs_found_through_a_session()
     {
-        // F-371 class sweep: run_scores has no foreign key to runs, so no cascade
+        // Run_scores has no foreign key to runs, so no cascade
         // reaches it. A resolver that named only a session reached the session's
         // runs but not their scores — and a score's comment can hold the
         // subject's own words.
@@ -285,7 +285,7 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// F-400: a promoted eval case, an idempotent run's stored response, a queued
+    /// A promoted eval case, an idempotent run's stored response, a queued
     /// run's job and a batch item each keep a copy of the subject's text, and none
     /// had a foreign key that cascaded from runs. They are reached through a run of
     /// the named session, never in another tenant, and a batch job keeps its other items.
@@ -509,7 +509,7 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
             $"SELECT COUNT(*) FROM {context.TablePrefix}conversation_items WHERE conversation_id = '{Sql(conversationId)}';");
 
     /// <summary>
-    /// Converts an id to the form SQLite STORES it in (K-191: <c>Microsoft.Data.Sqlite</c>
+    /// Converts an id to the form SQLite STORES it in (<c>Microsoft.Data.Sqlite</c>
     /// writes <see cref="Guid"/> values as UPPERCASE hyphenated text, and SQLite text
     /// comparison is case-sensitive).
     /// </summary>

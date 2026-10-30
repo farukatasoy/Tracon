@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests;
 
 /// <summary>
-/// The options a <see cref="TraconMetrics"/> needs to publish <c>tracon.tenant.id</c> (Phase 238). The tag is off
+/// The options a <see cref="TraconMetrics"/> needs to publish <c>tracon.tenant.id</c>. The tag is off
 /// by default, so a test that reads a tenant series asks for it.
 /// </summary>
 internal static class TenantTaggedMetricsOptions

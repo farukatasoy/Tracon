@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Enforces the phase 64 rule that <c>audit_log</c> never receives conversation
+/// Enforces the rule that <c>audit_log</c> never receives conversation
 /// content: it is reviewed, closed allowlist of the source files that are allowed
 /// to write an audit entry at all.
 /// </summary>
@@ -17,8 +17,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// the same entry shape as the best-effort one, so an unreviewed file could put
 /// conversation content in <c>audit_log</c> through it just as easily. A new call site fails this test
 /// until a human adds it to the list — which is the point: the review happens
-/// once, deliberately, not by guessing from a diff later. See phase 64's
-/// evidence table (Phase 64) for
+/// once, deliberately, not by guessing from a diff later.'s
+/// evidence table for
 /// the review that produced this list; every entry is a management/governance
 /// action (API key, catalog, quota, retention, session/agent/tool-rule/tenant
 /// administration, approval decision, external-call audit), never conversation
@@ -43,9 +43,9 @@ public sealed class AuditContentPolicyTests
         "src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/CatalogEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/DataSubjectEndpoints.cs",
-        // Reviewed (phase 269): definitions.export and definitions.import write the COUNTS of the definitions of each
+        // Reviewed: definitions.export and definitions.import write the COUNTS of the definitions of each
         // kind and, for an import, the SHA-256 of the file - never a definition. The file holds instructions an
-        // administrator authored; the line names none of them (the trail is not protected at rest, K-779).
+        // administrator authored; the line names none of them (the trail is not protected at rest).
         "src/Tracon.AspNetCore/Endpoints/DefinitionTransferEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs",
@@ -54,7 +54,7 @@ public sealed class AuditContentPolicyTests
         "src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/TenantProviderEndpoints.cs",
-        // Reviewed (phase 261): tenant_tool_policy.save and .delete write the two lists of tool NAMES and
+        // Reviewed: tenant_tool_policy.save and .delete write the two lists of tool NAMES and
         // permission strings an administrator typed - configuration, never conversation content.
         "src/Tracon.AspNetCore/Endpoints/TenantToolPolicyEndpoints.cs",
         "src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs",
@@ -62,17 +62,17 @@ public sealed class AuditContentPolicyTests
 
         // AspNetCore internals — tool approval/result resolution, external call audit.
         "src/Tracon.AspNetCore/Internal/ClientToolResultResolver.cs",
-        // Reviewed (phase 230): approval.decision names the tool and the yes/no, and the reason the approver
+        // Reviewed: approval.decision names the tool and the yes/no, and the reason the approver
         // typed - the same record the approval inbox has always written. Two surfaces call this one file: the run
         // request body (ToolApprovalResolver) and the answer to a workflow's tool approval (WorkflowResponseGate).
         "src/Tracon.AspNetCore/Internal/ToolApprovalDecisionRecorder.cs",
-        // Reviewed (phase 208): workflow.respond names the source run, the request id, the
+        // Reviewed: workflow.respond names the source run, the request id, the
         // run the answer starts, the mode and a SHA-256 of the answer - never the answer,
-        // which can hold whatever the person typed (K-779: the trail is not protected at rest).
+        // which can hold whatever the person typed (the trail is not protected at rest).
         "src/Tracon.AspNetCore/Internal/WorkflowResponseGate.cs",
-        // Reviewed (phase 235): tool_input.answer names the request, the server, the tool, the action and the
+        // Reviewed: tool_input.answer names the request, the server, the tool, the action and the
         // NAMES of the fields the user filled in - never a value, which can hold whatever the user typed
-        // for a third-party server (the trail is not protected at rest, K-779).
+        // for a third-party server (the trail is not protected at rest).
         "src/Tracon.AspNetCore/Internal/ToolInputResolver.cs",
         "src/Tracon.AspNetCore/Security/ExternalCallAudit.cs",
 
@@ -96,7 +96,7 @@ public sealed class AuditContentPolicyTests
         "src/Tracon.Core/Experiments/CanaryEvaluationService.cs",
 
         // Core — a content guard's BLOCK DECISION (rule name only, never the
-        // blocked text — K-325) and a skill script run record (K-089).
+        // blocked text) and a skill script run record.
         "src/Tracon.Core/Guards/ContentGuardPipeline.cs",
         "src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs",
     ];
@@ -105,7 +105,7 @@ public sealed class AuditContentPolicyTests
     /// 🚨 No <c>\b</c> before <c>auditLog</c>: a word boundary does NOT exist
     /// between <c>_</c> and a letter (both are "word" characters), so
     /// <c>\bauditLog\.WriteAsync</c> silently missed a field named
-    /// <c>_auditLog</c> — an independent phase 64 review caught this. Matching
+    /// <c>_auditLog</c> — an independent review caught this. Matching
     /// without a boundary at all is deliberate: a false positive
     /// here only means one extra file needs a human look, which is the safe
     /// direction for a closed allowlist; a false negative is the actual risk.

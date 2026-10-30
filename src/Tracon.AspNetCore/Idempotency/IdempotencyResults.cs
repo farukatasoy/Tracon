@@ -15,7 +15,7 @@ internal sealed class IdempotencyReplayResult(IdempotencyResponse response) : IR
         httpContext.Response.ContentType = response.ContentType;
         httpContext.Response.Headers[IdempotencyFilter.ReplayedHeaderName] = "true";
 
-        // HATA-S3-008: the original response's non-body headers (Location,
+        // The original response's non-body headers (Location,
         // Preference-Applied) are replayed too — not just body/status code/content type.
         foreach (var header in response.Headers)
         {
@@ -71,7 +71,7 @@ internal sealed class IdempotencyCapturingResult(
         var statusCode = httpContext.Response.StatusCode;
 
         // 🚨 A failed run is NOT stored; the reservation is released so a retry with
-        // the same key works (Phase 43, section 43.2).
+        // the same key works.
         if (statusCode is >= 200 and < 300)
         {
             await store.CompleteAsync(

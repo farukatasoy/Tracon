@@ -7,8 +7,7 @@ namespace Tracon;
 
 // MAAI001: Microsoft.Agents.AI's loop API is marked "evaluation purposes only".
 // The suppression covers the whole file because the file exists to translate
-// Tracon's declarative settings into that API. Rationale: docs/KARARLAR.md,
-// decision K-020.
+// Tracon's declarative settings into that API.,
 #pragma warning disable MAAI001
 
 /// <summary>
@@ -290,8 +289,8 @@ internal sealed class LoopEvaluatorRegistry
     /// The judge keeps the setup-time credential: it is the host's one judge
     /// model, the same one the run judge calls.
     /// </remarks>
-    // K-613 (setup-time credential, egress policy applied) and K-706 (the
-    // aiJudge criterion runs on the AddModelRunJudge binding).
+    // The judge client is built with a setup-time credential and the egress policy applied, and the
+    // aiJudge criterion runs on the AddModelRunJudge binding.
     public async ValueTask<IChatClient?> CreateJudgeChatClientAsync(
         AgentDefinition definition,
         CancellationToken cancellationToken)
@@ -313,7 +312,7 @@ internal sealed class LoopEvaluatorRegistry
             return await _models.CreateSetupChatClientAsync(judgeModel, cancellationToken).ConfigureAwait(false);
         }
 
-        // F-442: a tenant's refusal keeps its type (see AgentDefinitionCompiler).
+        // A tenant's refusal keeps its type (see AgentDefinitionCompiler).
         catch (TraconTenantProviderRefusedException ex)
         {
             throw new TraconTenantProviderRefusedException(
@@ -405,7 +404,7 @@ internal sealed class LoopEvaluatorRegistry
 
         var options = new LoopAgentOptions
         {
-            // Phase 192: the framework does not evaluate the turn that reaches its
+            // The framework does not evaluate the turn that reaches its
             // ceiling. To fail the run there, that turn has to be evaluated, so the
             // framework gets one iteration more and RecordingLoopEvaluator decides at
             // the definition's ceiling: it stops or throws, and turn N+1 never runs.
@@ -415,8 +414,8 @@ internal sealed class LoopEvaluatorRegistry
 
             // Set explicitly rather than left to the framework default (measured
             // false on MAF 1.20.0). The caller gets the FINAL iteration's answer;
-            // the usage stays the sum of every iteration (F-317, user decision
-            // 2026-10-12). Phase 192 set this to false so the run record would
+            // the usage stays the sum of every iteration (user decision
+            // 2026-10-12). An earlier change set this to false so the run record would
             // carry every iteration, but a defect hid that the transcript then
             // also became the answer every text surface returns: the OpenAI-
             // compatible endpoints, MCP and a calling agent would have read the
@@ -629,7 +628,7 @@ internal sealed class LoopEvaluatorRegistry
 
         // 🚨 MAF drops the judge's response, and with it the usage: without the
         // tracker the judge's tokens reached the tree budget but not the run's
-        // usage, cost or quota entry (F-349). Wrapped here, once, so the async and
+        // usage, cost or quota entry. Wrapped here, once, so the async and
         // the synchronous compile path both get it.
         return new AIJudgeLoopEvaluator(
             SideChannelUsageTrackingChatClient.ForLoopJudge(judgeClient, judgeModel),

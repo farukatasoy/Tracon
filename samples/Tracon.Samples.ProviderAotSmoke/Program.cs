@@ -63,7 +63,7 @@ Check(failures, "voice audio", audio.Data.Length.ToString(System.Globalization.C
 var voices = await synthesizer.ListVoicesAsync();
 Check(failures, "voice list", voices.Count == 1 ? voices[0].VoiceId : "none", "voice-1");
 
-// OpenAI speech through the Microsoft.Extensions.AI bridge (F-579): both directions reach
+// OpenAI speech through the Microsoft.Extensions.AI bridge: both directions reach
 // their own endpoint, and the bridged provider answers under the name "openai".
 var speech = host.Services.GetRequiredService<ISpeechProviderResolver>();
 
@@ -80,7 +80,7 @@ using (var recording = new MemoryStream(FakeProviderServer.ExpectedAudio.ToArray
     Check(failures, "openai transcript", transcript.Text, FakeProviderServer.Transcript);
 }
 
-// Image generation through each provider's own path (F-584). The generator is the one the
+// Image generation through each provider's own path. The generator is the one the
 // generate_image tool resolves; a host that only registers it must still publish.
 #pragma warning disable MEAI001 // Microsoft.Extensions.AI marks its image generator experimental
 foreach (var providerName in new[] { OpenAIProviderNames.ChatCompletions, AzureOpenAIProviderNames.AzureOpenAI })

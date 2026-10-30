@@ -142,7 +142,7 @@ internal sealed class ContentGuardingChatClient(
 
     // Logic SHARED with RunRecordingAgent: the recording path (RunStarted
     // event, IRunInputStore) applies the same inspection in the same order so
-    // that what goes to the model and what is recorded NEVER diverge (HATA-S3-006).
+    // that what goes to the model and what is recorded NEVER diverge.
     private async ValueTask<IEnumerable<ChatMessage>> MaskAsync(
         IReadOnlyList<ChatMessage> buffer,
         CancellationToken cancellationToken)

@@ -139,7 +139,7 @@ internal sealed class ToolApprovalRuleEvaluator
 
         // 🚨 Read once, from the registry that serves the tool: an MCP tool keeps
         // its name when its server moves to another endpoint, so the name alone
-        // let a rule approve a tool of an endpoint it was never given for (F-283).
+        // let a rule approve a tool of an endpoint it was never given for.
         // Strict equality: a rule written for a source matches only that source,
         // and a rule without one (code tool, or stored before the field existed)
         // never approves a tool of a remote source.
@@ -213,7 +213,7 @@ internal sealed class ToolApprovalRuleEvaluator
         catch (Exception ex)
         {
             // No filter: the policy delegate is synchronous and takes no token,
-            // so no OperationCanceledException it throws is ours (K-840).
+            // so no OperationCanceledException it throws is ours.
             _logger.LogError(
                 ex,
                 "The approval policy for tool '{ToolName}' threw; the call will require approval.",

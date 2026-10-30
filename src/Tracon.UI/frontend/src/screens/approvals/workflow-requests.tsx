@@ -30,14 +30,14 @@ const PROMPT_PREVIEW = 140;
 type RequestState = 'pending' | 'answered' | 'all';
 
 /**
- * The human requests the tenant's workflow runs wait on (phase 209), across every workflow.
+ * The human requests the tenant's workflow runs wait on, across every workflow.
  *
  * A row is a pointer, not a form: it names the workflow, shows the start of the request and when
  * it runs out, and opens the run's card, where the whole request is shown and answered. The
  * answering controls live on that one card (`WorkflowDetailScreen`), so a form that must stay in
  * step with a request type exists once.
  *
- * 🚨 An answered run stays `AwaitingInput` (K-130), so an answered request is still a row here,
+ * 🚨 An answered run stays `AwaitingInput`, so an answered request is still a row here,
  * marked answered: the run it was answered on is named, and the run that waits is the one whose
  * rows retention keeps until the request expires. The default filter hides the answered ones.
  */

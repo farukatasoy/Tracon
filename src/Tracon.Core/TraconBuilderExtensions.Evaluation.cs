@@ -178,7 +178,6 @@ public static partial class TraconBuilderExtensions
     // MAAI001: Microsoft.Agents.AI.LoopEvaluator is marked "evaluation purposes
     // only". A registration surface cannot hide the type it registers, so the
     // suppression is narrowed to the registration members instead of the file.
-    // Rationale: docs/KARARLAR.md, decision K-020.
     //
     // Four overloads instead of an optional description on two: RS0026 refuses
     // more than one overload with optional parameters (the AddTool pattern).

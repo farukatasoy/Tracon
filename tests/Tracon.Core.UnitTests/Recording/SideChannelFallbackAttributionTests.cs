@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
 /// A side-channel call (the compaction summarizer, an <c>aiJudge</c> judge) whose
-/// binding falls back keeps that fallback to itself (F-360).
+/// binding falls back keeps that fallback to itself.
 /// </summary>
 /// <remarks>
 /// Goes through <see cref="ModelProviderRegistry"/>, so the real

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Phase 240: <see cref="TraconWorkflowOptions.MaxConcurrentRunsPerTenant"/> is off by default, is a share of
+/// <see cref="TraconWorkflowOptions.MaxConcurrentRunsPerTenant"/> is off by default, is a share of
 /// <see cref="TraconWorkflowOptions.MaxConcurrentRuns"/>, and reaches the job worker through the seam
 /// <c>UseWorkflows</c> registers.
 /// </summary>

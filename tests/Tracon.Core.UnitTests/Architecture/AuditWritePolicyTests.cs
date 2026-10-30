@@ -9,10 +9,10 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 171 exists because that decision HAD drifted: four hand-written copies of the
+/// An earlier change exists because that decision HAD drifted: four hand-written copies of the
 /// fail-closed write and two direct calls, one of which did not even log the failure.
 /// Removing the copies is not enough on its own — the sixth copy would arrive with the
-/// next phase that needs one. This test is the ratchet that makes it arrive as a
+/// next change that needs one. This test is the ratchet that makes it arrive as a
 /// failure instead.
 /// </para>
 /// <para>
@@ -34,14 +34,14 @@ public sealed class AuditWritePolicyTests
 
     /// <summary>
     /// The fail-closed operations: the file each one lives in, and every action name it
-    /// writes. This list IS the published contract of K-776 — eight operations refuse to
+    /// writes. This list IS the published contract of that decision — eight operations refuse to
     /// apply when their audit entry cannot be written, and every other audit write is
-    /// best-effort. Phase 208 added the seventh: answering a workflow request. Phase 235 added
+    /// best-effort. An earlier change added the seventh: answering a workflow request. An earlier change added
     /// the eighth: answering a tool's request for user input.
     /// </summary>
     /// <remarks>
     /// Adding or removing an entry changes a published security guarantee, so it travels
-    /// with the three consumer-facing places K-776 names: the governance page's table,
+    /// with the three consumer-facing places the earlier decision names: the governance page's table,
     /// the security policy page's scope, and the capability list.
     /// </remarks>
     private static readonly (string Operation, string File, string[] Actions)[] FailClosedOperations =
@@ -53,8 +53,8 @@ public sealed class AuditWritePolicyTests
         (
             // The SAME operation reached through the run request body instead of the
             // approval inbox. It is listed separately because it is a separate call
-            // site that has to be checked separately — it was best-effort until phase
-            // 171, silently contradicting the published guarantee. Since phase 230 the
+            // site that has to be checked separately — it was best-effort until it
+            // moved, silently contradicting the published guarantee. Since then the
             // write lives in one recorder that the answer to a workflow's tool approval
             // calls too, so a third surface cannot drift from the first two.
             "An approval decision (in band, and the answer to a workflow request)",
@@ -151,7 +151,7 @@ public sealed class AuditWritePolicyTests
         offenders.ShouldBeEmpty(
             $"Only {PolicyFile} may call IAuditLog.WriteAsync. A direct call decides, at that "
             + "call site alone, whether a failed audit write stops the operation — which is "
-            + "exactly the drift phase 171 removed. Use AuditRecorder.WriteAsync for a "
+            + "exactly the drift that was removed. Use AuditRecorder.WriteAsync for a "
             + "best-effort write or AuditRecorder.WriteOrThrowAsync for a fail-closed one.");
     }
 
@@ -169,7 +169,7 @@ public sealed class AuditWritePolicyTests
         found.ShouldBe(
             ExpectedFailClosedCallSites,
             "The number of fail-closed audit writes changed. That set is a PUBLISHED security "
-            + "guarantee (K-776): adding or removing one also changes concepts/governance.md, "
+            + "guarantee: adding or removing one also changes concepts/governance.md, "
             + "reference/security-policy.md and capabilities.md. Update all four together, or "
             + "use the best-effort path instead.");
     }

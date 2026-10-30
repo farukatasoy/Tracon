@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// An event keeps the time its draft names (F-689): a tool call written from the tool-call ledger when the run closes
+/// An event keeps the time its draft names: a tool call written from the tool-call ledger when the run closes
 /// is stamped with the time it ran, and every other event is stamped as it always was.
 /// </summary>
 public sealed class RunEventTimestampTests

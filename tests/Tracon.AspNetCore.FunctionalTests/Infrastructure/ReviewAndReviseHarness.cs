@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// The host and the graph of the code-graph revision tests (phase 211): a writer agent, a validation
+/// The host and the graph of the code-graph revision tests: a writer agent, a validation
 /// function, a human review, a bounded revision loop and three media functions behind it.
 /// </summary>
 /// <remarks>

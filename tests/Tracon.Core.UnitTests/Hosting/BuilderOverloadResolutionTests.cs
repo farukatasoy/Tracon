@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Hosting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 258 measured this first (implementation order, step 1). A lambda with no parameter types has
+/// measured this first (implementation order, step 1). A lambda with no parameter types has
 /// no natural type, so it cannot reach <c>Delegate</c>; a lambda with typed parameters and a method group do
 /// have one, and the compiler has to prefer the exact <c>Func</c>. If one of them reached the reflection
 /// overload instead, the tool would be built once from the delegate's own signature, not from the

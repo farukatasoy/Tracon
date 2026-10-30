@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// as display-safe text only.
 /// </summary>
 /// <remarks>
-/// F-334 (K-640): the run row already carried <c>SafeErrorText</c>, but the
+/// The run row already carried <c>SafeErrorText</c>, but the
 /// <c>ExecutorFailed</c> event of the same failure carried the exception's own
 /// message — here a host and port an HTTP client put there — to the SSE stream,
 /// the event table and every sink. The stream is an external response, so the

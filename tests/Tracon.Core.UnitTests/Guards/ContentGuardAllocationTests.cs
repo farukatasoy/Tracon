@@ -4,8 +4,8 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Guards;
 
 /// <summary>
-/// Measures the allocation cost Phase 140's <c>CallId</c> → tool name map adds
-/// to <see cref="ContentGuardMessageMasker"/>'s hot path (Phase 116's gate).
+/// Measures the allocation cost the earlier change's <c>CallId</c> → tool name map adds
+/// to <see cref="ContentGuardMessageMasker"/>'s hot path (the gate).
 /// </summary>
 /// <remarks>
 /// The map is built only when the message list carries a
@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Guards;
 /// This is measured relatively (the no-tool-result call must cost strictly less
 /// than the tool-result call), not as an absolute zero: the call was never
 /// allocation-free to begin with (a <see cref="ContentGuardContext"/> record is
-/// built per guard per piece of content regardless of this phase).
+/// built per guard per piece of content regardless of this change).
 /// </remarks>
 public sealed class ContentGuardAllocationTests
 {

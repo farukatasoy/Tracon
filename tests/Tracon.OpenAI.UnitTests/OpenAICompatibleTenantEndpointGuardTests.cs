@@ -9,7 +9,7 @@ namespace Tracon.OpenAI.UnitTests;
 /// does on every other provider.
 /// </summary>
 /// <remarks>
-/// 🚨 F-388 class sweep (2026-10-13, independent review): the
+/// 🚨 An earlier fix class sweep (2026-10-13, independent review): the
 /// <c>UseOpenAICompatible()</c> factory built <see cref="OpenAIModelProvider"/>
 /// without <c>egressGuard</c>, while the OpenAI, Azure, Anthropic and Google
 /// factories pass it. <c>GuardFor</c> then returned <see langword="null"/> and a

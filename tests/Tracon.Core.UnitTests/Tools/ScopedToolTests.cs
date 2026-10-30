@@ -8,7 +8,6 @@ namespace Tracon.Core.UnitTests.Tools;
 /// wrapper <c>AddScopedTool</c> installs so a call resolves a REAL,
 /// call-scoped <see cref="IServiceProvider"/> from
 /// <see cref="AIFunctionArguments.Services"/> instead of MAF's empty one
-/// (docs/127, 127.3).
 /// </summary>
 public sealed class ScopedToolTests
 {
@@ -108,7 +107,7 @@ public sealed class ScopedToolTests
             "tool");
         var wrapped = new ScopedAIFunction(inner, factory);
 
-        // Phase 184: a CancelAfter(20 ms) timer stood here. Under load it could
+        // A CancelAfter(20 ms) timer stood here. Under load it could
         // fire before the body resolved its dependency, and the assertion below
         // then failed on a null tracker. Cancel once the call is inside.
         using var cts = new CancellationTokenSource();

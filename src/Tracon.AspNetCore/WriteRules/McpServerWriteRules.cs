@@ -291,7 +291,7 @@ internal static class McpServerWriteRules
         }
 
         // 🚨 The definition carries no secret, only the NAME of the key its
-        // value is read from (K-059). Without a prefix restriction that name
+        // value is read from. Without a prefix restriction that name
         // could point at any configuration key in the application; without
         // the tenant segment it could point at another tenant's key.
         if (RequireTenantKey(

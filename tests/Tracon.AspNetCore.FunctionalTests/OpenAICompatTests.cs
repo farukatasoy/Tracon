@@ -143,7 +143,7 @@ public sealed class OpenAICompatTests
     [Fact]
     public async Task Responses_second_turn_loads_the_session_the_first_turn_saved()
     {
-        // Phase 214: the load and the save go through the Agent Framework's
+        // The load and the save go through the Agent Framework's
         // session store key. The chaining test above only shows that the first
         // record EXISTS; a load that missed it would still pass. The stored
         // state of the second record must carry BOTH turns, the first record
@@ -182,7 +182,7 @@ public sealed class OpenAICompatTests
     [Fact]
     public async Task Responses_streaming_saves_the_session_under_the_conversation_id()
     {
-        // Phase 214: the streamed turn saves its session after the last frame;
+        // The streamed turn saves its session after the last frame;
         // the other streaming test only reads event names.
         await using var host = await TraconTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -235,7 +235,7 @@ public sealed class OpenAICompatTests
     }
 
     /// <summary>
-    /// HATA-S2-004/MT-COMPAT-029: <c>OpenAIResponses.WriteResponse</c> (MAF)
+    /// <c>OpenAIResponses.WriteResponse</c> (MAF)
     /// does not recognize a <c>ToolApprovalRequestContent</c> and SILENTLY
     /// drops it from 'output'; all the caller saw was an empty array and
     /// <c>status: "completed"</c> — the pending-approval call was never visible.
@@ -277,7 +277,7 @@ public sealed class OpenAICompatTests
     [Fact]
     public async Task Responses_converts_an_embedded_data_uri_to_an_attachment_and_delivers_it_resolved_to_the_model()
     {
-        // Phase 14, section 14.4: '/v1/responses' accepts
+        // '/v1/responses' accepts
         // OpenAI-shaped image input. MAF's own body parser converts the 'data:'
         // URI into DataContent; before sending it to the agent, Tracon
         // takes an attachment and converts it into a UriContent reference (to
@@ -464,7 +464,7 @@ public sealed class OpenAICompatTests
     [InlineData("stop", true, "stop")]
     public async Task ChatCompletions_reports_the_final_finish_reason(string modelReason, bool stream, string expected)
     {
-        // Phase 207.4: the field said "stop" for every answer, so an OpenAI SDK
+        // The field said "stop" for every answer, so an OpenAI SDK
         // caller could not tell a cut-off answer from a complete one.
         var provider = new FinishReasonModelProvider()
             .Text("Part of an answer", new ChatFinishReason(modelReason), inputTokens: 30, outputTokens: 50);
@@ -479,7 +479,7 @@ public sealed class OpenAICompatTests
     [InlineData(true)]
     public async Task ChatCompletions_reports_length_for_a_cut_harness_loop_answer(bool stream)
     {
-        // Phase 207.4: a harness loop agent answers through MAF's harness and loop
+        // A harness loop agent answers through MAF's harness and loop
         // decorators, which rebuild the response. The cut final iteration must still
         // reach the caller as "length".
         var provider = new FinishReasonModelProvider()

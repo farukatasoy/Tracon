@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The answers the resume and respond endpoints give about the definition version a run
-/// continues with (phase 200, failure mode 11): a version that does not exist is a <c>400</c>
+/// continues with (failure mode 11): a version that does not exist is a <c>400</c>
 /// before a stream opens or a job is queued, never a run that silently takes the current
 /// definition.
 /// </summary>

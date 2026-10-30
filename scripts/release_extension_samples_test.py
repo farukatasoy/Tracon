@@ -72,7 +72,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_net8_tuketicisi_net8_hedeflemezse_reddedilir(self):
-        # Faz 183: <TargetFramework> satiri silinirse ornek net10.0'i
+        # <TargetFramework> satiri silinirse ornek net10.0'i
         # samples/Directory.Build.props'tan miras alir ve yine GECER.
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
@@ -87,7 +87,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
         self.assertTrue(any("must target net8.0" in error for error in errors), errors)
 
     def test_saglayici_aot_vaadi_smoke_olmadan_reddedilir(self):
-        # Faz 217 (MT-PKG-168): "Native AOT: Yes" yalnız smoke'un kanıtladığı
+        # "Native AOT: Yes" yalnız smoke'un kanıtladığı
         # paket için verilir. Anthropic'i "Yes" yapmak smoke'a eklemeden geçmemeli.
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

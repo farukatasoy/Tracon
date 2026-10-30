@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Tests for the per-judge retry checkpoint (Phase 118) against the real
+/// Tests for the per-judge retry checkpoint against the real
 /// <see cref="IJobStore"/> queue and the manual scoring endpoint.
 /// </summary>
 public sealed class OnlineEvalRetryTests
@@ -74,11 +74,11 @@ public sealed class OnlineEvalRetryTests
     }
 
     /// <summary>
-    /// 🚨 K-638 after phase 152: a judge that holds MORE THAN ONE named score
+    /// 🚨 That decision: a judge that holds MORE THAN ONE named score
     /// row is still recognised as having scored the run.
     /// </summary>
     /// <remarks>
-    /// Names joined the uniqueness key in phase 152, so one author can now hold
+    /// Names joined the uniqueness key, so one author can now hold
     /// several rows. The checkpoint asks "has this judge scored?" over
     /// <c>Author</c> ALONE; keying it on (author, name) would let a retry call
     /// a judge that had already run.
@@ -124,7 +124,7 @@ public sealed class OnlineEvalRetryTests
 
         goodJudge.CallCount.ShouldBe(1);
 
-        // A SECOND named row under the same judge author -- the shape phase 152
+        // A SECOND named row under the same judge author -- the shape an earlier change
         // makes possible and the shape the checkpoint must survive.
         await scores.UpsertAsync(new RunScore
         {

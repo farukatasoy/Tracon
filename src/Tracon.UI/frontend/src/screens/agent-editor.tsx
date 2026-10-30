@@ -20,7 +20,7 @@ import { useAgentEditor } from './agent-editor/use-agent-editor';
  *
  * Tools are picked from a list, never typed. A definition can only point at a
  * tool that is registered in code — that boundary is what keeps the console
- * from becoming a way to run arbitrary code on the server (rule K2).
+ * from becoming a way to run arbitrary code on the server.
  *
  * This screen is a route facade only: `useAgentEditor` owns state and the API
  * calls, each `Panel` below is its own section component. Neither queries nor

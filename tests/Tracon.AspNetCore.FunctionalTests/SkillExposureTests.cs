@@ -10,13 +10,13 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// An agent with skills runs where nobody can answer an approval request (A2A, a run with no
-/// session) when its definition turns the skill read approval off, and not otherwise (F-626,
-/// Phase 231).
+/// session) when its definition turns the skill read approval off, and not otherwise (
+/// An earlier change).
 /// </summary>
 /// <remarks>
 /// <para>
 /// Microsoft Agent Framework wraps all three skill tools for approval by default. A caller that
-/// is not a person cannot answer, so before this phase a skill-using agent was exposed over A2A
+/// is not a person cannot answer, so before this change a skill-using agent was exposed over A2A
 /// and failed on its first <c>load_skill</c> call. Each test drives the whole path a model call
 /// takes: the host, the catalog, the compiler, Microsoft Agent Framework's tool dispatcher, and
 /// the run's approval boundary.

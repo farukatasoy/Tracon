@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Public API yüzey envanteri — her public tipin dış kanıtı (Faz 182, F-259).
+"""Public API yüzey envanteri — her public tipin dış kanıtı.
 
 `PublicAPI.Unshipped.txt` bir üye listesidir; bir tipin NEDEN public olduğunu
 söylemez. Bu betik her public TİPİ (üye değil) dört sınıftan birine koyar:
 
   tüketici   — tüketici onu görür: site sayfası, sample, şablon çıktısı, paket
                README'si, XML `<example>`/`<code>` bloğu veya kayıt giriş noktası
-               (K-509)
   seam       — genişleme noktası: public arayüz (§15 seam envanteri, bugün
                `SeamContractDocumentationTests`'in taradığı küme), abstract sınıf
                veya `Tracon.Testing.Contracts.Xunit` sözleşme paketi
@@ -30,7 +29,7 @@ Kullanım:
     python3 scripts/public-yuzey-envanteri.py --json            # makine çıktısı
     python3 scripts/public-yuzey-envanteri.py --denetle         # kanıtsız > 0 → 1
 
-OpenAPI şeması kanıt DEĞİLDİR (Faz 212): .NET tüketicisi bir HTTP DTO'suna
+OpenAPI şeması kanıt DEĞİLDİR: .NET tüketicisi bir HTTP DTO'suna
 dokunmaz, `Tracon.Client` kendi DTO'larını üretir. HTTP istek/yanıt DTO'su
 `internal` doğar; sevk edilen OpenAPI açıklaması `[Description]` ile taşınır.
 
@@ -54,11 +53,11 @@ from collections import deque
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GEREKCE_YOLU = pathlib.Path("scripts") / "public-yuzey-gerekceleri.tsv"
 
-# Faz 182 Açık Soru 2 = B: sözleşme paketi bu dalgaya girmez. Sözleşme
+# Karar: sözleşme paketi bu dalgaya girmez. Sözleşme
 # sınıfları tüketicinin TÜRETECEĞİ yüzeydir; tanım gereği "seam" sınıfındadır.
 SOZLESME_PAKETLERI = frozenset({"Tracon.Testing.Contracts.Xunit"})
 
-# Kayıt giriş noktası kuralı (K-509) `kayit_giris_noktasi.py`'dedir;
+# Kayıt giriş noktası kuralı `kayit_giris_noktasi.py`'dedir;
 # `manuel-test-tazelik.py` aynı modülü kullanır, C# kopyası
 # `CapabilityEntryPoints.cs`'tir. Kayıt giriş noktası tüketicinin bir yeteneği
 # açtığı üyedir; kapsama kapısı her birinin site haritasında ve örnekte
@@ -376,7 +375,7 @@ def _tuketici_kaniti(tip: Tip, korpus: Korpus) -> str | None:
         kanit = korpus.bul(uzanti.group("ad"))
         if kanit:
             return f"uzanti:{uzanti.group('ad')}@{kanit}"
-    # OpenAPI şeması kanıt değildir (Faz 212): açıklama `[Description]` ile taşınır,
+    # OpenAPI şeması kanıt değildir: açıklama `[Description]` ile taşınır,
     # tip `internal` kalabilir.
     return None
 
@@ -563,7 +562,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"denetim: {kanitsiz} kanıtsız tip, {len(sorunlar)} bayat gerekçe", file=sys.stderr)
         if kanitsiz:
             print("ipucu: HTTP istek/yanıt DTO'suysa tipi `internal` yap ve açıklamayı "
-                  "`[Description]` ile yaz (Faz 212); değilse bir site sayfası, sample ya da "
+                  "`[Description]` ile yaz; değilse bir site sayfası, sample ya da "
                   "`<example>` ile göster ya da scripts/public-yuzey-gerekceleri.tsv'ye gerekçe yaz.",
                   file=sys.stderr)
         return 1

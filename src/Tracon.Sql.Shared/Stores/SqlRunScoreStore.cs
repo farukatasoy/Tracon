@@ -33,8 +33,8 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
     private SqlDialect Dialect => _context.Dialect;
 
-    // F-215 retried a unique violation five times while the two statements ran in
-    // autocommit; the retry hid the window, the transaction closes it (F-313).
+    // The first version retried a unique violation five times while the two statements ran in
+    // autocommit; the retry hid the window, the transaction closes it.
     /// <inheritdoc />
     /// <remarks>
     /// The SQL Server text is the UPDATE-then-INSERT pattern; it runs through
@@ -108,7 +108,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
     /// </remarks>
     // 🚨 A column added to RunScoreColumns has to be APPENDED: inserting one in
     // the middle shifts every field below, and the shift is SILENT whenever the
-    // neighbouring types happen to agree. Phase 152 and phase 176 both appended.
+    // neighbouring types happen to agree. An earlier change and both appended.
     private static RunScore Read(DbDataReader reader)
         => new()
         {
@@ -196,7 +196,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
         IReadOnlyList<RunScoreBucketAggregate> series = [];
 
-        // No cost is paid when no bucket was asked for (154, open question 5):
+        // No cost is paid when no bucket was asked for (154):
         // the series command is never even created.
         if (query.Bucket is { } bucket)
         {

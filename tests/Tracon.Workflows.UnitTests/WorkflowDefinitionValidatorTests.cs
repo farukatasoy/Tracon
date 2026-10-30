@@ -195,7 +195,7 @@ public sealed class WorkflowDefinitionValidatorTests
     [Fact]
     public void An_agent_node_that_carries_settings_is_rejected_and_named()
     {
-        // F-295: an agent's behavior is set in its own definition. A value on its node would
+        // An agent's behavior is set in its own definition. A value on its node would
         // look like a setting that works while nothing reads it.
         var definition = NodeDefinition(
             WorkflowKind.Sequential,
@@ -234,7 +234,7 @@ public sealed class WorkflowDefinitionValidatorTests
         message.ShouldContain(kind, Case.Sensitive);
     }
 
-    // --- Phase 270: handoff topology and the limits ----------------------------------------------------------
+    // --- an earlier change: handoff topology and the limits ----------------------------------------------------------
 
     [Fact]
     public void A_handoff_definition_with_an_edge_list_that_reaches_every_agent_is_accepted()

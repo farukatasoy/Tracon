@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
 /// The shared host, workflows and job driver of the queued-workflow and recovery
-/// tests (F-318, F-321).
+/// tests.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -101,7 +101,7 @@ internal static class QueuedWorkflowHarness
             {
                 probe.CountFirst();
 
-                // What a paid step reports (speech, a render); nothing unless a case sets an amount (F-531).
+                // What a paid step reports (speech, a render); nothing unless a case sets an amount.
                 if (probe.FirstAmount > 0m)
                 {
                     await context.ReportUsageAsync(RecoveryProbe.Spent(probe.FirstAmount)).ConfigureAwait(false);

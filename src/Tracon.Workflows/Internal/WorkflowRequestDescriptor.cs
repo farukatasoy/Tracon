@@ -326,7 +326,7 @@ internal static class WorkflowRequestDescriptor
             return toolName;
         }
 
-        // F-241: the cut keeps a whole character; the request is stored as JSON, and a lone
+        // The cut keeps a whole character; the request is stored as JSON, and a lone
         // high surrogate in it is not text.
         var kept = SurrogateSafeText.Prefix(detail, PresentationLimit);
 

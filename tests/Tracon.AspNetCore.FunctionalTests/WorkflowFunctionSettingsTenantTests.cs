@@ -4,7 +4,7 @@ using static Tracon.AspNetCore.FunctionalTests.WorkflowSettingsFixtures;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The same workflow name in two tenants carries two sets of settings that never mix (F-295).
+/// The same workflow name in two tenants carries two sets of settings that never mix.
 /// </summary>
 public sealed class WorkflowFunctionSettingsTenantTests
 {

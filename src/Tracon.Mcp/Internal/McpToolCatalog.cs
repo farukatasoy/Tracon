@@ -165,7 +165,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                 {
                     // Every registered server, reachable or not: a tool named like
                     // one of theirs that is missing from the snapshot then reads as
-                    // an UNRESOLVED remote source, never as a code tool (F-283).
+                    // an UNRESOLVED remote source, never as a code tool.
                     serverNames.Add(server.Name);
                     registered.Add(new McpTenantServerKey(tenantId, server.Name));
 
@@ -292,7 +292,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                 // only the tool list is refreshed. Closing an unchanged
                 // connection would break a tool call in progress. A failed
                 // listing that kept the last list still serves this connection's
-                // tools, and still counts as unreachable (F-309).
+                // tools, and still counts as unreachable.
                 var refresh = await existing.RefreshCatalogAsync(_options.Value, _logger, _timeProvider, cancellationToken)
                     .ConfigureAwait(false);
 

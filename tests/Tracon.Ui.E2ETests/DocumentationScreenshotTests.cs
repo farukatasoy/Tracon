@@ -430,7 +430,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
     /// <summary>
     /// Queues a run that stops at <c>AwaitingApproval</c>, so the approvals screen shows
-    /// a real pending request instead of the empty state (phase 142). Only the queue
+    /// a real pending request instead of the empty state. Only the queue
     /// path writes a mailbox row — a synchronous run's approval never reaches
     /// <c>GET /api/approvals/pending</c> at all.
     /// </summary>
@@ -471,7 +471,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
     /// <summary>
     /// Starts <c>approval-flow</c> and lets it stop at its request, so the Approvals screen shows a
-    /// human request of a workflow run beside the tool call it waits on (phase 209).
+    /// human request of a workflow run beside the tool call it waits on.
     /// </summary>
     private static async Task SeedWaitingWorkflowRequestAsync(UiHost host)
     {

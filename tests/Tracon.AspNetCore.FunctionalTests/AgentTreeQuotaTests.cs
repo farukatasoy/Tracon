@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-383: the root wrote only its own usage (and its side-channel share) to
+/// The root wrote only its own usage (and its side-channel share) to
 /// the quota counter, while a child agent run, by design, writes nothing (only
 /// a root accounts, so a tree is not counted once per depth). The children's
 /// tokens and cost reached no counter at all, so a tenant's token or cost quota
@@ -91,7 +91,7 @@ public sealed class AgentTreeQuotaTests
     }
 
     /// <summary>
-    /// F-419: a child priced in another currency. The tree has no total, so the root
+    /// A child priced in another currency. The tree has no total, so the root
     /// counts its own cost and the whole tree's tokens; before, 0.016 USD and 0.042 EUR
     /// went to the quota as 0.058.
     /// </summary>

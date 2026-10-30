@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The ceiling of a run tree is the logical run's, over the real host: a person's answer and an operator's resume
-/// start from what the chain spent, not from zero (F-531).
+/// start from what the chain spent, not from zero.
 /// </summary>
 /// <remarks>
 /// <para>

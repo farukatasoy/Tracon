@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests.Runs;
 
 /// <summary>
-/// The named, reshaped score over HTTP (phase 152).
+/// The named, reshaped score over HTTP.
 /// </summary>
 /// <remarks>
 /// These cases cross the HTTP boundary on purpose: the name default, the

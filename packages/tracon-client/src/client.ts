@@ -28,7 +28,7 @@ interface ProblemDetailsBody {
  *
  * This layer stores no token itself — the caller's own token store (or a
  * closure over one) is passed as `token`, and this layer only reads it. It
- * does not translate `title`/`detail` (K-232): they come from the server and
+ * does not translate `title`/`detail`: they come from the server and
  * are shown verbatim.
  */
 export function createTraconClient(options: TraconClientOptions): TraconClient {

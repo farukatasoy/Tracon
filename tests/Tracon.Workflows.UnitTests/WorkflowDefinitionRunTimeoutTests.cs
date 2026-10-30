@@ -6,14 +6,14 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A definition's own run timeout (F-405, failure mode 26): it re-arms the run's
+/// A definition's own run timeout (failure mode 26): it re-arms the run's
 /// deadline from the start of the run, the host's ceiling bounds it, and it bounds the
 /// wait for a concurrency slot too.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The deadline is armed with the installation's value when the run starts, before the
-/// definition is read. Measured (phase 196, step 0): the definition was resolved only
+/// definition is read. Measured (step 0): the definition was resolved only
 /// after the slot wait, so a definition allowed an hour still timed out in the queue on
 /// the installation's ten minutes. Setup now runs before the slot wait, and the deadline
 /// is moved as soon as the definition is read.

@@ -110,7 +110,7 @@ public sealed class AuditSecretFilterTests
 
     /// <summary>
     /// A name that ends in "configurationKey" or "configurationName" holds the
-    /// NAME of a configuration entry, never its value (K-059), so redacting it
+    /// NAME of a configuration entry, never its value, so redacting it
     /// removes the only useful thing in the record.
     /// </summary>
     [Theory]
@@ -169,7 +169,7 @@ public sealed class AuditSecretFilterTests
 
     /// <summary>
     /// The other half of the contract: stripping separators must not start
-    /// redacting counters. K-081 recorded that a plural "tokens" is a count, and
+    /// redacting counters. That decision recorded that a plural "tokens" is a count, and
     /// blanket-redacting it emptied real agent records.
     /// </summary>
     [Theory]
@@ -185,7 +185,7 @@ public sealed class AuditSecretFilterTests
 
     /// <summary>
     /// A configuration key map holds key NAMES under credential-looking header
-    /// names; redacting it would erase which key a header reads (phase 190).
+    /// names; redacting it would erase which key a header reads.
     /// </summary>
     [Fact]
     public void A_configuration_key_map_keeps_its_key_names()

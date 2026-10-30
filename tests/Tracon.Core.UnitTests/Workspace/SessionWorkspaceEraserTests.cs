@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Workspace;
 /// What the erasure of a session takes and what it leaves: the files of that session, whichever agent wrote them,
 /// in that tenant only.
 /// </summary>
-// MAAI001: AgentFileStore is marked "evaluation purposes only" - see K-020.
+// MAAI001: AgentFileStore is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class SessionWorkspaceEraserTests : IDisposable
 {

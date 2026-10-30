@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.ProviderCore.Tests;
 
 /// <summary>
-/// The shared registration and binding steps (phase 181). Linked into the four
+/// The shared registration and binding steps. Linked into the four
 /// provider test projects.
 /// </summary>
 public sealed class ProviderRegistrationCoreTests
@@ -15,8 +15,8 @@ public sealed class ProviderRegistrationCoreTests
     [Fact]
     public void Every_ModelDescriptor_property_is_bound_from_configuration()
     {
-        // K-483 class: a field added to ModelDescriptor but not to BindModels is
-        // silently never read. Before phase 181 the binding was copied four times.
+        // A field added to ModelDescriptor but not to BindModels is
+        // silently never read. Before that change, the binding was copied four times.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["0:Name"] = "model-a",

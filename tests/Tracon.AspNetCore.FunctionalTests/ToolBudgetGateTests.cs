@@ -17,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-530: the tree budget refused a model call, a new agent step and a function node, and a
+/// The tree budget refused a model call, a new agent step and a function node, and a
 /// tool call started anyway. When one model turn asked for two paid tools and the first passed
 /// the ceiling, the second still ran: its money and its side effect were gone, and the model
 /// call that would have read its result was already refused. The gate sits in the tool wrapper
@@ -68,7 +68,7 @@ public sealed class ToolBudgetGateTests
     {
         var tools = new ToolBodies();
 
-        // Only a model call spends tokens, and a tool that calls a model does it (K-893). The
+        // Only a model call spends tokens, and a tool that calls a model does it. The
         // first tool stands for one: it charges the tree 1000 tokens against a ceiling of 500.
         // The tokens the turn that asks for the tools spends are the next case.
         await using var host = await StartAsync(
@@ -90,7 +90,7 @@ public sealed class ToolBudgetGateTests
     [Fact]
     public async Task A_tool_does_not_start_once_the_turn_that_asked_for_it_spent_the_token_budget()
     {
-        // F-690: the token budget through the path a real provider takes. The turn that asks for the tools reports its own
+        // The token budget through the path a real provider takes. The turn that asks for the tools reports its own
         // usage (CallsTools with tokens), the budget ring records it as it records every model call, and the tools of that
         // very turn are the next thing to start: both are refused, and neither body runs. No tool charges the tree here.
         var tools = new ToolBodies();
@@ -247,7 +247,7 @@ public sealed class ToolBudgetGateTests
         await RunUntilRefusedAsync(host);
 
         // The amount is known only when the tool ends, so the call that crosses the ceiling is
-        // the last one that starts (K-999: work that has begun is not stopped).
+        // the last one that starts (work that has begun is not stopped).
         var run = await RunRecordAsync(host);
 
         run.NonTokenCost.ShouldNotBeNull().Amount.ShouldBe(5m);
@@ -330,7 +330,7 @@ public sealed class ToolBudgetGateTests
     [Fact]
     public async Task A_knowledge_search_does_not_start_once_the_cost_budget_is_spent()
     {
-        // Phase 246 (F-688): the knowledge search sends the query to the embedding provider, so a refusal that
+        // The knowledge search sends the query to the embedding provider, so a refusal that
         // comes after the embedding is a charge the tree had no budget for.
         var tools = new ToolBodies();
         var embeddings = new CountingEmbeddings();

@@ -15,7 +15,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A workflow step whose agent calls a tool that needs approval stops the workflow, and a person's answer
-/// from <c>POST /api/workflows/runs/{runId}/respond</c> continues it (phase 230, K-1051).
+/// from <c>POST /api/workflows/runs/{runId}/respond</c> continues it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,7 +26,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <see cref="WorkflowToolApprovalPatternTests"/>.
 /// </para>
 /// <para>
-/// Before this phase the step refused the approval and failed the workflow, so a workflow could not use a
+/// Before this change the step refused the approval and failed the workflow, so a workflow could not use a
 /// tool that needs a person's approval unless an auto-approval rule existed.
 /// </para>
 /// </remarks>
@@ -53,7 +53,7 @@ public sealed class WorkflowToolApprovalTests
 
         step.Status.ShouldBe(RunStatus.AwaitingApproval);
 
-        // The decision is made from the workflow's request alone (K-372): no second approval queue entry.
+        // The decision is made from the workflow's request alone: no second approval queue entry.
         (await host.Services.GetRequiredService<IPendingApprovalStore>().ListPendingAsync()).ShouldBeEmpty();
     }
 
@@ -227,7 +227,7 @@ public sealed class WorkflowToolApprovalTests
     [Fact]
     public async Task A_record_cut_before_it_names_the_tool_refuses_the_answer_instead_of_applying_it_unrecorded()
     {
-        // K-089: a decision that cannot be audited is not applied. A cut that leaves nothing to audit used to read
+        // A decision that cannot be audited is not applied. A cut that leaves nothing to audit used to read
         // as "not a tool approval": the answer went through with no audit row and no rule, and the tool ran.
         var calls = new int[1];
 
@@ -444,7 +444,7 @@ public sealed class WorkflowToolApprovalTests
         // The host has no exception handler, so a refusal surfaces as the exception; a real host answers 500.
         await Should.ThrowAsync<TraconException>(async () => await RespondAsync(host, waiting, new { approved = true }));
 
-        calls[0].ShouldBe(0, "the tool ran although its approval was never recorded (K-089)");
+        calls[0].ShouldBe(0, "the tool ran although its approval was never recorded");
         (await ReadWaitingAsync(host, waiting.Run.Id)).Run.Status.ShouldBe(RunStatus.AwaitingInput);
 
         // The refusal is not a poison pill: the same answer is taken once the audit store recovers.

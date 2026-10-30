@@ -195,7 +195,7 @@ internal sealed class ToolInvocationTracker
             // A timeout is an exception with a stable, known identity.
             TimedOut = failure is TraconToolTimeoutException,
 
-            // Expected tenant stamp (K-355).
+            // Expected tenant stamp.
             TenantId = _tenantId,
         };
     }
@@ -226,7 +226,7 @@ internal sealed class ToolInvocationTracker
             CreatedAt = _timeProvider.GetUtcNow(),
             Usage = _usage?.Take(callId),
 
-            // Expected tenant stamp (K-355).
+            // Expected tenant stamp.
             TenantId = _tenantId,
         };
     }
@@ -279,7 +279,7 @@ internal sealed class ToolInvocationTracker
                 // image was generated before the attachment was written.
                 Usage = _usage?.Take(callId),
 
-                // Expected tenant stamp (K-355).
+                // Expected tenant stamp.
                 TenantId = _tenantId,
             });
         }

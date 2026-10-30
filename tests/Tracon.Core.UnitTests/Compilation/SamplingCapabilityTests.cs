@@ -4,10 +4,10 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// F-346 — <see cref="ModelDescriptor.SupportsSampling"/>: a catalog that says
+/// <see cref="ModelDescriptor.SupportsSampling"/>: a catalog that says
 /// a model rejects <c>temperature</c>/<c>top_p</c> stops compilation and makes
 /// the validation report name the field. <see langword="null"/> means unknown
-/// and checks nothing (K-032).
+/// and checks nothing.
 /// </summary>
 public sealed class SamplingCapabilityTests
 {

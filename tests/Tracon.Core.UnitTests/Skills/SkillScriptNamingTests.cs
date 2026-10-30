@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Skills;
 /// rooted and it never resolves <c>..</c>, so a script named
 /// <c>/etc/cron.d/tracon</c> was written outside the scratch directory,
 /// executed from there, and survived cleanup - the cleanup only deletes the
-/// scratch directory itself. K-087 kept the skill ROOT out of the interface's
+/// scratch directory itself. The earlier decision kept the skill ROOT out of the interface's
 /// reach; this closes the half where the interface supplied the target PATH.
 /// </remarks>
 public sealed class SkillScriptNamingTests

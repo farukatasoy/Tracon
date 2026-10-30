@@ -4,9 +4,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// Every key of <c>Tracon:RunReconciliation</c> really reaches <see cref="RunReconciliationOptions"/>.
 /// </summary>
 /// <remarks>
-/// The section is bound by hand (K-021, AOT): a key added to the options and not to
+/// The section is bound by hand (AOT): a key added to the options and not to
 /// the binder is silently ignored. <see cref="OptionsKeyCoverage"/> fails this test
-/// before such a key ships unbound (F-247).
+/// before such a key ships unbound.
 /// </remarks>
 public sealed class RunReconciliationOptionsBindingTests
 {

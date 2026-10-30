@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A live voice session obeys the tenant's provider policy exactly as a model call
-/// does: the egress policy, then the tenant's own credential (F-306).
+/// does: the egress policy, then the tenant's own credential.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -43,7 +43,7 @@ public sealed class LiveVoiceTenantPolicyTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
-        // F-444 class scan: the live session named its provider a "model provider" too.
+        // The live session named its provider a "model provider" too.
         (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
             .ShouldContain("not allowed to call live voice provider 'openai'");
         provider.CreateCallCount.ShouldBe(0, "the tenant's audio must not reach a provider its policy forbids");
@@ -52,7 +52,7 @@ public sealed class LiveVoiceTenantPolicyTests
     [Fact]
     public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_cannot_open_a_session()
     {
-        // F-254: the live session launcher is one of the callers that must read the switch.
+        // The live session launcher is one of the callers that must read the switch.
         await using var provider = await FakeGptLiveServer.StartAsync();
         await using var host = await LiveVoiceTests.StartAsync(
             provider,

@@ -273,7 +273,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         var credential = await ResolveSetupCredentialAsync(binding, cancellationToken).ConfigureAwait(false);
 
         // 🚨 The resolver a fallback link uses to build ITS OWN client matters
-        // (independent audit, phase 65): a fallback binding carries its own
+        // (independent audit): a fallback binding carries its own
         // Provider and must go through the SAME tenant credential/egress
         // resolution as the primary, not the sync/global-only path — otherwise
         // a fallback would silently use the global credential and bypass the
@@ -354,9 +354,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         await EnsureEgressAllowedAsync(binding, tenantId, cancellationToken).ConfigureAwait(false);
 
         // No binding for this tenant/provider: the global setup-time credential is
-        // used (K1 — zero surprise when BYOK is not configured). A binding whose key
+        // used (zero surprise when BYOK is not configured). A binding whose key
         // has no value does NOT fall back to the global key — that would bill the
-        // wrong tenant (section 65.4).
+        // wrong tenant.
         return await TenantProviderAccess
             .ResolveCredentialAsync(_tenantProviderBindings, _credentialResolver, tenantId, binding.Provider, cancellationToken)
             .ConfigureAwait(false);
@@ -386,11 +386,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// </remarks>
     private async ValueTask EnsureEgressAllowedAsync(ModelBinding binding, string tenantId, CancellationToken cancellationToken)
     {
-        // 🚨 Fallback links found by the independent audit of phase 65.
+        // 🚨 Fallback links found by an independent audit.
         var requirePolicy = TenantProviderAccess.PolicyRequired(_tenantProviderOptions);
 
         // No store and no required policy: nothing to apply. With a policy required, a missing
-        // store is a tenant with no policy, which is refused (F-254).
+        // store is a tenant with no policy, which is refused.
         if (_tenantEgressPolicies is null && !requirePolicy)
         {
             return;
@@ -463,7 +463,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // The concurrency limiter sits closest to the wire: it must see every
         // REAL network call, including every turn of the tool-call loop, not
         // just one call per agent turn — the same "does it need every call?"
-        // question K-320 asks about the content guard. When no limit is
+        // question asked of the content guard. When no limit is
         // configured, ProviderConcurrencyLimiter.AcquireAsync returns null and
         // this line does nothing.
         if (_concurrencyLimiter is not null)
@@ -485,13 +485,13 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
         // The rings below run once per real model call, and the tool-call loop
         // above them drives those calls. The loop and telemetry used to live
-        // inside the provider packages until Phase 48; they were moved out so a
+        // inside the provider packages; they were moved out so a
         // ring could be placed INSIDE the loop. Telemetry is the innermost of
         // these rings, so every real model call gets its own 'chat' span.
         //
         // 🚨 The budget ring sits in the SAME slot as the response cache ring
         // below: INSIDE the tool-call loop, OUTSIDE the cache and telemetry
-        // (phase 114). A turn the budget blocks never reaches the cache
+        // A turn the budget blocks never reaches the cache
         // lookup or the real provider, so it produces no 'chat' span - the
         // same as a cache hit today. Unconditional (unlike the cache ring):
         // every pipeline this method builds, including the one context
@@ -508,7 +508,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             _services?.GetService<IRunPricingResolver>()));
 
         // 🚨 The cache ring sits INSIDE the tool-call loop but OUTSIDE
-        // telemetry and the content guard (Phase 81, F-45): a cache hit still
+        // telemetry and the content guard: a cache hit still
         // lets the loop run any FunctionCallContent the cached response
         // carries, but it never reaches UseOpenTelemetry (no 'chat' span, no
         // token/cost record - a hit spends nothing) or the content guard (a
@@ -537,7 +537,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 _loggerFactory?.CreateLogger<TraconResponseCachingChatClient>()));
         }
 
-        // 🚨 The hosted tool ring sits INSIDE the response cache, right above telemetry (F-603): it
+        // 🚨 The hosted tool ring sits INSIDE the response cache, right above telemetry: it
         // reads the calls of a response the provider really answered. Above the cache, a hit that
         // replays a response with a web search in it would bill the search a second time.
         pipelineBuilder = pipelineBuilder.Use(ringInner => new HostedToolUsageChatClient(
@@ -550,7 +550,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             .UseOpenTelemetry(_loggerFactory, TraconDiagnostics.ActivitySourceName)
             .Build();
 
-        // 🚨 An extension's ModelCall ring (Phase 232) sits right under the loop and
+        // 🚨 An extension's ModelCall ring sits right under the loop and
         // ABOVE the budget, the cache and telemetry: it sees every model call, the
         // budget counts the request it sends, the cache key is built from that
         // request, and the content guard further down inspects it. A ring that
@@ -559,7 +559,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         chatClient = rings.Wrap(ChatClientSlot.ModelCall, chatClient);
 
         // 🚨 The message source ring sits right under the loop and ABOVE the extension's ModelCall
-        // ring (F-773): it counts the request as the agent built it, with what a context provider
+        // ring: it counts the request as the agent built it, with what a context provider
         // added, even when an extension ring answers by itself and never calls inward. It writes
         // once for the run, on the agent's own first call (MessageSourceRecordingChatClient).
         chatClient = new MessageSourceRecordingChatClient(
@@ -568,12 +568,12 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
         // binding.ToolLoop configures THIS SAME FunctionInvokingChatClient
         // instance - the one that actually drives the tool-call loop.
-        // AllowConcurrentToolCalls is false by default (K1): the loop runs one
-        // call at a time exactly as it does today (Phase 81, F-134). A member
+        // AllowConcurrentToolCalls is false by default: the loop runs one
+        // call at a time exactly as it does today. A member
         // left null keeps the loop's own default.
         //
         // IterationLimit is a harness agent's MaximumIterationsPerRequest
-        // (F-315, K-892): MAF puts its own loop ABOVE this pipeline, but this
+        // MAF puts its own loop ABOVE this pipeline, but this
         // loop is the one that sees and runs the tool calls, so the limit is
         // only real here.
         chatClient = chatClient
@@ -629,15 +629,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             chatClient = _circuitBreaker.Wrap(binding.Provider, chatClient, credentialScope);
         }
 
-        // 🚨 The fallback chain sits OUTSIDE the circuit breaker (phase 62,
-        // F-44): trying a fallback link requires first seeing that the
+        // 🚨 The fallback chain sits OUTSIDE the circuit breaker (
+        // An earlier fix): trying a fallback link requires first seeing that the
         // primary's circuit is open, which only the ring outside it can see.
         // It sits INSIDE content-filter detection: a provider-filtered
         // response is not an exception at this layer, only a ChatResponse
         // with ChatFinishReason.ContentFilter, so it passes straight through
         // and the outer detector makes the ONE filtering decision for
         // whichever link actually answered — see FallbackChatClient's remarks.
-        // Empty by default (K1): with no configured fallback this line does
+        // Empty by default: with no configured fallback this line does
         // nothing, and today's "an open circuit throws" behavior is unchanged.
         if (binding.Fallbacks.Count > 0)
         {
@@ -650,7 +650,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // were inside, the exception it throws would increase the
         // consecutive-failure counter and a handful of such requests in a row
         // would close the circuit on the provider. Outside the tool-call loop,
-        // it judges only the turn that ends the loop (F-320).
+        // it judges only the turn that ends the loop.
         chatClient = new FinishReasonDetectingChatClient(binding.Provider, binding.Model, chatClient);
 
         // The normalization boundary is the outermost model-call ring. Retry,

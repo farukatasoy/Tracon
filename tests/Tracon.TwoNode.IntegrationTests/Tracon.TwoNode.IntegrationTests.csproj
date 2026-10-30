@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Phase 265 (F-768): the two-node acceptance set. Two in-process hosts share ONE database - PostgreSQL or SQL
+    The two-node acceptance set. Two in-process hosts share ONE database - PostgreSQL or SQL
     Server in a container - and the same scenarios run on both. K-1113 promises two replicas; this project is the
     proof, and it is the reason the project exists apart from the provider integration projects: those reference
     one SQL provider and no HTTP host, while every behaviour here crosses an HTTP request, the job queue, a
@@ -17,7 +17,7 @@
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
-    <!-- Fake model provider (FakeModelProvider): Phase 39, rationale in K-007 section 39.1. -->
+    <!-- Fake model provider (FakeModelProvider): an earlier change, rationale in that decision an earlier plan. -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
   </ItemGroup>
 
@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <!--
-    The host and the helpers every scenario uses, LINKED from the functional test project, not copied (K-411): one
+    The host and the helpers every scenario uses, LINKED from the functional test project, not copied: one
     copy of the host means a change to how a test host is built reaches both projects.
   -->
   <ItemGroup>

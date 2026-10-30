@@ -44,7 +44,7 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(notice.textContent).not.toContain('declared in code');
   });
 
-  it('compares the loop of two versions and highlights the changed ceiling (Phase 201)', async () => {
+  it('compares the loop of two versions and highlights the changed ceiling', async () => {
     // Before, the version diff drew the harness's flat fields only: a changed
     // loop showed two identical tables.
     const definition = (version: number, maxIterations: number): unknown => ({
@@ -102,7 +102,7 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(ceiling?.textContent).toBe('Iteration ceiling34');
     expect(ceiling?.className).toContain('bg-warn-soft');
 
-    // Phase 222: the extension list is part of the definition, so a version that adds one shows it.
+    // The extension list is part of the definition, so a version that adds one shows it.
     expect(screen.getByText('Extensions')).toBeTruthy();
     expect(screen.getByText('+ policy')).toBeTruthy();
     expect(screen.getByText('audit')).toBeTruthy();
@@ -114,7 +114,7 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(criteria?.className ?? '').not.toContain('bg-warn-soft');
   });
 
-  it('shows the request fields and the tool-call loop of two versions and marks what changed (Phase 225)', async () => {
+  it('shows the request fields and the tool-call loop of two versions and marks what changed', async () => {
     // The fields are part of the definition version; a version diff that omitted them would show two
     // identical tables for a changed seed.
     const definition = (version: number, seed: number, concurrent: boolean): unknown => ({
@@ -181,7 +181,7 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(loop?.textContent).toContain('Failed tool turns tolerated in a row: 2');
   });
 
-  it('shows a change of the sub-agent call mode between two versions (Phase 228)', async () => {
+  it('shows a change of the sub-agent call mode between two versions', async () => {
     const definition = (version: number, callMode: 'Background' | 'Tool'): unknown => ({
       name: 'router',
       instructions: 'Delegate.',
@@ -226,7 +226,7 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(row?.className).toContain('bg-warn-soft');
   });
 
-  it('shows a callable agent that a version pins, beside the same agent without a pin (Phase 250)', async () => {
+  it('shows a callable agent that a version pins, beside the same agent without a pin', async () => {
     const definition = (version: number, pin: number | null): unknown => ({
       name: 'router',
       instructions: 'Delegate.',
@@ -269,7 +269,7 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(screen.getByText('− support')).toBeTruthy();
   });
 
-  it('shows a version that turns the skill read approval off (Phase 231)', async () => {
+  it('shows a version that turns the skill read approval off', async () => {
     const definition = (version: number, skills: { disableReadApproval: boolean } | null): unknown => ({
       name: 'support',
       instructions: 'Help.',
@@ -315,7 +315,7 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(row?.className).toContain('bg-warn-soft');
   });
 
-  it('shows a version that gives the agent a workspace (Phase 234)', async () => {
+  it('shows a version that gives the agent a workspace', async () => {
     const definition = (version: number, workspace: { enabled: boolean; readOnly: boolean; disableReadApproval: boolean } | null): unknown => ({
       name: 'support',
       instructions: 'Help.',
@@ -366,7 +366,7 @@ describe('AgentDetailScreen read-only notice', () => {
   });
 
   it('rolls an agent back through the shared version history, and shows the refusal in the screen slot', async () => {
-    // Phase 200 moved the history into a component the workflow screen shares; the agent's own
+    // moved the history into a component the workflow screen shares; the agent's own
     // columns, its rollback and its error slot must have come with it.
     const version = (number: number): unknown => ({
       name: 'writer',

@@ -128,7 +128,7 @@ internal sealed class OnlineEvalSummaryService(
         decimal? judgeCost = null;
         string? judgeCostCurrency = null;
 
-        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        // Amounts in two currencies are never added (CurrencyTotals).
         var judgeCurrencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var run in evalRuns)

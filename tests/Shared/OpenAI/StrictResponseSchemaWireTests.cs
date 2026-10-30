@@ -17,7 +17,7 @@ public enum WireSurface
 
 /// <summary>
 /// What the strict setting and the schema rewrite put in the request body, read off a real request over a
-/// loopback socket (Phase 245).
+/// loopback socket.
 /// </summary>
 /// <remarks>
 /// <para>

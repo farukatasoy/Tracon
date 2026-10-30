@@ -10,7 +10,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 201, failure mode 18: the reviewer pattern a factory-registered criterion
+/// Failure mode 18: the reviewer pattern a factory-registered criterion
 /// enables carries what <c>aiJudge</c> cannot — the reviewer's own verdict schema,
 /// an input computed in code before the reviewer reads the draft, and state kept
 /// for one loop run in <c>LoopContext.AdditionalProperties</c>.
@@ -20,7 +20,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// the real catalog, the feedback has to reach the writer's NEXT model request
 /// through MAF's loop, and the per-run state has to stay inside one run.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class ReviewerLoopEvaluatorTests
 {

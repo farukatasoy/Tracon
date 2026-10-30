@@ -4,11 +4,11 @@ using Microsoft.Extensions.AI.Evaluation;
 namespace Tracon.Core.UnitTests.Evaluation;
 
 /// <summary>
-/// The shape <c>EvalCaseResult.Scores</c> carries (phase 152).
+/// The shape <c>EvalCaseResult.Scores</c> carries.
 /// </summary>
 /// <remarks>
 /// A pure function over a metric dictionary: it crosses no boundary, so a unit
-/// test proves it. Before phase 152 it wrote only name/passed/reason, and every
+/// test proves it. Before that change, it wrote only name/passed/reason, and every
 /// non-boolean metric lost its value on the way to the jsonb column.
 /// </remarks>
 public sealed class SerializeScoresTests

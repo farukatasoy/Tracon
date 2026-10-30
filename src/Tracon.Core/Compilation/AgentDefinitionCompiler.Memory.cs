@@ -11,7 +11,6 @@ namespace Tracon;
 // MAAI001: Microsoft.Agents.AI.AgentFileStore and the memory provider types
 // are marked "evaluation purposes only". Memory setup is kept in a single
 // file; only this file is updated if MAF changes these APIs. Rationale:
-// docs/KARARLAR.md (same pattern as K-020).
 #pragma warning disable MAAI001
 public sealed partial class AgentDefinitionCompiler
 {
@@ -191,7 +190,7 @@ public sealed partial class AgentDefinitionCompiler
 
         var collection = memory.VectorCollection is { Length: > 0 } named ? named : definition.Name;
 
-        // F-416: the registered check carries the policy and binding stores; a
+        // The registered check carries the policy and binding stores; a
         // compiler built without a container still applies the policy it was given
         // (it cannot build the tool without a container, though: see below).
         var access = _services?.GetService(typeof(EmbeddingProviderAccess)) as EmbeddingProviderAccess
@@ -200,7 +199,7 @@ public sealed partial class AgentDefinitionCompiler
                 _embeddingGenerator,
                 _tenantEgressPolicies);
 
-        // F-688: the search sends the tenant's query to the embedding provider, so it runs through the tool chain
+        // The search sends the tenant's query to the embedding provider, so it runs through the tool chain
         // like every other tool: the authorization handler, the argument validator, the budget gate and the timeout
         // decide before the query leaves the process. The effect is External for the same reason.
         var governance = RequireBuiltInToolGovernance(definition, "semantic search");
@@ -253,7 +252,7 @@ public sealed partial class AgentDefinitionCompiler
                 AgentName = definition.Name,
             };
 
-        // 🚨 The session workspaces (Phase 234) live in the directory "~workspace" below the tenant, next to
+        // 🚨 The session workspaces live in the directory "~workspace" below the tenant, next to
         // the directory of each agent. The file memory of an agent with that name would be the directory of
         // every workspace of the tenant, and it could read and write them all.
         if (definition.Name.StartsWith(SessionWorkspacePaths.RootName, StringComparison.OrdinalIgnoreCase))
@@ -266,7 +265,7 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
-        // 🚨 The agent name is part of the prefix as well (defect F-105): the
+        // 🚨 The agent name is part of the prefix as well (a defect): the
         // tenant boundary alone let one agent's private file be found by
         // another agent's text search inside the SAME tenant. The name is known
         // here, at compile time, and is already part of the CompiledAgentCache

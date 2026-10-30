@@ -133,7 +133,7 @@ internal static class MixedVersionConsumerProject
 
 /// <summary>
 /// A <c>NUGET_PACKAGES</c> directory for one test class, so a restore of the
-/// local <c>1.0.0-preview.1</c> never reaches the global package folder (K-622).
+/// local <c>1.0.0-preview.1</c> never reaches the global package folder.
 /// </summary>
 /// <remarks>
 /// Shared by the facts of one class: the third-party packages every shape needs

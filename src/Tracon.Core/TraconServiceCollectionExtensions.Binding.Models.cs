@@ -70,14 +70,14 @@ public static partial class TraconServiceCollectionExtensions
                 var cacheWrite = batch.Decimal(modelSection, "CacheWrite");
                 var cacheWriteLong = batch.Decimal(modelSection, "CacheWriteLong");
 
-                // 🚨 The record is ADDED even when both are null (K-034): a
+                // 🚨 The record is ADDED even when both are null: a
                 // price entry written with a key name other than
                 // "Input"/"Output" (e.g. the C# property name
                 // "InputCostPerMillionTokens") therefore does NOT get dropped
                 // COMPLETELY SILENTLY - it still enters Providers as an empty
                 // ModelPriceOverride with both fields null, and
                 // TraconOptionsValidator.ValidatePricing rejects it at
-                // startup (MT-CORE-065).
+                // startup.
                 var price = new ModelPriceOverride
                 {
                     InputCostPerMillionTokens = input,
@@ -130,7 +130,7 @@ public static partial class TraconServiceCollectionExtensions
 
                 var perMinute = batch.Decimal(modelSection, nameof(VoicePriceOverride.PerMinute));
 
-                // 🚨 Same rationale: see the comment inside BindPricing (MT-CORE-065).
+                // 🚨 Same rationale: see the comment inside BindPricing.
                 var price = new VoicePriceOverride
                 {
                     PerMillionCharacters = perMillionCharacters,
@@ -281,8 +281,8 @@ public static partial class TraconServiceCollectionExtensions
     }
 
     // The section was documented as read from Tracon:Knowledge and bound nowhere:
-    // every value in configuration was ignored (F-416 found it while adding
-    // EmbeddingProvider; the F-247 class).
+    // every value in configuration was ignored (found while adding
+    // EmbeddingProvider; the class).
     private static void BindKnowledge(IConfigurationSection section, TraconKnowledgeOptions options)
     {
         if (!section.Exists())

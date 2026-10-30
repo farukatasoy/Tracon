@@ -11,12 +11,12 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A skill script's whole path with the tree's budget in it (F-690): the model asks for the script, a person approves
+/// A skill script's whole path with the tree's budget in it: the model asks for the script, a person approves
 /// the call, the run that continues the answer runs the script, and a continuation whose budget is spent does not.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 243 proved the script gate with <c>script.RunAsync</c> called by the test. That skips the three hops the real
+/// proved the script gate with <c>script.RunAsync</c> called by the test. That skips the three hops the real
 /// call makes: Microsoft Agent Framework's own approval of <c>run_skill_script</c>, the queue and the mailbox, and the
 /// run that continues the answer. Each of them can lose the run scope the gate reads the budget from. Here nothing is
 /// called by hand: the HTTP queue, the approval inbox, the job worker, the model's own call and the registered executor

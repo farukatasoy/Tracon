@@ -8,12 +8,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Validation of the API key as a second identity source, tenant
-/// resolution, and scope enforcement (Phase 53).
+/// resolution, and scope enforcement.
 /// </summary>
 /// <remarks>
 /// 🚨 The core rule these tests guard: the tenant is resolved from the key,
 /// not from the header, and the header cannot OVERRIDE the key's tenant
-/// (section 53.5).
 /// </remarks>
 public sealed class ApiKeyAuthenticationTests
 {
@@ -102,7 +101,7 @@ public sealed class ApiKeyAuthenticationTests
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    // --- Tenant resolution (section 53.5) ---
+    // --- Tenant resolution ---
 
     [Fact]
     public async Task Tenant_is_resolved_from_the_key_not_from_the_header()
@@ -186,7 +185,7 @@ public sealed class ApiKeyAuthenticationTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- Scope enforcement (section 53.3) ---
+    // --- Scope enforcement ---
 
     [Fact]
     public async Task Insufficiently_scoped_key_gets_403()
@@ -260,7 +259,7 @@ public sealed class ApiKeyAuthenticationTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- External surface lockdown (section 53.4) ---
+    // --- External surface lockdown ---
 
     [Fact]
     public async Task MCP_cannot_start_when_AllowRemoteAccess_is_on_and_there_is_no_external_invoke_key()

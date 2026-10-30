@@ -97,7 +97,7 @@ namespace Tracon.Client.Generated
 
 
 # A minimal slice of what NJsonSchema emits for a pure `text/event-stream`
-# 200 response (2026-09-05, Faz 145): a bare `string` root response, read
+# 200 response (2026-09-05): a bare `string` root response, read
 # through the SAME JSON-deserializing helper every other operation uses.
 SAMPLE_SSE_STRING_RESPONSE_SOURCE = """\
         var status_ = (int)response_.StatusCode;
@@ -280,7 +280,7 @@ class NswagPostprocessClientTestleri(unittest.TestCase):
 
 
 # A whole generated operation method, in the shape the sixth pass matches
-# (Faz 159): NSwag's XML doc block, the signature, the uniform 200 branch and
+#: NSwag's XML doc block, the signature, the uniform 200 branch and
 # the invariant `finally` tail that ends every operation method.
 def sample_operation(name: str = "TraconOpenAIResponses", body_type: str = "System.Text.Json.JsonElement",
                      return_type: str = "System.Text.Json.JsonElement", null_check: bool = False) -> str:
@@ -355,7 +355,7 @@ def document(content: dict):
 
 
 class StreamingSiblingTests(unittest.TestCase):
-    """The sixth pass (Faz 159): a `<operation>StreamAsync` per SSE operation."""
+    """The sixth pass: a `<operation>StreamAsync` per SSE operation."""
 
     def test_the_document_reports_which_operations_stream_and_which_are_dual(self):
         with document({"application/json": {}, "text/event-stream": {}}) as path:
@@ -420,7 +420,7 @@ class StreamingSiblingTests(unittest.TestCase):
         # The ORDERING invariant `main` asserts: the sixth pass runs first, and
         # its siblings' 200 branches must not look like anything the fourth
         # pass matches - otherwise it would rewrite them back into a buffered
-        # read and silently undo this phase.
+        # read and silently undo that pass.
         _, _, source = nswag_postprocess_client.rewrite_streaming_siblings(
             sample_operation(name="TraconRunAgent", body_type="AgentRunRequest",
                              return_type="string", null_check=True),
@@ -454,7 +454,7 @@ class StreamingSiblingTests(unittest.TestCase):
 
 
 class ValueTypeBodyGuardTests(unittest.TestCase):
-    """The third pass's body-argument axis (Faz 159)."""
+    """The third pass's body-argument axis."""
 
     SOURCE = """\
         public virtual async System.Threading.Tasks.Task<JsonElement> TraconOpenAIResponsesAsync(JsonElement body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))

@@ -140,7 +140,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
         IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
         CancellationToken cancellationToken)
     {
-        // F-275: the unfiltered read returned the tenant's whole history twice
+        // The unfiltered read returned the tenant's whole history twice
         // per run. The period filter narrows the named periods instead of adding a
         // third condition to the query.
         var pairs = periodStarts
@@ -184,7 +184,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
         ArgumentNullException.ThrowIfNull(consumption);
         ArgumentNullException.ThrowIfNull(periodStarts);
 
-        // A deadlock victim is run again whole (F-430): its increments were rolled
+        // A deadlock victim is run again whole: its increments were rolled
         // back with it, so the retry adds them once.
         await _context.ExecuteInTransactionAsync(
             async (connection, transaction) =>

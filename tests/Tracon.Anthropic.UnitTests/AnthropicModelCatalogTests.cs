@@ -2,7 +2,7 @@ using Tracon.Anthropic.UnitTests.Infrastructure;
 
 namespace Tracon.Anthropic.UnitTests;
 
-/// <summary>The catalog comes only from configuration (K-032).</summary>
+/// <summary>The catalog comes only from configuration.</summary>
 public sealed class AnthropicModelCatalogTests
 {
     [Fact]

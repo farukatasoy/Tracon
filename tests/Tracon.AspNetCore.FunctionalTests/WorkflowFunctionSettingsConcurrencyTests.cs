@@ -5,7 +5,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Settings are read when a run starts, so two runs that overlap each keep the settings of the
-/// definition they started from (F-295).
+/// definition they started from.
 /// </summary>
 public sealed class WorkflowFunctionSettingsConcurrencyTests
 {

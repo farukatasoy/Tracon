@@ -20,7 +20,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             && name.EndsWith(".sql", StringComparison.Ordinal));
 
     /// <summary>
-    /// The count of embedded "knowledge" migrations (phase 67; needs
+    /// The count of embedded "knowledge" migrations (needs
     /// <c>pgvector</c>). <see cref="PostgresTestContext"/> enables this set by
     /// default so the ~40 unrelated contract test classes stay unchanged.
     /// </summary>
@@ -65,27 +65,27 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         //
         // The number is DELIBERATELY a constant: adding a new table breaks this
         // test, so whoever adds it notices the table.
-        // Phase 29 added the `voice_sessions` table: 38 -> 39.
-        // Phase 31 added the `run_scores` table: 39 -> 40.
-        // Phase 42 added the `singleton_leases` table: 40 -> 41.
-        // Phase 43 added the `idempotency_keys` table: 41 -> 42.
-        // Phase 47 added the `run_inputs` table: 42 -> 43.
-        // Phase 51 added the `document_embeddings` table: 43 -> 44.
-        // Phase 53 added the `api_keys` table: 44 -> 45.
-        // Phase 55 added the `pending_approvals` table: 45 -> 46.
-        // Phase 65 added `tenant_provider_bindings` and `tenant_egress_policies`: 46 -> 48.
-        // Phase 66 added the `inbound_triggers` table: 48 -> 49.
-        // Phase 67 relocated `document_embeddings` out of the core set into the
+        // An earlier change added the `voice_sessions` table: 38 -> 39.
+        // An earlier change added the `run_scores` table: 39 -> 40.
+        // An earlier change added the `singleton_leases` table: 40 -> 41.
+        // An earlier change added the `idempotency_keys` table: 41 -> 42.
+        // An earlier change added the `run_inputs` table: 42 -> 43.
+        // An earlier change added the `document_embeddings` table: 43 -> 44.
+        // An earlier change added the `api_keys` table: 44 -> 45.
+        // An earlier change added the `pending_approvals` table: 45 -> 46.
+        // An earlier change added `tenant_provider_bindings` and `tenant_egress_policies`: 46 -> 48.
+        // An earlier change added the `inbound_triggers` table: 48 -> 49.
+        // relocated `document_embeddings` out of the core set into the
         // optional "knowledge" set; PostgresTestContext enables it by default
         // (applyMigrations: false + Migrations.ApplyAsync() below applies BOTH
         // sets), so the table still gets created here and the total is unchanged.
-        // Phase 199 added the `run_non_token_usage` table: 49 -> 50.
-        // Phase 200 added the `workflow_definition_versions` table: 50 -> 51.
-        // Phase 208 added the `workflow_responses` table: 51 -> 52.
-        // Phase 209 added the `workflow_requests` table: 52 -> 53.
-        // Phase 248 added the `agent_definition_version_counters` table: 53 -> 54.
-        // Phase 261 added the `tenant_tool_policies` table: 54 -> 55.
-        // Phase 263 added the `rate_limit_counters` table: 55 -> 56.
+        // An earlier change added the `run_non_token_usage` table: 49 -> 50.
+        // An earlier change added the `workflow_definition_versions` table: 50 -> 51.
+        // An earlier change added the `workflow_responses` table: 51 -> 52.
+        // An earlier change added the `workflow_requests` table: 52 -> 53.
+        // An earlier change added the `agent_definition_version_counters` table: 53 -> 54.
+        // An earlier change added the `tenant_tool_policies` table: 54 -> 55.
+        // An earlier change added the `rate_limit_counters` table: 55 -> 56.
         tableCount.ShouldBe(56);
     }
 
@@ -168,7 +168,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// K-389: the migration lock is scoped to the schema. While schema A's lock
+    /// The migration lock is scoped to the schema. While schema A's lock
     /// is held, schema B's lock must be acquirable IMMEDIATELY; with a global
     /// lock, B would wait for the lock to be released.
     /// </summary>
@@ -189,7 +189,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
 
             // A lock shared across schemas would keep B waiting until A's release
             // in the finally block below, so B's own lock wait is set far past the
-            // test's bound. Phase 184: the bound was five seconds, a claim about
+            // test's bound. The bound was five seconds, a claim about
             // the machine - under a full run a healthy acquire could miss it.
             var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 300, CancellationToken.None).AsTask();
 
@@ -229,7 +229,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// A database populated BEFORE phase 152 upgrades without losing a row: the
+    /// A database populated BEFORE upgrades without losing a row: the
     /// judge rows keep their judge name, the human rows fall back to
     /// <c>overall</c>, the widened <c>value</c> column stops rounding, and the
     /// old uniqueness index no longer blocks a second name per author.
@@ -243,7 +243,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         var migrations = MigrationDescriptor
             .Discover(typeof(MigrationRunner).Assembly, "Tracon.PostgreSql.Migrations.");
 
-        // 🚨 Found BY NAME, not as migrations[^1]: the next phase that adds a
+        // 🚨 Found BY NAME, not as migrations[^1]: a later change that adds a
         // migration would otherwise turn this test red for an unrelated reason.
         var upgrade = migrations.Single(candidate =>
             string.Equals(candidate.Name, "0048_run_score_name_and_shape", StringComparison.Ordinal));
@@ -270,7 +270,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             """);
 
         // Not hard-coded to 1: ApplyAsync() applies every pending migration,
-        // not just `upgrade`, and a later phase can add one that also lands
+        // not just `upgrade`, and a later change can add one that also lands
         // after it (154 added an index migration right after this one).
         var pendingFromUpgrade = migrations.Count(candidate => candidate.Id >= upgrade.Id);
         (await context.Migrations.ApplyAsync()).ShouldBe(pendingFromUpgrade);

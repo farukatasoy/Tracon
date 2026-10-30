@@ -4,7 +4,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// F-605 (phase 227) - a damaged <c>expected_tool_calls</c> cell. SQLite and SQL Server hold the column
+/// A damaged <c>expected_tool_calls</c> cell. SQLite and SQL Server hold the column
 /// as plain text, so a hand edit or a writer that changed the format can leave text that is not the
 /// array the store writes (PostgreSQL's <c>jsonb</c> refuses it on write, so only the text providers can
 /// be put in this state).

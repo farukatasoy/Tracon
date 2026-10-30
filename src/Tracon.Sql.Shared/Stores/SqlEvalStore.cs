@@ -193,7 +193,7 @@ internal sealed class SqlEvalStore : IEvalStore
             {
                 // Concurrent promotions can read the same MAX(seq) and compute
                 // the same value; retrying without jitter would collide the
-                // losers again at the same instant (thundering herd, K-385).
+                // losers again at the same instant (thundering herd).
                 // Random delay spreads the losers out in time and speeds up
                 // convergence.
                 var jitterMs = Random.Shared.Next(1, (attempt * 5) + 1);
@@ -213,9 +213,9 @@ internal sealed class SqlEvalStore : IEvalStore
             Dialect.AddTimestamp(command, "promoted_at", now);
 
             // A promoted case carries the values its source run recorded in
-            // run_inputs.parameters (F-294); dropping them here left a promoted
+            // run_inputs.parameters; dropping them here left a promoted
             // case of a parameterized agent failing on a missing value, or
-            // running on a default production never used (F-343).
+            // running on a default production never used.
             Dialect.AddJsonb(command, "parameters", JsonStringMapCodec.Serialize(draft.Parameters));
 
             try

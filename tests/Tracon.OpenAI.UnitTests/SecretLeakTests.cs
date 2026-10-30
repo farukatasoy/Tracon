@@ -93,7 +93,7 @@ public sealed class SecretLeakTests
     [Fact]
     public void Client_metadata_contains_no_key()
     {
-        // The phase 6 telemetry writes this metadata to span tags.
+        // The telemetry writes this metadata to span tags.
         using var provider = BuildProvider();
 
         using var chatClient = provider.GetRequiredService<IModelProviderRegistry>()

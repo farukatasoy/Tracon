@@ -1,10 +1,10 @@
-"""Kayıt giriş noktası kuralı (K-509) — iki betiğin ortak yüklemi.
+"""Kayıt giriş noktası kuralı — iki betiğin ortak yüklemi.
 
 Tüketicinin bir yeteneği açtığı public üye bir "kayıt giriş noktası"dır:
 
 - alıcısı `Tracon.ITraconBuilder` olan HER uzantı metodu, adından bağımsız
   (`Configure`, `RequireCustomBinding`, `RequireProductionProfile` önek taşımaz
-  ama zincirin yalnız kayıt için vardır — Faz 189);
+  ama zincirin yalnız kayıt için vardır);
 - alıcısı diğer kayıt tiplerinden biri olan `Add`/`Use`/`Map` önekli uzantı;
 - builder arayüzünün kendi üyesi (`Tracon.ITraconBuilder.Services`).
 

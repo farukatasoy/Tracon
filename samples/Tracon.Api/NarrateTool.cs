@@ -10,11 +10,11 @@ namespace Tracon.Api;
 /// <para>
 /// It is the tool counterpart of the <c>speak</c> workflow node. The tool reports the characters it
 /// billed from its own body (<see cref="TraconToolUsage"/>), and the amount joins the run's budget at
-/// once. When the call tree's budget is spent, the next <c>narrate</c> call does not start (phase 243).
+/// once. When the call tree's budget is spent, the next <c>narrate</c> call does not start.
 /// </para>
 /// <para>
 /// The price table is read at setup, from the service provider the registration factory receives:
-/// Microsoft Agent Framework passes a tool an empty provider at call time (K-218).
+/// Microsoft Agent Framework passes a tool an empty provider at call time.
 /// </para>
 /// </remarks>
 internal static class NarrateTool

@@ -6,7 +6,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 266: an image the run generates is a span of the run.
+/// An image the run generates is a span of the run.
 /// </summary>
 /// <remarks>
 /// <para>

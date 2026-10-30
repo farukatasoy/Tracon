@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <see cref="object.ToString"/>.
 /// </summary>
 /// <remarks>
-/// 🚨 K-035 recorded the mechanism: a <c>record</c>'s compiler-generated
+/// 🚨 The earlier decision recorded the mechanism: a <c>record</c>'s compiler-generated
 /// <c>ToString</c> prints every property, so a single
 /// <c>LogDebug("{Value}", value)</c> puts the secret in a log line. The
 /// protection was a HAND-KEPT list of types in the functional

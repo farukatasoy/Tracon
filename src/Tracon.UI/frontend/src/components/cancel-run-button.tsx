@@ -7,7 +7,7 @@ import { Tooltip } from './tooltip';
 import type { RunRecord } from '../lib/server-types';
 
 /**
- * "Cancel run" action for the run detail screen (F-35, Phase 32).
+ * "Cancel run" action for the run detail screen.
  *
  * Only rendered while the run is `Running`. A 202 means cancellation was only
  * REQUESTED — `cts.Cancel()` on the server is not a guarantee. The eventual

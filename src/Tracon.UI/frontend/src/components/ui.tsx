@@ -356,7 +356,7 @@ export function Select({
   'aria-invalid': invalid,
 }: {
   value: string;
-  /** 🚨 A raw string, NOT a DOM event — see `docs/hafiza/frontend.md`. */
+  /** 🚨 A raw string, NOT a DOM event — see `.md`. */
   onChange: (value: string) => void;
   children: ReactNode;
   disabled?: boolean;
@@ -463,8 +463,8 @@ export function Mono({
     // width — and a caller that passes `truncate` has made that content
     // `white-space: nowrap`, whose min-content is the WHOLE string. A 32-char
     // trace id then pinned this span at ~210px and pushed the run detail screen
-    // sideways at 375px. Same defect `Panel` was given `min-w-0` for in phase
-    // 164, one level down.
+    // sideways at 375px. Same defect `Panel` was given `min-w-0` for,
+    // one level down.
     <span className="inline-flex min-w-0 items-center gap-1">
       {text}
       <CopyButton value={copy} variant="inline" />
@@ -558,7 +558,7 @@ export function ErrorNote({ error, onRetry }: { error: unknown; onRetry?: () => 
  * 🚨 A reader who opens an admin screen used to see the empty state and
  * conclude there was nothing there. This says the opposite: there IS something
  * here, and your role does not reach it. The server is the enforcement; this is
- * only the explanation (Phase 9).
+ * only the explanation.
  */
 export function Unauthorized({ requires }: { requires: 'operator' | 'administrator' }): ReactNode {
   const t = useT();

@@ -10,12 +10,12 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The section is bound by hand and without reflection (K-021, AOT), which is
+/// The section is bound by hand and without reflection (AOT), which is
 /// the same shape that produced "the field was added but never added to
 /// <c>Bind()</c>" three separate times before —
-/// <c>RunRecording.RecordRunInput</c> (K-406),
-/// <c>Observability.IncludeAgentVersionTag</c> (MT-OBS-036) and
-/// <c>Validation.McpTimeout</c> (K-253).
+/// <c>RunRecording.RecordRunInput</c>,
+/// <c>Observability.IncludeAgentVersionTag</c> and
+/// <c>Validation.McpTimeout</c>.
 /// </para>
 /// <para>
 /// 🚨 <c>TraconOptionsBindingCoverageTests</c> locks that class of defect out

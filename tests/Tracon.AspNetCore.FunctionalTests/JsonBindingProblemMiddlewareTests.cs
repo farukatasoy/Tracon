@@ -10,13 +10,13 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>
 /// Verifies that when body binding hits a <c>JsonException</c>, the library falls
 /// into its own <c>400</c> <c>ProblemDetails</c> contract instead of a generic
-/// <c>500</c> (HATA-S2-006, HATA-S2-007).
+/// <c>500</c>.
 /// </summary>
 /// <remarks>
 /// Three endpoints were deliberately chosen: one used to use automatic binding
 /// via <c>[FromBody]</c> (<c>ApiKeyEndpoints</c>), one used implicit binding
 /// WITHOUT the <c>[FromBody]</c> ATTRIBUTE (<c>GovernanceEndpoints</c> — this is
-/// exactly why HATA-S2-007's grep-based estimate of "10 files using
+/// exactly why the grep-based estimate of "10 files using
 /// <c>[FromBody]</c>" missed this endpoint), and one is a numeric field type
 /// mismatch (a JSON error class outside the enum case). All three now read the
 /// body by hand through <c>RequestBodyBinding.ReadAsync</c> — this works
@@ -55,8 +55,8 @@ public sealed class JsonBindingProblemMiddlewareTests
     public async Task Unrecognized_enum_value_in_implicit_binding_also_returns_400()
     {
         // GovernanceEndpoints.SaveAsync takes the body WITHOUT the [FromBody]
-        // ATTRIBUTE (implicit binding); this is exactly why HATA-S2-006's
-        // estimate of "10 files using [FromBody]" missed this endpoint (HATA-S2-007).
+        // ATTRIBUTE (implicit binding); this is exactly why an earlier defect's
+        // estimate of "10 files using [FromBody]" missed this endpoint.
         await using var host = await TraconTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
@@ -133,8 +133,8 @@ public sealed class JsonBindingProblemMiddlewareTests
     /// <remarks>
     /// <para>
     /// Two endpoints on purpose: <c>/api/stats/timeseries</c> pre-dates this
-    /// phase (so this is a pre-existing defect class, not one this phase
-    /// introduced) and <c>/api/evaluation/scores/summary</c> is new (Phase 154)
+    /// change (so this is a pre-existing defect class, not one this change
+    /// introduced) and <c>/api/evaluation/scores/summary</c> is new
     /// — both share the same nullable-enum-query-parameter shape and the same
     /// fix.
     /// </para>

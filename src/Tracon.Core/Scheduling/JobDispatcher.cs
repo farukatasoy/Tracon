@@ -57,7 +57,7 @@ internal sealed class JobDispatcher(
                 nameof(request));
         }
 
-        // F-323, F-280: the worker arms this value as the attempt's deadline, and a
+        // The worker arms this value as the attempt's deadline, and a
         // timer refuses a value outside its range where it is armed - in the worker,
         // long after this call returned.
         if (request.MaxDuration is { } maxDuration && !TimerPeriod.IsValid(maxDuration))
@@ -91,7 +91,7 @@ internal sealed class JobDispatcher(
 
         if (JobPayload.CarriesAttribution(request.HandlerKey))
         {
-            // F-364: read HERE, while the caller's request or ambient scope is
+            // Read HERE, while the caller's request or ambient scope is
             // still current; the worker that runs the job has neither. Through
             // RunAttributionReader, so a faulty consumer implementation drops
             // the attribution instead of failing the enqueue.

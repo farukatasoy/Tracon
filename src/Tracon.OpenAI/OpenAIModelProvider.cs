@@ -187,7 +187,7 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             measuredService: IsOpenAIService);
     }
 
-    // The strict-mode refusals were measured against OpenAI itself (Phase 245). A custom address is a
+    // The strict-mode refusals were measured against OpenAI itself. A custom address is a
     // gateway or a compatible server, which can accept what OpenAI refuses.
     private bool IsOpenAIService
         => _baseOptions?.Endpoint is not { } endpoint

@@ -11,7 +11,6 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// What a caller is told when the store cannot answer. The application knows
 /// the reason — <c>/health</c> and <c>/api/diagnostics</c> both report it — and
 /// the run and write paths used to drop it on the floor as a bodyless 500
-/// (HATA-S1-015, HATA-S1-021).
 /// </summary>
 public sealed class DatabaseNotReadyDiagnosticsTests
 {
@@ -130,7 +129,7 @@ public sealed class DatabaseNotReadyDiagnosticsTests
     [Fact]
     public async Task The_remote_access_guard_fails_the_way_it_documents_when_the_key_store_cannot_answer()
     {
-        // HATA-S1-021: on a fresh, never-migrated schema the guard's own key
+        // On a fresh, never-migrated schema the guard's own key
         // lookup is the first thing that touches the database, and the raw
         // provider exception escaped instead of the documented
         // InvalidOperationException. Fail-closed is right — an external surface

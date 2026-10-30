@@ -29,7 +29,7 @@ public sealed class McpTests(BrowserFixture browsers)
         await session.Page.GetByPlaceholder("https://mcp.example.com/mcp", new() { Exact = true })
             .FillAsync("https://mcp.sample.test/mcp");
 
-        // Phase 218: the key name travels as headerConfigurationKeys.Authorization
+        // The key name travels as headerConfigurationKeys.Authorization
         // (the separate field is gone from the API), and the list reads it back
         // from the same map. A form that still sent the removed field would be
         // refused with 400 and the row would never appear.

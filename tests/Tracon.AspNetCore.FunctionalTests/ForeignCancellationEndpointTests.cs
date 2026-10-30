@@ -25,7 +25,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// that one exception broke the site's own promise: a run failed because its
 /// attribution timed out, an approved turn never ran because its "do not ask again"
 /// rule could not be written, a trigger retry was refused as a replay forever, and
-/// an external surface stopped the host (K-840, F-279).
+/// an external surface stopped the host.
 /// </para>
 /// <para>
 /// The rule they now share is <c>OperationCancellation.IsFailure(exception, token)</c>;

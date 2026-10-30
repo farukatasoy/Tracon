@@ -2,7 +2,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Models;
 
-/// <summary>Verifies the per-provider outgoing concurrency limit (phase 62, F-44).</summary>
+/// <summary>Verifies the per-provider outgoing concurrency limit.</summary>
 public sealed class ProviderConcurrencyLimiterTests
 {
     [Fact]

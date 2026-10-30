@@ -10,7 +10,7 @@ namespace Tracon.Voice.UnitTests;
 /// Validates the <c>speak</c> tool's attachment write path.
 /// </summary>
 /// <remarks>
-/// The three tests in this class guard Phase 28's most expensive findings:
+/// The three tests in this class guard the earlier change's most expensive findings:
 /// writing the session id to the attachment (G1), the tool itself calling the
 /// type check (G2), and recognizing a real MP3 byte sequence (G3).
 /// </remarks>

@@ -39,7 +39,7 @@ public sealed class RunScoreStatisticsTests
     [Fact]
     public async Task Eval_run_score_never_enters_the_summary()
     {
-        // K-141's exclusion (RunKind.Eval is excluded) also applies to scores.
+        // the exclusion (RunKind.Eval is excluded) also applies to scores.
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
 
@@ -59,7 +59,7 @@ public sealed class RunScoreStatisticsTests
     {
         // Averaging a star score with a binary score is meaningless; the rate
         // is computed only from Binary scores (see
-        // Phase 31, risks).
+        // Risks).
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
 

@@ -61,7 +61,7 @@ internal sealed class WebhookDeliveryJobHandler(
         var delivery = await store.GetDeliveryAsync(deliveryId, cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"No webhook delivery record was found: {deliveryId}.");
 
-        // 🚨 F-366: only a Pending delivery is attempted. Any other status was
+        // Only a Pending delivery is attempted. Any other status was
         // written by an earlier attempt of this job that then failed before the
         // job could finish, and the worker leased the job again. Without this
         // check that attempt sent a delivery its recipient had already accepted.
@@ -128,7 +128,7 @@ internal sealed class WebhookDeliveryJobHandler(
         }
 
         // The same rule for every credential header the subscription declares
-        // by key name (phase 190): a key outside the tenant drops the
+        // by key name: a key outside the tenant drops the
         // delivery before a single value is read.
         foreach (var (header, keyName) in subscription.HeaderConfigurationKeys)
         {
@@ -155,7 +155,7 @@ internal sealed class WebhookDeliveryJobHandler(
 
         if (outcome.Succeeded)
         {
-            // 🚨 F-366: the three result writes sat right here, so one store
+            // The three result writes sat right here, so one store
             // error after the recipient answered 2xx failed the attempt, the
             // worker released the job, and the next attempt delivered it again.
             await RecordDeliveredAsync(subscription, delivery, attempt, outcome.StatusCode, now, options, context, cancellationToken)
@@ -167,8 +167,8 @@ internal sealed class WebhookDeliveryJobHandler(
         var maxAttempts = Math.Max(1, options.RetryDelays.Count);
         var isFinalAttempt = attempt >= maxAttempts;
 
-        // 🚨 F-393: the failed send's writes go through the same retry window as an
-        // accepted one's (F-366). A store error here used to escape as the attempt's
+        // The failed send's writes go through the same retry window as an
+        // accepted one's. A store error here used to escape as the attempt's
         // own failure: the worker released the job with no pause, so the recipient
         // was called again at once, past the ladder's delay; on the last attempt the
         // delivery stayed Pending for good. A write that still fails is logged; the
@@ -275,7 +275,7 @@ internal sealed class WebhookDeliveryJobHandler(
 
             if (CredentialHeaderNames.IsCredential(name) && logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                // A row written before phase 190 may carry a credential in the
+                // A row written before may carry a credential in the
                 // clear. It is still sent, but the operator is told to move it.
                 logger.LogWarning(
                     "Webhook subscription '{Subscription}' stores the credential header '{Header}' in plain headers, " +
@@ -618,7 +618,7 @@ internal sealed class WebhookDeliveryJobHandler(
                 WebhookSigner.TimestampHeader,
                 timestamp.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
 
-            // 🚨 The secret is read from configuration, NOT from the database (K-059).
+            // 🚨 The secret is read from configuration, NOT from the database.
             if (ResolveSecret(subscription, options) is { Length: > 0 } secret)
             {
                 request.Headers.TryAddWithoutValidation(

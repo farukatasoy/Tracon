@@ -7,7 +7,7 @@ namespace Tracon.OpenAI.UnitTests;
 /// Tracon carries no built-in model list. Measured (2026-08-02): the list
 /// embedded in code contained none of the models a real account could reach, and a
 /// call to a model on that list returned <c>HTTP 403 model_not_found</c>. Reason:
-/// <c>docs/KARARLAR.md</c>, decision K-032.
+/// <c>.md</c>, the earlier decision.
 /// </remarks>
 public sealed class OpenAIModelCatalogTests
 {

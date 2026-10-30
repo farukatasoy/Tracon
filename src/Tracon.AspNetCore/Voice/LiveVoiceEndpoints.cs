@@ -83,12 +83,12 @@ internal sealed record LiveVoiceSessionStatusResponse
     public required int Turns { get; init; }
 }
 
-// 🚨 K-224's subprotocol exemption exists ONLY because a WebSocket handshake cannot
+// 🚨 the subprotocol exemption exists ONLY because a WebSocket handshake cannot
 // carry an Authorization header. These are plain HTTP endpoints and the exemption is
 // deliberately not borrowed here.
 //
 // The gate order matches the shipped conversation endpoint and SHARES its helpers, so
-// a denial is byte for byte the answer an unreachable session gets (K-687).
+// a denial is byte for byte the answer an unreachable session gets.
 /// <summary>The HTTP surface of the provider-hosted live voice layer.</summary>
 /// <remarks>
 /// These are plain HTTP endpoints and sit in the protected endpoint group. A denial
@@ -261,7 +261,7 @@ internal static class LiveVoiceEndpoints
                     => (StatusCodes.Status501NotImplemented, "Live voice provider not configured"),
 
                 // The tenant's egress policy or its own provider binding refuses
-                // the session - the same rules as a model call (F-306).
+                // the session - the same rules as a model call.
                 LiveVoiceLaunchFailure.TenantPolicyRefused
                     => (StatusCodes.Status403Forbidden, "Live voice provider not available for this tenant"),
                 _ => (StatusCodes.Status400BadRequest, "The live voice session could not be opened"),

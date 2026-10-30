@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ApprovalEndpointTests.cs (K-269): the package's
+// Same rationale as ApprovalEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost share a
 // name, so a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -17,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <remarks>
 /// <para>
 /// Driven through a REAL Microsoft Agent Framework tool-calling loop rather
-/// than by constructing the wrappers directly, for K-218's reason: an isolated
+/// than by constructing the wrappers directly, for the reason: an isolated
 /// construction proves nothing about the pipeline. The call identity these
 /// records hang off comes from <c>FunctionInvokingChatClient</c>, which only
 /// exists on the real path.
@@ -69,7 +69,7 @@ public sealed class LateToolCompletionTests
     /// cancellation the timeout requests.
     /// </summary>
     /// <remarks>
-    /// Phase 184: these bodies used to sleep 600 ms - 1 s against the 300 ms
+    /// These bodies used to sleep 600 ms - 1 s against the 300 ms
     /// timeout, so each test relied on one timer firing before another. The
     /// test now releases the body after the run has completed, which is by
     /// construction after the timeout fired.
@@ -257,7 +257,7 @@ public sealed class LateToolCompletionTests
         release.SetResult();
         await faulted.Task.WaitAsync(TimeSpan.FromSeconds(20));
 
-        // Phase 184: a fixed one-second "fair window" stood here, and under load
+        // A fixed one-second "fair window" stood here, and under load
         // the observer might not have run inside it - a green test that proved
         // nothing. The observer's own line now proves it ran. The line comes
         // BEFORE the point where a wrong write would happen, though, so a short
@@ -278,7 +278,7 @@ public sealed class LateToolCompletionTests
     [Fact]
     public async Task A_tool_that_succeeds_after_its_run_closed_has_its_amount_added_to_the_quota()
     {
-        // F-482: the amount reaches the call's record (K-974) and never the run's snapshot,
+        // The amount reaches the call's record and never the run's snapshot,
         // and the counter is where a tenant's ceiling is checked - so it is where this money
         // has to land. Before, the charge was in no counter at all.
         var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -337,7 +337,7 @@ public sealed class LateToolCompletionTests
         // The entry names the run whose tool spent it, which is what a threshold webhook shows.
         late.RunId.ShouldBe(runId.ToString());
 
-        // The run's snapshot is the one K-974 froze at its close.
+        // The run's snapshot is the one that decision froze at its close.
         var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull();
         run.NonTokenCost.ShouldBeNull();
     }
@@ -447,7 +447,7 @@ public sealed class LateToolCompletionTests
     [Fact]
     public async Task A_late_amount_in_another_currency_than_the_run_is_in_no_counter()
     {
-        // The rule of what adds is the live report's (K-972): an amount in a currency the quota
+        // The rule of what adds is the live report's: an amount in a currency the quota
         // does not count is listed on the call and never summed.
         var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = NewRelease();

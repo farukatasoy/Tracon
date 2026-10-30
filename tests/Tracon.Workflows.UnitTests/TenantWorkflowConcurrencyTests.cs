@@ -6,7 +6,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Phase 240: one tenant cannot take every workflow slot of a process, and a run that waits for a slot
+/// One tenant cannot take every workflow slot of a process, and a run that waits for a slot
 /// says so.
 /// </summary>
 /// <remarks>
@@ -80,7 +80,7 @@ public sealed class TenantWorkflowConcurrencyTests
         var other = Start(runner, "tenant-b");
         var otherId = await other.RunId.WaitAsync(Patience, TestContext.Current.CancellationToken);
 
-        // The shared limit is the only one: the other tenant waits, and it shows. Before this phase the
+        // The shared limit is the only one: the other tenant waits, and it shows. Before this change the
         // row read Running while the run waited.
         (await StatusAsync(host, "tenant-b", otherId)).ShouldBe(RunStatus.Queued);
         gate.HasEntered(otherId).ShouldBeFalse();

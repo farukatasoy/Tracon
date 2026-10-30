@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// is closed as <see cref="RunStatus.Failed"/>, on every path that starts one.
 /// </summary>
 /// <remarks>
-/// F-389: the queued agent run already had this rule. A batch item and an eval case
+/// The queued agent run already had this rule. A batch item and an eval case
 /// run without a session too; theirs ended <c>AwaitingApproval</c> with no inbox row
 /// to answer, and the batch reported the item <c>Completed</c>. Both run through the
 /// real worker, because the status a job reports and the run row are written in two
@@ -113,7 +113,7 @@ public sealed class SessionlessApprovalTests
     [Fact]
     public async Task A_chat_completion_that_stops_at_an_approval_is_409_and_its_run_is_closed_as_failed()
     {
-        // F-448: the endpoint answered 200 with empty content, and the run stayed
+        // The endpoint answered 200 with empty content, and the run stayed
         // AwaitingApproval with no inbox row: nobody could ever answer it.
         await using var host = await StartAsync();
 
@@ -161,7 +161,7 @@ public sealed class SessionlessApprovalTests
     [Fact]
     public async Task A_buffered_run_without_a_session_that_stops_at_an_approval_is_409_and_closed_as_failed()
     {
-        // Same class (F-448 scan): the run endpoint answered 200 and left the run
+        // Same class: the run endpoint answered 200 and left the run
         // AwaitingApproval with no inbox row, and an approval needs a 'sessionId'.
         await using var host = await StartAsync();
 
@@ -208,7 +208,7 @@ public sealed class SessionlessApprovalTests
     [Fact]
     public async Task An_MCP_tool_call_that_stops_at_an_approval_closes_its_run_as_failed()
     {
-        // Same class (F-448 scan): the caller got the K-103 refusal, and the run stayed
+        // Same class: the caller got the refusal, and the run stayed
         // AwaitingApproval with no inbox row. The tool reaches the agent after it was
         // exposed, the only way past the startup guard.
         await using var host = await StartAsync(

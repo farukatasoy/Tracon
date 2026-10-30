@@ -287,15 +287,15 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             // When a root run (Depth == 0) ends by requesting approval, it closes with
             // AwaitingApproval instead of Completed — this is INDEPENDENT of the path
             // (management API, OpenAI-compatible endpoint, MCP, A2A) and of whether the run
-            // came from the queue (HATA-S2-004/MT-MCP-023: the earlier behavior marked only
+            // came from the queue (the earlier behavior marked only
             // the queue path, the synchronous paths always said Completed - the approval
             // flag was HIDDEN COMPLETELY). However the decision is DELIVERED
             // (POST /api/approvals/{id}/decide for the queue, or the next turn of the
             // synchronous caller), the status label follows the same principle: an answered
-            // run STAYS in this state (K-014, the same principle as RunStatus.AwaitingInput).
+            // run STAYS in this state (the same principle as RunStatus.AwaitingInput).
             // Writing a row into the `pending_approvals` store is a separate decision and
-            // DID NOT CHANGE (K-372) - only the queue path writes it (the queued-run,
-            // approval-resume and continuation handlers, through QueuedTurn, F-370);
+            // DID NOT CHANGE - only the queue path writes it (the queued-run,
+            // approval-resume and continuation handlers, through QueuedTurn);
             // this change does not reopen the risk of a double decision race.
             if (WaitsForApproval(start.Scope) &&
                 ChildRunApproval.CollectRequests(response.Messages) is { Count: > 0 } pendingRequests)
@@ -307,12 +307,12 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 // terminal status becomes visible. See the remarks on
                 // TraconRunOptions.BeforePendingApprovalIsPublished: closing
                 // the run first published a status whose approval was not yet
-                // listable, on EVERY queued run that asked for one (F-133).
+                // listable, on EVERY queued run that asked for one.
                 await InvokeBeforePendingApprovalAsync(options, response.Messages, presentations, cancellationToken)
                     .ConfigureAwait(false);
 
                 // A turn that waits on an approval AND on a tool's input announces both; the
-                // status stays AwaitingApproval (Phase 235, open question 3).
+                // status stays AwaitingApproval.
                 await PublishPendingToolInputAsync(session, options, PendingToolInputs(start.Scope), SkippedCalls(response.Messages), cancellationToken)
                     .ConfigureAwait(false);
 
@@ -328,7 +328,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 return response;
             }
 
-            // A tool's MCP server asked the user for input and the call was suspended (Phase 235):
+            // A tool's MCP server asked the user for input and the call was suspended:
             // the run neither finished nor failed. The requests come from the ledger the tool wrapper
             // wrote, not from the tool results — a result that merely looks like a request is not one.
             if (PendingToolInputs(start.Scope) is { Count: > 0 } pendingInputs)
@@ -359,7 +359,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // NOTHING was cancelled. A bare catch recorded such a run as Canceled
         // with a null error - and a cancelled run is not a failure, so the
         // endpoint answered 200 with an empty body and the operator saw no
-        // outage at all. Measured in Phase 157. Anything not cancelled by this
+        // outage at all. Anything not cancelled by this
         // run's own source falls through to the failure path below and is
         // classified there.
         catch (OperationCanceledException) when (cancellationSource.IsCancellationRequested)
@@ -418,7 +418,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
         // On a root run, a tool call that requests approval maps to AwaitingApproval
         // instead of Completed; the reason is in the SAME note inside RunCoreAsync
-        // (HATA-S2-004/MT-MCP-023 - the path/queue distinction was removed). A workflow
+        // (the path/queue distinction was removed). A workflow
         // step whose workflow waits for the answer closes the same way (K-1051).
         var waitsForApproval = WaitsForApproval(start.Scope);
         var pendingApprovalWaits = false;
@@ -441,7 +441,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 cancellationSource.Token)
             .GetAsyncEnumerator(cancellationSource.Token);
 
-        // 🚨 HATA-S1-015: these two flags separate the case where the consumer calls
+        // These two flags separate the case where the consumer calls
         // DisposeAsync() EARLY (the loop neither ended naturally nor exited with an
         // exception). By the async-iterator rule of C#, when the consumer calls
         // DisposeAsync() AFTER a `yield return` (and BEFORE the next MoveNextAsync), only
@@ -459,10 +459,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
         try
         {
-            // 🚨 HATA-S4-012: this step is DELIBERATELY INSIDE the try/finally — the reason
+            // This step is DELIBERATELY INSIDE the try/finally — the reason
             // is in the documentation of WriteRunStartAsync and in the note of CreateScope.
             //
-            // 🚨 HATA-S4-003: it needs its OWN catch as well. The catch below covers only
+            // It needs its OWN catch as well. The catch below covers only
             // MoveNextAsync inside the loop, so a failure here fell through to the finally,
             // which writes Canceled — and a run that failed is not a run the caller gave up
             // on. The non-streaming path needs no such block: there, one try wraps the whole
@@ -474,9 +474,9 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             catch (OperationCanceledException) when (cancellationSource.IsCancellationRequested)
             {
                 // Left to the finally, which writes Canceled: that IS the truthful
-                // status here and HATA-S4-012 is the case that proves it. Only OUR
+                // status here and an acceptance case proves it. Only OUR
                 // cancellation: a store's own timeout (TaskCanceledException) is a
-                // failure and takes the catch below (K-840).
+                // failure and takes the catch below.
                 throw;
             }
             catch (Exception ex)
@@ -503,7 +503,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                     // made in the body of an async iterator does not cross the
                     // `yield return` boundary: when the call returns to the driver, the
                     // ExecutionContext is restored and the next MoveNextAsync starts with
-                    // a clean context. Measured (phase 12): on a streaming run the child
+                    // a clean context. Measured: on a streaming run the child
                     // agent call was rejected with "run recording is off".
                     // The assignment must be made IMMEDIATELY before MoveNextAsync; doing
                     // it only outside the loop is not enough.
@@ -543,7 +543,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
                     if (content is UsageContent usageContent)
                     {
-                        // 🚨 SUMMED, not overwritten (F-317). A stream carries one
+                        // 🚨 SUMMED, not overwritten. A stream carries one
                         // UsageContent per MODEL CALL — every provider adapter Tracon
                         // ships emits it once, at the end of its call — so a run with
                         // a tool round or a loop iteration has several. Keeping the

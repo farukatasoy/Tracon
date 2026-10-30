@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// No error code is written as a string literal outside <c>TraconErrorTypes</c> and <c>ValidationCodes</c> (Phase 238, section 238.3).
+/// No error code is written as a string literal outside <c>TraconErrorTypes</c> and <c>ValidationCodes</c>.
 /// </summary>
 /// <remarks>
 /// <para>

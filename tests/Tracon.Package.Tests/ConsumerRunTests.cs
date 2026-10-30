@@ -7,7 +7,7 @@ namespace Tracon.Package.Tests;
 /// <summary>
 /// The one gate that proves a real <c>PackageReference</c> consumer can run
 /// an agent end to end: a generated tool executes, the run record is written,
-/// and at least one <c>run_event</c> is produced (Phase 95, item 10).
+/// and at least one <c>run_event</c> is produced (item 10).
 /// </summary>
 /// <remarks>
 /// The run's own assertions (<c>ShouldHaveCompleted</c>,

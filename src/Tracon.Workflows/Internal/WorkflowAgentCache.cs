@@ -187,7 +187,7 @@ internal sealed class WorkflowAgentCache
          TimeProvider? TimeProvider,
          ParameterizedAgentFactory? ParameterFactory) state)
     {
-        // F-405: a node's timeout replaces the installation's ChildDeadline, and its
+        // A node's timeout replaces the installation's ChildDeadline, and its
         // hard cutoff follows the same rule as the installation's default (deadline +
         // 30 s), not a WaitTimeout pinned for every agent. The save checked the sum fits.
         var (childDeadline, waitTimeout, limitName) = key.Timeout is { } nodeTimeout
@@ -204,12 +204,12 @@ internal sealed class WorkflowAgentCache
             waitTimeout,
             state.TimeProvider,
 
-            // 🚨 A workflow step FAILS when it cannot deliver an answer (F-328).
+            // 🚨 A workflow step FAILS when it cannot deliver an answer.
             // The delegation default returns the refusal as text for the calling
             // model; here no model reads it, the next node takes it as content.
             ChildRefusalMode.Fail,
 
-            // Only a workflow step binds the workflow's parameter values (F-294);
+            // Only a workflow step binds the workflow's parameter values;
             // an agent called as a tool never does.
             state.ParameterFactory,
             limitName,
@@ -234,15 +234,15 @@ internal sealed class WorkflowAgentCache
     // name)); without the tenant the second tenant received the first tenant's
     // wrapper and its captured Description, and that description reaches the
     // participant list sent to the model in the GroupChat and Magentic patterns.
-    // Same defect class as K-380 (CompiledAgentCache) and K-381 (file memory).
+    // Same defect class as CompiledAgentCache and the file memory.
     //
     // The tenant deliberately does NOT reach WorkflowAgentIdentity: the executor
     // id stays derived from the (workflow, agent) pair, so checkpoints written
-    // by phase 16 onward stay readable.
+    // by onward stay readable.
     //
-    // The timeout is part of the key (F-405) for the same reason the tenant is: the
+    // The timeout is part of the key for the same reason the tenant is: the
     // wrapper takes it in its constructor. Like the tenant, it never reaches the id. The
-    // pinned agent version (phase 200) follows the same rule: two steps of the same
+    // pinned agent version follows the same rule: two steps of the same
     // (workflow, agent) pair that pin different versions are two wrappers with ONE id.
     //
     // The version PARAMETER enters as its name and never as a run's value. A value in the key would make one

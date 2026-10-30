@@ -10,10 +10,10 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <remarks>
 /// <para>
 /// The defect this guards repeated four times in one round: the worker held its
-/// outcome write in the handler's try (F-348), the eval handler closed a finished
-/// eval as Failed on a store error (F-365), the webhook handler delivered an
-/// accepted webhook a second time (F-366), and the queued run handlers failed a
-/// finished run on a session-save error (F-367). Each was found by reading code,
+/// outcome write in the handler's try, the eval handler closed a finished
+/// eval as Failed on a store error, the webhook handler delivered an
+/// accepted webhook a second time, and the queued run handlers failed a
+/// finished run on a session-save error. Each was found by reading code,
 /// not by a test. The behaviour itself is proven by each handler's own tests
 /// (<c>EvalJobHandlerFinalWriteTests</c>, <c>WebhookDeliveryFinalWriteTests</c>,
 /// <c>JobWorkerLeaseContractTests</c>, <c>AgentBatchJobHandlerTests</c>,
@@ -31,25 +31,25 @@ public sealed partial class JobHandlerOutcomeWriteSiteTests
     private static readonly Dictionary<string, string> KnownHandlers = new(StringComparer.Ordinal)
     {
         ["src/Tracon.Core/Approvals/ApprovalResumeJobHandler.cs"] =
-            "the session save after the resumed run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the run is not repeated (F-367)",
+            "the session save after the resumed run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the run is not repeated ",
         ["src/Tracon.Core/Evaluation/EvalJobHandler.cs"] =
-            "the write that closes the run is outside the cases' try and goes through JobOutcomeWriteRetry (F-365); so does the write that records a failed attempt, which must not replace the failure the worker judges (F-429); a per-case report error ends the attempt, as F-348 decided for batches",
+            "the write that closes the run is outside the cases' try and goes through JobOutcomeWriteRetry; so does the write that records a failed attempt, which must not replace the failure the worker judges; a per-case report error ends the attempt, as for batches",
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] =
             "a failed score write is compensated and the judge runs again on the retry - deliberate, a half-written set would freeze the checkpoint",
         ["src/Tracon.Core/Retention/RetentionJobHandler.cs"] =
             "the success report is outside the sweep's try; a report error ends the attempt, and the sweep is safe to repeat",
         ["src/Tracon.Core/Scheduling/AgentBatchJobHandler.cs"] =
-            "the item report is outside the run's try (F-348); a report error ends the attempt and the worker decides",
+            "the item report is outside the run's try; a report error ends the attempt and the worker decides",
         ["src/Tracon.Core/Scheduling/AgentRunJobHandler.cs"] =
-            "the session save after the run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the model is not called again (F-367)",
+            "the session save after the run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the model is not called again ",
         ["src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs"] =
-            "the session save after the continued run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the turn is not repeated (F-367)",
+            "the session save after the continued run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the turn is not repeated ",
         ["src/Tracon.Core/Scheduling/WorkflowJobHandler.cs"] =
-            "the item report is outside the workflow's try; a report error ends the attempt and the worker decides; with recovery on, the item carries its run id, so the next lease finds the run finished and does not run it again (F-321)",
+            "the item report is outside the workflow's try; a report error ends the attempt and the worker decides; with recovery on, the item carries its run id, so the next lease finds the run finished and does not run it again ",
         ["src/Tracon.Core/Scheduling/WorkflowRunJobHandler.cs"] =
-            "the engine closes the run; the handler's only read after it (the run's final status) is outside the run's try and a store error there completes the job instead of failing it, so the run is not repeated (F-318)",
+            "the engine closes the run; the handler's only read after it (the run's final status) is outside the run's try and a store error there completes the job instead of failing it, so the run is not repeated ",
         ["src/Tracon.Core/Webhooks/WebhookDeliveryJobHandler.cs"] =
-            "the writes after a send, accepted (F-366) or failed (F-393), go through JobOutcomeWriteRetry and never throw, so a failed send keeps its ladder delay; a delivery that is no longer Pending is not sent again",
+            "the writes after a send, accepted or failed, go through JobOutcomeWriteRetry and never throw, so a failed send keeps its ladder delay; a delivery that is no longer Pending is not sent again",
     };
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed partial class JobHandlerOutcomeWriteSiteTests
         HandlerDeclaration().IsMatch("internal sealed class Widget(ILogger? logger = null) : IJobHandler").ShouldBeTrue();
         HandlerDeclaration().IsMatch("internal sealed class Widget : IJobHandler, IDisposable").ShouldBeTrue();
         HandlerDeclaration().IsMatch("    ILogger<Widget>? logger = null) : IJobHandler").ShouldBeTrue();
-        HandlerDeclaration().IsMatch("        // K-641: IJobHandler is at-least-once").ShouldBeFalse();
+        HandlerDeclaration().IsMatch("        // NOTE: IJobHandler is at-least-once").ShouldBeFalse();
     }
 
     // A class declaration, or the closing parenthesis of a primary constructor,

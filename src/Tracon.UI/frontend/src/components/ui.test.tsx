@@ -148,7 +148,7 @@ describe('accessibility bindings between primitives', () => {
 /**
  * How a navigation looks and what it is.
  *
- * 🚨 `Link` rendered a class-less `<a>` until phase 165, so 25 of its 48 call
+ * 🚨 `Link` rendered a class-less `<a>`, so 25 of its 48 call
  * sites read as plain text. The default matters as much as the override does:
  * a caller that dresses a link deliberately — muted in a table cell, or shaped
  * like a button — must still win.

@@ -8,7 +8,7 @@ using Tracon.TwoNode.IntegrationTests.Infrastructure;
 namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>
-/// Behaviour 6: <c>TraconWorkflowOptions.MaxConcurrentRunsPerTenant</c> holds in the job queue across both nodes (F-740).
+/// Behaviour 6: <c>TraconWorkflowOptions.MaxConcurrentRunsPerTenant</c> holds in the job queue across both nodes.
 /// </summary>
 /// <remarks>
 /// <para>

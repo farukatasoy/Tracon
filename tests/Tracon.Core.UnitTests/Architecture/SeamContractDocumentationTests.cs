@@ -12,7 +12,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The defect this guards (Phase 121, the "35x 🟡 systemic lane"): Tracon has 78
+/// The defect this guards (the "35x 🟡 systemic lane"): Tracon has 78
 /// public extension interfaces, and no single one of them was required to answer the same
 /// four questions a third-party implementer actually needs — DI lifetime, tenant mode,
 /// delivery guarantee, and the limit of whatever guarantee it does make. Measured
@@ -34,8 +34,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// vocabulary; it is inherently interface-specific prose, the same shape
 /// <c>OrderingContractDocumentationTests</c> already gates for numeric-ordering direction.
 /// It is therefore covered by <see cref="A_guarantee_limit_contract_states_what_is_NOT_guaranteed"/>
-/// below, one exact-phrase row per interface this phase touches (BL-026, BL-028, BL-042) —
-/// NOT by the generic baseline scan. A future phase adding a new guarantee-limit interface
+/// below, one exact-phrase row per interface this change touches (BL-026, BL-028, BL-042) —
+/// NOT by the generic baseline scan. A future change adding a new guarantee-limit interface
 /// adds its own row there, the same way <c>OrderingContractDocumentationTests</c> grows.
 /// </para>
 /// <para>
@@ -44,7 +44,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>&lt;interface&gt;:&lt;dimension&gt;</c> the scan finds UNDOCUMENTED today, one entry
 /// per missing dimension (decided over "one line per interface, dimensions listed beside
 /// it" specifically so that documenting HALF of an interface's missing dimensions still
-/// shrinks the file — Phase 121, Open Question 1). A NEW entry fails the test (an
+/// shrinks the file). A NEW entry fails the test (an
 /// undocumented interface nobody reviewed); a LOST entry fails it too (a now-documented
 /// interface whose stale baseline row would hide that the work happened). Unlike
 /// <c>RawExceptionTextSiteTests</c>, an entry here carries no freeform "why is this safe"
@@ -53,7 +53,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>TRACON_SEAM_CONTRACT_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release</c>.
 /// </para>
 /// <para>
-/// <strong>🚨 K-642's tuzak: a split phrase is not a gate.</strong> An early draft of
+/// <strong>🚨 the tuzak: a split phrase is not a gate.</strong> An early draft of
 /// <c>OrderingContractDocumentationTests</c> searched for two phrase FRAGMENTS
 /// independently; a deliberate break of one fragment still passed because a LATER,
 /// unrelated occurrence of the other fragment satisfied the check. This gate searches
@@ -78,7 +78,7 @@ public sealed class SeamContractDocumentationTests
 
     /// <summary>
     /// One phrase set per dimension, checked as WHOLE phrases (see the class remarks'
-    /// K-642 warning) against an interface's own XML doc block, case-insensitively.
+    /// That decision warning) against an interface's own XML doc block, case-insensitively.
     /// </summary>
     private static readonly (string Dimension, string[] Phrases)[] Dimensions =
     [
@@ -183,7 +183,7 @@ public sealed class SeamContractDocumentationTests
 
     /// <summary>
     /// Regression coverage for the exact shape <c>IJobHandler</c> (the delivery-guarantee
-    /// reference example, K-641) uses: the interface's HEADER doc says nothing about
+    /// reference example) uses: the interface's HEADER doc says nothing about
     /// delivery, but a MEMBER's own <c>&lt;remarks&gt;</c> states "at-least-once". This
     /// must be recognized as answered — the scan reads the whole interface's doc
     /// surface, not just the header (this was a real defect this class shipped with
@@ -224,7 +224,7 @@ public sealed class SeamContractDocumentationTests
     }
 
     /// <summary>
-    /// Regression coverage for the K-642 tuzak this class's remarks describe: a phrase
+    /// Regression coverage for the tuzak this class's remarks describe: a phrase
     /// must be matched WHOLE. A doc block carrying only the first HALF of a two-word
     /// phrase must still be reported as missing that dimension.
     /// </summary>
@@ -305,7 +305,7 @@ public sealed class SeamContractDocumentationTests
     /// (<see cref="DocBlockAbove"/>) PLUS every <c>///</c> line inside its body — a
     /// member's own <c>&lt;remarks&gt;</c> is part of "the interface's own XML
     /// documentation" the standard asks for, not just the header. This is deliberate:
-    /// <c>IJobHandler</c> (the delivery-guarantee reference example, K-641) states
+    /// <c>IJobHandler</c> (the delivery-guarantee reference example) states
     /// "at-least-once" on <c>ExecuteAsync</c>'s <c>&lt;remarks&gt;</c>, not the
     /// interface header, and a scan that only read the header would wrongly flag it
     /// as undocumented.
@@ -518,11 +518,11 @@ public sealed class SeamContractDocumentationTests
         }
     }
 
-    // --- Interfaces Tracon supplies: called, never implemented (F-567) ---
+    // --- Interfaces Tracon supplies: called, never implemented ---
     // A guide, a sample or a contract suite teaches an implementer for a seam. For these ten
     // none does: Tracon builds the implementation and wraps it in a boundary (egress, tenant
     // and credential checks, the tool wrappers), so a consumer's own implementation drops the
-    // boundary. The interface says so in its own header. Phase 213 asked for the sentence on
+    // boundary. The interface says so in its own header. asked for the sentence on
     // nine interfaces and shipped it on none; only a reader noticed.
 
     public static TheoryData<string, string, string> CalledNotImplementedInterfaces() => new()

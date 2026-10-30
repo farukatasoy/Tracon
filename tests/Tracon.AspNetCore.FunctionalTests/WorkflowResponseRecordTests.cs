@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHa
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// What an answer to a workflow request leaves behind (phase 208): a <c>workflow.respond</c>
+/// What an answer to a workflow request leaves behind: a <c>workflow.respond</c>
 /// audit entry, a record readable from <c>GET …/responses</c>, and a
 /// <see cref="RunEventType.WorkflowResponseApplied"/> event on the run it starts - none of them
 /// carrying the answer itself.
@@ -79,7 +79,7 @@ public sealed class WorkflowResponseRecordTests
         await using var host = await harness.StartAsync();
         var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
 
-        // The port takes a yes/no; the existing 400 (K-908) comes first.
+        // The port takes a yes/no; the existing 400 comes first.
         using var refused = await RespondAsync(host, sourceId, new { requestId, text = "yes" });
 
         refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

@@ -7,6 +7,6 @@ using System.Runtime.CompilerServices;
 // consumer seam.
 [assembly: InternalsVisibleTo("Tracon.AspNetCore.FunctionalTests")]
 
-// Phase 265: the two-node acceptance set runs the same OAuth scenarios on PostgreSQL and SQL Server, with the same
+// The two-node acceptance set runs the same OAuth scenarios on PostgreSQL and SQL Server, with the same
 // shortened polling intervals.
 [assembly: InternalsVisibleTo("Tracon.TwoNode.IntegrationTests")]

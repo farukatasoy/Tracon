@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// Pins <see cref="FallbackRetryClassifier"/>'s decision table BEFORE the
-/// Phase 113 (F-149) <see cref="IProviderRetryClassifier"/> seam was added to
+/// An earlier change <see cref="IProviderRetryClassifier"/> seam was added to
 /// <see cref="FallbackChatClient"/>. Tracon's own registered classifier
 /// (<see cref="DefaultProviderRetryClassifier"/>) must reproduce the same
 /// table bit-for-bit — a consumer who registers nothing must see IDENTICAL
@@ -20,7 +20,7 @@ public sealed class FallbackRetryRegressionTests
             false,
             "a cancellation buried in an AggregateException never retries",
         ];
-        // 🚨 Phase 157 (K-737). The two rows above and the two below share the
+        // The two rows above and the two below share the
         // same exception FAMILY and split on whether a timeout is in the graph.
         // HttpClient reports its own request timeout as a
         // TaskCanceledException, so the old "any OperationCanceledException is
@@ -65,7 +65,7 @@ public sealed class FallbackRetryRegressionTests
             "a status-less SDK wrapper exception is a connection failure and retries",
         ];
         yield return [new HttpRequestException("connection reset"), true, "HttpRequestException by type name retries"];
-        // 🚨 F-338. An SDK wrapper type that carries a permanent 4xx used to
+        // An SDK wrapper type that carries a permanent 4xx used to
         // fall through to the transport rule below the status checks and
         // switch provider: only 401/403 were checked first. The next link
         // gets the same bad request.
@@ -107,7 +107,7 @@ public sealed class FallbackRetryRegressionTests
             true,
             "a 503 that only HttpRequestException.StatusCode carries still retries",
         ];
-        // 🚨 F-387. The three shapes an SDK writes without OpenAI's own error body,
+        // The three shapes an SDK writes without OpenAI's own error body,
         // measured with each shipped SDK (ProviderErrorStatusTests). Only "HTTP nnn"
         // was read: each of these switched provider as a connection failure.
         yield return [

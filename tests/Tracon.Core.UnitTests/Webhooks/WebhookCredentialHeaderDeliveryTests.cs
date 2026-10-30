@@ -8,7 +8,7 @@ namespace Tracon.Core.UnitTests.Webhooks;
 
 /// <summary>
 /// The failure paths of the headers a webhook subscription declares by
-/// configuration key name (phase 190).
+/// configuration key name.
 /// </summary>
 /// <remarks>
 /// The happy path — a resolved header reaching a real receiver — is proven at

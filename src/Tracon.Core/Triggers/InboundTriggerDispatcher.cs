@@ -202,7 +202,7 @@ internal sealed class InboundTriggerDispatcher
         // unsigned or wrongly signed request never reaches the queue this
         // limit protects, so counting it against the budget would let an
         // unauthenticated flood exhaust the legitimate sender's own allowance
-        // — the opposite of what section 66.5 asks the limit to do. Only a
+        // — the opposite of wh.5 asks the limit to do. Only a
         // request that already proved it holds the secret can consume budget.
         if (!TryVerifySignature(trigger, rawBody, timestampHeader, signatureHeader))
         {
@@ -214,7 +214,7 @@ internal sealed class InboundTriggerDispatcher
             return new InboundTriggerValidationResult { Outcome = InboundTriggerOutcome.RateLimited };
         }
 
-        // 🚨 Replay protection is keyed by the signature ITSELF (Open Question
+        // 🚨 Replay protection is keyed by the signature ITSELF (
         // 5, option A): external systems do not reliably send their own event
         // id, but the signature is always present and unique per (body,
         // timestamp, secret) triple.
@@ -299,7 +299,7 @@ internal sealed class InboundTriggerDispatcher
         var trigger = validated.Trigger;
         var now = _clock.GetUtcNow();
 
-        // F-364: the endpoint checked this attribution before queuing (F-337)
+        // The endpoint checked this attribution before queuing
         // and then dropped it; the queued run started with no user and no labels.
         var (userId, labels) = RunAttributionReader.Read(_attributionContext);
 
@@ -307,7 +307,7 @@ internal sealed class InboundTriggerDispatcher
         {
             var runId = TraconId.NewId();
 
-            // Same placeholder-row pattern as phase 46's queued agent runs
+            // Same placeholder-row pattern as queued agent runs
             // (AgentEndpoints.RunQueuedAsync): the run id is promised to the
             // caller before the worker picks up the job.
             await _runStore.StartRunAsync(
@@ -327,7 +327,7 @@ internal sealed class InboundTriggerDispatcher
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            // F-432: a retry opens a new run id, so a row the refused job left
+            // A retry opens a new run id, so a row the refused job left
             // Queued would never be leased; the helper closes it.
             var job = await QueuedRunPlaceholder.EnqueueAsync(
                 _jobStore,

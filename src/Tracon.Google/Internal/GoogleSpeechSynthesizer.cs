@@ -301,7 +301,7 @@ internal sealed class GoogleSpeechSynthesizer : ISpeechSynthesizer, ISpeechDialo
     {
         if (includeTimestamps)
         {
-            // K-955: the request is refused, never answered without the timing it asked for.
+            // The request is refused, never answered without the timing it asked for.
             throw new TraconException(
                 $"{nameof(SpeechRequest.IncludeTimestamps)} is not supported by the '{ProviderName}' speech synthesizer: " +
                 "Gemini returns the audio only and reports no timing.");

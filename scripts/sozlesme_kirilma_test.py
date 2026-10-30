@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the release-to-release gate of the non-.NET surfaces (Faz 238).
+"""Tests for the release-to-release gate of the non-.NET surfaces.
 
 Pure logic: OpenAPI documents as dictionaries, and a temp git repository for the
 name sets and the exit code. One red fixture and one green fixture per rule of
@@ -253,7 +253,7 @@ class HttpKirilmaKurallari(unittest.TestCase):
 
 
     def test_yanit_enum_degeri_silinirse_kirmizidir(self):
-        """The generated .NET client loses a member; Tracon.Client is outside PublicAPI tracking (K-566)."""
+        """The generated .NET client loses a member; Tracon.Client is outside PublicAPI tracking."""
         self.assert_break(
             lambda d: d["components"]["schemas"]["RunStatus"]["enum"].remove("Failed"), "yanıt enum değeri silindi")
 

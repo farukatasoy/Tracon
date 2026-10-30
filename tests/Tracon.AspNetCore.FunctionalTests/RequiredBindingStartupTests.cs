@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 150 (F-202) at the host boundary: <c>RequireCustomBinding&lt;T&gt;()</c>
+/// An earlier change at the host boundary: <c>RequireCustomBinding&lt;T&gt;()</c>
 /// is a composition gate, and what a container resolves is only decided once
 /// every module has registered. A unit test that constructs the validator by
 /// hand cannot prove that, so the cases below start real hosts.
@@ -150,7 +150,7 @@ public sealed class RequiredBindingStartupTests
     {
         // IDisposable is neither an extension point nor a contract Tracon
         // registers a default for. A STORE contract is accepted since
-        // HATA-S1-019 - the test below covers that half.
+        // The test below covers that half.
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             async () => await TraconTestHost.StartAsync(
                 configureTracon: static builder => builder.RequireCustomBinding<IDisposable>()));
@@ -164,7 +164,7 @@ public sealed class RequiredBindingStartupTests
     /// same way an extension point on its built-in default does.
     /// </summary>
     /// <remarks>
-    /// HATA-S1-019: declaring a store used to be rejected outright, so a host
+    /// Declaring a store used to be rejected outright, so a host
     /// that bound its own store had no way to ask for the guarantee at all.
     /// </remarks>
     [Fact]

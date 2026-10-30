@@ -13,7 +13,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
 /// <c>UsePostgreSql(o =&gt; o.DataSource = ...)</c>: a data source Tracon did
-/// not build and must never dispose (Phase 110).
+/// not build and must never dispose.
 /// </summary>
 /// <remarks>
 /// This is the DI-level counterpart of <c>PostgresTestContext</c>, which has

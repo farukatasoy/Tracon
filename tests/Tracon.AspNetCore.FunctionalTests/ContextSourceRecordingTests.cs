@@ -6,14 +6,14 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269): a blanket `using Tracon.Testing;`
+// Same rationale as AgentExtensionRunTests.cs: a blanket `using Tracon.Testing;`
 // would make TraconTestHost ambiguous.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-773 (phase 267): the <see cref="RunEventCustomTypes.Context"/> event, through a real host and the real
+/// The <see cref="RunEventCustomTypes.Context"/> event, through a real host and the real
 /// agent — a context provider's messages are counted apart from the caller's own, the event is written once
 /// for the run however many model calls the tool loop makes, and the ring that writes it sits where it sees
 /// the provider's messages.
@@ -151,7 +151,7 @@ public sealed class ContextSourceRecordingTests
     [Fact]
     public async Task The_live_stream_does_not_carry_the_context_event()
     {
-        // K-991: the live run stream mirrors a closed list of notices. The context event is read from the
+        // The live run stream mirrors a closed list of notices. The context event is read from the
         // record, not pushed to every caller of the stream.
         await using var host = await StartAsync(ToolProvider(), memory: 1);
 
@@ -229,7 +229,7 @@ public sealed class ContextSourceRecordingTests
 
     private static void AddContextProvider(AgentExtensionContext context, AIContextProvider provider)
     {
-#pragma warning disable MAAI001 // HarnessAgentOptions members are marked "evaluation purposes only" — see K-020.
+#pragma warning disable MAAI001 // HarnessAgentOptions members are marked "evaluation purposes only"
         if (context.ChatAgentOptions is { } chat)
         {
             chat.AIContextProviders = [.. chat.AIContextProviders ?? [], provider];

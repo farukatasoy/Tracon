@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Configuration;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 265 (F-768): the production decisions that exist only when the deployment declares more than one
+/// The production decisions that exist only when the deployment declares more than one
 /// instance (<c>Tracon:Deployment:Instances</c>).
 /// </summary>
 /// <remarks>

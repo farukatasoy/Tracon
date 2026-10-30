@@ -330,14 +330,14 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
                 Model = "echo-1",
                 Temperature = 0.5f,
 
-                // Provider-specific settings also travel inside jsonb (phase 26).
+                // Provider-specific settings also travel inside jsonb.
                 ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["anthropic.promptCaching"] = TestData.State("true"),
                     ["anthropic.thinking.budgetTokens"] = TestData.State("2048"),
                 },
 
-                // The structured output schema also travels inside jsonb (phase 38).
+                // The structured output schema also travels inside jsonb.
                 ResponseFormat = new AgentResponseFormat
                 {
                     Kind = AgentResponseFormatKind.JsonSchema,
@@ -464,7 +464,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     [Fact]
     public async Task Each_tenants_version_counter_is_its_own()
     {
-        // Moved from IsolationTests.cs (Phase 41).
+        // Moved from IsolationTests.cs.
         AmbientTenant.TenantId = TenantA;
         await Store.SaveAsync(TestData.Definition("support") with { Instructions = "tenant a instructions" });
 

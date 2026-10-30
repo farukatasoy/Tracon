@@ -2,7 +2,7 @@ namespace Tracon.Core.UnitTests.Egress;
 
 /// <summary>
 /// The key-name rule shared by all four configuration-key surfaces: the
-/// prefix (Phase 77) and the tenant's key space inside it.
+/// prefix and the tenant's key space inside it.
 /// </summary>
 public sealed class ConfigurationKeyGuardTests
 {
@@ -31,9 +31,9 @@ public sealed class ConfigurationKeyGuardTests
     }
 
     /// <summary>
-    /// 🚨 F-291. An operator who types the secret VALUE into a key-name field got it
+    /// An operator who types the secret VALUE into a key-name field got it
     /// back in the <c>400</c> body, and a webhook delivery that checks the same rule
-    /// wrote it into <c>webhook_deliveries.error</c> (K-059: a value is never stored).
+    /// wrote it into <c>webhook_deliveries.error</c> (a value is never stored).
     /// The refusal names the field and the expected key space, never what was given.
     /// </summary>
     [Theory]

@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// Phase 150 (F-202): <c>RequireCustomBinding&lt;T&gt;()</c> declares that an
+/// <c>RequireCustomBinding&lt;T&gt;()</c> declares that an
 /// embedding point must resolve to the application's own registration, and
 /// <c>RequiredBindingValidator</c> stops the host when the built-in default is
 /// what resolved.
@@ -50,7 +50,7 @@ public sealed class RequiredBindingTests
     }
 
     /// <summary>
-    /// The store half of the accepted set, added for HATA-S1-019: a consumer who
+    /// The store half of the accepted set, added: a consumer who
     /// binds their own store wants the same startup failure an extension point
     /// gives them, and before this the call was rejected outright with "not a
     /// Tracon extension point".

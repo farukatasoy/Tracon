@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// <see cref="JobWorkerBackgroundService"/>.
 /// </summary>
 /// <remarks>
-/// 🚨 F-326: all three broke on the worker, not in a store. Renewal stopped for
+/// All three broke on the worker, not in a store. Renewal stopped for
 /// good on its first failure, a job whose lease ran out was run again with no
 /// attempt limit, and a cancelled job whose handler threw was retried or failed.
 /// </remarks>
@@ -92,7 +92,7 @@ public sealed class JobWorkerLeaseContractTests
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
-        // 🚨 F-687: the attempt's job metric is the one signal both orders share. A
+        // The attempt's job metric is the one signal both orders share. A
         // handler that throws before the watch reads the cancel goes through the
         // failure path, which reads the status back; when the watch reads it first,
         // the worker writes and reads nothing more. Waiting for that read hung the
@@ -137,7 +137,7 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     /// <summary>
-    /// F-348: the store calls that write a successful handler's outcome sat in
+    /// The store calls that write a successful handler's outcome sat in
     /// the handler's own <c>try</c>. One store error there was taken for a
     /// handler failure: under one attempt the job became Failed while its work
     /// had finished; under three the handler ran a second time.
@@ -175,7 +175,7 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     /// <summary>
-    /// F-367: a handler whose work is done but whose last write kept failing
+    /// A handler whose work is done but whose last write kept failing
     /// throws <see cref="NonRetryableJobException"/>. Releasing that job ran
     /// the work again (a second model call for a queued run).
     /// </summary>

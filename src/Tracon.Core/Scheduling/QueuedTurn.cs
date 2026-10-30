@@ -316,7 +316,7 @@ internal sealed class QueuedTurn
             await WithinLeaseAsync(
                 async (retry, token) =>
                 {
-                    // F-391: a failed write may have committed before it failed. The id is
+                    // A failed write may have committed before it failed. The id is
                     // fixed for this approval, so a second try reads it back first.
                     if (retry && await _approvalStore.GetAsync(approval.Id, token).ConfigureAwait(false) is not null)
                     {

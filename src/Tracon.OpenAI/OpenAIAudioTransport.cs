@@ -6,7 +6,7 @@ using OpenAI;
 
 namespace Tracon;
 
-// 🚨 Why the protocol level (F-579, K-1019; measured 2026-10-19, versions below).
+// 🚨 Why the protocol level (measured 2026-10-19, versions below).
 //
 // OpenAI 2.14.0 was built against System.ClientModel 1.15.0. System.ClientModel 1.16.0 renamed
 // AsyncStreamingClientResult<T> to AsyncStreamingResult<T>, and a host that also uses Tracon.Azure

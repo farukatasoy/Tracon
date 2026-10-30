@@ -4,13 +4,13 @@ using System.Text.RegularExpressions;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The <c>runs_v1</c> read contract view's <c>status_name</c> column (Phase 111):
+/// The <c>runs_v1</c> read contract view's <c>status_name</c> column:
 /// a hand-written <c>CASE</c> mapping the numeric <c>status</c> to its
 /// <see cref="RunStatus"/> name. The mapping is safe only as long as it
 /// actually names every <see cref="RunStatus"/> value.
 /// </summary>
 /// <remarks>
-/// Same shape as <see cref="ReadViewCostTermTests"/>: a future phase can
+/// Same shape as <see cref="ReadViewCostTermTests"/>: a later change can
 /// append a new <see cref="RunStatus"/> value (its numeric values are stable,
 /// so it is always appended, never inserted) and forget to append the
 /// matching branch inside the <c>-- status_name: BEGIN/END</c> block of all

@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A voice conversation follows a change to the MCP server its agent's tool comes
-/// from on its next turn (F-310, the class scan of the live voice case).
+/// from on its next turn (the class scan of the live voice case).
 /// </summary>
 /// <remarks>
 /// The connection resolved its agent once, at <c>start</c>, and ran every turn

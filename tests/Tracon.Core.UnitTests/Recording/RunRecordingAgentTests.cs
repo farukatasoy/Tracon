@@ -30,7 +30,7 @@ public sealed class RunRecordingAgentTests
         // 🚨 A document channel message is ChatRole.User too and, when
         // documents are given, precedes the actual query in the message
         // list - RunStarted.Text (the ONLY persisted source for eval-case
-        // promotion, phase 45) must still capture the REAL query, not the
+        // promotion) must still capture the REAL query, not the
         // document's own content.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var agent = CreateAgent(store, new FakeChatClient());
@@ -56,7 +56,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Document_channel_message_read_back_from_json_is_still_recognized()
     {
-        // 🚨 F-343 class: a SQL IRunInputStore keeps messages as JSON, and the
+        // 🚨 A SQL IRunInputStore keeps messages as JSON, and the
         // marker values come back as JsonElement, not string/int (measured on
         // SQLite, 2026-10-12). A replay or a continuation that re-sends such a
         // stored input recorded the DOCUMENT as the run's query and wrote no
@@ -144,7 +144,7 @@ public sealed class RunRecordingAgentTests
         // 🚨 A remote MCP tool answers with AIContent blocks. ToolResultText
         // could not read those, so the event payload and the tool invocation
         // record were both written as null: the run record said a tool had
-        // been called and nothing about what it answered (HATA-S1-026's class
+        // been called and nothing about what it answered (the class
         // scan).
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
@@ -236,7 +236,7 @@ public sealed class RunRecordingAgentTests
     public async Task Error_classifier_is_never_called_on_a_successful_run()
     {
         // Classification is on the hot path and runs only on the error path;
-        // it must not allocate on a successful run (Phase 44).
+        // it must not allocate on a successful run.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var spy = new SpyRunErrorClassifier();
         var agent = CreateAgent(store, new FakeChatClient(), spy);
@@ -267,7 +267,7 @@ public sealed class RunRecordingAgentTests
     }
 
     /// <summary>
-    /// Phase 113 (F-149): a registered <see cref="IRunErrorClassifier"/> is a
+    /// A registered <see cref="IRunErrorClassifier"/> is a
     /// consumer extension point running on an already-failing run's
     /// completion path - a bug in it must not stop the run from reaching its
     /// terminal state. Falls back to Tracon's built-in classification.
@@ -444,7 +444,7 @@ public sealed class RunRecordingAgentTests
     }
 
     /// <summary>
-    /// F-349: the summarization call runs on its own model, but the run priced
+    /// The summarization call runs on its own model, but the run priced
     /// its tokens at the agent's model, while the tree budget priced them at the
     /// summarization model. Each share is now priced at the model that spent it.
     /// </summary>
@@ -519,7 +519,7 @@ public sealed class RunRecordingAgentTests
     }
 
     /// <summary>
-    /// Phase 20: verifies that the pricing resolver is actually called and its result is
+    /// Verifies that the pricing resolver is actually called and its result is
     /// written to the store. Unlike the other tests, this one constructs
     /// <see cref="RunRecordingAgent"/> WITH modelId/modelProvider/pricingResolver — this
     /// path is what caught a bug recorded in KARARLAR.md (RunEventWriter.CompleteAsync

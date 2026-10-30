@@ -125,7 +125,7 @@ internal sealed class VoiceSpeechSegmenter
 
         // 🚨 A sentence end past the limit is not a cut point: the segment would be
         // longer than the limit. The scan stops at the limit, so the window cut
-        // below takes over (F-358; before it, one chunk with a late full stop
+        // below takes over (before it, one chunk with a late full stop
         // produced a 600-character segment).
         var scanEnd = Math.Min(span.Length, _maxSegmentLength);
 

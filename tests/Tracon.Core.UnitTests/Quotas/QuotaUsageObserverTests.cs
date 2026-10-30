@@ -48,7 +48,7 @@ public sealed class QuotaUsageObserverTests
     }
 
     /// <summary>
-    /// A refresh reads only the current periods' counters (F-275), not the
+    /// A refresh reads only the current periods' counters, not the
     /// tenant's whole usage history.
     /// </summary>
     [Fact]
@@ -195,7 +195,7 @@ public sealed class QuotaUsageObserverTests
         var measurement = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
 
         // 🚨 An unbounded-cardinality field like experiment_id/variant/run.id
-        // must NEVER be added HERE (K-146).
+        // must NEVER be added HERE.
         measurement.Tags.Keys.ShouldBe(
             [
                 TraconDiagnostics.Tags.TenantId,
@@ -260,7 +260,7 @@ public sealed class QuotaUsageObserverTests
                     EnableQuotaUsageGauge = enabled,
                     QuotaUsageRefreshInterval = TimeSpan.FromSeconds(30),
 
-                    // The metric tenant tag is off (Phase 238); the gauges carry the tenant regardless, and
+                    // The metric tenant tag is off; the gauges carry the tenant regardless, and
                     // Value_matches_the_quota_record_when_enabled reads it with the tag off.
                     IncludeTenantTag = false,
                 },

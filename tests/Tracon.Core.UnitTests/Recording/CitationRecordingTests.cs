@@ -8,7 +8,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-773 (phase 267): which annotations of a model response become a
+/// Which annotations of a model response become a
 /// <see cref="RunEventCustomTypes.Citation"/> event, and how many, through the run recorder on both of
 /// its paths.
 /// </summary>
@@ -218,7 +218,7 @@ public sealed class CitationRecordingTests
     [Fact]
     public async Task A_run_canceled_after_a_citation_keeps_the_citation_and_ends_Canceled()
     {
-        // F-550 sibling: the event is written with the caller's token, so a cancel that lands while the
+        // An earlier fix sibling: the event is written with the caller's token, so a cancel that lands while the
         // model is silent ends the run as Canceled, with what was recorded before it still recorded.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var registry = new RunCancellationRegistry();

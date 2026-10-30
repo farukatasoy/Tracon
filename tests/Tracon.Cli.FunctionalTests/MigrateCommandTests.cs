@@ -6,8 +6,8 @@ namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>tracon migrate</c> / <c>migrate status</c> against a real SQLite
-/// file, without an application ever starting (Phase 83,
-/// section 83.5, manual cases 1-3).
+/// file, without an application ever starting (
+/// Manual cases 1-3).
 /// </summary>
 [Collection(nameof(CliTestGroup))]
 public sealed class MigrateCommandTests

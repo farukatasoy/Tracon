@@ -13,7 +13,7 @@ type AcceptedBody<Path extends keyof paths> = paths[Path] extends {
 /**
  * `queued-workflow.test.ts` reads the 202 body through a cast, which compiles whatever the
  * schema says. These assertions bind the shape to the generated schema itself: a spec that
- * stops declaring the `202` body, or declares another one, fails the type check (F-435).
+ * stops declaring the `202` body, or declares another one, fails the type check.
  */
 test('a queued workflow run, resume and response are declared to answer 202 with the accepted-run shape', () => {
   expectTypeOf<AcceptedBody<'/api/workflows/{name}/run'>>().toEqualTypeOf<AcceptedRunResponse>();

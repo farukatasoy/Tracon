@@ -4,8 +4,8 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// Verifies the tool ledger a fallback chain shares across its links (phase
-/// 124, K-1): a tool call completed on one link must not run a second time
+/// Verifies the tool ledger a fallback chain shares across its links:
+/// a tool call completed on one link must not run a second time
 /// when the model asks the same question again on the next link.
 /// </summary>
 /// <remarks>

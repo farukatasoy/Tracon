@@ -6,9 +6,9 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Catalog;
 
 /// <summary>
-/// <c>IAgentDecorator</c> is a multi-registration seam (BL-008, phase 122): unlike
+/// <c>IAgentDecorator</c> is a multi-registration seam (BL-008): unlike
 /// <c>IAgentSource</c> and <c>IRunJudge</c>, it had no dedicated <c>Add*()</c> method before
-/// this phase. These tests prove the new <c>AddAgentDecorator</c> overloads follow the exact
+/// this change. These tests prove the new <c>AddAgentDecorator</c> overloads follow the exact
 /// same DI contract as their siblings, and that the documented escape-hatch before/after
 /// distinction on <c>ITraconBuilder.Services</c> is real, measured behavior.
 /// </summary>

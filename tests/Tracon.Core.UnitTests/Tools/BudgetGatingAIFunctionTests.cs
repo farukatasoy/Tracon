@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Tools;
 
 /// <summary>
-/// The tool budget gate (F-530) in the chain <see cref="ToolWrapperChain"/> composes: where it
+/// The tool budget gate in the chain <see cref="ToolWrapperChain"/> composes: where it
 /// sits, what it refuses, and what it leaves alone. The behavior through a real tool-call loop
 /// is in <c>ToolBudgetGateTests</c>.
 /// </summary>
@@ -92,7 +92,7 @@ public sealed class BudgetGatingAIFunctionTests
     [Fact]
     public async Task A_cancellation_stays_a_cancellation_while_the_budget_is_not_spent()
     {
-        // K-737: the gate reads no token. A call the caller cancelled is cancelled, not refused.
+        // The gate reads no token. A call the caller cancelled is cancelled, not refused.
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
 

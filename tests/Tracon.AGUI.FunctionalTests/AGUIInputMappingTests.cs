@@ -7,7 +7,7 @@ using Tracon.Testing;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// What an AG-UI request becomes: a Tracon run (Phase 236).
+/// What an AG-UI request becomes: a Tracon run.
 /// </summary>
 /// <remarks>
 /// These are functional because the claim is not that a mapper maps but that the request crosses the HTTP boundary, the
@@ -142,7 +142,7 @@ public sealed class AGUIInputMappingTests
     [Fact]
     public async Task A_thread_id_over_200_characters_is_a_400()
     {
-        // The sessions table of SQL Server holds nvarchar(200); a longer identity would be a 500 at the write (F-622).
+        // The sessions table of SQL Server holds nvarchar(200); a longer identity would be a 500 at the write.
         await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
 
         var response = await host.RunAsync(TestAgents.Echo, AGUIInputs.User(new string('t', 201), "hi"));

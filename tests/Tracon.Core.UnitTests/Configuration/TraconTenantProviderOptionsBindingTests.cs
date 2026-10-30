@@ -4,9 +4,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// Every key of <c>Tracon:TenantProviders</c> really reaches <see cref="TraconTenantProviderOptions"/>.
 /// </summary>
 /// <remarks>
-/// The section is bound by hand (K-021, AOT): a key added to the options and not to the binder is
+/// The section is bound by hand (AOT): a key added to the options and not to the binder is
 /// silently ignored. <c>RequireEgressPolicy</c> is a fail-closed security switch, so an unbound key
-/// would leave a deployment that wrote it believing tenants without a policy are refused (F-254).
+/// would leave a deployment that wrote it believing tenants without a policy are refused.
 /// </remarks>
 public sealed class TraconTenantProviderOptionsBindingTests
 {

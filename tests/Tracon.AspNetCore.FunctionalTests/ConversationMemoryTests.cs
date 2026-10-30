@@ -6,14 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.VectorData;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Tests.Common;
-// Same rationale as AgentExtensionRunTests.cs (K-269): the package's Tracon.Testing.TraconTestHost and
+// Same rationale as AgentExtensionRunTests.cs: the package's Tracon.Testing.TraconTestHost and
 // this project's own TraconTestHost share a name.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 233 (F-627): conversation memory through a real host — what a user said in one session
+/// Conversation memory through a real host — what a user said in one session
 /// reaches the model in another, for that user, that agent and that tenant only, and goes when its
 /// session goes.
 /// </summary>
@@ -50,7 +50,7 @@ public sealed class ConversationMemoryTests
     [Fact]
     public async Task The_run_record_counts_what_memory_added_apart_from_what_the_caller_sent()
     {
-        // F-773: the context event's AIContextProvider count is the answer to "did memory add anything".
+        // The context event's AIContextProvider count is the answer to "did memory add anything".
         // The real memory provider overrides a different method than a hand-made one (it hands the stamp
         // to the provider inside it), so only this provider shows that its message is counted as a
         // context provider's and not as the caller's own.
@@ -151,7 +151,7 @@ public sealed class ConversationMemoryTests
     [Fact]
     public async Task A_run_that_names_no_session_is_not_remembered()
     {
-        // Measured (phase 233): a request that names no session opens none, and a record without a session
+        // Measured: a request that names no session opens none, and a record without a session
         // could not be erased with its session. The rule is "no session, no memory".
         var (host, _, store) = await StartAsync();
 
@@ -262,8 +262,8 @@ public sealed class ConversationMemoryTests
     [Fact]
     public async Task A_workflow_agent_step_remembers_nothing_because_its_session_has_no_record_to_delete_it_with()
     {
-        // Measured (phase 233, F-643): the step runs under the workflow's own session id, and no sessions row
-        // carries it (F-332), so session delete, the sessions retention target and a session-keyed erasure could
+        // Measured: the step runs under the workflow's own session id, and no sessions row
+        // carries it, so session delete, the sessions retention target and a session-keyed erasure could
         // never reach what the step stored. The audit found the records written; they are not written now.
         var provider = new FakeModelProvider(ProviderName).ForModel("memory-1", static cfg => cfg.EchoesUserMessage());
         var store = new InMemoryVectorStore();
@@ -463,8 +463,8 @@ public sealed class ConversationMemoryTests
     [Fact]
     public async Task A_denying_handler_stops_the_on_demand_search_before_the_store_is_read_and_sees_the_effect_and_the_tenant()
     {
-        // Phase 246 (F-688): the search tool is supplied by the framework, so it is not in the tool registry, and until
-        // this phase it ran with none of the layers of the tool chain.
+        // The search tool is supplied by the framework, so it is not in the tool registry, and until
+        // this change it ran with none of the layers of the tool chain.
         var provider = OnDemandProvider();
         var store = new InMemoryVectorStore();
         await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");

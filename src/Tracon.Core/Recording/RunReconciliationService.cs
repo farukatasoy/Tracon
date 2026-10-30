@@ -53,7 +53,7 @@ internal sealed class RunReconciliationService(
             return;
         }
 
-        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt (K-354).
+        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt.
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -63,7 +63,7 @@ internal sealed class RunReconciliationService(
             return;
         }
 
-        // Single-executor selection (Phase 42): when disabled (the default),
+        // Single-executor selection: when disabled (the default),
         // guard.IsHeld is always true and RunAsync returns immediately without
         // issuing any query to the store.
         var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "run-reconciliation", logger);
@@ -151,7 +151,7 @@ internal sealed class RunReconciliationService(
             return;
         }
 
-        // F-764: an operator asked to cancel this run from another instance, and the process
+        // An operator asked to cancel this run from another instance, and the process
         // that owned it died before it read the request. The claim closed the row as Failed
         // (the process died; the operator's wish is not the cause), but opening a continuation
         // would run the work the operator asked to stop.
@@ -164,7 +164,7 @@ internal sealed class RunReconciliationService(
             return;
         }
 
-        // F-344: a workflow root, a workflow step or a callable sub-agent's run is
+        // A workflow root, a workflow step or a callable sub-agent's run is
         // not an agent turn of its own. The claim already closed it as Failed;
         // the event says why nothing follows, and for a workflow how to resume it.
         if (RunContinuationEligibility.Refusal(record) is { } refusal)
@@ -179,7 +179,7 @@ internal sealed class RunReconciliationService(
         // own, so it is opened here for the source run's OWN tenant. Without it,
         // the tool ledger silently reads empty and every run looks tool-free
         // (K memory note), and the chain walk stops at the first ancestor, so
-        // MaxAttempts above 1 never sees the older links (F-344 class scan).
+        // MaxAttempts above 1 never sees the older links.
         string? unsafeTool;
 
         using (AmbientTenantScope.Begin(tenantId))

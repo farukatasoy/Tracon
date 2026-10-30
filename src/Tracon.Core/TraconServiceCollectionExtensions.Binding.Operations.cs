@@ -117,7 +117,7 @@ public static partial class TraconServiceCollectionExtensions
         var read = ConfigurationValueReader.For(section, options);
 
         // Every sub-section is responsible for ITS OWN existence check: an
-        // early return silently swallows later sections (see docs/hafiza/cekirdek-calistirma.md).
+        // early return silently swallows later sections.
         if (!section.Exists())
         {
             return;
@@ -143,9 +143,9 @@ public static partial class TraconServiceCollectionExtensions
             static o => o.PublishThresholdToRunStream,
             static (o, v) => o.PublishThresholdToRunStream = v);
 
-        // F-247: a list that is present REPLACES the default. An entry that is not a
+        // A list that is present REPLACES the default. An entry that is not a
         // number is left out and named at startup with its position and its text
-        // (F-572); skipping it with no word started the application with a shorter
+        // Skipping it with no word started the application with a shorter
         // list than the operator wrote.
         read.Int32List(nameof(TraconQuotaOptions.ThresholdPercents), options.ThresholdPercents);
     }

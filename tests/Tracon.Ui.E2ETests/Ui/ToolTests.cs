@@ -28,7 +28,7 @@ public sealed class ToolTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/tools");
 
-        // In Phase 5 this screen carried a "arrives in the observability
+        // In this screen carried a "arrives in the observability
         // phase" note (deviation S5); real counts must be shown now.
         await Expect(session.Page.GetByText("calls").First).ToBeVisibleAsync();
     }
@@ -60,7 +60,7 @@ public sealed class ToolTests(BrowserFixture browsers)
         // fallback resolves 'data-server' without the page needing to know
         // the host's dynamically assigned port. The API key is read from a
         // query parameter and interpolated at REQUEST time (not baked into a
-        // constant): K-359 validates an `Authorization` header even when no
+        // constant): that decision validates an `Authorization` header even when no
         // `AuthToken` is configured on the host, so the widget's fetch call
         // needs a REAL RunsWrite-scoped key, not a placeholder string.
         await using var host = await UiHost.StartAsync(
@@ -96,7 +96,7 @@ public sealed class ToolTests(BrowserFixture browsers)
 
         // The registered handler runs and the tool result reaches the model —
         // proves the session the widget reserves up front is actually usable
-        // (regression coverage for the bug the Phase 61 audit found: the
+        // (regression coverage for the bug the audit found: the
         // widget used to never set a sessionId, so a pending tool call could
         // never be answered and the turn silently stalled).
         await Expect(session.Page.GetByText("Title: Shopping cart")).ToBeVisibleAsync();

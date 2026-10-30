@@ -4,10 +4,10 @@ namespace Tracon.Voice.UnitTests;
 
 /// <summary>
 /// The dialogue rule every implementation applies before it calls its service: the built-in ElevenLabs client and a
-/// third-party adapter refuse the same requests in the same words (K-955).
+/// third-party adapter refuse the same requests in the same words.
 /// </summary>
 /// <remarks>
-/// F-297: the rule moved out of the ElevenLabs client so a second dialogue implementation does not copy it.
+/// The rule moved out of the ElevenLabs client so a second dialogue implementation does not copy it.
 /// <c>SpeechDialogueValidationTests</c> keeps proving the ElevenLabs client refuses with it.
 /// </remarks>
 public sealed class SpeechDialogueCapabilitiesTests

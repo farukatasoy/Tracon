@@ -327,7 +327,7 @@ public sealed record AgentRunScope
     /// </remarks>
     internal FallbackModelAttribution? FallbackAttribution { get; init; }
 
-    // 🚨 F-360: before this holder, a judge whose binding had its own fallbacks
+    // Before this holder, a judge whose binding had its own fallbacks
     // wrote the run's fallback. runs.model_id named the judge's fallback model,
     // the agent's own tokens were priced at it, and the run got a
     // ModelFallbackUsed event its own model never caused.

@@ -120,7 +120,7 @@ public sealed class SecretLeakTests
         host.Logs.AllText.ShouldNotContain(Token);
     }
 
-    // --- Phase 53: API key ---
+    // --- an earlier change: API key ---
 
     [Fact]
     public async Task Raw_api_key_does_not_appear_in_the_listing()
@@ -187,7 +187,7 @@ public sealed class SecretLeakTests
     [Fact]
     public async Task A_tenant_speech_key_appears_in_no_response_and_no_log_line()
     {
-        // F-298: a speech refusal names the tenant, the provider and the key's NAME;
+        // A speech refusal names the tenant, the provider and the key's NAME;
         // the key's value stays in configuration. Both refusal kinds are exercised:
         // a provider that cannot use the key, and one that can (the call succeeds).
         const string KeyName = "Tracon:ProviderKeys:Studio";

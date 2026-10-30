@@ -86,10 +86,10 @@ internal sealed class WorkflowJobHandler(
                 "The workflow engine is not registered. Add the 'Tracon.Workflows' package and call UseWorkflows().");
         }
 
-        // 🚨 F-364: opened in THIS method's own body, before any item's root
+        // Opened in THIS method's own body, before any item's root
         // starts, and held across every MoveNextAsync of every item's stream.
         // The runner reads the attribution when it builds the root's scope
-        // (F-337), so a scope opened later, or in a helper, reaches no node.
+        // So a scope opened later, or in a helper, reaches no node.
         // Without it a workflow queued by a trigger, a schedule or
         // IJobDispatcher ran with no user and no labels.
         var queued = QueuedRunAttribution.Read(context.Job, logger);
@@ -127,13 +127,13 @@ internal sealed class WorkflowJobHandler(
                 }
             }
 
-            // 🚨 F-323, open question 13-A: the job's time limit ends the item's WORK. Left
+            // The job's time limit ends the item's WORK. Left
             // pending like a shutdown, the next attempt would continue its run from
             // the checkpoint, and the limit would stop nothing. The item fails with the
             // limit as its reason; the attempt then fails with it, so the items not
             // reached yet run in the next attempt, under a fresh limit.
             //
-            // 🚨 Only a run this attempt STARTED (K-926). A limit that arrives while the
+            // 🚨 Only a run this attempt STARTED. A limit that arrives while the
             // item is still prepared - its run id written, its chain read, closed or
             // extended - finds no work of this attempt to end, and what the preparation
             // wrote may be half done (a continuation's row written, the chain not closed
@@ -147,7 +147,7 @@ internal sealed class WorkflowJobHandler(
                 {
                     // The last item's run completed in the same instant: the work is
                     // done, and the job completes, as a queued run's job does and as any
-                    // handler that returns after its limit does (open question 8-A).
+                    // handler that returns after its limit does.
                     if (run.Settled)
                     {
                         return;
@@ -353,7 +353,7 @@ internal sealed class WorkflowJobHandler(
 
         if (item.RunId is not { } marked)
         {
-            // F-321: the run id is on the item BEFORE the run starts, so a job
+            // The run id is on the item BEFORE the run starts, so a job
             // leased again after a crash finds the run this item was processing.
             var runId = TraconId.NewId();
 
@@ -405,7 +405,7 @@ internal sealed class WorkflowJobHandler(
 
                 // No checkpoint in the chain: the process stopped before the first
                 // super-step ended, so there is nothing to resume from and the item
-                // runs again, in the same session and the same definition version (F-492).
+                // runs again, in the same session and the same definition version.
                 return plan.Checkpoint is { } checkpoint
                     ? () => runner!.ResumeStreamingAsync(
                         new WorkflowResumeRequest

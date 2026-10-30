@@ -25,7 +25,7 @@ public sealed class DefaultRunErrorClassifierTests
     [InlineData("System.Exception", "the operation has timed out", RunErrorClass.Timeout)]
     [InlineData("System.OperationCanceledException", "canceled", RunErrorClass.Canceled)]
     [InlineData("System.Threading.Tasks.TaskCanceledException", "canceled", RunErrorClass.Canceled)]
-    // 🚨 Phase 157 (K-737): the SAME type, classified differently by its
+    // The SAME type, classified differently by its
     // message. TaskCanceledException is what HttpClient raises on ITS OWN
     // request timeout, so the type alone cannot separate "the caller pressed
     // stop" from "the provider never answered". These two rows pin the ORDER
@@ -35,26 +35,26 @@ public sealed class DefaultRunErrorClassifierTests
     // failure numbers.
     [InlineData("System.Threading.Tasks.TaskCanceledException", "The request to https://api.example/v1 timed out after 30s.", RunErrorClass.Timeout)]
     [InlineData("System.OperationCanceledException", "A task was canceled.", RunErrorClass.Canceled)]
-    // Phase 69: a tool timeout must NOT fall into Canceled (its wrapper races
+    // A tool timeout must NOT fall into Canceled (its wrapper races
     // the call using its own linked cancellation, which looks identical to a
     // user cancellation at the exception-type level) nor into the run-level
     // Timeout class (that one means the WHOLE run exceeded its limit).
     [InlineData("tool_timeout", "Tool 'slow_tool' did not complete within 1s.", RunErrorClass.ToolTimeout)]
-    // Phase 114: mapped by STABLE IDENTITY, not the "quota" keyword pattern —
+    // Mapped by STABLE IDENTITY, not the "quota" keyword pattern —
     // the message below deliberately carries neither "quota" nor "kota" to
     // prove the mapping does not depend on the regex.
     [InlineData("run_budget_exceeded", "The run tree's token budget is exhausted (200000/200000). No further model calls can be made in this run tree.", RunErrorClass.QuotaExceeded)]
-    // F-529: a tenant's quota that refused work inside a running tree. By identity again: the text
+    // A tenant's quota that refused work inside a running tree. By identity again: the text
     // names a period and a limit, and a message with "timeout" or "rate" in it must not move the class.
     [InlineData("tenant_quota_exceeded", "Could not start function node 'render': The daily cost quota for the whole tenant has been exceeded (5/5). The counter resets at 2026-10-25T00:00:00.0000000+00:00.", RunErrorClass.QuotaExceeded)]
-    // Phase 192: a loop that fails on exhaustion is a quality rejection with its own
+    // A loop that fails on exhaustion is a quality rejection with its own
     // class; the message names a criterion, never a provider.
     [InlineData("loop_unsatisfied", "The loop of agent 'writer' reached its ceiling of 3 iterations while criterion 'aiJudge' still asked for another iteration, and OnExhausted is FailRun.", RunErrorClass.LoopUnsatisfied)]
-    // Phase 204 (F-320): a structured response cut off at the output limit. The
+    // A structured response cut off at the output limit. The
     // message names a provider; by identity it never reaches the provider-error
     // or quota patterns ("limit" and "provider" would otherwise read as a fault).
     [InlineData("output_truncated", "The 'anthropic' model stopped at the output token limit of 200 before the structured response was complete. A cut-off JSON document cannot be parsed, and a repair turn would hit the same limit, so none runs. Raise ModelBinding.MaxOutputTokens.", RunErrorClass.OutputTruncated)]
-    // Phase 196 (F-303, F-323): by STABLE IDENTITY. Neither message carries "timed out"
+    // By STABLE IDENTITY. Neither message carries "timed out"
     // or "timeout", so the rows prove the identity decides, not the message pattern.
     [InlineData("workflow_function_timeout", "Function node 'render' did not return within 00:00:02 and was cancelled.", RunErrorClass.Timeout)]
     [InlineData("job_max_duration_exceeded", "Workflow run was stopped: the job running it reached its limit (00:00:05).", RunErrorClass.Timeout)]
@@ -93,14 +93,14 @@ public sealed class DefaultRunErrorClassifierTests
     /// <see cref="RunErrorClass.ProviderError"/>.
     /// </summary>
     /// <remarks>
-    /// 🚨 Measured live (MT-RES-089, 2026-09-19) against an unroutable
+    /// 🚨 Measured live (2026-09-19) against an unroutable
     /// endpoint, and the FIRST run to reach here in this shape: the real SDK
     /// wraps its timeout, so <c>ProviderFailureNormalizer.ShouldNormalize</c>
     /// sees a foreign exception rather than the <c>OperationCanceledException</c>
     /// it lets through, and stamps <c>upstream_error</c> on it. That identity
     /// is matched BEFORE the message patterns, so the timeout check below could
     /// never see it and every provider timeout was filed as ProviderError —
-    /// undoing the distinction Phase 157 (K-737) exists to make.
+    /// undoing the distinction an earlier change exists to make.
     ///
     /// 🚨 The existing fake in <c>FailureManifests.ProviderTimeoutTests</c>
     /// cannot produce this: it throws <c>TaskCanceledException</c> DIRECTLY,
@@ -132,7 +132,7 @@ public sealed class DefaultRunErrorClassifierTests
     }
 
     /// <summary>
-    /// F-353: a provider that answered 429 is rate limited, the one fault the class
+    /// A provider that answered 429 is rate limited, the one fault the class
     /// exists for, whether or not the normalizer stood between it and the record.
     /// </summary>
     /// <remarks>
@@ -152,7 +152,7 @@ public sealed class DefaultRunErrorClassifierTests
     }
 
     /// <summary>
-    /// F-442: a tenant's refusal is classified by its stable type. Its text names the
+    /// A tenant's refusal is classified by its stable type. Its text names the
     /// tenant and the allowed providers, the operator's own words, and a name with
     /// "timeout" or "rate limit" in it made it a transient class.
     /// </summary>

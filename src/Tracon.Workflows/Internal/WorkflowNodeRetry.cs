@@ -87,7 +87,7 @@ internal static class WorkflowNodeRetry
                 // can plausibly fix - but HttpClient reports its own request
                 // timeout as a TaskCanceledException, so the old filter threw
                 // away exactly the failure this policy exists for. The node ran
-                // once and gave up. Same class as K-737, found by the phase 157
+                // once and gave up. Same class, found
                 // audit; the caller's token is what says whether anything was
                 // actually cancelled.
                 catch (Exception exception) when (
@@ -95,7 +95,7 @@ internal static class WorkflowNodeRetry
                     attempt < policy.MaxAttempts &&
                     IsTransient(classifier, logger, exception))
                 {
-                    // F-527: the attempt that is retried leaves no other trace. When a later
+                    // The attempt that is retried leaves no other trace. When a later
                     // attempt ends in a different error (a spent budget refuses it), the run row
                     // names that error only; this line is where the error that started the retry
                     // stays. The last attempt is not logged: it is the exception the node throws.
@@ -108,7 +108,7 @@ internal static class WorkflowNodeRetry
 
                     await Task.Delay(delay, timeProvider, cancellationToken).ConfigureAwait(false);
 
-                    // F-280: capped where the delay can still wait. Unbounded, the
+                    // Capped where the delay can still wait. Unbounded, the
                     // default doubling passed the timer's ceiling after about 22
                     // attempts and the next delay threw.
                     delay = TimeSpan.FromMilliseconds(
@@ -149,13 +149,13 @@ internal static class WorkflowNodeRetry
     /// </remarks>
     private static bool IsTransient(IRunErrorClassifier classifier, ILogger logger, Exception exception)
     {
-        // 🚨 F-338: the class alone decided this, and ProviderError holds every
-        // provider HTTP error (K-817). A node that got a 401 ran MaxAttempts
+        // The class alone decided this, and ProviderError holds every
+        // provider HTTP error. A node that got a 401 ran MaxAttempts
         // times, and a retried 409 on a non-idempotent call repeated its side
         // effect. The raw status is read too: a node can call an HTTP API that
         // never passes the model-call normalizer.
         //
-        // 🚨 F-429/F-442: a failure whose stable identity says the next attempt
+        // A failure whose stable identity says the next attempt
         // gets the same answer (a tenant's refusal, a truncated structured answer,
         // a compilation failure) is never retried either. The class of a refusal
         // came from its TEXT, and a tenant or provider name with "timeout" in it
@@ -165,14 +165,14 @@ internal static class WorkflowNodeRetry
             return false;
         }
 
-        // F-407: a spent budget stays spent for the run (cost and time only grow), so a retry
+        // A spent budget stays spent for the run (cost and time only grow), so a retry
         // cannot fix it. The classifier is not asked: a consumer's classifier that files
         // `run_budget_exceeded` under a transient class would make the node wait and ask
         // MaxAttempts times for the same answer. Local to the retry on purpose; FinalFailure
         // is also read by online evaluation, whose new run opens a new budget where the
         // refusal can change.
         //
-        // F-529: a tenant's spent quota is the same. It resets when its period ends, not between two
+        // A tenant's spent quota is the same. It resets when its period ends, not between two
         // attempts a few milliseconds apart.
         if (exception is TraconRunBudgetExceededException or TraconTenantQuotaExceededException)
         {

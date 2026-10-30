@@ -100,13 +100,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // this step, so a harmless no-op is given.
         CreateSchema = "SELECT 1;";
 
-        // set_name (phase 67): each migration SET numbers its own files from
+        // set_name: each migration SET numbers its own files from
         // 0001, so id alone is no longer unique — the primary key is
         // (set_name, id). A fresh database gets this shape directly; an
-        // existing one (created before phase 67) is upgraded by
+        // existing one (created) is upgraded by
         // SqliteDialect.UpgradeMigrationsTableAsync — NOT a numbered migration
-        // file (K-475). SQLite cannot ALTER a primary key in place (K-278's
-        // sibling), so that override rebuilds the table in code.
+        // file. SQLite cannot ALTER a primary key in place,
+        // so that override rebuilds the table in code.
         CreateMigrationsTable = $"""
             CREATE TABLE IF NOT EXISTS {Schema}__migrations (
                 set_name   TEXT    NOT NULL DEFAULT 'core',
@@ -249,7 +249,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // See PostgresQueries: `version` advances, it is never taken from
         // the incoming row.
         // See PostgresQueries: owner_id is COALESCEd, never taken straight
-        // from the incoming row (K-486).
+        // from the incoming row.
         UpsertSession = $"""
             INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, state_schema_version, created_at, updated_at, version, state_maf_version, owner_id)
             VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version, @owner_id)
@@ -277,7 +277,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Runs ---
 
-        // 🚨 Phase 46: this is an UPSERT. A queued run is first written as
+        // This is an UPSERT. A queued run is first written as
         // Queued; when the worker actually runs the job, it is called a
         // second time with the SAME id and the row is updated in place (no
         // new row is OPENED).
@@ -306,12 +306,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 experiment_id = excluded.experiment_id,
                 variant       = excluded.variant,
                 replay_of_run_id = excluded.replay_of_run_id,
-                -- F-321: COALESCE for the same reason as the attribution below. The
+                -- COALESCE for the same reason as the attribution below. The
                 -- party that opens a continuation writes the row with the link; the
                 -- engine that runs it writes it again and does not know the link.
                 continued_from_run_id = COALESCE(excluded.continued_from_run_id, continued_from_run_id),
-                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
-                -- 46): a queued run's placeholder row is written during the HTTP
+                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
+                -- a queued run's placeholder row is written during the HTTP
                 -- request, where the user IS known, and rewritten later by the
                 -- background worker, where it is NOT (an HTTP-bound
                 -- IRunAttributionContext has no request to read). A plain
@@ -379,12 +379,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Orphaned run reconciliation (Phase 54). Affects only Running and Queued
-        // rows (Phase 240: a run waiting in-process for a workflow slot is Queued
+        // Orphaned run reconciliation. Affects only Running and Queued
+        // rows (a run waiting in-process for a workflow slot is Queued
         // and still owned by this process); for a nonexistent id or one in a
         // different status it silently updates zero rows.
         //
-        // F-764: the statement also reads the row's cancellation request back (RETURNING),
+        // The statement also reads the row's cancellation request back (RETURNING),
         // so the owner finds a cancel in the same round trip that writes its heartbeat.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}runs
@@ -393,12 +393,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING tenant_id, cancel_requested_at;
             """;
 
-        // heartbeat_at/started_at are already ISO 8601 TEXT (K-191's adjacent
+        // heartbeat_at/started_at are already ISO 8601 TEXT (the adjacent
         // rule: timestamps are written by hand), so they can be concatenated
         // directly with `||` -- no need for the `::text` cast used in
         // PostgreSQL. error_fingerprint is a CONSTANT string ("orphaned") --
         // the rationale is the same as in the PostgreSQL version, and so is the
-        // Queued rule (Phase 240): a Queued row is claimed only when it has a
+        // Queued rule: a Queued row is claimed only when it has a
         // heartbeat.
         ClaimOrphanedRuns = $"""
             UPDATE {Schema}runs
@@ -423,14 +423,14 @@ internal sealed class SqliteQueries : SqlQueriesBase
                       error_fingerprint, continued_from_run_id, cancel_requested_at;
             """;
 
-        // Phase 68 attribution filter, written ONCE and reused by the run list
+        // attribution filter, written ONCE and reused by the run list
         // and by every result set of the statistics query.
         //
         // 🚨 The NULL check is an explicit guard, not a COALESCE to an empty
         // object: json_each over NULL is not worth relying on, and a literal
         // brace cannot appear in a single-'$' raw interpolated string anyway.
         // json_each is a BUILT-IN table-valued function and therefore carries no
-        // schema prefix -- unlike every real table here (K-193/K-259).
+        // schema prefix -- unlike every real table here.
         static string AttributionFilter(string prefix) => $"""
                       AND (@user_id IS NULL OR {prefix}user_id = @user_id)
                       AND (@label_key IS NULL
@@ -479,7 +479,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             (SELECT SUM(sub.cached_input_cost)   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.continued_from_run_id,
             r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
-            -- phase 199: what the run reported beyond tokens, then what its descendants did.
+            -- What the run reported beyond tokens, then what its descendants did.
             -- Their own totals, NOT terms of the token cost, and NOT coalesced:
             -- non_token_unsummed is NULL when nobody reported anything.
             r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
@@ -487,11 +487,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
             (SELECT {ReportedCurrencyLabel("sub")} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(*) FILTER (WHERE sub.non_token_estimated = 1) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT SUM(sub.non_token_unsummed) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            -- F-419: the descendants' currencies the run's own row does not carry; the
+            -- The descendants' currencies the run's own row does not carry; the
             -- reader adds the own one and leaves a mixed total out.
             (SELECT {DescendantCurrencyCount(PricedCurrency, "sub", PricedCurrency("r"))}   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT {DescendantCurrencyCount(ReportedCurrency, "sub", ReportedCurrency("r"))} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            -- phase 253 (F-420): what the run wrote into the prompt cache, then what its
+            -- What the run wrote into the prompt cache, then what its
             -- descendants did. NOT coalesced, like the cache read; cache_write_cost is the
             -- FOURTH addend of the tree total, not a subset of input_cost.
             r.cache_write_input_tokens, r.cache_write_long_input_tokens, r.cache_write_cost,
@@ -517,8 +517,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND (@kind       IS NULL OR r.kind       = @kind)
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
-                    -- HATA-S2-001: session_id is set only on the ROOT run
-                    -- (K-217); a child run's own session_id is NULL. Direct
+                    -- Session_id is set only on the ROOT run
+                    --A child run's own session_id is NULL. Direct
                     -- equality combined with "includeChildren=true" would
                     -- match no child run -- it also matches if the ROOT of
                     -- the record's own tree belongs to this session.
@@ -543,7 +543,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
 
-        // scored_runs/positive_rate (Phase 31): matchedRunScoresFilter repeats
+        // scored_runs/positive_rate: matchedRunScoresFilter repeats
         // the SAME filter as runs (tenant/eval/agent/date) -- it is added as a
         // scalar subquery instead of a separate CTE so that the existing
         // totals row can be extended with the smallest possible change.
@@ -587,9 +587,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    {TreeSum("reasoning_tokens", null, true)},
                    {TreeSum("audio_input_tokens", null, true)},
                    {TreeSum("audio_output_tokens", null, true)},
-                   -- Ordinal 18 (F-419): the currencies the costs above are in.
+                   -- Ordinal 18: the currencies the costs above are in.
                    {CostCurrencyCount(null)},
-                   -- Ordinals 19-20 (F-420): the cache writes, counted INSIDE the input total.
+                   -- Ordinals 19-20: the cache writes, counted INSIDE the input total.
                    {TreeSum("cache_write_input_tokens", null, true)},
                    {TreeSum("cache_write_long_input_tokens", null, true)}
             FROM {Schema}runs
@@ -647,9 +647,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY agent_name, agent_version DESC
             LIMIT @max_agents;
 
-            -- Fifth result set: error class breakdown (Phase 44). Rows with
+            -- Fifth result set: error class breakdown. Rows with
             -- error_class NULL (written before error classification was
-            -- added) fall into the Unknown (0) bucket -- K-014 does not
+            -- added) fall into the Unknown (0) bucket -- the earlier decision does not
             -- backfill.
             SELECT COALESCE(error_class, 0),
                    COUNT(*)
@@ -705,7 +705,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE cluster_rank <= @top_clusters
             ORDER BY error_class, cluster_count DESC;
             
-            -- Seventh result set: breakdown by user (phase 68). Runs carrying no
+            -- Seventh result set: breakdown by user. Runs carrying no
             -- user stay OUT of this list but remain in the totals, exactly as
             -- runs with an unknown model do. APPENDED after the existing sets so
             -- their positions in SqlRunStore hold.
@@ -759,12 +759,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 SET updated_at = excluded.updated_at;
             """;
 
-        // --- Conversation branching (Phase 47) ---
+        // --- Conversation branching ---
         // See PostgresQueries for the rationale and column meanings.
-        // 🚨 Table names carry a PREFIX (K-193): {Schema} is not a schema, it
+        // 🚨 Table names carry a PREFIX: {Schema} is not a schema, it
         // is a prefix.
 
-        // --- Run inputs (Phase 47) ---
+        // --- Run inputs ---
 
         InsertRunInput = $"""
             INSERT INTO {Schema}run_inputs (run_id, tenant_id, messages, created_at, parameters)
@@ -882,7 +882,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 -- RunScore.MessageId is "if EMPTY, the score belongs to the
                 -- whole run" -- empty covers both NULL and ''. Matching only
                 -- NULL would drop a '' row out of the arm average while the
-                -- score summary (phase 154) still counted it as run-level.
+                -- score summary still counted it as run-level.
                 WHERE tenant_id = @tenant_id AND kind = @score_kind_numeric
                   AND (message_id IS NULL OR message_id = '')
                 GROUP BY run_id
@@ -902,7 +902,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                         THEN NULL ELSE {CostTotal("r")} END,
                    {CostCurrencyLabel("r")},
                    AVG(s.avg_score),
-                   -- F-419: the currencies the arm's cost is in.
+                   -- The currencies the arm's cost is in.
                    {CostCurrencyCount("r")}
             FROM {Schema}runs r
             LEFT JOIN run_avg_scores s ON s.run_id = r.id
@@ -915,7 +915,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // strftime/datetime work directly (SqliteDialect.AddTimestamp). Empty
         // buckets are also returned: otherwise a gap in the chart would look
         // like "zero" instead of "no data".
-        // One filter for the buckets and for the series' currency count (F-419): a copy
+        // One filter for the buckets and for the series' currency count: a copy
         // that drifted would count the currencies of other runs than the ones it adds.
         var timeSeriesFilter = """
                 WHERE tenant_id = @tenant_id
@@ -957,7 +957,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             {timeSeriesFilter}
                 GROUP BY bucket
             ),
-            -- F-419: a point carries no currency, so the WHOLE series is judged as one.
+            -- A point carries no currency, so the WHOLE series is judged as one.
             series AS (
                 SELECT {CostCurrencyCount(null)} AS currencies
                 FROM {Schema}runs
@@ -1022,9 +1022,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // A second rule for the same scope is not opened; the existing record
         // is returned. The constraint is an expression index with COALESCE:
         // like PostgreSQL, SQLite does NOT count NULLs as equal to each
-        // other. conditions_hash (Phase 63) joined the key so a data-rule
+        // other. conditions_hash joined the key so a data-rule
         // condition set is bound by the same rule as arguments_hash, and
-        // source_fingerprint (F-283) joined it so a rule for a server that
+        // source_fingerprint joined it so a rule for a server that
         // moved to another endpoint is a new rule.
         InsertToolApprovalRule = $"""
             INSERT INTO {Schema}tool_approval_rules ({approvalColumns}, conditions_hash)
@@ -1107,7 +1107,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     updated_at = excluded.updated_at;
             """;
 
-        // Phase 51, Work Item A: the prefix, depth limit, and glob go down to
+        // Work Item A: the prefix, depth limit, and glob go down to
         // SQL. SQLite carries no native regex; the regex_pattern parameter is
         // sent to keep the same call shape as PostgresQueries but is NOT USED
         // here -- the final match is always done client-side with .NET Regex.
@@ -1124,7 +1124,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY path;
             """;
 
-        // Phase 234: the session workspace is measured by the bytes the text takes (UTF-8).
+        // The session workspace is measured by the bytes the text takes (UTF-8).
         SelectAgentFileTreeUsage = $"""
             SELECT COUNT(*), COALESCE(SUM(length(CAST(content AS BLOB))), 0)
             FROM {Schema}agent_files
@@ -1164,7 +1164,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take;
             """;
 
-        // --- Audit hash chain (Phase 64) ---
+        // --- Audit hash chain ---
 
         // 🚨 Ordered by `rowid`, NOT `(created_at, id)` — see PostgreSQL
         // 0031_audit_chain.sql for why timestamp/uuid ordering is wrong here.
@@ -1216,7 +1216,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE enabled = 1 AND cron IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= @as_of;
             """;
 
-        // --- Inbound triggers (Phase 66) ---
+        // --- Inbound triggers ---
 
         UpsertInboundTrigger = $"""
             INSERT INTO {Schema}inbound_triggers ({InboundTriggerColumns})
@@ -1258,7 +1258,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING {JobColumns};
             """;
 
-        // The same statement with a per-tenant ceiling (Phase 240); the rule, and the single uncorrelated
+        // The same statement with a per-tenant ceiling; the rule, and the single uncorrelated
         // subquery that finds the tenants at the ceiling, are the PostgreSQL text's. SQLite is a single
         // writer, so the count and the lease cannot interleave with another worker's: the ceiling holds
         // exactly here.
@@ -1330,7 +1330,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
-        // (Phase 45, section 45.2). SQLite 3.35+
+        // SQLite 3.35+
         // supports RETURNING (already used in the other eval queries).
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}eval_cases
@@ -1465,7 +1465,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
 
-        // --- Phase 53: tenant-scoped API keys ---
+        // --- Tenant-scoped API keys ---
 
         InsertApiKey = $"""
             INSERT INTO {Schema}api_keys ({ApiKeyColumns})
@@ -1473,7 +1473,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     @last_used_at, @created_at);
             """;
 
-        // Setup health check (ExternalSurfaceGuard, section 53.4): the tenant
+        // Setup health check (ExternalSurfaceGuard): the tenant
         // filter is DELIBERATELY absent. scopes is a JSON array.
         HasApiKeyWithScope = $"""
             SELECT EXISTS (
@@ -1484,9 +1484,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             );
             """;
 
-        // Upsert is identical to PostgreSQL (K-194): a single-statement
+        // Upsert is identical to PostgreSQL: a single-statement
         // INSERT ... ON CONFLICT ... RETURNING; SQL Server's two-branch
-        // pattern (K-177) is absent here.
+        // pattern is absent here.
         UpsertRetentionPolicy = $"""
             INSERT INTO {Schema}retention_policies
                 ({RetentionPolicyColumns})
@@ -1544,10 +1544,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 31 -- run/message score
+        // Run/message score
         // -------------------------------------------------------------------
 
-        // Upsert is identical to PostgreSQL (K-194): message_id is equalized
+        // Upsert is identical to PostgreSQL: message_id is equalized
         // with COALESCE(…, ''), author is DELIBERATELY NOT COALESCED --
         // SQLite also does not count NULLs as equal to each other, so when
         // author is empty (an identity-less setup) each call opens a new row.
@@ -1568,7 +1568,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 154 -- score summary (a query, not a counter; 154.1)
+        // Score summary (a query, not a counter; 154.1)
         // -------------------------------------------------------------------
 
         // Shared by every breakdown AND the series query below. `prefix` is
@@ -1689,7 +1689,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // A single result set, run only when RunScoreQuery.Bucket is given
-        // (154, open question 5: no cost when it is not). Buckets with no
+        // (154: no cost when it is not). Buckets with no
         // matching score are NOT produced -- a sparse series, unlike
         // SelectRunTimeSeries.
         SelectRunScoreSeries = $"""
@@ -1709,7 +1709,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY bucket, name;
             """;
 
-        // Upsert is identical to PostgreSQL (K-194).
+        // Upsert is identical to PostgreSQL.
         AcquireSingletonLease = $"""
             INSERT INTO {Schema}singleton_leases (name, owner_id, expires_at, updated_at)
             VALUES (@name, @owner_id, @expires_at, @now)
@@ -1722,7 +1722,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING name;
             """;
 
-        // Rate-limit window counter (Phase 263). Same upsert as PostgreSQL (K-194). The
+        // Rate-limit window counter. Same upsert as PostgreSQL. The
         // timestamp is the fixed-width UTC text AddTimestamp writes, so comparing and MAX()
         // order by time; scalar MAX(a, b) is the two-argument form.
         IncrementRateLimitCounter = $"""
@@ -1779,7 +1779,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                        decided_by, decided_at, expires_at, created_at, presentation;
             """;
 
-        // Phase 209 -- the workflow request inbox (see PostgreSQL for the pattern). SQLite
+        // The workflow request inbox (see PostgreSQL for the pattern). SQLite
         // accepts a row value in IN (3.15) and RETURNING (3.35).
         SelectWorkflowRequests = BuildSelectWorkflowRequests("LIMIT @take OFFSET @skip;");
 
@@ -1799,7 +1799,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 65 -- tenant provider bindings (BYOK) and egress policy
+        // Tenant provider bindings (BYOK) and egress policy
         // -------------------------------------------------------------------
 
         UpsertTenantProviderBinding = $"""

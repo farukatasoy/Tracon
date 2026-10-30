@@ -9,11 +9,11 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// <see cref="TraconKnowledgeOptions"/>.
 /// </summary>
 /// <remarks>
-/// 🚨 F-416. The options said they were read from <c>Tracon:Knowledge</c>, and the
+/// The options said they were read from <c>Tracon:Knowledge</c>, and the
 /// section was bound nowhere: a configured dimension, chunk size or result limit
 /// was ignored. Found while adding <see cref="TraconKnowledgeOptions.EmbeddingProvider"/>,
 /// which a tenant egress policy is judged against and therefore must come from
-/// configuration. The same shape as <c>TraconImageOptions.Timeout</c> (F-247).
+/// configuration. The same shape as <c>TraconImageOptions.Timeout</c>.
 /// </remarks>
 public sealed class TraconKnowledgeOptionsBindingTests
 {

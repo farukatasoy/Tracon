@@ -80,7 +80,7 @@ public sealed class McpElicitationHandlerTests
     [Fact]
     public async Task An_agent_below_the_root_of_a_tree_cannot_ask_the_user()
     {
-        // K-103: a sub-agent cannot wait in the middle of its parent's tree.
+        // A sub-agent cannot wait in the middle of its parent's tree.
         var scope = OpenScope(Run(depth: 1));
         var logger = new CapturingLogger();
 

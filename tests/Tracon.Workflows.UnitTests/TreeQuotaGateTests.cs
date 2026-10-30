@@ -5,7 +5,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// A tenant's quota is read where a workflow's work begins, not only where the request comes in: a function node
-/// or an agent step of a run that is already going does not start once the quota is spent (F-529).
+/// or an agent step of a run that is already going does not start once the quota is spent.
 /// </summary>
 /// <remarks>
 /// <para>

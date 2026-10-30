@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.WorkflowSettingsFixtures;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>GET /api/workflows/functions</c> carries the schema of each function's settings (F-295), for
+/// <c>GET /api/workflows/functions</c> carries the schema of each function's settings, for
 /// display only: it lets the console tell an operator what a node of that function takes.
 /// </summary>
 public sealed class WorkflowFunctionCatalogSchemaTests

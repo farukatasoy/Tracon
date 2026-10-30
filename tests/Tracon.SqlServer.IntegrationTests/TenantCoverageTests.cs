@@ -10,7 +10,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Added in phase 41. The easiest thing to miss is a method added
+/// The easiest thing to miss is a method added
 /// <em>tomorrow</em> that is left untested; this audit turns that into a
 /// build failure right after compilation.
 /// </para>
@@ -72,7 +72,7 @@ public sealed class TenantCoverageTests
             ["CountOlderThanAsync", "ReadForArchiveAsync", "DeleteBatchAsync", "ArchiveBatchAsync", "FindRowLimitCutoffAsync"],
         ["SqlRunScoreStore"] = ["UpsertAsync", "ListAsync", "DeleteAsync", "SummarizeAsync"],
         // 🚨 Four write paths moved from exempt to covered on 2026-08-08
-        // (K-355): AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync and
+        // AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync and
         // RecordToolInvocationAsync are now filtered by the EXPECTED tenant
         // carried by the call, and RunStoreContract checks this both ways.
         // CompleteLateToolInvocationAsync joined them on 2026-09-18 with the
@@ -119,15 +119,15 @@ public sealed class TenantCoverageTests
         // used to be listed here instead, which meant the gate passed on an
         // assertion no contract actually made.
         ["SqlPendingApprovalStore"] = ["CreateAsync", "ListPendingAsync", "GetAsync", "DecideAsync"],
-        // Phase 208: WorkflowResponseStoreContract writes both tenants' claims (AddAsync), reads
+        // WorkflowResponseStoreContract writes both tenants' claims (AddAsync), reads
         // them back per tenant (FindClaimAsync, GetAsync, ListBySourceRunAsync) and proves another
         // tenant can neither abandon (ReplaceAsync) nor deliver (MarkDeliveredAsync) a record.
         ["SqlWorkflowResponseStore"] = ["AddAsync", "FindClaimAsync", "ReplaceAsync", "MarkDeliveredAsync", "ListBySourceRunAsync", "GetAsync"],
-        // Phase 209: WorkflowRequestStoreContract writes both tenants' rows (AddAsync), lists them per
+        // WorkflowRequestStoreContract writes both tenants' rows (AddAsync), lists them per
         // tenant (ListAsync, ListByRunAsync) and proves another tenant's answer marks nothing
         // (MarkAnsweredAsync). ExpireAsync is [TenantAgnostic] maintenance work.
         ["SqlWorkflowRequestStore"] = ["AddAsync", "ListAsync", "ListByRunAsync", "MarkAnsweredAsync"],
-        // Every method is [TenantAgnostic] by design (Phase 156): an upgrade
+        // Every method is [TenantAgnostic] by design: an upgrade
         // replaces the process for every tenant at once, so a tenant-filtered
         // preflight would under-report the risk.
         ["SqlStatePreflightReader"] = [],
@@ -249,7 +249,7 @@ public sealed class TenantCoverageTests
 
     /// <summary>
     /// Finds every store class in the provider assembly (linked source,
-    /// K-176).
+    /// That decision).
     /// </summary>
     /// <returns>The store types.</returns>
     private static IReadOnlyList<Type> DiscoverStores()
@@ -282,7 +282,7 @@ public sealed class TenantCoverageTests
             string.Equals(contract.Namespace, "Tracon", StringComparison.Ordinal)
             && (contract.Name.EndsWith("Store", StringComparison.Ordinal)
                 || string.Equals(contract.Name, "IAuditLog", StringComparison.Ordinal)
-                // Phase 156: a read-only surface over the SAME tenant-bearing
+                // A read-only surface over the SAME tenant-bearing
                 // tables. It is named "Reader" rather than "Store" precisely
                 // because it never writes, which is exactly how a persistence
                 // surface would otherwise slip out of this gate.

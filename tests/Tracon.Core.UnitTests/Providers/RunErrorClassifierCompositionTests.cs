@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Providers;
 
 /// <summary>
-/// Verifies Phase 113 (F-149)'s composition path: a consumer's
+/// Verifies the earlier change's composition path: a consumer's
 /// <see cref="IRunErrorClassifier"/> can wrap <see cref="DefaultRunErrorClassifier"/>
 /// (now public, zero-dependency, safe to <c>new</c> up directly - no DI
 /// required) and <see cref="RunErrorFingerprint"/> to defer to Tracon's
@@ -44,7 +44,7 @@ public sealed class RunErrorClassifierCompositionTests
         // A consumer's classifier that builds its OWN RunErrorClassification
         // (rather than delegating the whole call to the built-in) must still
         // land its runs in the same cluster - this is what
-        // RunErrorFingerprint (Open Question 2 -> B, a thin public facade) is for.
+        // RunErrorFingerprint (-> B, a thin public facade) is for.
         const string message = "Provider returned 429 Too Many Requests, run 3f2a1c4e-8b9d-4e11-9a2f-7c6d5e4f3a2b";
 
         var viaBuiltInClassifier = new DefaultRunErrorClassifier()
@@ -61,7 +61,7 @@ public sealed class RunErrorClassifierCompositionTests
         RunErrorFingerprint.Compute(null).ShouldBe(RunErrorFingerprint.Compute(string.Empty));
     }
 
-    /// <summary>The composition pattern from the phase 113 plan (section 113.3), verbatim.</summary>
+    /// <summary>The composition pattern from the plan, verbatim.</summary>
     private sealed class AcmeErrorClassifier(DefaultRunErrorClassifier builtIn) : IRunErrorClassifier
     {
         public RunErrorClassification Classify(RunError runError)

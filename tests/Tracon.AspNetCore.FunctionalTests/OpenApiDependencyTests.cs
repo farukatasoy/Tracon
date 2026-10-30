@@ -3,7 +3,7 @@ using System.Xml.Linq;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 🚨 Protects the K-039/L35 rationale: <c>Tracon.AspNetCore</c> does not
+/// 🚨 Protects the that decision/L35 rationale: <c>Tracon.AspNetCore</c> does not
 /// force OpenAPI generation on the consumer, it only carries endpoint
 /// metadata coming from the shared framework.
 /// </summary>
@@ -37,7 +37,7 @@ public sealed class OpenApiDependencyTests
             references.ShouldNotContain(
                 reference => string.Equals(reference, banned, StringComparison.Ordinal),
                 customMessage: $"'Tracon.AspNetCore' references '{banned}'; " +
-                               "K-039/L35 keeps it outside the library boundary (section 40.1).");
+                               "This keeps it outside the library boundary.");
         }
     }
 

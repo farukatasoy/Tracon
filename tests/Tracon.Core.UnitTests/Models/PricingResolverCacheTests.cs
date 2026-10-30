@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// Verifies how cached input tokens are priced (phase 68): the computation is
+/// Verifies how cached input tokens are priced: the computation is
 /// subtractive, an undefined cache rate changes nothing, and a self-contradicting
 /// usage record never produces a negative charge.
 /// </summary>
@@ -193,7 +193,7 @@ public sealed class PricingResolverCacheTests
     public void Reasoning_tokens_are_priced_at_the_output_rate_and_add_nothing_extra()
     {
         // Reasoning tokens are counted INSIDE OutputTokens, so recording them must
-        // not change the total (open question 2: today's output rate, field open).
+        // not change the total (today's output rate, field open).
         var resolver = CreateResolver(CachePricedModel());
 
         var withReasoning = resolver.Resolve(

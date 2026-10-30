@@ -71,7 +71,7 @@ internal sealed class SpeakTool : VoiceToolBase
         var text = RequireText(arguments, "text");
         var options = Resolve<IOptions<VoiceOptions>>().Value;
 
-        // F-298: resolved per call, through the tenant's checks. The resolver was
+        // Resolved per call, through the tenant's checks. The resolver was
         // taken from the setup-time provider; the one MAF passes the tool is empty.
         var synthesizer = await Resolve<ISpeechProviderResolver>()
             .GetSynthesizerAsync(name: null, cancellationToken)
@@ -79,7 +79,7 @@ internal sealed class SpeakTool : VoiceToolBase
 
         // The limit is the BOUND synthesizer's, the value the HTTP endpoint
         // reads too (ISpeechSynthesizer.MaxCharactersPerRequest). The setting
-        // is only the built-in client's answer to that question (F-336).
+        // is only the built-in client's answer to that question.
         var maxCharacters = synthesizer.MaxCharactersPerRequest;
 
         if (text.Length > maxCharacters)
@@ -130,7 +130,7 @@ internal sealed class SpeakTool : VoiceToolBase
                 // 🚨 The session id is REQUIRED. If left empty, the retention
                 // policy treats the attachment as orphaned and deletes it after
                 // the cutoff date; the audio in the transcript disappears while
-                // the session is still alive (docs/28, G1).
+                // the session is still alive.
                 SessionId = scope?.SessionId,
                 RunId = scope?.RunId,
                 FileName = AttachmentFileNames.For("speech", validation.MediaType!, DateTimeOffset.UtcNow),

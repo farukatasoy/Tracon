@@ -75,7 +75,7 @@ public sealed class OpenApiDocumentTests
     /// of loss: it only proves the committed file matches what the host produces, so
     /// refreshing the snapshot after a regression hides the regression.
     /// <para>
-    /// Measured in Phase 59: registering the document transformer as
+    /// Measured: registering the document transformer as
     /// <c>AddOpenApi(Configure)</c> instead of a bare <c>AddOpenApi()</c> plus a named
     /// <c>Configure&lt;OpenApiOptions&gt;</c> silently dropped the <c>description</c>
     /// of every schema property — 166 of 226 schemas — because .NET 10's XML

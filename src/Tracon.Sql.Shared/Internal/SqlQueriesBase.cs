@@ -1214,7 +1214,7 @@ internal abstract class SqlQueriesBase
     /// <summary>The marker that stands in for the schema name in the embedded SQL files.</summary>
     public const string SchemaPlaceholder = "{schema}";
 
-    // --- Shared column lists (phase 94): identical text across all three
+    // --- Shared column lists: identical text across all three
     //     providers, used by both the queries built here and the dialect's own.
     protected const string McpServerColumns = """
             id, tenant_id, name, description, endpoint, transport,
@@ -1228,15 +1228,15 @@ internal abstract class SqlQueriesBase
             next_run_at, last_run_at, created_by, created_at, updated_at, lane
             """;
 
-    // Phase 208: SqlWorkflowResponseStore reads these by fixed ordinal; a new column is
-    // appended at the end (docs/hafiza/postgresql.md).
+    // SqlWorkflowResponseStore reads these by fixed ordinal; a new column is
+    // appended at the end.
     protected const string WorkflowResponseColumns = """
             response_run_id, tenant_id, source_run_id, session_id, request_id, claim_scope,
             answer_hash, status, responded_by, responded_at
             """;
 
-    // Phase 209: SqlWorkflowRequestStore reads these by fixed ordinal; a new column is
-    // appended at the end (docs/hafiza/postgresql.md).
+    // SqlWorkflowRequestStore reads these by fixed ordinal; a new column is
+    // appended at the end.
     protected const string WorkflowRequestColumns = """
             run_id, request_id, tenant_id, session_id, workflow_name, port_id, event_seq, requested_at,
             expires_at, status, answered_at, last_response_run_id, closed_at
@@ -1376,8 +1376,8 @@ internal abstract class SqlQueriesBase
     protected const string RetentionRunColumns =
          "id, tenant_id, target, deleted_rows, archived_rows, started_at, completed_at, error";
 
-    // 🚨 name and text_value are APPENDED (phase 152), and evaluator_version
-    // after them (phase 176), not slotted in: the reader
+    // 🚨 name and text_value are APPENDED, and evaluator_version
+    // after them, not slotted in: the reader
     // (SqlRunScoreStore.Read) addresses columns by ordinal, so an insertion in
     // the middle would silently shift every field after it.
     protected const string RunScoreColumns =
@@ -1397,7 +1397,7 @@ internal abstract class SqlQueriesBase
     {
         SelectAppliedMigrations = $"SELECT set_name, id, name, checksum FROM {Table("__migrations")} ORDER BY set_name, id;";
 
-        // --- State preflight (Phase 156): read-only, tenant-agnostic ---
+        // --- State preflight: read-only, tenant-agnostic ---
         //
         // COUNT(*) is int on SQL Server and bigint on PostgreSQL; the CAST
         // makes all three providers hand back the same CLR type, so the
@@ -1446,7 +1446,7 @@ internal abstract class SqlQueriesBase
             VALUES (@set_name, @id, @name, @checksum, @applied_at);
             """;
 
-        // F-764: the expected tenant is part of the WHERE, so a row of another tenant
+        // The expected tenant is part of the WHERE, so a row of another tenant
         // is simply not found (zero rows). COALESCE keeps the FIRST request time on
         // a repeated call, and the call still counts as a hit (idempotent).
         RequestRunCancellation = $"""
@@ -1531,7 +1531,7 @@ internal abstract class SqlQueriesBase
 
         // `version`, `state_maf_version` and `owner_id` are appended LAST so
         // every existing ordinal keeps its index (same rule as the `version`
-        // column itself, decision K-648).
+        // column itself).
         SelectSession = $"""
             SELECT agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version, owner_id
             FROM {Table("sessions")}
@@ -1571,7 +1571,7 @@ internal abstract class SqlQueriesBase
             """;
 
         // 🚨 SELECT ... WHERE EXISTS, not VALUES: the write applies only if
-        // the target run belongs to the EXPECTED tenant (K-355). No check is
+        // the target run belongs to the EXPECTED tenant. No check is
         // made when @tenant_id is NULL. The subquery is a primary-key lookup;
         // its added cost on the hot write path is a single index read.
         InsertRunEvent = $"""
@@ -1593,7 +1593,7 @@ internal abstract class SqlQueriesBase
         // No tenant join: the caller is the run's own writer, which is resuming
         // a run it already holds. A tenant filter here would answer "no events"
         // for a legitimate takeover whose ambient tenant differs from the run's
-        // (the job queue and workflows both do that, K-355) and the writer would
+        // (the job queue and workflows both do that) and the writer would
         // restart at zero - the very collision this query exists to avoid.
         SelectLastRunEventSequence = $"""
             SELECT MAX(seq) FROM {Table("run_events")} WHERE run_id = @run_id;
@@ -1656,7 +1656,7 @@ internal abstract class SqlQueriesBase
             WHERE run_id = @run_id AND tenant_id = @tenant_id;
             """;
 
-        // Same tenant guard as InsertRunEvent (K-355).
+        // Same tenant guard as InsertRunEvent.
         InsertToolInvocation = $"""
             INSERT INTO {Table("tool_invocations")}
                 (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
@@ -1672,7 +1672,6 @@ internal abstract class SqlQueriesBase
 
         // 🚨 New columns are ALWAYS appended at the end; existing fixed-index
         // readers (ReadToolInvocation) are never renumbered. Lesson from
-        // Phase 20.
         SelectToolInvocations = $"""
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
                    t.duration_ms, t.error, t.created_at,
@@ -1700,7 +1699,7 @@ internal abstract class SqlQueriesBase
         // continuation that carries a late outcome runs once per call, but a
         // retry must never overwrite a settled outcome with a second one.
         //
-        // Same tenant guard as InsertToolInvocation (K-355).
+        // Same tenant guard as InsertToolInvocation.
         UpdateLateToolInvocation = $"""
             UPDATE {Table("tool_invocations")}
             SET result            = COALESCE(@result, result),
@@ -1721,8 +1720,8 @@ internal abstract class SqlQueriesBase
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
-        // phase 199: one row per non-token item a function node reported. Same tenant
-        // guard as InsertToolInvocation (K-355): the row is written only when the
+        // One row per non-token item a function node reported. Same tenant
+        // guard as InsertToolInvocation: the row is written only when the
         // expected tenant owns the run, and the owning run carries the tenant.
         InsertNonTokenUsage = $"""
             INSERT INTO {Table("run_non_token_usage")}
@@ -1764,7 +1763,6 @@ internal abstract class SqlQueriesBase
 
         // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
         // reads argument_conditions by fixed ordinal 7 and source_fingerprint by 8
-        // (docs/hafiza/postgresql.md).
         SelectToolApprovalRules = $"""
             SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions, source_fingerprint
             FROM {Table("tool_approval_rules")}
@@ -1815,14 +1813,14 @@ internal abstract class SqlQueriesBase
             WHERE tenant_id = @tenant_id AND id = @id;
             """;
 
-        // content is read only when requested (Phase 14, section 14.2).
+        // content is read only when requested.
         SelectAttachmentContent = $"""
             SELECT content, external_uri, media_type
             FROM {Table("attachments")}
             WHERE tenant_id = @tenant_id AND id = @id;
             """;
 
-        // The external content is deleted BEFORE the row (F-332): the row is the
+        // The external content is deleted BEFORE the row: the row is the
         // only record of where the content is, so it is read first.
         SelectAttachmentExternalUri = $"""
             SELECT external_uri
@@ -1993,7 +1991,7 @@ internal abstract class SqlQueriesBase
             """;
 
         // 🚨 Only an open job (Pending, Leased, Running) is finalized or
-        // released (F-326). Without the status filter a cancelled job whose
+        // released. Without the status filter a cancelled job whose
         // handler threw on its way out was overwritten: Failed on its last
         // attempt, Pending — and run again — on an earlier one. A terminal
         // status is never changed; the same filter CancelJob already carries.
@@ -2007,7 +2005,7 @@ internal abstract class SqlQueriesBase
         // If @retry_at is NULL, scheduled_for is left untouched (the old
         // behavior: the job can be re-leased immediately). If it is given,
         // backoff is applied; this makes writing a second queue for webhook
-        // delivery unnecessary (K-160).
+        // delivery unnecessary.
         ReleaseJobForRetry = $"""
             UPDATE {Table("jobs")}
                SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
@@ -2209,7 +2207,7 @@ internal abstract class SqlQueriesBase
             ORDER BY created_at;
             """;
 
-        // The tenant filter is DELIBERATELY absent (section 53.5): the tenant
+        // The tenant filter is DELIBERATELY absent: the tenant
         // is the output of this query, not its input.
         SelectApiKeyByHash = $"""
             SELECT {ApiKeyColumns}
@@ -2290,7 +2288,7 @@ internal abstract class SqlQueriesBase
             DELETE FROM {Table("singleton_leases")} WHERE name = @name AND owner_id = @owner_id;
             """;
 
-        // 🚨 New columns are ALWAYS appended at the end (docs/hafiza/postgresql.md):
+        // 🚨 New columns are ALWAYS appended at the end:
         // presentation reads by fixed ordinal 12, after the original twelve columns.
         InsertPendingApproval = $"""
             INSERT INTO {Table("pending_approvals")}
@@ -2316,7 +2314,7 @@ internal abstract class SqlQueriesBase
              WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // Phase 208. Standard SQL on all three providers: the claim is the partial unique
+        // Standard SQL on all three providers: the claim is the partial unique
         // index's job, so the insert is a plain INSERT and the race is decided by the index.
         InsertWorkflowResponse = $"""
             INSERT INTO {Table("workflow_responses")}
@@ -2358,7 +2356,7 @@ internal abstract class SqlQueriesBase
              WHERE response_run_id = @response_run_id AND tenant_id = @tenant_id;
             """;
 
-        // Phase 209. Standard SQL on all three providers; the list and the expiry are written
+        // Standard SQL on all three providers; the list and the expiry are written
         // per provider (paging, RETURNING / OUTPUT).
         InsertWorkflowRequest = $"""
             INSERT INTO {Table("workflow_requests")}

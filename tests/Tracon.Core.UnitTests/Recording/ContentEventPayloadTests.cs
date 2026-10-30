@@ -5,7 +5,7 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-589 (phase 223): the <see cref="RunEventCustomTypes.Content"/> draft built for model
+/// The <see cref="RunEventCustomTypes.Content"/> draft built for model
 /// content no other event covers. The payload is metadata only, written by hand, and valid
 /// JSON whatever the content carries.
 /// </summary>
@@ -195,7 +195,7 @@ public sealed class ContentEventPayloadTests
     [Fact]
     public void A_uri_records_the_media_type_only_and_never_the_address()
     {
-        // K-059 class: a signed URL carries a credential in its query, and its path can
+        // A signed URL carries a credential in its query, and its path can
         // carry an identity. Neither the payload nor the text may hold any part of it.
         var draft = ContentEventPayload.Describe(
             new UriContent("https://files.example.com/tenant-77/report.png?sig=TOP-SECRET-SIGNATURE", "image/png"));

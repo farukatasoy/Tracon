@@ -125,8 +125,8 @@ public sealed class AgentCallGraphTests
     [Fact]
     public async Task Session_filter_with_includeChildren_also_returns_child_runs()
     {
-        // HATA-S2-001 / MT-API-060: SessionId is set only on the ROOT run
-        // (K-217). A direct equality filter combined with "includeChildren=true"
+        // SessionId is set only on the ROOT run
+        // A direct equality filter combined with "includeChildren=true"
         // used to never match a child run.
         await using var host = await TraconTestHost.StartAsync();
 
@@ -168,7 +168,7 @@ public sealed class AgentCallGraphTests
     [Fact]
     public async Task ErrorType_filter_binds_and_filters()
     {
-        // HATA-S3-007 / MT-GUARD-064: RunEndpoints.MapGet("/api/runs", ...)
+        // RunEndpoints.MapGet("/api/runs"...)
         // used to not bind a parameter named "errorType"; ASP.NET Core
         // silently ignores an unknown query parameter, so the result ALWAYS
         // came back as if unfiltered.

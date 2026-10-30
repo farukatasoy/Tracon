@@ -195,7 +195,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     public async Task Usage_that_adds_no_run_adds_its_tokens_and_cost_to_a_counter_that_does_not_exist_yet()
     {
         // A child agent that ends after its root writes tokens and cost and no run
-        // (F-418): the run was counted once, by the root. The first write to a counter
+        // The run was counted once, by the root. The first write to a counter
         // can be such an entry, and a store that treated Runs = 0 as "nothing to add"
         // (or as a reason to create no row) would lose a tenant's spend.
         await Store.AddUsageAsync(Consumption(runs: 0, tokens: 40, cost: 0.25m), Periods);

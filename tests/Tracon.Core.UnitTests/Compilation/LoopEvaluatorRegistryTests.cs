@@ -15,7 +15,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// no reachable stop criterion, which is a loop that only ever ends by running
 /// out of iterations — a bill the consumer first sees on an invoice.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class LoopEvaluatorRegistryTests
 {
@@ -76,13 +76,13 @@ public sealed class LoopEvaluatorRegistryTests
         options.FreshContextPerIteration.ShouldBeTrue();
 
         // A non-streaming run returns the final iteration's answer, with the
-        // usage of every iteration (K-889); the iterations stay on the run as
+        // usage of every iteration; the iterations stay on the run as
         // LoopIterationCompleted events.
         options.NonStreamingReturnsLastResponseOnly.ShouldBeTrue();
     }
 
     /// <summary>
-    /// Phase 192: the framework does not evaluate the turn that reaches its ceiling.
+    /// The framework does not evaluate the turn that reaches its ceiling.
     /// Failing the run there without evaluating it would refuse a last response that
     /// meets every criterion, so in FailRun mode the framework gets one iteration more
     /// and the composite decides at the definition's own ceiling. The default mode
@@ -342,7 +342,7 @@ public sealed class LoopEvaluatorRegistryTests
         exception.Message.ShouldContain("completionMarker");
     }
 
-    // ---- Phase 201: factory registrations (F-301) and the shared rule set ----
+    // ---- an earlier change: factory registrations and the shared rule set ----
 
     [Fact]
     public async Task Concurrent_first_compilations_call_a_factory_once_and_share_its_result()
@@ -627,7 +627,7 @@ public sealed class LoopEvaluatorRegistryTests
         calls.ShouldBe(0);
     }
 
-    // ---- Phase 242: the built-in agentReview kind (F-411) ----
+    // ---- an earlier change: the built-in agentReview kind ----
 
     [Fact]
     public void An_agentReview_criterion_builds_its_reviewer_through_the_factory_with_the_pin()
@@ -693,7 +693,7 @@ public sealed class LoopEvaluatorRegistryTests
     [Fact]
     public void Registering_a_code_kind_named_agentReview_is_refused_at_construction()
     {
-        // The kind became built in with Phase 242: a host that registered its own "agentReview" before
+        // The kind became built in with an earlier change: a host that registered its own "agentReview" before
         // would otherwise mean one thing in its definitions and another in everyone else's.
         var custom = new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
 

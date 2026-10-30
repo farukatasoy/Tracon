@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
 /// Old records do not carry a <c>responseFormat</c> key (definitions written before
-/// this phase). Deserialization must produce <see langword="null"/>, not throw.
+/// this change). Deserialization must produce <see langword="null"/>, not throw.
 /// </summary>
 public sealed class ResponseFormatSerializationTests
 {
@@ -23,8 +23,8 @@ public sealed class ResponseFormatSerializationTests
     public void Old_AgentDefinition_json_is_read_with_source_generated_context()
     {
         // TraconCoreJsonContext is the real path written to the jsonb column
-        // of Tracon.PostgreSql/SqlServer/Sqlite (decision K-006). The JSON of a
-        // row written before this phase never has a "responseFormat" key.
+        // of Tracon.PostgreSql/SqlServer/Sqlite. The JSON of a
+        // row written before this change never has a "responseFormat" key.
         const string json = """
             {
               "name": "old-agent",

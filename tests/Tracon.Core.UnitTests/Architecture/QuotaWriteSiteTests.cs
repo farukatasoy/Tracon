@@ -9,8 +9,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// Four writers add to a tenant's counter - the agent root, a child agent run, the workflow
 /// root and a tool call that outlives its run. Each one that builds its own entry is a place
 /// the next thing a run spends gets added in three of them and forgotten in the fourth: the
-/// cache charge went missing from a tenant's ceiling that way (K-483), and the tenant of a
-/// background child would have been whatever the task happened to carry (F-418).
+/// cache charge went missing from a tenant's ceiling that way, and the tenant of a
+/// background child would have been whatever the task happened to carry.
 /// </para>
 /// <para>
 /// The gate does not read the code; it makes a NEW writer fail until it goes through the one

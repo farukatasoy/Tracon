@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Voice;
 /// <remarks>
 /// A keyed registration under a repeated key does not fail: the container resolves
 /// the LAST one, so the order of two setup calls would decide silently which engine a
-/// tenant's text reaches (the K-663 class). The repeated name is refused at setup.
+/// tenant's text reaches. The repeated name is refused at setup.
 /// </remarks>
 public sealed class SpeechProviderRegistrationTests
 {

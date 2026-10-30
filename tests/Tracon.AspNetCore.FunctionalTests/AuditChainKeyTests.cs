@@ -10,7 +10,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 260 (F-758) at the host boundary: the chain key is read from configuration, signs what the
+/// An earlier change at the host boundary: the chain key is read from configuration, signs what the
 /// admin endpoints write, and is judged by <c>GET /api/audit/verify</c> across host restarts.
 /// </summary>
 /// <remarks>

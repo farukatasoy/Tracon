@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 262 (F-764): <c>POST /api/runs/{id}/cancel</c> stops a run whichever replica the
+/// <c>POST /api/runs/{id}/cancel</c> stops a run whichever replica the
 /// request lands on.
 /// </summary>
 /// <remarks>
@@ -162,7 +162,7 @@ public sealed class CrossInstanceRunCancelTests
     {
         // The owner died before it read the request (nobody registers the run): the request stays
         // on the row, and reconciliation closes the row as Failed. The process died; the cancel
-        // was not what ended the run (open question 2). The claim is called by hand: the service
+        // was not what ended the run. The claim is called by hand: the service
         // that calls it on a timer is covered by RunReconciliationTests.
         await using var pair = await StartAsync(new HangingModelProvider("hanging", respectsCancellation: true), reconciliation: true);
 

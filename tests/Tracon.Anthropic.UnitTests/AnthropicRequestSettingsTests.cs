@@ -8,7 +8,7 @@ using Tracon.ProviderCore.Tests;
 namespace Tracon.Anthropic.UnitTests;
 
 /// <summary>
-/// F-346 — what each <c>anthropic.*</c> setting puts in the request body, read
+/// What each <c>anthropic.*</c> setting puts in the request body, read
 /// from the body the SDK actually sends (raw capture), and the settings a
 /// tenant's own credential (BYOK) client must carry too.
 /// </summary>
@@ -160,7 +160,7 @@ public sealed class AnthropicRequestSettingsTests
     [InlineData(ReasoningEffort.ExtraHigh, "xhigh")]
     public async Task ReasoningEffort_alone_becomes_adaptive_thinking_with_an_effort(ReasoningEffort effort, string expectedEffort)
     {
-        // Phase 217 (K-1017 revised): measured against the live API on every
+        // Measured against the live API on every
         // current model, the budget form (`thinking.type=enabled`) is rejected
         // with 400 and the adaptive form is accepted. The SDK adapter's mapping,
         // read from the body it sends; the README states it.
@@ -224,7 +224,7 @@ public sealed class AnthropicRequestSettingsTests
         exception.Message.ShouldContain(key);
         exception.Message.ShouldContain("Valid values");
 
-        // Phase 203: the rejected value is never repeated (it can be a credential pasted
+        // The rejected value is never repeated (it can be a credential pasted
         // into the wrong field); the key and the valid values locate the mistake.
         exception.Message.ShouldNotContain(value);
     }
@@ -276,7 +276,7 @@ public sealed class AnthropicRequestSettingsTests
     public void A_setting_error_survives_the_registrys_failure_masking()
     {
         // The validation endpoint reports this text as invalid_setting; the
-        // registry masks any other exception a provider throws (HATA-S4-005).
+        // registry masks any other exception a provider throws.
         var registry = new ModelProviderRegistry([new AnthropicModelProvider("anthropic", Factory(), [])]);
 
         var exception = Should.Throw<TraconException>(() => registry.CreateChatClient(
@@ -301,7 +301,7 @@ public sealed class AnthropicRequestSettingsTests
     }
 
     /// <summary>
-    /// Phase 255: the provider states that it does not send these three (<c>ISamplingSupport</c>) because
+    /// The provider states that it does not send these three (<c>ISamplingSupport</c>) because
     /// Anthropic SDK 13's request has no member for them. A definition cannot set them, so this hands the adapter
     /// the options directly: the day an SDK writes one of them again, this test fails and the declaration is stale.
     /// </summary>
@@ -323,7 +323,7 @@ public sealed class AnthropicRequestSettingsTests
     [Fact]
     public async Task A_tenant_credential_client_sends_the_same_settings()
     {
-        // BYOK (phase 65): the tenant's client is built by a second factory from
+        // BYOK: the tenant's client is built by a second factory from
         // the credential. It must read the binding's settings the same way, or
         // a tenant on its own key silently loses effort and caching. A real
         // socket: the tenant client builds its own HttpClient.
@@ -345,7 +345,7 @@ public sealed class AnthropicRequestSettingsTests
 
         await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
-        // Phase 255: SDK 13 sends the credential as a bearer token, not as x-api-key. What matters is whose key
+        // SDK 13 sends the credential as a bearer token, not as x-api-key. What matters is whose key
         // is on the wire, so the assertion names the key and not the header that carries it.
         var head = await server.RequestHead;
         head.ShouldContain("tenant-own-key-for-test");

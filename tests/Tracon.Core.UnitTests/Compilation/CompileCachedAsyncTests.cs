@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// re-deriving the cache key itself. These tests prove the three dependency
 /// fingerprints it combines (skill, callable agent, shared instructions) actually
 /// invalidate the cache when they change — none of them had a regression test before
-/// this phase. Basic same-tenant cache reuse and the BYOK cache-bypass rule already have
+/// this change. Basic same-tenant cache reuse and the BYOK cache-bypass rule already have
 /// dedicated coverage in <c>DefinitionStoreAgentSourceTenantCredentialTests</c>; this file
 /// does not repeat them.
 /// </summary>
@@ -64,7 +64,7 @@ public sealed class CompileCachedAsyncTests
         var second = await compiler.CompileCachedAsync(definition, cache, TenantId);
 
         ReferenceEquals(first, second).ShouldBeFalse();
-        cache.Count.ShouldBe(1, "the dependency change replaces the entry (F-308)");
+        cache.Count.ShouldBe(1, "the dependency change replaces the entry");
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class CompileCachedAsyncTests
         var second = await compiler.CompileCachedAsync(definition, cache, TenantId);
 
         ReferenceEquals(first, second).ShouldBeFalse();
-        cache.Count.ShouldBe(1, "the dependency change replaces the entry (F-308)");
+        cache.Count.ShouldBe(1, "the dependency change replaces the entry");
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class CompileCachedAsyncTests
         var second = await compiler.CompileCachedAsync(definition, cache, TenantId);
 
         ReferenceEquals(first, second).ShouldBeFalse();
-        cache.Count.ShouldBe(1, "the dependency change replaces the entry (F-308)");
+        cache.Count.ShouldBe(1, "the dependency change replaces the entry");
     }
 
     private static AgentSkillDefinition Skill(string name)

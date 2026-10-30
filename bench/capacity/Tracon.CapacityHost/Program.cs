@@ -1,4 +1,4 @@
-// The Tracon capacity host (Phase 166).
+// The Tracon capacity host.
 //
 // A real ASP.NET Core application that consumes Tracon the way a customer
 // does: one exact PackageReference, restored from an isolated feed with an
@@ -10,7 +10,7 @@
 //   seed   -> writes the "full database" fixture through the public store, exits
 //
 // 🚨 One project, not two. A second host project would be a synchronization
-// copy of the same registration, and the two would drift silently (K-411).
+// copy of the same registration, and the two would drift silently.
 //
 // The process prints CAPACITY-HOST-READY (or CAPACITY-WORKER-READY) once it is
 // listening. The orchestrator waits for that LINE, not for a duration.

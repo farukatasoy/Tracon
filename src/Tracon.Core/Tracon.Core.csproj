@@ -8,13 +8,13 @@
   <ItemGroup>
     <ProjectReference Include="../Tracon.Abstractions/Tracon.Abstractions.csproj" />
     <!--
-      Phase 52: tool source generator. ReferenceOutputAssembly=false - Generators.dll
+      Tool source generator. ReferenceOutputAssembly=false - Generators.dll
       is NOT a NORMAL dependency of Core.dll; it loads only into the compiler
       as OutputItemType=Analyzer. PrivateAssets=all - this ProjectReference does
       NOT LEAK into the consumer's dependency graph (dotnet pack's .nuspec
       already does not convert ProjectReferences to PackageReferences;
       PrivateAssets here is defensive). Moving the DLL into the nupkg is done
-      by the target below - 52.4, docs/KARARLAR.md K-TBD.
+      by the target below - 52.4.md K-TBD.
     -->
     <ProjectReference Include="../Tracon.Generators/Tracon.Generators.csproj"
                        PrivateAssets="all"
@@ -65,7 +65,7 @@
   </Target>
 
   <!--
-    Phase 73: the consumer-facing MSBuild target and the generated capability
+    The consumer-facing MSBuild target and the generated capability
     map. buildTransitive/ is what makes them flow through the Tracon meta
     package; build/ would stop at a direct reference.
 
@@ -89,7 +89,7 @@
     <PackageReference Include="Microsoft.Agents.AI.Harness" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <!--
-      Phase 155: EvaluatorRunJudge binds to IEvaluator directly, so the
+      EvaluatorRunJudge binds to IEvaluator directly, so the
       reference is explicit rather than transitive through Microsoft.Agents.AI.
       Net transitive weight: 0 - the package is already in this graph.
       Microsoft.Extensions.AI.Evaluation.Quality is deliberately NOT referenced
@@ -104,7 +104,7 @@
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
 
-    <!-- Phase 62, F-59 open question 1: explicit reference for pre-flight token counting. -->
+    <!-- An earlier fix: explicit reference for pre-flight token counting. -->
     <PackageReference Include="Microsoft.ML.Tokenizers" />
     <PackageReference Include="Microsoft.ML.Tokenizers.Data.O200kBase" />
   </ItemGroup>

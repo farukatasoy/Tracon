@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A function node with a retry policy repeats only a failure that a retry can change.
 /// </summary>
 /// <remarks>
-/// 🚨 F-338: the retry decision read only the error class, and
+/// The retry decision read only the error class, and
 /// <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx. A node that got
 /// a 401 from <c>EnsureSuccessStatusCode()</c> ran <c>MaxAttempts</c> times. The cases run
 /// through the real host, so the classifier is the one DI registers and the node is the

@@ -2,7 +2,7 @@ using Tracon.TwoNode.IntegrationTests.Infrastructure;
 
 namespace Tracon.TwoNode.IntegrationTests;
 
-/// <summary>The two-node acceptance set on PostgreSQL (Phase 265).</summary>
+/// <summary>The two-node acceptance set on PostgreSQL.</summary>
 /// <remarks>
 /// The scenarios are in <see cref="TwoNodeAcceptanceContract"/>. The PostgreSQL and SQL Server classes share a
 /// collection so the two containers never run at once: each test starts two hosts, and four hosts and two database

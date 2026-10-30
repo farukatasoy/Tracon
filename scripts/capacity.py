@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tracon HTTP capacity measurement (Faz 166).
+"""Tracon HTTP capacity measurement.
 
 Bu script ÖLÇÜMÜN dış kabuğudur: paketleri exact sürümle üretir, repo dışındaki
 geçici bir dizinde izole feed'den tüketen bir host kurar, her hücre için temiz
@@ -9,7 +9,7 @@ bir veritabanı ve temiz process'ler açar, driver'ı koşturur ve sonunda rapor
 🚨 Ölçüm opt-in'dir. Standart kapanışa, PR yoluna veya release hattına
 otomatik eklenmez; yalnız `smoke` profili CI'da açık bir adım olarak koşar.
 
-🚨 Bağlantı dizesi hiçbir process argümanında geçmez (K-059 sınırının aparata
+🚨 Bağlantı dizesi hiçbir process argümanında geçmez (secret sınırının aparata
 uygulanması): yalnız environment ile taşınır ve manifest'e yazılmaz.
 """
 
@@ -177,7 +177,7 @@ def plan_cells(profile: dict[str, Any], run_id: str) -> list[dict[str, Any]]:
         return cells
 
     if profile.get("apiHostCounts"):
-        # Host sayısı da AYRI bir eksendir (Faz 265): sabit yükte yalnız HTTP host'larının sayısı değişir.
+        # Host sayısı da AYRI bir eksendir: sabit yükte yalnız HTTP host'larının sayısı değişir.
         # Her host kendi worker'ıyla kira alır - iki replika böyle çalışır.
         concurrency = profile["fixedConcurrency"]
         for group in groups:
@@ -225,7 +225,7 @@ def run(command: list[str], *, cwd: pathlib.Path | None = None,
     """Bir komutu koşturur. MSBuild düğüm yeniden kullanımı KAPALIDIR.
 
     🚨 Öksüz MSBuild düğümleri yönlendirilmiş boruyu açık tutar ve bekleyen
-    process dakikalarca asılı kalır (MEMORY.md, ölçüldü)."""
+    process dakikalarca asılı kalır (ölçüldü)."""
     environment = dict(os.environ)
     environment["MSBUILDDISABLENODEREUSE"] = "1"
 
@@ -755,7 +755,7 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
             ))
 
         # 🚨 Worker process'leri ÖLÇÜM PENCERESİNDEN ÖNCE ayağa kalkar ve
-        # hazır satırını yazar. Faz 157'nin devir notu bunu açıkça ister:
+        # hazır satırını yazar. Devir notu bunu açıkça ister:
         # açılış yarışı pencereye girerse ölçtüğün şey process başlatmadır.
         for index in range(worker_count or 0):
             workers.append(start_host(

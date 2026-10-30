@@ -74,7 +74,7 @@ internal static class ObservabilityEndpoints
                 // before: it used to answer an unknown run with an empty 200.
                 // A denial that returned 404 while a missing run returned
                 // '200 []' would be an existence oracle - exactly the side
-                // channel K-671 exists to close. So an unknown run now gets the
+                // channel this check exists to close. So an unknown run now gets the
                 // same 404 its siblings (/trace, /input, /feedback) already
                 // gave, and a denial is indistinguishable from it.
                 if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
@@ -129,7 +129,7 @@ internal static class ObservabilityEndpoints
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
-                // 🚨 Same order as /tools above, for the same reason (K-671): the run is
+                // 🚨 Same order as /tools above, for the same reason: the run is
                 // looked up FIRST, so an unknown run, another tenant's run and a denied
                 // run all answer the same 404. An empty 200 for a missing run beside a
                 // 404 for a denied one would be an existence oracle.

@@ -9,15 +9,15 @@ namespace Tracon.PostgreSql.IntegrationTests.Load;
 
 /// <summary>
 /// A bounded load run against a real PostgreSQL store, and the report it
-/// writes (Phase 157).
+/// writes.
 /// </summary>
 /// <remarks>
 /// <para>
 /// 🚨 <strong>This is a report, not a gate.</strong> It asserts nothing about
-/// duration. Phase 116 measured that wall-clock time on a shared machine is
+/// duration. measured that wall-clock time on a shared machine is
 /// noise and made ALLOCATION the only performance gate; that decision stands,
 /// and turning any number here into a red/green threshold is a separate
-/// decision this phase did not take. What the run produces is a file an
+/// decision this change did not take. What the run produces is a file an
 /// operator can read, with the environment written next to the numbers - a
 /// throughput figure without its machine, database version, payload size and
 /// concurrency is not a measurement, it is marketing.
@@ -32,7 +32,7 @@ namespace Tracon.PostgreSql.IntegrationTests.Load;
 /// </para>
 /// <para>
 /// It is <strong>opt-in</strong>: <c>TRACON_LOAD=1</c>. The run costs tens
-/// of seconds and needs a container, and Open Question 2 of the phase decided
+/// of seconds and needs a container, and of the phase decided
 /// it is not worth paying on every pull request.
 /// </para>
 /// </remarks>
@@ -149,7 +149,7 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
         // 🚨 Both of these describe the PROCESS, not the machine: the GC figure
         // is the container/GC heap limit and ProcessorCount is the CPU count
         // this process was given. They are labelled as such so nobody compares
-        // two runs and blames hardware that the report never named. Phase 166.
+        // two runs and blames hardware that the report never named.
         var processMemoryBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
 
         var report = new StringBuilder();
@@ -224,7 +224,7 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
 
     /// <summary>
     /// Reads the real hardware behind the run, per platform. A report without
-    /// these rows is still a report (K-738: it is not a gate), so every path
+    /// these rows is still a report (it is not a gate), so every path
     /// here fails soft and the process-visible rows carry the run either way.
     /// </summary>
     private static async Task<MachineFacts> ReadMachineAsync()

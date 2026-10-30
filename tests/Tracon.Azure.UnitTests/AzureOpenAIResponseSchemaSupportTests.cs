@@ -4,7 +4,7 @@ using Tracon.Azure.UnitTests.Infrastructure;
 namespace Tracon.Azure.UnitTests;
 
 /// <summary>
-/// What the Azure OpenAI provider answers to <see cref="IResponseSchemaSupport"/> (Phase 245).
+/// What the Azure OpenAI provider answers to <see cref="IResponseSchemaSupport"/>.
 /// </summary>
 /// <remarks>
 /// The strict-mode refusals were measured against <c>api.openai.com</c> only, so the Azure provider reports none,

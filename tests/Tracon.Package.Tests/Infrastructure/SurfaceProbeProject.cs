@@ -21,7 +21,7 @@ internal static class SurfaceProbeProject
     /// <param name="owningPackage">
     /// The package that owns the type under test, referenced next to <c>Tracon</c>. A type that is not in the
     /// graph at all fails with <c>CS0246</c> (not found), which proves nothing about its visibility, so a probe for a
-    /// narrowed type names the package it lives in. The meta package carries no store (Phase 256): a store type
+    /// narrowed type names the package it lives in. The meta package carries no store: a store type
     /// is only in the graph when the probe references the store package.
     /// </param>
     public static async Task WriteAsync(string version, string directory, string programBody, string? owningPackage = null)

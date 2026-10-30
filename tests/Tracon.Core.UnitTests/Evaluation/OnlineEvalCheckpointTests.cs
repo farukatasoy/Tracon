@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Evaluation;
 
 /// <summary>
-/// Tests for the per-judge retry checkpoint (Phase 118): a judge that already
+/// Tests for the per-judge retry checkpoint: a judge that already
 /// wrote a score for a run is not called again on a retry attempt.
 /// </summary>
 public sealed class OnlineEvalCheckpointTests
@@ -475,7 +475,7 @@ public sealed class OnlineEvalCheckpointTests
         firstScores.ShouldBeEmpty();
         firstFailures.ShouldHaveSingleItem().ErrorType.ShouldBe("judge_timeout");
 
-        // The abandoned body from the first attempt completes late; per K-621
+        // The abandoned body from the first attempt completes late;
         // its result is discarded and it writes nothing.
         release.TrySetResult();
 

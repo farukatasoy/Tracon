@@ -12,7 +12,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// A unit test that compares the constant list with itself proves nothing about the
 /// call sites. The same gap existed on the audit side and was closed the same way
 /// (<c>AuditWritePolicyTests</c>): the risk is not the constants, it is the next
-/// caller that writes its own reason inline, which is exactly what this phase had
+/// caller that writes its own reason inline, which is exactly what this change had
 /// to undo — <c>Disable</c> used to take a free-text string and four call sites
 /// carried four different ones.
 /// </para>

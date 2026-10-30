@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Guards;
 /// <summary>
 /// Verifies that <see cref="ContentGuardContext.Source"/> and
 /// <see cref="ContentGuardContext.ToolName"/> classify text correctly — the
-/// distinction Phase 140 adds so a guard can tell a user message from a tool
+/// distinction an earlier change adds so a guard can tell a user message from a tool
 /// result from the model's own output.
 /// </summary>
 public sealed class ContentGuardSourceTests
@@ -99,7 +99,7 @@ public sealed class ContentGuardSourceTests
     [Fact]
     public async Task Tool_result_keeps_ToolResult_source_even_when_the_call_id_cannot_be_resolved()
     {
-        // 🚨 The phase's central safety claim: a multi-turn conversation can
+        // 🚨 The change's central safety claim: a multi-turn conversation can
         // drop the earlier FunctionCallContent from context. Source must stay
         // ToolResult regardless — a security decision keys off Source, never
         // off whether the name happened to resolve.

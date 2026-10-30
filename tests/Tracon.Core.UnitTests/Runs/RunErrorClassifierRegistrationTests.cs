@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Runs;
 
 /// <summary>
 /// Verifies that <see cref="IRunErrorClassifier"/>'s DI registration follows
-/// the K4 pattern (the consumer's registration wins).
+/// the pattern (the consumer's registration wins).
 /// </summary>
 public sealed class RunErrorClassifierRegistrationTests
 {
@@ -26,7 +26,7 @@ public sealed class RunErrorClassifierRegistrationTests
         var services = new ServiceCollection();
 
         // The consumer registers BEFORE AddTracon; TryAddSingleton silently
-        // skips the second registration (K4).
+        // skips the second registration.
         services.AddSingleton<IRunErrorClassifier, SpyRunErrorClassifier>();
         services.AddTracon();
 

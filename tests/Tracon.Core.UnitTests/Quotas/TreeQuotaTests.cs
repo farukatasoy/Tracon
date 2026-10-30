@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Quotas;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-418: the root used to write the whole tree once, from the run store, while its
+/// The root used to write the whole tree once, from the run store, while its
 /// own row closed. A child that ended later was never counted. These cases drive
 /// <see cref="RunRecordingAgent"/> with the same hand-built options a consumer-built
 /// child uses (<see cref="TraconRunOptions.Depth"/> and <see cref="TraconRunOptions.Budget"/>),
@@ -120,7 +120,7 @@ public sealed class TreeQuotaTests
     [InlineData("EUR", null, 0)]
     public async Task A_child_adds_money_only_in_the_currency_tracon_prices_in(string? childCurrency, string? pricingCurrency, double expected)
     {
-        // F-419/K-976: the counter holds a number with no currency, and the root's own
+        // The counter holds a number with no currency, and the root's own
         // currency is not known while a child ends before it. The tokens always count.
         using var harness = new Harness(pricingCurrency, priceCurrency: childCurrency);
         var budget = ChildBudget(harness);

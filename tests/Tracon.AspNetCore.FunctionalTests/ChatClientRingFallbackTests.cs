@@ -3,13 +3,13 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269).
+// Same rationale as AgentExtensionRunTests.cs.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 232: the fallback chain, the circuit and error normalization sit above an extension's
+/// The fallback chain, the circuit and error normalization sit above an extension's
 /// ring. A provider failure passes up through the ring; the fallback link that answers instead
 /// gets its own instance of the same ring; the failure that ends a run is masked after the ring
 /// saw it.

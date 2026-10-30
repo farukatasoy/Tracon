@@ -223,7 +223,7 @@ internal sealed class ModelProviderCircuitBreaker
     // alone, a single tenant's invalid BYOK credential drove the shared circuit
     // to Open and every other tenant's run failed with
     // TraconProviderUnavailableException for the whole break duration. Same
-    // defect class as K-380: shared state that carries tenant consequences must
+    // defect class: shared state that carries tenant consequences must
     // carry the tenant in its key.
     //
     // CredentialScope is null for the setup-time global credential (shared fate)

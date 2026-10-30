@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// <see cref="IRunEventSink"/> (phase 70): fan-out from <see cref="RunEventWriter"/>
+/// <see cref="IRunEventSink"/>: fan-out from <see cref="RunEventWriter"/>
 /// is independent of the store — a sink failure never disables the store, a store
 /// failure never skips the sinks, and a bad sink never silences a healthy one.
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class RunEventSinkTests
     [Fact]
     public async Task A_consumer_written_Custom_event_reaches_every_sink_like_a_built_in_one()
     {
-        // Phase 141: the sink contract is "every event", and Custom is not an
+        // The sink contract is "every event", and Custom is not an
         // exception carved out of that promise.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var sink = new SpyRunEventSink();
@@ -45,7 +45,7 @@ public sealed class RunEventSinkTests
     [Fact]
     public async Task A_second_writer_waits_until_the_first_event_has_reached_the_store_and_every_sink()
     {
-        // F-257: a run writes from more than one place at once (concurrent tool
+        // A run writes from more than one place at once (concurrent tool
         // calls, a child run writing into its parent's writer, a workflow's
         // executors next to its event pump). Numbering, the store write and the
         // sink dispatch used to be three separate steps, so a second writer took
@@ -197,7 +197,7 @@ public sealed class RunEventSinkTests
     [Fact]
     public async Task A_sink_receives_the_terminal_event_when_the_consumer_disposes_the_stream_early()
     {
-        // HATA-S1-015/K-398: the consumer abandons `await foreach` after the first
+        // The consumer abandons `await foreach` after the first
         // frame. RunRecordingAgent's finally block still writes a Canceled closing
         // event (RunFailed, "The run was canceled.") — the sink must see it too.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());

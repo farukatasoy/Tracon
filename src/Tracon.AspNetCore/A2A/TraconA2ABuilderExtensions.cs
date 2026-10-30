@@ -65,7 +65,7 @@ public static class TraconA2ABuilderExtensions
         // counterpart here.
         services.AddSingleton(options);
 
-        // A2A conversations are scoped to the caller (Phase 229). The provider
+        // A2A conversations are scoped to the caller. The provider
         // is a TryAdd so a consumer's own AgentIsolationKeyProvider wins; it
         // reads the request, so the accessor is registered with it.
         services.AddHttpContextAccessor();
@@ -80,7 +80,7 @@ public static class TraconA2ABuilderExtensions
 
             services.AddA2AServer(proxy, register =>
             {
-                // MAF has no mid-run approval suspension (K-103). A task
+                // MAF has no mid-run approval suspension. A task
                 // response is another form of that same suspension; every run
                 // answers with a single message to avoid the same boundary.
                 // (MAF 1.22 renamed DisallowBackground to ReturnMessage.)

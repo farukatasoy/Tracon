@@ -6,13 +6,13 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.ReviewAndReviseHar
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A code graph with a human review and a bounded revision loop (phase 211): the writer is an agent step
+/// A code graph with a human review and a bounded revision loop: the writer is an agent step
 /// that a back edge can reach, and the loop's counter survives the run that answers.
 /// </summary>
 /// <remarks>
 /// <para>
 /// 🚨 Two things only the real host shows. First, an <c>AIAgentBinding</c> that is not the graph's entry never
-/// runs when a message returns to it over a back edge - the run ends with no output and no error (K-495),
+/// runs when a message returns to it over a back edge - the run ends with no output and no error,
 /// and the answer run sends no <c>TurnToken</c> at all. The agent step is a plain function executor and
 /// runs whenever a message arrives. Second, every answer is a NEW run and the graph is built again, so a
 /// counter kept in a field of an executor starts from zero each time; the counter here lives in the

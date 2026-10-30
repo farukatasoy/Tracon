@@ -19,7 +19,7 @@ internal static class TestData
     /// <summary>
     /// Deployment name used in tests. In Azure, this field carries a
     /// DEPLOYMENT name, not a MODEL name; the catalog is not a validation
-    /// list (K-032).
+    /// list.
     /// </summary>
     public const string Deployment = "production-gpt";
 

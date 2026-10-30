@@ -3,7 +3,7 @@ namespace Tracon.Core.UnitTests.Runs;
 /// <summary>
 /// A normalized provider failure has to reach the run record as something an
 /// operator can act on: a class that says "the provider failed", and a
-/// fingerprint that separates one provider fault from another (HATA-S1-020).
+/// fingerprint that separates one provider fault from another.
 /// </summary>
 public sealed class ProviderErrorClassificationTests
 {
@@ -26,7 +26,7 @@ public sealed class ProviderErrorClassificationTests
     }
 
     /// <summary>
-    /// F-353: a status .NET carries only on <see cref="HttpRequestException.StatusCode"/>
+    /// A status .NET carries only on <see cref="HttpRequestException.StatusCode"/>
     /// reaches the record and the retry decision.
     /// </summary>
     /// <remarks>

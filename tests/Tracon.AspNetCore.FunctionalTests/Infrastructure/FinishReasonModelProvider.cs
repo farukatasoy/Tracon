@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// A model provider whose turns carry a scripted <see cref="ChatFinishReason"/>
 /// and usage — the one thing <c>Tracon.Testing.FakeModelProvider</c> cannot
 /// script. Used to put a response stopped at the output limit
-/// (<see cref="ChatFinishReason.Length"/>) through the real pipeline (F-320).
+/// (<see cref="ChatFinishReason.Length"/>) through the real pipeline.
 /// </summary>
 /// <remarks>
 /// The streaming path splits a text turn into two updates, the second carrying

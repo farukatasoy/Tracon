@@ -24,7 +24,7 @@ public sealed class RunCancellationStatusTests
         // The registry entry is written BEFORE the run row - RunRecordingAgent
         // registers first so a cancel can land during the start write. Waiting
         // for the entry alone raced the read below (measured: net10.0 leg,
-        // Phase 184). Wait for what the next line reads.
+        // An earlier change). Wait for what the next line reads.
         await WaitUntil.TrueAsync(async () =>
             registry.ActiveCount == 1 && (await store.QueryRunsAsync(new RunQuery())).Count == 1);
 
@@ -58,7 +58,7 @@ public sealed class RunCancellationStatusTests
         // The registry entry is written BEFORE the run row - RunRecordingAgent
         // registers first so a cancel can land during the start write. Waiting
         // for the entry alone raced the read below (measured: net10.0 leg,
-        // Phase 184). Wait for what the next line reads.
+        // An earlier change). Wait for what the next line reads.
         await WaitUntil.TrueAsync(async () =>
             registry.ActiveCount == 1 && (await store.QueryRunsAsync(new RunQuery())).Count == 1);
 
@@ -103,7 +103,7 @@ public sealed class RunCancellationStatusTests
         // timeout as a TaskCanceledException, so the exception TYPE cannot
         // decide the run's status - only the run's own token can. Recorded as
         // Canceled, a provider outage would vanish from the failure numbers and
-        // the caller would be handed an empty success. Measured in Phase 157.
+        // the caller would be handed an empty success.
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
         registry.ActiveCount.ShouldBe(0);

@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Approvals;
 
 /// <summary>
 /// <see cref="ToolArgumentConditionMatcher"/>: the single comparison point for
-/// argument-level approval conditions (Phase 63). Fails closed throughout.
+/// argument-level approval conditions. Fails closed throughout.
 /// </summary>
 public sealed class ToolArgumentConditionMatcherTests
 {

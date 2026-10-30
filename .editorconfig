@@ -210,7 +210,7 @@ dotnet_diagnostic.CA1861.severity = none
 
 # ---------------------------------------------------------------------------
 # Tracon.Testing.Contracts.Xunit - test fixtures shipped as a src/
-# package (Phase 98). The [Fact]/[Theory] methods inside it are test code
+# package. The [Fact]/[Theory] methods inside it are test code
 # (same snake_case convention as tests/**), even though the project itself
 # lives under src/ because it is a published NuGet package - the [tests/**]
 # section above does not match its path.

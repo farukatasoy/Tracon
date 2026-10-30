@@ -41,7 +41,7 @@ internal sealed partial class InMemoryRunStore
             ContinuedFromRunId = info.ContinuedFromRunId,
         };
 
-        // 🚨 Phase 46: for a queued run, this method is called TWICE with the
+        // For a queued run, this method is called TWICE with the
         // SAME identity (first Queued, then again when the worker moves it to
         // Running). This is an UPSERT: if the row already exists, do NOT
         // RESET the event/tool-invocation logs (even if no event has been
@@ -55,12 +55,12 @@ internal sealed partial class InMemoryRunStore
                 UserId = record.UserId ?? previous!.UserId,
                 Labels = record.Labels ?? previous!.Labels,
 
-                // F-321: the party that opens a continuation writes the row
+                // The party that opens a continuation writes the row
                 // first, with the link; the engine that runs it writes it again
                 // without one. The SQL providers COALESCE for the same reason.
                 ContinuedFromRunId = record.ContinuedFromRunId ?? previous!.ContinuedFromRunId,
 
-                // F-764: a cancellation request written while the run was Queued survives the
+                // A cancellation request written while the run was Queued survives the
                 // worker's second write. The SQL providers never touch the column on conflict.
                 CancelRequestedAt = previous!.CancelRequestedAt,
             };
@@ -92,7 +92,7 @@ internal sealed partial class InMemoryRunStore
             throw new TraconException($"No run with id '{completion.RunId}' was found.");
         }
 
-        // EXPECTED tenant check (K-355).
+        // EXPECTED tenant check.
         EnsureExpectedTenant(completion.RunId, completion.TenantId, "The run was not completed.");
 
         _runs[completion.RunId] = existing with
@@ -130,7 +130,7 @@ internal sealed partial class InMemoryRunStore
         {
             // If the EXPECTED tenant does not match, the write is SILENTLY
             // skipped — on the SQL side too, the WHERE condition updates zero
-            // rows and no error is thrown (K-355).
+            // rows and no error is thrown.
             if (tenantId is not null
                 && !string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
             {
@@ -157,7 +157,7 @@ internal sealed partial class InMemoryRunStore
         foreach (var runId in runIds)
         {
             // Meaningful only for Running and Queued rows (a Queued row is a run waiting
-            // in-process for a workflow slot, Phase 240); an identity that does not
+            // in-process for a workflow slot); an identity that does not
             // exist or is in another status is silently skipped (a maintenance signal).
             if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
             {
@@ -230,7 +230,7 @@ internal sealed partial class InMemoryRunStore
 
         // A Running row that never sent a heartbeat falls back to its start time. A Queued row is the
         // job queue's unless it sent one: then it is a run waiting in a process for a workflow slot
-        // (Phase 240), and that process is gone.
+        // And that process is gone.
         var candidates = _runs.Values
             .Where(record => record.Status == RunStatus.Running
                 || (record.Status == RunStatus.Queued && _heartbeats.ContainsKey(record.Id)))

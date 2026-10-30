@@ -4,7 +4,6 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Pins <see cref="TraconErrorTypes"/> to the checked-in snapshot <c>docs/sozlesme/hata-kodlari.txt</c>
-/// (Phase 238, section 238.3).
 /// </summary>
 /// <remarks>
 /// A code is written into run records and returned over HTTP as <c>errorType</c>; a consumer matches on the

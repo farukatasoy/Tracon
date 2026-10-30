@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// instructions that asked for the approval.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: once a queued run can carry values, the approval-resume job -
+/// Once a queued run can carry values, the approval-resume job -
 /// which resolves the agent from the catalog - would answer the tool call on the
 /// agent's DEFAULTS, a different prompt from the one that requested it. The
 /// resume reads the source run's recorded values instead, and refuses when it

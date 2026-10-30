@@ -5,7 +5,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
 /// Verifies <see cref="MigrationRunner"/>'s <see cref="ISqlPersistenceDiagnostics"/>
-/// implementation against a real PostgreSQL container (Phase 33).
+/// implementation against a real PostgreSQL container.
 /// </summary>
 /// <remarks>
 /// <c>GetSnapshotAsync</c> does NOT APPLY any migration — so each test calls

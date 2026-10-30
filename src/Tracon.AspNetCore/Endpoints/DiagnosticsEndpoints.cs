@@ -29,7 +29,7 @@ internal static class DiagnosticsEndpoints
     public static void Map(IEndpointRouteBuilder builder, IServiceProvider services, TraconRolePolicies roles)
     {
         // ITraconUiProvider may not be registered (the Tracon.UI package may not
-        // be added). Phase 28 lesson: instead of marking a nullable service as an
+        // be added). lesson: instead of marking a nullable service as an
         // endpoint parameter, resolve it here ONCE with the pattern MapUi follows and
         // catch it at closure; an unregistered service must not be mistaken for a "body"
         // and break every endpoint.

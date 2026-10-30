@@ -12,13 +12,13 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-294: until now only <c>POST /api/agents/{name}/run</c> bound parameter
+/// Until now only <c>POST /api/agents/{name}/run</c> bound parameter
 /// values. A workflow step resolved its agent from the catalog, so a step's
 /// instructions always carried the agent's defaults. The cases run through the
 /// real host because the binding crosses DI, the ambient run scope, the MAF
 /// graph and the run store, and a wrong layer compiles and passes a unit test:
 /// a bound step that skipped the decorator chain would answer correctly and
-/// leave no row behind (K-581).
+/// leave no row behind.
 /// </para>
 /// </remarks>
 public sealed class WorkflowParameterBindingTests
@@ -90,7 +90,7 @@ public sealed class WorkflowParameterBindingTests
             Parameters = Values(("tone", "formal")),
         });
 
-        // 🚨 K-581: a parameterized step bypasses the catalog and so the
+        // A parameterized step bypasses the catalog and so the
         // decorator chain. Without the hand-applied pipeline the answer is the
         // same and the tree has no children.
         var steps = (await host.Services.GetRequiredService<IRunStore>()
@@ -139,7 +139,7 @@ public sealed class WorkflowParameterBindingTests
         var run = await RunAsync(host, Workflow, new WorkflowRunHttpRequest { Message = "Episode 12" });
 
         // The agents' own schemas (writer's 'tone' is required) mean the step
-        // fails on the guard, as it did before this phase: no workflow schema,
+        // fails on the guard, as it did before this change: no workflow schema,
         // no coverage check, the catalog path.
         run.Status.ShouldBe(RunStatus.Failed);
         provider.Requests.ShouldBeEmpty();

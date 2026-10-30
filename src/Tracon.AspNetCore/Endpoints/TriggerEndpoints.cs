@@ -185,8 +185,8 @@ internal static class TriggerEndpoints
 
         try
         {
-            // Defense in two layers (the same rationale as phase 65's tenant
-            // provider bindings, section 65.2): the resolver validates the
+            // Defense in two layers (the same rationale as the tenant
+            // provider bindings): the resolver validates the
             // SAME prefix and tenant rule again while resolving at request time.
             resolver.ValidateKeyName(tenants.TenantId, request.SigningSecretConfigurationName);
         }
@@ -317,7 +317,7 @@ internal static class TriggerEndpoints
         var validated = validation.Validated!;
         var triggerTenant = new FixedTenantContext(validated.Trigger.TenantId);
 
-        // F-337: the attribution is checked before the run starts, as on every
+        // The attribution is checked before the run starts, as on every
         // other run-starting endpoint; the claimed delivery is released.
         if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
         {
@@ -326,8 +326,8 @@ internal static class TriggerEndpoints
             return attributionProblem;
         }
 
-        // Same 403 shape as every other run-starting endpoint (phase 139,
-        // F-185): a trigger cannot bypass the installation's run
+        // Same 403 shape as every other run-starting endpoint (
+        // An earlier fix): a trigger cannot bypass the installation's run
         // authorization policy just because it has no bearer token.
         if (await RunAuthorizationGate
                 .CheckRunAsync(runAuthorizationHandler, triggerTenant, validated.Trigger.TargetName, sessionId: null, attributionContext, httpContext, cancellationToken)
@@ -338,7 +338,7 @@ internal static class TriggerEndpoints
             return authorizationResult;
         }
 
-        // Same 429 shape as every other run-starting endpoint (K-394's
+        // Same 429 shape as every other run-starting endpoint (the established
         // precedent): a trigger cannot bypass the tenant's quota just because
         // it has no bearer token.
         var quotaResult = await QuotaGate

@@ -5,7 +5,7 @@ using static Tracon.Workflows.UnitTests.Fakes.TimeoutRuns;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A function node's timeout (F-303): which value applies, what the run ends with, and
+/// A function node's timeout: which value applies, what the run ends with, and
 /// that the handler's token is really cancelled.
 /// </summary>
 /// <remarks>
@@ -16,7 +16,7 @@ namespace Tracon.Workflows.UnitTests;
 /// registration's minute" has to be able to tell them apart.
 /// </para>
 /// <para>
-/// Before phase 196 a function node had no timeout at all: only the run's deadline
+/// Before that change, a function node had no timeout at all: only the run's deadline
 /// stopped it, ended the run <c>Canceled</c>, and gave no node's name.
 /// </para>
 /// </remarks>
@@ -64,7 +64,7 @@ public sealed class WorkflowFunctionTimeoutTests
         var events = await collecting.WaitAsync(TestContext.Current.CancellationToken);
         var run = await RunOf(host, events);
 
-        // A step that did not answer FAILS the run (open question 2-A): the
+        // A step that did not answer FAILS the run: the
         // node's own limit is not a stop somebody asked for.
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
@@ -78,7 +78,7 @@ public sealed class WorkflowFunctionTimeoutTests
     [Fact]
     public async Task The_handlers_token_is_cancelled_at_the_timeout_and_a_listening_body_stops_there()
     {
-        // K-805: a bound that only ends the wait cancels nothing. The body below
+        // A bound that only ends the wait cancels nothing. The body below
         // listens to its token; once the timeout fires, nothing after its await
         // may run.
         var clock = new ManualClock();

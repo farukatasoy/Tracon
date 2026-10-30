@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// <summary>
 /// Connects a real <see cref="McpClient"/> — the same SDK type a real MCP host
 /// uses — to the in-process test server, with the Tasks extension capability
-/// declared. Phase 117's task-mode behavior depends on protocol version
+/// declared. the earlier change's task-mode behavior depends on protocol version
 /// negotiation and per-request capability metadata that only the SDK's own
 /// client gets right; a hand-rolled JSON-RPC POST (<see cref="McpTestClient"/>)
 /// is not enough for these tests.
@@ -54,7 +54,7 @@ internal static class McpTaskTestClient
                         ["io.modelcontextprotocol/tasks"] = new object(),
                     },
                 },
-                // F-190: the SDK's production default (5s) is tuned for real
+                // The SDK's production default (5s) is tuned for real
                 // network peers. Under the full-package CI run's CPU
                 // contention, this in-memory TestServer can occasionally miss
                 // that window; the SDK then silently falls back to the

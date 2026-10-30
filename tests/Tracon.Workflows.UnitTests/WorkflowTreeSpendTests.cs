@@ -71,7 +71,7 @@ public sealed class WorkflowTreeSpendTests
     [Fact]
     public void An_amount_in_another_currency_leaves_the_tree_without_an_amount()
     {
-        // F-419: the store leaves a tree in two currencies without an amount; the lost
+        // The store leaves a tree in two currencies without an amount; the lost
         // snapshot added here follows the same rule instead of keeping the store's amount
         // and calling the rest "unsummed", which read as a smaller bill.
         var result = WorkflowTreeSpend.NonTokenCost(

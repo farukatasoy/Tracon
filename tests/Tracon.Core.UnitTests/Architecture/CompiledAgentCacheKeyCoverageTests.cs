@@ -16,11 +16,11 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// A compiled agent carries every decision taken while it was compiled, and
 /// the cache serves it again only while its key still describes those
 /// decisions. "State read while compiling but missing from the key" recurred
-/// five times: the tenant (K-380), a tenant credential (K-471, K-874), the
-/// version used as a proxy for content (K-811), the shared instructions block
-/// and callable sub-agents (K-812), and the tenant egress policy (F-304,
+/// five times: the tenant, a tenant credential, the
+/// version used as a proxy for content, the shared instructions block
+/// and callable sub-agents, and the tenant egress policy (
 /// 2026-10-11). The sixth, found by the same scan, was the connection an MCP
-/// tool object is bound to (F-305, 2026-10-11).
+/// tool object is bound to (2026-10-11).
 /// </para>
 /// <para>
 /// This gate does not prove a classification right; the test it names does.
@@ -35,23 +35,23 @@ public sealed class CompiledAgentCacheKeyCoverageTests
     private static readonly Dictionary<Type, string> KnownDependencies = new()
     {
         // In the key.
-        [typeof(ITenantContext)] = "key: the tenant (K-380)",
-        [typeof(AgentSkillCatalog)] = "key: skill fingerprint (K-812)",
-        [typeof(CallableAgentResolver)] = "key: callable sub-agent fingerprint (K-812, AgentDefinitionCacheInvalidationTests)",
-        [typeof(IAgentDefinitionStore)] = "key: shared instructions text (K-812, AgentDefinitionCacheInvalidationTests)",
-        [typeof(ITenantEgressPolicyStore)] = "key: egress policy content (F-304, DefinitionStoreAgentSourceEgressPolicyTests)",
-        [typeof(IToolRegistry)] = "key: MCP connection binding (F-305, McpToolCacheTests)",
-        [typeof(HostedToolRegistry)] = "key: what the hosted tool factories build for the tenant (F-603, HostedToolRunTests.A_tenant_gets_the_tool_its_own_factory_context_builds_and_a_replaced_store_reaches_the_next_run)",
+        [typeof(ITenantContext)] = "key: the tenant",
+        [typeof(AgentSkillCatalog)] = "key: skill fingerprint",
+        [typeof(CallableAgentResolver)] = "key: callable sub-agent fingerprint (AgentDefinitionCacheInvalidationTests)",
+        [typeof(IAgentDefinitionStore)] = "key: shared instructions text (AgentDefinitionCacheInvalidationTests)",
+        [typeof(ITenantEgressPolicyStore)] = "key: egress policy content (DefinitionStoreAgentSourceEgressPolicyTests)",
+        [typeof(IToolRegistry)] = "key: MCP connection binding (McpToolCacheTests)",
+        [typeof(HostedToolRegistry)] = "key: what the hosted tool factories build for the tenant (HostedToolRunTests.A_tenant_gets_the_tool_its_own_factory_context_builds_and_a_replaced_store_reaches_the_next_run)",
 
         // Bypassed: an agent built with this state is never cached.
-        [typeof(ITenantProviderBindingStore)] = "bypass: tenant credential (K-471, K-874, DefinitionStoreAgentSourceTenantCredentialTests)",
+        [typeof(ITenantProviderBindingStore)] = "bypass: tenant credential (DefinitionStoreAgentSourceTenantCredentialTests)",
         [typeof(TenantProviderCredentialResolver)] = "bypass: read only when a tenant binding exists",
 
         // Read per call, never baked into the compiled agent.
         [typeof(IServiceProvider)] = "run time: services resolved per call",
         [typeof(ChatHistoryProvider)] = "run time: history read per run",
-        [typeof(SkillScriptSupport)] = "run time: script grants checked per call (K-860)",
-#pragma warning disable MAAI001 // AgentFileStore is "evaluation purposes only" — see K-020.
+        [typeof(SkillScriptSupport)] = "run time: script grants checked per call",
+#pragma warning disable MAAI001 // AgentFileStore is "evaluation purposes only"
         [typeof(AgentFileStore)] = "run time: file memory read per call",
 #pragma warning restore MAAI001
         [typeof(IMcpResourceContextProviderFactory)] = "run time: resources resolve their connection per call",
@@ -74,9 +74,9 @@ public sealed class CompiledAgentCacheKeyCoverageTests
         [typeof(TraconAgentGraphOptions)] = "process: from IOptions<TraconOptions>",
         [typeof(TimeProvider)] = "process",
         [typeof(IEnumerable<TraconLoopEvaluatorRegistration>)] = "process: criteria registered in code",
-        [typeof(IEnumerable<IAgentExtension>)] = "process: extensions registered in code; the names a definition selects are part of the definition, so they enter the key (Phase 222, AgentDefinitionCacheInvalidationTests)",
+        [typeof(IEnumerable<IAgentExtension>)] = "process: extensions registered in code; the names a definition selects are part of the definition, so they enter the key (AgentDefinitionCacheInvalidationTests)",
         [typeof(ModelRunJudgeOptions)] = "process: judge binding from IOptions",
-        [typeof(IOptions<TraconTenantProviderOptions>)] = "process: RequireEgressPolicy is read from IOptions, so it is fixed when the host starts (F-254, TenantProviderEgressRequiredTests); a value that reloaded would need to enter the key like the policy does",
+        [typeof(IOptions<TraconTenantProviderOptions>)] = "process: RequireEgressPolicy is read from IOptions, so it is fixed when the host starts (TenantProviderEgressRequiredTests); a value that reloaded would need to enter the key like the policy does",
     };
 
     [Fact]

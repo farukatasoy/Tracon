@@ -37,14 +37,14 @@ const repositoryRoot = resolve(siteRoot, '..');
  * references. Overflow is not truncated — generation fails, and the maintainer
  * decides what moves to llms-full.txt.
  *
- * Phase 153 raised the ceiling from 10 KiB (K-722, a user decision). It had run
- * out: measured 10,239 B at phase 148 and 10,240 B — the ceiling exactly — from
- * phase 151 on, so the next capability of any length broke generation, and the
+ * raised the ceiling from 10 KiB (a user decision). It had run
+ * out: measured 10,239 B,240 B — the ceiling exactly — from
+ * An earlier change on, so the next capability of any length broke generation, and the
  * shortest possible line for this one (64 B) broke it too. The alternative the
  * comment above offers, dropping an existing capability, trades one agent's
  * blind spot for another's; the map's whole job is to list what exists. The
  * +1 KiB buys roughly fifteen capability lines. This is a REAL context cost,
- * unlike the search-only ledger budget (K-721): if it runs out again, the
+ * unlike the search-only ledger budget: if it runs out again, the
  * answer is to shorten definitions, not to raise it a second time.
  */
 export const agentMapBudgetBytes = 11264;
@@ -96,7 +96,7 @@ export const outputs = {
   llmsFull: join(siteRoot, 'public/llms-full.txt'),
 };
 
-/** The slug prefix of the per-release pages `build-changelog.mjs` writes (F-710). */
+/** The slug prefix of the per-release pages `build-changelog.mjs` writes. */
 export const releasePagesSlug = 'reference/releases/';
 
 /** Hand-written pages, in reading order. The generated references are excluded. */

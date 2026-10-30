@@ -75,7 +75,7 @@ public sealed class GenerateImageToolTests
         var services = BuildServices(generator);
 
         // No TraconRunContext.SetCurrent call: simulates a tool invoked outside a run.
-        // F-384: the tenant's provider checks need the scope's tenant, so the scope is
+        // The tenant's provider checks need the scope's tenant, so the scope is
         // read BEFORE the provider call. The provider used to be called (and billed)
         // first, and the missing scope surfaced only afterwards.
         var exception = await Should.ThrowAsync<TraconException>(

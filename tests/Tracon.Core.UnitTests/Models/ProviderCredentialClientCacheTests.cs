@@ -1,6 +1,6 @@
 namespace Tracon.Core.UnitTests.Models;
 
-/// <summary>Verifies <see cref="ProviderCredentialClientCache{TFactory}"/> (phase 65, BYOK).</summary>
+/// <summary>Verifies <see cref="ProviderCredentialClientCache{TFactory}"/> (BYOK).</summary>
 public sealed class ProviderCredentialClientCacheTests
 {
     [Fact]

@@ -5,7 +5,7 @@ using static Tracon.AspNetCore.FunctionalTests.WorkflowSettingsFixtures;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A function node that takes settings and a retry policy (F-295): every attempt sees the same settings,
+/// A function node that takes settings and a retry policy: every attempt sees the same settings,
 /// and the run still completes.
 /// </summary>
 /// <remarks>

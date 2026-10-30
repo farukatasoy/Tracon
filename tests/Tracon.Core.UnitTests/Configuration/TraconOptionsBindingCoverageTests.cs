@@ -7,11 +7,11 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// <c>TraconOptions</c> is bound by hand (K-021, AOT). This structurally locks
+/// <c>TraconOptions</c> is bound by hand (AOT). This structurally locks
 /// out the "new field added but not added to <c>Bind()</c>" defect — the same
 /// defect was found independently three times: <c>RunRecording.RecordRunInput</c>
-/// (K-406), <c>Observability.IncludeAgentVersionTag</c> (MT-OBS-036), and
-/// <c>Validation.McpTimeout</c> (K-253 — defined but never bound).
+///<c>Observability.IncludeAgentVersionTag</c>, and
+/// <c>Validation.McpTimeout</c> (defined but never bound).
 /// </summary>
 /// <remarks>
 /// This test fills EVERY scalar (bool/int/long/double/decimal/string/TimeSpan/enum)
@@ -117,7 +117,7 @@ public sealed class TraconOptionsBindingCoverageTests
     }
 
     /// <summary>
-    /// F-572: a number the binder cannot read used to leave the default in place, so
+    /// A number the binder cannot read used to leave the default in place, so
     /// <c>"10MB"</c> kept the output size unbounded. The host must refuse to start and
     /// name the key and the text.
     /// </summary>

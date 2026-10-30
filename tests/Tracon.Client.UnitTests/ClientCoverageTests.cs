@@ -6,7 +6,7 @@ namespace Tracon.Client.UnitTests;
 
 /// <summary>
 /// Proves that <see cref="TraconApiClient"/> has a public method for every
-/// <c>operationId</c> in <c>docs/openapi/tracon.json</c> (section 83.2).
+/// <c>operationId</c> in <c>docs/openapi/tracon.json</c>.
 /// </summary>
 /// <remarks>
 /// The document is the production source; the generated client is a
@@ -50,7 +50,7 @@ public sealed class ClientCoverageTests
     [Fact]
     public void Every_streaming_operation_has_a_matching_StreamAsync_method()
     {
-        // The ratchet for nswag-postprocess-client.py's sixth pass (Phase 159).
+        // The ratchet for nswag-postprocess-client.py's sixth pass.
         // A new text/event-stream endpoint is otherwise callable in exactly one
         // shape - the whole body buffered into a string, or, for a dual
         // JSON/SSE operation, not callable in its streaming shape at all - and
@@ -83,7 +83,7 @@ public sealed class ClientCoverageTests
         // frame reach the caller as the server flushes it, and what makes an
         // early break or a cancelled token stop the read. A Task<string>
         // sibling would satisfy the name check above while buffering the whole
-        // run - which is exactly the limitation phase 159 removed.
+        // run - which is exactly the limitation removed.
         var wrongShape = typeof(TraconApiClient)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(method => method.Name.EndsWith("StreamAsync", StringComparison.Ordinal))

@@ -7,7 +7,7 @@ using NSubstitute;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Direct unit coverage of the two checks (BL-018, BL-051, phase 122); the
+/// Direct unit coverage of the two checks (BL-018, BL-051); the
 /// Production/Development environment split and the real DI wiring are
 /// covered functionally - see <c>SilentGapWarningTests</c> in
 /// <c>Tracon.AspNetCore.FunctionalTests</c> and

@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Models;
 /// </summary>
 /// <remarks>
 /// 🚨 Regression for a real defect measured against a live OpenAI call
-/// (<c>samples/Tracon.Api</c>, phase 81 closure): the stored
+/// (<c>samples/Tracon.Api</c>, closure): the stored
 /// <see cref="ChatResponse"/> embeds the original call's
 /// <see cref="ChatResponse.Usage"/> and <see cref="UsageContent"/>. Serving
 /// them again on every subsequent hit made a run's own <c>usage</c> field

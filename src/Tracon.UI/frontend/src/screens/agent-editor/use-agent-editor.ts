@@ -111,7 +111,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
       // form at `emptyForm` left `Ad` blank AND read-only (`editing` is true):
       // nothing the user could do would ever make `valid` true, so "Validate"/
       // "Save new version" stayed permanently disabled and the 409 the server
-      // would answer with was never reachable (HATA-S4-010).
+      // would answer with was never reachable.
       const descriptor = existing.data.descriptor;
 
       setForm((current) => ({

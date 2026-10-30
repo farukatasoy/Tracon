@@ -4,13 +4,13 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// 🚨 F-372: the archive mode of retention deletes by each target's key
+/// The archive mode of retention deletes by each target's key
 /// (<c>RetentionTargetDefinition.KeyColumns</c>), not by a second batch.
 /// </summary>
 /// <remarks>
 /// SQLite port of <c>Tracon.PostgreSql.IntegrationTests.RetentionArchiveKeyTests</c>.
 /// SQLite returns an id as the text it stores; the delete binds that same text,
-/// so the comparison does not depend on the case of the stored id (K-191).
+/// so the comparison does not depend on the case of the stored id.
 /// </remarks>
 public sealed class RetentionArchiveKeyTests(SqliteFixture fixture)
 {
@@ -124,7 +124,7 @@ public sealed class RetentionArchiveKeyTests(SqliteFixture fixture)
 
     /// <summary>
     /// Every target except <c>document_embeddings</c>: that table exists only in
-    /// the PostgreSQL migration set, by design (phase 51).
+    /// the PostgreSQL migration set, by design.
     /// </summary>
     /// <returns>The targets.</returns>
     public static TheoryData<string> AllTargets()

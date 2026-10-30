@@ -740,7 +740,7 @@ internal static class WorkflowEndpoints
         CancellationToken cancellationToken)
     {
         // 🚨 Checked BEFORE anything else, like the agent run endpoint: a
-        // request refused here opens no 'runs' row and queues no job (F-431).
+        // request refused here opens no 'runs' row and queues no job.
         if (DrainGate.Check(drainState) is { } drainProblem)
         {
             return drainProblem;
@@ -760,7 +760,7 @@ internal static class WorkflowEndpoints
             return bindError;
         }
 
-        // F-337: attribution is checked BEFORE the run starts, the same order
+        // Attribution is checked BEFORE the run starts, the same order
         // as the agent run endpoint (attribution → authorization → quota):
         // an oversized label set is refused, never trimmed.
         if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
@@ -774,7 +774,7 @@ internal static class WorkflowEndpoints
         }
 
         // 🚨 Checked BEFORE the quota gate: an unauthorized call must not
-        // consume the tenant's quota - phase 139, F-185, same ordering as
+        // consume the tenant's quota, same ordering as
         // the agent run endpoint (AgentEndpoints.cs).
         if (await RunAuthorizationGate
                 .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request?.SessionId, attributionContext, httpContext, cancellationToken)
@@ -783,7 +783,7 @@ internal static class WorkflowEndpoints
             return authorizationProblem;
         }
 
-        // 🚨 Ownership guards the run surface too (phase 148); see
+        // 🚨 Ownership guards the run surface too; see
         // AgentEndpoints for why the session endpoints alone are not enough.
         if (await SessionOwnershipGate
                 .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request?.SessionId, httpContext, cancellationToken)
@@ -792,7 +792,7 @@ internal static class WorkflowEndpoints
             return ownershipProblem;
         }
 
-        // 🚨 HATA-S1-006: workflow runs pass through the SAME quota gate as
+        // Workflow runs pass through the SAME quota gate as
         // agents (see AgentEndpoints.cs, same pattern) — this check did not
         // exist before, and any defined quota (run count, tokens, cost)
         // could be bypassed via workflows.
@@ -803,7 +803,7 @@ internal static class WorkflowEndpoints
             return quotaProblem;
         }
 
-        // F-294: the values are checked against the workflow's schema BEFORE the
+        // The values are checked against the workflow's schema BEFORE the
         // stream opens, so the answer is a proper 400 with the SAME body an
         // agent run gives (missingParameters / unknownParameters /
         // tooLongParameters) - impossible once the SSE headers are sent. Last in
@@ -820,7 +820,7 @@ internal static class WorkflowEndpoints
             return AgentParameterGate.Problem(parameterCheck);
         }
 
-        // F-318, F-396: a bad session id is refused before the 202 and before the
+        // A bad session id is refused before the 202 and before the
         // stream opens; the streamed path used to answer 200 and an SSE error frame.
         if (request?.SessionId is { Length: > 0 } requested && WorkflowSessionId.Problem(requested) is { } sessionProblem)
         {
@@ -892,7 +892,7 @@ internal static class WorkflowEndpoints
         }
 
         // A checkpoint carries the workflow's own state, so reading the list is
-        // reading the run (phase 147).
+        // reading the run.
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, runId, record.AgentName, record.SessionId,
@@ -923,7 +923,7 @@ internal static class WorkflowEndpoints
         CancellationToken cancellationToken)
     {
         // 🚨 Checked BEFORE anything else, like the agent run endpoint: a
-        // request refused here opens no 'runs' row and queues no job (F-431).
+        // request refused here opens no 'runs' row and queues no job.
         if (DrainGate.Check(drainState) is { } drainProblem)
         {
             return drainProblem;
@@ -943,7 +943,7 @@ internal static class WorkflowEndpoints
             return bindError;
         }
 
-        // F-337: attribution is checked BEFORE the run starts, the same order
+        // Attribution is checked BEFORE the run starts, the same order
         // as the agent run endpoint (attribution → authorization → quota):
         // an oversized label set is refused, never trimmed.
         if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
@@ -964,11 +964,10 @@ internal static class WorkflowEndpoints
 
         var newRunId = TraconId.NewId();
 
-        // F-318, F-396: the source run and its checkpoint are checked before the
+        // The source run and its checkpoint are checked before the
         // 202 and before the stream opens. The streamed path used to answer 200
         // with an SSE error frame, and a checkpoint id that does not exist opened
         // a Failed run row. No quota gate: a resume is not a new run for quota
-        // (K-394, K-162).
         var checkedSource = await CheckSourceAsync(runId, runs, tenants, "resumed", cancellationToken).ConfigureAwait(false);
 
         if (checkedSource.Problem is { } sourceProblem)
@@ -1044,7 +1043,7 @@ internal static class WorkflowEndpoints
 
         // 🚨 A denied list is REJECTED (403), never silently filtered: there is no single run
         // identity to hide, and filtering rows out server-side would break the skip/take paging
-        // contract - the same rule the run list and the approval list follow (K-671).
+        // contract - the same rule the run list and the approval list follow.
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler,
@@ -1162,7 +1161,7 @@ internal static class WorkflowEndpoints
         CancellationToken cancellationToken)
     {
         // 🚨 Checked BEFORE anything else, like the agent run endpoint: a
-        // request refused here opens no 'runs' row and queues no job (F-431).
+        // request refused here opens no 'runs' row and queues no job.
         if (DrainGate.Check(drainState) is { } drainProblem)
         {
             return drainProblem;
@@ -1190,7 +1189,7 @@ internal static class WorkflowEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // F-337: attribution is checked BEFORE the run starts, the same order
+        // Attribution is checked BEFORE the run starts, the same order
         // as the agent run endpoint (attribution → authorization → quota):
         // an oversized label set is refused, never trimmed.
         if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
@@ -1226,7 +1225,7 @@ internal static class WorkflowEndpoints
             DefinitionVersion = request.DefinitionVersion,
         };
 
-        // F-341: the response is checked against the pending request BEFORE the
+        // The response is checked against the pending request BEFORE the
         // stream opens, so the contract's 400 is possible at all and no run row
         // is opened for an answer of the wrong shape. Last in the order, like
         // the parameter check on the run endpoint: attribution, authorization,
@@ -1240,7 +1239,7 @@ internal static class WorkflowEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // F-318, F-396: ValidateResponseAsync judges the answer's shape but says
+        // ValidateResponseAsync judges the answer's shape but says
         // nothing about a run that is not waiting or a request id that is not
         // pending. Both are checked here, before the 202 and before the stream
         // opens; the streamed path used to answer 200 with an SSE error frame.
@@ -1285,7 +1284,7 @@ internal static class WorkflowEndpoints
 
         if (recordedApproval.Unreadable)
         {
-            // A decision that cannot be audited is not applied (K-089). The record was cut before it named the
+            // A decision that cannot be audited is not applied. The record was cut before it named the
             // tool, so there is nothing to put in the audit row; answering anyway would run the tool unrecorded.
             return TypedResults.Problem(
                 title: "Request cannot be audited",
@@ -1308,7 +1307,7 @@ internal static class WorkflowEndpoints
 
         var queued = RespondAsyncPreference.IsRequested(httpContext);
 
-        // Phase 208: refused BEFORE the answer is decided. Deciding writes the audit entry, opens
+        // Refused BEFORE the answer is decided. Deciding writes the audit entry, opens
         // the run and writes the answer's record; a 501 after them would leave all three behind.
         if (queued && QueuingDisabled(httpContext) is { } queuingProblem)
         {
@@ -1320,7 +1319,7 @@ internal static class WorkflowEndpoints
         // read after the claim threw there and left a claim with no run behind it (audit 🔴1).
         var attribution = ReadAttribution(attributionContext, httpContext);
 
-        // Phase 208 (F-319): the answer is audited, its run row opened and its record written -
+        // The answer is audited, its run row opened and its record written -
         // for a SingleAnswer workflow, claimed - after every other check and before the stream or
         // the queue. A repeat of the same answer follows the run the first one started; a
         // different one conflicts.
@@ -1397,7 +1396,7 @@ internal static class WorkflowEndpoints
                             "but the run it started no longer exists, so there is nothing to follow.",
                     statusCode: StatusCodes.Status409Conflict);
 
-            // The job of a queued answer carries the run's id (K-924), so the 202 its first answer
+            // The job of a queued answer carries the run's id, so the 202 its first answer
             // got is rebuilt from the run id alone. An answer first given on a stream has no job;
             // the id then names the run only.
             case WorkflowResponseGate.Outcome.Follow when queued:
@@ -2098,7 +2097,7 @@ internal static class WorkflowEndpoints
             CancellationToken cancellationToken)
         {
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
-            // Stops the writer's keep-alive loop before the response ends (F-325).
+            // Stops the writer's keep-alive loop before the response ends.
             await using var writerScope = writer.ConfigureAwait(false);
             long sequence = 0;
             var startedSeen = false;
@@ -2139,14 +2138,14 @@ internal static class WorkflowEndpoints
             // TaskCanceledException, so a provider that never answers raises one
             // while the client is still connected and waiting; a bare catch
             // ended the response as if the CLIENT had gone away, and the caller
-            // saw a clean, empty success. Measured in Phase 157.
+            // saw a clean, empty success.
             catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected. There is no one left to write to.
             }
             catch (Exception ex)
             {
-                // 🚨 K-296, missed here until F-325: the SSE headers (200,
+                // Missed here: the SSE headers (200,
                 // text/event-stream) have ALREADY been sent. The old filter caught
                 // only TraconException, InvalidOperationException and
                 // HttpRequestException, so anything else — the runner's own
@@ -2317,7 +2316,7 @@ internal static class WorkflowEndpoints
             }
             catch (Exception ex)
             {
-                // The SSE headers are already sent: every failure becomes a frame (K-296).
+                // The SSE headers are already sent: every failure becomes a frame.
                 var correlationId = SafeErrorText.NewCorrelationId();
 
                 httpContext.RequestServices.GetRequiredService<ILoggerFactory>()

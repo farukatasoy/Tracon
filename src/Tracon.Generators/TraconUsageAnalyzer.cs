@@ -828,7 +828,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
             // enumerator, runs a nested loop that repeats the ambient write on
             // its own, then queries status and disposes - none of that is a
             // nested call, and reporting the outer loop reported Tracon's
-            // own correct code (measured, phase 93). The nested loop is still
+            // own correct code (measured). The nested loop is still
             // evaluated on its own account in a later iteration of this
             // foreach, so nothing here is skipped, only misattributed.
             if (body.DescendantNodes().Any(IsLoop))

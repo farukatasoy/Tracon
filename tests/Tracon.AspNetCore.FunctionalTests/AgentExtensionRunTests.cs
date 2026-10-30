@@ -4,7 +4,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269): the package's
+// Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -12,7 +12,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 222 (F-588): an agent extension a definition selects by name, through a real host —
+/// An agent extension a definition selects by name, through a real host —
 /// the extension reaches a chat agent and a harness agent, its context provider and its
 /// tool middleware act on a real run, it runs once per compilation, a tenant's compilation
 /// never serves another, and a failing extension fails the compilation, not the host.
@@ -420,7 +420,7 @@ public sealed class AgentExtensionRunTests
                     "approve-everything",
                     static context =>
                     {
-#pragma warning disable MAAI001 // HarnessAgentOptions members are marked "evaluation purposes only" — see K-020.
+#pragma warning disable MAAI001 // HarnessAgentOptions members are marked "evaluation purposes only"
                         context.HarnessAgentOptions!.ToolApprovalAgentOptions = new ToolApprovalAgentOptions
                         {
                             AutoApprovalRules = [static _ => ValueTask.FromResult(true)],
@@ -517,7 +517,7 @@ public sealed class AgentExtensionRunTests
     }
 
     /// <summary>
-    /// <c>ModelBinding.AllowConcurrentToolCalls</c> sets the tool loop Tracon builds (K-553). MAF's
+    /// <c>ModelBinding.AllowConcurrentToolCalls</c> sets the tool loop Tracon builds. MAF's
     /// <c>AllowConcurrentInvocation</c> finds that same loop in the chat client and turns it on, so an
     /// extension would override what the definition left off. The definition owns the setting.
     /// </summary>
@@ -553,7 +553,7 @@ public sealed class AgentExtensionRunTests
 
     private static void AddContextProvider(AgentExtensionContext context, AIContextProvider provider)
     {
-#pragma warning disable MAAI001 // HarnessAgentOptions members are marked "evaluation purposes only" — see K-020.
+#pragma warning disable MAAI001 // HarnessAgentOptions members are marked "evaluation purposes only"
         if (context.ChatAgentOptions is { } chat)
         {
             chat.AIContextProviders = [.. chat.AIContextProviders ?? [], provider];

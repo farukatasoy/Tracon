@@ -3,8 +3,8 @@ using Tracon.Testing.Contracts.Storage;
 namespace Tracon.Tests.Common;
 
 /// <summary>
-/// What actually happens when one of two worker processes dies mid-job (Phase 157), written once for every SQL
-/// provider (Phase 265).
+/// What actually happens when one of two worker processes dies mid-job, written once for every SQL
+/// provider.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -194,7 +194,7 @@ public abstract class TwoProcessLeaseTakeoverContract : IAsyncLifetime
     [Fact]
     public async Task A_dead_workers_job_limited_to_one_attempt_is_failed_not_run_again()
     {
-        // F-326: the takeover above is right for a job with attempts left. A
+        // The takeover above is right for a job with attempts left. A
         // job limited to ONE attempt - every queued agent run by default - was
         // taken over the same way and ran a second time; the lease query counts
         // the attempt but never compared it with the limit.

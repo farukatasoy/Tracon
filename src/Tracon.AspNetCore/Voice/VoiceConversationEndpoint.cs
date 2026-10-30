@@ -134,7 +134,7 @@ internal static class VoiceConversationEndpoint
 
         // 🚨 A conversation runs the agent in this process, turn after turn: it
         // is refused while the process drains, after the credential (an
-        // anonymous caller learns nothing) and before the upgrade (F-431).
+        // anonymous caller learns nothing) and before the upgrade.
         if (services.GetRequiredService<ITraconDrainState>().IsDraining)
         {
             await WriteProblemAsync(
@@ -161,7 +161,7 @@ internal static class VoiceConversationEndpoint
         }
 
         // Both consumer gates live in VoiceEndpointGates so that every voice
-        // endpoint denies with the SAME body (K-687).
+        // endpoint denies with the SAME body.
         if (await VoiceEndpointGates.DeniesSessionAsync(context, sessionId, tenantContext).ConfigureAwait(false))
         {
             await WriteSessionNotFoundAsync(context, sessionId).ConfigureAwait(false);

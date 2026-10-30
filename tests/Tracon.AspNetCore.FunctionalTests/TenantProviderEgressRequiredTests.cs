@@ -7,7 +7,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 259 (F-254): <c>Tracon:TenantProviders:RequireEgressPolicy</c> turns "a tenant with no egress
+/// <c>Tracon:TenantProviders:RequireEgressPolicy</c> turns "a tenant with no egress
 /// policy may call every provider" into "a tenant with no egress policy may call none".
 /// </summary>
 /// <remarks>
@@ -82,7 +82,7 @@ public sealed class TenantProviderEgressRequiredTests
     [Fact]
     public async Task With_the_switch_off_a_tenant_without_a_policy_reaches_every_provider()
     {
-        // K1: nothing changes until the switch is turned on.
+        // Nothing changes until the switch is turned on.
         var provider = Provider();
         await using var host = await StartAsync(provider, requirePolicy: false);
 

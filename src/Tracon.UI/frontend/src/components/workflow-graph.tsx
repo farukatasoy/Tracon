@@ -16,7 +16,7 @@ import type { WorkflowGraph } from '../lib/server-types';
  *
  * Hand drawn on purpose. mermaid.js renders the very text the server already
  * hands us, but costs around 100 KB gzipped against a 250 KB budget enforced at
- * build time (decision K-002) — 40% of the budget for one screen. The layout
+ * build time — 40% of the budget for one screen. The layout
  * lives in `lib/workflow-graph.ts` as pure functions so it can be unit tested
  * without a browser; this file only paints.
  *
@@ -120,7 +120,7 @@ const STATE_STROKE: Record<NodeState, string | null> = {
 function NodeBox({ node, state }: { node: LaidOutNode; state: NodeState }): ReactNode {
   const t = useT();
   // A server newer than this build can name a kind this union does not know
-  // yet (measured, phase 71) — falling back to `Unknown`'s style instead of
+  // yet (measured) — falling back to `Unknown`'s style instead of
   // crashing on `undefined` is what "an unknown kind is ignored" actually
   // requires on the console side.
   const style = KIND_STYLE[node.kind] ?? KIND_STYLE.Unknown;

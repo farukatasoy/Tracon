@@ -175,7 +175,7 @@ describe('primaryScoreIdentity', () => {
   });
 
   it('never mixes two different score identities across buckets', () => {
-    // A regression case (Phase 154 audit): 'overall' scored as Binary in one
+    // A regression case: 'overall' scored as Binary in one
     // bucket and as Numeric in another bucket must resolve to ONE of them,
     // not silently switch depending on which bucket a caller reads.
     const identity = primaryScoreIdentity([

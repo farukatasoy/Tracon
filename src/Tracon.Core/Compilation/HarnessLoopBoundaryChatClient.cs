@@ -39,8 +39,8 @@ namespace Tracon;
 /// response is left alone.
 /// </para>
 /// </remarks>
-// F-315 (2026-10-12, K-892): measured with ScriptedChatCompletionsServer.
-// F-582 (2026-10-19): measured with HarnessApprovalContinuationTests.
+// Measured with ScriptedChatCompletionsServer.
+// Measured with HarnessApprovalContinuationTests.
 internal sealed class HarnessLoopBoundaryChatClient(IChatClient innerClient) : DelegatingChatClient(innerClient)
 {
     /// <inheritdoc />

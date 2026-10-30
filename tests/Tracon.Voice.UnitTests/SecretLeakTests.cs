@@ -19,7 +19,7 @@ public sealed class SecretLeakTests
     [Fact]
     public void Options_class_does_NOT_define_its_own_ToString_method()
     {
-        // 🚨 K-035. If this were a `record`, the compiler-generated ToString would
+        // If this were a `record`, the compiler-generated ToString would
         // write out all properties, and a single LogDebug call would expose the key.
         var declaringType = typeof(VoiceOptions).GetMethod(nameof(ToString))!.DeclaringType;
 

@@ -98,7 +98,7 @@ const VOICE_STORAGE_PREFIX = 'tracon.voice.';
 /**
  * The voice this language is spoken with.
  *
- * 🚨 A Turkish answer read out by an English voice is unintelligible. Phase 138
+ * 🚨 A Turkish answer read out by an English voice is unintelligible. An earlier change
  * added `VoiceDescriptor.attributes`, but a provider's `language` entry is not
  * guaranteed — it depends on that provider reporting it (ElevenLabs does, via
  * a separate verified-languages field; another provider might not). The
@@ -123,7 +123,7 @@ export function readVoiceForLocale(locale: string): string | null {
 
 /**
  * A short suffix for a voice picker option, built from the provider's safe
- * scalar attributes (Phase 138) — for example `"en, female"`. `null` when the
+ * scalar attributes — for example `"en, female"`. `null` when the
  * voice carries neither, so the caller can fall back to the bare name.
  */
 export function voiceOptionMeta(attributes: Record<string, string> | undefined): string | null {

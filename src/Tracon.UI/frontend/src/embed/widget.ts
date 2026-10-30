@@ -61,7 +61,7 @@ export class EmbedWidget {
   // tool call is recorded in SESSION history, and a sessionless run (no
   // sessionId at all) carries no history to record it in. Matches the
   // console's own pattern (Playground reserves a conversation id before its
-  // first run) — see K-443.
+  // first run)
   private readonly sessionId: string = crypto.randomUUID();
 
   private messageList!: HTMLDivElement;

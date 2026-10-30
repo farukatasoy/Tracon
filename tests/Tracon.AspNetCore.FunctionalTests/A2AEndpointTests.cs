@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Phase 50: the A2A server that exposes Tracon agents.</summary>
+/// <summary>The A2A server that exposes Tracon agents.</summary>
 public sealed class A2AEndpointTests
 {
     [Fact]
@@ -82,7 +82,7 @@ public sealed class A2AEndpointTests
     {
         // 🚨 A measured constraint of A2A: ExposedAgents is fixed AT REGISTRATION
         // time. Unlike MCP, an agent added later cannot appear without building
-        // a NEW A2A server (section 50.5).
+        // a NEW A2A server.
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder.UseA2A(o => o.ExposedAgents.Add("db-agent")),
             configureAfterMap: app => app.MapTraconA2A());
@@ -164,7 +164,7 @@ public sealed class A2AEndpointTests
 
     /// <summary>
     /// The skill tools are not in the tool registry: the framework adds them when it builds the agent and
-    /// wraps all three for approval. The guard reads the definition's skill settings instead (F-626).
+    /// wraps all three for approval. The guard reads the definition's skill settings instead.
     /// </summary>
     [Fact]
     public async Task An_agent_using_skills_with_the_read_approval_on_cannot_be_exposed_via_A2A()

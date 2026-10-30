@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// What <see cref="RecordingLoopEvaluator"/> writes about WHO decided (Phase 242): every evaluated criterion
+/// What <see cref="RecordingLoopEvaluator"/> writes about WHO decided: every evaluated criterion
 /// with its decision, the model an <c>aiJudge</c> really called and the agent and run of an
 /// <c>agentReview</c>, and nothing the model was told.
 /// </summary>
@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// The evaluator is driven directly, with the criteria as delegates; the real judge client, the real reviewer
 /// and the stream are pinned by <c>AgentReviewLoopTests</c> and <c>HarnessLoopTests</c>.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class RecordingLoopEvaluatorCriteriaTests
 {
@@ -31,7 +31,7 @@ public sealed class RecordingLoopEvaluatorCriteriaTests
 
         var criteria = (await rig.PayloadAsync()).GetProperty("criteria").EnumerateArray().ToList();
 
-        // First-continue short circuit (K-704): the criterion after the deciding one is not evaluated and not listed.
+        // First-continue short circuit: the criterion after the deciding one is not evaluated and not listed.
         criteria.Select(static entry => (entry.GetProperty("kind").GetString(), entry.GetProperty("decision").GetString()))
             .ShouldBe([("completionMarker", "stop"), ("todoCompletion", "stop"), ("agentReview", "continue")]);
     }

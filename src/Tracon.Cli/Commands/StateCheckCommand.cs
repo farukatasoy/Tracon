@@ -51,7 +51,7 @@ internal static class StateCheckCommand
         // await using var x = ...; puts ConfigureAwait(false) out of reach for
         // the compiler-generated dispose call (MA0004); declaring the variable
         // first and wrapping usage in `await using (x.ConfigureAwait(false))`
-        // keeps the concrete type usable. docs/hafiza/build-ve-analyzer.md.
+        // keeps the concrete type usable..
         var services = SqlProviderSelector.BuildProvider(provider, connectionString);
         await using (services.ConfigureAwait(false))
         {
@@ -73,7 +73,7 @@ internal static class StateCheckCommand
             catch (DbException ex)
             {
                 // ADO.NET provider exceptions (Npgsql/SqlClient/Sqlite) do not embed
-                // the connection string, so ex.Message is safe to print (K-059).
+                // the connection string, so ex.Message is safe to print.
                 Console.Error.WriteLine($"State check failed: {ex.GetType().Name}: {ex.Message}");
                 return 2;
             }
@@ -83,10 +83,10 @@ internal static class StateCheckCommand
                 // TraconException a preflight was ever expected to meet -
                 // a row encrypted with a key this process does not hold - is
                 // handled inside the reader and reported as a structure-only
-                // row (K-735). This catch exists because an UNEXPECTED one
+                // row. This catch exists because an UNEXPECTED one
                 // must still leave the operator a single line rather than a
                 // stack trace; Tracon's own messages never carry the
-                // connection string (K-059).
+                // connection string.
                 Console.Error.WriteLine($"State check failed: {ex.Message}");
                 return 2;
             }

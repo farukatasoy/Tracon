@@ -42,7 +42,7 @@ internal sealed class AgentBatchJobHandler(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        // 🚨 F-364: opened in THIS method's own body and held across every item
+        // Opened in THIS method's own body and held across every item
         // run; an AsyncLocal written in a helper would not flow back here.
         // Without it a batch queued under a user ran every item unattributed.
         var queued = QueuedRunAttribution.Read(context.Job, logger);
@@ -71,7 +71,7 @@ internal sealed class AgentBatchJobHandler(
             anyItemCarriesValues |= parsed.HasParameterValues;
         }
 
-        // F-330: a batch whose items carry no parameter values binds every
+        // A batch whose items carry no parameter values binds every
         // default. An agent whose required parameter has no default fails the
         // job once, here, rather than once per item with the same error. When an
         // item DOES carry values the check moves to the item (below): the batch
@@ -109,7 +109,7 @@ internal sealed class AgentBatchJobHandler(
                     throw new TraconException(problem);
                 }
 
-                // F-318: 'sessionId' names a workflow run's execution session. An
+                // 'sessionId' names a workflow run's execution session. An
                 // agent batch runs every item without a session, so an item that
                 // names one fails rather than running with the id ignored.
                 if (input.SessionId is not null)
@@ -117,7 +117,7 @@ internal sealed class AgentBatchJobHandler(
                     throw new TraconException($"The batch item is malformed: {BatchItemInput.AgentBatchSessionProblem}");
                 }
 
-                // F-310: resolved again for every item. A batch can run for hours, and an
+                // Resolved again for every item. A batch can run for hours, and an
                 // agent resolved once kept its MCP tools bound to a connection that a
                 // server edit or delete had closed - every later item called it. A
                 // cache hit while nothing changed. An item whose agent no longer
@@ -127,7 +127,7 @@ internal sealed class AgentBatchJobHandler(
 
                 IReadOnlyDictionary<string, string>? recordedValues = null;
 
-                // F-294: an agent that declares a schema carries the guard the
+                // An agent that declares a schema carries the guard the
                 // compiler puts on it (no store read to find out); a plain agent
                 // and an item without values skip the lookup entirely.
                 if (input.HasParameterValues || agent.GetService<UnboundParameterGuard>() is not null)
@@ -162,7 +162,7 @@ internal sealed class AgentBatchJobHandler(
                         cancellationToken)
                     .ConfigureAwait(false);
 
-                // F-389: an item runs without a session, so an approval it stops at
+                // An item runs without a session, so an approval it stops at
                 // can never be answered. The item fails and its run is closed.
                 if (SessionlessApprovalRun.StoppedAtApproval(response.Messages))
                 {
@@ -191,7 +191,7 @@ internal sealed class AgentBatchJobHandler(
                 error = SafeErrorText.ForPersistence(exception, correlationId);
             }
 
-            // 🚨 F-348: the report sits OUTSIDE the run's try, as in
+            // The report sits OUTSIDE the run's try, as in
             // WorkflowJobHandler. Inside it, a store error while reporting a
             // completed run was caught as the run's failure, and the item was
             // recorded as Failed. A report error now ends the attempt, and

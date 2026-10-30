@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Storage;
 
 /// <summary>
-/// The invariants <see cref="RunScoreRules"/> holds every store to (phase 152).
+/// The invariants <see cref="RunScoreRules"/> holds every store to.
 /// </summary>
 /// <remarks>
 /// The rule is public because <c>IRunScoreStore</c> is an extension point: a

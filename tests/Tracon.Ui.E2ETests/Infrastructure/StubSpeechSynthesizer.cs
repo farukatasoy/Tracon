@@ -53,7 +53,7 @@ internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscr
     }
 
     /// <summary>
-    /// Translates incoming audio into a fixed text (phase 29).
+    /// Translates incoming audio into a fixed text.
     /// </summary>
     /// <remarks>
     /// The voice layer can take transcription and synthesis from the same

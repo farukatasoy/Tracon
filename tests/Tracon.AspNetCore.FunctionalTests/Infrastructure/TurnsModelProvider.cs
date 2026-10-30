@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// <summary>
 /// A model provider whose turns are scripted lists of <see cref="AIContent"/>, one list per model call, in order;
 /// the last list repeats. It is <see cref="ContentModelProvider"/> for a run that needs more than one turn: a
-/// turn that holds a hosted tool call AND a function call makes the tool-call loop ask the model again (F-603).
+/// turn that holds a hosted tool call AND a function call makes the tool-call loop ask the model again.
 /// </summary>
 /// <remarks>
 /// It states every hosted tool kind, keeps the options of every call and sends a streamed turn content by content.

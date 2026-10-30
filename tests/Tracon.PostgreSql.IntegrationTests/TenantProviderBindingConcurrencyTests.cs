@@ -4,7 +4,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
 /// Proof that concurrent <c>PUT</c>s against the same tenant provider binding
-/// (phase 65, BYOK) never corrupt the row or leave more than one behind.
+/// (BYOK) never corrupt the row or leave more than one behind.
 /// </summary>
 /// <remarks>
 /// Two real <see cref="Tracon.SqlTenantProviderBindingStore"/> instances

@@ -20,7 +20,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// crosses the async-iterator boundary, which is where four earlier phases lost
 /// exactly this kind of write.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class HarnessLoopTests
 {
@@ -404,7 +404,7 @@ public sealed class HarnessLoopTests
         provider.Requests.Count.ShouldBe(2);
     }
 
-    // ---- Phase 192: how the loop ends when no criterion is satisfied ------------
+    // ---- an earlier change: how the loop ends when no criterion is satisfied ------------
 
     /// <summary>
     /// FailRun on exhaustion: the run fails with LoopUnsatisfied after exactly
@@ -438,7 +438,7 @@ public sealed class HarnessLoopTests
         root.Error.ShouldNotBeNull().Type.ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);
         root.Error.Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
 
-        // Phase 192 audit: the run's usage is what the three turns spent, not null.
+        // audit: the run's usage is what the three turns spent, not null.
         // A run that ends in an exception has scope.ExtraUsage as its only usage source.
         root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(3 * UsagePerTurn);
 
@@ -626,7 +626,7 @@ public sealed class HarnessLoopTests
     }
 
     /// <summary>
-    /// The reason this phase exists: in a sequential workflow, an agent whose loop fails
+    /// The reason this change exists: in a sequential workflow, an agent whose loop fails
     /// on exhaustion stops the workflow, and the next node (a TTS step in the podcast
     /// pipeline) never receives the response no criterion accepted.
     /// </summary>
@@ -690,9 +690,9 @@ public sealed class HarnessLoopTests
         agentRun.Error.ShouldNotBeNull().Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
         workflow.Status.ShouldBe(RunStatus.Failed);
 
-        // Measured (plan 192.5, open question 1): MAF does not wrap the exception. The
+        // Measured (plan 192.5): MAF does not wrap the exception. The
         // workflow row carries the same stable identity and class as the participant's
-        // own row (F-314); before, it wrote the CLR type name and no class.
+        // own row; before, it wrote the CLR type name and no class.
         workflow.Error.ShouldNotBeNull().Type.ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);
         workflow.Error.Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
     }
@@ -734,7 +734,7 @@ public sealed class HarnessLoopTests
     }
 
     /// <summary>
-    /// F-317: a loop that ends well records what EVERY iteration spent. The
+    /// A loop that ends well records what EVERY iteration spent. The
     /// non-streaming run returned, and recorded, only the last iteration's
     /// usage — MAF's OpenTelemetryAgent rebuilt the response from the last
     /// call's raw representation — and the streaming run kept only the last
@@ -788,7 +788,7 @@ public sealed class HarnessLoopTests
     }
 
     /// <summary>
-    /// F-349: the <c>aiJudge</c> criterion calls its own model on every
+    /// The <c>aiJudge</c> criterion calls its own model on every
     /// iteration, and MAF drops that response. The tree budget counted the
     /// judge's tokens, but the run's usage, cost and quota entry did not.
     /// The judge's share is priced at the judge model, not at the agent's.
@@ -857,7 +857,7 @@ public sealed class HarnessLoopTests
         var root = await RootRunAsync(host);
         root.Status.ShouldBe(RunStatus.Completed);
 
-        // Phase 242: the iteration event names the model the judge called, and the judge's decision.
+        // The iteration event names the model the judge called, and the judge's decision.
         (await JudgeEntriesAsync(host)).ShouldBe(
         [
             ("continue", JudgeProviderName, JudgeModelName),
@@ -896,7 +896,7 @@ public sealed class HarnessLoopTests
     }
 
     /// <summary>
-    /// F-360: the judge binding has <c>Fallbacks</c> of its own. When the judge's
+    /// The judge binding has <c>Fallbacks</c> of its own. When the judge's
     /// primary fails and a fallback answers, the fallback belongs to the judge
     /// call, not to the run: the run keeps the agent's model and no
     /// <c>ModelFallbackUsed</c> event is written. The agent's share keeps the
@@ -978,7 +978,7 @@ public sealed class HarnessLoopTests
         var root = await RootRunAsync(host);
         root.Status.ShouldBe(RunStatus.Completed);
 
-        // Phase 242: the trail names the model that ANSWERED the judge call, not the binding that was configured.
+        // The trail names the model that ANSWERED the judge call, not the binding that was configured.
         (await JudgeEntriesAsync(host)).ShouldBe(
         [
             ("continue", JudgeFallbackProviderName, JudgeFallbackModelName),
@@ -1003,7 +1003,7 @@ public sealed class HarnessLoopTests
     }
 
     /// <summary>
-    /// F-329: with a loop and structured-response validation both on, the
+    /// With a loop and structured-response validation both on, the
     /// validator read the joined text of every iteration — a draft followed by
     /// the final JSON is not JSON — and failed a run whose answer was valid.
     /// </summary>

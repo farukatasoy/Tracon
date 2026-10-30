@@ -5,7 +5,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <summary>
 /// The contract of <see cref="PgVectorSearchStore"/>: ordering, distance
 /// filtering, rewriting, deletion, listing, dimension mismatch, and tenant
-/// isolation (Phase 51, Job B).
+/// isolation (Job B).
 /// </summary>
 public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLifetime
 {

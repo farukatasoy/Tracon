@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Sessions;
 
 /// <summary>
-/// Phase 255: the order and the failure behavior of <see cref="SessionDeletion"/>.
+/// The order and the failure behavior of <see cref="SessionDeletion"/>.
 /// </summary>
 /// <remarks>
 /// The functional tests prove that every caller reaches the same deletion. These pin what

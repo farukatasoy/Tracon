@@ -7,11 +7,11 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// and a threshold that cannot be read stops the application at startup.
 /// </summary>
 /// <remarks>
-/// 🚨 F-247: the binder dropped a threshold it could not read, and a threshold of
+/// The binder dropped a threshold it could not read, and a threshold of
 /// zero or below, without a word. <c>["80", "yuz"]</c> started with <c>[80]</c>,
 /// and the validator's <c>&lt;= 0</c> branch could not be reached from configuration
 /// at all. The rule now applies: an unreadable entry is left out and named with its
-/// key and its text at startup (F-572), and an entry out of range is the validator's.
+/// key and its text at startup, and an entry out of range is the validator's.
 /// </remarks>
 public sealed class TraconQuotaOptionsBindingTests
 {
@@ -81,7 +81,7 @@ public sealed class TraconQuotaOptionsBindingTests
     {
         // The failure comes from the bound value, not from a record of the raw
         // text: code that configures the same member after binding replaces the
-        // unreadable entry, and the application starts (K4, the F-385 precedent).
+        // unreadable entry, and the application starts (the precedent).
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Quotas:ThresholdPercents:0"] = "yuz",

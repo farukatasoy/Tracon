@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Kayıt giriş noktası kuralının (K-509) testleri."""
+"""Kayıt giriş noktası kuralının testleri."""
 from __future__ import annotations
 
 import pathlib

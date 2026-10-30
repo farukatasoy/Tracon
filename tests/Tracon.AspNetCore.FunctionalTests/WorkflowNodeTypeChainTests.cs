@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-341: a node list whose node cannot take what the node before it passes on is
+/// A node list whose node cannot take what the node before it passes on is
 /// refused when it is saved, and again when a run starts.
 /// </summary>
 /// <remarks>

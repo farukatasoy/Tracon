@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// HTTP request and response DTOs are <c>internal</c> (Phase 212). The document generator
+/// HTTP request and response DTOs are <c>internal</c>. The document generator
 /// reads XML documentation only from a public type, so these types carry their text in
 /// <c>[Description]</c>. A DTO that loses the attribute compiles, passes every
 /// behavior test, and ships a schema without text. The older floor in

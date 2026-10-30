@@ -10,7 +10,7 @@
   -->
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <!-- Clear the plural TargetFrameworks inherited from src/Directory.Build.props (K-263 pattern). -->
+    <!-- Clear the plural TargetFrameworks inherited from src/Directory.Build.props. -->
     <TargetFrameworks></TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -18,7 +18,7 @@
     <IsPackable>false</IsPackable>
     <!-- No consumer-facing API surface - it ships a diagnostic/generator, not a library. -->
     <TraconPublicApiTrackingEnabled>false</TraconPublicApiTrackingEnabled>
-    <!-- Turn off IsAotCompatible through TraconAotCompatible, not DIRECTLY (K-006 pattern; Directory.Build.targets reads this). -->
+    <!-- Turn off IsAotCompatible through TraconAotCompatible, not DIRECTLY (Directory.Build.targets reads this). -->
     <TraconAotCompatible>false</TraconAotCompatible>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

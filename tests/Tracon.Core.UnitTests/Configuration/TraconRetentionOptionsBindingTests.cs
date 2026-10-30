@@ -9,10 +9,10 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-247: <see cref="TraconRetentionOptions.IdempotencyKeys"/> was a target the
+/// <see cref="TraconRetentionOptions.IdempotencyKeys"/> was a target the
 /// options defined and the purge resolved, but the binder read fifteen of the
 /// sixteen targets and not that one: <c>Tracon:Retention:IdempotencyKeys:*</c> was
-/// silently ignored. HATA-S1-005 had already found four targets missing from the
+/// silently ignored. The earlier decision had already found four targets missing from the
 /// binder the same way.
 /// </para>
 /// <para>

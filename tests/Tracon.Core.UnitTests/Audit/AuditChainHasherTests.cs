@@ -1,6 +1,6 @@
 namespace Tracon.Core.UnitTests.Audit;
 
-/// <summary>Behavior tests for <see cref="AuditChainHasher"/> (phase 64).</summary>
+/// <summary>Behavior tests for <see cref="AuditChainHasher"/>.</summary>
 public sealed class AuditChainHasherTests
 {
     private static readonly DateTimeOffset SampleCreatedAt = new(2026, 8, 18, 12, 0, 0, TimeSpan.Zero);
@@ -126,10 +126,10 @@ public sealed class AuditChainHasherTests
         string.Equals(a, b, StringComparison.Ordinal).ShouldBeFalse();
     }
 
-    // --- Golden vectors (phase 260) ---
+    // --- Golden vectors ---
     // 🚨 These two hashes were computed BEFORE the keyed form existed, by an independent
     // implementation of the canonical form (Python hashlib over the same text), and checked against
-    // the code of phase 259. An entry written without a key must hash to exactly these values
+    // the code of an earlier change. An entry written without a key must hash to exactly these values
     // for as long as 1.x lasts: every chain a deployment has written is verified against them.
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class AuditChainHasherTests
         hash.ShouldBe(Expected);
     }
 
-    // --- Keyed form (phase 260) ---
+    // --- Keyed form ---
 
     private static readonly byte[] KeyBytes = Enumerable.Range(1, 32).Select(static i => (byte)i).ToArray();
 

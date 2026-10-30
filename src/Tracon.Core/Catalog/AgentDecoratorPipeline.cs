@@ -39,7 +39,7 @@ public static class AgentDecoratorPipeline
             {
                 // No token governs Decorate, so no OperationCanceledException
                 // thrown here is a cancellation of ours: it is a decorator
-                // failure like any other (K-840).
+                // failure like any other.
                 throw Wrap(descriptor, exception);
             }
         }

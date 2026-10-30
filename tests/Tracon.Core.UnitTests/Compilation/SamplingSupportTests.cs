@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// F-598 — a request field the provider's API surface would drop stops the compilation and makes
+/// A request field the provider's API surface would drop stops the compilation and makes
 /// the validation report name the field and the provider (<see cref="ISamplingSupport"/>).
 /// </summary>
 /// <remarks>
@@ -71,7 +71,7 @@ public sealed class SamplingSupportTests
     [Fact]
     public void A_provider_that_states_nothing_sends_temperature_and_top_p_and_none_of_the_other_fields()
     {
-        // Phase 255: every adapter sent the two before they were named, so a provider written before
+        // Every adapter sent the two before they were named, so a provider written before
         // ISamplingSupport keeps them; any other field it must state.
         var compiler = Compiler(new UndeclaringProvider());
 

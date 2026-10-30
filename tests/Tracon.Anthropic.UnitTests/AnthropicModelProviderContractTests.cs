@@ -78,7 +78,7 @@ public sealed class AnthropicModelProviderSettingsContractTests : ModelProviderS
     protected override KeyValuePair<string, JsonElement>? SupportedSetting
         => new(AnthropicProviderNames.PromptCachingSetting, True);
 
-    // A text value of the right type outside the SDK's effort levels (F-346).
+    // A text value of the right type outside the SDK's effort levels.
     protected override KeyValuePair<string, JsonElement>? InvalidSettingValue
         => new(AnthropicProviderNames.EffortSetting, JsonDocument.Parse("\"extreme\"").RootElement.Clone());
 }

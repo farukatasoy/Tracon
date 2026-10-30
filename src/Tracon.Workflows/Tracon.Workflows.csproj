@@ -14,7 +14,7 @@
     <ProjectReference Include="../Tracon.Core/Tracon.Core.csproj" />
     <!--
       OutputItemType=Analyzer does not propagate across a multi-hop
-      ProjectReference chain (measured, docs/hafiza/analyzer-yazimi.md): Core
+      ProjectReference chain: Core
       already references Tracon.Generators this way, but that reference is
       not transitive, so Workflows needs its own. A real (package) consumer is
       unaffected - the analyzer reaches them through analyzers/dotnet/cs/ in
@@ -28,7 +28,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Agents.AI.Workflows" />
-    <!-- So UseWorkflows() can bind TraconWorkflowOptions to IConfiguration (K-402). -->
+    <!-- So UseWorkflows() can bind TraconWorkflowOptions to IConfiguration. -->
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
 

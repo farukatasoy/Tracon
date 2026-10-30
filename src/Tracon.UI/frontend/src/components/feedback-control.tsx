@@ -12,9 +12,9 @@ const OVERALL = 'overall';
 
 /**
  * Run-level "was this helpful" control: thumbs up/down plus an optional
- * comment (F-52, Phase 31).
+ * comment.
  *
- * Since phase 152 a run can carry MORE THAN ONE score per author, told apart
+ * Since then a run can carry MORE THAN ONE score per author, told apart
  * by `name`. This control still owns exactly one of them — the run-level
  * `overall` score written by whoever is looking at the screen. Every other row
  * (a second human name, a judge score, a categorical label) is listed
@@ -22,7 +22,7 @@ const OVERALL = 'overall';
  *
  * Message-level scoring and star ratings are part of the store contract
  * (`IRunScoreStore`, `RunScoreKind.Stars`) but are not exposed in this
- * control yet — see the phase's handoff notes for the open follow-up.
+ * control yet — see the change's handoff notes for the open follow-up.
  */
 export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   const t = useT();
@@ -45,7 +45,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   // 🚨 `source`, `name` AND `kind` are all required in the match. A judge score
   // also carries no `messageId`, so matching on that alone picked up the
   // judge's row as "mine" — the thumbs then rendered the judge's number and
-  // Remove deleted the judge's score. Since phase 152 a human can hold several
+  // Remove deleted the judge's score. Since then a human can hold several
   // names as well, so this control names the one it owns. `kind` joined the
   // match last: a Stars score may carry the SAME name as this control's Binary
   // one (the API does not forbid it, and `IRunScoreStore.ListAsync` documents
@@ -137,7 +137,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
     onSettled: () => void client.invalidateQueries({ queryKey }),
   });
 
-  // Judge scores (Phase 49) share the same table and query as human feedback;
+  // Judge scores share the same table and query as human feedback;
   // they are told apart by their `source` prefix (`judge:{name}`).
   const judgeScores = feedback.data?.filter((score) => score.source.startsWith('judge:')) ?? [];
 
@@ -266,7 +266,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
 
 /**
  * Renders a numeric score. `null` means NO MEASUREMENT was made, not zero
- * (phase 152), so it renders as a dash rather than a 0 nobody wrote. A whole
+ *So it renders as a dash rather than a 0 nobody wrote. A whole
  * number keeps its short form; a decimal keeps at most two places.
  */
 function formatScoreValue(value: number | null | undefined): string {

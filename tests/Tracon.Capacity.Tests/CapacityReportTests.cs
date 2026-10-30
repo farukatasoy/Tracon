@@ -334,7 +334,7 @@ public sealed class CapacityReportTests : IDisposable
         // rejected by a saturated queue - it just waits longer. Counting only
         // 429s and timeouts reported "no ceiling was found" over a queue whose
         // throughput was flat while its latency grew fourfold (measured in the
-        // Phase 166 sweep, queued c8 -> c32).
+        // sweep, queued c8 -> c32).
         WriteCell(Cell("a", concurrency: 8, repeat: 1, throughput: 5.9, p50: 1316, scenario: CapacityScenario.Queued));
         WriteCell(Cell("b", concurrency: 32, repeat: 1, throughput: 6.7, p50: 4456, scenario: CapacityScenario.Queued));
 

@@ -2,7 +2,7 @@ namespace Tracon.Azure.UnitTests;
 
 /// <summary>
 /// The provider's request timeout must fail at startup when an HTTP stack cannot
-/// take it (F-280).
+/// take it.
 /// </summary>
 /// <remarks>
 /// The value reaches the SDK's HTTP stack and the health check's

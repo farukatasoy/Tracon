@@ -172,7 +172,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             // having cancelled anything. A bare catch here rethrew that as a
             // cancellation, so a provider timeout never reached the next link:
             // the one failure a fallback chain exists for was the one it
-            // skipped. Measured in Phase 157. CircuitBreakingChatClient already
+            // skipped. CircuitBreakingChatClient already
             // used this filter; this client did not.
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -180,7 +180,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             }
             // A non-retryable failure (auth, an unrecognized error, ...) is
             // never masked by trying the next link — whichever link produced
-            // it, from K1's "zero surprise": hiding a configuration error
+            // it, from the zero-surprise rule's "zero surprise": hiding a configuration error
             // behind a provider switch costs more than the switch saves.
             catch (Exception ex) when ((reason = ClassifyFailure(ex)) == FallbackSkipReason.None)
             {
@@ -487,7 +487,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             return existing;
         }
 
-        // 🚨 F-641: this cache was a plain Dictionary; eight runs that fell back together
+        // This cache was a plain Dictionary; eight runs that fell back together
         // built eight pipelines and wrote the dictionary at once.
         await _buildGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -503,7 +503,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             // The link runs the same agent's tool loop, so it takes the primary's
             // loop settings as ONE object: the tools' thread-safety does not change
             // with the model, and a harness agent's iteration limit is the agent's,
-            // not the model's (F-315, K-892). Copying the members one by one left a
+            // not the model's. Copying the members one by one left a
             // new member at its default on every link.
             var binding = new ModelBinding
             {
@@ -529,7 +529,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     {
         var scope = TraconRunContext.Current;
 
-        // 🚨 F-360. A side-channel call (the compaction summarizer, an aiJudge
+        // A side-channel call (the compaction summarizer, an aiJudge
         // judge) runs inside the run's scope on a binding of its own. Its
         // fallback is that call's, not the run's: writing the run's attribution
         // made runs.model_id name the judge's fallback model, priced the agent's
@@ -760,7 +760,7 @@ internal static partial class FallbackRetryClassifier
             return FallbackSkipReason.None;
         }
 
-        // 🚨 F-338: a permanent 4xx never moves to the next link. The next
+        // A permanent 4xx never moves to the next link. The next
         // provider gets the same request: a bad body, an unknown model name or
         // a conflict does not get better on another provider, and switching
         // hides the mistake. Only 401/403 were checked before, so a 404 on an
@@ -795,7 +795,7 @@ internal static partial class FallbackRetryClassifier
             // switch costs more than the switch saves. Checked across the
             // whole graph, and BEFORE any "retry" match, so an auth failure
             // wrapped alongside an unrelated retryable-looking inner frame
-            // still wins. The F-338 veto above reads only the FIRST status in
+            // still wins. The veto above reads only the FIRST status in
             // the graph; this loop is what still finds a 401/403 behind an
             // outer frame that carries a 5xx.
             if (ProviderHttpStatus.ReadFrame(candidate) is 401 or 403)
@@ -811,7 +811,7 @@ internal static partial class FallbackRetryClassifier
                 return FallbackSkipReason.RateLimited;
             }
 
-            // F-387: the status is read with the one reader every retry decision
+            // The status is read with the one reader every retry decision
             // uses; a text pattern of its own here knew only "HTTP nnn".
             switch (ProviderHttpStatus.ReadFrame(candidate))
             {
@@ -830,8 +830,8 @@ internal static partial class FallbackRetryClassifier
         // is, by construction, a connection failure. 🚨 This comment used to
         // say an unrecognized 4xx "was already handled above"; only 401/403
         // were, and every other 4xx on a wrapper type switched provider here
-        // (F-338). A status that can still reach this point is a transient
-        // one: 408. Since F-387 a 5xx/429 that only HttpRequestException.StatusCode
+        // A status that can still reach this point is a transient
+        // one: 408. Since then a 5xx/429 that only HttpRequestException.StatusCode
         // carries is read above, like every other status.
         foreach (var candidate in Flatten(exception))
         {
@@ -863,7 +863,7 @@ internal static partial class FallbackRetryClassifier
         // alone cannot tell that apart from a caller pressing stop, so the
         // graph is asked for a timeout signal first. Without this, a provider
         // timeout was recorded as a cancelled run and returned to the client
-        // as an empty success. Measured in Phase 157.
+        // as an empty success.
         if (IsTimeout(exception))
         {
             return false;
@@ -950,10 +950,10 @@ internal static partial class FallbackRetryClassifier
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex RateLimitPattern();
 
-    // 🚨 Measured (phase 62 audit): includes the SDK WRAPPER types too
+    // 🚨 Measured: includes the SDK WRAPPER types too
     // (clientresultexception/requestfailedexception/apiexception), not just
     // the bare .NET ones — this is safe ONLY because this pattern is checked
-    // LAST, after every permanent 4xx (the F-338 veto) and every 5xx/429
+    // LAST, after every permanent 4xx (the veto) and every 5xx/429
     // message already had a chance to match above. A wrapper exception with
     // no status text is, by construction, a connection-level failure.
     [GeneratedRegex(

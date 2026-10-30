@@ -41,8 +41,8 @@ public sealed class SubAgentTimeoutTests
         types.ShouldContain(RunEventType.ChildRunCompleted);
         timedOut.HardCutoff.ShouldBeFalse();
 
-        // Phase 145: the recorded event stream's SSE "event:" name for this
-        // frame is the stable "child.timed-out" -- before this phase it fell
+        // The recorded event stream's SSE "event:" name for this
+        // frame is the stable "child.timed-out" -- before this change it fell
         // through to "unknown" on the wire.
         var wire = await FetchRootEventStreamTextAsync(host);
         wire.ShouldContain("event: child.timed-out", Case.Sensitive);
@@ -73,7 +73,7 @@ public sealed class SubAgentTimeoutTests
 
             // The late result is discarded silently: releasing it produces no
             // further event on the root run.
-            // Phase 184: a fixed 200 ms stood here, and under load the late
+            // A fixed 200 ms stood here, and under load the late
             // result might not have arrived inside it. The abandoned call's
             // observer logs once the call has settled - anything the late
             // result could write happens before that line.
@@ -97,7 +97,7 @@ public sealed class SubAgentTimeoutTests
     [Fact]
     public async Task Hard_cutoff_abandons_a_child_that_ignores_cancellation_in_tool_mode()
     {
-        // F-609: SubAgentToolModeTests proves the cooperative limit in tool mode; this is the hard one.
+        // SubAgentToolModeTests proves the cooperative limit in tool mode; this is the hard one.
         var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: false);
         await using var host = await StartAsync(
             hanging,
@@ -218,7 +218,7 @@ public sealed class SubAgentTimeoutTests
     [Fact]
     public async Task A_provider_timeout_does_not_count_on_the_sub_agent_wait_limit_metric()
     {
-        // K-737 regression through the REAL background_agents_* flow: the
+        // That decision regression through the REAL background_agents_* flow: the
         // researcher's provider breaks the request off itself, so NEITHER wait
         // limit fires. Both are set far longer than the call can possibly take.
         await using var host = await StartAsync(

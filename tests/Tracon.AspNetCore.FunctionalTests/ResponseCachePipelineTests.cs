@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269): the package's
+// Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -10,7 +10,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Response caching (Phase 81, F-45): a real IChatClient pipeline built
+/// Response caching: a real IChatClient pipeline built
 /// through <c>ModelProviderRegistry</c>, not <see cref="TraconResponseCachingChatClient"/>
 /// constructed directly - this also proves the ring's POSITION (81.1): a hit
 /// skips the real model call but a cached <c>FunctionCallContent</c> still runs.
@@ -96,7 +96,7 @@ public sealed class ResponseCachePipelineTests
     public async Task Second_identical_run_shows_null_usage_through_the_run_record()
     {
         // 🚨 Regression at the EXACT boundary the real defect was found at
-        // (audit finding, phase 81 closure): ResponseCacheUsageTests already
+        // ResponseCacheUsageTests already
         // locks the behavior at the TraconResponseCachingChatClient level,
         // but the bug this guards was only OBSERVED through GET /api/runs/{id}
         // against a real OpenAI call - repo history (phases 6/12/15/16/18/20/21/28)
@@ -147,7 +147,7 @@ public sealed class ResponseCachePipelineTests
         using var secondRecord = await host.Client.GetAsync(new Uri($"/tracon/api/runs/{secondRunId}", UriKind.Relative));
         var secondUsage = (await TraconTestHost.ReadJsonAsync(secondRecord)).GetProperty("usage");
 
-        // K-557: null ("not measured"), not a real number - the hit reported
+        // Null ("not measured"), not a real number - the hit reported
         // NOTHING, it did not report zero tokens spent.
         secondUsage.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
     }
@@ -219,7 +219,7 @@ public sealed class ResponseCachePipelineTests
         var secondRunId = (await TraconTestHost.ReadJsonAsync(second)).GetProperty("runId").GetGuid();
         (await host.WaitForRunStatusAsync(secondRunId, "Completed")).ShouldBe("Completed");
 
-        // K1: with ResponseCache left null, today's behavior is unchanged -
+        // With ResponseCache left null, today's behavior is unchanged -
         // every identical request still reaches the model.
         provider.Requests.Count.ShouldBe(2);
     }

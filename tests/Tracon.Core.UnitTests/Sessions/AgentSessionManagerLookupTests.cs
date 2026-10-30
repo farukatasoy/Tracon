@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Sessions;
 
 /// <summary>
-/// Phase 214: the lookup that never opens a session.
+/// The lookup that never opens a session.
 /// </summary>
 /// <remarks>
 /// Microsoft Agent Framework 1.25's <c>AgentSessionStore.GetSessionAsync</c>

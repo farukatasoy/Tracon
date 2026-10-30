@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Phase 166. The HTTP driver: a separate process that calls the capacity host
+    The HTTP driver: a separate process that calls the capacity host
     over real loopback TCP.
 
     🚨 It has NO Tracon dependency, by design. The driver must be able to speak
@@ -23,7 +23,7 @@
   <!--
     The names and the synthetic payload both sides of the measurement compute.
     LINKED, never copied: a second copy would drift, and the two sides would
-    disagree about the expected answer while both still compiled (K-411).
+    disagree about the expected answer while both still compiled.
   -->
   <ItemGroup>
     <Compile Include="../Shared/CapacityContract.cs" Link="Shared/CapacityContract.cs" />

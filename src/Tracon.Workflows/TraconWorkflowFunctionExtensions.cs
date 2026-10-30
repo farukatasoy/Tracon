@@ -517,9 +517,9 @@ public static class TraconWorkflowFunctionExtensions
             ?? (ILogger)NullLogger.Instance;
 
         // scope(retry(limit(gate(timeout(handler))))): the node's name is set once, outside every
-        // attempt, so an item a retried attempt reports names the node (phase 199). The slot is taken
-        // before the gate reads the tree's budget (F-538); the gate reads it before each attempt starts
-        // (F-407), and a node registered to start when the budget is spent has none.
+        // attempt, so an item a retried attempt reports names the node. The slot is taken
+        // before the gate reads the tree's budget; the gate reads it before each attempt starts
+        // And a node registered to start when the budget is spent has none.
         return (handler, timeout) =>
         {
             var bounded = timeout is { } limit

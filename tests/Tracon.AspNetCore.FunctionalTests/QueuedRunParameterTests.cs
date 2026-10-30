@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-294: the queued path refused both fields with a <c>400</c>, so a queued
+/// The queued path refused both fields with a <c>400</c>, so a queued
 /// or scheduled run could only ever bind a parameterized agent's defaults.
 /// Every case goes through the real host, the real job store and the real
 /// worker: the value is written into a durable payload by the endpoint and read
@@ -161,7 +161,7 @@ public sealed class QueuedRunParameterTests
         provider.Requests[^1].Options!.Instructions.ShouldBe("Hello friend, how can I help?");
 
         // The run closes a moment AFTER the model answered: read once, the status
-        // was still Running in 7 of 8 single runs (F-423).
+        // was still Running in 7 of 8 single runs.
         var status = await WaitUntil.ValueAsync(
             () => RunStatusAsync(host, runId),
             static status => status is RunStatus.Failed or RunStatus.Completed,

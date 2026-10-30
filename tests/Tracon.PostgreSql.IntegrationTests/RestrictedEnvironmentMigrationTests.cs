@@ -7,11 +7,11 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <summary>
 /// Migration behavior on a PostgreSQL server that does NOT carry the
 /// <c>pgvector</c> extension — a managed PostgreSQL instance without
-/// permission (or ability) to install it (phase 67, DoD bullets 1-2).
+/// permission (or ability) to install it (DoD bullets 1-2).
 /// </summary>
 /// <remarks>
 /// Deliberately does NOT use the shared <see cref="Infrastructure.PostgresFixture"/>
-/// assembly fixture: that one runs the <c>pgvector/pgvector</c> image (K-346),
+/// assembly fixture: that one runs the <c>pgvector/pgvector</c> image,
 /// which defeats the point of this test. Runs its own plain <c>postgres</c>
 /// container instead — acceptable here since there are only two tests, each
 /// building its <see cref="MigrationRunner"/> directly (the same pattern as

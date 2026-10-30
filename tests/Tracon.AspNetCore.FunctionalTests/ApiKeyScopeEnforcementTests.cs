@@ -155,7 +155,7 @@ public sealed class ApiKeyScopeEnforcementTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- Attenuation (section 53.3) ---
+    // --- Attenuation ---
 
     [Fact]
     public async Task SecurityAdmin_key_cannot_produce_a_scope_it_does_not_itself_carry()

@@ -7,7 +7,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-773 (phase 267): the context event of a run whose history the summarizer compacts. The summarization
+/// The context event of a run whose history the summarizer compacts. The summarization
 /// call runs BEFORE the agent's first model call, through the real <c>SideChannelUsageTrackingChatClient</c>;
 /// the event must count the agent's request and not the summarizer's.
 /// </summary>

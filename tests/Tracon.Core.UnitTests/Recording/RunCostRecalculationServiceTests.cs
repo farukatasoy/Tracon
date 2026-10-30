@@ -6,7 +6,6 @@ namespace Tracon.Core.UnitTests.Recording;
 /// Verifies that <see cref="RunCostRecalculationService"/> only fills in runs
 /// whose price is <see cref="PricingSource.Unknown"/> (or unpriced) — a run's
 /// cost is a price snapshot and, once known, must never be rewritten
-/// (phase 132, F-175).
 /// </summary>
 public sealed class RunCostRecalculationServiceTests
 {
@@ -122,7 +121,7 @@ public sealed class RunCostRecalculationServiceTests
     }
 
     /// <summary>
-    /// F-349: a run priced at more than one model carries no rate fields and
+    /// A run priced at more than one model carries no rate fields and
     /// its usage includes tokens that another model spent. Re-pricing that
     /// usage whole at the run's own model would bill the judge's or the
     /// summarizer's tokens at the agent's rate, so such a row stays untouched.

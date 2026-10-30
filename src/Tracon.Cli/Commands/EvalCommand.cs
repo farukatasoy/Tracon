@@ -100,7 +100,7 @@ internal static class EvalCommand
             // 🚨 The budget below (timeoutSource.CancelAfter) is the only limit
             // this command promises. HttpClient's own 100 s default would cap
             // every request underneath it and report the cap as a cancellation
-            // nothing asked for (K-737), so a longer budget could never be
+            // nothing asked for, so a longer budget could never be
             // reached and the message named a limit that never elapsed.
             options.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
         });
@@ -108,7 +108,7 @@ internal static class EvalCommand
         // await using var x = ...; puts ConfigureAwait(false) out of reach for
         // the compiler-generated dispose call (MA0004); declaring the variable
         // first and wrapping usage in `await using (x.ConfigureAwait(false))`
-        // keeps the concrete type usable. docs/hafiza/build-ve-analyzer.md.
+        // keeps the concrete type usable..
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
@@ -129,7 +129,7 @@ internal static class EvalCommand
             {
                 // The trigger call is the ONLY step that needs RunsWrite (115.3): a
                 // caller whose key carries only EvalsRead lands here, and the
-                // response body is never echoed (K-059) so the scope name is stated
+                // response body is never echoed so the scope name is stated
                 // from the endpoint's own contract instead.
                 Console.Error.WriteLine("Request failed: HTTP 403 (missing the 'RunsWrite' API key scope).");
                 return 2;
@@ -146,7 +146,7 @@ internal static class EvalCommand
             }
             // 🚨 `timeoutSource.IsCancellationRequested`, not just the negation
             // of the caller's token: a transport that breaks a request off
-            // itself raises the same exception with nothing cancelled (K-737),
+            // itself raises the same exception with nothing cancelled,
             // and printing our budget then names a limit that never elapsed.
             catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
@@ -190,7 +190,7 @@ internal static class EvalCommand
             }
             // 🚨 `timeoutSource.IsCancellationRequested`, not just the negation
             // of the caller's token: a transport that breaks a request off
-            // itself raises the same exception with nothing cancelled (K-737),
+            // itself raises the same exception with nothing cancelled,
             // and printing our budget then names a limit that never elapsed.
             catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
@@ -321,7 +321,7 @@ internal static class EvalCommand
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             // The same split as the other two requests of this command: the
-            // HttpClient's own timeout is not the user pressing Ctrl+C (K-840).
+            // HttpClient's own timeout is not the user pressing Ctrl+C.
             Console.Error.WriteLine("The request was broken off by the transport.");
             return 2;
         }
@@ -485,7 +485,7 @@ internal static class EvalCommand
             return null;
         }
 
-        // F-280: --timeout arms CancelAfter and --poll-interval a Task.Delay; both
+        // --timeout arms CancelAfter and --poll-interval a Task.Delay; both
         // refuse more than about 49.7 days, and TimeSpan.FromSeconds overflows long
         // before a double runs out.
         if (seconds <= 0 || seconds * 1000 > TimerPeriod.MaxMilliseconds)

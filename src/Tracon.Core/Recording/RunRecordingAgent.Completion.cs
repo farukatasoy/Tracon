@@ -201,7 +201,7 @@ public sealed partial class RunRecordingAgent
         // aiJudge loop judge, a discarded repair turn, the turns of a loop that
         // failed its run) never reach the AgentResponse; if they are not added here,
         // the run's usage, cost and quota entry stay incomplete. 🚨 They are kept
-        // apart by model (F-349): the agent's own model share joins the agent's
+        // apart by model: the agent's own model share joins the agent's
         // usage, every other model's share is priced at that model below. The run's
         // usage is the sum of all of them.
         var agentUsage = RunUsageSum.Add(usage, scope.ExtraUsage?.ToAgentModelUsage());
@@ -214,9 +214,9 @@ public sealed partial class RunRecordingAgent
         }
 
         // 🚨 A ModelBinding.Fallbacks link may have answered instead of the
-        // primary binding (phase 62). scope.FallbackAttribution is written by
+        // primary binding. scope.FallbackAttribution is written by
         // FallbackChatClient through the ambient TraconRunContext, the
-        // same pattern AgentRunScope.ToolUsage uses (phase 28) — the model
+        // same pattern AgentRunScope.ToolUsage uses — the model
         // that actually ran is not known until the call already happened,
         // long after this instance's own _modelId/_modelProvider were fixed
         // at agent-compile time. Every downstream consumer of "the model"
@@ -227,7 +227,7 @@ public sealed partial class RunRecordingAgent
         var modelId = fallbackUsed?.Model ?? _modelId;
 
         // The cost is calculated HERE, once, when the run ends — the price is a
-        // snapshot (see Phase 20 section 20.2): if the price
+        // snapshot: if the price
         // list changes later, the cost of this run does not change. Each model's
         // share is priced at that model; with no other model it is exactly the
         // resolver's answer for the agent's model (RunCostCombiner).
@@ -235,7 +235,7 @@ public sealed partial class RunRecordingAgent
             ? null
             : RunCostCombiner.Resolve(_pricingResolver, modelProvider, modelId, agentUsage, otherModels);
 
-        // 🚨 Quota accounting runs BEFORE the terminal write (phase 146,
+        // 🚨 Quota accounting runs BEFORE the terminal write (
         // 146.1). Consumption is real the moment it is spent — the tokens
         // are already billed by the provider regardless of how this run's
         // row closes — and a threshold notice appended AFTER the terminal
@@ -243,7 +243,7 @@ public sealed partial class RunRecordingAgent
         // by the time a reader sees the terminal event, it has stopped
         // reading. RecordQuotaAsync itself never throws
         // (QuotaEnforcer.RecordAsync's contract) so this cannot fail the run.
-        // F-418: EVERY run in the tree writes its own consumption, when it ends,
+        // EVERY run in the tree writes its own consumption, when it ends,
         // under the root's tenant and name. The root used to write the whole tree
         // once, from the run store, while its own row closed; a background child
         // that had not ended by then had no usage on its row and was never counted.
@@ -251,7 +251,7 @@ public sealed partial class RunRecordingAgent
 
         await RecordQuotaAsync(scope, own, cost, nonTokenCost, cancellationToken).ConfigureAwait(false);
 
-        // The run.* webhook is the other reader of the call tree (F-383): a root
+        // The run.* webhook is the other reader of the call tree: a root
         // publishes the tree as it stands when the root closes. Read once here,
         // before the root's row closes.
         var treeConsumption = scope.Depth == 0
@@ -273,7 +273,7 @@ public sealed partial class RunRecordingAgent
             closingEventPayload: closingEventPayload,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        // 🚨 The budget is NOT recorded here (phase 114, was: `scope.Budget?.RecordUsage(...)`).
+        // 🚨 The budget is NOT recorded here (was: `scope.Budget?.RecordUsage(...)`).
         // RunBudgetChatClient records every real model call the moment it
         // happens, from INSIDE the tool-call loop - including the calls that
         // make up `usage` above AND the side-channel calls merged into it (the
@@ -302,7 +302,7 @@ public sealed partial class RunRecordingAgent
 
         // When the price is undefined (Source == Unknown), nothing is emitted: emitting an
         // unknown cost as zero would make the real spend look smaller. The cost is emitted
-        // on cancellation and on failure as well (Open Question 4): the money for the
+        // on cancellation and on failure as well: the money for the
         // consumed tokens is already spent.
         if (cost is { Source: not PricingSource.Unknown } knownCost)
         {
@@ -324,7 +324,7 @@ public sealed partial class RunRecordingAgent
         // A fallback link answering instead of the primary binding updates the
         // root span's model tag too — not just the run record — so a trace
         // viewer shows the model that actually ran without cross-referencing
-        // the run's events (phase 62).
+        // the run's events.
         if (fallbackUsed is not null)
         {
             scope.Activity.SetTag(TraconDiagnostics.Tags.ModelId, fallbackUsed.Value.Model);
@@ -343,7 +343,7 @@ public sealed partial class RunRecordingAgent
         // W3C trace identifier (child spans settle under the root span) and the buffer is
         // keyed by that identifier. If a child run closed the buffer too -- and it finishes
         // FIRST -- the spans of the whole tree would attach to the child run and the root
-        // run would stay empty. Measured (phase 12): on a real call the /trace endpoint of
+        // run would stay empty. Measured: on a real call the /trace endpoint of
         // the root returned 404 while the one of the child run was full.
         if (_traceCollector is not null && scope.OwnsTrace)
         {

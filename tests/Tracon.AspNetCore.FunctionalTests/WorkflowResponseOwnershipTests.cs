@@ -9,7 +9,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHa
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Who owns the run an answer starts (phase 208, independent audit 🔴1 and 🔴2): the run row
+/// Who owns the run an answer starts (independent audit 🔴1 and 🔴2): the run row
 /// is opened BEFORE the claim, so a claim never names a run that does not exist, and a queued
 /// answer whose job has not finished is followed, never started a second time beside the job.
 /// </summary>
@@ -259,7 +259,7 @@ public sealed class WorkflowResponseOwnershipTests
     [Fact]
     public async Task A_delivered_answer_whose_run_failed_before_any_checkpoint_starts_again()
     {
-        // Open question 6-A: the workflow received the answer, then the run failed before it wrote
+        // The workflow received the answer, then the run failed before it wrote
         // a checkpoint of its own. Nothing can be resumed, so the same answer starts the work again.
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync(runWorker: false);
@@ -276,7 +276,7 @@ public sealed class WorkflowResponseOwnershipTests
     [Fact]
     public async Task A_delivered_answer_whose_run_wrote_a_checkpoint_is_followed_not_started_again()
     {
-        // Open question 6-A, the other way: a checkpoint means the run got past the answer; the
+        // The other way: a checkpoint means the run got past the answer; the
         // operator resumes it from there. The same answer follows it and starts nothing.
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync(runWorker: false);

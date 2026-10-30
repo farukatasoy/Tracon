@@ -115,7 +115,7 @@ public sealed class EvalJobHandlerTests
     [Fact]
     public async Task Case_context_reaches_the_agent_as_a_document_message_ahead_of_the_query()
     {
-        // 🚨 F-343: EvalCase.Context said "text given to the model as extra
+        // EvalCase.Context said "text given to the model as extra
         // context", but the case ran as RunAsync(Query) and the context went to
         // the evaluator only - the agent under test never saw it, so a case
         // measured a different input than the production run it stood for.

@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-298 follows the live voice rule (K-878): the key reaches only a provider that
+/// An earlier fix follows the live voice rule: the key reaches only a provider that
 /// declares <see cref="ISpeechSynthesizer.SupportsTenantCredentials"/>; for any other
 /// provider, a binding with an endpoint override, or a binding whose key has no
 /// value, the call is refused before the provider is reached.

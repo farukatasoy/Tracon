@@ -3,7 +3,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The antithesis of Phase 96's <c>internal</c> narrowing: for every type
+/// The antithesis of the earlier change's <c>internal</c> narrowing: for every type
 /// pulled behind <c>internal</c> because "the consumer reaches it through a
 /// public interface instead", this proves both halves of that claim from a
 /// real <c>PackageReference</c> consumer - the interface resolves, the
@@ -12,9 +12,9 @@ namespace Tracon.Package.Tests;
 /// <remarks>
 /// Measured cases: <c>Tracon.IRunStore</c> stays public, its default
 /// implementation <c>Tracon.InMemoryRunStore</c> became <c>internal</c>
-/// (Phase 96, item 96.6); <c>Tracon.IMigrationApplier</c> stays public, the
+/// (item 96.6); <c>Tracon.IMigrationApplier</c> stays public, the
 /// SQL providers' <c>Tracon.MigrationRunner</c> became <c>internal</c>
-/// (Phase 182) - it had been public in all three provider packages under the
+/// - it had been public in all three provider packages under the
 /// same name. Neither <see cref="ConsumerRunTests"/> nor
 /// <see cref="LocalReferenceTests"/> covers this: they prove the SDK-level
 /// consumer surface still works, not that a narrowed type actually stopped
@@ -27,7 +27,7 @@ public sealed class ConsumerSurfaceTests(TemplateFixture fixture)
     [InlineData("MigrationRunner", "Tracon.PostgreSql")]
     public async Task Internal_type_is_not_visible_to_a_package_consumer(string typeName, string? owningPackage)
     {
-        // `MigrationRunner` lives in the store packages, which the meta package no longer brings (Phase 256). Without
+        // `MigrationRunner` lives in the store packages, which the meta package no longer brings. Without
         // the owning package the build would fail with CS0246 (not found) and prove nothing about visibility.
         using var dir = new TempDirectory();
 

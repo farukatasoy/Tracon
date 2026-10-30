@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-407: the tree budget refused a model call and a new agent step, and a function node
+/// The tree budget refused a model call and a new agent step, and a function node
 /// started anyway and did its paid work (speech, render, GPU). A chain of function nodes only
 /// never stopped at all. The gate sits in the function wrapper and reads the budget from the
 /// AMBIENT run scope, in the background task Microsoft Agent Framework runs the node on; only
@@ -184,7 +184,7 @@ public sealed class FunctionNodeBudgetGateTests
 
         var counter = await DailyCounterAsync(host, Workflow);
 
-        // The refusal does not lose the money the first node spent (K-990).
+        // The refusal does not lose the money the first node spent.
         counter.Cost.ShouldBe(5m);
         counter.Runs.ShouldBe(1);
     }
@@ -468,7 +468,7 @@ public sealed class FunctionNodeBudgetGateTests
             events.Add(runEvent);
         }
 
-        // Measured (F-407): the engine announces the node before its handler runs, so a refused
+        // Measured: the engine announces the node before its handler runs, so a refused
         // node reads "invoked", then "failed" under its own name, as any node that throws does.
         // No later node is announced at all.
         var nodeEvents = events

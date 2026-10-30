@@ -86,8 +86,8 @@ internal sealed class McpTenantTools
         return null;
     }
 
-    // F-305 / K-880: a dropped list counts as absent by user decision. The catalog
-    // keeps the last good list through a transient failure (F-309), so a blip reaches
+    // A dropped list counts as absent by user decision. The catalog
+    // keeps the last good list through a transient failure, so a blip reaches
     // this method as the same binding, not as absent.
     /// <summary>Gets the binding of the tool with the given name.</summary>
     /// <param name="name">The tool name.</param>
@@ -185,7 +185,7 @@ internal sealed class McpTenantTools
             var name = registration.Function.Name;
 
             // Wrapping goes through ToolWrapperChain.Compose — the same
-            // composition point ToolRegistry uses (docs/127, 127.1). MCP
+            // composition point ToolRegistry uses. MCP
             // tools do not go through that registry, so this call site is
             // still separate, but the wrapper CHAIN itself is no longer
             // built by hand here: a layer added to Compose reaches this path
@@ -199,7 +199,7 @@ internal sealed class McpTenantTools
             // defaults to External — the most cautious class, not Read. This
             // promotion is the one difference from ToolRegistry's own effect
             // handling, and it is a CALL-SITE decision made before Compose is
-            // ever invoked (docs/127, 127.1).
+            // ever invoked.
             var effect = registration.Effect == ToolEffect.Read ? ToolEffect.External : registration.Effect;
 
             var descriptor = new ToolDescriptor
@@ -268,7 +268,7 @@ internal sealed class McpTenantTools
         return new McpTenantTools(tools, sources, bindings, descriptors, prefixes);
     }
 
-    // F-308: K-880 kept the remote definition out of the cache key until the cache had
+    // The remote definition was kept out of the cache key until the cache had
     // a bound; CompiledAgentCache now holds one entry per definition slot, so a server
     // that edits a description on every refresh replaces an entry instead of adding one.
     /// <summary>Hashes the definition the tool object embeds, as the server sent it.</summary>
@@ -283,7 +283,7 @@ internal sealed class McpTenantTools
     /// </remarks>
     private static string DefinitionHash(AIFunctionDeclaration function)
     {
-        // The elicitation wrapper (Phase 235) is not part of what the server said: hash the tool inside it.
+        // The elicitation wrapper is not part of what the server said: hash the tool inside it.
         var embedded = function is McpElicitingTool eliciting ? eliciting.Remote : function;
 
         var definition = embedded is McpClientTool remote

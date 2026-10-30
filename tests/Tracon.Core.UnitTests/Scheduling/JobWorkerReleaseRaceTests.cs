@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// it again before the attempt that released it has finished on this worker.
 /// </summary>
 /// <remarks>
-/// Measured (2026-10-15, F-547): the second lease met the first attempt still in the
+/// Measured (2026-10-15): the second lease met the first attempt still in the
 /// worker's running set, was logged as "already executing" and dropped. The store had
 /// already counted the attempt and set a five-minute lease, so the job stayed
 /// <see cref="JobStatus.Leased"/> and, once the lease ran out, failed as out of

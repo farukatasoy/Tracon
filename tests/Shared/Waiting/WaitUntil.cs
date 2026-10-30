@@ -10,7 +10,7 @@ namespace Tracon.Tests.Common;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 184. A fixed <c>Task.Delay</c> before a POSITIVE assertion is a claim
+/// A fixed <c>Task.Delay</c> before a POSITIVE assertion is a claim
 /// about the machine: under a loaded full-solution run the awaited state
 /// arrives later, and the test fails although the product is right. Polling
 /// removes the claim - the wait ends the moment the condition holds.
@@ -19,7 +19,7 @@ namespace Tracon.Tests.Common;
 /// 🚨 The timeout only bounds a failure; it is NOT a performance budget. When
 /// the condition already holds, a long limit costs nothing. A short one says
 /// "this machine is fast", which a loaded run proves false - the second shape
-/// of the same defect (<c>docs/hafiza/test-yalitimi.md</c>, Phase 173). The
+/// of the same defect (<c>.md</c>). The
 /// default is therefore generous, and a caller narrows it only when the
 /// timeout itself is what the test asserts.
 /// </para>

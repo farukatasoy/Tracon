@@ -5,12 +5,12 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The template side of K-059/K-009: no generated file should contain a
+/// The template side of that decision/that decision: no generated file should contain a
 /// realistic-looking key, and appsettings.json should carry only empty placeholders.
 /// </summary>
 public sealed class TemplateSecretTests(TemplateFixture fixture)
 {
-    // Same pattern as the DoD verification command: Phase 37.
+    // Same pattern as the DoD verification command.
     private static readonly Regex SecretLike = new(
         "sk-[a-z0-9]{20}|api[_-]?key\"\\s*:\\s*\"[^\"]+\"",
         RegexOptions.IgnoreCase,

@@ -42,7 +42,6 @@
     (guvenlik yamalarini zorlamak icin), ancak bir kutuphanede tuketicinin
     bagimlilik grafigini kirletir ve onu bizim sabitledigimiz surumlere baglar.
     Gecisli bir surumu zorlamamiz gerekirse bilincli bir PackageReference ekleriz.
-    Gerekce: docs/KARARLAR.md, karar K-007.
   -->
   <PropertyGroup Label="Merkezi paket yonetimi">
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>

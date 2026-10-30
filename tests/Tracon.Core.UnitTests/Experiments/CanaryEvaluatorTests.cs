@@ -2,7 +2,6 @@ namespace Tracon.Core.UnitTests.Experiments;
 
 /// <summary>
 /// The <see cref="CanaryEvaluator"/> contract — pure decision logic, no database
-/// (Phase 56).
 /// </summary>
 public sealed class CanaryEvaluatorTests
 {

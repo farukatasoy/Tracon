@@ -19,7 +19,7 @@ namespace Tracon.Core.UnitTests.Runs;
 /// throwing, so the run ends successfully. The member was declared across the
 /// whole shipped surface — OpenAPI, the TypeScript schema and both UI
 /// dictionaries — and advertised a state that never occurred, so it was removed
-/// while <c>PublicAPI.Shipped.txt</c> was still empty (K-603). Never reuse 9:
+/// while <c>PublicAPI.Shipped.txt</c> was still empty. Never reuse 9:
 /// old records and old clients still carry the old meaning.
 /// </para>
 /// </remarks>

@@ -4,7 +4,7 @@ using Tracon.Cli.FunctionalTests.Infrastructure;
 namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
-/// Pins the commands and options of the <c>tracon</c> CLI to <c>docs/sozlesme/cli.txt</c> (Phase 238, section 238.2).
+/// Pins the commands and options of the <c>tracon</c> CLI to <c>docs/sozlesme/cli.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>

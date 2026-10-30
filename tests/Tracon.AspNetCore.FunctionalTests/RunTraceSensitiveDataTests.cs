@@ -7,7 +7,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 266: with <c>RecordSensitiveData</c> off, no content key reaches the span store, whichever ring wrote it.
+/// With <c>RecordSensitiveData</c> off, no content key reaches the span store, whichever ring wrote it.
 /// </summary>
 /// <remarks>
 /// <para>

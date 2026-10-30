@@ -18,11 +18,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// run rows.
 /// </summary>
 /// <remarks>
-/// F-364: <c>WorkflowJobHandler</c> opened no <see cref="AmbientRunAttributionScope"/>,
+/// <c>WorkflowJobHandler</c> opened no <see cref="AmbientRunAttributionScope"/>,
 /// and nothing that queued a workflow job wrote an attribution into it. A
 /// workflow started by an inbound trigger, a schedule or <see cref="IJobDispatcher"/>
 /// ran with no user and no labels, although the trigger accept endpoint had
-/// checked them (F-337). The same held for an agent batch, and for an agent run
+/// checked them. The same held for an agent batch, and for an agent run
 /// an inbound trigger starts. The scope is an <c>AsyncLocal</c> read on a
 /// streaming path in a background worker, so the cases run through the real host.
 /// </remarks>

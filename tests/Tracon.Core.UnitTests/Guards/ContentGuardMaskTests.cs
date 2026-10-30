@@ -42,7 +42,7 @@ public sealed class ContentGuardMaskTests
     public async Task Masked_messages_raw_representation_is_dropped()
     {
         // 🚨 Some provider adapters build the request from the raw representation
-        // (measured in Phase 26: the Anthropic adapter does NOT overwrite the raw
+        // (measured: the Anthropic adapter does NOT overwrite the raw
         // object it was given). If it were carried over, unmasked text would reach
         // the network.
         var inner = new FakeChatClient();
@@ -118,7 +118,7 @@ public sealed class ContentGuardMaskTests
     [Fact]
     public async Task Tool_result_that_cannot_be_normalized_is_masked_even_when_no_guard_pattern_matches()
     {
-        // 🚨 Fail-closed (Open Question 1, option A, Phase 102): a tool result
+        // 🚨 Fail-closed (option A): a tool result
         // ToolResultText cannot normalize into text must NEVER be routed through
         // a guard's pattern match — there is no real text to match, and a guard
         // whose pattern does not happen to match the fixed placeholder would
@@ -149,7 +149,7 @@ public sealed class ContentGuardMaskTests
         // ToolResultText could not read those, so the fail-closed branch below
         // fired on EVERY MCP tool result: the model received
         // "[Tool result could not be inspected]" and the guards never saw the
-        // text they exist to examine — measured, not assumed (HATA-S1-026's
+        // text they exist to examine — measured, not assumed (an earlier defect's
         // class scan). Fail-closed is for a result no one can read.
         var inner = new FakeChatClient();
 

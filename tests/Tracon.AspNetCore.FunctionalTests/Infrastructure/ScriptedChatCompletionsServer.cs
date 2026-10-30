@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-315: a harness agent on the <c>openai</c> provider failed with two 400s
+/// A harness agent on the <c>openai</c> provider failed with two 400s
 /// that only the real API produced. <see cref="FakeOpenAiCompatibleServer"/>
 /// accepts any body, so it could not show either one. This server rejects the
 /// same two bodies, with the error shape OpenAI returns:

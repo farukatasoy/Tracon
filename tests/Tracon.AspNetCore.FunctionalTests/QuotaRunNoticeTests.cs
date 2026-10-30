@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// End-to-end coverage of the quota threshold run-stream notice (phase 146):
+/// End-to-end coverage of the quota threshold run-stream notice:
 /// off by default, ordering against the terminal event, parity between the
 /// direct POST stream and <c>GET /api/runs/{id}/events</c>, Last-Event-ID
 /// resumption, and durable per-period dedup.
@@ -131,9 +131,9 @@ public sealed class QuotaRunNoticeTests
     [Fact]
     public async Task Truncation_and_quota_notices_arrive_in_record_order_before_done()
     {
-        // Phase 207: the truncation notice is written while the run streams, the
+        // The truncation notice is written while the run streams, the
         // quota notice when it closes, so the record order is truncation first.
-        // The root crosses its OWN threshold here (phase 205: a child's notice
+        // The root crosses its OWN threshold here (a child's notice
         // goes to the child's stream, never to this one).
         var provider = new FinishReasonModelProvider()
             .Text("The first half of a long ans", ChatFinishReason.Length, inputTokens: 30, outputTokens: 50);
@@ -165,7 +165,7 @@ public sealed class QuotaRunNoticeTests
     {
         // Observability does not break functionality: the run already completed,
         // and a store that cannot serve its notices must not turn the stream into
-        // an 'error'. Before phase 207 it did.
+        // an 'error'. Before that change, it did.
         await using var host = await StartAsync(
             publishToRunStream: true,
             configureTracon: static builder =>

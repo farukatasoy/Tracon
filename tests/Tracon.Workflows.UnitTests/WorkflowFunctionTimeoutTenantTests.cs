@@ -5,12 +5,12 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Two tenants with a workflow of the same name (F-303, failure mode 8): each run takes
+/// Two tenants with a workflow of the same name (failure mode 8): each run takes
 /// the node timeout of its own tenant's definition.
 /// </summary>
 /// <remarks>
 /// A workflow name is unique only within a tenant. The function registry is shared by
-/// every tenant, and the agent wrapper cache was once keyed without the tenant (K-380);
+/// every tenant, and the agent wrapper cache was once keyed without the tenant;
 /// a timeout kept anywhere outside the definition would leak the same way.
 /// </remarks>
 public sealed class WorkflowFunctionTimeoutTenantTests

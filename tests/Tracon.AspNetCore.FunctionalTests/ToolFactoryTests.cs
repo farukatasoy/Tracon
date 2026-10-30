@@ -2,14 +2,14 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269).
+// Same rationale as ToolGovernanceEndpointTests.cs.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 258 (F-752): <c>AddTool(provider =&gt; ...)</c> builds a tool from the host's service provider,
-/// the compile-time answer to the empty provider a tool sees at call time (K-218).
+/// <c>AddTool(provider =&gt...)</c> builds a tool from the host's service provider,
+/// the compile-time answer to the empty provider a tool sees at call time.
 /// </summary>
 /// <remarks>
 /// <para>

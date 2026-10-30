@@ -8,7 +8,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// F-603 — the ring that reads the hosted tool calls a model response carries and reports their cost to
+/// The ring that reads the hosted tool calls a model response carries and reports their cost to
 /// the run (<see cref="HostedToolUsageChatClient"/>).
 /// </summary>
 /// <remarks>
@@ -445,7 +445,7 @@ public sealed class HostedToolUsageChatClientTests
     [Fact]
     public async Task A_cache_hit_in_another_run_is_not_billed_because_the_ring_sits_inside_the_cache()
     {
-        // The structural claim (F-603): a hit replays a response, and the run that replays it has not
+        // The structural claim: a hit replays a response, and the run that replays it has not
         // searched. Above the cache the second run would be billed for the first run's search.
         var cache = new FakeDistributedCache();
         var services = new ServiceCollection();

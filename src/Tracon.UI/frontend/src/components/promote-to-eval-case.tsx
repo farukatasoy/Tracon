@@ -8,11 +8,11 @@ import type { EvalSuite } from '../lib/server-types';
 
 /**
  * Promotes a finished run into an eval suite's case set with one click
- * (F-53, Phase 45). The promotion reason (failed / negative score / reference)
+ *The promotion reason (failed / negative score / reference)
  * is auto-detected server-side from the run's own status and feedback.
  *
  * On success the operator is sent to the suite's case editor to fill in
- * `expectedOutput` by hand (K-143's repeated-field form) — the server never
+ * `expectedOutput` by hand (the repeated-field form) — the server never
  * copies a failing run's own output into `expectedOutput`, so that field is
  * deliberately empty until a human writes it.
  */

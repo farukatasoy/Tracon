@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Two tenants carry a skill of the same name and different text, and one agent
 /// definition names it. Each tenant's run is offered its own skill (the name and
 /// description in the prompt) and never the other's, on a plain agent and on a
-/// harness agent (F-578, Phase 219).
+/// harness agent.
 /// </summary>
 /// <remarks>
 /// The tenant is a security boundary and the skill chain keeps a cache of the

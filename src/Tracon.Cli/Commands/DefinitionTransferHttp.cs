@@ -36,7 +36,7 @@ internal static class DefinitionTransferHttp
 
         var root = baseAddress.AbsoluteUri.EndsWith('/') ? baseAddress : new Uri(baseAddress.AbsoluteUri + "/", UriKind.Absolute);
 
-        // 🚨 The budget the command owns is the one it enforces (K-737); HttpClient's own default would end a long
+        // 🚨 The budget the command owns is the one it enforces; HttpClient's own default would end a long
         // import at 100 seconds and call it a cancellation nothing asked for.
         var client = new HttpClient { BaseAddress = root, Timeout = Timeout.InfiniteTimeSpan };
 

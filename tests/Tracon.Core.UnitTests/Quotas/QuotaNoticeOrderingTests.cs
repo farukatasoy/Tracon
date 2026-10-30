@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Quotas;
 
 /// <summary>
-/// The sequence-ordering guarantee phase 146 relies on:
+/// The sequence-ordering guarantee relies on:
 /// <see cref="RunEventWriter.AppendReservedAsync"/> called BEFORE
 /// <see cref="RunEventWriter.CompleteAsync"/> gets a lower sequence number
 /// than the terminal event, and a reader that starts from the beginning of
@@ -63,7 +63,7 @@ public sealed class QuotaNoticeOrderingTests
     [Fact]
     public async Task A_child_run_with_no_tree_account_records_no_quota_consumption()
     {
-        // F-418 changed the rule this test used to state ("a child never records"): a child
+        // The earlier decision changed the rule this test used to state ("a child never records"): a child
         // run writes its own tokens and cost under its ROOT's counter, named by the account
         // the root put on the tree's budget (TreeQuotaTests). With no root of ours behind the
         // run - hand-built options carry no budget - there is no counter to name, and this
@@ -107,7 +107,7 @@ public sealed class QuotaNoticeOrderingTests
     [Fact]
     public async Task A_canceled_run_still_records_quota_consumption()
     {
-        // K-162: the quota check happens before a run starts; consumption is
+        // The quota check happens before a run starts; consumption is
         // recorded when it ends, REGARDLESS of how it ends. A run canceled
         // mid-flight already spent real tokens and must still be counted --
         // 146.1 moved WHEN this write happens (earlier), not WHETHER it does.
@@ -118,7 +118,7 @@ public sealed class QuotaNoticeOrderingTests
 
         // The registry entry is written BEFORE the run row - RunRecordingAgent
         // registers first so a cancel can land during the start write. Waiting
-        // for the entry alone raced the read below (Phase 184).
+        // for the entry alone raced the read below.
         await WaitUntil.TrueAsync(async () =>
             harness.Registry.ActiveCount == 1 && (await harness.Store.QueryRunsAsync(new RunQuery())).Count == 1);
 

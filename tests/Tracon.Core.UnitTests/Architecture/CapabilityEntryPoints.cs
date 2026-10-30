@@ -15,7 +15,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// them.
 /// </para>
 /// <para>
-/// The scope is decision K-509: every extension method whose receiver is the
+/// The scope is the earlier decision: every extension method whose receiver is the
 /// builder interface, whatever its name (<c>Configure</c> and the two
 /// <c>Require*</c> gates are entry points too); every <c>Add</c>, <c>Use</c>, or
 /// <c>Map</c> extension whose receiver is one of the other registration types;

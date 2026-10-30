@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Sessions;
 
 /// <summary>
-/// Phase 126: the compatibility promise for persisted session state.
+/// The compatibility promise for persisted session state.
 /// </summary>
 /// <remarks>
 /// <see cref="Todays_code_reads_a_session_state_fixture_written_by_todays_MAF"/>

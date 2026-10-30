@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Public API yüzey envanterinin testleri (Faz 182).
+"""Public API yüzey envanterinin testleri.
 
 Envanter bir karar aracıdır: yanlış sayılan bir tip ya gereksiz yere dondurulur
 ya da tüketiciyi kıracak biçimde `internal` adayı gösterilir. Testler bilinen
@@ -205,7 +205,7 @@ class SiniflandirmaTestleri(unittest.TestCase):
         self.assertEqual(_tip(tipler, "Tracon.WidgetMode").gerekce, "imza:Tracon.WidgetOptions")
 
     def test_onek_tasimayan_builder_uzantisi_kayit_giris_noktasidir(self):
-        # Faz 189: `Configure` builder uzantısı oldu; önek kuralı onu kanıtsız bırakırdı.
+        # `Configure` builder uzantısı oldu; önek kuralı onu kanıtsız bırakırdı.
         unshipped = (
             "Tracon.ConfigureOnlyExtensions\n"
             "static Tracon.ConfigureOnlyExtensions.Configure(this Tracon.ITraconBuilder! builder, "
@@ -229,7 +229,7 @@ class SiniflandirmaTestleri(unittest.TestCase):
         self.assertEqual(_tip(tipler, "Tracon.SampleToolAttribute").sinif, "kanıtsız")
 
     def test_openapi_semasi_tuketici_kaniti_degildir(self):
-        # Faz 212: HTTP DTO'su internal doğar; sevk edilen belgede görünmesi onu public tutmaz.
+        # HTTP DTO'su internal doğar; sevk edilen belgede görünmesi onu public tutmaz.
         # Belge korpusa girmez (`.json` uzantısı yok) ve sınıflandırıcı şema adı almaz.
         self.assertNotIn(".json", envanter.KORPUS_UZANTILARI)
         tipler = _envanter([])
@@ -321,7 +321,7 @@ class YardimciTestleri(unittest.TestCase):
 
 
 class UcUcaEnvanterTestleri(unittest.TestCase):
-    """`envanter_olustur` gerçek bir git dizininde: korpusu toplayan yol da sınanır (F-562)."""
+    """`envanter_olustur` gerçek bir git dizininde: korpusu toplayan yol da sınanır."""
 
     BELGE = '{"components": {"schemas": {"AgentDescriptor": {"type": "object"}}}}'
 

@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHa
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A workflow that takes one answer per request (phase 208): two identical answers start one
+/// A workflow that takes one answer per request: two identical answers start one
 /// run, a different answer is refused with 409, and an answer whose run stopped before it
 /// finished can be given again. <see cref="WorkflowResponseMode.Branch"/> keeps opening a new
 /// run for every answer.
@@ -122,7 +122,7 @@ public sealed class WorkflowSingleResponseTests
     [Fact]
     public async Task Branch_mode_still_opens_a_branch_for_every_answer()
     {
-        // K-130 is the default and stays byte for byte: every answer opens its own run. The only
+        // The earlier decision is the default and stays byte for byte: every answer opens its own run. The only
         // new thing is that each one is recorded and audited.
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync();

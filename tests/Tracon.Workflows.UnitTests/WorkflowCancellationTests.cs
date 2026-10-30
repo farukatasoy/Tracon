@@ -7,7 +7,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Cancellation of a workflow run (phase 32, defect F-107).
+/// Cancellation of a workflow run (defect an earlier fix).
 /// </summary>
 /// <remarks>
 /// 🚨 Measured on 2026-08-18: the graph built by MAF's

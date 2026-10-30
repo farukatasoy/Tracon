@@ -12,8 +12,8 @@ namespace Tracon.SqlProviders.Tests;
 /// <remarks>
 /// <para>
 /// 🚨 The same gap came back four times: conversations had no session id
-/// (K-457), attachment bytes stayed in storage (F-332), workflow checkpoints
-/// had no foreign key to runs (F-371), and run scores were matched only by the
+///Attachment bytes stayed in storage, workflow checkpoints
+/// had no foreign key to runs, and run scores were matched only by the
 /// run ids a resolver named. Each time the table was simply not in
 /// <c>DataSubjectTargetRegistry</c>, and nothing failed. This gate turns the
 /// next one into a build failure.
@@ -21,7 +21,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <para>
 /// A table is covered when it is an export target, or when a foreign key with
 /// <c>ON DELETE CASCADE</c> ties it to an erasure target (the run's events, tool
-/// calls, and traces go with the run; phase 64 left them out of the export on
+/// calls, and traces go with the run; an earlier change left them out of the export on
 /// purpose). Any other table needs an entry in <see cref="Exemptions"/>.
 /// </para>
 /// <para>
@@ -169,7 +169,7 @@ public sealed class DataSubjectCoverageTests
     };
 
     /// <summary>
-    /// F-401: export wrote a protected column as its stored envelope, so a subject
+    /// Export wrote a protected column as its stored envelope, so a subject
     /// received ciphertext exactly when content protection was on. Every protected
     /// column of an export target is read back as plaintext.
     /// </summary>
@@ -201,7 +201,7 @@ public sealed class DataSubjectCoverageTests
     }
 
     /// <summary>
-    /// F-447: a retention archive hands rows to the consumer's sink. Every protected
+    /// A retention archive hands rows to the consumer's sink. Every protected
     /// column of a retention target is read back as plaintext there too.
     /// </summary>
     [Theory]

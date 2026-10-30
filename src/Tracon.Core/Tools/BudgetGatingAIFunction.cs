@@ -56,7 +56,7 @@ internal sealed class BudgetGatingAIFunction(AIFunction innerFunction)
     {
         // One ambient read when the run has no budget; the check itself reads counters and
         // the clock, never the store. The token is not read: a cancellation travels the way
-        // it always did (K-737).
+        // it always did.
         if (Refusal() is { } refusal)
         {
             throw new TraconRunBudgetExceededException(refusal);

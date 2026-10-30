@@ -36,8 +36,8 @@ installPersistentFetchStub();
 
 // Every findBy* and waitFor gives up after this long. The library's default is 1 s, and a
 // loaded CI runner took 1.5 s for one whole screen test (2026-10-15): three cases that waited
-// for what the mocked API had not delivered yet failed there and never on a laptop (F-546,
-// F-551). A passing wait returns as soon as the element is there, so this costs nothing; a
+// for what the mocked API had not delivered yet failed there and never on a laptop (
+// An earlier fix). A passing wait returns as soon as the element is there, so this costs nothing; a
 // missing element still fails, only later.
 configure({ asyncUtilTimeout: 5_000 });
 

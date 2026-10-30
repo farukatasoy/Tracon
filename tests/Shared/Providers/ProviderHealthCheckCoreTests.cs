@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Tracon.ProviderCore.Tests;
 
 /// <summary>
-/// The shared health check body (phase 181). Linked into the four provider test
+/// The shared health check body. Linked into the four provider test
 /// projects, so each assembly's compiled copy is tested.
 /// </summary>
 public sealed class ProviderHealthCheckCoreTests

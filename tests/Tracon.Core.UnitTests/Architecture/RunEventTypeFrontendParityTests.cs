@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Keeps <c>RunEventType</c> in sync with its hand-maintained TypeScript twin,
-/// <c>src/Tracon.UI/frontend/src/lib/run-event.ts</c> (phase 141).
+/// <c>src/Tracon.UI/frontend/src/lib/run-event.ts</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -13,7 +13,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// doc comment says it is "kept in sync by hand". A member added on the C#
 /// side and forgotten on the TypeScript side compiles clean on both ends:
 /// the backend happily emits the new type name over the wire, and the console
-/// falls back to a generic, unstyled row for it (K-411 class drift).
+/// falls back to a generic, unstyled row for it (that decision class drift).
 /// </para>
 /// <para>
 /// This gate is a plain set-equality check, not a ratchet: unlike

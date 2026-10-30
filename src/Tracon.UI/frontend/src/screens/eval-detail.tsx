@@ -257,7 +257,7 @@ function CaseEditor({
         <Field label={t('agentEditor.context')} hint={t('evals.contextHint')}>
           {/* Multi-line on purpose: a promoted case keeps the run's documents
               here as line-based blocks, and a single-line input drops the line
-              breaks on the first edit (F-343). */}
+              breaks on the first edit. */}
           <TextArea
             rows={3}
             value={evalCase.context ?? ''}

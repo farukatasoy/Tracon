@@ -1,0 +1,43 @@
+# The public tree: the only paths of this repository that a public reader receives.
+# One entry per line. A trailing / marks a directory and takes everything below it.
+# A bare name is a file at the repository root; * may stand for part of that name.
+# Blank lines and lines starting with # are ignored.
+#
+# Two readers share this list so they cannot drift apart: the architecture gate
+# (ShippedDocumentationSelfContainmentTests) scans every file it names for references
+# into the development record, and the mirror tool copies exactly these paths.
+
+src/
+tests/
+samples/
+bench/
+packages/
+docs-site/
+docfx/
+assets/
+scripts/
+.github/
+.config/
+
+# The two contract directories under docs/ are read by tests and ship in a package.
+docs/sozlesme/
+docs/openapi/
+
+.editorconfig
+.gitattributes
+.gitignore
+CHANGELOG.md
+CONTRIBUTING.md
+ARCHITECTURE.md
+LICENSE.md
+LICENSE-MIT.md
+README.md
+SECURITY.md
+Directory.Build.props
+Directory.Build.targets
+Directory.Packages.props
+NuGet.config
+global.json
+nswag.json
+Tracon.slnx
+Tracon.*.slnf

@@ -6,7 +6,7 @@ namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
 /// <see cref="TraconMcpOptions.RefreshInterval"/> must fail at startup when
-/// the discovery loop cannot wait for it (F-278).
+/// the discovery loop cannot wait for it.
 /// </summary>
 /// <remarks>
 /// The discovery loop waits with <c>Task.Delay</c> inside a hosted service. A
@@ -39,7 +39,7 @@ public sealed class McpRefreshIntervalValidationTests
     }
 
     /// <summary>
-    /// F-280: every connect, list and resource read arms the connection timeout with
+    /// Every connect, list and resource read arms the connection timeout with
     /// <c>CancelAfter</c>. Out of range, the connect threw outside the per-server
     /// handling and aborted discovery for every tenant. Checked while discovery is
     /// off too: the definition validator and the test-connection endpoint use it.

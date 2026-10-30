@@ -8,11 +8,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// <c>POST /api/jobs/{id}/cancel</c> reaches the running handler's token, through the
-/// real host and its real worker (F-323, failure modes 14 and 16), and
+/// real host and its real worker (failure modes 14 and 16), and
 /// <c>GET /api/jobs/{id}</c> shows a job's own time limit.
 /// </summary>
 /// <remarks>
-/// Before phase 196 the endpoint only wrote the store; the description said the worker
+/// Before that change, the endpoint only wrote the store; the description said the worker
 /// "checks the cancellation request between items", and a handler that did not ask ran
 /// on. The worker now reads a running job's status every <c>PollInterval</c> and cancels
 /// the token. Another tenant's cancel must not reach it.

@@ -277,7 +277,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
             UpdatedAt = DbHelpers.GetTimestamp(reader, 10),
 
             // Last in the column list (WebhookSubscriptionColumns): the column
-            // arrived with phase 190's migration, and the reader addresses
+            // arrived with its own migration, and the reader addresses
             // columns by position.
             HeaderConfigurationKeys = DeserializeHeaders(DbHelpers.GetNullableString(reader, 11)),
         };

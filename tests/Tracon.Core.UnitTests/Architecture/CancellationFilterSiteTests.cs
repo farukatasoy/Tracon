@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// No <c>catch</c> in <c>src/</c> tells a cancellation apart from a failure by the
-/// exception type alone (K-840, F-279).
+/// exception type alone.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -18,8 +18,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </para>
 /// <para>
 /// The defect class came back three times: seven hosted services and three
-/// recording paths (K-840), nine endpoint and helper sites (F-279), then 55 more
-/// in the class scan that closed F-279. The rule now has one spelling,
+/// recording paths, nine endpoint and helper sites, then 55 more
+/// in the class scan that closed an earlier fix. The rule now has one spelling,
 /// <c>OperationCancellation.IsFailure(exception, token)</c>, and this gate fails
 /// on the shapes that bypass it:
 /// </para>

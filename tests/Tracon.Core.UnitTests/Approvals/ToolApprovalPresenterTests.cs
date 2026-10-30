@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Approvals;
 /// <summary>
 /// <see cref="ToolApprovalPresenterRunner"/>: the fail-open contract on
 /// <see cref="IToolApprovalPresenter"/> — not registered, resolves, throws, and times
-/// out all publish the approval request either way (docs/142, section 142.2).
+/// out all publish the approval request either way.
 /// </summary>
 public sealed class ToolApprovalPresenterTests
 {
@@ -138,7 +138,7 @@ public sealed class ToolApprovalPresenterTests
     [Fact]
     public async Task A_presenters_own_provider_timeout_is_not_logged_as_the_configured_timeout()
     {
-        // K-737 regression on a SHIPPED extension seam: a consumer's presenter
+        // That decision regression on a SHIPPED extension seam: a consumer's presenter
         // may call an HTTP service that reports its OWN request timeout, which
         // arrives as an OperationCanceledException with nothing cancelled. The
         // fail-open result is the same either way; the reason an operator reads

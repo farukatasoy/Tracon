@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// What <c>/v1/chat/completions</c> hands the model from a message's content
-/// parts and its tool history (F-580).
+/// parts and its tool history.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,7 +26,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The rule now: a part the model can take is handed over; a part Tracon cannot
 /// hand over is refused with <c>400</c> and the part's name, never dropped.
 /// Tool history is refused: Tracon runs the agent's tools on the server
-/// (K-992), and <c>/v1/responses</c> refuses <c>function_call</c> items too.
+///And <c>/v1/responses</c> refuses <c>function_call</c> items too.
 /// </para>
 /// </remarks>
 public sealed class ChatCompletionsContentPartsTests

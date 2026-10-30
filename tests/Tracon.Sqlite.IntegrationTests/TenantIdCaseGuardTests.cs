@@ -4,7 +4,7 @@ namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
 /// The migration runner refuses a database that holds a non-canonical
-/// <c>tenant_id</c> (phase 179).
+/// <c>tenant_id</c>.
 /// </summary>
 /// <remarks>
 /// <para>

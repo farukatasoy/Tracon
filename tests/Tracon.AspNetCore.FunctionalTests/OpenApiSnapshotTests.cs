@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Verifies that the committed <c>docs/openapi/tracon.json</c> file stays
-/// identical to the document produced by the running host (Phase 40, section 40.4).
+/// identical to the document produced by the running host.
 /// </summary>
 /// <remarks>
 /// This pattern turns the document drifting from the code into a build gate.
@@ -124,7 +124,7 @@ public sealed class OpenApiSnapshotTests
 #pragma warning disable MEAI001
     internal static async Task<string> GenerateAsync()
     {
-        // Section 84.3: the document is generated with every optional endpoint turned
+        // The document is generated with every optional endpoint turned
         // on. A default-off endpoint (like /api/diagnostics) is still part of the
         // surface a consumer sees once they enable it, and every generated artifact
         // (this document, the .NET and TypeScript clients, the http-api/ site pages)

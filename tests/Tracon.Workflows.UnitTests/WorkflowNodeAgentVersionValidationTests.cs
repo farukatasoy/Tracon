@@ -2,7 +2,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// The shape of an agent version pin, judged by <see cref="WorkflowDefinitionValidator"/> at save
-/// and again when the workflow is compiled (phase 200, failure mode 16): only an agent node may
+/// and again when the workflow is compiled (failure mode 16): only an agent node may
 /// carry one, and a version is at least 1.
 /// </summary>
 /// <remarks>

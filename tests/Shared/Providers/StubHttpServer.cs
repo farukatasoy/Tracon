@@ -10,7 +10,7 @@ namespace Tracon.ProviderCore.Tests;
 /// drive a timeout.
 /// </summary>
 /// <remarks>
-/// Linked into the four provider test projects (phase 181). A real socket, not
+/// Linked into the four provider test projects. A real socket, not
 /// a fake <see cref="HttpMessageHandler"/>: the provider health checks own
 /// their <see cref="HttpClient"/>, so the only seam is the network.
 /// </remarks>

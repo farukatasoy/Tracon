@@ -5,7 +5,6 @@ namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
 /// Runs the read-only state preflight against a real PostgreSQL database
-/// (Phase 156).
 /// </summary>
 /// <remarks>
 /// <para>

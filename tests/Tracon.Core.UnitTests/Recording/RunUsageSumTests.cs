@@ -2,7 +2,7 @@ namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
 /// <see cref="RunUsageSum.Add"/> is the one place where the run recorder, the cost combiner and the
-/// webhook path add two <see cref="RunUsage"/> records (K-483's class). A counter it does not carry is
+/// webhook path add two <see cref="RunUsage"/> records. A counter it does not carry is
 /// dropped from every run that has a side-channel call: the written tokens would be priced as plain
 /// input, and the quota, the webhook total and the statistics would fall short.
 /// </summary>

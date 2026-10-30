@@ -45,7 +45,7 @@
     <InternalsVisibleTo Include="Tracon.SqlServer.IntegrationTests" />
     <InternalsVisibleTo Include="Tracon.Sqlite.IntegrationTests" />
     <InternalsVisibleTo Include="Tracon.Sql.Shared.UnitTests" />
-    <!-- Phase 265: the two-node acceptance set drives HTTP, the queue, the distributed cache and two SQL providers in one test. -->
+    <!-- The two-node acceptance set drives HTTP, the queue, the distributed cache and two SQL providers in one test. -->
     <InternalsVisibleTo Include="Tracon.TwoNode.IntegrationTests" />
   </ItemGroup>
 
@@ -73,7 +73,7 @@
     The shipped speech adapter (ElevenLabs) validates SpeechRequest and
     SpeechDialogueRequest ProviderSettings with the same internal dictionary
     readers the model adapters' public binding readers use, so a wrong type is
-    refused with the same key-naming, value-free message (phase 203, K-483).
+    refused with the same key-naming, value-free message.
   -->
   <ItemGroup Label="Internal visibility - shipped speech adapter">
     <InternalsVisibleTo Include="Tracon.Voice" />

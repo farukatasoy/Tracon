@@ -3,7 +3,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// MT-WF-062: a <c>respond</c> call re-triggered the graph's ENTRY node (when it
+/// A <c>respond</c> call re-triggered the graph's ENTRY node (when it
 /// is an agent-host) FROM SCRATCH, instead of resuming from the checkpoint.
 /// </summary>
 public sealed class WorkflowAgentEntryRespondTests

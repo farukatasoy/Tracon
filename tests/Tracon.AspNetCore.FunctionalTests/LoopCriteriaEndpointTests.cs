@@ -9,12 +9,12 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 201 (F-302), failure mode 8: <c>GET /api/loop-criteria</c> lists the
+/// Failure mode 8: <c>GET /api/loop-criteria</c> lists the
 /// kinds and the judge model without calling a registered factory, without
 /// returning the judge binding's provider settings, and only to a Reader with the
 /// <c>AgentsRead</c> scope.
 /// </summary>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class LoopCriteriaEndpointTests
 {

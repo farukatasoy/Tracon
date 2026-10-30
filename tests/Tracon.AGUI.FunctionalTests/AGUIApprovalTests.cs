@@ -9,11 +9,11 @@ using Tracon.Testing;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// A tool that waits for approval is an AG-UI interrupt, and the answer is the next request's <c>resume</c> (Phase 236).
+/// A tool that waits for approval is an AG-UI interrupt, and the answer is the next request's <c>resume</c>.
 /// </summary>
 /// <remarks>
-/// The decision is the one the management API takes: audited BEFORE it is applied (K-089, K-370), remembered the same way
-/// (K-061), and carried by the next turn of the session (K-103). What differs is the surface it is audited under.
+/// The decision is the one the management API takes: audited BEFORE it is applied, remembered the same way
+///And carried by the next turn of the session. What differs is the surface it is audited under.
 /// </remarks>
 public sealed class AGUIApprovalTests
 {
@@ -240,7 +240,7 @@ public sealed class AGUIApprovalTests
     [Fact]
     public async Task A_decision_that_cannot_be_audited_is_not_applied()
     {
-        // K-089, K-370: the audit row comes BEFORE the decision, and a row that cannot be written refuses the decision.
+        // The audit row comes BEFORE the decision, and a row that cannot be written refuses the decision.
         var audit = new SwitchableAuditLog();
         var (host, executions, first) = await StartPendingAsync(
             "t-audit",

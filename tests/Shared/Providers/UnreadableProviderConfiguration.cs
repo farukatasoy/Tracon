@@ -10,7 +10,7 @@ namespace Tracon.ProviderCore.Tests;
 /// <summary>
 /// One provider options type as a host binds it from configuration: where the section lives,
 /// the keys a valid configuration needs, and the two package calls that fill the options
-/// (phase 247). Linked into the four provider test projects.
+///Linked into the four provider test projects.
 /// </summary>
 /// <typeparam name="TOptions">The provider options type.</typeparam>
 /// <param name="SectionName">The full section path, such as <c>Tracon:Providers:OpenAI</c>.</param>
@@ -93,7 +93,7 @@ internal sealed record ProviderConfiguration<TOptions>(
 
 /// <summary>
 /// The probes that prove a provider's hand-written binder reads every scalar through the reader that
-/// records unreadable text (phase 247). Linked into the four provider test projects.
+/// records unreadable text. Linked into the four provider test projects.
 /// </summary>
 /// <remarks>
 /// <para>

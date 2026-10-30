@@ -6,7 +6,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.AgentStepHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The structured-response repair runs for an agent step of a workflow (phase 211): a step whose model answers with JSON that
+/// The structured-response repair runs for an agent step of a workflow: a step whose model answers with JSON that
 /// does not fit its schema is asked again, up to <c>MaxRepairAttempts</c>, before the workflow moves on.
 /// </summary>
 /// <remarks>

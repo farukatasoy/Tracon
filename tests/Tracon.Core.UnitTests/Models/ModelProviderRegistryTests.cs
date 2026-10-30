@@ -82,7 +82,7 @@ public sealed class ModelProviderRegistryTests
     [Fact]
     public void Registry_sets_up_the_tool_loop_and_telemetry_pipeline()
     {
-        // 🚨 Phase 48: these two links were moved here from inside four provider packages.
+        // These two links were moved here from inside four provider packages.
         // If they are lost, the agent never runs tool calls and no 'chat' span
         // is produced. A third-party provider also inherits them for free —
         // FakeModelProvider returns a raw client and the links are still there.

@@ -5,10 +5,10 @@ import { renderScreen, screen, waitFor } from '../test/render';
 import { McpScreen } from './mcp';
 
 /**
- * What the create form SENDS (phase 218). `authorizationConfigurationKey` is
+ * What the create form SENDS. `authorizationConfigurationKey` is
  * gone from the API: the form's key input is written into
  * `headerConfigurationKeys.Authorization`, and an empty input sends no map at
- * all, because an absent map keeps the stored one while `{}` erases it (K-870).
+ * all, because an absent map keeps the stored one while `{}` erases it.
  */
 describe('McpScreen create form', () => {
   let restoreFetch: () => void;

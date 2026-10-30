@@ -3,7 +3,7 @@ using System.Net;
 namespace Tracon.Core.UnitTests.Quotas;
 
 /// <summary>
-/// Tests of SSRF protection — the biggest security risk of this phase.
+/// Tests of SSRF protection — the biggest security risk of this change.
 /// </summary>
 /// <remarks>
 /// Tests require no network access: IP literal addresses are given directly,
@@ -139,7 +139,7 @@ public sealed class WebhookUrlValidatorTests
     [Fact]
     public async Task Loopback_target_can_be_delivered_when_AllowInsecureHttp_is_enabled()
     {
-        // 🚨 Regression (K-167): if AllowInsecureHttp only allows the SCHEME
+        // 🚨 Regression: if AllowInsecureHttp only allows the SCHEME
         // but still rejects the address, testing a local listener becomes
         // impossible and the user is forced into AllowPrivateNetworkTargets,
         // which opens the whole private network. Caught by running the

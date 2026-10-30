@@ -6,12 +6,12 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 201 (F-302), failure modes 9 and 11: <c>POST /api/agents/validate</c>
+/// Failure modes 9 and 11: <c>POST /api/agents/validate</c>
 /// reports EVERY loop problem with its own code and path, and the save path's
 /// <c>400</c> carries all of them.
 /// </summary>
 /// <remarks>
-/// Before this phase the compiler stopped at the first loop problem, and the
+/// Before this change the compiler stopped at the first loop problem, and the
 /// report carried that one as a path-less <c>compilation_error</c>: an operator
 /// fixed one field per round trip and could not tell which criterion was meant.
 /// </remarks>
@@ -125,7 +125,7 @@ public sealed class AgentValidationLoopTests
         Messages(json).ShouldBe([("loop_judge_unavailable", "harness.loop.criteria[0].kind")]);
     }
 
-    // ---- Phase 242 (F-411): the catalog step for an agentReview criterion's reviewer ----
+    // ---- an earlier change: the catalog step for an agentReview criterion's reviewer ----
 
     [Fact]
     public async Task A_reviewer_that_is_not_in_the_catalog_is_reported_at_the_criterion_and_saving_is_refused()

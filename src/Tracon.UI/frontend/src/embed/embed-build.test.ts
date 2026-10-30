@@ -6,7 +6,7 @@ import embedConfig from '../../vite.embed.config';
  * Builds the widget in memory with the SHIPPED `vite.embed.config.ts` and
  * inspects the emitted file. The config is the only place output options live,
  * so a bundler major that changes a default shows up here, not on a customer's
- * page (Phase 216: Rolldown dropped the IIFE's `"use strict"` that Rollup
+ * page (Rolldown dropped the IIFE's `"use strict"` that Rollup
  * emitted, and nothing else noticed — 418 tests and the E2E suite stayed green).
  *
  * The third-party-notices plugin is dropped: it records modules to disk, and

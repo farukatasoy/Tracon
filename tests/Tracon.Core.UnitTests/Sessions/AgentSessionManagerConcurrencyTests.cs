@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Sessions;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Closing HATA-004 made the FIRST write of a session atomic and left every
+/// Closing the earlier decision made the FIRST write of a session atomic and left every
 /// later write on the unconditional path, so two concurrent turns on an
 /// EXISTING session both reported success and the loser's turn was silently
 /// overwritten. These tests hold both halves in place.

@@ -4,8 +4,8 @@ namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
 /// The connection string and the bearer token never appear in CLI output,
-/// success or failure (decision K-059, Phase 83,
-/// section 83.5, manual case 9).
+/// success or failure (
+/// Manual case 9).
 /// </summary>
 [Collection(nameof(CliTestGroup))]
 public sealed class CliSecretRedactionTests

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269): the package's
+// Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The turn that answers a pending approval runs the approved tool and
-/// completes, in a harness agent as in a plain one (F-582).
+/// completes, in a harness agent as in a plain one.
 /// </summary>
 /// <remarks>
 /// <c>HarnessDefaultsTests.A_tool_that_requires_approval_waits_in_a_harness_agent</c>

@@ -10,19 +10,19 @@
     <ProjectReference Include="../../src/Tracon.Client/Tracon.Client.csproj" />
     <!--
       Tracon.AspNetCore is itself provider-independent (a natural
-      consequence of K-008). This project tests the AspNetCore + OpenAI
+      consequence of that decision). This project tests the AspNetCore + OpenAI
       combination (real-world usage), so it references the OpenAI package
       directly.
     -->
     <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
     <!--
-      F-579: the speak and transcribe tools hand the voice options (an ElevenLabs-style output format
+      The speak and transcribe tools hand the voice options (an ElevenLabs-style output format
       and model) to whatever the default engine is. OpenAI speech as that default is exercised through
       the tools UseVoice registers, so the voice package is referenced here. Tracon.AspNetCore does not.
     -->
     <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
     <!--
-      Phase 26: this verifies that three providers registered in the SAME
+      This verifies that three providers registered in the SAME
       application appear together in the /api/models output. Name collision
       and registration-order errors only surface when they are set up together.
     -->
@@ -37,7 +37,7 @@
       DependencyDirectionTests.
     -->
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
-    <!-- Fake model provider (FakeModelProvider): Phase 39, rationale in K-007, section 39.1. -->
+    <!-- Fake model provider (FakeModelProvider): an earlier change, rationale. -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
     <!--
       Verifying that MapTraconMcpServer/MapTraconA2A do not crash on
@@ -55,14 +55,14 @@
 
   <ItemGroup>
     <!--
-      Phase 235: a real MCP server whose tools ask the user for input. McpElicitationTests drives it through
+      A real MCP server whose tools ask the user for input. McpElicitationTests drives it through
       the HTTP surface; the console's end-to-end tests drive the same server through the playground form.
     -->
     <Compile Include="../Shared/Infrastructure/ElicitingMcpServer.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The committed snapshots of the surfaces that are not .NET API (phase 238). -->
+    <!-- The committed snapshots of the surfaces that are not .NET API. -->
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
     <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
   </ItemGroup>
@@ -76,7 +76,7 @@
       TestHost, each test sets up its own host.
     -->
     <!--
-      Phase 155: the calibrated evaluator catalog. Referenced HERE and never by a
+      The calibrated evaluator catalog. Referenced HERE and never by a
       shipped package - a consumer who does not want the catalog carries none of
       it, and this test is what proves the bridge against the real evaluators.
     -->
@@ -101,7 +101,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- A vector store that runs the filter it is given, for the conversation memory tests (phase 233). -->
+    <!-- A vector store that runs the filter it is given, for the conversation memory tests. -->
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
   </ItemGroup>
 

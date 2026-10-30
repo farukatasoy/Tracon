@@ -60,7 +60,7 @@ function HealthBadge({ health }: { health: ModelProviderHealth | undefined }): R
  * Registered providers, their model catalogue, and connectivity status.
  *
  * An empty catalogue is not an error. Tracon ships no built-in model list
- * (decision K-032): a package cannot keep provider model names current, and a
+ *A package cannot keep provider model names current, and a
  * stale list produced a 403 model_not_found the day it was written.
  *
  * The catalogue is also not a validation list — a model name that is missing
@@ -171,7 +171,7 @@ export function ModelsScreen(): ReactNode {
               {provider.models.length === 0 ? (
                 /* No action: the catalogue comes from configuration, and an
                    empty one is not an error — a model missing here still works
-                   (K-032). */
+                   */
                 <Empty title={t('models.noModels.title')}>
                   {t('models.noModels.body')} <Mono>Tracon:Providers:OpenAI:Models</Mono>.{' '}
                   {t('models.noModels.note')}

@@ -4,7 +4,7 @@ using Tracon.OpenAI.UnitTests.Infrastructure;
 namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
-/// What the OpenAI provider answers to <see cref="IResponseSchemaSupport"/> (Phase 245): the strict flag from the
+/// What the OpenAI provider answers to <see cref="IResponseSchemaSupport"/>: the strict flag from the
 /// binding's setting, and the strict-mode refusals only for the service they were measured against.
 /// </summary>
 /// <remarks>

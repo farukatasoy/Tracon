@@ -6,7 +6,7 @@ namespace Tracon.Azure.UnitTests;
 
 /// <summary>
 /// Verifies <see cref="AzureOpenAIModelProvider"/>'s per-tenant credential
-/// handling (phase 65, BYOK). Unlike the other three providers, Azure has no
+/// handling (BYOK). Unlike the other three providers, Azure has no
 /// single global address — a tenant may override only the key and keep
 /// pointing at the setup-time resource, or override both.
 /// </summary>

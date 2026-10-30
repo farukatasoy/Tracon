@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// HATA-S3-004: a run that is retried continues its event stream instead of
+/// A run that is retried continues its event stream instead of
 /// restarting it.
 /// </summary>
 /// <remarks>

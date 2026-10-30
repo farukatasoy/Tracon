@@ -43,7 +43,7 @@ internal static class McpTaskStatusMapping
 
         // A cache hit is authoritative over run.Status, not just an
         // optimization: CatalogToolCallHandler can return an ERROR
-        // CallToolResult (an approval rejection — the K-103 case below — or a
+        // CallToolResult (an approval rejection — the case below — or a
         // caught non-cancellation exception) for a run whose OWN RunStatus
         // still ends up AwaitingApproval or Failed. The cache holds exactly
         // what the SDK already told THIS instance's client, in the wire shape
@@ -82,8 +82,8 @@ internal static class McpTaskStatusMapping
                     };
                 }
 
-            // F-448: the tool call closes a run its caller can never answer as Failed, with
-            // this error type. The caller was told the K-103 refusal, and a poller on
+            // The tool call closes a run its caller can never answer as Failed, with
+            // this error type. The caller was told the refusal, and a poller on
             // another instance must see the same thing, not a failure.
             case RunStatus.Failed when string.Equals(run.Error?.Type, SessionlessApprovalRun.ErrorType, StringComparison.Ordinal):
                 return new McpTaskInfo(
@@ -107,7 +107,7 @@ internal static class McpTaskStatusMapping
                     options.TaskTimeToLive, (long)options.TaskPollInterval.TotalMilliseconds);
 
             case RunStatus.AwaitingApproval or RunStatus.AwaitingInput:
-                // 🚨 K-103: never McpTaskStatus.InputRequired. On a cache hit
+                // Never McpTaskStatus.InputRequired. On a cache hit
                 // (the common case — see above) CatalogToolCallHandler's own
                 // check already produced the real rejection text. This branch
                 // is the cross-instance / narrow-race fallback, where only a

@@ -71,7 +71,7 @@ public sealed class VoiceOptionsValidatorTests
     [Fact]
     public void A_custom_pair_needs_no_key_provider_name_or_address()
     {
-        // F-336: the ElevenLabs rules belong to the built-in client.
+        // The ElevenLabs rules belong to the built-in client.
         var result = Validate(
             new VoiceOptions { Provider = "contoso", Endpoint = new Uri("relative", UriKind.Relative) },
             BothCustom);

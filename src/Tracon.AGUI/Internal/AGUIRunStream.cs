@@ -33,7 +33,7 @@ internal sealed class AGUIRunStream(
         var cancellationToken = httpContext.RequestAborted;
         var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
 
-        // Stops the writer's keep-alive loop before the response ends (F-325).
+        // Stops the writer's keep-alive loop before the response ends.
         await using var writerScope = writer.ConfigureAwait(false);
 
         var started = false;
@@ -50,14 +50,14 @@ internal sealed class AGUIRunStream(
             }
         }
         // 🚨 `when (RequestAborted)`, not a bare catch: the provider's own request timeout is a TaskCanceledException too,
-        // and the client is still connected and waiting for it (Phase 157).
+        // and the client is still connected and waiting for it.
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // The client disconnected. No one is left to write to.
         }
         catch (Exception exception)
         {
-            // Nothing goes uncaught (K-296): a closed connection WITHOUT a RUN_ERROR reads as a silent success.
+            // Nothing goes uncaught: a closed connection WITHOUT a RUN_ERROR reads as a silent success.
             var (type, message) = AgentTurnService.DescribeStreamFailure(exception, runId, httpContext);
 
             if (!started)

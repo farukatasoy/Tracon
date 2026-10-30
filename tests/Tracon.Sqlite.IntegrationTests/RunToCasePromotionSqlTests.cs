@@ -5,7 +5,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Promoting a run to an eval case on a SQL provider (F-343).
+/// Promoting a run to an eval case on a SQL provider.
 /// </summary>
 /// <remarks>
 /// <para>

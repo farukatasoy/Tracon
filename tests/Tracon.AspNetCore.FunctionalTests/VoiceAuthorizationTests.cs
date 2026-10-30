@@ -8,15 +8,15 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 147 (F-195): the real-time voice conversation endpoint asks the
+/// The real-time voice conversation endpoint asks the
 /// installation's own <see cref="IRunAuthorizationHandler"/> before it upgrades
 /// the socket, with <see cref="SessionAccess.Voice"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 139 left voice out of scope on purpose, and its handover note said a
-/// later phase must approach K-283's case CAREFULLY. That is what these tests
-/// lock down. K-283 established that an INVISIBLE session counts as ABSENT:
+/// Voice was left out of scope on purpose, and the handover note said a
+/// later change must approach the case CAREFULLY. That is what these tests
+/// lock down. That decision established that an INVISIBLE session counts as ABSENT:
 /// the voice endpoint accepts a session id it has never seen, and the first
 /// turn opens it. A gate that rejected unknown sessions would silently break
 /// every first conversation, so the handler is asked and the DEFAULT answer
@@ -96,7 +96,7 @@ public sealed class VoiceAuthorizationTests
     [Fact]
     public async Task An_unknown_session_still_opens_when_the_handler_allows_it()
     {
-        // 🚨 K-283's case, locked down: a session that does not exist yet is
+        // 🚨 the case, locked down: a session that does not exist yet is
         // NOT an error here — the first turn opens it. If a later change made
         // the gate reject unknown sessions, every first conversation in every
         // installation would stop working, and no other test would notice.

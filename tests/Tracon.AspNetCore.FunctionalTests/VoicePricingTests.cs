@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// produced it.
 /// </summary>
 /// <remarks>
-/// F-298 (§198.5): the endpoint asked the pricing reader for "characters" only, which
+/// The endpoint asked the pricing reader for "characters" only, which
 /// priced every synthesis as the default synthesizer's configured model. A named
 /// synthesizer was then billed at another engine's rate, or not at all. The reader
 /// here records what it was asked, so a wrong provider or model is visible even when

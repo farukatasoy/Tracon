@@ -770,7 +770,7 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     [Fact]
     public async Task DiffRunsAsync_counts_a_case_recorded_twice_once()
     {
-        // K-641: IJobHandler is at-least-once, so the same eval run can record
+        // IJobHandler is at-least-once, so the same eval run can record
         // a case a second time. Alignment must not double count it.
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
         var caseId = TraconId.NewId();

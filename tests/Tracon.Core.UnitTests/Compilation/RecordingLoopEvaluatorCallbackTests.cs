@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// The evaluator is driven directly, with a <see cref="LoopContext"/> built here; the order of the frame among
 /// the stream's updates is a property of the real host and is pinned by <c>LoopIterationFrameTests</c>.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class RecordingLoopEvaluatorCallbackTests
 {

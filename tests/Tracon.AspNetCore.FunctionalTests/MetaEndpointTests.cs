@@ -72,7 +72,7 @@ public sealed class MetaEndpointTests
     [Fact]
     public async Task Meta_reports_the_consumers_own_store()
     {
-        // K4: the consumer's registration wins. /api/meta makes this visible,
+        // The consumer's registration wins. /api/meta makes this visible,
         // so persistence being silently disabled is still noticed.
         await using var host = await TraconTestHost.StartAsync(
             configureServices: static services =>

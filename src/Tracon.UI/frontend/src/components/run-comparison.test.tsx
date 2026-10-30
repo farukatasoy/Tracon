@@ -48,7 +48,7 @@ describe('RunComparison', () => {
   });
 
   it('compares the whole cost of each run: input, output, cache read and cache write', async () => {
-    // 🚨 K-483's class, client copy: the left run wrote 1.35 to the prompt cache. A three-term sum
+    // 🚨 the class, client copy: the left run wrote 1.35 to the prompt cache. A three-term sum
     // shows 0.14 USD for a run that cost 1.49 USD.
     restoreFetch = installApiMock([
       fixture('GET', 'api/runs/:a/compare/:b', {

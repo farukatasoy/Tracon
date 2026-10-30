@@ -722,10 +722,10 @@ internal static class AgentEndpoints
             return preparation.Problem!;
         }
 
-        // 🚨 Phase 43: a request carrying 'Idempotency-Key' runs non-streaming.
+        // A request carrying 'Idempotency-Key' runs non-streaming.
         // The stored response must be deduplicatable; storing an SSE body
         // (loss of timing information, unpredictable size) is out of scope for
-        // this phase (Phase 43, section 43.4). This is why
+        // this change. This is why
         // the decision is made here, at the moment the stream mode is CHOSEN,
         // rather than in IdempotencyFilter: the filter never SEES a streaming
         // request, because a request carrying the header is already non-streaming.
@@ -815,8 +815,8 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // 🚨 F-351: assigned at enqueue time, with the synchronous path's key
-        // (K-144), so a session lands in the same arm whichever way it runs.
+        // Assigned at enqueue time, with the synchronous path's key
+        // So a session lands in the same arm whichever way it runs.
         // The worker has no request to assign from, and resolving without the
         // arm ran the current version and counted the run in no arm.
         var runId = TraconId.NewId();
@@ -853,7 +853,7 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        // F-294: the values the caller sent are checked against the schema of
+        // The values the caller sent are checked against the schema of
         // the version the worker will run (the experiment arm's), with the same
         // gate and the same 400 body the synchronous endpoint gives, before a run
         // row exists. The worker checks again: a payload is durable data.
@@ -870,7 +870,7 @@ internal static class AgentEndpoints
         }
         else if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
         {
-            // F-330, unchanged: no values were sent and the schema has a
+            // Unchanged: no values were sent and the schema has a
             // required parameter with no default.
             return AgentParameterGate.Problem(unbound.Missing);
         }
@@ -909,12 +909,12 @@ internal static class AgentEndpoints
             cancellationToken).ConfigureAwait(false);
 
         // 🚨 Job.Id is given the SAME value as the run id (TraconId.NewId()
-        // is NOT called again here). In Phase 17's general pattern the job id
+        // is NOT called again here). In the general pattern the job id
         // and the run id are separate; here they are deliberately merged,
         // otherwise a second way (scanning the job store) would be needed for
         // GET /api/runs/{id} to return something other than 404 before the
         // worker picks up the job.
-        // F-432: a queue that refuses the job closes the placeholder row above.
+        // A queue that refuses the job closes the placeholder row above.
         var job = await QueuedRunPlaceholder.EnqueueAsync(
             jobStore,
             runStore,
@@ -947,7 +947,7 @@ internal static class AgentEndpoints
         // 🚨 RFC 7240 treats the preference as *advisory*; the server may ignore
         // it. Tracon does not carry this ambiguity: if the preference was
         // applied, the response carries BOTH 202 AND 'Preference-Applied'
-        // (repeats the same rule from Phase 43).
+        // (repeats the same rule).
         RespondAsyncPreference.MarkApplied(httpContext);
 
         var location = $"{prefix}/api/runs/{runId}";
@@ -981,7 +981,7 @@ internal static class AgentEndpoints
             message,
             sessionId,
 
-            // F-294: the values and the reference documents travel in the
+            // The values and the reference documents travel in the
             // durable payload. 🚨 jobs.payload is NOT a protected column
             // (ProtectedColumn lists none for it): the message text already
             // sits there in plain form, and these now sit beside it. The site
@@ -993,7 +993,7 @@ internal static class AgentEndpoints
                 ? documents.Select(static document => new { name = document.Name, content = document.Content }).ToArray()
                 : null,
 
-            // F-351: the worker has no request to read these from. A job
+            // The worker has no request to read these from. A job
             // without them (enqueued by an older build) runs the current
             // version with the default instructions, as it always did. The
             // worker checks the arm against the experiment store before it
@@ -1014,7 +1014,7 @@ internal static class AgentEndpoints
             // owner from the one source it uses everywhere else.
             userId,
 
-            // F-369: the labels travel with the user, for the same reason. The
+            // The labels travel with the user, for the same reason. The
             // runs row kept them through the placeholder, but the worker opened
             // its scope without them, so the run's sub-agents and tools saw
             // none. Absent when there are none, as an older build wrote it.
@@ -1067,7 +1067,7 @@ internal static class AgentEndpoints
         {
             var cancellationToken = httpContext.RequestAborted;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
-            // Stops the writer's keep-alive loop before the response ends (F-325).
+            // Stops the writer's keep-alive loop before the response ends.
             await using var writerScope = writer.ConfigureAwait(false);
 
             long sequence = 0;
@@ -1084,7 +1084,7 @@ internal static class AgentEndpoints
 
                 var updates = opened.RunStreamingAsync(
                     // A separate 'approvals' frame, sent right before the stream's own 'done' frame, is how the
-                    // console's approval card learns an entity's name (Phase 142, see PreparedTurn.CreateRunOptions).
+                    // console's approval card learns an entity's name (see PreparedTurn.CreateRunOptions).
                     onPendingApprovals: async (announcements, hookCancellation) =>
                         await writer.WriteEventAsync(
                             sequence++,
@@ -1100,7 +1100,7 @@ internal static class AgentEndpoints
                             JsonSerializer.Serialize(announcements, JsonOptions),
                             hookCancellation).ConfigureAwait(false),
 
-                    // Phase 241: the loop evaluator hands over each iteration event between two iterations, so this frame
+                    // The loop evaluator hands over each iteration event between two iterations, so this frame
                     // lands after the last update of the iteration and before the first of the next. The data is the
                     // event GET /api/runs/{id}/events serves, byte for byte.
                     onLoopIteration: async (iteration, hookCancellation) =>
@@ -1113,9 +1113,9 @@ internal static class AgentEndpoints
 
                 List<string>? pending = null;
 
-                // Phase 207: ANY update, not the last one. A tool turn cut at the limit
+                // ANY update, not the last one. A tool turn cut at the limit
                 // raises it too; the notice scan then finds no event, which costs one
-                // read. Missing the final turn's reason would lose the notice. Phase 251:
+                // read. Missing the final turn's reason would lose the notice. An earlier change:
                 // a content-filter reason may leave a notice as well.
                 var sawIncomplete = false;
 
@@ -1166,14 +1166,14 @@ internal static class AgentEndpoints
             // TaskCanceledException, so a provider that never answers raises one
             // while the client is still connected and waiting; a bare catch
             // ended the response as if the CLIENT had gone away, and the caller
-            // saw a clean, empty success. Measured in Phase 157.
+            // saw a clean, empty success.
             catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected. No one is left to write to.
             }
             catch (Exception ex)
             {
-                // 🚨 K-296: the SSE headers (200, text/event-stream) have ALREADY been
+                // The SSE headers (200, text/event-stream) have ALREADY been
                 // sent. A narrow 'when' filter (only TraconException/InvalidOperationException/
                 // HttpRequestException) would miss real provider SDK exceptions uncaught
                 // (e.g. Anthropic's AnthropicApiException derives DIRECTLY from Exception,
@@ -1232,7 +1232,7 @@ internal static class AgentEndpoints
                     },
                     cancellationToken).ConfigureAwait(false);
 
-                // F-448: without a session nobody can ever answer the approval this run
+                // Without a session nobody can ever answer the approval this run
                 // stopped at; a 200 left it waiting forever.
                 if (!opened.HasSession && ChildRunApproval.Describe(response.Messages) is { } pending)
                 {
@@ -1264,7 +1264,7 @@ internal static class AgentEndpoints
             // TaskCanceledException, so a provider that never answers raises one
             // while the client is still connected and waiting; a bare catch
             // ended the response as if the CLIENT had gone away, and the caller
-            // saw a clean, empty success. Measured in Phase 157.
+            // saw a clean, empty success.
             catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected.

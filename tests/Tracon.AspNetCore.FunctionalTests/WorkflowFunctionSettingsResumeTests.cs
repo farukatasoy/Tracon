@@ -4,8 +4,8 @@ using static Tracon.AspNetCore.FunctionalTests.WorkflowSettingsFixtures;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A resume compiles the version of the definition the run recorded (phase 200; before it, the
-/// current one - F-295): an edit made while the run waited does not change what resumes, and an
+/// A resume compiles the version of the definition the run recorded (before it, the
+/// current one): an edit made while the run waited does not change what resumes, and an
 /// old checkpoint stays usable either way because the settings are not part of the executor id.
 /// </summary>
 public sealed class WorkflowFunctionSettingsResumeTests

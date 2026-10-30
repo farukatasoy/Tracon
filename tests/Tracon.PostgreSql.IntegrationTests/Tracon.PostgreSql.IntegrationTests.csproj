@@ -2,10 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
-    <!-- Fake model provider (FakeModelProvider): Phase 39, rationale in K-007 section 39.1. -->
+    <!-- Fake model provider (FakeModelProvider): an earlier change, rationale in that decision an earlier plan. -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
     <!--
-      Store contract suite (Phase 23; packaged in Phase 98 as
+      Store contract suite (packaged in as
       Tracon.Testing.Contracts.Xunit). The same abstract classes run in
       both this project and Tracon.SqlServer.IntegrationTests; the
       "adding a new store should not require writing a new contract test"
@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <!--
-    Phase 157: the two-process failure proof starts tests/Tracon.WorkerHarness
+    The two-process failure proof starts tests/Tracon.WorkerHarness
     as a real, separate host and kills it. ReferenceOutputAssembly=false because
     the harness is a SUBJECT, not a library: the test only needs it BUILT, and
     linking its assembly here would let a test reach into the harness's own types
@@ -27,7 +27,7 @@
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <!-- Shared process infrastructure. Linked, not copied (K-411). -->
+  <!-- Shared process infrastructure. Linked, not copied. -->
   <ItemGroup>
     <Compile Include="../Shared/Infrastructure/ProcessResult.cs" Link="Infrastructure/Shared/ProcessResult.cs" />
     <Compile Include="../Shared/Infrastructure/ProcessRunner.cs" Link="Infrastructure/Shared/ProcessRunner.cs" />
@@ -36,7 +36,7 @@
     <Compile Include="../Shared/Infrastructure/WorkerProcessHost.cs" Link="Infrastructure/Shared/WorkerProcessHost.cs" />
     <Compile Include="../Shared/Infrastructure/WorkerHarnessContract.cs" Link="Infrastructure/Shared/WorkerHarnessContract.cs" />
     <Compile Include="../Shared/Infrastructure/HarnessExecutionLog.cs" Link="Infrastructure/Shared/HarnessExecutionLog.cs" />
-    <!-- The takeover scenarios, written once for both SQL providers (Phase 265). -->
+    <!-- The takeover scenarios, written once for both SQL providers. -->
     <Compile Include="../Shared/Infrastructure/TwoProcessLeaseTakeoverContract.cs" Link="Infrastructure/Shared/TwoProcessLeaseTakeoverContract.cs" />
   </ItemGroup>
 

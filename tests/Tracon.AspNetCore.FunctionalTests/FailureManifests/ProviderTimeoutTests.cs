@@ -8,7 +8,6 @@ namespace Tracon.AspNetCore.FunctionalTests.FailureManifests;
 
 /// <summary>
 /// Failure manifest: <strong>the model provider times out</strong>
-/// (Phase 157).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -106,7 +105,7 @@ public sealed class ProviderTimeoutTests
         recorded.GetArrayLength().ShouldBeGreaterThan(0);
 
         // 🚨 Failed, not Canceled: nothing was cancelled, the provider simply
-        // never answered. Before Phase 157 this run was recorded as Canceled
+        // never answered. Before that change, this run was recorded as Canceled
         // with a null error, and the client got 200 with an empty body.
         recorded[0].GetProperty("status").GetString().ShouldBe(nameof(RunStatus.Failed));
 
@@ -116,13 +115,13 @@ public sealed class ProviderTimeoutTests
         // one layer up - RunRecordingAgent.ToRunError redacts a foreign
         // exception's message through SafeErrorText, so the classifier sees
         // "TaskCanceledException failed. (ref: ...)" and the timeout wording
-        // K-737 relies on to tell a provider timeout from a caller's stop is
+        // The earlier decision relies on to tell a provider timeout from a caller's stop is
         // gone before it ever reaches a pattern. A caller's stop cannot reach
         // this path at all (RunRecordingAgent.cs:309 catches it under
         // `when (cancellationSource.IsCancellationRequested)`), so Canceled is
         // wrong here - but fixing it changes what IRunErrorClassifier promises
         // for a RunError whose provenance it cannot see, which is a decision,
-        // not a bug fix. Open item: MT-RES-089's record.
+        // not a bug fix. Open item: the record.
     }
 
     /// <summary>
@@ -138,7 +137,7 @@ public sealed class ProviderTimeoutTests
     /// message patterns see the timeout. A real SDK wraps its timeout in its
     /// own exception; that one IS normalized, arrives as
     /// <c>upstream_error</c>, and was filed as
-    /// <see cref="RunErrorClass.ProviderError"/> until MT-RES-089 measured it
+    /// <see cref="RunErrorClass.ProviderError"/> until an earlier defect measured it
     /// live against an unroutable endpoint (2026-09-19).
     /// </remarks>
     [Fact]
@@ -233,7 +232,7 @@ public sealed class ProviderTimeoutTests
                 // The fake client has no resources to release.
             }
 
-            // 🚨 The shape measured on the real OpenAI SDK (MT-RES-089 log,
+            // 🚨 The shape measured on the real OpenAI SDK (an earlier defect log,
             // 2026-09-19): its retry pipeline gives up and throws an
             // AggregateException ("Retry failed after 4 tries") whose inner
             // exceptions are the per-attempt TaskCanceledExceptions. That outer

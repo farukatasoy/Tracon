@@ -5,7 +5,7 @@ using static Tracon.Core.UnitTests.Scheduling.JobAttemptProbes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// A job's time limit (F-323, failure mode 15): the attempt fails with a stable code,
+/// A job's time limit (failure mode 15): the attempt fails with a stable code,
 /// counts like any failed attempt, and neither a shutdown nor a cancel is mistaken for
 /// it.
 /// </summary>
@@ -13,7 +13,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// <para>
 /// The handler is given one token linked to three sources. The outcome is read from
 /// the source that fired, never from the exception the handler threw on its way out:
-/// that exception is the handler noticing its token, not the cause (K-737).
+/// that exception is the handler noticing its token, not the cause.
 /// </para>
 /// <para>
 /// Most cases run on real time with short limits; their bounds are failure bounds. The
@@ -104,7 +104,7 @@ public sealed class JobWorkerDeadlineTests
     [Fact]
     public async Task With_attempts_left_the_timed_out_attempt_is_released_and_the_next_attempt_gets_the_whole_limit()
     {
-        // Open question 7-A: a timed-out attempt is a failed attempt, leased again
+        // A timed-out attempt is a failed attempt, leased again
         // while attempts are left, and the limit is per attempt.
         var store = new ProbeJobStore(new InMemoryJobStore());
         var handler = new RetryOnceHandler();
@@ -131,7 +131,7 @@ public sealed class JobWorkerDeadlineTests
     [Fact]
     public async Task A_handler_that_returns_normally_past_its_limit_completes_the_job()
     {
-        // Open question 8-A: the work it did stands.
+        // The work it did stands.
         var store = new ProbeJobStore(new InMemoryJobStore());
         var handler = new TokenProbeHandler { DefaultBehavior = ProbeBehavior.ReturnOnToken };
         var (worker, host) = Worker(store, handler);
@@ -271,7 +271,7 @@ public sealed class JobWorkerDeadlineTests
     [Fact]
     public async Task A_stored_limit_a_timer_cannot_arm_falls_back_to_the_map_and_is_logged()
     {
-        // F-323 (audit): the operator's map still bounds a job whose own value is bad;
+        // The operator's map still bounds a job whose own value is bad;
         // the bad value used to switch every limit off.
         var store = new ProbeJobStore(new InMemoryJobStore());
         var handler = new TokenProbeHandler();

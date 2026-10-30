@@ -3,7 +3,7 @@ export type ClientToolHandler = (args: Record<string, unknown>) => Promise<strin
 /**
  * Holds the client-side tool implementations the embedding page registers.
  *
- * K2 boundary: the tool's DECLARATION (name, description, JSON schema) is
+ * Tool boundary: the tool's DECLARATION (name, description, JSON schema) is
  * registered in the Tracon host's code (`AddClientTool`); only the
  * IMPLEMENTATION lives here, supplied by the page embedding the widget. This
  * class never receives or interprets a schema — it only maps a name the

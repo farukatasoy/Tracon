@@ -80,7 +80,7 @@ export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode 
       />
 
       {/*
-        HATA-S4-005: the '/' shortcut (components/layout.tsx) focuses whatever
+        The '/' shortcut (components/layout.tsx) focuses whatever
         `input[data-search]` is on the page, and `?` help advertises it — the
         toolbar's search box is the input that closes that gap. It is rendered
         unconditionally now: a strip that appears only once the list is long

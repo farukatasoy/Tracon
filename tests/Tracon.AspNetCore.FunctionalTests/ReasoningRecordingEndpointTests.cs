@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <remarks>
 /// 🚨 <c>ReasoningRecordingTests</c> already pinned the recorder's own switch,
 /// and it was green while a real installation reported zero
-/// <c>ReasoningDelta</c> events for four real provider calls (HATA-S3-006).
+/// <c>ReasoningDelta</c> events for four real provider calls.
 /// That defect turned out not to be in the code — the setting was off — but
 /// the reason nobody could tell is that no test covered the distance between
 /// "the switch works" and "an installation with this setting records this".

@@ -9,7 +9,7 @@ using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTe
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-603 — a hosted tool beside the function tools, through a real host: one list of tools, one namespace of
+/// A hosted tool beside the function tools, through a real host: one list of tools, one namespace of
 /// names, and a validation report that says which provider surface drops a tool before a run finds out.
 /// </summary>
 /// <remarks>

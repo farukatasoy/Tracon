@@ -7,7 +7,6 @@ namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 
 /// <summary>
 /// Failure manifest: <strong>a run event sink is slow or broken</strong>
-/// (Phase 157).
 /// </summary>
 /// <remarks>
 /// <para>

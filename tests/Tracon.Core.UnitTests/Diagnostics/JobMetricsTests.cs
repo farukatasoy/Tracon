@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 133: what <c>tracon.job.executions</c> and
+/// What <c>tracon.job.executions</c> and
 /// <c>tracon.job.duration</c> count, and what they deliberately do not.
 /// </summary>
 public sealed class JobMetricsTests

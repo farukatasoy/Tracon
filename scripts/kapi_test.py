@@ -68,7 +68,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(runner.call_count, 1)
 
     def test_sinif_bayragi_tekrarlaninca_desenler_birikir(self):
-        """Faz 187: `--sinif A --sinif B` yalnız B'yi koşuyordu (argparse ikinciyi
+        """`--sinif A --sinif B` yalnız B'yi koşuyordu (argparse ikinciyi
         birincinin yerine yazar); iki mimari testinin ikisi de koştu sanıldı."""
         with mock.patch.object(kapi, "test_commands", side_effect=ValueError("dur")) as commands:
             with contextlib.redirect_stdout(io.StringIO()):
@@ -90,7 +90,7 @@ class KapiTestleri(unittest.TestCase):
             parts, ("Tracon.Generators.UnitTests", "release", "Tracon.Generators.UnitTests"))
 
     def test_coklu_tfm_projesi_her_bacagi_ayri_kosar(self):
-        # Faz 183: cok hedefli projenin ciktisi release/ DEGIL release_<tfm>/'dir.
+        # Cok hedefli projenin ciktisi release/ DEGIL release_<tfm>/'dir.
         commands = kapi.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={})
 
         self.assertEqual(
@@ -133,7 +133,7 @@ class KapiTestleri(unittest.TestCase):
         for project in kapi.multi_target_test_projects():
             csproj = ROOT / "tests" / project / f"{project}.csproj"
             self.assertTrue(csproj.exists(), project)
-            # Denetim bulgusu (Faz 183): csproj govdesi props'tan SONRA okunur;
+            # Denetim bulgusu: csproj govdesi props'tan SONRA okunur;
             # oraya yazilan tekil <TargetFramework> projeyi sessizce net10'a
             # indirir ve runtime nobetcisi net10'da yine gecer.
             self.assertNotIn("<TargetFramework", csproj.read_text(encoding="utf-8"), project)
@@ -223,20 +223,20 @@ class KapiTestleri(unittest.TestCase):
             root = pathlib.Path(directory)
             (root / "scripts").mkdir()
             (root / "scripts" / "ornek.py").write_text(
-                "# docs/X.md -> docs/arsiv/Y.md; sablon: docs/NN-BUYUK-HARFLI-AD.md\n",
+                "# docs" "/X.md -> docs" "/arsiv/Y.md; sablon: docs" "/NN-BUYUK-HARFLI-AD.md\n",
                 encoding="utf-8")
 
             self.assertEqual(kapi.find_stale_doc_references(root), [])
 
     def test_arsivlenen_faz_referansi_repoda_kalmaz(self):
         # SINIF KAPISI: bu repoda gercek olan tarama. Bir faz kapandiginda
-        # `docs/NN-AD.md` silinir (once arsive tasiniyordu); `docs/` disindaki
+        # Bir faz dokumani silinir (once arsive tasiniyordu); o dokumanin disindaki
         # referanslar bir donem guncellenmiyordu (43 bayat referans olculdu).
         self.assertEqual(kapi.find_stale_doc_references(), [])
 
     def test_kanitsiz_public_tip_tarama_kapisini_kirar(self):
-        # A-80: `public-yuzey-envanteri.py --denetle` hicbir kapida kosmuyordu; K-850'nin
-        # cirkirligi iki kez sessizce gevsedi (Faz 192 ve 2026-10-12, iki kanitsiz istisna).
+        # `public-yuzey-envanteri.py --denetle` hicbir kapida kosmuyordu; kuralin
+        # cirkirligi iki kez sessizce gevsedi (iki kanitsiz istisna).
         runner = mock.Mock(side_effect=[
             mock.Mock(returncode=1, stdout="", stderr="denetim: 1 kanitsiz tip, 0 bayat gerekce\n"),
             mock.Mock(returncode=0, stdout="Tracon.Abstractions\tTracon.OrnekTip\tclass\tkanitsiz\n", stderr=""),
@@ -261,7 +261,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("Tracon.OrnekTip", output.getvalue())
 
     def test_public_yuzey_repoda_kanitsiz_tip_icermez(self):
-        # SINIF KAPISI: bu repoda gercek olan denetim (K-850).
+        # SINIF KAPISI: bu repoda gercek olan denetim.
         self.assertEqual(kapi.public_surface_violations(), [])
 
     def test_harita_eksigi_tam_test_kosumuna_duser(self):
@@ -283,7 +283,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(full)
 
     def test_paylasimli_saglayici_kaynagi_dort_saglayici_projesini_secer(self):
-        # Faz 181: src/Tracon.Providers.Shared bir paket degildir; haritada
+        # src/Tracon.Providers.Shared bir paket degildir; haritada
         # olmasa her degisiklik tam kosuma duserdi. Etki alani dort projedir.
         for path in ("src/Tracon.Providers.Shared/ModelProviderCore.cs",
                      "tests/Shared/Providers/ModelProviderCoreTests.cs"):
@@ -294,7 +294,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertFalse(full, path)
 
     def test_openai_ortak_kaynagi_iki_saglayici_projesini_secer(self):
-        # F-584: src/Tracon.OpenAI.Shared paket degildir; OpenAI ve Azure
+        # src/Tracon.OpenAI.Shared paket degildir; OpenAI ve Azure
         # paketlerine derlenir. Haritada olmasa her degisiklik tam kosuma duserdi.
         projects, full = kapi.affected_test_projects(
             ["src/Tracon.OpenAI.Shared/OpenAIPipelineImageGenerator.cs"])
@@ -304,10 +304,10 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(full)
 
     def test_sozlesme_paketi_ve_sql_ortak_kaynagi_tam_kosuma_dusmez(self):
-        # 2026-10-13 (Faz 196 ve 202): Tracon.Testing.Contracts.Xunit ve
+        # 2026-10-13: Tracon.Testing.Contracts.Xunit ve
         # Tracon.Sql.Shared haritada yoktu; iki faz da ic donguyu her
         # degisiklikte tam kosuma genisletti ve kosum UI'siz derlendigi icin
-        # E2E'nin tamami dustu (F-356). Etki alani, paketi derleyen ya da
+        # E2E'nin tamami dustu. Etki alani, paketi derleyen ya da
         # sozlesmeyi tureten test projeleridir.
         sql_tests = ("Tracon.PostgreSql.IntegrationTests",
                      "Tracon.SqlServer.IntegrationTests",
@@ -354,7 +354,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertFalse(full, path)
 
     def test_test_agaci_kok_dosyasi_tam_kosum_ister(self):
-        # tests/Directory.Build.props HER test projesine ulasir. Faz 183'e
+        # tests/Directory.Build.props HER test projesine ulasir. Bir onceki degisikliğe
         # kadar bu yol HICBIR proje secmiyordu ve ic dongu sessizce bos kalirdi.
         projects, full = kapi.affected_test_projects(["tests/Directory.Build.props"])
 
@@ -380,7 +380,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(kapi.runs_multi_target_tests([kapi.Command(("dotnet", "build", "Tracon.slnx"))]))
 
     def test_eksik_runtime_dotnet_root_altindan_bulunur(self):
-        # Olculdu (Faz 183): test apphost'u runtime'i DOTNET_ROOT'tan cozer,
+        # Olculdu: test apphost'u runtime'i DOTNET_ROOT'tan cozer,
         # PATH'teki muxer'dan degil.
         with tempfile.TemporaryDirectory() as directory:
             shared = pathlib.Path(directory) / "shared" / "Microsoft.NETCore.App"
@@ -403,7 +403,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(kapi._apphost_dotnet_root({}, "arm64"), "")
 
     def test_eksik_runtime_global_kurulum_konumundan_bulunur(self):
-        # Denetim bulgusu (Faz 183): DOTNET_ROOT yokken apphost PATH'teki
+        # Denetim bulgusu: DOTNET_ROOT yokken apphost PATH'teki
         # muxer'i DEGIL global kurulumu okur. PATH'e net8'li ozel bir SDK
         # konsa bile on kontrol global kokte net8 yoksa durdurmalidir.
         with tempfile.TemporaryDirectory() as directory:
@@ -443,7 +443,7 @@ class KapiTestleri(unittest.TestCase):
         # ASP.NET Core 8 runtime'i NETCore 8 yerine SAYILMAZ.
         self.assertFalse(ok)
         self.assertIn("net8.0", output.getvalue())
-        # Denetim bulgusu (Faz 183): ayrac ile DEGIL platformun kendi yol
+        # Denetim bulgusu: ayrac ile DEGIL platformun kendi yol
         # bicimiyle karsilastirilir - windows-latest'te PurePath ters egik
         # cizgi uretir (test_mtp_filtresi_filter_class_uretir ile ayni sinif).
         self.assertIn(str(pathlib.PurePath("/usr/share/dotnet")), output.getvalue())
@@ -467,7 +467,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertTrue(full)
 
     def test_embedded_ornegi_kendi_test_projesini_secer(self):
-        # KACIS 6e9cc8f6: Faz 139 altinci genisleme noktasini ekledi,
+        # KACIS 6e9cc8f6: altinci genisleme noktasini ekledi,
         # samples/Tracon.Embedded geride kaldi. O gun bir samples/
         # degisikligi HICBIR test projesi secmiyordu; Embedded.Tests ise
         # ProjectReference ile tam o ornege bagli.
@@ -490,7 +490,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("kapi.py yayin", output.getvalue())
 
     def test_tam_kosum_komutu_mtp_bayraklarini_tasir(self):
-        # Faz 215: `dotnet test` MTP kipindedir. `-maxcpucount` bu kipte HIC TEST
+        # `dotnet test` MTP kipindedir. `-maxcpucount` bu kipte HIC TEST
         # KOSTURMADAN cikis kodu 5 verir; `--` ayiricisi da artik yoktur.
         command = kapi.full_solution_test_command()
         args = command.args
@@ -540,7 +540,7 @@ class KapiTestleri(unittest.TestCase):
             encoding="utf-8")
 
     def test_eski_trx_yeri_artik_taranmaz(self):
-        # Faz 215: TRX ikilinin yanindaki TestResults/'a degil `--results-directory`'ye
+        # TRX ikilinin yanindaki TestResults/'a degil `--results-directory`'ye
         # yazilir. Eski yoldaki bir dosya DUSEN TEST SAYILMAZ - yoksa taranan yer ile
         # yazilan yer ayrisir ve teshis sessizce bos kalir.
         with tempfile.TemporaryDirectory() as directory:
@@ -555,7 +555,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(kapi.failed_tests_from_trx(0, kok), [])
 
     def test_trx_cikti_klasoru_codebase_ten_okunur_yoksa_tek_hedefli_release_varsayilir(self):
-        # F-573: `codeBase` olmayan dal testsizdi. Cok hedefli bacak klasorunu TRX soyler;
+        # `codeBase` olmayan dal testsizdi. Cok hedefli bacak klasorunu TRX soyler;
         # `codeBase` yoksa tek hedefli projenin `release` klasoru varsayilir.
         def agac(metot: str):
             return ElementTree.ElementTree(ElementTree.fromstring(
@@ -572,7 +572,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(kapi._trx_output_directory(agac('<TestMethod codeBase="P.dll" name="M" />')), "release")
 
     def test_sifir_test_koşan_yesil_kosum_kirmizi_sayilir(self):
-        # NEGATIF KONTROL (Faz 215): cikis kodu 0 "test kostu" demek degildir. TRX yoksa
+        # NEGATIF KONTROL: cikis kodu 0 "test kostu" demek degildir. TRX yoksa
         # ya da bossa kapi YESIL donmez.
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
@@ -610,7 +610,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(result, 0)
 
     def test_contract_paketi_xunit_alt_sinirini_korur(self):
-        # Faz 215 / K-1018: iki alt paketin `PackageVersion`'i 4.x'e cikarsa paket
+        # Iki alt paketin `PackageVersion`'i 4.x'e cikarsa paket
         # xunit.v3 3.x tuketicisini sessizce zorlar. Kapi nuspec'e bakar.
         proje = "Tracon.Testing.Contracts.Xunit"
         iyi = ('<dependency id="xunit.v3.extensibility.core" version="3.2.2" exclude="Build,Analyzers" />'
@@ -652,7 +652,7 @@ class KapiTestleri(unittest.TestCase):
             dusenler, [kapi.FailedTest("Tracon.Ui.E2ETests", "release", "Tracon.Ui.E2ETests.UiTests.Dusen")])
 
     def test_coklu_tfm_trx_i_bacagiyla_bulunur(self):
-        # Faz 183: yalniz release/ taransaydi net8.0 bacaginda dusen test
+        # Yalniz release/ taransaydi net8.0 bacaginda dusen test
         # hic raporlanmaz, izole kosum da tetiklenmezdi.
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
@@ -730,7 +730,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(kapi.frontend_changed(["src/Tracon.Core/Thing.cs"]))
 
     def test_e2e_kosan_ic_dongu_arayuzlu_derler(self):
-        # F-356 (2026-10-12, ölçüldü): haritası eksik bir yol iç döngüyü tam
+        # Haritası eksik bir yol iç döngüyü tam
         # koşuma genişletti ama derleme `-p:TraconFrontendEnabled=false` ile
         # kaldı; gömülü varlık olmadan E2E'nin tamamı düştü ve gerçek bir
         # regresyon o gürültünün içinde kayboldu. E2E'yi seçen her yol (tam
@@ -750,8 +750,8 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("-p:TraconFrontendEnabled=false", build.args)
 
     def test_ic_dongu_tabani_commit_edilen_isi_de_gorur(self):
-        # F-356: iş commit edildikten sonra `ic-dongu` HEAD'e karşı hiçbir şey
-        # görmüyor, yalnız build koşup "yeşil" diyordu (Faz 203'te iki derlenmeyen
+        # Iş commit edildikten sonra `ic-dongu` HEAD'e karşı hiçbir şey
+        # görmüyor, yalnız build koşup "yeşil" diyordu (iki derlenmeyen
         # <example> bu yüzden bir commit boyunca görünmedi). `--taban` aralığı verir.
         with mock.patch.object(kapi, "changed_paths", return_value=["src/Tracon.Core/Thing.cs"]) as paths, \
                 contextlib.redirect_stdout(io.StringIO()):
@@ -776,7 +776,7 @@ class KapiTestleri(unittest.TestCase):
             "dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 2"
             " --report-trx --results-directory artifacts/test-results --results-directory-layout per-module",
             rendered)
-        # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
+        # TraconSkipCleanWorkingTreeCheck: this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
         # not be blocked by the new dirty-tree gate the way `kapi.py yayin` is.
         self.assertIn(
@@ -809,7 +809,7 @@ class KapiTestleri(unittest.TestCase):
                         rendered.index("dotnet format Tracon.slnx --verify-no-changes"))
 
     def test_kapanis_restore_u_zorlar_ve_derlemeden_once_kosar(self):
-        # F-525: önbellekli restore yeni yayımlanan güvenlik uyarısını görmez
+        # önbellekli restore yeni yayımlanan güvenlik uyarısını görmez
         # (`NU1902`/`NU1903` yalnız soğuk ya da zorlanmış restore'da çıkar). Kapanış
         # sıfır uyarıyı ancak denetimi gerçekten koşturursa kanıtlar.
         rendered = [c.display for c in kapi.closing_commands("abc123", site=False)]
@@ -941,7 +941,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(result, 126)
 
     def test_git_yoksa_traceback_yerine_none_doner(self):
-        """Faz 91 denetimi: `_git()` `subprocess.run`'ın FileNotFoundError'ını
+        """Denetim: `_git()` `subprocess.run`'ın FileNotFoundError'ını
         yakalamıyordu; git PATH'te yoksa `changed_paths()` traceback ile çöküyordu."""
         with mock.patch("subprocess.run", side_effect=FileNotFoundError("git")):
             self.assertIsNone(kapi.changed_paths())
@@ -994,7 +994,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("git tabanı", violations[0])
 
     def test_okuma_gorunumu_dosyasi_da_git_tabanıyla_ayni_olmalidir(self):
-        # F-726: `MigrationsViews/*.sql` sevk edilir ve açılışta sağlama toplamıyla
+        # `MigrationsViews/*.sql` sevk edilir ve açılışta sağlama toplamıyla
         # denetlenir; yerinde bir düzenleme CI'da değil, kullanıcının veritabanında
         # yakalanıyordu. Kapı yalnız `Migrations` ve `MigrationsKnowledge` dizinlerini
         # okuyordu.
@@ -1023,10 +1023,9 @@ class KapiTestleri(unittest.TestCase):
 
 
 class PerformansKapisiTestleri(unittest.TestCase):
-    """`scripts/kapi.py performans` (Faz 116) - karşılaştırma ve taban çizgisi
+    """`scripts/kapi.py performans` - karşılaştırma ve taban çizgisi
     okuma mantığının SAF Python testleri. `dotnet run` gerektiren gerçek
-    benchmark koşumu ve kasıtlı gerileme koşumu manuel kabul case'lerindedir
-    (docs/manuel-test/36-GELISTIRME-KAPILARI.md)."""
+    benchmark koşumu ve kasıtlı gerileme koşumu manuel kabul case'lerindedir."""
 
     def test_artan_tahsis_kirmizi_olur_ve_metodu_bayti_adlandirir(self):
         baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
@@ -1158,7 +1157,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
         }), encoding="utf-8")
 
     def test_performans_kapisi_dotnet_run_basarisiz_olursa_onun_cikis_kodunu_doner(self):
-        """Denetim bulgusu (Faz 116): orkestrasyon fonksiyonunun kendisi hiç
+        """Denetim bulgusu: orkestrasyon fonksiyonunun kendisi hiç
         test edilmiyordu, yalnız saf karşılaştırma mantığı. `runner` zaten
         enjekte edilebilir - `run_commands` testlerindeki desenin aynısı."""
         with tempfile.TemporaryDirectory() as directory:
@@ -1220,9 +1219,9 @@ class PerformansKapisiTestleri(unittest.TestCase):
 
 
 class YayinTestleri(unittest.TestCase):
-    """`scripts/kapi.py yayin` (Faz 97, 97.2) - saf Python mantığı. `dotnet
+    """`scripts/kapi.py yayin` - saf Python mantığı. `dotnet
     pack`'e ihtiyaç duyan uçtan uca davranış `ReleaseArtifactTests.cs`'te ve bu
-    fazın manuel kabul case'lerinde (MT-PKG-097..100)."""
+    fazın manuel kabul case'lerinde."""
 
     def _write_csproj(self, root: pathlib.Path, project_id: str, body: str = "") -> None:
         directory = root / "src" / project_id
@@ -1272,7 +1271,7 @@ class YayinTestleri(unittest.TestCase):
         self.assertIsNone(missing)
 
     def test_surum_istenmemisse_en_son_yazilan_kendi_dosyasi_secilir(self):
-        """Faz 97 denetimi: eski bir 'en son yazılan' seçimi, ÖNCEKİ bir
+        """Denetim: eski bir 'en son yazılan' seçimi, ÖNCEKİ bir
         --surum koşumundan kalan bayat dosyayı seçebiliyordu, çünkü artımlı
         `dotnet pack` değişmeyen bir projenin çıktısını yeniden üretmeyebilir.
         `_clean_stale_packages` bu testin varsaydığı ön koşulu sağlar; burada
@@ -1309,7 +1308,7 @@ class YayinTestleri(unittest.TestCase):
             archive.writestr("_rels/.rels", f"<Relationships><Relationship Target=\"/package/services/metadata/core-properties/{psmdcp_guid}.psmdcp\" /></Relationships>")
             archive.writestr(f"package/services/metadata/core-properties/{psmdcp_guid}.psmdcp", "<coreProperties />")
 
-    # Faz 136, 136.3: "bayat paket temizlenir" iddiası (eski `_clean_stale_packages`,
+    # 136.3: "bayat paket temizlenir" iddiası (eski `_clean_stale_packages`,
     # koşumdan ÖNCE aynı kimlikteki her şeyi sessizce siliyordu) yerini "farklı
     # içerikli aynı kimlik promote edilmez" iddiasına bırakır - staging'den
     # release_dir'e taşıma artık içerik parmak izi karşılaştırmasından
@@ -1347,7 +1346,7 @@ class YayinTestleri(unittest.TestCase):
         `package/services/metadata/core-properties/<rastgele>.psmdcp` dosyasını
         YENİ bir GUID ile yazar ve `_rels/.rels` o adı taşır - aynı commit'i
         art arda iki kez paketlemek bile FARKLI ham SHA-256 üretir. Ham dosya
-        hash'i karşılaştırılsaydı bu, MT-PKG-115'in kanıtlamak istediği
+        hash'i karşılaştırılsaydı bu, bir manuel case'in kanıtlamak istediği
         senaryonun TAM TERSİNİ üretirdi: değişmeyen bir sürümün İKİNCİ koşumu
         her seferinde 'farklı artifact' diye reddedilirdi."""
         with tempfile.TemporaryDirectory() as directory:
@@ -1418,8 +1417,8 @@ class YayinTestleri(unittest.TestCase):
         run.assert_not_called()
 
     def test_yayin_git_bulunamazsa_taban_cozulemez_pack_denenmez(self):
-        """Faz 136: git yoksa temizlik denetimi uyarıyla atlanır (MSBuild kapısı
-        ikinci hattır). Faz 187: taban adımının ikinci hattı yoktur - sessiz
+        """Git yoksa temizlik denetimi uyarıyla atlanır (MSBuild kapısı
+        ikinci hattır). taban adımının ikinci hattı yoktur - sessiz
         atlama yerine kırmızı, pack hiç denenmez."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
@@ -1435,7 +1434,7 @@ class YayinTestleri(unittest.TestCase):
         self.assertIn("Taban çözülemedi", output.getvalue())
         self.assertFalse(any(call.args[0][0] == "dotnet" for call in run.call_args_list))
 
-    # --- Faz 187: taban, izole restore ve kırıcı kapının sırası -------------
+    # --- Taban, izole restore ve kırıcı kapının sırası -------------
 
     @staticmethod
     def _breaking_changes_module():
@@ -1580,8 +1579,8 @@ class YayinTestleri(unittest.TestCase):
             self.assertIn("Prova çıktısı:", output)
 
     def test_prova_dizini_surum_basinadir(self):
-        """Faz 136 dizinin İÇİNDE geçerli kalır: aynı sürümün yeni commit'i aynı
-        dizine düşer ve farklı içerik reddedilir (MT-PKG-116)."""
+        """Dizinin İÇİNDE geçerli kalır: aynı sürümün yeni commit'i aynı
+        dizine düşer ve farklı içerik reddedilir."""
         root = pathlib.Path("/x")
 
         self.assertEqual(kapi.rehearsal_release_dir("1.0.0-preview.3", root), root / "1.0.0-preview.3")
@@ -1765,7 +1764,7 @@ class YayinTestleri(unittest.TestCase):
         self.assertIn("tabandan (v1.0.0-preview.2) büyük değil", output.getvalue())
 
     def test_kapi_depoyu_yuzey_okuyucularina_verir(self):
-        """Faz 237: the PublicAPI, `required` and contract readers need the repo whose tag is the baseline."""
+        """The PublicAPI, `required` and contract readers need the repo whose tag is the baseline."""
         gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
@@ -1781,7 +1780,7 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(checked.call_args.kwargs["version"], "1.0.0-preview.3")
 
     def test_kapi_sozlesme_yuzeylerini_apicompat_kapisindan_sonra_okur(self):
-        """Faz 238: the non-.NET surfaces are read after ApiCompat, with the same baseline, version and repo."""
+        """The non-.NET surfaces are read after ApiCompat, with the same baseline, version and repo."""
         gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
@@ -1825,7 +1824,7 @@ class YayinTestleri(unittest.TestCase):
 
 
 class TekDerlemeZinciriTestleri(unittest.TestCase):
-    """Faz 191: `paketle` · `paket-dogrula` · `yayin --paket-dizini`.
+    """`paketle` · `paket-dogrula` · `yayin --paket-dizini`.
 
     Sahte bir repo kökü iki paket taşır: `Tracon.Core` (library, taban
     doğrulaması var) ve `Tracon` (meta, `.snupkg` yok)."""
@@ -1919,7 +1918,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             stack.enter_context(mock.patch.object(bc, "resolve_baseline", return_value=baseline or self.BASELINE))
             not_run = stack.enter_context(mock.patch.object(bc, "validation_not_run", return_value=[]))
             check = stack.enter_context(mock.patch.object(bc, "check", return_value=breaking))
-            # Faz 238: the surfaces of the other kinds are read after ApiCompat; their own tests are in sozlesme_kirilma_test.py.
+            # The surfaces of the other kinds are read after ApiCompat; their own tests are in sozlesme_kirilma_test.py.
             stack.enter_context(mock.patch.object(importlib.import_module("sozlesme_kirilma"), "check", return_value=0))
             run = stack.enter_context(mock.patch("subprocess.run"))
             stack.enter_context(mock.patch.object(kapi, "_npm_dry_run", return_value=0))
@@ -1985,7 +1984,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(records, [{"id": "Tracon.Core", "report": None, "sha256": None, "validationRan": True}])
 
     def test_paketle_bypass_bayragi_tasimaz(self):
-        """K-661: `paketle` iç araç listesine girmez."""
+        """`paketle` iç araç listesine girmez."""
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
             _, calls, _ = self._pack(root, pathlib.Path(directory) / "ci-paket")
@@ -2150,7 +2149,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, release_dir, text, run, not_run, check = self._rehearse(root, output)
 
             self.assertEqual(result, 0, text)
-            # Pack anı kanıtı ortak yolda da çağrılmaz (Faz 191.3).
+            # Pack anı kanıtı ortak yolda da çağrılmaz.
             not_run.assert_not_called()
             self.assertEqual(self._snapshot(output), before)
             written = self._manifest(release_dir)
@@ -2279,7 +2278,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertIn(f"rm -rf {release_dir}", text)
 
     def test_paket_dizini_modu_ayni_kimlik_farkli_icerik_korunur(self):
-        """K-661 kopya yolunda da: aynı ad, farklı içerik -> hiçbir dosya kopyalanmaz."""
+        """Kopya yolunda da: aynı ad, farklı içerik -> hiçbir dosya kopyalanmaz."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             release_dir = root / "artifacts" / "package" / "release"
@@ -2381,7 +2380,7 @@ MARKER = "SYNTHETIC" + "-CREDENTIAL"
 
 
 class SentetikCredentialTestleri(unittest.TestCase):
-    """Faz 166. Bir secret tarayıcısını doğrulamanın tek yolu ona sahte bir
+    """Bir secret tarayıcısını doğrulamanın tek yolu ona sahte bir
     credential göstermektir; istisna GİZLENMEZ, İŞARETLENİR."""
 
     def test_isaretsiz_credential_yakalanir(self):
@@ -2421,7 +2420,7 @@ class SentetikCredentialTestleri(unittest.TestCase):
 
 
 class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
-    """2026-09-19. Kapı YEŞİL derken `docs/arsiv/fazlar/53-*.md` içinde gerçek bir
+    """2026-09-19. Kapı YEŞİL derken `arsiv` altında gerçek bir
     `ApiKeyGenerator` çıktısı duruyordu. İki bağımsız boşluk vardı: desen ürünün
     kendi anahtar formatını tanımıyordu, ve kapsam gerçek koşum çıktısı taşıyan
     iki ağacı (`arsiv`, `manuel-test`) hiç yürümüyordu."""
@@ -2440,12 +2439,12 @@ class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
     def test_uretilmis_anahtar_arsivde_yakalanir(self):
         # 🚨 Bu tam olarak kaçırılan vakadır. Arşivlenmiş faz kaydı GERÇEK koşum
         # çıktısı taşır - üretilmiş bir credential'ın yapışacağı tek yer orasıdır.
-        found, _ = self._tara("docs/arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR)
+        found, _ = self._tara("arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR)
 
         self.assertEqual(len(found), 1)
 
     def test_uretilmis_anahtar_manuel_testte_yakalanir(self):
-        found, _ = self._tara("docs/manuel-test/99-X.md", self.URETILMIS_ANAHTAR)
+        found, _ = self._tara("manuel-test/99-X.md", self.URETILMIS_ANAHTAR)
 
         self.assertEqual(len(found), 1)
 
@@ -2453,7 +2452,7 @@ class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
         # Arşiv ve manuel test kaydında bir docker parolası kusur değil, tekrar
         # üretilebilirlik talimatıdır. Kapsamı tüm desenlere açmak 48 satırı
         # işaretletirdi ve istisna listesi kapının kendisini anlamsızlaştırırdı.
-        found, skipped = self._tara("docs/arsiv/fazlar/99-Y.md", SECRET_LINE)
+        found, skipped = self._tara("arsiv/fazlar/99-Y.md", SECRET_LINE)
 
         self.assertEqual(found, [])
         self.assertEqual(skipped, 0)
@@ -2475,20 +2474,20 @@ class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
     def test_kisa_gorunum_oneki_anahtar_sanilmaz(self):
         # `KeyPrefix` ürünün kendi tasarladığı 12 karakterlik görüntü önekidir
         # ve kayıtlarda meşru olarak durur.
-        found, _ = self._tara("docs/arsiv/fazlar/99-Y.md", 'keyPrefix":"ap_default_2"')
+        found, _ = self._tara("arsiv/fazlar/99-Y.md", 'keyPrefix":"ap_default_2"')
 
         self.assertEqual(found, [])
 
     def test_arsivdeki_isaretli_satir_atlanir_ve_sayilir(self):
         found, skipped = self._tara(
-            "docs/arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR + " <!-- " + MARKER + " -->")
+            "arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR + " <!-- " + MARKER + " -->")
 
         self.assertEqual(found, [])
         self.assertEqual(skipped, 1)
 
 
 class KapasiteKomutuTestleri(unittest.TestCase):
-    """Faz 166. Kapasite ölçümü bir KAPI DEĞİLDİR (K-738)."""
+    """Kapasite ölçümü bir KAPI DEĞİLDİR."""
 
     def test_kapasite_komutu_kapanisa_eklenmez(self):
         # 🚨 Ağır bir yük koşumu standart kapanışa sızarsa her faz saatler

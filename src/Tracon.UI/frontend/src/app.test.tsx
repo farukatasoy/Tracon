@@ -55,7 +55,7 @@ const emptyRunScoreSummary = {
   series: [],
 };
 
-/** A code-defined agent with no persisted definition — a real, named path (`AgentEditorScreen`'s HATA-S4-010 branch), not a fixture shortcut. */
+/** A code-defined agent with no persisted definition — a real, named path (`AgentEditorScreen`'s code-agent branch), not a fixture shortcut. */
 const codeAgentDetail = {
   descriptor: {
     name: 'sample',

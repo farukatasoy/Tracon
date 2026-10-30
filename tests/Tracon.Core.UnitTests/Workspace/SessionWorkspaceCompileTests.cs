@@ -8,7 +8,7 @@ namespace Tracon.Core.UnitTests.Workspace;
 /// What the compiler does with a definition that asks for a session workspace: it builds the provider on both agent
 /// types, and it stops, naming the problem, when the agent or the host cannot have one.
 /// </summary>
-// MAAI001: the context provider types and AgentFileStore are marked "evaluation purposes only" - see K-020.
+// MAAI001: the context provider types and AgentFileStore are marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class SessionWorkspaceCompileTests
 {

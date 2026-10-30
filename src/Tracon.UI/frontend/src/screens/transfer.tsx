@@ -389,7 +389,7 @@ function ItemRow({
         )}
       </Td>
       <Td>
-        {/* The text is the server's own and is not translated (K-232). */}
+        {/* The text is the server's own and is not translated. */}
         {first === undefined ? '—' : first.message}
         {messages.length > 1 && <span className="text-muted">{` (+${messages.length - 1})`}</span>}
       </Td>

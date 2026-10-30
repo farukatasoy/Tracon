@@ -47,7 +47,7 @@ internal sealed class RetentionPolicyResolver(
 
         var fallback = options.ForTarget(target);
 
-        // Configuration-based defaults carry only MaxAgeDays (K1: MaxRows does
+        // Configuration-based defaults carry only MaxAgeDays (MaxRows does
         // not grow into the configuration surface, it only comes through an
         // explicit policy).
         return fallback?.MaxAgeDays is { } fallbackDays

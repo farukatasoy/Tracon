@@ -285,9 +285,9 @@ public static partial class TraconServiceCollectionExtensions
             static o => o.DisableAfterConsecutiveFailures,
             static (o, v) => o.DisableAfterConsecutiveFailures = v);
 
-        // F-247: a list that is present REPLACES the default. A delay that is not
+        // A list that is present REPLACES the default. A delay that is not
         // readable is left out and named at startup with its position and its text
-        // (F-572); skipping it with no word cut a rung off the retry ladder.
+        // Skipping it with no word cut a rung off the retry ladder.
         read.TimeSpanList(nameof(TraconWebhookOptions.RetryDelays), options.RetryDelays);
     }
 
@@ -328,14 +328,14 @@ public static partial class TraconServiceCollectionExtensions
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Sessions)), options.Sessions, options);
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Conversations)), options.Conversations, options);
 
-        // F-247: defined and resolved by ForTarget, but never read here - the
-        // HATA-S1-005 shape once more. TraconRetentionOptionsBindingTests now
+        // Defined and resolved by ForTarget, but never read here - the
+        // An earlier defect shape once more. TraconRetentionOptionsBindingTests now
         // counts the targets by reflection, so a target missing here fails it.
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.IdempotencyKeys)), options.IdempotencyKeys, options);
 
-        // HATA-S1-005: these four targets were added to ForTarget but were NOT
+        // These four targets were added to ForTarget but were NOT
         // added HERE - a signature change is not considered complete until
-        // applied at EVERY call site of the body (see AGENTS.md, the Phase 20 note).
+        // applied at EVERY call site of the body (see AGENTS.md, the note).
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunInputs)), options.RunInputs, options);
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.VoiceSessions)), options.VoiceSessions, options);
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunScores)), options.RunScores, options);

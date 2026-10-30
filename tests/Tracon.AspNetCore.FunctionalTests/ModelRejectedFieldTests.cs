@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-606 — a model can reject a request field that its provider's API surface sends. The catalog says so
+/// A model can reject a request field that its provider's API surface sends. The catalog says so
 /// (<see cref="ModelDescriptor.RejectedSamplingFields"/>), read from configuration, and the validation endpoint and
 /// the save path report it before the first run, as they do for a field the surface drops.
 /// </summary>

@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// What <c>PUT /api/workflows/{name}</c> accepts for a node's <c>timeout</c> and a
-/// definition's <c>runTimeout</c> (F-303, F-405, failure modes 9, 26 and 28), and what the
+/// definition's <c>runTimeout</c> (failure modes 9, 26 and 28), and what the
 /// function catalog shows.
 /// </summary>
 /// <remarks>
@@ -48,7 +48,7 @@ public sealed class WorkflowTimeoutSaveTests
     [Fact]
     public async Task An_agent_nodes_timeout_is_accepted_and_read_back()
     {
-        // The plan's first draft refused it; F-405 made it the step's own deadline.
+        // The plan's first draft refused it; the earlier decision made it the step's own deadline.
         await using var host = await StartAsync();
 
         using (var saved = await SaveAsync(host, "chain", nodes: [Node(Writer, "Agent", "00:06:00"), Node(Render, "Function", "00:00:02.5")]))
@@ -125,7 +125,7 @@ public sealed class WorkflowTimeoutSaveTests
     [Fact]
     public async Task A_save_without_the_fields_clears_them()
     {
-        // PUT replaces the definition (K-725): the console must send both fields
+        // PUT replaces the definition: the console must send both fields
         // back on every save, and the server must not keep an omitted one.
         await using var host = await StartAsync(static options => options.MaxRunTimeout = TimeSpan.FromHours(1));
 

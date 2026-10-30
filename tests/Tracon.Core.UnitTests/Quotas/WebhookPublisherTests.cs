@@ -32,7 +32,7 @@ public sealed class WebhookPublisherTests
         deliveries[0].Status.ShouldBe(WebhookDeliveryStatus.Pending);
         deliveries[0].EventType.ShouldBe(WebhookEvents.RunCompleted);
 
-        // The delivery is written into the SAME queue as phase 17; there is no second queue.
+        // The delivery is written into the SAME queue; there is no second queue.
         var queued = await jobs.QueryAsync(new JobQuery { TenantId = Tenant });
         queued.Count.ShouldBe(1);
         queued[0].HandlerKey.ShouldBe(JobHandlerKeys.WebhookDelivery);
@@ -41,7 +41,7 @@ public sealed class WebhookPublisherTests
     [Fact]
     public async Task Job_written_to_the_queue_carries_a_serializable_payload()
     {
-        // 🚨 Regression (K-166): if Payload is left unassigned, the field
+        // 🚨 Regression: if Payload is left unassigned, the field
         // becomes default(JsonElement) (ValueKind = Undefined) and
         // JsonElementConverter cannot serialize it — GET /api/jobs would
         // return the whole list with a 500. Unit and functional tests missed
@@ -124,7 +124,7 @@ public sealed class WebhookPublisherTests
     [Fact]
     public async Task Payload_does_not_carry_message_content()
     {
-        // K-161: summary only. A recipient that wants the content calls /api/runs/{id}.
+        // Summary only. A recipient that wants the content calls /api/runs/{id}.
         var (publisher, store, _) = Build();
 
         await SubscribeAsync(store);

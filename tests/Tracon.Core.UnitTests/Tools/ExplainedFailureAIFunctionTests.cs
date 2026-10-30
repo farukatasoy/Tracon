@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Tools;
 
 /// <summary>
-/// HATA-S1-024: a tool's own explanation reaches the model instead of
+/// A tool's own explanation reaches the model instead of
 /// <c>"Error: Function failed."</c>.
 /// </summary>
 /// <remarks>

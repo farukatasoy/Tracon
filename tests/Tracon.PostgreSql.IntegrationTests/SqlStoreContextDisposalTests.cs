@@ -3,7 +3,7 @@ using System.Data.Common;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <see cref="SqlStoreContext"/>'s ownership-conditional dispose (Phase 110):
+/// <see cref="SqlStoreContext"/>'s ownership-conditional dispose:
 /// Tracon must dispose a data source it built itself, and must never
 /// dispose one the consumer supplied. Isolated from a real Npgsql connection
 /// on purpose, with a spy data source, so this is a direct proof of

@@ -13,7 +13,7 @@
 //   links straight to one release: the auto-generated heading slug would drop the
 //   dots from `1.0.0-preview.1` and change again whenever the date changes.
 //
-// Why one page per release (F-710):
+// Why one page per release:
 //
 //   The single page grew with every release and crossed its weight ceiling at the
 //   1.0.0-preview.6 cut. A reader lands on one version's anchor, so the notes are

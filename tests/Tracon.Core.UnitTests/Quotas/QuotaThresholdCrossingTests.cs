@@ -38,7 +38,7 @@ public sealed class QuotaThresholdCrossingTests
     [Fact]
     public async Task Crossing_is_empty_by_default_even_though_the_webhook_still_fires()
     {
-        // K1 (146.5): PublishThresholdToRunStream defaults off. The webhook is
+        // PublishThresholdToRunStream defaults off. The webhook is
         // unaffected by the flag -- only the run-stream-facing return value is gated.
         var publisher = new RecordingPublisher();
         var (enforcer, store, clock) = Build(publisher: publisher);

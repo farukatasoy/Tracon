@@ -8,7 +8,7 @@ namespace Tracon.Core.UnitTests.Recording;
 /// <summary>
 /// Verifies that when a <see cref="ModelBinding.Fallbacks"/> link answers
 /// instead of the primary binding, the run record and cost resolution reflect
-/// the model that ACTUALLY ran (phase 62, F-44) — not the primary binding
+/// the model that ACTUALLY ran — not the primary binding
 /// fixed at compile time.
 /// </summary>
 /// <remarks>

@@ -175,7 +175,7 @@ describe('foldMessages', () => {
     // MAF splits a call and its result across two separate ChatMessages
     // (assistant/functionCall, then tool/functionResult) — folding each
     // message on its own (the pre-fix `foldMessage`) left the call stuck
-    // 'running' forever, since the result had nowhere to apply (HATA-S4-016).
+    // 'running' forever, since the result had nowhere to apply.
     const messages: LooseChatMessage[] = [
       { role: 'user', contents: [{ $type: 'text', text: 'Where is my order?' }] },
       {

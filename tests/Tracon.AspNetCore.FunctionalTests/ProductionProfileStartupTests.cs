@@ -9,7 +9,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 170 (F-231) at the host boundary. Which switches a deployment ended up
+/// An earlier change at the host boundary. Which switches a deployment ended up
 /// with is only decided once every module has registered, so the cases below
 /// start real hosts rather than constructing the validator by hand.
 /// </summary>
@@ -390,7 +390,7 @@ public sealed class ProductionProfileStartupTests
     [Fact]
     public async Task The_phase_259_decisions_carry_no_configured_value_into_the_log_when_they_are_accepted()
     {
-        // F-757: the canary above reads the failure. An accepted decision takes the other road, the
+        // The canary above reads the failure. An accepted decision takes the other road, the
         // "<risk> is accepted. <setting> is permissive: <observed>." line, and it must hold no configured value either.
         const string CanaryHeader = "X-Canary-Header-9b2f4a";
         const string CanaryPrefix = "CanaryProviderKeys-9b2f4a:";
@@ -659,7 +659,7 @@ public sealed class ProductionProfileStartupTests
     [Fact]
     public async Task Mapping_Tracon_twice_leaves_the_role_decision_open_once_and_naming_the_missing_policies_once()
     {
-        // F-757: each MapTracon call adds a check and the strictest answer wins, so a second call must neither
+        // Each MapTracon call adds a check and the strictest answer wins, so a second call must neither
         // answer for the first nor repeat its finding.
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             async () => await TraconTestHost.StartAsync(
@@ -679,7 +679,7 @@ public sealed class ProductionProfileStartupTests
     [Fact]
     public async Task Requiring_role_policies_stops_the_host_at_the_mapping_before_the_profile_is_read()
     {
-        // F-757: with RequireRolePolicies on, a missing policy is refused by MapTracon itself (the profile is not asked).
+        // With RequireRolePolicies on, a missing policy is refused by MapTracon itself (the profile is not asked).
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             async () => await TraconTestHost.StartAsync(
                 configureTracon: static builder =>
@@ -828,7 +828,7 @@ public sealed class ProductionProfileStartupTests
     }
 
     /// <summary>
-    /// The decisions that exist only for a deployment that declared more than one instance (Phase 265).
+    /// The decisions that exist only for a deployment that declared more than one instance.
     /// </summary>
     private static readonly TraconProductionRisk[] InstanceRisks =
     [

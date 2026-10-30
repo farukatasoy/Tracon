@@ -19,7 +19,7 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
 
         List<string>? failures = null;
 
-        // F-280: every delivery attempt arms this timeout; an out-of-range value threw
+        // Every delivery attempt arms this timeout; an out-of-range value threw
         // on every attempt.
         if (!TimerPeriod.IsValid(options.Timeout))
         {
@@ -60,7 +60,7 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
                 continue;
             }
 
-            // The binder leaves out an entry it cannot read and names it itself (F-572).
+            // The binder leaves out an entry it cannot read and names it itself.
             (failures ??= []).Add(
                 $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)} " +
                 $"values must be greater than zero. Actual value: {delay}.");

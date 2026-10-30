@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 namespace Tracon.Core.UnitTests.Quotas;
 
 /// <summary>
-/// HATA-S4-020 (MT-OBS-036): when <c>QuotaUsageObserver</c> is resolved from
+/// When <c>QuotaUsageObserver</c> is resolved from
 /// DI, it must ACTUALLY see the <c>Tracon:Observability:EnableQuotaUsageGauge</c>
 /// configuration.
 /// </summary>

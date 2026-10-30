@@ -268,6 +268,6 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
     // A record's compiler-generated ToString prints every field labeled and
     // distinct (`CacheKeyScope { BaseKey = ..., TenantId = ..., ... }`) —
     // there is no hand-rolled separator between DIFFERENT fields for an
-    // invisible character to hide in (K-525).
+    // invisible character to hide in.
     private readonly record struct CacheKeyScope(string BaseKey, string TenantId, string Provider, string ToolNames);
 }

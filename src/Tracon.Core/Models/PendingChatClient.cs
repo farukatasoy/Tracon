@@ -18,7 +18,7 @@ namespace Tracon;
 /// refuses rings for it instead of building the agent without them.
 /// </para>
 /// </remarks>
-// K-874: BuildAgent and below build no client; they only take one.
+// BuildAgent and below build no client; they only take one.
 internal sealed class PendingChatClient
 {
     private readonly Func<ChatClientRings, IChatClient>? _build;

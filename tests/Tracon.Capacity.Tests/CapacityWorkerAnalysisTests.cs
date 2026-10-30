@@ -67,7 +67,7 @@ public sealed class CapacityWorkerAnalysisTests
     [Fact]
     public void A_repeated_attempt_is_legitimate_and_shows_up_as_a_ratio_above_one()
     {
-        // at-least-once (K-641): the same job may run again after a lost lease.
+        // at-least-once: the same job may run again after a lost lease.
         // The intervals do NOT overlap, so this is not an isolation failure.
         List<CapacityExecution> executions =
         [

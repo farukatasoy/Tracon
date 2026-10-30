@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Pins the <c>required</c> members of the public API to the checked-in
-/// snapshot <c>docs/sozlesme/required-uyeler.txt</c> (Phase 237, section 237.3).
+/// snapshot <c>docs/sozlesme/required-uyeler.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>

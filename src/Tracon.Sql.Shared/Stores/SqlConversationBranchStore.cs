@@ -146,7 +146,7 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
             // 🚨 The text is carried over AS-IS; it is not re-serialized. A
             // round of deserialize/serialize could move the `$type`
             // discriminator's position and make the branch's history
-            // unreadable (K-027).
+            // unreadable.
             Dialect.AddJson(insert, "item", item.Item);
             Dialect.AddTimestamp(insert, "created_at", item.CreatedAt);
 

@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A request setting the agent definition owns is refused on
-/// <c>/v1/chat/completions</c>, as <c>/v1/responses</c> already refuses it (F-581).
+/// <c>/v1/chat/completions</c>, as <c>/v1/responses</c> already refuses it.
 /// </summary>
 /// <remarks>
 /// <para>

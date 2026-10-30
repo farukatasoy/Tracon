@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <summary>
 /// The skill chain is built in one place for both agent types. Whatever the agent
 /// is, a compiled agent that outlives a tenant switch lists the current tenant's
-/// skill and offers the skill tool once (F-578, Phase 219).
+/// skill and offers the skill tool once.
 /// </summary>
 /// <remarks>
 /// A compiled agent is cached per tenant by <see cref="CompiledAgentCache"/>, so no

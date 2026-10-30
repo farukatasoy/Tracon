@@ -1,7 +1,7 @@
 <Project>
 
   <!--
-    Phase 166. The capacity apparatus is DELIBERATELY cut off from the
+    The capacity apparatus is DELIBERATELY cut off from the
     repository's own MSBuild inheritance: there is no
     `GetPathOfFileAbove('Directory.Build.props')` import here, and
     `ManagePackageVersionsCentrally` is off.

@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// inward, so a positive answer means MAF really built the loop, not that
 /// Tracon assigned an option and hoped.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class LoopCompilationTests
 {
@@ -28,7 +28,7 @@ public sealed class LoopCompilationTests
             MaxContextWindowTokens = 4_096,
         }));
 
-        // The whole point of K1: a definition written before this member
+        // The whole point of the zero-surprise rule: a definition written before this member
         // existed compiles to exactly the agent it compiled to before.
         agent.ShouldBeOfType<HarnessAgent>();
         agent.GetService<LoopAgent>().ShouldBeNull();

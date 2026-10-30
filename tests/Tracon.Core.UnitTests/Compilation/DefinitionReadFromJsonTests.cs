@@ -20,7 +20,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <see langword="null"/>" must hold in the TYPE, not in every reader.
 /// </para>
 /// <para>
-/// 🚨 Phase 222 added <see cref="AgentDefinition.ExtensionNames"/>; the sample's own list of
+/// 🚨 The earlier decision added <see cref="AgentDefinition.ExtensionNames"/>; the sample's own list of
 /// collections to restore did not get the new member and five of its tests failed with a
 /// <see cref="NullReferenceException"/> inside <c>AgentExtensionRegistry.Configure</c>. The
 /// sweep below is the gate: a collection added later cannot reach a reader as <see langword="null"/>.
@@ -78,7 +78,7 @@ public sealed partial class DefinitionReadFromJsonTests
     [Fact]
     public void A_workflow_definition_that_omits_the_handoff_edges_reads_them_as_empty()
     {
-        // Phase 270. A row written before the field existed has no "handoffs", and the source generator runs no
+        // A row written before the field existed has no "handoffs", and the source generator runs no
         // property initializer for a member the JSON never mentions: the star must come from the type itself.
         var omitted = JsonSerializer.Deserialize(
             """{ "name": "triage", "kind": "Handoff", "agentNames": ["a", "b"] }""",

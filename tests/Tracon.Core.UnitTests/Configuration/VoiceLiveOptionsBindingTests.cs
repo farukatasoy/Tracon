@@ -7,9 +7,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The section is bound by hand (K-021, AOT): a key added to the options and not to
+/// The section is bound by hand (AOT): a key added to the options and not to
 /// the binder is silently ignored. <see cref="OptionsKeyCoverage"/> fails this test
-/// before such a key ships unbound (F-247).
+/// before such a key ships unbound.
 /// </para>
 /// <para>
 /// 🚨 This section is not bound by <c>AddTracon</c> but by <c>UseLiveVoice(section)</c>,
@@ -95,7 +95,7 @@ public sealed class VoiceLiveOptionsBindingTests
     [Fact]
     public void A_delegation_mode_set_in_code_that_the_contract_does_not_define_stops_the_host_at_startup()
     {
-        // F-565: the refusal above lives in the configuration binder only. A mode assigned
+        // The refusal above lives in the configuration binder only. A mode assigned
         // through UseLiveVoice(Action<VoiceLiveOptions>) skipped it, reached the provider on
         // the first session and ended as a 500.
         var failure = SectionBinding.FailsAtStartup(

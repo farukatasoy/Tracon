@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Webhooks;
 /// <c>Tracon:Egress</c> settings before it sends.
 /// </summary>
 /// <remarks>
-/// 🚨 F-388: the registration's factory did not pass
+/// The registration's factory did not pass
 /// <c>IOptionsMonitor&lt;TraconEgressOptions&gt;</c>, so the handler fell back
 /// to <c>new TraconEgressOptions()</c>. A host that opened private-network
 /// targets with <c>Tracon:Egress:AllowPrivateNetworkTargets</c> alone saved the

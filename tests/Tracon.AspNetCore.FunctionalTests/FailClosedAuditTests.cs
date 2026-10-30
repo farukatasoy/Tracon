@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// The rationale is the same as in ApprovalEndpointTests.cs (K-269): the package's
+// The rationale is the same as in ApprovalEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost SHARE a name,
 // so a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -11,8 +11,8 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Proves, at the HTTP boundary, that the audit trail's two guarantees survived phase
-/// 171's move to one shared write path: the fail-closed operations still refuse when
+/// Proves, at the HTTP boundary, that the audit trail's two guarantees survived the
+/// move to one shared write path: the fail-closed operations still refuse when
 /// the audit store rejects the write, and a best-effort one still carries on.
 /// </summary>
 /// <remarks>
@@ -110,7 +110,7 @@ public sealed class FailClosedAuditTests
     {
         // An approval decision can arrive two ways: through the approval inbox, or in
         // the next run's own request body. The published guarantee does not distinguish
-        // them, so neither may this. Until phase 171 the in-band path was best-effort:
+        // them, so neither may this. Until an earlier change the in-band path was best-effort:
         // with a broken audit store it approved the call and ran the tool anyway.
         var audit = new SwitchableAuditLog();
 
@@ -254,7 +254,7 @@ public sealed class FailClosedAuditTests
     [Fact]
     public async Task A_streamed_workflow_answer_is_not_applied_when_its_audit_entry_cannot_be_written()
     {
-        // Phase 208: every answer that starts a run is the seventh fail-closed operation. A
+        // Every answer that starts a run is the seventh fail-closed operation. A
         // refused entry leaves no record, no run and no claim - the same answer goes through
         // once the audit store is back.
         var audit = new SwitchableAuditLog();

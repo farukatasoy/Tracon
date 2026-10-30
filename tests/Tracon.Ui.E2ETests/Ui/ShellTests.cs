@@ -18,7 +18,7 @@ public sealed class ShellTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync(host.UiAddress);
 
-        // Dashboard is the landing screen (Phase 20); Agents stays first in the side menu.
+        // Dashboard is the landing screen; Agents stays first in the side menu.
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         (await session.Page.TitleAsync()).ShouldBe("Tracon");

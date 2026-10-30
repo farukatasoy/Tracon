@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The ready-made patterns beyond Sequential wait for a tool approval too, and an agent below a step still
-/// cannot (phase 230, K-1051, K-103).
+/// cannot.
 /// </summary>
 /// <remarks>
 /// Each pattern hosts its agents with a different executor, so a case that passes for Sequential does not prove
@@ -129,7 +129,7 @@ public sealed class WorkflowToolApprovalPatternTests
     [Fact]
     public async Task A_handoff_run_that_waits_for_an_approval_is_not_counted_twice_when_the_answer_resumes_it()
     {
-        // Phase 270. The run hands off once and then waits for the approval of the expert's tool; the answer opens a new
+        // The run hands off once and then waits for the approval of the expert's tool; the answer opens a new
         // run that carries it on. With a limit of ONE handoff the resumed run completes only if it does not count the
         // handoff the first run already made - a resume that replays the handoff call and counts it would stop here.
         // It does not say whether a count is carried over: the next test does.
@@ -162,10 +162,10 @@ public sealed class WorkflowToolApprovalPatternTests
     [Fact]
     public async Task A_run_that_resumes_after_an_approval_counts_its_own_handoffs_from_zero()
     {
-        // Phase 270, K-1149. One handoff before the pause and one after it, with a limit of ONE: the resumed run is a new
+        // One handoff before the pause and one after it, with a limit of ONE: the resumed run is a new
         // run with a counter of its own, so the handoff back to the triage agent is its first. A count carried over the
         // pause would make it the second and fail the run. The cost of the choice: a loop that stops for an approval at
-        // every hop starts again at each answer, and only the run budget (F-531) bounds it.
+        // every hop starts again at each answer, and only the run budget bounds it.
         var cancels = new int[1];
 
         var provider = new FakeModelProvider(Provider)
@@ -278,7 +278,7 @@ public sealed class WorkflowToolApprovalPatternTests
 
         var run = await RunToApprovalAsync(host, "delegating");
 
-        // K-103 holds below the step: the sub-agent's approval is a tool result the step's model reads.
+        // That decision holds below the step: the sub-agent's approval is a tool result the step's model reads.
         run.Run.Status.ShouldBe(RunStatus.Completed, run.Run.Error?.Message);
         run.Requests.ShouldBeEmpty();
         cancels[0].ShouldBe(0);
@@ -292,7 +292,7 @@ public sealed class WorkflowToolApprovalPatternTests
     }
 
     /// <summary>
-    /// A skill tool is a tool that needs approval like any other (F-626, Phase 231): the step waits for the
+    /// A skill tool is a tool that needs approval like any other: the step waits for the
     /// answer when the definition leaves the read approval on, and does not when the definition turns it off.
     /// </summary>
     [Theory]
@@ -361,7 +361,7 @@ public sealed class WorkflowToolApprovalPatternTests
     [Fact]
     public async Task A_request_nobody_answers_runs_out_of_time_and_the_step_that_waited_fails_with_the_workflow()
     {
-        // Open question 1 of the phase, option A: a step left AwaitingApproval for good would show an approval that
+        // of the phase, option A: a step left AwaitingApproval for good would show an approval that
         // nothing can answer any more.
         var limit = TimeSpan.FromMinutes(5);
         var clock = new ManualTimeProvider();
@@ -521,7 +521,7 @@ public sealed class WorkflowToolApprovalPatternTests
     [Fact]
     public async Task A_magentic_participant_waits_for_an_approval_and_the_task_goes_on_after_the_answer()
     {
-        // Phase 230 left Magentic refusing because it was not measured. The orchestrator hosts its participants with
+        // An earlier change left Magentic refusing because it was not measured. The orchestrator hosts its participants with
         // the framework's host executor like the other patterns (MAF-KAPSAMA #49); this case is that measurement.
         var cancels = new int[1];
 

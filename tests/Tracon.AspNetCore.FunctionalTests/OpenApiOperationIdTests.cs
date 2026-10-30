@@ -3,7 +3,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Verifies that the <c>operationId</c> values in the document are unique (Phase 40).
+/// Verifies that the <c>operationId</c> values in the document are unique.
 /// </summary>
 /// <remarks>
 /// A client generator converts each <c>operationId</c> into a method name; if

@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests.DefinitionTransfer;
 
 /// <summary>
-/// The import is a second writer, so it may not accept what the save endpoints refuse (K-455): every refusal a
+/// The import is a second writer, so it may not accept what the save endpoints refuse: every refusal a
 /// save makes, for the four kinds, is made again by the import with the same words.
 /// </summary>
 public sealed class DefinitionImportParityTests

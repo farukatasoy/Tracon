@@ -2,7 +2,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// Reading a pending request back from an event whose payload the recorder cut
-/// at <c>MaxPayloadLength</c> (F-327).
+/// at <c>MaxPayloadLength</c>.
 /// </summary>
 /// <remarks>
 /// The end-to-end case lives in <c>WorkflowHumanInTheLoopTests</c>; these pin
@@ -52,7 +52,7 @@ public sealed class WorkflowRequestDescriptorTests
     [Fact]
     public void A_tool_approval_prompt_cut_inside_a_surrogate_pair_keeps_no_half_of_it()
     {
-        // F-241: the presenter's sentence is cut at 500 characters. Character 500 is the high half
+        // The presenter's sentence is cut at 500 characters. Character 500 is the high half
         // of a pair here; the cut kept it alone, and the request - stored as JSON - could not be
         // written.
         var presentation = new ToolApprovalPresentation { Message = new string('a', 499) + "\U0001F600" + "tail" };

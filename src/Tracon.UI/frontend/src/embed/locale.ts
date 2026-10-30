@@ -3,8 +3,7 @@ import { tr } from './locale.tr.ts';
 /**
  * The widget's own, small dictionary — deliberately separate from
  * `src/locales/`. Pulling in the console's ~800-key dictionary would blow
- * the widget's 30 KB budget for a handful of strings (Phase 61, Open
- * Question 5).
+ * the widget's 30 KB budget for a handful of strings.
  */
 export interface EmbedMessages {
   readonly bubbleLabel: string;

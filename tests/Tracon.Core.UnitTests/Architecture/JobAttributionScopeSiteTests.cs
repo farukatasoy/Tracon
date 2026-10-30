@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <para>
 /// The defect this guards repeated four times: a background path started a
 /// root run whose row looked right while its sub-agents, tools and quota record
-/// saw no user and no labels (K-692, F-337, F-364, F-369). A worker has no
+/// saw no user and no labels. A worker has no
 /// request to read, so the handler must replay the attribution the work was
 /// queued with, and it must open the scope in its own method body (an ambient
 /// write made in an async helper does not flow back). Each case was found by
@@ -104,7 +104,7 @@ public sealed partial class JobAttributionScopeSiteTests
     {
         HandlerDeclaration().IsMatch("internal sealed class Widget(ILogger? logger = null) : IJobHandler").ShouldBeTrue();
         HandlerDeclaration().IsMatch("    ILogger<Widget>? logger = null) : IJobHandler").ShouldBeTrue();
-        HandlerDeclaration().IsMatch("        // K-641: IJobHandler is at-least-once").ShouldBeFalse();
+        HandlerDeclaration().IsMatch("        // NOTE: IJobHandler is at-least-once").ShouldBeFalse();
     }
 
     // The same declaration scan JobHandlerOutcomeWriteSiteTests uses: a class

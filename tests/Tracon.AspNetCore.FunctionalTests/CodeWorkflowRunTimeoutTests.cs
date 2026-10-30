@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The run timeout of a workflow defined in code (phase 211, <c>WorkflowRegistrationOptions.RunTimeout</c>): the same rule
+/// The run timeout of a workflow defined in code (<c>WorkflowRegistrationOptions.RunTimeout</c>): the same rule
 /// a stored definition has. It shortens the installation's value, lengthens it up to <c>MaxRunTimeout</c>, and a run
 /// that reaches it names the registration.
 /// </summary>

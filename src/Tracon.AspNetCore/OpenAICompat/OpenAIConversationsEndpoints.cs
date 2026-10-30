@@ -139,7 +139,7 @@ internal static class OpenAIConversationsEndpoints
             }
         }
 
-        // F-581 class scan: OpenAI also accepts initial 'items'. Tracon does not
+        // OpenAI also accepts initial 'items'. Tracon does not
         // seed a session from them, so a non-empty list is refused, not dropped.
         if (body.ValueKind == JsonValueKind.Object &&
             body.TryGetProperty("items", out var items) &&
@@ -175,7 +175,7 @@ internal static class OpenAIConversationsEndpoints
         // The ownership check runs BEFORE GetAsync, independent of the tenant;
         // because GetAsync is already filtered by the ambient tenant, it
         // CANNOT SEE another tenant's record and could never trigger the
-        // check (HATA-S2-005).
+        // check.
         if (!await OpenAICompatSupport
                 .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
                 .ConfigureAwait(false))
@@ -185,9 +185,9 @@ internal static class OpenAIConversationsEndpoints
 
         // 🚨 The consumer's own handler is asked HERE too, not only on the
         // /api/sessions route: this surface reaches the very same sessions
-        // under a different name, and phase 148 already had to come back for it
+        // under a different name, and already had to come back for it
         // once with the ownership boundary. Asked AFTER the tenant is settled
-        // and BEFORE any state is read (K-684), and the gate's own problem body
+        // and BEFORE any state is read, and the gate's own problem body
         // is deliberately DISCARDED — this endpoint answers in the OpenAI error
         // shape, byte for byte the "wrong tenant" answer above.
         //
@@ -209,7 +209,7 @@ internal static class OpenAIConversationsEndpoints
         }
 
         // 🚨 The OpenAI-compatible surface reaches the SAME sessions under a
-        // different name, so it needs the same ownership boundary - phase 148.
+        // different name, so it needs the same ownership boundary.
         // Leaving it out made `/api/sessions/{id}` answer 404 for another
         // user's session while `/v1/conversations/{id}/items` returned its
         // whole history: one door locked, the one beside it open. The answer
@@ -271,7 +271,7 @@ internal static class OpenAIConversationsEndpoints
         }
 
         // The same deletion DELETE /api/sessions/{id} makes: the session, the copy of its content and
-        // its attachments (F-746). A conversation that was never used has no record and deletes nothing.
+        // its attachments. A conversation that was never used has no record and deletes nothing.
         var deleted = await deletion.DeleteAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
         return Results.Json(

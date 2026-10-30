@@ -37,7 +37,7 @@ public sealed class WebhookSignerTests
     public void Signature_changes_when_the_timestamp_changes()
     {
         // 🚨 The timestamp IS included in the signature; without it, a
-        // captured request could be replayed forever (K-163).
+        // captured request could be replayed forever.
         var signature = WebhookSigner.Sign(Body, Timestamp, Secret);
         var later = Timestamp.AddSeconds(1);
 

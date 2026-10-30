@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import { thirdPartyModules } from './scripts/third-party-notices.mjs';
 
 /**
- * Second, separate build for the embeddable chat widget (Phase 61).
+ * Second, separate build for the embeddable chat widget.
  *
  * Deliberately its own config, not a second entry on the console's
  * `vite.config.ts`: the console and the widget have different budgets

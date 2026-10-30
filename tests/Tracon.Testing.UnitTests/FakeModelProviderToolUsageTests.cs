@@ -5,7 +5,7 @@ using Tracon.Testing;
 namespace Tracon.Testing.UnitTests;
 
 /// <summary>
-/// A turn that asks for tools reports its token usage the way a turn that answers does (F-690), so a test of the
+/// A turn that asks for tools reports its token usage the way a turn that answers does, so a test of the
 /// token budget goes through the path the real provider takes.
 /// </summary>
 public sealed class FakeModelProviderToolUsageTests

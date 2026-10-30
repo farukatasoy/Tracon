@@ -88,7 +88,7 @@ internal sealed class WorkflowRequestExpirationService(
             return;
         }
 
-        // Wait for the schema to become ready before the first SQL attempt (K-354).
+        // Wait for the schema to become ready before the first SQL attempt.
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);

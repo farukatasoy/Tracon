@@ -133,7 +133,7 @@ public sealed class WorkflowRunTimeoutReasonTests
     [Fact]
     public async Task A_run_that_times_out_waiting_for_a_slot_is_recorded_and_names_the_setting()
     {
-        // F-325: the slot wait ran BEFORE the run row opened. A run whose
+        // The slot wait ran BEFORE the run row opened. A run whose
         // deadline passed while it queued ended with an
         // OperationCanceledException and no event at all: the stream had no
         // RunStarted, no closing frame, and the run id the endpoint had already

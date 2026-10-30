@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A save that leaves a header map out keeps the stored one (phase 190).
+/// A save that leaves a header map out keeps the stored one.
 /// </summary>
 /// <remarks>
 /// The admin forms send neither <c>headers</c> nor
@@ -98,8 +98,8 @@ public sealed class HeaderPreservationTests
     }
 
     /// <summary>
-    /// A row written before phase 190 may carry a credential in plain headers.
-    /// Only the headers a request SENDS are judged (phase 190, open question 1), so the
+    /// A row written before may carry a credential in plain headers.
+    /// Only the headers a request SENDS are judged, so the
     /// form can still save it.
     /// </summary>
     [Fact]

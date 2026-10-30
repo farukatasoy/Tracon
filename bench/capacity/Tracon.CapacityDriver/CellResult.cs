@@ -302,7 +302,7 @@ public sealed class WorkerSummary
 
     /// <summary>Pairs of attempts on the same job whose execution intervals overlapped.</summary>
     /// <remarks>
-    /// At-least-once allows an extra attempt (K-641). It does not allow an
+    /// At-least-once allows an extra attempt. It does not allow an
     /// overlapping one: a non-zero value here makes the cell <c>invalid</c>.
     /// </remarks>
     public long ConcurrentOverlaps { get; set; }

@@ -7,7 +7,7 @@ using static Microsoft.Playwright.Assertions;
 namespace Tracon.Ui.E2ETests.Ui;
 
 /// <summary>
-/// Phase 270: who may hand off to whom is built, saved and drawn in the console.
+/// Who may hand off to whom is built, saved and drawn in the console.
 /// </summary>
 /// <remarks>
 /// The path crosses every layer the component tests stand apart from: the edge table the editor sends, the

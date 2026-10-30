@@ -93,7 +93,7 @@ internal sealed class EmbeddingProviderAccess
         if (providerName is null)
         {
             // With a policy required, a tenant with no policy is refused here too: the provider
-            // is not named, so nothing says the call is one the policy would allow (F-254).
+            // is not named, so nothing says the call is one the policy would allow.
             if (policy is not null || requirePolicy)
             {
                 throw new TraconTenantProviderRefusedException(

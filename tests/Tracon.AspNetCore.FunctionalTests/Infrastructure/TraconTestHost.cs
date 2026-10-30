@@ -174,7 +174,7 @@ internal sealed class TraconTestHost : IAsyncDisposable
     /// <returns><paramref name="expected"/>.</returns>
     /// <remarks>
     /// A background run settles on its own schedule. Seven test classes carried a
-    /// private copy of this loop until Phase 184. The generous bound is measured:
+    /// private copy of this loop. The generous bound is measured:
     /// 5 seconds failed once in a parallel run of 16 test projects, while a healthy
     /// run leaves the wait in milliseconds (<see cref="WaitUntil"/>).
     /// </remarks>

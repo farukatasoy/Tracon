@@ -12,8 +12,8 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The defect class recurred three times. A fallback link (phase 65 audit,
-/// K-470), the compaction summarizer and the <c>aiJudge</c> loop judge
+/// The defect class recurred three times. A fallback link (audit,
+/// That decision), the compaction summarizer and the <c>aiJudge</c> loop judge
 /// (2026-10-11) were each built with the synchronous member on a path that
 /// serves tenants, so the tenant's egress policy and its own key never reached
 /// them. Each time the agent's own model was correct, and every test that

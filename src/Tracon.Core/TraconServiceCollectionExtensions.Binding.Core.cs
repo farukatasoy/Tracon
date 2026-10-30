@@ -208,7 +208,7 @@ public static partial class TraconServiceCollectionExtensions
         // only be turned on in code". Binding merged INTO the code-supplied values
         // instead of replacing them, so an environment variable such as
         // Tracon__Skills__Scripts__Interpreters__sh=/bin/sh added an
-        // interpreter the application never approved, and K-087 had already
+        // interpreter the application never approved, and the design had already
         // rejected configuration-supplied skill roots as arbitrary file system
         // reads. Enabled and PlatformIsolationAcknowledged stay bound on purpose
         // (see the comment above): they can only NARROW or acknowledge, never

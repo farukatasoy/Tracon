@@ -6,7 +6,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary><c>Idempotency-Key</c> support tests (Phase 43).</summary>
+/// <summary><c>Idempotency-Key</c> support tests.</summary>
 public sealed class IdempotencyTests
 {
     private const string HeaderName = "Idempotency-Key";
@@ -70,7 +70,7 @@ public sealed class IdempotencyTests
     [Fact]
     public async Task Prefer_respond_async_replay_also_returns_Location_and_Preference_Applied_headers()
     {
-        // HATA-S3-008 / MT-JOB-083: replay only preserved the body — the
+        // Replay only preserved the body — the
         // 'Location' and 'Preference-Applied' HTTP headers were not stored.
         await using var host = await TraconTestHost.StartAsync(
             static builder =>

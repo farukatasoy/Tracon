@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-344: only a root agent run is an agent turn that continuation can re-send.
+/// Only a root agent run is an agent turn that continuation can re-send.
 /// The rule itself; <c>RunContinuationTests</c> proves it through the reconciler and the handler.
 /// </summary>
 public sealed class RunContinuationEligibilityTests

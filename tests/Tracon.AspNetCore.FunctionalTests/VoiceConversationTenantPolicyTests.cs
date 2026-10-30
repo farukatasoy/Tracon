@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-298: the conversation driver took its transcriber and synthesizer at setup and
+/// The conversation driver took its transcriber and synthesizer at setup and
 /// sent every tenant's audio to them. The check now runs between the session gates
 /// (a refusal must not confirm another tenant's session) and the slot. A refusal that
 /// came after the upgrade would close a socket the client already holds, and a

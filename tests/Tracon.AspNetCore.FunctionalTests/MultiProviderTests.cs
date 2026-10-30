@@ -19,9 +19,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// <strong>No test calls a real model</strong> (a decision in force since
-/// Phase 3). Verification that requires the network is done manually; the
-/// evidence is in Phase 26 and
-/// Phase 27.
+/// An earlier change). Verification that requires the network is done manually; the
+/// evidence is in an earlier change and
 /// </para>
 /// </remarks>
 public sealed class MultiProviderTests
@@ -173,7 +172,7 @@ public sealed class MultiProviderTests
 
         // Because Azure's extra-field-writing path is broken with the OpenAI
         // SDK version we use, this provider offers one setting only: the strict
-        // response schema (K-211, Phase 245). It names the supported key instead
+        // response schema. It names the supported key instead
         // of silently ignoring the setting.
         var exception = Should.Throw<TraconException>(() => registry.CreateChatClient(new ModelBinding
         {

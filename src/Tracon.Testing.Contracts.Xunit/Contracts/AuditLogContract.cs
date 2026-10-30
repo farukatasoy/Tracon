@@ -54,7 +54,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         found.Entity.ShouldBe(entry.Entity);
 
         // PostgreSQL's jsonb column can change formatting (whitespace);
-        // K-027 is only about key ORDER, what matters here is semantic
+        // Key ORDER is not the point here; what matters is semantic
         // equality.
         JsonSemanticallyEquals(found.Before, entry.Before);
         JsonSemanticallyEquals(found.After, entry.After);
@@ -128,7 +128,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         found.Actor.ShouldBeNull();
     }
 
-    // --- Ambient-tenant fallback (BL-046, Phase 121) ---
+    // --- Ambient-tenant fallback (BL-046) ---
     // AuditQuery.TenantId == null / AuditChainQuery.TenantId == null is a CONTRACT,
     // not a convenience: it MUST resolve to the caller's own ambient tenant, never to
     // "every tenant". IAuditLog's own remarks make this explicit; these three scenarios
@@ -183,7 +183,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         result.EntriesChecked.ShouldBe(1, "the null-tenant chain walk must scope to tenant A alone, not every tenant's entries.");
     }
 
-    // --- Raw-storage tamper hooks (phase 64) ---
+    // --- Raw-storage tamper hooks ---
     // IAuditLog has (deliberately, "there is no delete or edit endpoint, and
     // there will not be one") no way to alter or remove a written entry, so
     // Broken/Gap detection cannot be driven through the public interface alone
@@ -258,7 +258,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         result.Status.ShouldBe(AuditChainStatus.Gap);
     }
 
-    // --- Hash chain (phase 64) ---
+    // --- Hash chain ---
 
     [Fact]
     public async Task First_entry_of_a_tenant_carries_no_previous_hash()
@@ -342,7 +342,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         result.EntriesChecked.ShouldBe(WriterCount);
     }
 
-    // --- Signed chain (phase 260, F-758) ---
+    // --- Signed chain ---
     // A log built with a signing key writes an HMAC-SHA256 hash and the key's id; the key value itself never
     // reaches the store. The scenarios below need a SECOND log over the same storage (a different key set, or
     // none), which only an implementation backed by shared storage can offer: it overrides the two members below.

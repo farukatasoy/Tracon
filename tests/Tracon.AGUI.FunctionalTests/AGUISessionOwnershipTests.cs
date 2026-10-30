@@ -7,7 +7,7 @@ using Tracon.AGUI.FunctionalTests.Infrastructure;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// A thread is a session, and a session belongs to the user who opened it and to the tenant it was opened in (Phase 236).
+/// A thread is a session, and a session belongs to the user who opened it and to the tenant it was opened in.
 /// </summary>
 /// <remarks>
 /// 🚨 The identity is switched PER REQUEST, not per host: a test that starts one host per user could never catch the defect

@@ -3,7 +3,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// <see cref="IRunEventSink"/> (phase 70) also fans out from a workflow run —
+/// <see cref="IRunEventSink"/> also fans out from a workflow run —
 /// <see cref="WorkflowRunner"/> builds its own <see cref="RunEventWriter"/> and
 /// must wire the same sinks the agent path does.
 /// </summary>
@@ -53,7 +53,7 @@ public sealed class WorkflowEventSinkTests
     /// Thread-safe: the workflow's event pump and its executors (a child agent
     /// writes ChildRunStarted into the root writer) append at the same time. A
     /// regression of the writer's ordering must fail on the ORDER, not as a
-    /// corrupted list (F-257).
+    /// corrupted list.
     /// </remarks>
     private sealed class SpyRunEventSink : IRunEventSink
     {

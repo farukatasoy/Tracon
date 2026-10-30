@@ -199,7 +199,7 @@ internal static class SchedulingEndpoints
 
         var request = bound!;
 
-        // F-382: GET /api/schedules/handler-keys matches before /api/schedules/{name},
+        // GET /api/schedules/handler-keys matches before /api/schedules/{name},
         // in any letter case, so a schedule under that name could never be read back.
         if (string.Equals(name, ReservedHandlerKeyListName, StringComparison.OrdinalIgnoreCase))
         {
@@ -218,7 +218,7 @@ internal static class SchedulingEndpoints
         // consumer registered for its own background work -- into an externally
         // callable surface. Only an explicitly allowed key gets through; the
         // default list is Tracon's own built-in keys.
-        // F-318: a queued workflow run's payload names the run and the
+        // A queued workflow run's payload names the run and the
         // operation; the HTTP layer checks the caller only when it queues one.
         // A schedule would replay a hand-written payload past every gate, so no
         // allow-list can open this key.
@@ -268,7 +268,7 @@ internal static class SchedulingEndpoints
             nextRunAt = parsed!.GetNextOccurrence(DateTimeOffset.UtcNow, timeZone);
         }
 
-        // F-364: a workflow or agent batch payload may be an attribution
+        // A workflow or agent batch payload may be an attribution
         // envelope. One that is malformed, or breaks a RunLabels limit, is
         // refused here rather than run without its attribution.
         var content = JobPayload.Read(request.HandlerKey, request.Payload);
@@ -287,7 +287,7 @@ internal static class SchedulingEndpoints
             return InvalidSchedule($"The payload has {itemCount} items; at most {maxItems} are supported.");
         }
 
-        // F-294: a structured item's shape is checked when the schedule is saved,
+        // A structured item's shape is checked when the schedule is saved,
         // so a typo does not wait for the first run to surface. Only the shape:
         // the values are checked against the agent's or workflow's schema when
         // each item RUNS, because that schema can change after the save.
@@ -349,7 +349,7 @@ internal static class SchedulingEndpoints
                 return $"Item {index} of the payload: {problem}";
             }
 
-            // F-434: the agent batch handler fails an item that names a session when it
+            // The agent batch handler fails an item that names a session when it
             // RUNS; refusing it here keeps the mistake out of a saved schedule.
             if (agentBatch && item.SessionId is not null)
             {

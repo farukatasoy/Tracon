@@ -17,15 +17,15 @@
     source generation keeps the package AOT compatible.
 
     There is no official .NET SDK from ElevenLabs, and the community ones fail
-    the target-framework or AOT rule (K-216 re-evaluation, Phase 217), so the
+    the target-framework or AOT rule, so the
     contract is a written declaration: tests/Tracon.Voice.UnitTests/Fixtures/
     elevenlabs-operations.json. ElevenLabsOperationDriftTests proves it equals
     what the code does; scripts/elevenlabs-kayma.py checks it against the
     provider's published OpenAPI document.
 
     A community SDK would carry maintenance and version risk to the consumer
-    (K-007), and Phase 27 measured that an SDK can break SILENTLY at run time
-    under centralized version management (K-211).
+, and measured that an SDK can break SILENTLY at run time
+    under centralized version management.
   -->
 
 </Project>

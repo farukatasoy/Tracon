@@ -250,7 +250,7 @@ public sealed class OpenAIConversationsTests
 /// Cross-tenant access to conversation ids returns <c>404</c>.
 /// </summary>
 /// <remarks>
-/// HATA-S2-005: <c>ISessionStore.GetAsync</c> filters by the ambient tenant, so
+/// <c>ISessionStore.GetAsync</c> filters by the ambient tenant, so
 /// the cross-tenant ownership check (<c>record is not null &amp;&amp;
 /// !IsOwnedByTenant(record, ...)</c>) never fired — another tenant's record is
 /// NEVER SEEN from this context, <c>record</c> was always
@@ -266,7 +266,6 @@ public sealed class OpenAIConversationsCrossTenantTests
     [Fact]
     public async Task Cross_tenant_responses_call_to_a_conversation_id_returns_404()
     {
-        // MT-COMPAT-023
         await using var host = await StartTenantHostAsync();
 
         var conversationId = await CreateAndRunAsync(host, TenantAlfa, "This is my private chat.");
@@ -291,7 +290,6 @@ public sealed class OpenAIConversationsCrossTenantTests
     [Fact]
     public async Task Cross_tenant_access_to_the_conversation_GET_endpoint_returns_404()
     {
-        // MT-COMPAT-036
         await using var host = await StartTenantHostAsync();
 
         var conversationId = await CreateAndRunAsync(host, TenantAlfa, "Tenant alfa's chat.");
@@ -307,7 +305,6 @@ public sealed class OpenAIConversationsCrossTenantTests
     [Fact]
     public async Task Cross_tenant_access_to_the_conversation_delete_endpoint_returns_404_and_the_owners_session_remains()
     {
-        // MT-COMPAT-039
         await using var host = await StartTenantHostAsync();
 
         var conversationId = await CreateAndRunAsync(host, TenantAlfa, "Tenant alfa's chat.");
@@ -326,7 +323,6 @@ public sealed class OpenAIConversationsCrossTenantTests
     [Fact]
     public async Task Cross_tenant_access_to_the_item_list_returns_404()
     {
-        // MT-COMPAT-043
         await using var host = await StartTenantHostAsync();
 
         var conversationId = await CreateAndRunAsync(host, TenantAlfa, "Tenant alfa's private chat.");

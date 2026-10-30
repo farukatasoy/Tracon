@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Proves that a caller can build a generated request DTO with only the
-/// fields they care about and have the call succeed (F-197).
+/// fields they care about and have the call succeed.
 /// </summary>
 /// <remarks>
 /// NJsonSchema emits <c>= default!</c> for every property, including the
@@ -78,7 +78,6 @@ public sealed class GeneratedClientCollectionDefaultTests
     /// <c>documents</c> returned <c>200</c> whose SSE body carried the same
     /// exception — a run that failed after the caller was told it started.
     /// The contract answer is <c>400</c>, not <c>500</c>: the body IS invalid
-    /// (K-694).
     /// </remarks>
     [Theory]
     [InlineData("approvals")]

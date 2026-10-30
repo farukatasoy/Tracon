@@ -3,7 +3,7 @@ using Tracon.Anthropic.UnitTests.Infrastructure;
 namespace Tracon.Anthropic.UnitTests;
 
 /// <summary>
-/// What the Anthropic provider states through <see cref="ISamplingSupport.SamplingLimits"/> (phase 252): nothing.
+/// What the Anthropic provider states through <see cref="ISamplingSupport.SamplingLimits"/>: nothing.
 /// </summary>
 /// <remarks>
 /// The Messages API sends no seed, and it bounds the TOTAL length of the stop sequences (2,500 characters, measured

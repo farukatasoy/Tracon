@@ -8,7 +8,7 @@ namespace Tracon.Api;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tracon takes no dependency on any cloud SDK (decision K-007), so there is
+/// Tracon takes no dependency on any cloud SDK, so there is
 /// NO default <see cref="IArchiveSink"/>. This class is a template — derive your
 /// own sink that writes to S3/Blob/GCS from it in a real deployment.
 /// </para>

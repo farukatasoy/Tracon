@@ -10,7 +10,7 @@ internal static class TestData
     /// </summary>
     public const string ApiKey = "test-api-key-1234567890";
 
-    /// <summary>The model name used in tests. The catalog is not a validation list (K-032).</summary>
+    /// <summary>The model name used in tests. The catalog is not a validation list.</summary>
     public const string Model = "claude-sonnet-5";
 
     public static ModelBinding Binding(

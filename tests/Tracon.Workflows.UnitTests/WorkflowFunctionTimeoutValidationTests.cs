@@ -7,7 +7,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// The ranges a node timeout, a definition's run timeout and the host's ceiling accept
-/// (F-303, F-405, failure mode 9, the F-280 rule): a timer refuses a value outside one
+/// (failure mode 9): a timer refuses a value outside one
 /// millisecond to about 49.7 days where it is ARMED, which for these values is in the
 /// middle of a run. Each value is refused where it is written instead.
 /// </summary>
@@ -46,7 +46,7 @@ public sealed class WorkflowFunctionTimeoutValidationTests
     [Fact]
     public void An_agent_nodes_timeout_is_accepted_open_question_9_A()
     {
-        // The plan's first draft refused a timeout on an agent node; F-405 made it
+        // The plan's first draft refused a timeout on an agent node; the earlier decision made it
         // the agent step's own ChildDeadline.
         WorkflowDefinitionValidator.Validate(Chain(new WorkflowNodeReference
         {

@@ -108,7 +108,7 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
-    /// F-530: a script is a paid start like any tool call. Once the tree's budget is spent the
+    /// A script is a paid start like any tool call. Once the tree's budget is spent the
     /// runner refuses it before a grant is read or the executor is asked; a budget that is not
     /// spent leaves the same call as it was.
     /// </summary>
@@ -176,7 +176,7 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
-    /// F-481: an agent names a skill that exists only under a skill root, and an HTTP
+    /// An agent names a skill that exists only under a skill root, and an HTTP
     /// run reaches its file script: compilation, Microsoft Agent Framework's file
     /// source, the runner and the registered executor.
     /// </summary>
@@ -274,7 +274,7 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
-    /// F-578: the filter that keeps an agent to the skills its definition names
+    /// The filter that keeps an agent to the skills its definition names
     /// sits above the cache of the skill list. A root with two skills must still
     /// offer only the named one.
     /// </summary>
@@ -295,7 +295,7 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
-    /// K-087: the database source comes before the disk source. When both carry a
+    /// The database source comes before the disk source. When both carry a
     /// skill of one name, the run is offered the stored one.
     /// </summary>
     [Fact]

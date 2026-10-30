@@ -166,7 +166,7 @@ export function StepList({
                 )}
 
               {/* A step's own timeout lives on a node: only a Sequential chain with a function
-                  step or a pinned agent is saved as a node list (K-901, phase 200). A step that
+                  step or a pinned agent is saved as a node list. A step that
                   still carries one in an agent list keeps its field, so the operator can clear it. */}
               {functions !== undefined && (withFunction || withPin || step.timeout.trim().length > 0) && (
                 <StepTimeout

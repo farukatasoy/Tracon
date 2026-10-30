@@ -4,9 +4,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// Every key of <c>Tracon:Canary</c> really reaches <see cref="CanaryOptions"/>.
 /// </summary>
 /// <remarks>
-/// The section is bound by hand (K-021, AOT). A key added to the options and not to
+/// The section is bound by hand (AOT). A key added to the options and not to
 /// the binder is silently ignored; <see cref="OptionsKeyCoverage"/> fails such a test
-/// before the key ships unbound (F-247).
+/// before the key ships unbound.
 /// </remarks>
 public sealed class CanaryOptionsBindingTests
 {

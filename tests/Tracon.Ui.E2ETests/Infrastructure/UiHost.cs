@@ -25,22 +25,22 @@ internal static class ScriptedModels
     /// <summary>Model for the "router" code agent: delegates via background task tools, then echoes.</summary>
     public const string Router = "scripted-router";
 
-    /// <summary>Model for the "approval-agent" code agent: calls a tool that requests approval, then echoes its result (Phase 55).</summary>
+    /// <summary>Model for the "approval-agent" code agent: calls a tool that requests approval, then echoes its result.</summary>
     public const string Approval = "scripted-approval";
 
-    /// <summary>Model for the "client-tool-agent" code agent: calls a client-side tool, then echoes its result (Phase 61).</summary>
+    /// <summary>Model for the "client-tool-agent" code agent: calls a client-side tool, then echoes its result.</summary>
     public const string ClientTool = "scripted-client-tool";
 
-    /// <summary>Model for the "custom-event-agent" code agent: calls a tool that writes a RunEventType.Custom event, then echoes its result (Phase 141).</summary>
+    /// <summary>Model for the "custom-event-agent" code agent: calls a tool that writes a RunEventType.Custom event, then echoes its result.</summary>
     public const string CustomEvent = "scripted-custom-event";
 
     /// <summary>Model for the "fulfilment" code agent: calls a tool that always throws, so a run really fails.</summary>
     public const string Failing = "scripted-failing";
 
-    /// <summary>Model of the agent a test saves for an MCP server that asks the user for input: calls the server's tool, then echoes its result (Phase 235).</summary>
+    /// <summary>Model of the agent a test saves for an MCP server that asks the user for input: calls the server's tool, then echoes its result.</summary>
     public const string Elicit = "scripted-elicit";
 
-    /// <summary>Model of the agent a test saves with a harness loop: a first draft, then an answer that carries the stop marker (Phase 241).</summary>
+    /// <summary>Model of the agent a test saves with a harness loop: a first draft, then an answer that carries the stop marker.</summary>
     public const string Looping = "scripted-looping";
 
     /// <summary>The text of the second answer of <see cref="Looping"/>.</summary>
@@ -52,7 +52,7 @@ internal static class ScriptedModels
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 4's <c>TestServer</c> pattern cannot be reused here: <c>TestServer</c>
+/// the earlier change's <c>TestServer</c> pattern cannot be reused here: <c>TestServer</c>
 /// does not open a real socket, so a browser cannot connect to it. The test
 /// therefore starts its own <see cref="WebApplication"/> instance on a port
 /// assigned by the operating system.
@@ -164,7 +164,7 @@ internal sealed class UiHost : IAsyncDisposable
             .UseUI()
             .UseWorkflows()
 
-            // Voice conversation layer (Phase 29). If not called, the WebSocket
+            // Voice conversation layer. If not called, the WebSocket
             // endpoint never opens; the E2E test therefore enables it explicitly.
             .UseVoiceConversation()
             .AddAgent(new AgentDefinition
@@ -199,7 +199,7 @@ internal sealed class UiHost : IAsyncDisposable
             {
                 Name = "approval-agent",
                 DisplayName = "Approval agent",
-                Description = "Code agent used in E2E tests that carries a tool requiring approval (Phase 55).",
+                Description = "Code agent used in E2E tests that carries a tool requiring approval.",
                 Instructions = "Give a short answer.",
                 Model = new ModelBinding
                 {
@@ -213,7 +213,7 @@ internal sealed class UiHost : IAsyncDisposable
             {
                 Name = "client-tool-agent",
                 DisplayName = "Client tool agent",
-                Description = "Code agent used in E2E tests that carries a client-side tool (Phase 61).",
+                Description = "Code agent used in E2E tests that carries a client-side tool.",
                 Instructions = "Give a short answer.",
                 Model = new ModelBinding
                 {
@@ -227,7 +227,7 @@ internal sealed class UiHost : IAsyncDisposable
             {
                 Name = "custom-event-agent",
                 DisplayName = "Custom event agent",
-                Description = "Code agent used in E2E tests that writes a RunEventType.Custom event (Phase 141).",
+                Description = "Code agent used in E2E tests that writes a RunEventType.Custom event.",
                 Instructions = "Give a short answer.",
                 Model = new ModelBinding
                 {
@@ -321,9 +321,9 @@ internal sealed class UiHost : IAsyncDisposable
     /// embeds no assets at all. Without this shield, every E2E test waits 30
     /// seconds on a blank page saying "waiting for heading Dashboard"; across
     /// 41 tests that adds up to <strong>~20 minutes</strong>, and no error
-    /// message states the real cause. Measured: in Phase 41 the same symptom
+    /// message states the real cause. Measured: in an earlier change the same symptom
     /// (caused that time by synchronization copies) wasted 19 minutes; in
-    /// Phase 47 the cause was a missing build flag instead. The shield makes
+    /// An earlier change the cause was a missing build flag instead. The shield makes
     /// both causes visible at once and within seconds.
     /// </remarks>
     private static void GuardUiAssets(WebApplication app)

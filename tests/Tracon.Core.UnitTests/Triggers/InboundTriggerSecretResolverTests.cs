@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Triggers;
 
-/// <summary>Verifies <see cref="InboundTriggerSecretResolver"/> (section 66.2).</summary>
+/// <summary>Verifies <see cref="InboundTriggerSecretResolver"/>.</summary>
 public sealed class InboundTriggerSecretResolverTests
 {
     [Fact]
@@ -52,7 +52,7 @@ public sealed class InboundTriggerSecretResolverTests
     [Fact]
     public void Resolve_rejects_an_out_of_prefix_trigger_even_if_it_was_saved_before_the_prefix_changed()
     {
-        // Defense in two layers (section 66.2): the resolver re-checks the
+        // Defense in two layers: the resolver re-checks the
         // prefix, it does not trust that the save path already validated it.
         var resolver = CreateResolver(BuildConfiguration(("Legacy:Key", "whsec_test")));
 

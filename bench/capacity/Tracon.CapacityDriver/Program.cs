@@ -1,4 +1,4 @@
-// The Tracon capacity driver (Phase 166).
+// The Tracon capacity driver.
 //
 // A separate process that calls a packed-consumer host over real loopback TCP
 // and writes one cell's measurements, or merges finished cells into a report.

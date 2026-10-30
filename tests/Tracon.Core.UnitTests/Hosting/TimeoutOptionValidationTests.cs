@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Hosting;
 
 /// <summary>
 /// Every option that becomes a timeout must fail at startup when the timer behind
-/// it cannot take the value (F-280).
+/// it cannot take the value.
 /// </summary>
 /// <remarks>
 /// <para>

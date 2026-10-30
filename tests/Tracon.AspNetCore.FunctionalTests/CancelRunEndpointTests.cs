@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the run cancellation endpoint (Phase 32).</summary>
+/// <summary>Tests for the run cancellation endpoint.</summary>
 public sealed class CancelRunEndpointTests
 {
     private const string TenantHeader = "X-Tracon-Tenant";
@@ -53,7 +53,7 @@ public sealed class CancelRunEndpointTests
     [Fact]
     public async Task Run_running_elsewhere_is_recorded_for_its_owner_when_reconciliation_is_on()
     {
-        // F-764: neither a queued job nor this process holds the run, so the request goes onto the row.
+        // Neither a queued job nor this process holds the run, so the request goes onto the row.
         // The owner (another host, covered by CrossInstanceRunCancelTests) reads it on its heartbeat.
         await using var host = await TraconTestHost.StartAsync(
             configureServices: static services => services.Configure<RunReconciliationOptions>(static options => options.Enabled = true));
@@ -83,12 +83,12 @@ public sealed class CancelRunEndpointTests
         (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull().CancelRequestedAt.ShouldBeNull();
     }
 
-    // --- Failure paths and the audit trail (Phase 262 audit) ---
+    // --- Failure paths and the audit trail ---
 
     [Fact]
     public async Task Run_registered_in_the_ledger_is_canceled_even_when_the_job_store_cannot_answer()
     {
-        // The job is cancelled first (F-765). A job store that is down must not stop this process
+        // The job is cancelled first. A job store that is down must not stop this process
         // from stopping a run it executes itself: the old endpoint never touched the job store for it.
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: static builder => builder.Services.ThrowFrom<IJobStore>(

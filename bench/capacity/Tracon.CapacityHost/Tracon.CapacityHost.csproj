@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <!--
-    Phase 166. The system under measurement, consumed EXACTLY as a real
+    The system under measurement, consumed EXACTLY as a real
     customer consumes it: PackageReference at one exact version, restored from
     an isolated local feed with an empty cache.
 
@@ -17,7 +17,7 @@
     <UserSecretsId>tracon-capacity-host</UserSecretsId>
     <!--
       🚨 NOT enabled: Npgsql and the SQL stack need real globalization data.
-      Same reason samples/Tracon.Api gives (K-392).
+      Same reason samples/Tracon.Api gives.
     -->
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>

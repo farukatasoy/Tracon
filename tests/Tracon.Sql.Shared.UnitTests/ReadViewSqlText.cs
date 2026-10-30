@@ -4,15 +4,15 @@ namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
 /// Reads the embedded <c>runs_v1</c> migration SQL text of the "views"
-/// optional set (Phase 111) and extracts a marker-delimited block, without
+/// optional set and extracts a marker-delimited block, without
 /// opening a database connection.
 /// </summary>
 /// <remarks>
 /// Reads the manifest resource directly instead of going through
 /// <c>MigrationDescriptor</c>/<c>SqlDialect</c>: those are shared linked
-/// source (K-176) compiled separately into all three provider assemblies, so
+/// source compiled separately into all three provider assemblies, so
 /// naming either type here would hit the same cross-assembly ambiguity
-/// (CS0433) K-247 already warns about for this test project.
+/// (CS0433) that decision already warns about for this test project.
 /// </remarks>
 internal static class ReadViewSqlText
 {

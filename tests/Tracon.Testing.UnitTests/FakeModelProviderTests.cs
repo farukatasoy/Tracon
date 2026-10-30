@@ -99,7 +99,7 @@ public sealed class FakeModelProviderTests
             .CallsTool("get_order_status", new { orderId = "ORD-7" })
             .EchoesLastToolResult("Result: ");
 
-        // 🚨 The tool-call loop moved to ModelProviderRegistry in Phase 48:
+        // 🚨 The tool-call loop moved to ModelProviderRegistry:
         // IModelProvider now returns the RAW client. This test therefore runs
         // through the real path — the registry Tracon registers, resolved the
         // way a consumer resolves it (its constructor is internal).

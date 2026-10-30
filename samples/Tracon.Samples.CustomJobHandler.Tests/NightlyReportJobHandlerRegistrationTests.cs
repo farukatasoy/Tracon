@@ -8,7 +8,7 @@ namespace Tracon.Samples.CustomJobHandler.Tests;
 /// unit test cannot reach: dependency injection, and a real running worker.
 /// </summary>
 /// <remarks>
-/// 🚨 Phase 137 opened with this class red. Until then it only asserted that
+/// 🚨 opened with this class red. Until then it only asserted that
 /// the handler was in the container and declared <c>JobKind.AgentBatch</c> —
 /// both true, and both irrelevant: the worker picked handlers by enum equality
 /// in registration order, the built-in <c>AgentBatchJobHandler</c> was always

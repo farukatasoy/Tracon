@@ -49,7 +49,7 @@ internal sealed class RunReconciliationOptionsValidator : IValidateOptions<RunRe
 
         // Both the heartbeat writer and the reconciliation scan run on a
         // PeriodicTimer; a period the timer refuses stops the host after
-        // startup (F-278). While reconciliation is off neither timer exists.
+        // startup. While reconciliation is off neither timer exists.
         if (options.Enabled && !TimerPeriod.IsValid(options.HeartbeatInterval))
         {
             return ValidateOptionsResult.Fail(TimerPeriod.Failure(

@@ -8,7 +8,7 @@ namespace Tracon.Voice.UnitTests;
 /// before the network: the provider receives nothing.
 /// </summary>
 /// <remarks>
-/// Splitting is the caller's job (K1): the client never cuts a dialogue to fit. The
+/// Splitting is the caller's job: the client never cuts a dialogue to fit. The
 /// message names the limit and the measured count, never a turn's text.
 /// </remarks>
 public sealed class SpeechDialogueValidationTests
@@ -112,7 +112,7 @@ public sealed class SpeechDialogueValidationTests
     [Fact]
     public async Task A_tenant_credential_is_refused_and_never_sent_on_the_configured_key()
     {
-        // K-930: the built-in client takes no tenant credential. The resolver never sends
+        // The built-in client takes no tenant credential. The resolver never sends
         // one; a caller that calls the client directly with one must not be served on
         // the host's key.
         var handler = new StubHttpMessageHandler(_ => DialogueTestData.RawResponse());

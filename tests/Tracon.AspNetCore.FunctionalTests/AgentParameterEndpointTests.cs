@@ -8,7 +8,7 @@ using Tracon.Testing;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The parameterized agent input surface (Phase 86, F-34): a definition's
+/// The parameterized agent input surface: a definition's
 /// <see cref="AgentDefinition.Parameters"/> schema, and the values a run
 /// request supplies for it.
 /// </summary>

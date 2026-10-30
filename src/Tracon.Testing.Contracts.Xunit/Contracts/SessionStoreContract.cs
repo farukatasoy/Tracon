@@ -65,7 +65,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     [Fact]
     public async Task StateSchemaVersion_and_StateMafVersion_round_trip()
     {
-        // Phase 126: the store carries these two fields through verbatim; it
+        // The store carries these two fields through verbatim; it
         // does not compute or validate them (AgentSessionManager does).
         await Store.SaveAsync(TestData.Session("stamped") with
         {
@@ -205,7 +205,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     [Fact]
     public async Task TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins()
     {
-        // HATA-004: in the check-then-create race, two concurrent first
+        // In the check-then-create race, two concurrent first
         // requests generated different conversation IDs for the same NEW
         // session. TryCreateAsync must be atomic: of N concurrent calls,
         // exactly one must win.
@@ -227,7 +227,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     [Fact]
     public async Task TryCreateAsync_same_id_wins_independently_in_two_tenants()
     {
-        // The primary key is (tenant_id, id) (K-018); a uniqueness violation
+        // The primary key is (tenant_id, id); a uniqueness violation
         // must look at the tenant+ID pair, not the ID alone.
         (await Store.TryCreateAsync(TestData.Session("shared-id") with { TenantId = TenantA })).ShouldBeTrue();
         (await Store.TryCreateAsync(TestData.Session("shared-id") with { TenantId = TenantB })).ShouldBeTrue();
@@ -289,7 +289,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     public async Task TryUpdateAsync_only_one_concurrent_call_from_the_same_version_wins()
     {
         // 🚨 The sibling of TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins,
-        // and the half that stayed open after HATA-004: the FIRST write was
+        // and the half that stayed open: the FIRST write was
         // made atomic, every later write was not. Two concurrent turns on an
         // EXISTING session both reported success and one was silently
         // overwritten. Of N concurrent updates from the same generation,
@@ -387,7 +387,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     [Fact]
     public async Task An_owned_session_round_trips_its_owner()
     {
-        // Phase 148. OwnerId is the user a session belongs to - a SECOND
+        // OwnerId is the user a session belongs to - a SECOND
         // boundary under the tenant, not the owning TENANT that
         // GetOwnerTenantIdAsync answers.
         await Store.SaveAsync(TestData.Session("owned") with { OwnerId = "user-a" });
@@ -550,7 +550,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     [Fact]
     public async Task GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant()
     {
-        // HATA-S2-005: GetAsync is filtered by the ambient tenant, so it can
+        // GetAsync is filtered by the ambient tenant, so it can
         // never correctly answer a cross-tenant ownership question.
         // GetOwnerTenantIdAsync must NOT apply a tenant filter.
         AmbientTenant.TenantId = TenantA;

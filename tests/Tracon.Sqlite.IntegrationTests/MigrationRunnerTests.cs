@@ -30,26 +30,26 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
 
         // 0001_initial establishes the PostgreSQL 0001-0013 accumulation: 35
         // tables + migration ledger = 36. 0002_retention adds 2 more tables
-        // (Phase 25): retention_policies, retention_runs. The count must be
+        // Retention_policies, retention_runs. The count must be
         // the SAME across the other providers; all three carry the same data
         // model. The count is DELIBERATELY hard-coded: this test breaks when
         // a new table is added, and whoever added it notices the table.
-        // Phase 29 added the `voice_sessions` table: 38 -> 39.
-        // Phase 31 added the `run_scores` table: 39 -> 40.
-        // Phase 42 added the `singleton_leases` table: 40 -> 41.
-        // Phase 43 added the `idempotency_keys` table: 41 -> 42.
-        // Phase 47 added the `run_inputs` table: 42 -> 43.
-        // Phase 53 added the `api_keys` table: 43 -> 44.
-        // Phase 55 added the `pending_approvals` table: 44 -> 45.
-        // Phase 65 added `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
-        // Phase 66 added the `inbound_triggers` table: 47 -> 48.
-        // Phase 199 added the `run_non_token_usage` table: 48 -> 49.
-        // Phase 200 added the `workflow_definition_versions` table: 49 -> 50.
-        // Phase 208 added the `workflow_responses` table: 50 -> 51.
-        // Phase 209 added the `workflow_requests` table: 51 -> 52.
-        // Phase 248 added the `agent_definition_version_counters` table: 52 -> 53.
-        // Phase 261 added the `tenant_tool_policies` table: 53 -> 54.
-        // Phase 263 added the `rate_limit_counters` table: 54 -> 55.
+        // An earlier change added the `voice_sessions` table: 38 -> 39.
+        // An earlier change added the `run_scores` table: 39 -> 40.
+        // An earlier change added the `singleton_leases` table: 40 -> 41.
+        // An earlier change added the `idempotency_keys` table: 41 -> 42.
+        // An earlier change added the `run_inputs` table: 42 -> 43.
+        // An earlier change added the `api_keys` table: 43 -> 44.
+        // An earlier change added the `pending_approvals` table: 44 -> 45.
+        // An earlier change added `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
+        // An earlier change added the `inbound_triggers` table: 47 -> 48.
+        // An earlier change added the `run_non_token_usage` table: 48 -> 49.
+        // An earlier change added the `workflow_definition_versions` table: 49 -> 50.
+        // An earlier change added the `workflow_responses` table: 50 -> 51.
+        // An earlier change added the `workflow_requests` table: 51 -> 52.
+        // An earlier change added the `agent_definition_version_counters` table: 52 -> 53.
+        // An earlier change added the `tenant_tool_policies` table: 53 -> 54.
+        // An earlier change added the `rate_limit_counters` table: 54 -> 55.
         tableCount.ShouldBe(55);
     }
 
@@ -132,7 +132,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// K-389: the migration lock file is scoped to the table prefix. While
+    /// The migration lock file is scoped to the table prefix. While
     /// the lock for prefix A is held, the lock for prefix B must be
     /// acquirable IMMEDIATELY; with a single shared lock file, B would wait
     /// for A to release.
@@ -159,7 +159,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
 
             // A lock shared across schemas would keep B waiting until A's release
             // in the finally block below, so B's own lock wait is set far past the
-            // test's bound. Phase 184: the bound was five seconds, a claim about
+            // test's bound. The bound was five seconds, a claim about
             // the machine - under a full run a healthy acquire could miss it.
             var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 300, CancellationToken.None).AsTask();
 
@@ -174,13 +174,13 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// K-193: SQLite index names are database-wide, so every index name in the
+    /// SQLite index names are database-wide, so every index name in the
     /// migrations carries the table prefix. Two prefixes in ONE file must each
     /// get the full index set; an unprefixed name would turn the second
     /// prefix's <c>CREATE INDEX IF NOT EXISTS</c> into a silent no-op.
     /// </summary>
     /// <remarks>
-    /// Since F-307 every test prefix has its own file, so this layout no
+    /// Since then every test prefix has its own file, so this layout no
     /// longer happens by accident across test classes; it is built here on
     /// purpose.
     /// </remarks>
@@ -232,7 +232,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     {
         // Uppercase letters, quotes, and dots are rejected: the prefix is
         // embedded directly into SQL text, and the injection surface is
-        // closed here (the SQLite counterpart of K-029).
+        // closed here (the SQLite counterpart of that decision).
         foreach (var invalid in new[] { "Agent", "agent-prism", "agent.prism", "agent prism", "dbo';--" })
         {
             Should.Throw<TraconException>(() => new SqliteDialect(invalid));
@@ -287,14 +287,14 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
 
     /// <summary>
     /// A database that already applied the core set under the shape that
-    /// existed before phase 67 (id-only ledger primary key, no
+    /// existed before an earlier change (id-only ledger primary key, no
     /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely.
     /// </summary>
     /// <remarks>
     /// SQLite cannot alter a primary key in place; <c>SqliteDialect</c>
     /// overrides <see cref="SqlDialect.UpgradeMigrationsTableAsync"/> to
     /// rebuild the table (the same technique as 0006_sessions_tenant_key.sql,
-    /// K-278) — this test proves the rebuild preserves the pre-existing rows.
+    /// That decision) — this test proves the rebuild preserves the pre-existing rows.
     /// </remarks>
     [Fact]
     public async Task Pre_phase_67_ledger_shape_upgrades_without_data_loss()
@@ -341,10 +341,10 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     /// <c>SqlServerSchemaFixture.InitializeAsync</c>.
     /// </summary>
     /// <remarks>
-    /// The lock is scoped to the SCHEMA (K-389), so two schemas bootstrapping at
+    /// The lock is scoped to the SCHEMA, so two schemas bootstrapping at
     /// the same time meet on catalog objects shared by the whole database. All
     /// four statements are idempotent — <c>IF NOT EXISTS</c>-guarded DDL and one
-    /// SELECT — so retrying is as safe here as it is for a migration (K-540).
+    /// SELECT — so retrying is as safe here as it is for a migration.
     /// </remarks>
     /// <param name="target">A fragment of the bootstrap statement to fail.</param>
     [Theory]
@@ -408,7 +408,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             NullLogger<MigrationRunner>.Instance);
 
     /// <summary>
-    /// A database populated BEFORE phase 152 upgrades without losing a row: the
+    /// A database populated BEFORE upgrades without losing a row: the
     /// judge rows keep their judge name, the human rows fall back to
     /// <c>overall</c>, and the widened <c>value</c> column stops rounding.
     /// </summary>
@@ -426,7 +426,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         var migrations = MigrationDescriptor
             .Discover(typeof(MigrationRunner).Assembly, "Tracon.Sqlite.Migrations.");
 
-        // 🚨 Found BY NAME, not as migrations[^1]: the next phase that adds a
+        // 🚨 Found BY NAME, not as migrations[^1]: a later change that adds a
         // migration would otherwise turn this test red for an unrelated reason.
         var upgrade = migrations.Single(candidate =>
             string.Equals(candidate.Name, "0035_run_score_name_and_shape", StringComparison.Ordinal));
@@ -441,7 +441,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
                 $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', '2026-01-01T00:00:00.0000000Z');");
         }
 
-        // 🚨 uuids are stored UPPERCASE in this dialect (K-191).
+        // 🚨 uuids are stored UPPERCASE in this dialect.
         var runId = TraconId.NewId().ToString("D").ToUpperInvariant();
         var humanId = TraconId.NewId().ToString("D").ToUpperInvariant();
         var judgeId = TraconId.NewId().ToString("D").ToUpperInvariant();
@@ -455,7 +455,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             """);
 
         // Not hard-coded to 1: ApplyAsync() applies every pending migration,
-        // not just `upgrade`, and a later phase can add one that also lands
+        // not just `upgrade`, and a later change can add one that also lands
         // after it (154 added an index migration right after this one).
         var pendingFromUpgrade = migrations.Count(candidate => candidate.Id >= upgrade.Id);
         (await context.Migrations.ApplyAsync()).ShouldBe(pendingFromUpgrade);

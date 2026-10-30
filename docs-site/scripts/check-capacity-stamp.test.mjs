@@ -98,7 +98,7 @@ function fixture(t, { rows, stamp, environment, cells = [cell()], profiles = ['s
 const run = (f, expected = { latency: 1 }) =>
   checkCapacityStamp(f.docs, f.measurements, expected).join('\n');
 
-// --- the defect classes phase 166's audit found ----------------------------
+// --- the defect classes the audit found ----------------------------
 
 test('a number the page mistyped is a finding', (t) => {
   const f = fixture(t, {
@@ -120,7 +120,7 @@ test('every column is compared, not only the first', (t) => {
 });
 
 test('a row added without a marker is a finding', (t) => {
-  // 🚨 Phase 166's fifth defect class: a number that was never in the gate's
+  // 🚨 the fifth defect class: a number that was never in the gate's
   // inventory at all. Marking the table, not the row, is what closes it.
   const f = fixture(t, {
     rows: [
@@ -137,7 +137,7 @@ test('a commit stamp that matches no stored manifest is a finding', (t) => {
 });
 
 test('a seven-character commit stamp is checked too', (t) => {
-  // F-240 (3): packageVersion carries a seven-character SHA; the scan asked
+  // packageVersion carries a seven-character SHA; the scan asked
   // for eight or more, so such a stamp was never compared with anything.
   const f = fixture(t, { stamp: 'e44d89e' });
   assert.match(run(f), /commit stamp 'e44d89e' matches no stored manifest/);
@@ -312,7 +312,7 @@ test('the shipped page has a marker on every capacity row', () => {
 
   // 🚨 One number, measured, in one place. The audit found this count written
   // three different ways across three documents and all three were wrong.
-  // Phase 265 added the host-axis table: four rows, two scenarios at one and two hosts.
+  // An earlier change added the host-axis table: four rows, two scenarios at one and two hosts.
   assert.deepEqual(census, { latency: 12, arrival: 4, storage: 3, hosts: 4, value: 5 });
 });
 
@@ -370,7 +370,7 @@ test('a storage row that mistypes its row count is a finding', (t) => {
 });
 
 test('a storage row that presents one window as an average is a finding', (t) => {
-  // 🚨 Phase 166's fourth defect, which its own closure did not close.
+  // 🚨 the fourth defect, which its own closure did not close.
   const f = wide(t, { storage: '| Buffered | 10.5 | ~8.6 KiB (3 clean repeats) | `run_events` ' });
   assert.match(wideRun(f), /Bytes per run publishes .* measured '~8\.6 KiB \(1 clean repeat\)'/);
 });
@@ -396,7 +396,7 @@ test('an arrival row must publish the measured queue-wait spread', (t) => {
 });
 
 test('an invalid window does not reach a published arrival total', (t) => {
-  // F-240 (4): the totals summed every window at the rate, whatever its status.
+  // The totals summed every window at the rate, whatever its status.
   const f = wide(t);
   const summaryPath = join(f.measurements, 'sweep/summary.json');
   const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
@@ -493,7 +493,7 @@ test('deleting markers makes the gate louder, not quieter', (t) => {
   assert.match(run(f, { latency: 12 }), /1 'latency' row\(s\) carry a marker, expected 12/);
 });
 
-// --- Phase 265: the host axis and a run from another machine ---------------------------------------------------
+// --- The host axis and a run from another machine ---------------------------------------------------
 
 const NODES_COMMIT = 'fedcba0987654321fedcba0987654321fedcba09';
 

@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// The rationale is the same as in RunReplayEndpointTests.cs (K-269): the
+// The rationale is the same as in RunReplayEndpointTests.cs: the
 // package's Tracon.Testing.TraconTestHost and this project's own
 // TraconTestHost SHARE the same name; a blanket `using Tracon.Testing;`
 // would produce CS0104.
@@ -10,7 +10,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the asynchronous approval inbox endpoints (Phase 55).</summary>
+/// <summary>Tests for the asynchronous approval inbox endpoints.</summary>
 public sealed class ApprovalEndpointTests
 {
     private const string AgentName = "approval-agent";
@@ -84,7 +84,7 @@ public sealed class ApprovalEndpointTests
         decided.GetProperty("status").GetString().ShouldBe("Approved");
         decided.GetProperty("decidedBy").GetString().ShouldNotBeNullOrEmpty();
 
-        // The old run REMAINS AwaitingApproval (K-014); a new run continues with
+        // The old run REMAINS AwaitingApproval; a new run continues with
         // the same session and becomes Completed.
         (await host.WaitForRunStatusAsync(originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
 
@@ -202,7 +202,7 @@ public sealed class ApprovalEndpointTests
     }
 
     /// <summary>
-    /// HATA-S2-004/MT-MCP-023: previously, only runs going through the queue
+    /// Previously, only runs going through the queue
     /// (<c>Prefer: respond-async</c>) reflected this state; the synchronous/
     /// non-streaming path silently closed the same awaiting-approval tool call
     /// as <c>Completed</c> (see RunRecordingAgent.RunCoreAsync).
@@ -250,7 +250,7 @@ public sealed class ApprovalEndpointTests
     }
 
     /// <summary>
-    /// 🚨 F-133: <see cref="RunStatus.AwaitingApproval"/> is TERMINAL and is the
+    /// <see cref="RunStatus.AwaitingApproval"/> is TERMINAL and is the
     /// signal a consumer polls on. It used to be published BEFORE the approval
     /// row existed: <c>RunRecordingAgent</c> closed the run inside
     /// <c>agent.RunAsync()</c> and <c>AgentRunJobHandler</c> wrote the row only

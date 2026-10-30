@@ -6,7 +6,7 @@ namespace Tracon.Workflows.UnitTests;
 /// <summary>
 /// The ceiling of a run tree (<c>Tracon:AgentGraph</c>) is the logical run's: a workflow that waits for a person,
 /// is resumed by an operator or is picked up after an interruption starts its next run from what the chain
-/// spent, not from zero (F-531).
+/// spent, not from zero.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -93,7 +93,7 @@ public sealed class ContinuationBudgetTests
     [Fact]
     public async Task An_answer_does_not_record_the_run_it_answers_as_the_run_it_continues()
     {
-        // K-130: a run that was answered stays AwaitingInput and may be answered again. The link back lives
+        // A run that was answered stays AwaitingInput and may be answered again. The link back lives
         // in the answer's own history, and a row that named it would put every answer into the recovery chain.
         var host = new WorkflowTestHost();
         var flow = new BudgetedApprovalWorkflow(host, firstAmount: 0.1m, publishAmount: 0.1m);
@@ -107,7 +107,7 @@ public sealed class ContinuationBudgetTests
     [Fact]
     public async Task A_second_answer_to_the_same_request_carries_the_run_it_answers_and_not_the_first_answer()
     {
-        // Two answers to one waiting run are two branches (K-130). The second one's ceiling is the logical
+        // Two answers to one waiting run are two branches. The second one's ceiling is the logical
         // run's up to the question, not the sum of two branches.
         var host = new WorkflowTestHost();
         var flow = new BudgetedApprovalWorkflow(host, firstAmount: 0.6m, publishAmount: 0.3m);
@@ -434,7 +434,7 @@ public sealed class ContinuationBudgetTests
     [Fact]
     public async Task A_run_closes_on_the_clock_it_started_on()
     {
-        // F-673: the start came from the runner's clock and the end from the system clock, so a
+        // The start came from the runner's clock and the end from the system clock, so a
         // continuation's spent time was the gap between a fake start and today.
         var clock = new AdjustableClock(Start);
         var host = new WorkflowTestHost();

@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
     <!--
-      Store contract suite (Phase 23/24; packaged in Phase 98 as
+      Store contract suite (packaged in as
       Tracon.Testing.Contracts.Xunit). The SAME abstract classes also run
       in Tracon.PostgreSql.IntegrationTests and
       Tracon.SqlServer.IntegrationTests. The third provider (SQL Server)
@@ -15,12 +15,12 @@
 
   <!--
     A container is NOT REQUIRED: a file-based temporary database is enough
-    (Phase 24, 24.5). This shortens CI time compared to the
+    (24.5). This shortens CI time compared to the
     PostgreSQL/SQL Server contract runs.
   -->
 
   <ItemGroup>
-    <!-- A vector store that runs the filter it is given, for the conversation memory tests (phase 233). -->
+    <!-- A vector store that runs the filter it is given, for the conversation memory tests. -->
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
   </ItemGroup>
 

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Phase 166. Short, deterministic checks against a REAL packed-consumer host
+    Short, deterministic checks against a REAL packed-consumer host
     and a REAL database. Run only by the `kapasite` smoke profile, never by the
     normal suite: it needs a packed feed and a running PostgreSQL that an
     ordinary `dotnet test` has neither of.
@@ -41,7 +41,7 @@
 
   <ItemGroup>
     <!-- The driver, for the reader, the reconciler and the redaction scan.
-         Linking its sources would be the synchronization copy K-411 warns about. -->
+         Linking its sources would be a synchronization copy, which the repository avoids. -->
     <ProjectReference Include="../Tracon.CapacityDriver/Tracon.CapacityDriver.csproj" />
   </ItemGroup>
 

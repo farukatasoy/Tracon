@@ -89,7 +89,7 @@ internal sealed class RunContinuationJobHandler(
                 ?? throw new TraconException(
                     $"There is no run with id '{sourceRunId}'; it cannot be continued. The job will be marked as failed.");
 
-            // F-344: the reconciler no longer queues a continuation for a workflow
+            // The reconciler no longer queues a continuation for a workflow
             // run or a sub-run, but a job queued before that rule - or by hand -
             // still arrives here. Refused on the kind first: a workflow named like
             // an agent would otherwise run that agent in the workflow's session.
@@ -106,7 +106,7 @@ internal sealed class RunContinuationJobHandler(
             throw;
         }
 
-        // 🚨 F-369 class scan: opened in THIS method's own body, before the
+        // 🚨 Opened in THIS method's own body, before the
         // session is opened (a session the crash left unsaved is claimed here)
         // and around the run and its save. Without it the continued turn ran
         // under no user and no labels: its row, its tools and its sub-agents.
@@ -140,7 +140,7 @@ internal sealed class RunContinuationJobHandler(
 
             agentVersion = source.AgentVersion;
 
-            // F-352 class scan: the version was pinned but the arm was dropped,
+            // The version was pinned but the arm was dropped,
             // so the second half of an experiment run counted in no arm.
             experimentId = source.ExperimentId;
             variant = source.Variant;
@@ -153,10 +153,10 @@ internal sealed class RunContinuationJobHandler(
                     (agentVersion is { } v ? $" version {v}" : string.Empty) +
                     "; a code-defined or deleted agent cannot be continued.");
 
-            // F-294: the source run recorded the values it was bound with, and
+            // The source run recorded the values it was bound with, and
             // the turn continues with the SAME ones. Without a record the turn
             // would run on the defaults (or fail on a required parameter) - a
-            // different prompt halfway through the conversation (K-890, user
+            // different prompt halfway through the conversation (user
             // decision 2026-10-12) - so a definition that declares parameters
             // and a run that recorded none stays refused.
             if (definition.Parameters.Count > 0)
@@ -248,10 +248,10 @@ internal sealed class RunContinuationJobHandler(
             throw;
         }
 
-        // F-370 class scan: a continued turn can ask for approval, and nothing
+        // A continued turn can ask for approval, and nothing
         // but the mailbox can answer it. Session first, approvals second, both
         // before AwaitingApproval is published; a store error on the save is
-        // tried again, never the turn (F-367).
+        // tried again, never the turn.
         var turn = new QueuedTurn(
             sessions, approvalStore, options, approvalOptionsMonitor, webhookPublisher, _clock, logger,
             context, continuationRunId, agent, session);

@@ -69,7 +69,7 @@ internal static class NonTokenUsageReporter
                 Usage = usage,
                 CreatedAt = DateTimeOffset.UtcNow,
 
-                // Expected tenant stamp (K-355).
+                // Expected tenant stamp.
                 TenantId = writer.TenantId,
             },
             CancellationToken.None).ConfigureAwait(false);

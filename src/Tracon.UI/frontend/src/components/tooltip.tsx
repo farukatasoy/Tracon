@@ -48,7 +48,7 @@ export function Tooltip({
   /*
     🚨 Why this measurement exists: the bubble is centred on its trigger, so a
     trigger near the right edge pushes 224px of bubble past the viewport and the
-    whole PAGE scrolls sideways. Phase 165 spread tooltips onto badges and
+    whole PAGE scrolls sideways. Tooltips were later spread onto badges and
     column headings inside tables, which is exactly where a trigger sits near
     the edge — `Remaining_screens_do_not_overflow_horizontally_at_375px_width`
     caught it at 104px of overflow on the models screen.

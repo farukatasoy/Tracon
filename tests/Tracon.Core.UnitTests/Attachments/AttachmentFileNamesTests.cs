@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Attachments;
 
 /// <summary>
-/// The file name of an attachment Tracon writes follows the DETECTED type (F-336).
+/// The file name of an attachment Tracon writes follows the DETECTED type.
 /// </summary>
 /// <remarks>
 /// Four write sites had four rules: the speech endpoint wrote <c>.mp3</c> for any

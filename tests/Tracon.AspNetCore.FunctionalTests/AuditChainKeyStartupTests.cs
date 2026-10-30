@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 260 (F-758): a host with a bad chain key configuration does not start, and its failure names the
+/// A host with a bad chain key configuration does not start, and its failure names the
 /// configuration KEY and never a value.
 /// </summary>
 /// <remarks>

@@ -11,7 +11,7 @@ public sealed class AnthropicChatClientFactoryTests
     [Fact]
     public void Factory_returns_a_RAW_client_and_does_not_build_the_pipeline()
     {
-        // 🚨 Phase 48: the tool-call loop and telemetry moved to
+        // The tool-call loop and telemetry moved to
         // ModelProviderRegistry. If the factory built them, two nested
         // FunctionInvokingChatClient instances would form and the content guard
         // the registry adds would stay OUTSIDE the loop — tool results would
@@ -80,7 +80,7 @@ public sealed class AnthropicChatClientFactoryTests
         var exception = Should.Throw<TraconException>(() => Factory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(("anthropic.unknownSetting", true)))));
 
-        // Not silently ignored (K-034 pattern); the message lists the valid keys.
+        // Not silently ignored; the message lists the valid keys.
         exception.Message.ShouldContain("anthropic.unknownSetting");
         exception.Message.ShouldContain(AnthropicProviderNames.PromptCachingSetting);
         exception.Message.ShouldContain(AnthropicProviderNames.ThinkingBudgetTokensSetting);
@@ -97,7 +97,7 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     /// <summary>
-    /// HATA-S4-005: the adapter's own configuration validation survives the
+    /// The adapter's own configuration validation survives the
     /// registry's failure masking.
     /// </summary>
     /// <remarks>
@@ -151,7 +151,7 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     /// <summary>
-    /// The same masking as HATA-S4-005, one helper deeper: a value of the wrong
+    /// The same masking, one helper deeper: a value of the wrong
     /// JSON type is reported by <c>ModelProviderSettings</c> itself, and the
     /// operator must read the key there too, not "The model provider request failed."
     /// </summary>

@@ -5,13 +5,13 @@
 # One entry per line: `Schema` for a schema, `Schema.property` for a property
 # (JSON names). The ordering is ordinal.
 #
-# What the list holds (state of 2026-10-16, Phase 212):
+# What the list holds (state of 2026-10-16):
 #   - types of Microsoft.Extensions.AI, ASP.NET Core and the BCL (AIContent*,
 #     AIAnnotation*, ChatMessage, ChatRole, UsageDetails, ProblemDetails, IFormFile,
 #     Stream, JsonElement) - Tracon does not own their documentation;
 #   - Tracon enums and OpenAI-compatible wire types that had no description before
-#     Phase 212 and still have none.
-# The 81 request and response DTOs of Phase 212 are not here and must not be added: they
+# the descriptions pass and still have none.
+# The 81 request and response DTOs of the descriptions pass are not here and must not be added: they
 # are `internal` and take their text from [Description]. Describe a new entry instead of
 # listing it.
 AIAnnotation

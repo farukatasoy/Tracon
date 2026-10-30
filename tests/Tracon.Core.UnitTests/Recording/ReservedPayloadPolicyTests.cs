@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Recording;
 /// Which reserved <see cref="RunEventType.Custom"/> types keep their payload with
 /// <c>RecordToolPayloads</c> off. The exemption is a list, not "every reserved type": a
 /// notice that carries provider text or workflow data is an observability detail like any
-/// tool payload (F-589, phase 223).
+/// tool payload.
 /// </summary>
 public sealed class ReservedPayloadPolicyTests
 {

@@ -50,7 +50,7 @@ internal sealed class AnthropicProviderOptionsValidator : IValidateOptions<Anthr
                 $"Actual value: {options.DefaultMaxOutputTokens}.");
         }
 
-        // F-280: the request timeout reaches the SDK's HTTP stack and the health
+        // The request timeout reaches the SDK's HTTP stack and the health
         // check's CancellationTokenSource; past int.MaxValue ms one refuses it at the
         // first request and another wraps it into a negative value.
         if (options.Timeout is { } timeout && !TimerPeriod.IsValidHttpTimeout(timeout))

@@ -6,7 +6,7 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Two runs share one handler closure (F-303, failure mode 7): the factory runs once,
+/// Two runs share one handler closure (failure mode 7): the factory runs once,
 /// and every compile of every workflow that names the function gets the same handler.
 /// One run's timeout must cancel only that run's call.
 /// </summary>

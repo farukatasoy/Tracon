@@ -120,9 +120,9 @@ public sealed class StreamingTests
     [Fact]
     public async Task A_consumer_written_Custom_event_carries_its_CustomType_over_the_wire()
     {
-        // Phase 141: the escape hatch reaches the client additively -- the
+        // The escape hatch reaches the client additively -- the
         // SAME endpoint serves both the live SSE tail and a finished run's
-        // historical read (K-014), so this one test stands for both DoD rows
+        // historical read, so this one test stands for both DoD rows
         // ("SSE carries customType" and "replay/historical read carries it").
         const string ToolName = "mark_preview_ready";
 
@@ -166,7 +166,7 @@ public sealed class StreamingTests
                 && !OutputTruncationStreamingTests.IsContextNotice(frame))
             .ShouldHaveSingleItem();
 
-        // Phase 145: the frame's OWN SSE "event:" name is the closed, Tracon-owned
+        // The frame's OWN SSE "event:" name is the closed, Tracon-owned
         // "custom" -- never "unknown", and never the consumer's CustomType string
         // (that lives only in the JSON body's "customType" field, asserted below).
         custom.Event.ShouldBe("custom");

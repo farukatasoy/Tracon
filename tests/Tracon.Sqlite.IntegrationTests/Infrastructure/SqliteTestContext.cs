@@ -13,7 +13,7 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// <see cref="ResetDataAsync"/>, not by a separate prefix per test.
 /// <c>MigrationRunnerTests</c> separately verifies that the <c>TablePrefix</c> setting works
 /// correctly with a non-default prefix. Each prefix lives in its own database
-/// file (<see cref="SqliteFixture.ConnectionStringFor"/>, F-307).
+/// file (<see cref="SqliteFixture.ConnectionStringFor"/>).
 /// </remarks>
 internal sealed class SqliteTestContext : IAsyncDisposable
 {
@@ -44,7 +44,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
             DataSource = dataSource,
             Dialect = new SqliteDialect(options.TablePrefix),
             CommandTimeoutSeconds = options.CommandTimeoutSeconds,
-            // Phase 111: the "views" set is opt-in in production (K1); default
+            // The "views" set is opt-in in production; default
             // FALSE here too -- only ReadViewContractTests needs it.
             EnabledMigrationSets = options.EnableReadViews
                 ? new HashSet<string>(StringComparer.Ordinal) { "views" }
@@ -123,7 +123,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <summary>Persistent approval rule store.</summary>
     public SqlToolApprovalRuleStore ApprovalRules { get; }
 
-    /// <summary>Pending approval request store (Phase 55).</summary>
+    /// <summary>Pending approval request store.</summary>
     public SqlPendingApprovalStore PendingApprovals { get; }
 
     /// <summary>Gets the workflow response store.</summary>
@@ -147,7 +147,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <summary>Script execution grant store.</summary>
     public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
-    /// <summary>Runtime skill store (Phase 10).</summary>
+    /// <summary>Runtime skill store.</summary>
     public SqlAgentSkillStore AgentSkills { get; }
 
     /// <summary>Attachment store.</summary>
@@ -180,52 +180,52 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <summary>Webhook store.</summary>
     public SqlWebhookStore Webhooks { get; }
 
-    /// <summary>Tenant-scoped API key store (Phase 53).</summary>
+    /// <summary>Tenant-scoped API key store.</summary>
     public SqlApiKeyStore ApiKeys { get; }
 
-    /// <summary>Tenant provider binding store (Phase 65, BYOK).</summary>
+    /// <summary>Tenant provider binding store (BYOK).</summary>
     public SqlTenantProviderBindingStore TenantProviderBindings { get; }
 
-    /// <summary>Tenant egress policy store (Phase 65, F-119).</summary>
+    /// <summary>Tenant egress policy store.</summary>
     public SqlTenantEgressPolicyStore TenantEgressPolicies { get; }
 
-    /// <summary>Tenant tool policy store (Phase 261, F-759).</summary>
+    /// <summary>Tenant tool policy store.</summary>
     public SqlTenantToolPolicyStore TenantToolPolicies { get; }
 
-    /// <summary>Inbound trigger definition store (Phase 66).</summary>
+    /// <summary>Inbound trigger definition store.</summary>
     public SqlInboundTriggerStore InboundTriggers { get; }
 
-    /// <summary>Retention policy and run history store (Phase 25).</summary>
+    /// <summary>Retention policy and run history store.</summary>
     public SqlRetentionPolicyStore RetentionPolicies { get; }
 
-    /// <summary>Retention data plane (count/delete/archive read) (Phase 25).</summary>
+    /// <summary>Retention data plane (count/delete/archive read).</summary>
     public SqlRetentionStore RetentionData { get; }
 
-    /// <summary>Voice session store (Phase 29).</summary>
+    /// <summary>Voice session store.</summary>
     public SqlVoiceSessionStore VoiceSessions { get; }
 
-    /// <summary>Run/message score store (Phase 31).</summary>
+    /// <summary>Run/message score store.</summary>
     public SqlRunScoreStore RunScores { get; }
 
-    /// <summary>Single-executor election lease store (Phase 42).</summary>
+    /// <summary>Single-executor election lease store.</summary>
     public SqlSingletonLeaseStore SingletonLeases { get; }
 
     /// <summary>The shared rate-limit counter store.</summary>
     public SqlRateLimitCounterStore RateLimitCounters { get; }
 
-    /// <summary>Idempotency store (Phase 43).</summary>
+    /// <summary>Idempotency store.</summary>
     public SqlIdempotencyStore IdempotencyKeys { get; }
 
-    /// <summary>Run input store (Phase 47).</summary>
+    /// <summary>Run input store.</summary>
     public SqlRunInputStore RunInputs { get; }
 
-    /// <summary>Conversation branching store (Phase 47).</summary>
+    /// <summary>Conversation branching store.</summary>
     public SqlConversationBranchStore ConversationBranches { get; }
 
     /// <summary>Migration runner.</summary>
     public MigrationRunner Migrations { get; }
 
-    /// <summary>Data subject export/erasure data plane (Phase 64).</summary>
+    /// <summary>Data subject export/erasure data plane.</summary>
     public SqlDataSubjectStore DataSubjects { get; }
 
     /// <summary>The table prefix in use.</summary>
@@ -247,12 +247,12 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
     /// <summary>
     /// Setup with an externally supplied tenant context. Used because the tenant isolation
-    /// contract needs to switch tenants on the same store instance (Phase 41).
+    /// contract needs to switch tenants on the same store instance.
     /// </summary>
     /// <param name="fixture">The running SQLite file.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
     /// <param name="applyMigrations">Whether migrations should be applied immediately.</param>
-    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies. Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A context ready for use.</returns>
     public static async ValueTask<SqliteTestContext> CreateAsync(
         SqliteFixture fixture,
@@ -301,7 +301,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <param name="fixture">The running SQLite file.</param>
     /// <param name="tablePrefix">The table prefix to use.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
-    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies. Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A new context pointing at the same backend.</returns>
     public static SqliteTestContext Create(
         SqliteFixture fixture,
@@ -313,7 +313,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
         var options = new TraconSqliteOptions
         {
-            // One file per prefix (F-307): a context never shares SQLite's
+            // One file per prefix: a context never shares SQLite's
             // writer lock with another test class, only with contexts that
             // name the same prefix on purpose.
             ConnectionString = fixture.ConnectionStringFor(tablePrefix),
@@ -360,11 +360,11 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <para>
     /// SQLite has no schema concept; each test prefix drops its own set of
     /// objects. The context that CREATED the prefix then deletes the prefix's
-    /// database file as well (F-307: one file per prefix), so the files do not
+    /// database file as well (one file per prefix), so the files do not
     /// pile up in the temporary directory during a run.
     /// </para>
     /// <para>
-    /// 🚨 Phase 111: views are dropped FIRST and separately from tables --
+    /// Views are dropped FIRST and separately from tables --
     /// the "views" optional set (<c>EnableReadViews</c>) creates
     /// <c>{prefix}runs_v1</c>, which is a VIEW, not a TABLE, so the original
     /// table-only cleanup left it behind as a DANGLING object once its

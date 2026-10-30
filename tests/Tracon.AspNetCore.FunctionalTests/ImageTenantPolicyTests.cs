@@ -14,11 +14,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-384: <c>generate_image</c> and <c>POST /api/images/generate</c> called
+/// <c>generate_image</c> and <c>POST /api/images/generate</c> called
 /// the setup-wide generator and read neither. A tenant whose policy forbade the
 /// image provider still had its prompts sent there, and a tenant with its own
-/// key for that provider was billed to the host's account. K-467 and K-874 say
-/// every path to a provider passes the gate; K-878 is the live-voice precedent
+/// key for that provider was billed to the host's account. That decision and that decision say
+/// every path to a provider passes the gate; the earlier decision is the live-voice precedent
 /// this follows: the policy refuses with <c>403</c>, and a tenant binding the
 /// generator cannot use refuses too instead of falling back to the setup key.
 /// </para>
@@ -46,7 +46,7 @@ public sealed class ImageTenantPolicyTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
-        // F-444: the refusal names the kind of provider it refused; it said "model provider".
+        // The refusal names the kind of provider it refused; it said "model provider".
         (await response.Content.ReadAsStringAsync()).ShouldContain($"not allowed to call image provider '{ImageProvider}'");
         generator.Calls.ShouldBe(0, "the tenant's prompt must not reach a provider its policy forbids");
     }
@@ -68,7 +68,7 @@ public sealed class ImageTenantPolicyTests
     [Fact]
     public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_is_refused_the_image_provider()
     {
-        // F-254: the image resolver is one of the callers that must read the switch. A tenant with no
+        // The image resolver is one of the callers that must read the switch. A tenant with no
         // policy row reached every provider before it.
         var generator = new CountingImageGenerator();
         await using var host = await StartAsync(

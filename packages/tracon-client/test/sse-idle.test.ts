@@ -5,7 +5,7 @@ import { readSse, SseIdleTimeoutError } from '../src/index.js';
  * A connection that dies without a close frame — a laptop sleeping, a proxy
  * timing out, a network that goes away mid-body — leaves the reader waiting on
  * a chunk that never comes and throws nothing at all. The run detail screen
- * sat on "Waiting for events…" forever because of it (HATA-S3-005), with no
+ * sat on "Waiting for events…" forever because of it, with no
  * way for the reader to tell that apart from a run that is simply still
  * working.
  */

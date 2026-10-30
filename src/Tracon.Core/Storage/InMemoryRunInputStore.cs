@@ -34,7 +34,7 @@ internal sealed class InMemoryRunInputStore : IRunInputStore
         cancellationToken.ThrowIfCancellationRequested();
 
         // Ignore a second write. A queued run can start twice with the same identifier
-        // in Phase 46, and the input must not change.
+        // And the input must not change.
         if (_inputs.TryAdd(record.RunId, record))
         {
             _insertionOrder.Enqueue(record.RunId);

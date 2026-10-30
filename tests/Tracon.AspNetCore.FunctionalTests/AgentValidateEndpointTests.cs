@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-60 — <c>POST /api/agents/validate</c>: validates a definition without
+/// <c>POST /api/agents/validate</c>: validates a definition without
 /// saving it and without calling any model.
 /// </summary>
 public sealed class AgentValidateEndpointTests

@@ -66,7 +66,7 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
         TimeProvider timeProvider)
         : base(innerFunction)
     {
-        // F-280: checked here, where every per-tool timeout (code registration,
+        // Checked here, where every per-tool timeout (code registration,
         // [TraconTool(TimeoutSeconds)], the tools default) meets the timer. Out of range,
         // the delay threw at call time after the tool body had already started.
         if (!TimerPeriod.IsValid(timeout))

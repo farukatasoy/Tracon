@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// <see cref="RunEventType.ReasoningDelta"/> (phase 70): off by default, and when
+/// <see cref="RunEventType.ReasoningDelta"/>: off by default, and when
 /// on it never merges into <see cref="RunEventType.MessageDelta"/>.
 /// </summary>
 public sealed class ReasoningRecordingTests

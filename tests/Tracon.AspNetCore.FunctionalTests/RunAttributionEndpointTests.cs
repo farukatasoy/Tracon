@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 68 over HTTP: where run attribution may come from, where it may not,
+/// over HTTP: where run attribution may come from, where it may not,
 /// and what happens when it breaks a limit.
 /// </summary>
 /// <remarks>
@@ -209,7 +209,7 @@ public sealed class RunAttributionEndpointTests
                 if (attribution is not null)
                 {
                     // Registered BEFORE Tracon's own TryAdd, the way a consumer
-                    // binding its identity pipeline would (K4: the consumer wins).
+                    // binding its identity pipeline would (the consumer wins).
                     services.Replace(ServiceDescriptor.Singleton(attribution));
                 }
             });

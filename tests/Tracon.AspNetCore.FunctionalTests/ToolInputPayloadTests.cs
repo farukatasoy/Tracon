@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// How a suspended call's result is read back out of a session history (Phase 235): it comes back as the string
+/// How a suspended call's result is read back out of a session history: it comes back as the string
 /// the tool wrapper wrote, or as the JSON a store made of it, and only a result that says it is a request counts.
 /// </summary>
 public sealed class ToolInputPayloadTests

@@ -21,7 +21,7 @@ function cost(terms: Partial<RunCost>): RunCost {
 
 describe('runCostTotal', () => {
   it('adds all four terms', () => {
-    // 🚨 K-483's class: a three-term sum reads 3.5 here, a tenth of the bill in the write-heavy case.
+    // 🚨 the class: a three-term sum reads 3.5 here, a tenth of the bill in the write-heavy case.
     expect(runCostTotal(cost({ inputCost: 1, outputCost: 2, cachedInputCost: 0.5, cacheWriteCost: 0.25 }))).toBe(3.75);
   });
 

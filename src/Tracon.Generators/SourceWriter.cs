@@ -121,7 +121,7 @@ internal static class SourceWriter
 
         sb.Append("            };\n    }\n}\n\n");
 
-        // 🚨 internal (F-289): every compilation with a tool gets this class. When it
+        // 🚨 internal: every compilation with a tool gets this class. When it
         // was public, a host that referenced a tool library saw two identical
         // extensions in one namespace and AddGeneratedTools() was CS0121. A library
         // hands its tools to a host through its own public extension, which calls

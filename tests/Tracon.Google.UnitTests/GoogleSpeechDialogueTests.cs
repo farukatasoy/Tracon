@@ -7,7 +7,7 @@ namespace Tracon.Google.UnitTests;
 /// refusal that happens before the network.
 /// </summary>
 /// <remarks>
-/// F-297. The two formats exist because the model generations disagree (measured 2026-10-25): the gemini-3.8
+/// The two formats exist because the model generations disagree (measured 2026-10-25): the gemini-3.8
 /// models want the speaker on each text part, the gemini-2.5 and gemini-3.1 preview models want a label in the
 /// text, and each refuses the other with <c>400</c>.
 /// </remarks>

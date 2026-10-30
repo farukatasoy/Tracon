@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
 /// The tokens a side-channel call writes into a provider's prompt cache reach the run's usage and its
-/// cost (K-483's class).
+/// cost.
 /// </summary>
 /// <remarks>
 /// <para>

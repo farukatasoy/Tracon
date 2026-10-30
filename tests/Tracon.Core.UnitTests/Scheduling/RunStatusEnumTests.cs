@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// these values (see the <c>RunStatus.cs</c> XML docs).
 /// </summary>
 /// <remarks>
-/// The job's own identity is no longer an enum: Phase 137 replaced
+/// The job's own identity is no longer an enum: replaced
 /// <c>JobKind</c> with the string <see cref="JobRecord.HandlerKey"/>, so its
 /// stability is a matter of the CONSTANTS not changing, which
 /// <see cref="JobHandlerKeyTests"/> asserts instead.

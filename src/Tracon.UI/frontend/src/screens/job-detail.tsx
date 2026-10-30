@@ -140,7 +140,7 @@ export function JobDetailScreen({ id, meta }: { id: string; meta: Meta }): React
 
         {job.errorMessage != null && job.errorMessage.length > 0 && (
           <div className="border-t border-line px-4 py-2.5">
-            {/* Server text, never translated (K-232). No retry either: the
+            {/* Server text, never translated. No retry either: the
                 failure is recorded history, not this screen's request. */}
             <ErrorNote error={new Error(job.errorMessage)} />
           </div>

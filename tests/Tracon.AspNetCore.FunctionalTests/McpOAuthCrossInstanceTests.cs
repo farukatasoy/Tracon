@@ -11,7 +11,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 264 (F-766): an MCP server that uses OAuth works on two instances. The token is kept in the
+/// An MCP server that uses OAuth works on two instances. The token is kept in the
 /// application's distributed cache, the provider's redirect may reach either instance, and one
 /// instance at a time refreshes a token.
 /// </summary>

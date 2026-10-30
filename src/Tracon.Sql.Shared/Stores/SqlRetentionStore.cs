@@ -122,7 +122,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
         AddTenant(command, tenantId);
         DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
 
-        // F-447: the sink is the consumer's code; a protected column reaches it as plaintext.
+        // The sink is the consumer's code; a protected column reaches it as plaintext.
         var readValue = ProtectedValue.RowReader(_context, RetentionTargetRegistry.ProtectedArchiveColumns(target));
 
         return await DbHelpers
@@ -200,7 +200,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
             && string.Equals(target, RetentionTargets.Attachments, StringComparison.Ordinal);
         var byTenant = tenantId is null && definition.TenantInKey;
 
-        // F-447: the sink is the consumer's code; a protected column reaches it as plaintext.
+        // The sink is the consumer's code; a protected column reaches it as plaintext.
         var readValue = ProtectedValue.RowReader(_context, RetentionTargetRegistry.ProtectedArchiveColumns(target));
 
         var select = _context.CreateCommand(

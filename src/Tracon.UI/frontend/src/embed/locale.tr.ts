@@ -1,6 +1,6 @@
 import type { EmbedMessages } from './locale.ts';
 
-/** The widget's Turkish dictionary — a legitimate translation file, same status as `locales/tr.ts` (K-228). */
+/** The widget's Turkish dictionary — a legitimate translation file, same status as `locales/tr.ts`. */
 export const tr: EmbedMessages = {
   bubbleLabel: 'Sohbeti aç',
   title: 'Sohbet',

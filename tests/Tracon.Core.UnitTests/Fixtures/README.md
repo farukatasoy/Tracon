@@ -1,7 +1,7 @@
 # Fixtures
 
 Real Microsoft Agent Framework output, captured from a genuine run — not
-hand-written. Read by `Sessions/PersistedPayloadUpgradeTests.cs` (Phase 126).
+hand-written. Read by `Sessions/PersistedPayloadUpgradeTests.cs`.
 
 ## `session-state-1.18.0.json`
 

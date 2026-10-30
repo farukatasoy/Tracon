@@ -5,7 +5,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// What the engine writes into the inbox of workflow requests when a run starts waiting
-/// (phase 209), and what it lists from it.
+///And what it lists from it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -151,7 +151,7 @@ public sealed class WorkflowRequestInboxTests
         }
 
         // The continuation republished the request that is still open - with the same id - and
-        // waits on it; the run it continued stays AwaitingInput (K-130) and still lists both.
+        // waits on it; the run it continued stays AwaitingInput and still lists both.
         var next = (await host.RunStore.GetRunAsync(continuation)).ShouldNotBeNull();
 
         next.Status.ShouldBe(RunStatus.AwaitingInput);

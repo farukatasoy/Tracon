@@ -4,7 +4,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
 /// Concurrent first writes of one key through a two-statement SQL Server upsert
-/// leave one row and never surface a unique-key violation (F-313).
+/// leave one row and never surface a unique-key violation.
 /// </summary>
 /// <remarks>
 /// <para>

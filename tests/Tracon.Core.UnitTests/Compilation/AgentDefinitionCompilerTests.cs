@@ -38,7 +38,7 @@ public sealed class AgentDefinitionCompilerTests
     public void Naming_skills_while_the_skills_provider_is_off_stops_compilation()
     {
         // The setting turns the skills provider off, so the named skills would
-        // vanish without a word (F-339, K-892).
+        // vanish without a word.
         var definition = TestData.Definition(harness: new HarnessSettings { DisableAgentSkillsProvider = true }) with
         {
             SkillNames = ["summarize"],
@@ -218,7 +218,7 @@ public sealed class AgentDefinitionCompilerTests
     public void Strategy_without_a_trigger_stops_compilation(CompactionStrategyKind strategy)
     {
         // Silently ignoring this would be wrong: a strategy without a trigger
-        // never runs, and the user cannot see why (same pattern as K-034).
+        // never runs, and the user cannot see why (same pattern).
         var compiler = CreateCompiler();
 
         var definition = TestData.Definition() with
@@ -236,7 +236,7 @@ public sealed class AgentDefinitionCompilerTests
     public void ContextWindow_without_a_max_window_derives_it_from_the_model_catalog()
     {
         // FakeModelProvider's default catalog entry carries ContextWindowTokens
-        // = 8_192 (phase 62, F-59): compilation must succeed and use that value
+        // = 8_192: compilation must succeed and use that value
         // instead of failing, now that CompactionSettings.MaxContextWindowTokens
         // is optional when the model catalog has an answer.
         var compiler = CreateCompiler();
@@ -534,7 +534,7 @@ public sealed class AgentDefinitionCompilerTests
         options!.ChatOptions!.Tools.ShouldNotBeNull();
         options.ChatOptions.Tools!.ShouldContain(static tool => tool.Name == "search_knowledge");
 
-        // F-688: the tool the model sees is the one the tool chain built, not the bare function.
+        // The tool the model sees is the one the tool chain built, not the bare function.
         options.ChatOptions.Tools!.Single(static tool => string.Equals(tool.Name, "search_knowledge", StringComparison.Ordinal)).ShouldBeOfType<CallRecordingAIFunction>();
     }
 

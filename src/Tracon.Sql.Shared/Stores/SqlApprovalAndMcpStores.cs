@@ -98,7 +98,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
-    // 🚨 New columns are ALWAYS appended at the end (docs/hafiza/postgresql.md):
+    // 🚨 New columns are ALWAYS appended at the end:
     // argument_conditions reads by fixed ordinal 7, after the original seven columns,
     // and source_fingerprint by ordinal 8 after it.
     private static ToolApprovalRule ReadRule(DbDataReader reader)

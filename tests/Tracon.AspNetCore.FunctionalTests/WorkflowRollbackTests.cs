@@ -8,7 +8,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A rollback is a save of stored content (phase 200, failure mode 17): it is judged the way a
+/// A rollback is a save of stored content (failure mode 17): it is judged the way a
 /// save is, it writes nothing when it is refused, and a refusal never reaches the audit trail.
 /// </summary>
 /// <remarks>

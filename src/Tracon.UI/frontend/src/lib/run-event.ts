@@ -52,6 +52,6 @@ export interface RunEvent {
   toolName?: string | null;
   toolCallId?: string | null;
   payload?: string | null;
-  /** Names a 'Custom' event (phase 141). Null for every other event type. */
+  /** Names a 'Custom' event. Null for every other event type. */
   customType?: string | null;
 }

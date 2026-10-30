@@ -11,14 +11,14 @@ namespace Tracon.Voice.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 203 (open question 7-B): <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
+/// <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
 /// reads the capability from the registered synthesizer instance and applies the
 /// tenant's checks. A container registration of the capability would be a second way to
-/// reach the provider that skips both (the plan's section 203.1 proposed one).
+/// reach the provider that skips both (the plan's an earlier plan proposed one).
 /// </para>
 /// <para>
 /// The tests compose the real <c>AddTracon().UseVoice(...)</c> registration and read
-/// <see cref="IStartupValidator"/>: the K-930/F-336 lesson is that a defect in the DI
+/// <see cref="IStartupValidator"/>: the lesson is that a defect in the DI
 /// composition is invisible to a validator or a resolver built by hand.
 /// </para>
 /// </remarks>
@@ -155,7 +155,7 @@ public sealed class VoiceDialogueRegistrationTests
     [Fact]
     public async Task A_bound_tenant_is_refused_by_the_built_in_client_and_never_served_on_the_host_key()
     {
-        // K-930, 4-A: the built-in client takes no tenant credential, for dialogue too.
+        // 4-A: the built-in client takes no tenant credential, for dialogue too.
         const string keyName = "Tracon:ProviderKeys:acme:ElevenLabs";
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection([new(keyName, "acme-elevenlabs-value")])

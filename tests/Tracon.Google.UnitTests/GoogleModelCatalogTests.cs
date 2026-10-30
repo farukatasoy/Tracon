@@ -2,7 +2,7 @@ using Tracon.Google.UnitTests.Infrastructure;
 
 namespace Tracon.Google.UnitTests;
 
-/// <summary>The catalog comes only from configuration (K-032).</summary>
+/// <summary>The catalog comes only from configuration.</summary>
 public sealed class GoogleModelCatalogTests
 {
     [Fact]

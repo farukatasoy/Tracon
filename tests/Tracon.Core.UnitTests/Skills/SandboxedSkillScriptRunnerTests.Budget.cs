@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace Tracon.Core.UnitTests.Skills;
 
 /// <summary>
-/// A script the tree's budget refuses is audited like every other refusal of a script (F-690), and the refusal keeps
-/// the identity of every other budget refusal (F-530).
+/// A script the tree's budget refuses is audited like every other refusal of a script, and the refusal keeps
+/// the identity of every other budget refusal.
 /// </summary>
 /// <remarks>
 /// The run scope is set in the body of each test: an ambient value written in a helper does not flow back to its

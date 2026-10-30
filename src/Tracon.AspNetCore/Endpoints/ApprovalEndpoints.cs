@@ -226,7 +226,7 @@ internal static class ApprovalEndpoints
         var actor = actorResolver.Resolve() ?? "unknown";
         var now = DateTimeOffset.UtcNow;
 
-        // 🚨 K-089: the audit trail entry is written BEFORE the decision. If the
+        // The audit trail entry is written BEFORE the decision. If the
         // write fails, the exception causes the caller to get 500 and DecideAsync
         // is NEVER called — "an approval decision that cannot be written to the
         // audit trail is not applied".

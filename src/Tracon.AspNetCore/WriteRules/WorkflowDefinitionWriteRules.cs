@@ -46,13 +46,13 @@ internal static class WorkflowDefinitionWriteRules
         // and blowing up at run time would force the user to start a run
         // just to find the error. The workflow compiler uses the same
         // check; the rule lives in a single place (Tracon.Core).
-        // F-382: a name a fixed route uses is refused before anything else is judged.
+        // A name a fixed route uses is refused before anything else is judged.
         if ((WorkflowDefinitionValidator.ReservedNameProblem(name) ?? WorkflowDefinitionValidator.Validate(definition)) is { } message)
         {
             return Invalid(because, message);
         }
 
-        // F-405: the ceiling is the host's setting, read through the engine's seam.
+        // The ceiling is the host's setting, read through the engine's seam.
         // Without the engine there is no ceiling to read and nothing to run the value;
         // the range was checked above.
         if (runTimeoutPolicy is not null &&
@@ -64,7 +64,7 @@ internal static class WorkflowDefinitionWriteRules
         // A function node's name IS checked at save time, unlike an agent
         // name (agents live in a store that can change after save; the
         // function registry is fixed in code for the process lifetime, so
-        // checking early gives an honest guarantee - phase 71).
+        // checking early gives an honest guarantee).
         foreach (var node in definition.Nodes)
         {
             if (node.Kind != WorkflowNodeKind.Function)
@@ -82,7 +82,7 @@ internal static class WorkflowDefinitionWriteRules
             }
 
             // The settings are checked by the registry that knows the function's settings
-            // type (F-295): the same read the compiler repeats when a run starts. Same
+            // type: the same read the compiler repeats when a run starts. Same
             // reasoning as the name above - the registry is fixed for the process lifetime,
             // so the early check is an honest guarantee.
             if (functions.ValidateSettings(node.Name, node.Settings) is { } settingsProblem)
@@ -91,7 +91,7 @@ internal static class WorkflowDefinitionWriteRules
             }
         }
 
-        // F-341: each node must take what the node before it passes on.
+        // Each node must take what the node before it passes on.
         // Microsoft Agent Framework drops a message no handler takes, without an
         // error, so a chain that breaks this would end every run with no
         // output. Checked after the names, so an unregistered function is
@@ -101,7 +101,7 @@ internal static class WorkflowDefinitionWriteRules
             return Invalid(because, typeProblem);
         }
 
-        // Phase 200: a pinned step must name a version its agent has. Unlike an agent's NAME
+        // A pinned step must name a version its agent has. Unlike an agent's NAME
         // (which a definition may name before the agent exists), a version cannot appear later,
         // so refusing it here is an honest guarantee; the compiler repeats the check because the
         // agent can be deleted after the save.

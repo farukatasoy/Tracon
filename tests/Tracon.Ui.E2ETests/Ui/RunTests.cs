@@ -40,7 +40,7 @@ public sealed class RunTests(BrowserFixture browsers)
     [Fact]
     public async Task Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType()
     {
-        // Phase 141: a consumer-written RunEventType.Custom event reaches the
+        // A consumer-written RunEventType.Custom event reaches the
         // SSE stream and the console draws it with the consumer's OWN
         // CustomType as its name, not a generic "Custom" label -- proving
         // both that the field survives the wire and that 141.2's card renders.
@@ -159,7 +159,7 @@ public sealed class RunTests(BrowserFixture browsers)
 
         await session.Page.Locator("a[href*='/sessions/']").First.ClickAsync();
 
-        // 🚨 A LINK, not a button, since phase 165. The control used to be
+        // 🚨 A LINK, not a button. The control used to be
         // `<Link><Button>N runs</Button></Link>` — a <button> inside an <a>,
         // which is invalid HTML, two tab stops for one destination, and a click
         // whose behaviour depended on which of the two the pointer hit. It is

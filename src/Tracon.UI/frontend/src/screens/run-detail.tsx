@@ -83,42 +83,42 @@ const EVENT_STYLE: Record<RunEventType, { label: string; tone: StatusTone }> = {
   WorkflowOutput: { label: 'workflow.output', tone: 'success' },
   WorkflowRequest: { label: 'workflow.request', tone: 'warn' },
   RunAwaitingInput: { label: 'run.awaiting-input', tone: 'warn' },
-  // Phase 48. A guard decision is a policy event: masking rewrote the prompt
+  // A guard decision is a policy event: masking rewrote the prompt
   // and the run carried on (warn), a block ended it (danger).
   ContentMasked: { label: 'content.masked', tone: 'warn' },
   ContentBlocked: { label: 'content.blocked', tone: 'danger' },
-  // Phase 62. A fallback is a mitigation the operator should notice.
+  // A fallback is a mitigation the operator should notice.
   ModelFallbackUsed: { label: 'model.fallback-used', tone: 'warn' },
-  // Phase 70. The model's reasoning, not its answer — but still the model
+  // The model's reasoning, not its answer — but still the model
   // producing, so it shares the live accent with MessageDelta.
   ReasoningDelta: { label: 'reasoning.delta', tone: 'accent' },
-  // Phase 14. A document joining the run is part of its setup, not an outcome.
+  // A document joining the run is part of its setup, not an outcome.
   DocumentAttached: { label: 'document.attached', tone: 'info' },
-  // Phase 89. A tool that keeps getting truncated is a sign its own output
+  // A tool that keeps getting truncated is a sign its own output
   // bound is missing.
   ToolOutputTruncated: { label: 'tool.output-truncated', tone: 'warn' },
-  // Phase 87. Written on a run that is ALREADY Failed, to explain why
+  // Written on a run that is ALREADY Failed, to explain why
   // orphaned-run reconciliation declined to continue it automatically — not
   // a new failure of its own.
   RunContinuationBlocked: { label: 'run.continuation-blocked', tone: 'warn' },
-  // Phase 131. The run is ending Failed, same as ContentBlocked/RunFailed.
+  // The run is ending Failed, same as ContentBlocked/RunFailed.
   StructuredResponseRejected: { label: 'structured-response.rejected', tone: 'danger' },
-  // Phase 134. The run is not over yet, a repair turn is about to try again.
+  // The run is not over yet, a repair turn is about to try again.
   StructuredResponseRepairAttempted: { label: 'structured-response.repair-attempted', tone: 'warn' },
-  // Phase 141. The label here is only a fallback: EventRow shows the event's
+  // The label here is only a fallback: EventRow shows the event's
   // OWN CustomType instead whenever one is present, which it always is by
   // the time it reaches the wire (RunEventWriter rejects a Custom event
   // without one).
   Custom: { label: 'custom', tone: 'neutral' },
-  // Phase 144. A sub-agent call ran past its wait limit — the tree kept going,
+  // A sub-agent call ran past its wait limit — the tree kept going,
   // but an operator should notice which layer cut it (payload's hardCutoff).
   ChildRunTimedOut: { label: 'child.timed-out', tone: 'warn' },
-  // Phase 151. One harness loop iteration finished. It reports progress, not a
+  // One harness loop iteration finished. It reports progress, not a
   // problem — the payload's continuedBy names the criterion that asked for
   // another turn.
   LoopIterationCompleted: { label: 'loop.iteration-completed', tone: 'neutral' },
   SessionWriteConflicted: { label: 'session.write-conflicted', tone: 'warn' },
-  // Phase 208. This run continues a workflow by answering one of its requests;
+  // This run continues a workflow by answering one of its requests;
   // the row links back to the run that waited (sourceRunId in the payload).
   WorkflowResponseApplied: { label: 'workflow.response-applied', tone: 'info' },
 };
@@ -146,7 +146,7 @@ function answeredSourceRunId(event: RunEvent): string | null {
  *
  * The event stream is read with Server-Sent Events. Live tailing and historical
  * replay are the same endpoint and the same code path, because run events are
- * append-only (decision K-014) — a finished run simply ends its stream.
+ * append-only — a finished run simply ends its stream.
  */
 export function RunDetailScreen({ id }: { id: string }): ReactNode {
   const t = useT();
@@ -159,7 +159,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   const run = useQuery({
     queryKey: ['run', id],
     queryFn: () => unwrap(client.GET('/api/runs/{runId}', { params: { path: { runId: id } } })) as Promise<RunRecord>,
-    // 'Queued' polls too (phase 46): the worker has not picked the job up yet,
+    // 'Queued' polls too: the worker has not picked the job up yet,
     // and the row transitions on its own once it does.
     refetchInterval: (query) =>
       query.state.data?.status === 'Running' || query.state.data?.status === 'Queued' ? 2_000 : false,
@@ -298,7 +298,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   const relatedItems = related.filter((item): item is MenuItem => item !== null);
 
   // The workflow screen opens on THIS run, so its pending request shows there
-  // even though that screen did not start it (F-335). Without the run id the
+  // even though that screen did not start it. Without the run id the
   // screen showed only a run it had started itself, and the link sent the
   // operator to a page with nothing to answer.
   const workflowScreen =

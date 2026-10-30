@@ -9,7 +9,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// Verifies that session persistence works end to end.
 /// </summary>
 /// <remarks>
-/// Two open items carried over from Phase 1 are closed by these tests:
+/// Two open items carried over from are closed by these tests:
 /// <see cref="ISessionStore"/> is now used, and <c>RunRecordingAgent</c>
 /// writes the real session ID into the run record.
 /// </remarks>
@@ -86,7 +86,7 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
     [Fact]
     public async Task Two_concurrent_first_turns_on_the_same_new_session_do_not_silently_lose_a_message()
     {
-        // HATA-004 / MT-CORE-054: in the check-then-create race, two
+        // In the check-then-create race, two
         // concurrent first turns generated different conversation IDs for
         // the same NEW session; the second SaveSessionAsync SILENTLY
         // overwrote the first, and the loser's messages became unreachable
@@ -138,7 +138,7 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
     [Fact]
     public async Task Two_concurrent_later_turns_on_the_same_existing_session_do_not_silently_lose_a_message()
     {
-        // 🚨 The sibling of the HATA-004 case above, and the half that stayed
+        // 🚨 The sibling of the case above, and the half that stayed
         // open: TryCreateAsync closed the race for the FIRST save only. Every
         // save after it went through the unconditional SaveAsync, so two
         // concurrent LATER turns on an EXISTING session both "succeeded" and

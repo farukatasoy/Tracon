@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Evaluation;
 
 /// <summary>
 /// Tests for the bridge that turns a Microsoft.Extensions.AI
-/// <see cref="IEvaluator"/> into a Tracon run judge (Phase 155).
+/// <see cref="IEvaluator"/> into a Tracon run judge.
 /// </summary>
 public sealed class EvaluatorRunJudgeTests
 {
@@ -126,7 +126,7 @@ public sealed class EvaluatorRunJudgeTests
     [Fact]
     public async Task A_categorical_value_cut_inside_a_surrogate_pair_keeps_no_half_of_it()
     {
-        // F-241: the model's verdict text is cut at the stored limit. The 256th character is the
+        // The model's verdict text is cut at the stored limit. The 256th character is the
         // high half of a pair here; the cut kept it alone, and the score write failed on encoding
         // - and was retried, because a write failure is retryable.
         var judge = Build("quality", new ScriptedEvaluator(
@@ -315,7 +315,7 @@ public sealed class EvaluatorRunJudgeTests
     [Fact]
     public async Task A_version_cut_inside_a_surrogate_pair_keeps_no_half_of_it()
     {
-        // F-241: the 128th character is the high half of a pair. The cut left it alone at the
+        // The 128th character is the high half of a pair. The cut left it alone at the
         // end of the stored version, and the score write failed on encoding.
         var version = new string('9', RunScoreRules.MaxEvaluatorVersionLength - 1) + "\U0001F600";
         var judge = Build("quality", EvaluatorInAssemblyWithVersion(version, new NumericMetric("Relevance", 4, "ok")));

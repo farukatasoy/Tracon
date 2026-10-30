@@ -33,13 +33,13 @@ public sealed class JobTests(BrowserFixture browsers)
 
         await session.Page.GetByPlaceholder("nightly-report", new() { Exact = true }).FillAsync("e2e-batch-job");
 
-        // Phase 137: the handler is picked from the server's own allow-list, not
+        // The handler is picked from the server's own allow-list, not
         // from two hard-coded options. Leaving it blank is a 400, so the screen
         // must actually offer the built-in key here.
         await session.Page.GetByTestId("schedule-handler-key").SelectOptionAsync(JobHandlerKeys.AgentBatch);
 
         await session.Page.GetByPlaceholder("summarizer", new() { Exact = true }).FillAsync("support");
-        // Phase 129: the lane field. Left blank on a fresh row, "default" is
+        // The lane field. Left blank on a fresh row, "default" is
         // shown; here it is set so the column's actual value can be asserted.
         await session.Page.GetByPlaceholder("default", new() { Exact = true }).FillAsync("media");
         await session.Page.Locator("textarea").FillAsync("[\"hello\"]");

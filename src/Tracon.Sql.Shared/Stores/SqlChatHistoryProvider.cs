@@ -157,7 +157,7 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
                     DbHelpers.Add(insert, "conversation_id", conversationId);
                     DbHelpers.Add(insert, "seq", sequence++);
                     // `json`, not `jsonb`: ChatMessage contents are polymorphic and
-                    // the `$type` discriminator must be the object's first property (decision K-027).
+                    // the `$type` discriminator must be the object's first property.
                     Dialect.AddJson(
                         insert,
                         "item",

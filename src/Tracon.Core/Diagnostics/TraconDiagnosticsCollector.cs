@@ -183,7 +183,7 @@ public sealed class TraconDiagnosticsCollector
         // is primarily used while the schema is not yet ready, for example when an
         // operator wants to inspect pending migrations with AutoApplyMigrations=false.
         // Querying before returning the collected migration information would make
-        // the endpoint return 500 exactly when it is needed. Observed: MT-PG-051.
+        // the endpoint return 500 exactly when it is needed. Observed.
         int? agentCount;
 
         try

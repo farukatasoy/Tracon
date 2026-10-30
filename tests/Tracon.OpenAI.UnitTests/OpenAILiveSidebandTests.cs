@@ -117,7 +117,7 @@ public sealed class OpenAILiveSidebandTests
     [InlineData("""{"type":"session.output_audio.delta","delta":"AAAA"}""")]
     public void Mirrored_media_frames_are_ignored(string frame)
     {
-        // The provider does mirror the session's audio onto this socket. This phase
+        // The provider does mirror the session's audio onto this socket. This change
         // does not consume it, and emitting an "unknown event" for each frame would
         // drown the pump in noise a consumer cannot act on.
         OpenAILiveSideband.Translate(frame).ShouldBeNull();

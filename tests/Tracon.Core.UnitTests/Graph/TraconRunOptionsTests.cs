@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Graph;
 /// <see cref="TraconRunOptions.Clone"/> behavior.
 /// </summary>
 /// <remarks>
-/// Learned in K-044: when a middleware layer that copies the settings dropped
+/// Learned: when a middleware layer that copies the settings dropped
 /// the id, the run id reported to the client no longer matched any record.
 /// The same trap is more insidious for the tree fields - a dropped <c>Depth</c>
 /// value silently disables recursion protection.

@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The <c>runs_v1</c> read contract view's <c>total_cost</c> column (Phase 111,
-/// 111.5 "cost addend gate"): K-483's class -- a cost term added to
+/// The <c>runs_v1</c> read contract view's <c>total_cost</c> column (
+/// 111.5 "cost addend gate"): the class -- a cost term added to
 /// <c>SqlQueriesBase.CostAddends</c> without reaching every hand-written SQL
 /// total -- must not repeat here.
 /// </summary>
@@ -44,7 +44,7 @@ public sealed class ReadViewCostTermTests
         {
             Regex.IsMatch(totalCostBlock, $@"\b{Regex.Escape(addend)}\b", RegexOptions.None, TimeSpan.FromSeconds(2)).ShouldBeTrue(
                 $"runs_v1.total_cost must sum '{addend}' -- SqlQueriesBase.CostAddends is the single " +
-                "source of a run's cost terms (K-483) and a term missing here silently under-reports " +
+                "source of a run's cost terms and a term missing here silently under-reports " +
                 "cost in every consumer that reads runs_v1 directly.");
         }
     }

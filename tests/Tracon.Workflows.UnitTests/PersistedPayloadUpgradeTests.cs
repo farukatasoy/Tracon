@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Phase 126: the compatibility check for persisted checkpoint state.
+/// The compatibility check for persisted checkpoint state.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -11,7 +11,7 @@ namespace Tracon.Workflows.UnitTests;
 /// test cannot exercise a full <c>ResumeStreamingAsync</c> against the
 /// captured fixture: Microsoft Agent Framework derives executor identity
 /// from <c>AIAgent.Id</c>, generated fresh and RANDOM per process
-/// (<c>docs/hafiza/workflows.md</c>). A checkpoint resumed in a different
+/// (<c>.md</c>). A checkpoint resumed in a different
 /// process than the one that wrote it always fails with
 /// <c>InvalidDataException</c> ("not compatible with the workflow") for
 /// that reason alone, independent of whether the STATE payload itself is
@@ -39,7 +39,7 @@ public sealed class PersistedPayloadUpgradeTests
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(fixturePath));
         var capturedState = document.RootElement;
 
-        // The $type discriminator invariant K-027/K-121 depend on: wherever
+        // The $type discriminator invariant that decision/that decision depend on: wherever
         // it appears (here, inside the first edge of the graph), it must
         // still be the first property of ITS OWN object, or Microsoft Agent
         // Framework's own deserializer rejects the payload outright.

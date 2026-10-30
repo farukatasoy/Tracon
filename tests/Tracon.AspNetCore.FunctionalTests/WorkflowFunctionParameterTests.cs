@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A function node reads the running workflow's parameter values.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: MAF's <c>IWorkflowContext</c> has no way to seed a graph's initial
+/// MAF's <c>IWorkflowContext</c> has no way to seed a graph's initial
 /// state, so the values travel in the run's own ambient scope. An
 /// <c>AsyncLocal</c> that does not flow into the executor body makes the read
 /// return nothing, and only the real MAF graph can show it: a unit test that

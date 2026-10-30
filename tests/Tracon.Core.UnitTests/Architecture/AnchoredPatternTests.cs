@@ -4,7 +4,7 @@ using Tracon.Tests.Common;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Every pattern in <c>src/</c> that validates a whole value ends in <c>\z</c>, never in <c>$</c> (phase 260, F-756).
+/// Every pattern in <c>src/</c> that validates a whole value ends in <c>\z</c>, never in <c>$</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -61,7 +61,7 @@ public sealed class AnchoredPatternTests
         }
 
         // A scan that found nothing would pass for the wrong reason. 2026-10-29: eight whole-value patterns (the
-        // seven of F-756 and the audit chain key id).
+        // seven of an earlier fix and the audit chain key id).
         anchored.ShouldBeGreaterThanOrEqualTo(8);
 
         violations.ShouldBeEmpty(

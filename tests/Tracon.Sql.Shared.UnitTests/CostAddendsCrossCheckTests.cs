@@ -3,21 +3,21 @@ using System.Reflection;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The SQL twin of K-483: <c>SqlQueriesBase.CostAddends</c> and
+/// The SQL twin of that decision: <c>SqlQueriesBase.CostAddends</c> and
 /// <see cref="RunCost.Total"/> must sum the exact same terms.
 /// </summary>
 /// <remarks>
-/// K-483 was born when <c>InputCost + OutputCost</c> was hand-written seven
+/// The earlier decision was born when <c>InputCost + OutputCost</c> was hand-written seven
 /// times in C#; a third term (the cache charge) reached <see cref="RunCost.Total"/>
 /// but was missed in one spot, and a tenant with a cost ceiling could exceed it.
-/// Phase 94 gave the SQL side the same single source (<c>CostAddends</c>), but a
+/// An earlier change gave the SQL side the same single source (<c>CostAddends</c>), but a
 /// list can still drift from its C# twin silently: nothing stops someone from
 /// adding a fourth SQL addend without touching <see cref="RunCost"/>, or the
 /// reverse. This test makes that drift a build failure by comparing the two
 /// sets, not by asserting a hard-coded count on either side.
 /// </remarks>
 /// <remarks>
-/// Phase 132 (F-175) added applied-unit-price fields to <see cref="RunCost"/>
+/// An earlier change added applied-unit-price fields to <see cref="RunCost"/>
 /// (<c>*PricePerMillionTokens</c>) that are also <c>decimal?</c> but are rates,
 /// not amounts, and are deliberately never summed by <see cref="RunCost.Total"/>.
 /// The property filter below narrows to names ending in <c>Cost</c> so the
@@ -46,7 +46,7 @@ public sealed class CostAddendsCrossCheckTests
             runCostTerms,
             "SqlQueriesBase.CostAddends and the decimal? properties RunCost.Total() sums must name " +
             "the exact same terms -- a term on one side with no counterpart on the other is exactly " +
-            "how K-483 happened (a cost addend that reaches the SQL but not the C# sum, or vice versa).");
+            "how the double-counting bug happened (a cost addend that reaches the SQL but not the C# sum, or vice versa).");
     }
 
     private static string ToSnakeCase(string pascalCase)

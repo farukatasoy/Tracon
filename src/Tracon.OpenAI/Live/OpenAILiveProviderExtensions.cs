@@ -88,7 +88,7 @@ public static class OpenAILiveProviderExtensions
             ServiceDescriptor.Singleton<IValidateOptions<OpenAILiveOptions>, OpenAILiveOptionsValidator>());
 
         // The validator promises a STARTUP failure; without this line an invalid
-        // value surfaced only when the first session read the options (F-336).
+        // value surfaced only when the first session read the options.
         UnreadableConfigurationValidator.Add<OpenAILiveOptions>(services);
 
         // TryAdd: a consumer that registered its own live provider keeps theirs.

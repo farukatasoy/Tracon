@@ -1622,7 +1622,7 @@ public sealed class JsonFileRunStore : IRunStore
 
     /// <summary>
     /// The distinct currencies behind one money total. Amounts in two currencies are never
-    /// added (F-419): a total over more than one currency keeps no amount and no currency,
+    /// added: a total over more than one currency keeps no amount and no currency,
     /// and its count says why. Only a run that carries an amount counts, and letter case is
     /// not a second currency. Tracon's own stores do this in an <c>internal</c> helper; a
     /// store built on the published packages counts for itself, as here.

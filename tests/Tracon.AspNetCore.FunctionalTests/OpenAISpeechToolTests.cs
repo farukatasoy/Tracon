@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-579, open question 1 (answer A). <c>speak</c> and <c>transcribe</c> hand the voice options to the default
+/// <c>speak</c> and <c>transcribe</c> hand the voice options to the default
 /// engine: an ElevenLabs-style <c>OutputFormat</c> (<c>mp3_44100_128</c> by default) and the
 /// <c>SynthesisModelId</c> / <c>TranscriptionModelId</c> the host configured for ElevenLabs. An
 /// engine bound to one OpenAI model must neither send the format name to the service (which

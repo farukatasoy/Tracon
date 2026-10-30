@@ -3,7 +3,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// The <c>runs_v1</c> read contract view (Phase 111): a consumer's own SQL
+/// The <c>runs_v1</c> read contract view: a consumer's own SQL
 /// query against the published view must see exactly what
 /// <c>IRunStore</c> sees, through the store's own public surface -- not a
 /// duplicated hand-computed expectation.
@@ -70,7 +70,7 @@ public sealed class ReadViewContractTests(PostgresFixture fixture) : IAsyncLifet
     }
 
     /// <summary>
-    /// Phase 253: the cache-write charge is the fourth term of <c>total_cost</c>, and the view publishes
+    /// The cache-write charge is the fourth term of <c>total_cost</c>, and the view publishes
     /// the write columns beside the read ones -- a consumer reading the view directly must see the same
     /// number the store's own statistics report.
     /// </summary>

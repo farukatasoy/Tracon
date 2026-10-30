@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 262 (F-765, class scan): cancelling one run of a batch job through
+/// Cancelling one run of a batch job through
 /// <c>POST /api/runs/{id}/cancel</c> must not make the worker run the batch again.
 /// </summary>
 /// <remarks>

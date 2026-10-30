@@ -23,7 +23,6 @@ namespace Tracon;
 // MAAI001: Microsoft.Agents.AI.LoopEvaluator is marked "evaluation purposes
 // only". The suppression is deliberate and covers only this declaration, so a
 // change in MAF's loop API lands in a known, small set of files. Rationale:
-// docs/KARARLAR.md, decision K-020.
 #pragma warning disable MAAI001
 internal sealed record TraconLoopEvaluatorRegistration(
     string Kind,

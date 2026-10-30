@@ -7,7 +7,7 @@ namespace Tracon.Tests.Common;
 /// <remarks>
 /// <para>
 /// <c>TriggerableTimeProvider</c> fires every timer at once, so it cannot tell a
-/// two-second timeout from a ten-minute one. The timeout tests of phase 196 assert WHICH
+/// two-second timeout from a ten-minute one. The timeout tests of assert WHICH
 /// limit applied (a node's own over its registration's, a definition's run timeout over
 /// the installation's, the host's ceiling, a job's poll interval), so the due time has to
 /// matter.
@@ -20,7 +20,7 @@ namespace Tracon.Tests.Common;
 /// fired. Callbacks run outside the lock, on the advancing thread.
 /// </para>
 /// <para>
-/// Linked into the test projects that need it (K-411), not copied.
+/// Linked into the test projects that need it, not copied.
 /// </para>
 /// </remarks>
 internal sealed class ManualClock : TimeProvider

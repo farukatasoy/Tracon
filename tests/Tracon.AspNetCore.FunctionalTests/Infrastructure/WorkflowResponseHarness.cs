@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// The host, graphs and helpers of the workflow answer tests (phase 208): one graph per
+/// The host, graphs and helpers of the workflow answer tests: one graph per
 /// response mode, and a single-answer graph whose last step waits for the test.
 /// </summary>
 /// <remarks>

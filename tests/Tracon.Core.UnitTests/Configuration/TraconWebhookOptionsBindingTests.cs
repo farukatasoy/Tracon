@@ -7,11 +7,11 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// and a retry delay that cannot be read stops the application at startup.
 /// </summary>
 /// <remarks>
-/// 🚨 F-247: the binder dropped a delay it could not read, and a delay of zero or
+/// The binder dropped a delay it could not read, and a delay of zero or
 /// below, without a word — the retry ladder came out one rung short and the
 /// validator's <c>&lt;= TimeSpan.Zero</c> branch could not be reached from
 /// configuration. The rule now applies: an unreadable delay is left out and named
-/// with its key and its text at startup (F-572), and a delay that is not above zero
+/// with its key and its text at startup, and a delay that is not above zero
 /// is the validator's.
 /// </remarks>
 public sealed class TraconWebhookOptionsBindingTests
@@ -90,7 +90,7 @@ public sealed class TraconWebhookOptionsBindingTests
     [Fact]
     public void Code_that_rewrites_the_retry_delays_wins_over_an_unreadable_entry()
     {
-        // The failure comes from the bound value (K4, the F-385 precedent).
+        // The failure comes from the bound value (the precedent).
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Webhooks:RetryDelays:0"] = "soon",

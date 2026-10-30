@@ -3,7 +3,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// The <c>{prefix}runs_v1</c> read contract view (Phase 111): a consumer's
+/// The <c>{prefix}runs_v1</c> read contract view: a consumer's
 /// own SQL query against the published view must see exactly what
 /// <c>IRunStore</c> sees, through the store's own public surface -- not a
 /// duplicated hand-computed expectation.
@@ -18,7 +18,7 @@ public sealed class ReadViewContractTests(SqliteFixture fixture) : IAsyncLifetim
     private SqliteTestContext _context = null!;
 
     /// <summary>
-    /// SQLite stores a uuid as UPPERCASE text (K-191); a raw SQL literal built
+    /// SQLite stores a uuid as UPPERCASE text; a raw SQL literal built
     /// from the default (lowercase) <see cref="Guid.ToString()"/> never
     /// matches a stored row -- ordinal string comparison, no case folding.
     /// </summary>
@@ -63,7 +63,7 @@ public sealed class ReadViewContractTests(SqliteFixture fixture) : IAsyncLifetim
         });
 
         // 🚨 input_cost/output_cost are TEXT affinity, cached_input_cost is
-        // NUMERIC (docs/hafiza/sql-saglayicilari.md); the view CASTs each to
+        // NUMERIC; the view CASTs each to
         // REAL, so the value round-trips through double -- test amounts are
         // chosen to be exactly representable in binary floating point.
         var viewTotalCost = await _context.ScalarAsync<double?>(
@@ -80,7 +80,7 @@ public sealed class ReadViewContractTests(SqliteFixture fixture) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Phase 253: the cache-write charge is the fourth term of <c>total_cost</c>, and the view publishes
+    /// The cache-write charge is the fourth term of <c>total_cost</c>, and the view publishes
     /// the write columns beside the read ones -- a consumer reading the view directly must see the same
     /// number the store's own statistics report.
     /// </summary>

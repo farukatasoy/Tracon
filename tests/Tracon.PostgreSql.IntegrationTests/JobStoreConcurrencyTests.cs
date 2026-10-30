@@ -13,7 +13,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// In the in-memory store this guarantee is provided by a <c>lock</c> and is
 /// uncontested in a single process; the real proof can only come from a real
 /// PostgreSQL instance under real concurrency. Rationale:
-/// Phase 17, section "Testler".
+/// Section "Testler".
 /// </remarks>
 public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
 {
@@ -84,7 +84,7 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// Phase 240: the tenant ceiling is a count that is read, not locked, so workers that lease at the same
+    /// The tenant ceiling is a count that is read, not locked, so workers that lease at the same
     /// moment can take a tenant past it. The bound is the one the contract documents: by at most the number of
     /// workers (the ceiling less one, plus every worker that read a count under it).
     /// </summary>

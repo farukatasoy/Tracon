@@ -100,7 +100,7 @@ public sealed class DocumentChannelMessageBuilderTests
     [Fact]
     public void TryGetSummary_reads_the_marker_after_a_json_round_trip()
     {
-        // F-343: a SQL input store hands the marker back as JsonElement values.
+        // A SQL input store hands the marker back as JsonElement values.
         var message = DocumentChannelMessageBuilder.Build(new AgentRunDocument { Name = "policy.md", Content = "Refunds within 30 days." });
         DocumentChannelMessageBuilder.TryGetSummary(message.Contents.Single(), out var written).ShouldBeTrue();
 

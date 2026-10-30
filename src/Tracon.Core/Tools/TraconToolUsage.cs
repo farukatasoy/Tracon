@@ -66,7 +66,7 @@ public static class TraconToolUsage
     {
         ArgumentNullException.ThrowIfNull(usage);
 
-        // F-484: checked where it is reported, as a function node's item is (K-974). A
+        // Checked where it is reported, as a function node's item is. A
         // value its column cannot hold failed the insert later, and the failed insert
         // took the call's whole record with it.
         if (NonTokenCostAccumulator.Validate(usage) is not null)

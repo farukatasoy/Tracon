@@ -8,7 +8,7 @@ namespace Tracon.Embedded.Tests;
 
 /// <summary>
 /// Runs <c>samples/Tracon.Embedded</c>'s actual entry point end to end
-/// (Phase 85, F-140). Confirms the DoD this sample exists to prove: the six
+///Confirms the DoD this sample exists to prove: the six
 /// embedding points it customizes report as bound, a background job with no
 /// HTTP request behind it still carries the right tenant and user, and a
 /// congested event bridge drops events instead of slowing the run down.
@@ -51,7 +51,7 @@ public sealed class EmbeddedSampleTests
         builtIn["IRunEventSink"].ShouldBeFalse();
         builtIn["IAttachmentStorage"].ShouldBeFalse();
 
-        // This sample does not customize tool-approval presentation (phase 142)
+        // This sample does not customize tool-approval presentation
         // — it carries no tool that requires approval at all — so the seventh
         // point stays Tracon's own built-in default, unlike the other six.
         implementations["IToolApprovalPresenter"].ShouldBe("NullToolApprovalPresenter");

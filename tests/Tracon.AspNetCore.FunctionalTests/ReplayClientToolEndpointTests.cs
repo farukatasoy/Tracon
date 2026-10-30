@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Tests for replay's rejection of agents carrying a client-side tool
-/// (<c>AddClientTool</c>, phase 112). A client-side tool has no server-side
+/// (<c>AddClientTool</c>). A client-side tool has no server-side
 /// body and no recorded result, so no replay mode can answer a call to it —
 /// the run must be rejected at preparation time, before it starts.
 /// </summary>
@@ -66,8 +66,8 @@ public sealed class ReplayClientToolEndpointTests
     public async Task A_code_defined_agent_carrying_a_client_side_tool_is_also_rejected()
     {
         // The catalog path (PrepareFromCatalogAsync) is a SEPARATE code path
-        // from the persistent-definition one above; phase 47's approval-tool
-        // guard once missed this exact branch (HATA-S4-014).
+        // from the persistent-definition one above; the earlier change's approval-tool
+        // guard once missed this exact branch.
         await using var host = await TraconTestHost.StartAsync(builder =>
         {
             builder

@@ -8,7 +8,6 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// End-to-end tests for <c>POST /api/evals/{name}/cases/from-run/{runId}</c>
-/// (Phase 45, F-53).
 /// </summary>
 public sealed class RunToCasePromotionEndpointTests
 {
@@ -195,7 +194,7 @@ public sealed class RunToCasePromotionEndpointTests
     public async Task A_sessionless_run_can_also_be_promoted()
     {
         // The query is read from run_events (RunStarted.Text), not from the
-        // session (Phase 45): a sessionless run (no sessionId given) must
+        // session: a sessionless run (no sessionId given) must
         // also be promotable.
         await using var host = await TraconTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));

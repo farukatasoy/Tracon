@@ -68,7 +68,6 @@ internal sealed class JobWorkerBackgroundService(
         // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt.
         // PeriodicTimer gives one tick of delay, but that is NOT a guarantee:
         // with a short PollInterval, the migration may not have finished yet.
-        // Rationale: K-354.
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -103,7 +102,7 @@ internal sealed class JobWorkerBackgroundService(
 
     private async Task TickAsync(WorkerSlots slots, CancellationToken stoppingToken)
     {
-        // 🚨 Phase 87: while the process is draining, no NEW work starts --
+        // While the process is draining, no NEW work starts --
         // neither a schedule-dispatched job nor a leased one. Jobs already
         // running (RunJobAsync, fire-and-forget) are untouched here; they
         // finish on their own, and TraconDrainService's StopAsync is what
@@ -192,7 +191,7 @@ internal sealed class JobWorkerBackgroundService(
 
             // Taken BEFORE the call: the store starts the lease at or after
             // this moment, so the lease this worker counts on never outlasts
-            // the store's (F-348).
+            // the store's.
             var leaseRequestedAt = _clock.GetTimestamp();
 
             try
@@ -229,7 +228,7 @@ internal sealed class JobWorkerBackgroundService(
 
             if (!_runningJobs.TryAdd(job.Id, completion.Task))
             {
-                // 🚨 F-547: a job released for another attempt is leasable at once, so
+                // A job released for another attempt is leasable at once, so
                 // this loop can lease it again while the attempt that released it is
                 // still finishing here. The store has already counted the new attempt
                 // and set its lease; dropping it left the job Leased until the lease
@@ -350,7 +349,7 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
-        // 🚨 F-326: the lease query re-leases a job whose lease ran out and
+        // The lease query re-leases a job whose lease ran out and
         // counts the attempt, but only the handler-failure path below compared
         // the count with the limit. A worker that died mid-job (crash, SIGKILL,
         // a lost lease) therefore had its job run again with no limit — even
@@ -487,7 +486,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             // The job left Leased between the lease and here: it was cancelled,
             // or its lease went to another worker. Either way it is not this
-            // worker's to run (F-326; the result used to be ignored, and a job
+            // worker's to run (the result used to be ignored, and a job
             // cancelled in that window ran anyway).
             var latest = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false);
 
@@ -509,8 +508,8 @@ internal sealed class JobWorkerBackgroundService(
         // while the handler runs: a store error is retried under a live lease.
         using var leaseRenewal = StartLeaseRenewal(job.Id, options.LeaseDuration, leaseRequestedAt, stoppingToken);
 
-        // 🚨 F-323: the handler's token has THREE sources, kept apart so the
-        // outcome below can say which one fired (K-737): the worker stopping, the
+        // The handler's token has THREE sources, kept apart so the
+        // outcome below can say which one fired: the worker stopping, the
         // job cancelled (read every PollInterval by the watch below), and the
         // attempt's time limit. Before, only the first existed: a cancel reached
         // the handler only if it asked between items, and nothing bounded a job.
@@ -533,7 +532,7 @@ internal sealed class JobWorkerBackgroundService(
                 return current is null || current.Status == JobStatus.Cancelled;
             },
 
-            // F-367: a built-in handler tries a write that belongs to finished
+            // A built-in handler tries a write that belongs to finished
             // work again (a queued run's session) only while this lease holds.
             ProvableLeaseRemaining = () => leaseRenewal.ProvableRemaining,
             Signals = signals,
@@ -542,7 +541,7 @@ internal sealed class JobWorkerBackgroundService(
         Exception? failure = null;
 
         // Awaited below, never left behind: it cancels a source this method
-        // disposes (F-150).
+        // disposes.
         using var watchStop = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         var watch = WatchForCancellationAsync(job, options.PollInterval, cancelled, watchStop.Token);
 
@@ -551,7 +550,7 @@ internal sealed class JobWorkerBackgroundService(
         // handler starts reads it when it closes, to name the time limit.
         using (AmbientJobAttempt.Begin(signals))
         {
-            // 🚨 F-348: ONLY the handler sits in this try. The store calls that
+            // ONLY the handler sits in this try. The store calls that
             // write its outcome used to sit in it too, so a store error after a
             // handler that had succeeded counted as the handler's failure: with
             // attempts left the job was released and the handler ran again (a
@@ -581,7 +580,7 @@ internal sealed class JobWorkerBackgroundService(
         if (failure is null)
         {
             // A handler that returns normally completes its job, even past its time
-            // limit: it finished the work (F-323, open question 8-A).
+            // limit: it finished the work.
             await FinalizeSucceededAsync(job, window, startedAt, stoppingToken).ConfigureAwait(false);
         }
         else if (reason == JobStopReason.Cancelled)
@@ -718,7 +717,7 @@ internal sealed class JobWorkerBackgroundService(
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             // The handler returned, or the worker is stopping. Only then: a store's
-            // own timeout is a failed read and is logged above (K-840).
+            // own timeout is a failed read and is logged above.
         }
     }
 
@@ -822,7 +821,7 @@ internal sealed class JobWorkerBackgroundService(
     /// counts like any failed attempt.
     /// </para>
     /// </remarks>
-    // F-323, open question 7-A: a timed-out attempt is a failed attempt, leased again while attempts are left.
+    // A timed-out attempt is a failed attempt, leased again while attempts are left.
     private async Task FinalizeFailedAsync(
         JobRecord job,
         Exception exception,
@@ -834,7 +833,7 @@ internal sealed class JobWorkerBackgroundService(
     {
         var nonRetryable = exception is NonRetryableJobException;
 
-        // F-429: read from the failure's stable identity, never its text. An attempt
+        // Read from the failure's stable identity, never its text. An attempt
         // that reached its time limit is not judged by what the handler threw on its
         // way out (see the remarks).
         var final = nonRetryable
@@ -869,12 +868,12 @@ internal sealed class JobWorkerBackgroundService(
             safeMessage = SafeErrorText.ForPersistence(exception, correlationId);
         }
 
-        // 🚨 Cancelled is terminal (F-326). A handler that saw the cancel and
+        // 🚨 Cancelled is terminal. A handler that saw the cancel and
         // threw on its way out used to be treated as a plain failure: with
         // attempts left the job went back to Pending and ran again, on the
         // last attempt it became Failed. The store refuses both writes on a
         // terminal job too; this read is what keeps the metric honest, so a
-        // read that fails does not hold back the write below (F-348).
+        // read that fails does not hold back the write below.
         if (await TryReadStatusAsync(job, stoppingToken).ConfigureAwait(false) == JobStatus.Cancelled)
         {
             RecordJobMetric(job, JobStatus.Cancelled, startedAt);
@@ -1059,7 +1058,7 @@ internal sealed class JobWorkerBackgroundService(
     /// nothing about the job (observability must not break functionality).
     /// </para>
     /// </remarks>
-    // F-333: the job.* events were documented and accepted on subscribe, but no
+    // The job.* events were documented and accepted on subscribe, but no
     // code published them.
     private async Task PublishJobOutcomeAsync(JobRecord job, JobStatus status, string? errorMessage, CancellationToken stoppingToken)
     {
@@ -1211,7 +1210,7 @@ internal sealed class JobWorkerBackgroundService(
                     CreatedAt = now,
                 },
                 // The schedule's payload is copied as written; an attribution
-                // envelope in it travels to the handler with the job (F-364).
+                // envelope in it travels to the handler with the job.
                 JobPayload.Read(schedule.HandlerKey, schedule.Payload).Items,
                 stoppingToken).ConfigureAwait(false);
         }
@@ -1223,10 +1222,10 @@ internal sealed class JobWorkerBackgroundService(
         long leaseRequestedAt,
         CancellationToken stoppingToken)
     {
-        // A third, not a half (F-326): at half, the renewal after a missed one
+        // A third, not a half: at half, the renewal after a missed one
         // lands exactly on the expiry, so one transient store error was enough
         // to let another worker take the job. A third leaves one miss of margin
-        // — the same reason SingletonGuard renews at a third (K-743).
+        // — the same reason SingletonGuard renews at a third.
         var interval = leaseDuration / 3;
 
         if (interval <= TimeSpan.Zero)
@@ -1234,7 +1233,7 @@ internal sealed class JobWorkerBackgroundService(
             interval = TimeSpan.FromSeconds(30);
         }
 
-        // The margin is one renewal interval (F-348): finalization stops
+        // The margin is one renewal interval: finalization stops
         // retrying that long before the lease this worker can prove runs out,
         // which leaves room for a write still in flight and for clock skew
         // between workers.
@@ -1258,7 +1257,7 @@ internal sealed class JobWorkerBackgroundService(
 
             while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
             {
-                // 🚨 The catch is PER TICK (F-326). One try around the whole loop
+                // 🚨 The catch is PER TICK. One try around the whole loop
                 // ended renewal for good on the first transient store error: the
                 // handler kept running, the lease ran out, and another worker
                 // leased the job and ran it a second time beside the first.
@@ -1283,7 +1282,7 @@ internal sealed class JobWorkerBackgroundService(
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             // The job finished, or the worker is shutting down. Only then: a
-            // store's own timeout is a renewal failure and is logged above (K-840).
+            // store's own timeout is a renewal failure and is logged above.
         }
     }
 

@@ -58,7 +58,7 @@ public sealed class AgentExtensionContext
     /// </summary>
     // MAAI001: Microsoft.Agents.AI.HarnessAgentOptions members are marked "evaluation
     // purposes only". Naming the type here does not need the suppression; using its
-    // members in the caller's own code does. Rationale: docs/KARARLAR.md, decision K-020.
+    // members in the caller's own code does.
     public HarnessAgentOptions? HarnessAgentOptions { get; }
 
     /// <summary>

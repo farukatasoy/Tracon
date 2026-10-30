@@ -96,7 +96,7 @@ internal static class WorkflowGraphReader
             return agent.Agent.Name;
         }
 
-        // An agent step inside a mixed Sequential chain (phase 71) is bound
+        // An agent step inside a mixed Sequential chain is bound
         // as a WorkflowAgentStepExecutor, not an AIAgentBinding, so there is
         // no Agent property to read - but WorkflowDefinitionCompiler always
         // sets its id to the agent's own catalog name, so the id already IS
@@ -106,7 +106,7 @@ internal static class WorkflowGraphReader
             return id;
         }
 
-        // 🚨 Composite ids are not parsed. Measured (phase 16): the `Concurrent`
+        // 🚨 Composite ids are not parsed. Measured: the `Concurrent`
         // pattern adds a `Batcher/{name}_{id}` node for every agent, and the
         // trailing id fragment has the same format; without checking for the
         // slash, the aggregator node would be mistaken for an agent and the
@@ -146,7 +146,7 @@ internal static class WorkflowGraphReader
             return WorkflowNodeKind.Agent;
         }
 
-        // A registered code function (phase 71). The bound type is literally
+        // A registered code function. The bound type is literally
         // FunctionExecutor<TInput,TOutput> - reflected as "FunctionExecutor`2"
         // - so this is a reliable signal, unlike guessing from the node id.
         if (binding.ExecutorType.Name.StartsWith("FunctionExecutor", StringComparison.Ordinal))

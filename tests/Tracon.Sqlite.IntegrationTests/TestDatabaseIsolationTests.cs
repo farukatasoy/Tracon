@@ -4,7 +4,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// The harness gives every table prefix its own SQLite writer lock (F-307).
+/// The harness gives every table prefix its own SQLite writer lock.
 /// </summary>
 /// <remarks>
 /// <para>

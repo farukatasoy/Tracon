@@ -5,8 +5,8 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// The rule that every text a binder cannot read stops the host at startup (F-572),
-/// across the scalar types and across the list keys (F-508).
+/// The rule that every text a binder cannot read stops the host at startup,
+/// across the scalar types and across the list keys.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -113,7 +113,7 @@ public sealed class UnreadableConfigurationValidatorTests
     [Fact]
     public void Code_that_assigns_the_option_after_binding_wins_over_an_unreadable_value()
     {
-        // K-993: the failure holds while the option still has what the binder left.
+        // The failure holds while the option still has what the binder left.
         var values = Keys(("Tracon:Tools:DefaultMaxOutputBytes", "10MB"), ("Tracon:RateLimit:Enabled", "evet"));
 
         SectionBinding.StartsCleanly(values, static (builder, _) =>
@@ -189,7 +189,7 @@ public sealed class UnreadableConfigurationValidatorTests
     [InlineData("Tracon:ContentProtection:Columns", "RunInput")]
     public void A_list_key_that_holds_one_value_is_refused_and_the_message_shows_the_entry_form(string key, string text)
     {
-        // F-508: the binder reads entries (key:0, key:1). One value on the key itself used to be ignored
+        // The binder reads entries (key:0, key:1). One value on the key itself used to be ignored
         // without a word, so "EnvironmentAllowList=PATH" kept the shipped list.
         var failure = SectionBinding.FailsAtStartup(Keys((key, text)));
 

@@ -99,7 +99,7 @@ public sealed class GoogleProviderExtensionsTests
     [Fact]
     public void Relative_address_from_configuration_is_rejected()
     {
-        // HATA-S3-003: Bind() used to leave Endpoint unassigned whenever
+        // Bind() used to leave Endpoint unassigned whenever
         // Uri.TryCreate(..., UriKind.Absolute, ...) failed; the value was silently
         // dropped before it ever reached the validator.
         var configuration = new ConfigurationBuilder()
@@ -120,7 +120,7 @@ public sealed class GoogleProviderExtensionsTests
     [Fact]
     public void Unnamed_model_from_configuration_is_rejected()
     {
-        // HATA-S3-004: BindModels() used to never add an entry with an empty Name
+        // BindModels() used to never add an entry with an empty Name
         // to the list; the validator never saw an empty-named entry at all.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)

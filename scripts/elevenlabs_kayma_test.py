@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""`elevenlabs-kayma.py` testleri (F-576).
+"""`elevenlabs-kayma.py` testleri.
 
 Betik canli belgeye karsi agdan koşar ve CI'da kosmaz; mantigi (`$ref` cozumu, birlesim
 duzlestirme, alan yolu ve tip karsilastirmasi) ise yalnizca elle bir negatif kontrolle
-(`MT-MM-141` adim 2) sinaniyordu. Burada kucuk bir OpenAPI parcasi uzerinde sinanir.
+(manuel kabul adimi) sinaniyordu. Burada kucuk bir OpenAPI parcasi uzerinde sinanir.
 """
 from __future__ import annotations
 

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269): the package's
+// Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -11,12 +11,12 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-598 — the model's request fields and the tool-call loop come from the definition: a definition saved
+/// The model's request fields and the tool-call loop come from the definition: a definition saved
 /// over HTTP carries each field to the provider's request, and the definition reads back as it was saved.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured 2026-10-20 before this phase: <c>Seed</c>, <c>TopK</c>, the stop sequences, the penalties, the
+/// Measured 2026-10-20 before this change: <c>Seed</c>, <c>TopK</c>, the stop sequences, the penalties, the
 /// tool mode and <c>AllowMultipleToolCalls</c> reached the provider only when an agent extension set them,
 /// where no definition version, experiment variant or replay could see them, and <c>Reasoning.Output</c>
 /// reached the provider by no route at all.

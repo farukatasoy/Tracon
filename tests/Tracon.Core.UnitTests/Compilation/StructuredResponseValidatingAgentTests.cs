@@ -7,9 +7,9 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <summary>
 /// Unit-level coverage of <see cref="StructuredResponseValidatingAgent"/>: the
 /// gating logic, the built-in well-formedness check, and the fail-closed rule
-/// (docs/131, 131.1-131.3). HTTP/DI/run-record behavior is covered separately
+///HTTP/DI/run-record behavior is covered separately
 /// in <c>Tracon.AspNetCore.FunctionalTests</c> — see
-/// <c>.agents/ortak/test-seviyeleri.md</c>.
+/// <c>.md</c>.
 /// </summary>
 public sealed class StructuredResponseValidatingAgentTests
 {
@@ -86,7 +86,7 @@ public sealed class StructuredResponseValidatingAgentTests
         validator.LastContext.Kind.ShouldBe(AgentResponseFormatKind.Json);
     }
 
-    // --- F-329: the answer is the last assistant message, not the joined text ---
+    // --- an earlier fix: the answer is the last assistant message, not the joined text ---
 
     [Fact]
     public async Task Text_written_before_the_final_answer_is_not_validated_as_part_of_it()
@@ -219,7 +219,7 @@ public sealed class StructuredResponseValidatingAgentTests
         });
 
         // Every chunk reached the caller BEFORE the rejection - content
-        // already streamed to the client cannot be un-sent (docs/131 §131.5).
+        // already streamed to the client cannot be un-sent.
         seen.ShouldBe(["{\"ok\"", ":false}"]);
         exception.Message.ShouldBe("ok must be true");
         validator.LastContext!.ResponseText.ShouldBe("{\"ok\":false}");

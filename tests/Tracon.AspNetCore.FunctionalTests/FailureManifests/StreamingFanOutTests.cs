@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests.FailureManifests;
 
 /// <summary>
 /// Failure manifest: <strong>many subscribers read one run's recorded
-/// stream</strong> (Phase 157).
+/// stream</strong>.
 /// </summary>
 /// <remarks>
 /// <para>

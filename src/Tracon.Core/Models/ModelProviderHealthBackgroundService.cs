@@ -34,7 +34,7 @@ internal sealed class ModelProviderHealthBackgroundService(
             return;
         }
 
-        // Singleton execution selection (Phase 42): when disabled by default,
+        // Singleton execution selection: when disabled by default,
         // guard.IsHeld is always true and RunAsync returns without querying the store.
         var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "model-provider-health", logger);
         var guardTask = guard.RunAsync(stoppingToken);

@@ -4,7 +4,7 @@ using Microsoft.Extensions.AI;
 namespace Tracon.OpenAIShared.Tests;
 
 /// <summary>
-/// What the strict decorator hands to the client below it (Phase 245).
+/// What the strict decorator hands to the client below it.
 /// </summary>
 /// <remarks>
 /// Linked into <c>Tracon.OpenAI.UnitTests</c> and <c>Tracon.Azure.UnitTests</c>. These tests stop at the

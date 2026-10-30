@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Runs;
 
 /// <summary>
-/// The message that rejects a run's labels is text a caller can read (F-241).
+/// The message that rejects a run's labels is text a caller can read.
 /// </summary>
 public sealed class RunLabelsTests
 {

@@ -2,7 +2,7 @@ import type * as Generated from '@tracon/client';
 
 /**
  * Response types with fields the generated type gets wrong in two specific,
- * verified ways — see Phase 84, section 84.6.
+ * verified ways
  *
  * 1. **Missing `required`.** ASP.NET Core's OpenAPI generator marks a
  *    non-nullable property `required` only when the C# property has no
@@ -26,7 +26,7 @@ import type * as Generated from '@tracon/client';
  * `required` annotations across a dozen-plus files, or auditing why the
  * OpenAPI generator adds the numeric-string allowance), not a side effect
  * of generating a TypeScript client — deferred to a follow-up candidate
- * (Open Question 4, option A). This file is the frontend's side of that
+ * (option A). This file is the frontend's side of that
  * deferral: `Fix` below narrows exactly the listed fields so the 43
  * migrated screens read them the same way the old hand-written `types.ts`
  * did, with no new `?.`/`!`/`Number(...)` noise at any call site.

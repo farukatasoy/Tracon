@@ -63,7 +63,7 @@ internal sealed class EvalJobHandler(
 
         SuiteOutcome outcome;
 
-        // 🚨 F-365: ONLY the cases sit in this try. The write that closes the
+        // ONLY the cases sit in this try. The write that closes the
         // run sat in it too, so a store error while recording a finished eval
         // was caught here as the eval's own failure: the run was written Failed
         // and the error thrown on, and the worker ran the job again or dropped it.
@@ -83,7 +83,7 @@ internal sealed class EvalJobHandler(
                     suiteName);
             }
 
-            // F-429: the write that records the failed attempt is tried again, and a
+            // The write that records the failed attempt is tried again, and a
             // store error it still meets is logged, never thrown: thrown, it replaced
             // the attempt's own failure, and the worker judged the store error instead
             // (a final failure was run again).
@@ -116,7 +116,7 @@ internal sealed class EvalJobHandler(
 
             // The job is retried after this throw while attempts remain, and a
             // retry that completes overwrites the row: only the last attempt's
-            // failure is the eval's outcome. A final failure (F-429) is the last
+            // failure is the eval's outcome. A final failure is the last
             // attempt whatever attempts are left: the worker does not run it again.
             if (FinalFailure.IsFinal(exception)
                 || context.Job.Attempt >= (context.Job.MaxAttempts ?? schedulingOptions?.CurrentValue.MaxAttempts ?? 1))
@@ -173,7 +173,7 @@ internal sealed class EvalJobHandler(
         // AgentParameterGate on the HTTP side; such an agent has no schema and
         // every case below runs against the shared `agent`.
         //
-        // Read BEFORE the row is marked running (F-331): a pinned version's
+        // Read BEFORE the row is marked running: a pinned version's
         // model is that version's, not the current definition's the catalog
         // lists.
         //
@@ -195,8 +195,7 @@ internal sealed class EvalJobHandler(
             .ConfigureAwait(false);
 
         // Eval is independent of the concept of an experiment: it runs against
-        // a fixed version, not a variant. Rationale: Phase 19,
-        // open question 2.
+        // a fixed version, not a variant.,
         var agent = agentVersion is { } version
             ? await catalog.ResolveAsync(suite.AgentName, version, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"Version {version} of agent '{suite.AgentName}' was not found.")
@@ -338,7 +337,7 @@ internal sealed class EvalJobHandler(
     /// The payload is a summary (counts and tokens), never a case's input or
     /// output. A failure here is logged and changes nothing about the run.
     /// </remarks>
-    // F-333: eval.completed was documented and accepted on subscribe, but no code
+    // eval.completed was documented and accepted on subscribe, but no code
     // published it.
     private async ValueTask PublishCompletedAsync(string tenantId, EvalRun evalRun, string suiteName, string? agentName)
     {
@@ -485,7 +484,7 @@ internal sealed class EvalJobHandler(
                             RunId = runId,
                             Kind = RunKind.Eval,
 
-                            // F-331: the case run measures the PINNED version; without
+                            // The case run measures the PINNED version; without
                             // this its row fell back to the descriptor's version.
                             AgentVersion = agentVersion,
                             ParameterValues = boundValues,
@@ -521,7 +520,7 @@ internal sealed class EvalJobHandler(
             inputTokens += response.Usage?.InputTokenCount ?? 0;
             outputTokens += response.Usage?.OutputTokenCount ?? 0;
 
-            // F-389: a case runs without a session, so an approval it stops at can
+            // A case runs without a session, so an approval it stops at can
             // never be answered. The case fails without being judged, and its run
             // is closed instead of waiting forever.
             if (SessionlessApprovalRun.StoppedAtApproval(response.Messages))
@@ -596,7 +595,7 @@ internal sealed class EvalJobHandler(
     /// <summary>The document name a plain-text <see cref="EvalCase.Context"/> reaches the agent under.</summary>
     internal const string ContextDocumentName = "context";
 
-    // 🚨 F-343: the case used to run as RunAsync(Query) and the context reached
+    // The case used to run as RunAsync(Query) and the context reached
     // the evaluator only. The agent under test never saw the reference text a
     // production run carried, so a promoted case measured a different input
     // than the run it stood for.

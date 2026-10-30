@@ -12,7 +12,6 @@ namespace Tracon;
 // The suppression covers the whole file because the file exists to implement
 // that API. If MAF changes it, only this file and its two neighbours
 // (LoopEvaluatorRegistry, AgentDefinitionCompiler.Agents) need updating.
-// Rationale: docs/KARARLAR.md, decision K-020.
 #pragma warning disable MAAI001
 
 /// <summary>
@@ -191,7 +190,6 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                 // Our own cancellation passes the filter: the run itself is
                 // ending, and that is not a criterion failure. A criterion's own
                 // timeout (TaskCanceledException with our token intact) is one
-                // (K-840).
                 failedCriterion = criterion.Kind;
                 verdicts.Add(Verdict(criterion.Kind, LoopCriterionVerdictPayload.Failed, trail));
 
@@ -259,7 +257,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
             // The run ends in the exception below. Without this its usage, cost and
             // quota entry would say the loop spent nothing. 🚨 Correct only while the
             // recorder writes NO usage for an exception-ended run: if it starts
-            // keeping the streamed usage there (F-317), this sum counts it twice.
+            // keeping the streamed usage there, this sum counts it twice.
             TraconRunContext.Current?.ExtraUsage?.Add(usage);
         }
 

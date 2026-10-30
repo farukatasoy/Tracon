@@ -67,7 +67,7 @@ internal static class WorkflowEventMapper
                 Payload = DescribeCompletion(completed),
             },
 
-            // F-334 (K-640): the exception's own message can carry a host:port
+            // The exception's own message can carry a host:port
             // or a request detail its producer put there; the runner passes
             // the safe text it logged instead.
             ExecutorFailedEvent failed => new RunEventDraft(RunEventType.ExecutorFailed)
@@ -88,7 +88,7 @@ internal static class WorkflowEventMapper
 
             // The payload is enough to show the request in the UI: port, types,
             // text, and which input field is being asked for. Pending requests
-            // are read from this event; there is no separate table (phase 16).
+            // are read from this event; there is no separate table.
             RequestInfoEvent request => new RunEventDraft(RunEventType.WorkflowRequest)
             {
                 Text = request.Request.RequestId,
@@ -112,7 +112,7 @@ internal static class WorkflowEventMapper
                 Text = DescribeOutput(output),
             },
 
-            // F-589: an event Tracon has no type for is RECORDED, not dropped. A code
+            // An event Tracon has no type for is RECORDED, not dropped. A code
             // workflow can raise its own WorkflowEvent, and a later MAF can add a type;
             // either way the run record must show it happened.
             _ => new WorkflowEventMapping(DescribeUnrecognized(workflowEvent, maxPayloadLength), IsKnown: false),

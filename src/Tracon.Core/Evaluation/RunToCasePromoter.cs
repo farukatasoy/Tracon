@@ -2,11 +2,11 @@ using Microsoft.Extensions.AI;
 
 namespace Tracon;
 
-// 🚨 F-343: phase 45 read the RunStarted text alone (K-300, decided before phase
-// 47 recorded inputs in run_inputs). A query over MaxPayloadLength came out cut
+// The first version read the RunStarted text alone (decided before inputs
+// were recorded in run_inputs). A query over MaxPayloadLength came out cut
 // with the writer's marker inside it, and the documents and the parameter values
 // the run carried were dropped - the eval then measured a different input than
-// the run it stood for. The earlier-run check is K-301.
+// the run it stood for.
 
 /// <summary>
 /// Promotes a production run to an evaluation case.

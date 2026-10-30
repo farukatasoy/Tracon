@@ -11,7 +11,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An MCP server asks the user for input in the middle of a tool call (elicitation, Phase 235): the run
+/// An MCP server asks the user for input in the middle of a tool call (elicitation): the run
 /// ends waiting, the request reaches the caller, and the answer — the next turn's input — runs the tool again.
 /// </summary>
 /// <remarks>
@@ -191,7 +191,7 @@ public sealed class McpElicitationTests
     [Fact]
     public async Task A_child_agent_cannot_ask_the_user()
     {
-        // K-103: an agent below the root of a tree cannot wait in the middle of it. The request is declined
+        // An agent below the root of a tree cannot wait in the middle of it. The request is declined
         // and the server decides; the root run neither waits nor fails.
         await using var server = await ElicitingMcpServer.StartAsync();
         await using var host = await StartAsync(server, "ask_name", withChildAgent: true);
@@ -311,7 +311,7 @@ public sealed class McpElicitationTests
     [Fact]
     public async Task An_answer_that_cannot_be_audited_is_not_applied()
     {
-        // K-089, K-370: an answer releases what a server asked for into a tool call. A decision that cannot be
+        // An answer releases what a server asked for into a tool call. A decision that cannot be
         // recorded is not carried out — the tool does not run again and the run does not claim it did.
         var audit = new SwitchableAuditLog();
 

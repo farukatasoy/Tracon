@@ -37,7 +37,7 @@ public sealed class BrowserFixture : IAsyncLifetime
                 "On Linux, system dependencies may also be needed: playwright install --with-deps chromium");
         }
 
-        // 🚨 Phase 184 moved the waits to web-first assertions (Expect), whose
+        // 🚨 moved the waits to web-first assertions (Expect), whose
         // own default timeout is 5 seconds - the waits they replaced had
         // Playwright's 30. A shorter bound is a claim that this machine is
         // fast, and a loaded full-solution run proves it false; the bound

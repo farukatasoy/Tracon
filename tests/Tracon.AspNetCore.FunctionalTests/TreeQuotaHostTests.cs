@@ -9,7 +9,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A tenant's quota is read where a workflow's work begins, over the real host (F-529): a chain of paid nodes or
+/// A tenant's quota is read where a workflow's work begins, over the real host: a chain of paid nodes or
 /// agent steps stops once the tenant's cost quota is spent, and another tenant's quota is another counter.
 /// </summary>
 /// <remarks>

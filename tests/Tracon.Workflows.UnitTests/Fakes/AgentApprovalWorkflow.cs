@@ -11,7 +11,7 @@ namespace Tracon.Workflows.UnitTests.Fakes;
 /// <c>summarize-and-approve</c> workflow would be.
 /// </summary>
 /// <remarks>
-/// MT-WF-062 (defect): a <c>respond</c> call re-triggered the entry node FROM
+/// A <c>respond</c> call re-triggered the entry node FROM
 /// SCRATCH. The plain executor in <see cref="ApprovalWorkflow"/> never catches
 /// this — only an agent-host node triggered by a <c>TurnToken</c> (this class)
 /// makes the root cause visible.

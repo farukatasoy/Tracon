@@ -4,7 +4,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Phase 218. The <c>authorization_configuration_key</c> column moves into the
+/// The <c>authorization_configuration_key</c> column moves into the
 /// <c>header_configuration_keys</c> map and is dropped, with the rule the
 /// connection code applied before: OAuth rows and rows whose map already names
 /// <c>Authorization</c> keep their map, an empty key moves nothing.
@@ -18,7 +18,7 @@ namespace Tracon.Sqlite.IntegrationTests;
 /// <para>
 /// 🚨 SQLite's <c>json_each</c> returns its own <c>key</c> and <c>value</c>
 /// columns and the outer table carries the PREFIX; both are measured here
-/// instead of trusted (<c>docs/hafiza/sqlite.md</c>).
+/// instead of trusted (<c>.md</c>).
 /// </para>
 /// </remarks>
 public sealed class RemoveAuthorizationConfigurationKeyMigrationTests(SqliteFixture fixture)

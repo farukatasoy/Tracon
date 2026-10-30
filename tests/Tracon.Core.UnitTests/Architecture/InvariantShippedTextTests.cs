@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Found on a tr-TR machine while running phase 153's sample-app check:
+/// Found on a tr-TR machine while running the earlier change's sample-app check:
 /// <c>tracon eval</c> printed "in 3,7 s". The decimal comma is only the
 /// visible half; the same class writes "0,004500" into a stored run error and
 /// "%50" into a ProblemDetails body, so the same deployment reads differently

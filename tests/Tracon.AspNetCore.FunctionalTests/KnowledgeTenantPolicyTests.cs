@@ -15,7 +15,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-416: the <c>search_knowledge</c> query and the document upload called the
+/// The <c>search_knowledge</c> query and the document upload called the
 /// registered embedding generator and read neither. The generator's own provider
 /// name cannot be trusted for the policy: measured, the OpenAI and the Azure OpenAI
 /// generators both report <c>openai</c>. The provider is named by
@@ -30,8 +30,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 public sealed class KnowledgeTenantPolicyTests
 {
     private const string EmbeddingProvider = "azure-openai";
-    private static readonly Uri SearchUri = new("/tracon/api/knowledge/docs/search", UriKind.Relative);
-    private static readonly Uri UploadUri = new("/tracon/api/knowledge/docs/documents", UriKind.Relative);
+    private static readonly Uri SearchUri = new("/tracon/api/knowledge/kb/search", UriKind.Relative);
+    private static readonly Uri UploadUri = new("/tracon/api/knowledge/kb/documents", UriKind.Relative);
 
     [Fact]
     public async Task Search_refuses_an_embedding_provider_the_tenant_policy_forbids()
@@ -108,7 +108,7 @@ public sealed class KnowledgeTenantPolicyTests
     [Fact]
     public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_is_refused_the_embedding_provider()
     {
-        // F-254: the embedding access check is one of the callers that must read the switch.
+        // The embedding access check is one of the callers that must read the switch.
         var embeddings = new CountingEmbeddingGenerator();
         await using var host = await StartAsync(
             embeddings,
@@ -226,7 +226,7 @@ public sealed class KnowledgeTenantPolicyTests
                     Name = "knowledge-agent",
                     Instructions = "Answer from the knowledge base.",
                     Model = new ModelBinding { Provider = "knowledge-model", Model = "knowledge-1" },
-                    Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "docs" },
+                    Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "kb" },
                 }));
 
         // The agent's own model provider is allowed; only the embedding provider is not.
@@ -250,7 +250,7 @@ public sealed class KnowledgeTenantPolicyTests
         invocation.Error.ShouldNotBeNull().ShouldContain($"'{EmbeddingProvider}'");
         embeddings.Calls.ShouldBe(0);
 
-        // Phase 246 (F-688): the refusal is a sentence Tracon wrote for the model, so it reaches the model as the result of
+        // The refusal is a sentence Tracon wrote for the model, so it reaches the model as the result of
         // the call (the explained-failure layer of the tool chain), not as the framework's "Error: Function failed.".
         var told = string.Join(
             "\n",

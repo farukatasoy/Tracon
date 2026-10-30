@@ -102,7 +102,7 @@ internal sealed class SqlStatePreflightReader : IStatePreflightReader
                 Id = isSessions ? reader.GetString(0) : DbHelpers.ToGuid(reader.GetValue(0)).ToString("d", CultureInfo.InvariantCulture),
                 SchemaGeneration = DbHelpers.GetNullableInt32(reader, 1),
                 MafVersion = DbHelpers.GetNullableString(reader, 2),
-                // Both `sessions.state` and, since F-401,
+                // Both `sessions.state` and,
                 // `workflow_checkpoints.state` go through the at-rest protector.
                 State = ParseState(Unprotect(reader.GetString(3))),
             },

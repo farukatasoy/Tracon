@@ -3,7 +3,7 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <!--
-    Phase 183: the packages ship net8.0;net9.0;net10.0, so a REPRESENTATIVE set
+    The packages ship net8.0;net9.0;net10.0, so a REPRESENTATIVE set
     of test projects runs on every one of those frameworks. The rest of the tree
     stays on net10.0 only - the whole tree on three frameworks would triple CI
     for projects (hosting, E2E, Docker) whose framework-specific behaviour the
@@ -12,7 +12,7 @@
     🚨 The list lives HERE, not in the csproj files. A csproj body is read AFTER
     this file, so a csproj that writes <TargetFrameworks> must also clear the
     singular <TargetFramework> assigned here; forgetting that builds net10.0
-    only, silently (the mirror image of K-263). One list also gives
+    only, silently (the mirror image of that decision). One list also gives
     `scripts/kapi.py` a single place to read the set from.
 
     TraconTestTargetFrameworks is a build input. The windows-latest CI leg sets it
@@ -42,7 +42,7 @@
     <!-- Suppress the warning NuGet emits for non-packable projects when `dotnet pack` runs on the solution. -->
     <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
     <!--
-      Phase 157: Tracon.WorkerHarness lives under tests/ but is not a test
+      Tracon.WorkerHarness lives under tests/ but is not a test
       project - it is the SUBJECT of the two-process failure proof, the worker
       the test kills. It sets IsTestHarnessProject=true and therefore gets none
       of the xunit/MTP wiring below.
@@ -81,9 +81,9 @@
   </ItemGroup>
 
   <!--
-    Phase 184: the condition wait a test polls with instead of sleeping a fixed
+    The condition wait a test polls with instead of sleeping a fixed
     time (tests/Shared/Waiting/WaitUntil.cs). Linked into every test project,
-    not copied (K-411) - one copy replaces the private poll loops that used to
+    not copied - one copy replaces the private poll loops that used to
     live in each test class. The namespace is a global using so a test reaches
     for WaitUntil as readily as it used to reach for Task.Delay.
   -->
@@ -93,7 +93,7 @@
   </ItemGroup>
 
   <!--
-    Phase 183: every multi-targeted project proves that each of its legs ran on
+    Every multi-targeted project proves that each of its legs ran on
     the runtime it was built for. A net8.0 leg rolled forward onto a newer
     runtime would pass every other test and prove nothing about net8.0.
   -->

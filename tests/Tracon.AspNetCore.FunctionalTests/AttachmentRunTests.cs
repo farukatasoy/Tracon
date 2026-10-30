@@ -11,8 +11,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Attaching previously uploaded attachments to a run.
 /// </summary>
 /// <remarks>
-/// The rule these tests verify is the phase's central design decision (see
-/// Phase 14, section 14.1): in chat history, an attachment
+/// The rule these tests verify is the change's central design decision (see
+/// An earlier change): in chat history, an attachment
 /// lives as a small reference, but it resolves to real bytes right before the
 /// model call. <see cref="FakeModelProvider.Requests"/> shows what ACTUALLY
 /// reached the model; seeing a <see cref="DataContent"/> proves the resolution worked.
@@ -51,7 +51,7 @@ public sealed class AttachmentRunTests
         // reach the model; everything must be resolved to DataContent.
         lastRequest.SelectMany(static message => message.Contents).OfType<UriContent>().ShouldBeEmpty();
 
-        // F-580 class scan: the uploaded file's name reached the model as nothing;
+        // The uploaded file's name reached the model as nothing;
         // a provider sends it with a file part (the OpenAI client invents one).
         // The carrier property itself stays inside Tracon.
         content.Name.ShouldBe("test.png");

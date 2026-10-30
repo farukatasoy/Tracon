@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-579: the speech bridge is only as honest as the wire. A test that asserts a fake
+/// The speech bridge is only as honest as the wire. A test that asserts a fake
 /// <c>ITextToSpeechClient</c> received an option proves nothing about the request the OpenAI
 /// client sends, so these tests drive the real <c>OpenAIClient</c> against this server and
 /// assert the JSON body (<see cref="SpeechBodies"/>) and the transcription form

@@ -23,13 +23,13 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// call to its package is NOT written by hand: it is read from the sources
 /// (<c>public static ITraconBuilder Name(this ITraconBuilder</c>) and from the meta
 /// package's project references. When the meta package's composition changes, the
-/// pages go red by themselves. Phase 256 moved PostgreSQL out of the meta package
+/// pages go red by themselves. moved PostgreSQL out of the meta package
 /// and left nine pages calling <c>UsePostgreSql</c> without the package name; the
 /// same class for any other call is closed here.
 /// </para>
 /// <para>
 /// <b>One tool factory.</b> A tool takes its dependency when it is built, because Microsoft
-/// Agent Framework gives it an empty service provider at call time (K-218). Until phase 258
+/// Agent Framework gives it an empty service provider at call time. Until an earlier change
 /// the only way was a service registration that returned a <c>TraconToolRegistration</c> from
 /// the provider; <c>AddTool(provider =&gt; ...)</c> is the same thing on the Tracon chain. A page
 /// that teaches the old form sends a reader away from the chain the rest of the site uses. The
@@ -109,7 +109,7 @@ public sealed class ShippedDocumentationConsistencyTests
     public void The_old_tool_registration_pattern_matches_the_forms_it_exists_to_catch()
     {
         // A pattern that matches nothing passes every page. These are the five spellings the site and the
-        // sources taught before phase 258.
+        // sources taught.
         string[] oldForms =
         [
             "services.AddSingleton(provider => new TraconToolRegistration(new SpeakTool(provider)));",

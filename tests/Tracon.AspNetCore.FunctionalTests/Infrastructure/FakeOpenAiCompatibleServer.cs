@@ -12,8 +12,8 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// </summary>
 /// <remarks>
 /// Ollama is not installed on this machine; this stand-in server verifies
-/// F-05's "local, keyless server" mechanism (connect + unauthenticated request)
-/// over a real socket. See Phase 8, section 8.2
+/// the "local, keyless server" mechanism (connect + unauthenticated request)
+/// over a real socket.
 /// and its DoD note.
 /// </remarks>
 internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
@@ -34,7 +34,7 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
 
     /// <summary>The JSON body of every request to <c>/v1/chat/completions</c>, in order.</summary>
     /// <remarks>
-    /// F-598: what a definition field puts on the wire is proven by the body the real SDK sends
+    /// What a definition field puts on the wire is proven by the body the real SDK sends
     /// through the whole host, not by the options object handed to it.
     /// </remarks>
     public List<JsonObject> ChatCompletionBodies { get; } = [];
@@ -47,7 +47,7 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     /// interpreter call, a file search call), or <see langword="null"/> for the message alone.
     /// </summary>
     /// <remarks>
-    /// F-603: what a hosted tool call becomes in the run record depends on the content types the real adapter
+    /// What a hosted tool call becomes in the run record depends on the content types the real adapter
     /// builds from the provider's items, so the items are answered over the wire and parsed by the real SDK.
     /// </remarks>
     public JsonArray? ResponsesOutputBeforeMessage { get; set; }
@@ -57,7 +57,7 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     /// for none.
     /// </summary>
     /// <remarks>
-    /// F-773: what a citation becomes in the run record depends on the annotation types the real adapter builds
+    /// What a citation becomes in the run record depends on the annotation types the real adapter builds
     /// from the provider's items, and on how many times a stream shows them.
     /// </remarks>
     public JsonArray? ResponsesAnnotations { get; set; }
@@ -86,7 +86,7 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     /// </summary>
     /// <remarks>
     /// The body decides the exception message the OpenAI client writes, measured
-    /// (2026-10-12, F-354): with an OpenAI-shaped body it is
+    /// (2026-10-12): with an OpenAI-shaped body it is
     /// <c>HTTP 400 (invalid_request_error: ...)</c>; with an empty body it is
     /// System.ClientModel's default <c>Service request failed. Status: 400 (Bad Request)</c>.
     /// </remarks>

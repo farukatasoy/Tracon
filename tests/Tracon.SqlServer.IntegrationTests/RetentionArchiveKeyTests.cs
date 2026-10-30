@@ -3,7 +3,7 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// 🚨 F-372: the archive mode of retention deletes by each target's key
+/// The archive mode of retention deletes by each target's key
 /// (<c>RetentionTargetDefinition.KeyColumns</c>), not by a second batch.
 /// </summary>
 /// <remarks>
@@ -11,7 +11,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// The key column <c>key</c> is a reserved word here: it is quoted with square
 /// brackets (<c>SqlServerDialect.QuoteIdentifier</c>), and only a run against the
 /// real schema proves that. <c>run_events</c> is clustered by <c>(run_id, seq)</c>,
-/// whose <c>uniqueidentifier</c> order is not time order (K-180).
+/// whose <c>uniqueidentifier</c> order is not time order.
 /// </remarks>
 public sealed class RetentionArchiveKeyTests(SqlServerFixture fixture)
 {
@@ -125,7 +125,7 @@ public sealed class RetentionArchiveKeyTests(SqlServerFixture fixture)
 
     /// <summary>
     /// Every target except <c>document_embeddings</c>: that table exists only in
-    /// the PostgreSQL migration set, by design (phase 51).
+    /// the PostgreSQL migration set, by design.
     /// </summary>
     /// <returns>The targets.</returns>
     public static TheoryData<string> AllTargets()

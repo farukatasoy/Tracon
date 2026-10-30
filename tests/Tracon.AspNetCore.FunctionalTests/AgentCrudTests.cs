@@ -240,7 +240,7 @@ public sealed class AgentCrudTests
         json.GetProperty("definition").GetProperty("name").GetString().ShouldBe("db-agent");
     }
 
-    // --- Code agent protection: code wins on a name collision (K-003) ---
+    // --- Code agent protection: code wins on a name collision ---
 
     [Fact]
     public async Task Definition_cannot_be_written_with_the_same_name_as_a_code_agent()
@@ -550,7 +550,7 @@ public sealed class AgentCrudTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    // --- Version diff (Phase 19.1) ---
+    // --- Version diff ---
 
     [Fact]
     public async Task Version_diff_returns_the_two_raw_definitions()

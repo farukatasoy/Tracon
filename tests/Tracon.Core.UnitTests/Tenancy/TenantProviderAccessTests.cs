@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Tenancy;
 
 /// <summary>
-/// Phase 259 (F-254): the one rule every path to a provider shares, with the fail-closed switch.
+/// The one rule every path to a provider shares, with the fail-closed switch.
 /// </summary>
 /// <remarks>
 /// The rule is a pure function, so its truth table is a unit test. That every caller READS the switch

@@ -35,7 +35,6 @@ namespace Tracon;
 // MAAI001: HarnessAgentOptions members, LoopAgentOptions, BackgroundAgentsProviderOptions and
 // FileAccessProviderOptions are marked "evaluation purposes only". The suppression covers this
 // table only, the same rationale as AgentDefinitionCompiler.Agents.cs. Rationale:
-// docs/KARARLAR.md, decision K-020.
 #pragma warning disable MAAI001
 internal static class AgentOptionsGuard
 {
@@ -134,7 +133,7 @@ internal static class AgentOptionsGuard
         // and with per-call persistence on, the tenant's history stays empty (measured).
         .Protect(nameof(ChatClientAgentOptions.UseProvidedChatClientAsIs), static options => options.UseProvidedChatClientAsIs)
 
-        // ModelBinding.ToolLoop.AllowConcurrentToolCalls sets the tool loop Tracon builds (K-553). MAF finds
+        // ModelBinding.ToolLoop.AllowConcurrentToolCalls sets the tool loop Tracon builds. MAF finds
         // that same loop and turns it on when this member is set, over the definition (measured).
         .Protect(nameof(ChatClientAgentOptions.AllowConcurrentInvocation), static options => options.AllowConcurrentInvocation)
 
@@ -175,7 +174,6 @@ internal static class AgentOptionsGuard
         .Protect(nameof(HarnessAgentOptions.ToolApprovalAgentOptions), static options => Reference(options.ToolApprovalAgentOptions))
         .Protect(nameof(HarnessAgentOptions.DisableApprovalResponseBinding), static options => options.DisableApprovalResponseBinding)
 
-        // K-062 (file access), K-892 (working-directory scan, file memory, paid web search), F-578.
         .Protect(nameof(HarnessAgentOptions.DisableFileMemory), static options => options.DisableFileMemory)
         .Protect(nameof(HarnessAgentOptions.FileMemoryStore), static options => Reference(options.FileMemoryStore))
         .Protect(nameof(HarnessAgentOptions.FileAccessStore), static options => Reference(options.FileAccessStore))

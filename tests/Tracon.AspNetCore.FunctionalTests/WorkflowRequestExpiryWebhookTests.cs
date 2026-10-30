@@ -9,12 +9,12 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHa
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A run that the request expiry service fails publishes <c>run.failed</c> (phase 211, F-539): the receiver of the
+/// A run that the request expiry service fails publishes <c>run.failed</c>: the receiver of the
 /// webhooks was told the run waits and now hears that it ended.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The service closed the run in the store and published nothing - a known edge of phase 209 - so a host that drives its
+/// The service closed the run in the store and published nothing - a known edge of an earlier change - so a host that drives its
 /// pipeline from webhooks waited for a run that had already ended. The payload is the runner's own, from one builder.
 /// </para>
 /// <para>

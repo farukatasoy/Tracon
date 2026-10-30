@@ -163,7 +163,7 @@ public sealed class WorkflowJobHandlerTests
     }
 
     /// <summary>
-    /// 🚨 F-323 (audit): a time limit that arrives while the item is still being prepared
+    /// A time limit that arrives while the item is still being prepared
     /// - here, while its run id is written - found no run of this attempt to end. The
     /// item stays pending with no report, as on a shutdown, and the next attempt runs it.
     /// It used to fail with the limit and no run id, and the job failed with it.
@@ -202,7 +202,7 @@ public sealed class WorkflowJobHandlerTests
     }
 
     /// <summary>
-    /// 🚨 F-323 (audit, K-926): the limit arrives while the chain is closed, after the
+    /// The limit arrives while the chain is closed, after the
     /// continuation's row was written. The item stays pending; the continuation row stays
     /// <see cref="RunStatus.Queued"/> only until the next attempt, which reads it as
     /// interrupted and closes the chain. It used to fail the item and leave the row
@@ -252,7 +252,7 @@ public sealed class WorkflowJobHandlerTests
     }
 
     /// <summary>
-    /// F-492: an item whose interrupted run wrote no checkpoint starts again, and it names the
+    /// An item whose interrupted run wrote no checkpoint starts again, and it names the
     /// version that run recorded, so an edit made while the job waited does not change what runs.
     /// </summary>
     [Fact]
@@ -284,7 +284,7 @@ public sealed class WorkflowJobHandlerTests
     }
 
     /// <summary>
-    /// F-323 (audit, open question 8-A): the last item's run completes in the same instant
+    /// The last item's run completes in the same instant
     /// as the limit. The work is done, so the job completes, as it does for a queued run
     /// and for any handler that returns after its limit. It used to fail with the code.
     /// </summary>

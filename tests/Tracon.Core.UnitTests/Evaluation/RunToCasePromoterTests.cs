@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Evaluation;
 
 /// <summary>
 /// What <see cref="RunToCasePromoter"/> does with a recorded input an eval case
-/// cannot carry (F-343 class sweep).
+/// cannot carry.
 /// </summary>
 /// <remarks>
 /// A case carries a query, a context and parameter values. Anything else in the
@@ -54,7 +54,7 @@ public sealed class RunToCasePromoterTests
     }
 
     /// <summary>
-    /// F-605 (phase 227) - a reference run stands for the tools it called, by name. The
+    /// A reference run stands for the tools it called, by name. The
     /// arguments of one run belong to that run; a case that demanded them would fail on the
     /// next run's own values.
     /// </summary>

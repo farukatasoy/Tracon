@@ -107,7 +107,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// Phase 250: a row written before the version pin holds <c>callableAgentNames</c> (an array of names, present even
+    /// A row written before the version pin holds <c>callableAgentNames</c> (an array of names, present even
     /// when empty) and no <c>callableAgents</c>. It must read back through every store read as references with no
     /// version, and a save must write the new key only.
     /// </summary>
@@ -358,7 +358,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// Phase 242: the loop criterion rides in the harness object of the payload, so the two reviewer fields
+    /// The loop criterion rides in the harness object of the payload, so the two reviewer fields
     /// have no mapper of their own to forget. A save that dropped either would turn a pinned reviewer into
     /// the current one, or a review into a criterion that can never be satisfied.
     /// </summary>
@@ -395,7 +395,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         criteria[1].ReviewerAgentVersion.ShouldBeNull();
     }
 
-    /// <summary>A loop saved before Phase 242 has no reviewer keys and reads back with both null.</summary>
+    /// <summary>A loop saved before an earlier change has no reviewer keys and reads back with both null.</summary>
     [Fact]
     public void A_loop_criterion_written_before_the_reviewer_fields_existed_reads_back_with_no_reviewer()
     {

@@ -1,7 +1,7 @@
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Phase 240: the per-tenant gate inside one process.
+/// The per-tenant gate inside one process.
 /// </summary>
 /// <remarks>
 /// The limiter is the part of the tenant limit a run waits on, so the cases are about what it does with

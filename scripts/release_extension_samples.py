@@ -25,14 +25,14 @@ SAMPLE_TEST_PROJECTS = (
 # project directory that exists but is not run by this gate, with the reason
 # WHY. Empty by default - a project that lands here without a reason string
 # fails validate_sample_inventory just as loudly as one that is missing
-# entirely (Faz 123, BL-052: a bare tuple update let a real sample - added in
-# Faz 120 - go unrun for three phases because nothing compared the tuple
+# entirely (BL-052: a bare tuple update let a real sample - added in
+# Go unrun for three phases because nothing compared the tuple
 # against the samples/ directory it claims to enumerate).
 SAMPLE_TEST_EXCLUSIONS: dict[str, str] = {}
 
 AOT_PROJECT = "Tracon.Samples.ExtensionAotSmoke"
 
-# Faz 217. The meta-package smoke above proves the graph; this one calls each
+# The meta-package smoke above proves the graph; this one calls each
 # provider package's real request and response path under Native AOT. A package
 # the site lists as "Native AOT: Yes" earns it ONLY by being referenced here:
 # the published promise is the smoke's result, not a reading of the package's
@@ -62,7 +62,7 @@ AOT_PROOF_ELSEWHERE = {
 
 COMPATIBILITY_PAGE = "docs-site/src/content/docs/reference/compatibility.md"
 
-# Faz 183. Every other sample runs on net10.0 (samples/Directory.Build.props),
+# Every other sample runs on net10.0 (samples/Directory.Build.props),
 # so without this one no consumer path ever restored the net8.0 dependency group
 # of the packed packages or ran them on the net8.0 runtime.
 NET8_CONSUMER_PROJECT = "Tracon.Samples.Net8Consumer"
@@ -219,7 +219,7 @@ def tracon_dependency_closure(release_dir: pathlib.Path, package_id: str, versio
 
     The contract package's graph used to be read from the SOURCE project's
     restore output (artifacts/obj/Tracon.Testing.Contracts.Xunit/project.assets.json).
-    Faz 191 made `release-dryrun` a job that restores nothing, so that file does
+    The release chain made `release-dryrun` a job that restores nothing, so that file does
     not exist there and the first CI run of the chain failed with
     FileNotFoundError (2026-09-24). The packed nuspecs are what a consumer
     restores, and a Tracon package can only arrive through another Tracon
@@ -306,7 +306,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
             restore = ["dotnet", "restore", str(csproj), "--configfile", str(nuget_config), property_arg]
             if _run(restore, root=root, environment=environment):
                 return 1
-            # Faz 215: MTP kipinde hedef `--project` ile verilir (konumsal biçim eski kipten kalma).
+            # MTP kipinde hedef `--project` ile verilir (konumsal biçim eski kipten kalma).
             test = ["dotnet", "test", "--project", str(csproj), "-c", "Release", "--no-restore", property_arg]
             if _run(test, root=root, environment=environment):
                 return 1
@@ -352,7 +352,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
         # runtime; a missing runtime fails here with the host's own message.
         #
         # 🚨 Built, then started through its apphost - NOT `dotnet run`.
-        # Measured (Faz 183): `dotnet run` hands the app the MUXER's own root as
+        # Measured: `dotnet run` hands the app the MUXER's own root as
         # DOTNET_ROOT, so a net8.0 runtime installed under the caller's
         # DOTNET_ROOT is invisible to it. The apphost resolves the runtime the
         # way a deployed framework-dependent app does, and the way every test

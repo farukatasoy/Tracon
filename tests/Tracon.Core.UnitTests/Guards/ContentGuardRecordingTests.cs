@@ -99,7 +99,7 @@ public sealed class ContentGuardRecordingTests
     public async Task Audit_trail_does_not_carry_the_blocked_text()
     {
         // 🚨 Blocked content is sensitive by definition. Writing it to the audit
-        // trail would make the problem PERMANENT (the spirit of K-059).
+        // trail would make the problem PERMANENT (the spirit of that decision).
         var auditLog = new InMemoryAuditLog();
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
         var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("secret-project"), auditLog);
@@ -132,7 +132,7 @@ public sealed class ContentGuardRecordingTests
     [Fact]
     public async Task RunStarted_event_does_not_carry_the_masked_input_raw()
     {
-        // HATA-S3-006: ContentGuardingChatClient masks the text sent to the
+        // ContentGuardingChatClient masks the text sent to the
         // model, but RunRecordingAgent.BeginRunAsync used to write the
         // RunStarted event from its own RAW `messages` list BEFORE it reached
         // the model.
@@ -155,7 +155,7 @@ public sealed class ContentGuardRecordingTests
     [Fact]
     public async Task RunStarted_event_does_not_carry_the_blocked_input_raw()
     {
-        // The same root cause applies to blocking (HATA-S3-006, MT-GUARD-043
+        // The same root cause applies to blocking (an earlier defect
         // scope expansion): RunStarted used to write the raw text BEFORE the
         // actual block happened on the way to the model.
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);

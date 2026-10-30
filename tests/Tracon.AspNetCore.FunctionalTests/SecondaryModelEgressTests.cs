@@ -77,7 +77,7 @@ public sealed class SecondaryModelEgressTests
     }
 
     /// <remarks>
-    /// Phase 201: the judge is checked in the validator's own loop step, so its
+    /// The judge is checked in the validator's own loop step, so its
     /// refusal carries a code and the criterion's path; the summarizer is still
     /// found by the compilation step.
     /// </remarks>

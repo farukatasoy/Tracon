@@ -37,7 +37,7 @@ public sealed class GeneratedCodeStructureTests
         // The two issues dotnet format catches most often: TAB characters and
         // trailing whitespace at end of line (IDE0055). A full `dotnet format
         // --verify-no-changes` run happens separately, on the sample app
-        // (Phase 52); here we isolate the generator's own output.
+        // Here we isolate the generator's own output.
         var result = GeneratorTestHelper.Run(Source);
 
         foreach (var (hintName, text) in result.GeneratedFiles())

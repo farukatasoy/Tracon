@@ -9,7 +9,7 @@ namespace Tracon.Mcp.UnitTests;
 /// to <see cref="ToolEffect.External"/> (its definition lives on a remote
 /// server and can change, so the most cautious class is the honest default),
 /// and every server-side tool is wrapped the same way <c>ToolRegistry</c>
-/// wraps a code-defined one (Phase 69).
+/// wraps a code-defined one.
 /// </summary>
 public sealed class McpTenantToolsTests
 {
@@ -40,7 +40,7 @@ public sealed class McpTenantToolsTests
     [Fact]
     public void An_mcp_tool_is_never_marked_RunsOnClient()
     {
-        // Replay (phase 112) rejects a definition that carries a
+        // Replay rejects a definition that carries a
         // RunsOnClient=true tool; a real MCP-discovered tool is always an
         // invocable AIFunction (McpClientTool : AIFunction — the "is not
         // AIFunction" branch below only ever fires for a misconfigured
@@ -187,7 +187,7 @@ public sealed class McpTenantToolsTests
         //
         // 🚨 The stand-in returns an AIContent, not a string: that IS the
         // shape McpClientTool answers with, and a string-returning fake hid
-        // HATA-S1-026 for a whole phase — the chain was installed, the budget
+        // An earlier defect for a whole phase — the chain was installed, the budget
         // was configured, and 8 KB still reached the model past a 200-byte
         // limit. A fake that cannot produce the real defect proves nothing.
         var registration = new TraconToolRegistration(
@@ -330,7 +330,7 @@ public sealed class McpTenantToolsTests
     }
 
     /// <summary>
-    /// The binding a compiled-agent cache key carries (F-305): the connection
+    /// The binding a compiled-agent cache key carries: the connection
     /// behind the registration that WON the name, "absent" for a name the snapshot
     /// does not serve (also a server whose refresh failed), and "unbound" for a
     /// served tool whose connection is not known.
@@ -368,7 +368,7 @@ public sealed class McpTenantToolsTests
     }
 
     /// <summary>
-    /// F-308: a server can change a tool's description or schema while the connection
+    /// A server can change a tool's description or schema while the connection
     /// stays the same. The compiled agent embeds the tool object with the old
     /// definition, so the binding carries a hash of the definition too.
     /// </summary>

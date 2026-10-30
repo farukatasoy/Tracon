@@ -3,11 +3,11 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// What actually happens when one of two worker processes dies mid-job, on PostgreSQL (Phase 157).
+/// What actually happens when one of two worker processes dies mid-job, on PostgreSQL.
 /// </summary>
 /// <remarks>
 /// The scenarios live in <see cref="TwoProcessLeaseTakeoverContract"/>, which the SQL Server project runs too
-/// (Phase 265). 🚨 A measurement, not a support statement.
+///🚨 A measurement, not a support statement.
 /// </remarks>
 [Collection(TwoProcessFailureProof.Name)]
 public sealed class TwoProcessLeaseTakeoverTests(PostgresFixture fixture) : TwoProcessLeaseTakeoverContract
@@ -45,7 +45,7 @@ public sealed class TwoProcessLeaseTakeoverTests(PostgresFixture fixture) : TwoP
 /// clock. Running them beside each other would put four hosts and their
 /// connection pools on the same machine and stretch the very clock they
 /// measure - the "isolated green, full run red" class this repository has hit
-/// before (docs/hafiza/test-yalitimi.md).
+/// before.
 /// </remarks>
 [CollectionDefinition(Name)]
 public sealed class TwoProcessFailureProof

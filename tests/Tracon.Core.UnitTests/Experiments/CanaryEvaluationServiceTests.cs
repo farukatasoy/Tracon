@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Experiments;
 
 /// <summary>
 /// <see cref="CanaryEvaluationService"/> contract: automatic rollback, gradual
-/// ramp-up, K1 default, K-089 audit trail, and singleton execution (Phase 56).
+/// ramp-up, the zero-surprise default, the audit trail, and singleton execution.
 /// </summary>
 public sealed class CanaryEvaluationServiceTests
 {
@@ -173,7 +173,7 @@ public sealed class CanaryEvaluationServiceTests
         // SingletonGuard.MinimumRenewInterval, so a 1-second lease used to
         // expire under its live owner and the second instance took over -
         // this assertion then depended on the window staying under a second.
-        // SingletonExecutionOptionsValidator rejects that configuration now (K-743).
+        // SingletonExecutionOptionsValidator rejects that configuration now.
         var singletonOptions = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromMinutes(5) });
 
         var storeA = new CountingExperimentStore(innerExperiments);

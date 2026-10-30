@@ -77,7 +77,7 @@ public sealed class PackageFamilyAlignmentTests
     }
 
     /// <summary>
-    /// Open question 1 (A): the same assembly name loaded twice, from two load
+    /// The same assembly name loaded twice, from two load
     /// contexts, at two versions. A plug-in carrying its own Tracon is not a
     /// supported graph, so it is refused like any other mix.
     /// </summary>
@@ -104,7 +104,7 @@ public sealed class PackageFamilyAlignmentTests
         ]).ShouldBeNull();
     }
 
-    /// <summary>Open question 2 (A): a version nobody can read never counts as aligned.</summary>
+    /// <summary>A version nobody can read never counts as aligned.</summary>
     [Fact]
     public void An_unknown_version_is_refused_even_when_it_is_the_only_one()
     {

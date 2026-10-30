@@ -8,7 +8,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// The host and the helpers of the tests that answer a tool approval inside a workflow (phase 230): a stored
+/// The host and the helpers of the tests that answer a tool approval inside a workflow: a stored
 /// chain of agents and a code graph, both hosted by Microsoft Agent Framework, over an agent whose tool needs
 /// approval.
 /// </summary>

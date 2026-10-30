@@ -7,7 +7,7 @@ namespace Tracon.Azure.UnitTests;
 
 /// <summary>
 /// What a chat call through the Azure OpenAI client puts on the wire, and what
-/// it reads back (Phase 217).
+/// it reads back.
 /// </summary>
 /// <remarks>
 /// <para>

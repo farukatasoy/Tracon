@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the online evaluation endpoints (Phase 49).</summary>
+/// <summary>Tests for the online evaluation endpoints.</summary>
 public sealed class OnlineEvaluationEndpointTests
 {
     [Fact]

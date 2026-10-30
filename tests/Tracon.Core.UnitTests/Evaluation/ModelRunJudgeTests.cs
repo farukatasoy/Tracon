@@ -8,7 +8,7 @@ using Tracon.Testing.Contracts.Judges;
 
 namespace Tracon.Core.UnitTests.Evaluation;
 
-/// <summary>Tests for the built-in model-based judge (Phase 49).</summary>
+/// <summary>Tests for the built-in model-based judge.</summary>
 public sealed class ModelRunJudgeTests
 {
     private const string Tenant = "acme";

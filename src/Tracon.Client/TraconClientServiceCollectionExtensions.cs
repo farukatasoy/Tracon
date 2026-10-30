@@ -56,7 +56,7 @@ public static class TraconClientServiceCollectionExtensions
         var token = options.Token;
         var timeout = options.Timeout;
 
-        // F-280: HttpClient.Timeout refuses more than int.MaxValue milliseconds (about
+        // HttpClient.Timeout refuses more than int.MaxValue milliseconds (about
         // 24.8 days); without the upper bound the value was accepted here and threw when
         // the first client was built.
         if (timeout is { } configured

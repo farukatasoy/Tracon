@@ -13,11 +13,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <c>/api/models</c>, and how the circuit breaker is reflected on the health endpoint.
 /// </summary>
 /// <remarks>
-/// Ollama is not installed on this machine; F-05's local/keyless connection
+/// Ollama is not installed on this machine; the local/keyless connection
 /// mechanism is verified over a real socket with <see cref="FakeOpenAiCompatibleServer"/>.
 /// No test calls a real OpenAI/OpenRouter <strong>at all</strong> — verification
 /// that requires the network is done manually (consistent with the same
-/// decision in Phase 3).
+/// decision).
 /// </remarks>
 public sealed class ModelHealthEndpointsTests
 {
@@ -169,7 +169,7 @@ public sealed class ModelHealthEndpointsTests
         // 401 (deliberately NOT 500): System.ClientModel's default retry policy
         // automatically retries 5xx/408/429, which would make the raw request
         // count unpredictable. 401 is not retried; the count stays deterministic.
-        // Not 400 either: since F-354 a permanent 4xx other than 401/403 rejects
+        // Not 400 either: since then a permanent 4xx other than 401/403 rejects
         // the request, not the provider, and does not count.
         server.ChatCompletionStatusCode = StatusCodes.Status401Unauthorized;
 
@@ -211,7 +211,7 @@ public sealed class ModelHealthEndpointsTests
     [Fact]
     public async Task Azure_credential_that_throws_is_Unhealthy_and_does_not_fail_the_whole_list()
     {
-        // Phase 181 defect: a TokenCredential that THROWS (Azure.Identity's
+        // defect: a TokenCredential that THROWS (Azure.Identity's
         // CredentialUnavailableException on a machine without `az login`) used to
         // escape CheckHealthAsync; ModelProviderHealthCache.GetAllAsync did not
         // catch it, so /api/models/health failed for EVERY provider.

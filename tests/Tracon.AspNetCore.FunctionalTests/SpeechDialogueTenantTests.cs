@@ -13,8 +13,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 203, open question 7-B: <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
-/// is the only way to the capability. The phase 198 trap was a wrapper that implements
+/// <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
+/// is the only way to the capability. The trap was a wrapper that implements
 /// only <see cref="ISpeechSynthesizer"/>: a type test on it answered "no dialogue" for a
 /// tenant with its own key and "dialogue" for one without. The resolver reads the
 /// capability from the registered instance instead, so both tenants get the same answer.
@@ -68,7 +68,7 @@ public sealed class SpeechDialogueTenantTests
     }
 
     /// <summary>
-    /// F-442: the refusal carries a stable error type, so the node retry and the
+    /// The refusal carries a stable error type, so the node retry and the
     /// recorded class read the type, never the text.
     /// </summary>
     /// <remarks>

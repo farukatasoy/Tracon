@@ -50,20 +50,20 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [TraconChildRunTimeoutException.ChildRunTimeoutErrorType] = RunErrorClass.Timeout,
         [TraconWorkflowFunctionTimeoutException.WorkflowFunctionTimeoutErrorType] = RunErrorClass.Timeout,
 
-        // A run its job stopped at the job's time limit (F-323): a deadline, like
+        // A run its job stopped at the job's time limit: a deadline, like
         // the run's own, never a provider fault.
         [JobAttemptSignals.MaxDurationExceededRunErrorType] = RunErrorClass.Timeout,
 
-        // A workflow run closed because the human request it waited on expired (Phase 209):
+        // A workflow run closed because the human request it waited on expired:
         // the deadline an operator set for an answer, not a fault of the workflow.
         [WorkflowRequestExpiry.ErrorType] = RunErrorClass.Timeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
 
-        // A Handoff workflow run that went past MaxHandoffs (Phase 270): a limit the definition sets on the run,
+        // A Handoff workflow run that went past MaxHandoffs: a limit the definition sets on the run,
         // so a dashboard that watches the run limits sees it with the budget and the quota.
         [TraconErrorTypes.HandoffLimitExceeded] = RunErrorClass.QuotaExceeded,
 
-        // A tenant's quota refused work inside a tree that was already running (F-529): the
+        // A tenant's quota refused work inside a tree that was already running: the
         // class an operator filters on is the same as the door's 429, the remedy is the tenant's.
         [TraconTenantQuotaExceededException.TenantQuotaExceededErrorType] = RunErrorClass.QuotaExceeded,
         [TraconStructuredResponseException.StructuredResponseInvalidErrorType] = RunErrorClass.StructuredResponseInvalid,
@@ -80,7 +80,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [ProviderFailureNormalizer.UpstreamErrorType] = RunErrorClass.ProviderError,
 
         // Not a provider fault: the tenant's provider rules refused the call
-        // before it left the process (F-442). Its text names the tenant and the
+        // before it left the process. Its text names the tenant and the
         // allowed providers, the operator's own words, so only the identity may
         // classify it: a name with "timeout" in it made the refusal a timeout and
         // a workflow node retried it. The CLR name is what rows written before
@@ -111,15 +111,15 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         {
             // 🚨 Two narrowings, and only these two. ProviderError is what a
             // normalized provider failure means in general, but a provider that
-            // never ANSWERED is the distinction phase 157 (K-737) exists to keep:
+            // never ANSWERED is the distinction this class exists to keep:
             // it drives retry and alerting differently from a provider that
             // answered with an error. The normalizer names the foreign fault type
-            // in the message it builds (K-817), so that one fact is readable here
-            // without the provider's own text. The second (F-353): a provider that
+            // in the message it builds, so that one fact is readable here
+            // without the provider's own text. The second: a provider that
             // answered 429 is RateLimited, the class that exists for exactly that
             // status; the status is the suffix the same sentence ends with.
             //
-            // 🚨 Measured live, not reasoned: MT-RES-089 (2026-09-19) against an
+            // 🚨 Measured live, not reasoned (2026-09-19): a call against an
             // unroutable endpoint recorded ProviderError. The real SDK WRAPS its
             // timeout, so ShouldNormalize sees a foreign exception rather than
             // the OperationCanceledException it lets through, and the identity
@@ -155,7 +155,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         // message can, and a genuine cancellation's message ("A task was
         // canceled.") does not match the timeout pattern. Reversed, every
         // provider timeout was filed as Canceled and disappeared from the
-        // failure dashboards. Measured in Phase 157.
+        // failure dashboards.
         if (TimeoutPattern().IsMatch(runError.Type) || TimeoutPattern().IsMatch(runError.Message))
         {
             return RunErrorClass.Timeout;

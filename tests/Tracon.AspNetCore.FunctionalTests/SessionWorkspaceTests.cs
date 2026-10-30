@@ -4,7 +4,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269): the package's Tracon.Testing.TraconTestHost and
+// Same rationale as AgentExtensionRunTests.cs: the package's Tracon.Testing.TraconTestHost and
 // this project's own TraconTestHost share a name.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 using FakeModelRequest = Tracon.Testing.FakeModelRequest;
@@ -16,7 +16,7 @@ using FakeModelRequest = Tracon.Testing.FakeModelRequest;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 234 (F-628): the session workspace through a real host. The file tools the model gets read and
+/// The session workspace through a real host. The file tools the model gets read and
 /// write one session's directory of the agent file store, for that agent, that session and that tenant only.
 /// </summary>
 /// <remarks>

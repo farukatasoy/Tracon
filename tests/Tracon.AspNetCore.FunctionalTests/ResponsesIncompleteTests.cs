@@ -10,7 +10,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-503: <c>POST /v1/responses</c> says an answer is incomplete the way OpenAI's own Responses API
+/// <c>POST /v1/responses</c> says an answer is incomplete the way OpenAI's own Responses API
 /// does. The body of the answer comes from Microsoft Agent Framework, which never reads the finish
 /// reason (measured: every reason ends in <c>response.completed</c> with <c>status: "completed"</c>),
 /// so the status, the terminal stream event and the message item's status are only real over HTTP.

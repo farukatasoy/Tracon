@@ -67,7 +67,7 @@ public sealed class AgentDecoratorOrderingTests
 
         innermost.ShouldBe(
             nameof(StructuredResponseValidatingAgentDecorator),
-            "structured response validation (docs/131, Order 30) has to sit closest to the compiled agent, "
+            "structured response validation (Order 30) has to sit closest to the compiled agent, "
             + "so a rejection is captured by every outer decorator (telemetry, run recording) exactly like "
             + "any other run-ending error");
     }

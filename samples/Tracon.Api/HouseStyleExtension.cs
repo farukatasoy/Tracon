@@ -9,7 +9,7 @@ namespace Tracon.Api;
 
 /// <summary>
 /// An agent extension: a context provider that adds a house-style rule to every model call of
-/// the agents that select it (Phase 222, F-588).
+/// the agents that select it.
 /// </summary>
 /// <remarks>
 /// <para>

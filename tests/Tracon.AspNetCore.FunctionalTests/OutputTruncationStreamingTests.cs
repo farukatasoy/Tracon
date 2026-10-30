@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.OutputTruncationTests;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-320 on the streaming (SSE) path: the finish reason arrives in the LAST
+/// An earlier fix on the streaming (SSE) path: the finish reason arrives in the LAST
 /// update, after the content already reached the client, and the run scope is
 /// re-established before every step of the stream — only a real host proves
 /// the decision still lands on the run.
@@ -26,7 +26,7 @@ public sealed class OutputTruncationStreamingTests
 
         frames.ShouldContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
 
-        // Phase 207: the notice mirror sits on the 'done' path; a structured cut is
+        // The notice mirror sits on the 'done' path; a structured cut is
         // an error, so the stream carries no notice frame.
         CustomFrames(frames).ShouldBeEmpty();
 
@@ -97,7 +97,7 @@ public sealed class OutputTruncationStreamingTests
 
         // The run does not fail: the partial text streamed and the stream closed
         // normally. The notice is a run event; the live stream mirrors it as a
-        // 'custom' frame (phase 207, tests below).
+        // 'custom' frame (tests below).
         frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
         frames.ShouldContain(static frame => string.Equals(frame.Event, "done", StringComparison.Ordinal));
 
@@ -112,7 +112,7 @@ public sealed class OutputTruncationStreamingTests
     [Fact]
     public async Task The_last_update_frame_carries_the_model_finish_reason()
     {
-        // Phase 207.1 measurement (2026-10-14, MAF 1.20.0; the test passes on 1.25.0, re-run
+        // measurement (2026-10-14, MAF 1.20.0; the test passes on 1.25.0, re-run
         // 2026-10-16): MAF copies
         // ChatResponseUpdate.FinishReason into AgentResponseUpdate.FinishReason and
         // the endpoint serializes the update as is. This is MAF's raw value per
@@ -372,8 +372,8 @@ public sealed class OutputTruncationStreamingTests
     [Fact]
     public async Task A_truncated_stream_without_run_recording_ends_with_done_and_no_notice()
     {
-        // Phase 207.5: with recording off there is no writer, so the detector
-        // writes no event and the mirror finds nothing to send (Open Question 1-A).
+        // With recording off there is no writer, so the detector
+        // writes no event and the mirror finds nothing to send.
         var provider = new FinishReasonModelProvider()
             .Text("The first half of a long ans", ChatFinishReason.Length, inputTokens: 30, outputTokens: 50);
 
@@ -393,7 +393,7 @@ public sealed class OutputTruncationStreamingTests
     [Fact]
     public async Task A_harness_loop_whose_iterations_are_cut_sends_one_notice_per_recorded_event()
     {
-        // Phase 207.3: the harness loop sits above the model pipeline, so every
+        // The harness loop sits above the model pipeline, so every
         // iteration is its own pipeline call and the detector judges each one.
         var provider = new FinishReasonModelProvider()
             .Text("still working", ChatFinishReason.Length, inputTokens: 10, outputTokens: 50)
@@ -435,7 +435,7 @@ public sealed class OutputTruncationStreamingTests
             && !IsContextNotice(frame))];
 
     /// <summary>
-    /// Whether a frame is the <c>tracon.context</c> event every run records (F-773). It is not the notice these
+    /// Whether a frame is the <c>tracon.context</c> event every run records. It is not the notice these
     /// tests look for, and it is on the recorded stream only: the live stream never carries it.
     /// </summary>
     internal static bool IsContextNotice(SseFrame frame)

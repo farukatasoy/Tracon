@@ -6,9 +6,8 @@ using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
-// Record: phase 181 open question 1 = A (factory registration stays in each
-// package); HATA-S3-002/003/004 (the relative-endpoint and nameless-model
-// fixes the Azure copy had missed); K-483 (hand-copied expressions drift).
+// Factory registration stays in each package. The relative-endpoint and nameless-model
+// fixes the Azure copy had missed live here once, because hand-copied expressions drift.
 
 /// <summary>
 /// The registration and configuration-binding steps every <c>Use&lt;Provider&gt;()</c>
@@ -111,8 +110,8 @@ internal static class ProviderRegistrationCore
 
             // An empty or missing name is added too: the validator rejects it
             // in its Models[i] loop. Skipping it here would leave that
-            // validator branch unreachable (HATA-S3-002/004; the Azure copy
-            // still skipped it until phase 181).
+            // validator branch unreachable (the Azure copy
+            // still skipped it).
             var descriptor = new ModelDescriptor
             {
                 Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty,
@@ -125,7 +124,7 @@ internal static class ProviderRegistrationCore
                 SupportsStructuredOutput = batch.Boolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
 
                 // Nullable on purpose: an absent key means "unknown" and checks
-                // nothing; only an explicit false rejects Temperature/TopP (F-346).
+                // nothing; only an explicit false rejects Temperature/TopP.
                 SupportsSampling = batch.Boolean(child, nameof(ModelDescriptor.SupportsSampling)),
 
                 // A set of names: "StopSequences, Seed". An absent key rejects nothing and checks

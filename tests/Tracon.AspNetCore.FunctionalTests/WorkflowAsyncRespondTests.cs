@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The "RequestPort + machine answer" pattern: a render finishes and the host answers
 /// the pending request without holding a connection for the resumed run. The streamed
 /// endpoint can refuse only what <see cref="IWorkflowRunner.ValidateResponseAsync"/>
-/// judges (F-341); the queued path must refuse everything the worker would fail on, or
+/// judges; the queued path must refuse everything the worker would fail on, or
 /// a 202 would promise a run that cannot happen.
 /// </remarks>
 public sealed class WorkflowAsyncRespondTests
@@ -35,7 +35,7 @@ public sealed class WorkflowAsyncRespondTests
 
         var runs = host.Services.GetRequiredService<IRunStore>();
 
-        // The answered run stays AwaitingInput (K-130); the answer is a new run in its session.
+        // The answered run stays AwaitingInput; the answer is a new run in its session.
         (await runs.GetRunAsync(waitingId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.AwaitingInput);
         (await runs.GetRunAsync(answerId)).ShouldNotBeNull().SessionId
             .ShouldBe((await runs.GetRunAsync(waitingId))!.SessionId);

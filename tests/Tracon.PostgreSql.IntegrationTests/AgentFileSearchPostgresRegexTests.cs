@@ -5,7 +5,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// PostgreSQL-specific regex pre-filter (<c>~</c>) behavior (Phase 51, Task A).
+/// PostgreSQL-specific regex pre-filter (<c>~</c>) behavior (Task A).
 /// </summary>
 /// <remarks>
 /// The final match ALWAYS happens client-side with the .NET <see cref="Regex"/>;
@@ -64,10 +64,10 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
     [Fact]
     public async Task Large_store_does_not_scan_rows_outside_the_target_directory()
     {
-        // Phase 51 DoD: "A single-file search in a 10,000-file store reads a
+        // An earlier change DoD: "A single-file search in a 10,000-file store reads a
         // constant number of rows; the row count was measured and recorded
         // here." This test produces that measurement (see
-        // Phase 51, DoD).
+        // DoD).
         SetScope("agent-a");
 
         const int UnrelatedFileCount = 10_000;
@@ -95,7 +95,7 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
             """);
 
         // Measured value (in a 10,001-row store, in the test container): 1 row
-        // (see Phase 51, DoD). The test container's
+        // (DoD). The test container's
         // locale can turn a prefix LIKE into an index range scan; we assert a
         // wide upper bound — the real proof is staying ORDERS OF MAGNITUDE
         // below UnrelatedFileCount, the exact number can vary across

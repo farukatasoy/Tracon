@@ -11,7 +11,7 @@ namespace Tracon.Voice.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-298: the tools resolved <see cref="ISpeechSynthesizer"/> and
+/// The tools resolved <see cref="ISpeechSynthesizer"/> and
 /// <see cref="ISpeechTranscriber"/> straight from the container. A tenant whose policy
 /// did not allow the speech provider still had its text and audio sent there, and a
 /// tenant with its own key was billed to the host.

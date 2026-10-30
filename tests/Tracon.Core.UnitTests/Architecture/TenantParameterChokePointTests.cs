@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Every <c>tenant_id</c> command parameter is bound through the canonical
-/// choke point (phase 179).
+/// choke point.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,7 +19,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// This is a gate, not a snapshot, and it exists because the conversion that
 /// introduced the rule touched 155 call sites at once. Converting 155 sites by
 /// hand makes forgetting the 156th the likeliest way this rule dies — the same
-/// class of defect as a hand-repeated sum gaining a term (K-483). The gate
+/// class of defect as a hand-repeated sum gaining a term. The gate
 /// costs one text scan and closes it permanently.
 /// </para>
 /// <para>

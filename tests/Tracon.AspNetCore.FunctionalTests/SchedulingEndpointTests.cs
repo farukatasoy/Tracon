@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>In-memory behavior tests for the scheduling and job queue endpoints (Phase 17).</summary>
+/// <summary>In-memory behavior tests for the scheduling and job queue endpoints.</summary>
 public sealed class SchedulingEndpointTests
 {
     private static readonly Uri Schedules = new("/tracon/api/schedules", UriKind.Relative);
@@ -51,7 +51,7 @@ public sealed class SchedulingEndpointTests
     }
 
     /// <summary>
-    /// F-382: <c>GET /api/schedules/handler-keys</c> matches before
+    /// <c>GET /api/schedules/handler-keys</c> matches before
     /// <c>/api/schedules/{name}</c>, so a schedule under that name could be saved
     /// and never read back. The name is reserved, in any letter case, because the
     /// route matches case-insensitively.

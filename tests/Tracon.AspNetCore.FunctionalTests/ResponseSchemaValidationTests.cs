@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 245 through the real host and the real OpenAI and Azure OpenAI providers: <c>POST /api/agents/validate</c>
+/// through the real host and the real OpenAI and Azure OpenAI providers: <c>POST /api/agents/validate</c>
 /// reports the response schema each provider's client sends, with the strict setting, and warns about what differs from
 /// the schema the author wrote.
 /// </summary>

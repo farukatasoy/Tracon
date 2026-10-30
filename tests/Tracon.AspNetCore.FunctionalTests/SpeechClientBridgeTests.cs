@@ -15,8 +15,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-579. The bridge is a control-plane seam, not a media helper (the plan's counter-argument to
-/// "write your own adapter"): the tenant's egress policy (K-930), the refusal of a tenant's own
+/// The bridge is a control-plane seam, not a media helper (the plan's counter-argument to
+/// "write your own adapter"): the tenant's egress policy, the refusal of a tenant's own
 /// key, the character limit and the host's startup are applied by Tracon's resolver and
 /// registration, so an adapter written by hand could skip all of them. Every refusal case here
 /// asserts that the scripted service saw <b>no request</b>: a <c>403</c> after the text left the
@@ -119,7 +119,7 @@ public sealed class SpeechClientBridgeTests
     public async Task A_tenant_with_its_own_key_is_refused_and_the_setup_key_is_not_used()
     {
         // The client was built with the setup key. Speaking anyway bills the host for the
-        // tenant's speech (the K-878 rule, as for images).
+        // tenant's speech (as for images).
         await using var server = await ScriptedOpenAIAudioServer.StartAsync();
         await using var host = await StartAsync(
             server,
@@ -410,7 +410,7 @@ public sealed class SpeechClientBridgeTests
     [Fact]
     public async Task The_egress_policy_names_the_provider_name_and_not_the_registration_name()
     {
-        // K-930: two names for one service are one provider to the policy. The registration is
+        // Two names for one service are one provider to the policy. The registration is
         // "studio"; the service is "vendor-x". A policy that lists only the registration name
         // must not let the text through, and one that lists the provider name must.
         var client = new CountingTextToSpeechClient();
@@ -445,7 +445,7 @@ public sealed class SpeechClientBridgeTests
     [Fact]
     public async Task A_client_without_a_provider_name_stops_the_host()
     {
-        // K-930: the egress policy is applied to the provider name. A provider that has none
+        // The egress policy is applied to the provider name. A provider that has none
         // would pass every policy, so the host must not start.
         var exception = await Should.ThrowAsync<OptionsValidationException>(() => TraconTestHost.StartAsync(
             configureTracon: static builder => builder.AddSpeechSynthesizer(

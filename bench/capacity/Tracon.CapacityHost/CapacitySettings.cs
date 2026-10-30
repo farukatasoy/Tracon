@@ -9,7 +9,7 @@ namespace Tracon.CapacityHost;
 /// <remarks>
 /// 🚨 Every value arrives through the environment, never through a process
 /// argument: the connection string is one of them, and a process argument is
-/// visible to anyone who can list processes (K-059's boundary applied to the
+/// visible to anyone who can list processes (the boundary applied to the
 /// apparatus).
 /// </remarks>
 public sealed record CapacitySettings

@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Models;
 /// <remarks>
 /// Tests run through <see cref="ModelProviderRegistry"/>, not
 /// <see cref="FallbackChatClient"/> directly — this also proves the wrapping
-/// POSITION (K-320's rule applied to phase 62): outside the circuit breaker,
+/// POSITION (the rule applied to an earlier change): outside the circuit breaker,
 /// inside content-filter detection.
 /// </remarks>
 public sealed class FallbackChatClientTests
@@ -96,7 +96,7 @@ public sealed class FallbackChatClientTests
     [Fact]
     public async Task A_bare_connection_failure_wrapped_the_way_the_real_OpenAI_client_wraps_it_falls_over()
     {
-        // Regression for the phase 62 audit finding: measured against the
+        // Regression for the audit finding: measured against the
         // real OpenAI client (2.14.0, re-measured with a probe 2026-10-16) pointed at a port nothing listens on,
         // the exception that reaches this layer is an AggregateException
         // ("Retry failed after 4 tries...") whose InnerException is
@@ -139,9 +139,9 @@ public sealed class FallbackChatClientTests
     }
 
     /// <summary>
-    /// F-338: wrapped the way the real OpenAI client wraps it, a permanent 4xx used to
+    /// Wrapped the way the real OpenAI client wraps it, a permanent 4xx used to
     /// fall through to the transport rule and switch provider. Measured on a real OpenAI
-    /// call (MT-MYU-015): an unknown model name returns <c>HTTP 404 (model_not_found)</c>.
+    /// call: an unknown model name returns <c>HTTP 404 (model_not_found)</c>.
     /// </summary>
     [Theory]
     [InlineData("HTTP 400 (invalid_request_error)")]
@@ -226,7 +226,7 @@ public sealed class FallbackChatClientTests
     [Fact]
     public async Task Output_truncation_does_not_trigger_a_fallback_attempt()
     {
-        // F-320: a response stopped at the output limit is a normal return value
+        // A response stopped at the output limit is a normal return value
         // at this layer, like a filtered one. Another provider would get the same
         // request and the same limit, so the fallback link is never called.
         var primaryClient = new FakeChatClient(_ => new ChatResponse
@@ -397,7 +397,7 @@ public sealed class FallbackChatClientTests
     {
         // The link runs the same agent's tools, so their thread-safety setting
         // is the agent's, not the model's. The link's binding was built from
-        // Provider and Model alone and dropped it (F-315 class scan, 2026-10-12).
+        // Provider and Model alone and dropped it.
         var primary = new FakeModelProvider(
             new FakeChatClient(_ => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" }),
             name: "primary");
@@ -419,7 +419,7 @@ public sealed class FallbackChatClientTests
     [Fact]
     public async Task Runs_that_reach_the_same_link_together_build_its_client_once()
     {
-        // F-641: one compiled agent is shared by every concurrent run, so every
+        // One compiled agent is shared by every concurrent run, so every
         // run that leaves the primary at the same moment resolves the same link.
         // The cache was a plain Dictionary: eight runs built eight pipelines (and
         // wrote the dictionary concurrently). The build is held open until all
@@ -458,7 +458,7 @@ public sealed class FallbackChatClientTests
     [Fact]
     public async Task A_run_that_cancels_while_another_builds_the_link_client_does_not_fail_the_other()
     {
-        // F-641: the build is shared work. The first run's token must not decide
+        // The build is shared work. The first run's token must not decide
         // the second run's outcome, and a failed build must not be cached.
         var builds = 0;
         var firstBuildStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

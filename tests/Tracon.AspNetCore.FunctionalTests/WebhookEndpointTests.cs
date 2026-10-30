@@ -6,11 +6,11 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the webhook endpoints (Phase 21).</summary>
+/// <summary>Tests for the webhook endpoints.</summary>
 /// <remarks>
 /// 🚨 The most important test is <see cref="Response_and_record_carry_no_secret"/>:
 /// the contract <strong>has no secret field at all</strong>, and an extra
-/// field sent in the request is not bound (K-059).
+/// field sent in the request is not bound.
 /// </remarks>
 public sealed class WebhookEndpointTests
 {

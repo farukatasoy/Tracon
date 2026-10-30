@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A run that does not stream keeps the rows and the events of the tool calls it made, whether it ends or fails (F-689).
+/// A run that does not stream keeps the rows and the events of the tool calls it made, whether it ends or fails.
 /// </summary>
 /// <remarks>
 /// <para>

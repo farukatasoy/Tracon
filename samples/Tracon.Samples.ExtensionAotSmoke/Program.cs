@@ -41,7 +41,7 @@ var tracon = builder.AddTracon()
     .AddOrderPreviewTools()
     .UseConversationMemory(static options => options.VectorDimensions = 8);
 
-// Conversation memory (phase 233): the host's own vector store and the user a run belongs to.
+// Conversation memory: the host's own vector store and the user a run belongs to.
 builder.Services.AddSingleton<VectorStore>(new InMemoryVectorStore());
 builder.Services.AddSingleton<IRunAttributionContext>(new FixedUser("aot-user"));
 builder.Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = directory.FullName });

@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// F-318: the queued workflow run's payload and the handler's outcome rules.
+/// The queued workflow run's payload and the handler's outcome rules.
 /// </summary>
 /// <remarks>
 /// A payload is durable data, readable and writable by anyone with the job store, so
@@ -154,7 +154,7 @@ public sealed class WorkflowRunJobHandlerTests
     }
 
     /// <summary>
-    /// F-348's rule for this handler: the engine closed the run; a store error while
+    /// the rule for this handler: the engine closed the run; a store error while
     /// the handler reads the outcome afterwards completes the job instead of failing it,
     /// so the finished run is not repeated.
     /// </summary>
@@ -250,7 +250,7 @@ public sealed class WorkflowRunJobHandlerTests
     }
 
     /// <summary>
-    /// F-492: no checkpoint to resume from, so the run starts again. It names the version the
+    /// No checkpoint to resume from, so the run starts again. It names the version the
     /// interrupted attempt stamped on its row; reading the workflow as it is now would run an
     /// edit the interrupted attempt never saw.
     /// </summary>

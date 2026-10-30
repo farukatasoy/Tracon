@@ -183,7 +183,7 @@ internal sealed record AnthropicRequestSettings
         }
 
         // The value is not repeated: it can be a credential pasted into the wrong
-        // field, and the message reaches logs and run records (phase 203).
+        // field, and the message reaches logs and run records.
         throw Invalid($"'{key}' has a value outside its set. Valid values: {string.Join(", ", allowed)}.");
     }
 

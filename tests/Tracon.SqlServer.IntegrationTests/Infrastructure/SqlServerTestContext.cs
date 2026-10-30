@@ -42,7 +42,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
             DataSource = dataSource,
             Dialect = new SqlServerDialect(options.SchemaName),
             CommandTimeoutSeconds = options.CommandTimeoutSeconds,
-            // Phase 111: the "views" set is opt-in in production (K1); default
+            // The "views" set is opt-in in production; default
             // FALSE here too -- only ReadViewContractTests needs it.
             EnabledMigrationSets = options.EnableReadViews
                 ? new HashSet<string>(StringComparer.Ordinal) { "views" }
@@ -115,13 +115,13 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <summary>Session store.</summary>
     public SqlSessionStore Sessions { get; }
 
-    /// <summary>Span store (Phase 6).</summary>
+    /// <summary>Span store.</summary>
     public SqlTraceStore Traces { get; }
 
-    /// <summary>Persistent tool approval rule store (Phase 6).</summary>
+    /// <summary>Persistent tool approval rule store.</summary>
     public SqlToolApprovalRuleStore ApprovalRules { get; }
 
-    /// <summary>Pending approval request store (Phase 55).</summary>
+    /// <summary>Pending approval request store.</summary>
     public SqlPendingApprovalStore PendingApprovals { get; }
 
     /// <summary>Gets the workflow response store.</summary>
@@ -130,100 +130,100 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <summary>Gets the workflow request inbox store.</summary>
     public SqlWorkflowRequestStore WorkflowRequests { get; }
 
-    /// <summary>MCP server store (Phase 6).</summary>
+    /// <summary>MCP server store.</summary>
     public SqlMcpServerStore McpServers { get; }
 
-    /// <summary>Tenant registry store (Phase 6).</summary>
+    /// <summary>Tenant registry store.</summary>
     public SqlTenantStore Tenants { get; }
 
     /// <summary>Chat history provider.</summary>
     public SqlChatHistoryProvider ChatHistory { get; }
 
-    /// <summary>Audit trail ledger (Phase 9).</summary>
+    /// <summary>Audit trail ledger.</summary>
     public SqlAuditLog AuditLog { get; }
 
-    /// <summary>Script execution grant store (Phase 11).</summary>
+    /// <summary>Script execution grant store.</summary>
     public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
-    /// <summary>Runtime skill store (Phase 10).</summary>
+    /// <summary>Runtime skill store.</summary>
     public SqlAgentSkillStore AgentSkills { get; }
 
-    /// <summary>Attachment store (Phase 14).</summary>
+    /// <summary>Attachment store.</summary>
     public SqlAttachmentStore Attachments { get; }
 
-    /// <summary>Persistent agent file storage (Phase 14).</summary>
+    /// <summary>Persistent agent file storage.</summary>
     public SqlAgentFileStore AgentFiles { get; }
 
-    /// <summary>Workflow definition store (Phase 15).</summary>
+    /// <summary>Workflow definition store.</summary>
     public SqlWorkflowDefinitionStore Workflows { get; }
 
-    /// <summary>Workflow checkpoint store (Phase 15).</summary>
+    /// <summary>Workflow checkpoint store.</summary>
     public SqlWorkflowCheckpointStore WorkflowCheckpoints { get; }
 
-    /// <summary>Job queue store (Phase 17).</summary>
+    /// <summary>Job queue store.</summary>
     public SqlJobStore Jobs { get; }
 
-    /// <summary>Schedule store (Phase 17).</summary>
+    /// <summary>Schedule store.</summary>
     public SqlJobScheduleStore JobSchedules { get; }
 
-    /// <summary>Eval team/case/run store (Phase 18).</summary>
+    /// <summary>Eval team/case/run store.</summary>
     public SqlEvalStore Evals { get; }
 
-    /// <summary>A/B experiment store (Phase 19).</summary>
+    /// <summary>A/B experiment store.</summary>
     public SqlExperimentStore Experiments { get; }
 
-    /// <summary>Quota store (Phase 21).</summary>
+    /// <summary>Quota store.</summary>
     public SqlQuotaStore Quotas { get; }
 
-    /// <summary>Webhook store (Phase 21).</summary>
+    /// <summary>Webhook store.</summary>
     public SqlWebhookStore Webhooks { get; }
 
-    /// <summary>Tenant-scoped API key store (Phase 53).</summary>
+    /// <summary>Tenant-scoped API key store.</summary>
     public SqlApiKeyStore ApiKeys { get; }
 
-    /// <summary>Tenant provider binding store (Phase 65, BYOK).</summary>
+    /// <summary>Tenant provider binding store (BYOK).</summary>
     public SqlTenantProviderBindingStore TenantProviderBindings { get; }
 
-    /// <summary>Tenant egress policy store (Phase 65, F-119).</summary>
+    /// <summary>Tenant egress policy store.</summary>
     public SqlTenantEgressPolicyStore TenantEgressPolicies { get; }
 
-    /// <summary>Tenant tool policy store (Phase 261, F-759).</summary>
+    /// <summary>Tenant tool policy store.</summary>
     public SqlTenantToolPolicyStore TenantToolPolicies { get; }
 
-    /// <summary>Inbound trigger definition store (Phase 66).</summary>
+    /// <summary>Inbound trigger definition store.</summary>
     public SqlInboundTriggerStore InboundTriggers { get; }
 
-    /// <summary>Retention policy and run history store (Phase 25).</summary>
+    /// <summary>Retention policy and run history store.</summary>
     public SqlRetentionPolicyStore RetentionPolicies { get; }
 
-    /// <summary>Retention data plane (count/delete/archive read) (Phase 25).</summary>
+    /// <summary>Retention data plane (count/delete/archive read).</summary>
     public SqlRetentionStore RetentionData { get; }
 
-    /// <summary>Voice session record store (Phase 29).</summary>
+    /// <summary>Voice session record store.</summary>
     public SqlVoiceSessionStore VoiceSessions { get; }
 
-    /// <summary>Run/message score store (Phase 31).</summary>
+    /// <summary>Run/message score store.</summary>
     public SqlRunScoreStore RunScores { get; }
 
-    /// <summary>Single-executor election lease store (Phase 42).</summary>
+    /// <summary>Single-executor election lease store.</summary>
     public SqlSingletonLeaseStore SingletonLeases { get; }
 
     /// <summary>The shared rate-limit counter store.</summary>
     public SqlRateLimitCounterStore RateLimitCounters { get; }
 
-    /// <summary>Idempotency store (Phase 43).</summary>
+    /// <summary>Idempotency store.</summary>
     public SqlIdempotencyStore IdempotencyKeys { get; }
 
-    /// <summary>Run input store (Phase 47).</summary>
+    /// <summary>Run input store.</summary>
     public SqlRunInputStore RunInputs { get; }
 
-    /// <summary>Conversation branching store (Phase 47).</summary>
+    /// <summary>Conversation branching store.</summary>
     public SqlConversationBranchStore ConversationBranches { get; }
 
     /// <summary>Migration runner.</summary>
     public MigrationRunner Migrations { get; }
 
-    /// <summary>Data subject export/erasure data plane (Phase 64).</summary>
+    /// <summary>Data subject export/erasure data plane.</summary>
     public SqlDataSubjectStore DataSubjects { get; }
 
     /// <summary>The schema name in use.</summary>
@@ -246,12 +246,12 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <summary>
     /// Setup with the tenant context supplied externally. The tenant
     /// isolation contract uses this overload because it switches tenants on
-    /// the same store instance (Phase 41).
+    /// the same store instance.
     /// </summary>
     /// <param name="fixture">The running SQL Server container.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
     /// <param name="applyMigrations">Whether to apply migrations immediately.</param>
-    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies. Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A ready-to-use context.</returns>
     public static async ValueTask<SqlServerTestContext> CreateAsync(
         SqlServerFixture fixture,
@@ -299,7 +299,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <param name="fixture">The running SQL Server container.</param>
     /// <param name="schemaName">The schema name to use.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
-    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies. Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A new context pointing at the same backend.</returns>
     public static SqlServerTestContext Create(
         SqlServerFixture fixture,
@@ -574,7 +574,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
             BEGIN
                 DECLARE @sql NVARCHAR(MAX) = N'';
 
-                -- Phase 111: runs_v1 (the "views" optional set). A view is
+                -- Runs_v1 (the "views" optional set). A view is
                 -- dropped BEFORE the table it reads from, and before the
                 -- schema drop below -- SQL Server refuses to drop a schema
                 -- that still contains any object, view included.
@@ -604,7 +604,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
                 EXEC sp_executesql @sql;
                 SET @sql = N'';
 
-                -- Phase 64: audit_chain_seq. A schema cannot be dropped while
+                -- audit_chain_seq. A schema cannot be dropped while
                 -- a sequence still lives in it, the same reason tables are
                 -- dropped above first.
                 SELECT @sql += N'DROP SEQUENCE {SchemaName}.' + QUOTENAME(seq.name) + N';'

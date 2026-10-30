@@ -217,7 +217,7 @@ public sealed class ResponsesIncompletePatchTests
     [InlineData("event: response.completed\n\n")]
     [InlineData("event: response.completed\ndata: [1,2]\n\n")]
 
-    // F-735: the rewriter recognises a frame by its "\n" line ends, the way MAF writes them. A frame with
+    // The rewriter recognises a frame by its "\n" line ends, the way MAF writes them. A frame with
     // CRLF ends is not recognised, passes through unchanged and is reported, so the endpoint logs that the
     // status stayed "completed" instead of rewriting half of a frame it cannot read.
     [InlineData("event: response.completed\r\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[]}}\r\n\r\n")]

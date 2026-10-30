@@ -5,7 +5,7 @@ namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
 /// A value under <c>Tracon:Providers:OpenAI:Live</c> that the binder cannot read stops the host at startup
-/// and is named by its full key (phase 247).
+/// and is named by its full key.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -58,7 +58,7 @@ public sealed class OpenAILiveUnreadableConfigurationTests
     public void An_endpoint_that_is_not_an_absolute_address_is_refused_and_named()
     {
         // Uri.TryCreate(text, UriKind.Absolute) alone kept the default for this text, and the live session
-        // went to api.openai.com while the operator believed it went to their own gateway (F-702).
+        // went to api.openai.com while the operator believed it went to their own gateway.
         var failure = Provider.FailsAtStartup((nameof(OpenAILiveOptions.Endpoint), "gateway.internal/v1"));
 
         failure.Message.ShouldContain(

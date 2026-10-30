@@ -10,8 +10,8 @@ namespace Tracon.Workflows.UnitTests;
 /// <remarks>
 /// 🚨 This test exists because of a measured limitation. Microsoft Agent Framework
 /// derives executor ids from the agent <em>instance</em>, and <c>AIAgent.Id</c>
-/// is generated randomly for every instance; in Phase 15, restarting the app made
-/// old checkpoints unusable. Phase 16 derives the id from the
+/// is generated randomly for every instance;, restarting the app made
+/// old checkpoints unusable. derives the id from the
 /// <c>(workflow, agent)</c> pair instead. The write path for the id relies on a
 /// private field of MAF - if MAF removes that field, <strong>this test breaks</strong>
 /// and the limitation does not silently return.
@@ -73,7 +73,7 @@ public sealed class WorkflowAgentIdentityTests
     public void A_freshly_rebuilt_cache_produces_the_SAME_id()
     {
         // The unit-test equivalent of a process restart: the cache is rebuilt
-        // from scratch. In Phase 15 this changed the ids, and a pending human
+        // from scratch. In this changed the ids, and a pending human
         // request got lost on every deployment.
         var host = new WorkflowTestHost("summarizer");
 

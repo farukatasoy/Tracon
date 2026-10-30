@@ -73,7 +73,7 @@ public abstract class TenantIsolationContract<TStore> : StoreCancellationContrac
         AmbientTenant.TenantId = TenantA;
     }
 
-    // --- Tenant isolation hooks (phase 41) ---
+    // --- Tenant isolation hooks ---
 
     /// <summary>Writes a sample record for the given tenant.</summary>
     /// <param name="tenantId">The tenant that owns the record.</param>
@@ -136,7 +136,7 @@ public abstract class TenantIsolationContract<TStore> : StoreCancellationContrac
         return true;
     }
 
-    // --- Cancellation hooks (phase 177) ---
+    // --- Cancellation hooks ---
 
     /// <inheritdoc />
     /// <remarks>

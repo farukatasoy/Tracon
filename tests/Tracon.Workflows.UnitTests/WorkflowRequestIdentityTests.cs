@@ -11,7 +11,7 @@ namespace Tracon.Workflows.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured on MAF 1.20.0 (Phase 208, measurement 1; the tests pass on 1.25.0, re-run
+/// Measured on MAF 1.20.0 (measurement 1; the tests pass on 1.25.0, re-run
 /// 2026-10-16): a request port issues
 /// <c>Guid.NewGuid().ToString("N")</c> for every request it publishes, and a run resumed
 /// from a checkpoint republishes the pending request under the id it already had. A MAF
@@ -44,7 +44,7 @@ public sealed class WorkflowRequestIdentityTests
 
         string.Equals(second, first, StringComparison.Ordinal).ShouldBeFalse();
 
-        // A branch (K-130) that asks again in the same session is a third, distinct request.
+        // A branch that asks again in the same session is a third, distinct request.
         var branch = await AnswerAsync(runner, source.Id, first);
         var third = (await runner.ListPendingRequestsAsync(branch)).ShouldHaveSingleItem().RequestId;
 

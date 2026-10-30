@@ -49,7 +49,7 @@ public sealed class MigrationParityTests
     /// created by every provider.
     /// </summary>
     /// <remarks>
-    /// Both readers address the row by bare ordinal. Phase 190 appended
+    /// Both readers address the row by bare ordinal. appended
     /// <c>header_configuration_keys</c> to both lists; a provider that misses the
     /// migration fails every read of the table.
     /// </remarks>
@@ -205,7 +205,7 @@ public sealed class MigrationParityTests
         sql = Regex.Replace(sql, "--[^\r\n]*", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(5));
 
         // The table is written as {schema}.run_scores (PostgreSQL, SQL Server)
-        // or {schema}run_scores (SQLite, K-193), so the qualifier is optional.
+        // or {schema}run_scores (SQLite), so the qualifier is optional.
         var pattern = $@"(?:CREATE\s+TABLE|ALTER\s+TABLE)[^;]*?\{{schema\}}\.?{Regex.Escape(table)}\b[^;]*;";
 
         foreach (Match match in Regex.Matches(
@@ -237,7 +237,7 @@ public sealed class MigrationParityTests
     /// <summary>The per-dialect upsert text, which carries the order by hand.</summary>
     /// <remarks>
     /// Each provider compiles its own copy of the shared base (linked source,
-    /// K-176), so the three query types share no common type to switch over.
+    /// That decision), so the three query types share no common type to switch over.
     /// </remarks>
     private static IEnumerable<(string Dialect, string Sql)> Upserts(string table)
     {

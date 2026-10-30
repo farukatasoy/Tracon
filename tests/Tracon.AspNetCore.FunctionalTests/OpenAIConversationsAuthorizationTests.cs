@@ -8,14 +8,14 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 149 (F-201): the OpenAI-compatible <c>/v1/conversations</c> surface
+/// The OpenAI-compatible <c>/v1/conversations</c> surface
 /// now asks the installation's own <see cref="IRunAuthorizationHandler"/>, and
 /// a deployment that does not want the surface at all can leave it unmapped.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The gap this phase closed was HALF closed already, which is what makes
-/// it worth a file of its own. Phase 148 gave these endpoints Tracon's own
+/// 🚨 The gap this change closed was HALF closed already, which is what makes
+/// it worth a file of its own. An earlier change gave these endpoints Tracon's own
 /// session-ownership boundary and stopped there; the consumer's handler was
 /// still never asked. An installation whose handler refused
 /// <c>GET /api/sessions/{id}</c> had <c>GET /v1/conversations/{id}/items</c>
@@ -24,7 +24,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// The claim under test is not "a denial is refused" but "a denial is
-/// INDISTINGUISHABLE from absence" (K-671, K-684): the answer is this
+/// INDISTINGUISHABLE from absence": the answer is this
 /// endpoint's own OpenAI-shaped <c>404</c>, byte for byte what a conversation
 /// belonging to another tenant already produced, never the gate's own
 /// <c>ProblemDetails</c> body and never a <c>403</c> that would confirm the
@@ -81,7 +81,7 @@ public sealed class OpenAIConversationsAuthorizationTests
         // 🚨 The comparison is against ANOTHER TENANT's conversation, not
         // against a second denial by the same handler — two refusals matching
         // each other proves nothing. The tenant refusal is the body that was
-        // already reachable before this phase, so matching it is what keeps the
+        // already reachable before this change, so matching it is what keeps the
         // new gate from introducing a distinguishable answer.
         //
         // 🚨 And that is ALL the byte equality buys here. This endpoint does
@@ -108,7 +108,7 @@ public sealed class OpenAIConversationsAuthorizationTests
             .ShouldBe((await otherTenant.Content.ReadAsStringAsync())
                 .Replace("conv-elsewhere", "conv-1", StringComparison.Ordinal));
 
-        // The tenant refusal short-circuits BEFORE the handler (K-684): another
+        // The tenant refusal short-circuits BEFORE the handler: another
         // tenant's identity must never reach a consumer's own policy code.
         handler.Requests.Select(static request => request.SessionId).ShouldBe(["conv-1"]);
     }
@@ -278,7 +278,7 @@ public sealed class OpenAIConversationsAuthorizationTests
         // all — it arrives at GET /api/sessions, the LISTING. The point worth
         // locking is that the surface it escapes to is gated too: a denying
         // handler answers 403 there (a list has no single identity to hide,
-        // K-671), so traversal buys an attacker nothing.
+        // That decision), so traversal buys an attacker nothing.
         var handler = new RecordingHandler { Allow = false };
 
         await using var host = await StartAsync(handler);

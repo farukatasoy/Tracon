@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release-to-release gate for the surfaces that are not .NET API (Faz 238).
+"""Release-to-release gate for the surfaces that are not .NET API.
 
 ApiCompat reads .NET assemblies. A consumer also depends on HTTP endpoints,
 SSE event names, telemetry names, configuration keys, error codes and CLI
@@ -16,7 +16,7 @@ Two readers, both against the files of the baseline tag (`git show v<tag>:<file>
   A change the rules do not name is a break too (`tanınmayan değişiklik`): a
   gate that cannot classify a change must not pass it.
 
-The release line is the one `breaking_changes.release_line` decides (Faz 237);
+The release line is the one `breaking_changes.release_line` decides;
 there is no second copy. In a preview or a major release a break passes when the
 release notes name it; in a frozen release it is red whatever the notes say, and
 a frozen patch may not add to any surface either.
@@ -450,7 +450,7 @@ class _Diff:
         added = [value for value in new if value not in old]
         if removed:
             # A request enum loses a value a client may send; a response enum loses a member of the generated .NET
-            # client (`Tracon.Client` is outside PublicAPI tracking, K-566, so this gate is its only guard).
+            # client (`Tracon.Client` is outside PublicAPI tracking, so this gate is its only guard).
             self.broke(f"{where} {scope}", f"{direction} enum değeri silindi: {removed}", scope)
         if added:
             self.added(f"{where} {scope}", f"{direction} enum değeri eklendi: {added}", scope)
@@ -760,7 +760,7 @@ def check(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="HTTP, SSE, telemetri, yapılandırma, hata kodu ve CLI yüzeylerini son sürümle karşılaştırır (Faz 238).")
+        description="HTTP, SSE, telemetri, yapılandırma, hata kodu ve CLI yüzeylerini son sürümle karşılaştırır.")
     parser.add_argument("--depo", type=pathlib.Path, default=ROOT, help="karşılaştırılan git deposu (varsayılan: bu depo)")
     parser.add_argument("--taban", required=True, help="karşılaştırılan yayınlanmış sürüm, 'v'siz")
     parser.add_argument("--surum", help="notu okunacak sürüm; verilmezse '## [Unreleased]' (donmuş hatta sürüm gerekir)")

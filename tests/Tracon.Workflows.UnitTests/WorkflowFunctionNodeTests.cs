@@ -5,7 +5,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// Function nodes (phase 71): a Sequential chain that mixes agents from the
+/// Function nodes: a Sequential chain that mixes agents from the
 /// catalog with a plain function registered in code.
 /// </summary>
 public sealed class WorkflowFunctionNodeTests
@@ -67,7 +67,7 @@ public sealed class WorkflowFunctionNodeTests
         var host = new WorkflowTestHost("writer");
 
         // The function takes the chat message list the agent node passes on: the
-        // compiler refuses a chain whose types do not fit (F-341).
+        // compiler refuses a chain whose types do not fit.
         host.AddFunction<List<ChatMessage>, List<ChatMessage>>("uppercase", static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages));
 
         var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
@@ -88,7 +88,7 @@ public sealed class WorkflowFunctionNodeTests
         functionNode.AgentName.ShouldBeNull();
         functionNode.Label.ShouldBe("uppercase");
 
-        // 🚨 Regression check (phase 71): an agent step in a mixed chain is
+        // 🚨 Regression check: an agent step in a mixed chain is
         // bound as a FunctionExecutor subtype too (see the compiler's remarks
         // on WorkflowAgentStepExecutor), so it must stay classified as Agent
         // and keep its AgentName - not fall through to Function just because
@@ -154,7 +154,7 @@ public sealed class WorkflowFunctionNodeTests
 
         // The function node opens no `runs` row of its own: only the two
         // agent steps do. This is what keeps its cost contribution at zero
-        // (phase 71 DoD) without any special-casing in the cost rollup.
+        // (an earlier change DoD) without any special-casing in the cost rollup.
         runs.Count(run => run.Kind == RunKind.Agent).ShouldBe(2);
     }
 
@@ -187,7 +187,7 @@ public sealed class WorkflowFunctionNodeTests
         root.Status.ShouldBe(RunStatus.Failed);
         root.Error.ShouldNotBeNull();
 
-        // Phase 119 (BL-027/BL-037): a foreign exception's own message never reaches a
+        // A foreign exception's own message never reaches a
         // persistent field; only its type name and a correlation id do.
         root.Error!.Message.ShouldContain(nameof(InvalidOperationException), Case.Sensitive);
         root.Error.Message.ShouldNotContain("function node blew up", Case.Sensitive);
@@ -198,7 +198,7 @@ public sealed class WorkflowFunctionNodeTests
     [Fact]
     public async Task A_failed_node_event_carries_the_safe_text_and_never_the_raw_message()
     {
-        // F-334 (K-640): ToRunError wrote the root row's safe text, but the
+        // ToRunError wrote the root row's safe text, but the
         // ExecutorFailed event of the same failure wrote the exception's own
         // message - a host:port the node's HTTP client put there - to the
         // event table and the stream. One failure, stored once safely and once raw.
@@ -249,7 +249,7 @@ public sealed class WorkflowFunctionNodeTests
     public async Task Cancellation_requested_inside_a_function_node_still_records_Canceled()
     {
         // Same shape as WorkflowCancellationTests.Cancellation_during_a_step_records_Canceled_not_Completed:
-        // MAF does not honor a mid-step cancellation (K-432), so the runner
+        // MAF does not honor a mid-step cancellation, so the runner
         // enforces it itself at the next super-step boundary - a mechanism
         // that lives in WorkflowRunner.PumpAsync and does not care what kind
         // of node just ran. This proves that also holds for a function node.
@@ -300,7 +300,7 @@ public sealed class WorkflowFunctionNodeTests
     [Fact]
     public async Task Resuming_an_ALREADY_COMPLETED_mixed_chain_does_NOT_re_run_its_function_node()
     {
-        // Measured (phase 71): resuming from the LATEST checkpoint of an
+        // Measured: resuming from the LATEST checkpoint of an
         // already-Completed run (no explicit checkpointId - what
         // WorkflowResumeRequest defaults to) does not invoke the function
         // node a second time. The checkpoint already captures the graph at
@@ -348,7 +348,7 @@ public sealed class WorkflowFunctionNodeTests
     [Fact]
     public async Task Resuming_from_an_EARLIER_checkpoint_RE_RUNS_the_function_node_that_follows_it()
     {
-        // 🚨 Measured (phase 71, the plan's own "riskiest failure mode"):
+        // 🚨 Measured (the plan's own "riskiest failure mode"):
         // an explicit checkpointId from BEFORE the function node's super-step
         // (the shape a real crash-recovery resume takes - the process died
         // before the LATEST checkpoint was written) replays that super-step,

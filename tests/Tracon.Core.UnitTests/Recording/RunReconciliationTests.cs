@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
 /// <see cref="RunReconciliationService"/> and <see cref="RunHeartbeatWriter"/>
-/// contract (Phase 54).
+/// contract.
 /// </summary>
 public sealed class RunReconciliationTests
 {
@@ -16,7 +16,7 @@ public sealed class RunReconciliationTests
         // 🚨 Sets up a SchemaReadyGate as if a SQL provider WERE registered
         // (MarkReady is NEVER called); Enabled=false must short-circuit
         // WITHOUT waiting for the gate. If the service hangs, the test times
-        // out -- this directly tests K1's "no query is issued" claim.
+        // out -- this directly tests the zero-surprise rule's "no query is issued" claim.
         var store = new CountingRunStore(new InMemoryRunStore());
         var gate = new SchemaReadyGate([new SqlPersistenceRegistrationMarker("SQLite")]);
         var options = Options(new RunReconciliationOptions { Enabled = false });
@@ -184,7 +184,7 @@ public sealed class RunReconciliationTests
         // SingletonGuard.MinimumRenewInterval, so a 1-second lease used to
         // expire under its live owner and the second instance took over -
         // this assertion then depended on the window staying under a second.
-        // SingletonExecutionOptionsValidator rejects that configuration now (K-743).
+        // SingletonExecutionOptionsValidator rejects that configuration now.
         var singletonOptions = Options(new SingletonExecutionOptions
         {
             Enabled = true,
@@ -339,7 +339,7 @@ public sealed class RunReconciliationTests
         claimed.ShouldBeEmpty();
     }
 
-    // --- Cross-instance run cancellation (Phase 262, F-764) ---
+    // --- Cross-instance run cancellation ---
 
     [Fact]
     public async Task Heartbeat_writer_cancels_a_registered_run_whose_row_carries_a_request()

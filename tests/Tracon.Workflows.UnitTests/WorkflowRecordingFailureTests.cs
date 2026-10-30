@@ -196,7 +196,7 @@ public sealed class WorkflowRecordingFailureTests
         }
 
         /// <summary>
-        /// The options that switch <c>tracon.tenant.id</c> on (Phase 238): the tag is off by default and
+        /// The options that switch <c>tracon.tenant.id</c> on: the tag is off by default and
         /// these tests read it.
         /// </summary>
         private sealed class TenantTaggedOptions : IOptionsMonitor<TraconOptions>

@@ -11,11 +11,11 @@ using Tracon.Tests.Common;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 266: the steps of a workflow are spans of the workflow's run.
+/// The steps of a workflow are spans of the workflow's run.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before this phase the run trace of a workflow held the agents' own spans and nothing of the workflow: a slow
+/// Before this change the run trace of a workflow held the agents' own spans and nothing of the workflow: a slow
 /// step read as a gap. A workflow Tracon builds from a stored definition is now built with the framework's
 /// telemetry, writing to the Tracon source. A graph built in code is the consumer's: Tracon cannot add the ring to it,
 /// so the run trace also listens to the framework's own source, and a graph that calls <c>WithOpenTelemetry()</c> shows
@@ -52,7 +52,7 @@ public sealed class WorkflowTraceTests
     [Fact]
     public async Task A_stored_workflow_keeps_executor_content_out_of_the_trace_even_when_sensitive_data_is_recorded()
     {
-        // Open question 1, answer A: the framework option stays off. The store filter is a second line, not the first.
+        // Answer A: the framework option stays off. The store filter is a second line, not the first.
         await using var host = await StartStoredAsync(static options => options.Observability.RecordSensitiveData = true);
 
         var trace = await RunStoredAsync(host);

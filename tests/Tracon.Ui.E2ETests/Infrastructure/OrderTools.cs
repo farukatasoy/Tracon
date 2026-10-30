@@ -17,7 +17,7 @@ internal static class OrderTools
     public static string GetOrderStatus([Description("Order number")] string orderId)
         => $"Order {orderId} has shipped.";
 
-    /// <summary>Cancels an order. Requires approval (for the phase 55 E2E test).</summary>
+    /// <summary>Cancels an order. Requires approval (for the E2E test).</summary>
     /// <param name="orderId">Order number.</param>
     /// <returns>A human-readable result message.</returns>
     [TraconTool("cancel_order", "Cancels an order.", RequiresApproval = true)]
@@ -47,7 +47,7 @@ internal static class OrderTools
 
     /// <summary>
     /// Marks an order's preview as ready and writes a consumer-defined
-    /// <see cref="RunEventType.Custom"/> event (phase 141's escape hatch, for the E2E test).
+    /// <see cref="RunEventType.Custom"/> event (the earlier change's escape hatch, for the E2E test).
     /// </summary>
     /// <param name="orderId">Order number.</param>
     /// <returns>A human-readable result message.</returns>

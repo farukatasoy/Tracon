@@ -11,15 +11,14 @@
     csproj'un <TraconAotCompatible>false</...> tercihini gormezdi ve bayrak
     geri alinamaz bicimde true kalirdi. Olculdu: Tracon.AspNetCore false yazmasina
     ragmen minimal API yonlendirmesi icin IL2026/IL3050 uretiyordu.
-    Gerekce: docs/KARARLAR.md, karar K-006.
   -->
   <PropertyGroup Condition=" '$(TraconAotCompatible)' == 'true' ">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <!--
-    Taban dogrulamasi - yalniz yayin paketi (Faz 187). `scripts/kapi.py yayin`
-    ve CI build isindeki `scripts/kapi.py paketle` (Faz 191) ayni pack
+    Taban dogrulamasi - yalniz yayin paketi. `scripts/kapi.py yayin`
+    ve CI build isindeki `scripts/kapi.py paketle` ayni pack
     kurucusuyla son yayinlanmis surumun paketlerini IZOLE bir cache'e restore
     eder ve uc ozellik gecirir: TraconPackageBaselineRoot, TraconPackageBaselineVersion,
     TraconApiCompatReportDir. Kok bossa hicbir sey turetilmez; gunluk pack
@@ -61,7 +60,7 @@
   <!--
     Yayinlanabilir her paket icin Public API takip dosyalari. Analyzer bu dosyalari
     AdditionalFiles olarak bekler; analyzer'in kendisi src/Directory.Build.props'ta
-    TraconPublicApiTrackingEnabled ile eklenir (proje basina kapatma, K-424).
+    TraconPublicApiTrackingEnabled ile eklenir (proje basina kapatma).
   -->
   <ItemGroup Condition=" '$(IsPackable)' == 'true' ">
     <AdditionalFiles Include="PublicAPI.Shipped.txt" Condition="Exists('PublicAPI.Shipped.txt')" />
@@ -81,7 +80,7 @@
   </Target>
 
   <!--
-    Faz 136 (Paket Kimliginin Tekilligi): a <id, version> pair must name ONE
+    A <id, version> pair must name ONE
     artifact. MinVer derives the version from git height alone (src/Directory.Build.props,
     "Versioning" label) - the WORKING TREE'S state is not an input to it, so a
     commit-less edit and a clean tree can pack to the SAME version with
@@ -91,25 +90,25 @@
     Runs BeforeTargets="GenerateNuspec", exactly like TraconValidatePackageReadme
     above - GenerateNuspec is part of the `Pack` target chain only, so a plain
     `dotnet build`/`dotnet test` invocation never reaches this target and is
-    never blocked by it (docs/136-PAKET-KIMLIGININ-TEKILLIGI.md, kabul case 3).
+    never blocked by it.
 
     A source tree with no git (a source tarball) or a machine without a `git`
     executable is deliberately NOT an error here: `scripts/kapi.py yayin` is the
     primary defense and performs its own git check; this MSBuild gate is the
-    SECOND line, not the only one (docs/136-PAKET-KIMLIGININ-TEKILLIGI.md, "Beş soru").
+    SECOND line, not the only one.
 
     TraconSkipCleanWorkingTreeCheck bypasses this entire target regardless
     of git state. It exists ONLY for Tracon's own iteration-loop tooling -
     `scripts/kapi.py kapanis`'s pack step and the `dotnet pack` calls inside
     Tracon.Package.Tests' ReleaseArtifactFixture/TemplateFixture - which
-    validate the PACKAGING CONTRACT (README, icon, K-008, template
+    validate the PACKAGING CONTRACT (README, icon, template
     installability) during normal development and are never the source of a
-    published artifact (Faz 136 denetim bulgusu 🔴#1: without this, the closing
+    published artifact (without this, the closing
     gate could never pass on an uncommitted tree, and this repo's own workflow
     is "commit only when asked", not "commit before every local test run").
     A real release candidate NEVER sets this property: `scripts/kapi.py yayin`
     (the release rehearsal) and `scripts/kapi.py paketle` - the build job's
-    pack whose files a `v*` tag actually publishes (Faz 191) - both leave it
+    pack whose files a `v*` tag actually publishes - both leave it
     unset, so THEY stay fully gated.
   -->
   <Target Name="TraconValidateCleanWorkingTree" BeforeTargets="GenerateNuspec"
@@ -133,7 +132,7 @@
       The porcelain flag intentionally is NOT paired with -uno: an untracked
       file is just as unaccountable as a modified tracked one, and the SDK's default
       `Compile` glob (`**/*.cs`) can silently pull an untracked .cs file INTO
-      the packed assembly (docs/136-PAKET-KIMLIGININ-TEKILLIGI.md, "Untracked
+      the packed assembly ("Untracked
       dosyalar da bloke eder").
     -->
     <Exec Condition=" '$(TraconInsideGitWorkTree)' == 'true' "
@@ -149,7 +148,7 @@
       "something changed", repeated once per packable project, and a failure on a
       machine the reader cannot inspect (a CI runner) is undiagnosable: the
       `git status` output above is deliberately low-importance, so it never
-      reaches the log. Faz 136 built the gate; this carries its evidence.
+      reaches the log. This carries the gate's evidence.
     -->
     <PropertyGroup Condition=" '$(TraconInsideGitWorkTree)' == 'true' AND '@(TraconGitStatusLine->Count())' != '0' ">
       <TraconWorkingTreeDirty>true</TraconWorkingTreeDirty>

@@ -32,7 +32,7 @@ public sealed class InMemoryAttachmentStoreTests
     }
 
     /// <summary>
-    /// F-332: the entry is the only record of where the bytes are. Removing it
+    /// The entry is the only record of where the bytes are. Removing it
     /// before the byte delete succeeds loses the location for good when the
     /// storage fails.
     /// </summary>

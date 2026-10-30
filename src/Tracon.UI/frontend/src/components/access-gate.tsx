@@ -11,7 +11,7 @@ import type { AgentDescriptor } from '../lib/server-types';
 /**
  * Decides whether the console can talk to the API, and explains it when it cannot.
  *
- * `/api/meta` is reachable without authentication (decision K-010) precisely so
+ * `/api/meta` is reachable without authentication precisely so
  * this screen can exist: the console has no other way to learn which of the
  * three access layers is switched on.
  */
@@ -20,7 +20,7 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   const token = useToken();
   const rejected = useTokenRejected();
 
-  // HATA-S4-002: without a periodic refetch, an already-open tab had no way
+  // Without a periodic refetch, an already-open tab had no way
   // to notice the server died short of a REAL window blur/focus cycle (a
   // synthetic focus event does not trigger TanStack Query's default
   // `refetchOnWindowFocus`, and Kestrel going down does not flip
@@ -31,7 +31,7 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   // the last success (TanStack Query's `QueryObserverRefetchErrorResult`), so
   // polling alone is enough to close this gap. The FIRST paint of a fully
   // cold load (server down before any JS runs) is a separate, browser-level
-  // failure this cannot reach — see `docs/ADAYLAR.md`.
+  // failure this cannot reach — see `.md`.
   const meta = useQuery({
     queryKey: ['meta'],
     queryFn: () => unwrap(client.GET('/api/meta')) as Promise<Meta>,

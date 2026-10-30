@@ -79,7 +79,7 @@ public sealed class SpeechClientAdapterTests
     public async Task A_tenant_credential_never_reaches_the_client_options(bool withProviderSettings)
     {
         // LoggingTextToSpeechClient writes the options to the log at Trace level: a key
-        // placed in any of them leaves the process (K-059).
+        // placed in any of them leaves the process.
         const string Key = "tenant-voice-value";
 
         var client = new FakeTextToSpeechClient();
@@ -434,7 +434,7 @@ public sealed class SpeechClientAdapterTests
     [Fact]
     public async Task A_client_with_no_provider_name_fails_the_build_of_the_adapter_and_names_the_registration()
     {
-        // K-930: the tenant's egress policy is applied to this name. No name, no policy.
+        // The tenant's egress policy is applied to this name. No name, no policy.
         await using var provider = Build(new FakeTextToSpeechClient(), providerName: null);
 
         var exception = await Should.ThrowAsync<TraconException>(async () => await Synthesizer(provider));

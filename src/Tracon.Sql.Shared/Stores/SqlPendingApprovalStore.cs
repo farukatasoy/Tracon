@@ -124,7 +124,7 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
-    // 🚨 New columns are ALWAYS appended at the end (docs/hafiza/postgresql.md):
+    // 🚨 New columns are ALWAYS appended at the end:
     // presentation reads by fixed ordinal 12, after the original twelve columns.
     private static PendingApproval ReadApproval(DbDataReader reader)
         => new()

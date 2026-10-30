@@ -3,9 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <!--
-      Store contract suite (Phase 23; packaged in Phase 98 as
+      Store contract suite (packaged in as
       Tracon.Testing.Contracts.Xunit). The SAME abstract classes also run
-      in Tracon.PostgreSql.IntegrationTests. This phase's exact test was
+      in Tracon.PostgreSql.IntegrationTests. this change's exact test was
       that: adding a third persistence implementation should NOT REQUIRE
       writing a new contract test.
     -->
@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <!--
-    Phase 265: the two-process failure proof starts tests/Tracon.WorkerHarness as a real, separate host and kills it,
+    The two-process failure proof starts tests/Tracon.WorkerHarness as a real, separate host and kills it,
     on SQL Server as it already does on PostgreSQL. ReferenceOutputAssembly=false for the reason the PostgreSQL project
     gives: the harness is a SUBJECT, not a library.
   -->
@@ -22,7 +22,7 @@
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <!-- Shared process infrastructure. Linked, not copied (K-411). -->
+  <!-- Shared process infrastructure. Linked, not copied. -->
   <ItemGroup>
     <Compile Include="../Shared/Infrastructure/ProcessResult.cs" Link="Infrastructure/Shared/ProcessResult.cs" />
     <Compile Include="../Shared/Infrastructure/ProcessRunner.cs" Link="Infrastructure/Shared/ProcessRunner.cs" />
@@ -39,11 +39,11 @@
   </ItemGroup>
 
   <!--
-    TenantCoverageTests.cs (Phase 41) lives directly in this project, not
+    TenantCoverageTests.cs lives directly in this project, not
     under the contract package: it reflects over Tracon.Sql.Shared's
     linked-source internal types (SqlRunStore and the rest), which are only
     reachable from a provider assembly, never from a published package
-    (K-247 — a linked-source internal type's identity is not stable across
+    (a linked-source internal type's identity is not stable across
     assemblies).
   -->
 

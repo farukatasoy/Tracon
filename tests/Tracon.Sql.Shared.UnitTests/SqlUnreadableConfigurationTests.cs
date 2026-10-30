@@ -7,7 +7,7 @@ namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
 /// Text under <c>Tracon:PostgreSql</c>, <c>Tracon:SqlServer</c> or <c>Tracon:Sqlite</c> that the
-/// binder cannot read stops the host at startup, and the failure names the key and the text (F-572).
+/// binder cannot read stops the host at startup, and the failure names the key and the text.
 /// </summary>
 /// <typeparam name="TOptions">The options type of one SQL provider.</typeparam>
 /// <remarks>

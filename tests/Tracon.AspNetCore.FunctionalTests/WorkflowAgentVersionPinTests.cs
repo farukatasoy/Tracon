@@ -8,7 +8,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An agent node can pin the version of its agent (phase 200, failure modes 14 and 16): the save
+/// An agent node can pin the version of its agent (failure modes 14 and 16): the save
 /// refuses a pin that cannot hold, a run of the chain runs the pinned text while the agent is
 /// edited, and every path a step is resolved through honours the pin.
 /// </summary>
@@ -238,7 +238,7 @@ public sealed class WorkflowAgentVersionPinTests
     [Fact]
     public async Task A_pin_does_not_reach_the_content_of_an_agent_created_again_under_the_same_name()
     {
-        // Phase 248: a version number is an identity. Before it, the numbering restarted at 1 when the agent
+        // A version number is an identity. Before it, the numbering restarted at 1 when the agent
         // was created again, so the pin to version 2 named the NEW agent's second save and ran its text.
         var provider = Provider();
         await using var host = await StartAsync(provider);

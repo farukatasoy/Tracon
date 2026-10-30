@@ -55,19 +55,19 @@ interface Draft {
   /**
    * The chain: agents, and for a `Sequential` workflow function nodes with their settings.
    *
-   * 🚨 `PUT /api/workflows/{name}` is a full replace (K-725). The steps are written back in
+   * 🚨 `PUT /api/workflows/{name}` is a full replace. The steps are written back in
    * the form the chain needs (`chainBody`) - `nodes` when it holds a function or an agent pinned
-   * to a version, `agentNames` otherwise - and the other field is always sent empty. Before phase 195 the editor did not
+   * to a version, `agentNames` otherwise - and the other field is always sent empty. Before that change, the editor did not
    * edit `nodes` at all, and adding an agent to a function-node chain replaced the chain with
    * that one agent: the function nodes were gone, with no warning.
    */
   steps: Step[];
   /**
    * The run parameters the workflow declares - carried, never edited here
-   * (F-294). The console has no schema editor yet; the agent editor treats its
+   *The console has no schema editor yet; the agent editor treats its
    * own `parameters` the same way.
    *
-   * 🚨 `PUT /api/workflows/{name}` is a full replace (K-725): a save that did
+   * 🚨 `PUT /api/workflows/{name}` is a full replace: a save that did
    * not send them back would erase the schema, and the next run would be
    * refused for values the workflow no longer declares.
    */
@@ -76,8 +76,8 @@ interface Draft {
   maxIterations: string;
   handoffInstructions: string;
   /**
-   * Who may hand off to whom in a `Handoff` workflow (phase 270). Empty is the star the pattern always
-   * had. Sent back on every save: the save is a full replace (K-725), and a list the draft did not
+   * Who may hand off to whom in a `Handoff` workflow. Empty is the star the pattern always
+   * had. Sent back on every save: the save is a full replace, and a list the draft did not
    * carry would turn the workflow back into the star.
    */
   handoffs: HandoffEdge[];
@@ -89,23 +89,23 @@ interface Draft {
   requirePlanApproval: boolean;
   /**
    * The run timeout this workflow sets for itself, as typed: seconds or `hh:mm:ss`. Empty
-   * means the installation's. Sent back on every save - the save is a full replace (K-725).
+   * means the installation's. Sent back on every save - the save is a full replace.
    */
   runTimeout: string;
   /** The run timeout the server sent, so an untouched field goes back exactly as stored. */
   storedRunTimeout: string | null;
   /**
-   * How long a human request of this workflow may wait for an answer (phase 209), as typed:
+   * How long a human request of this workflow may wait for an answer, as typed:
    * seconds or `d.hh:mm:ss`. Empty means no limit. Sent back on every save - the save is a full
-   * replace (K-725), and a dropped value would remove the limit of a workflow whose requests
+   * replace, and a dropped value would remove the limit of a workflow whose requests
    * must not wait for ever.
    */
   requestTimeout: string;
   /** The request timeout the server sent, so an untouched field goes back exactly as stored. */
   storedRequestTimeout: string | null;
   /**
-   * How a repeated answer to one request is treated (phase 208). Sent back on every save: the
-   * save is a full replace (K-725), and a dropped value would turn a one-answer workflow back
+   * How a repeated answer to one request is treated. Sent back on every save: the
+   * save is a full replace, and a dropped value would turn a one-answer workflow back
    * into Branch.
    */
   responseMode: WorkflowResponseMode;
@@ -137,7 +137,7 @@ const EMPTY: Draft = {
  * Create or edit a workflow definition.
  *
  * The form only wires together agents that already exist, and the functions the code
- * registered - it never defines behaviour. That is the security boundary from decision K2: a
+ * registered - it never defines behaviour. That is the security boundary: a
  * workflow built here arranges the catalogue, it cannot add to it. A function node's settings
  * are values for a shape the function's code declares, not code and not an expression.
  *
@@ -236,7 +236,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
         // Fields that belong to another pattern are sent as null, not as an
         // empty string: the server rejects a value that the chosen pattern does
-        // not use (decision K-125), and "" is a value.
+        // not use, and "" is a value.
         managerAgentName: draft.kind === 'Magentic' ? blank(draft.managerAgentName) : null,
         maxIterations: numberOrNull(draft.maxIterations),
         handoffInstructions: draft.kind === 'Handoff' ? blank(draft.handoffInstructions) : null,
@@ -597,7 +597,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 }
 
 /**
- * The one-answer switch (phase 208): with it on, the same answer given twice follows the run the
+ * The one-answer switch: with it on, the same answer given twice follows the run the
  * first one started and a different answer is refused. Shown for every kind - the server takes
  * it for every kind - and carried on every save.
  */
@@ -684,7 +684,7 @@ function PlanApproval({
  *   change of the pinned version alone is not.
  * - **The graph changes.** A new pattern, step or order is a different graph. A run that is
  *   waiting keeps resuming the definition version it recorded; resuming it WITH THE NEW version
- *   is refused, because its saved state belongs to the old graph (measured, phase 195; phase 200
+ * is refused, because its saved state belongs to the old graph (measured.
  *   for the recorded version). A settings, description or pin change is not such a change.
  */
 function ChainNotices({

@@ -42,7 +42,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests : IDisposable
         var entries = await log.QueryAsync(new AuditQuery { TenantId = "default" });
         var denied = entries.Single(entry => string.Equals(entry.Action, "script.denied", StringComparison.Ordinal));
 
-        // HATA-K-skill-audit-json (2026-08-15): 'After' is written to a real jsonb
+        // 'After' is written to a real jsonb
         // column; when DenyAsync passed raw (non-JSON) text, the Postgres INSERT
         // rejected it with "22P02 invalid input syntax for type json" and the
         // audit trail entry NEVER got created. The in-memory fake log cannot
@@ -83,7 +83,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests : IDisposable
     [Fact]
     public async Task The_script_does_not_run_when_the_audit_trail_cannot_be_written()
     {
-        // A deliberate exception to Phase 9's "observability does not break
+        // A deliberate exception to the earlier change's "observability does not break
         // functionality" rule: a run whose record cannot be kept must never happen.
         using var runner = CreateRunner(new ThrowingAuditLog(), await GrantAllAsync(Demo(EchoScript())));
 
@@ -118,7 +118,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests : IDisposable
     [Fact]
     public async Task An_authorized_script_actually_runs_and_is_written_to_the_audit_trail()
     {
-        // Phase 11's proof test: with all gates open, the script actually runs
+        // the proof test: with all gates open, the script actually runs
         // in a real OS process and its output is returned to the model.
         Assert.SkipWhen(!File.Exists("/bin/bash"), "bash not found.");
 
@@ -450,7 +450,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests : IDisposable
     /// with the behavior under test. The same reason makes the collection a
     /// concurrent one: another test's span stops on ITS thread while this one
     /// reads, and a plain list threw "Collection was modified" (measured,
-    /// Phase 184).
+    /// An earlier change).
     /// </remarks>
     private static Activity SpanFor(IEnumerable<Activity> stopped, string scriptName)
         => stopped.Single(activity =>

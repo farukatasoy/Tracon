@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// same assembly in parallel. A listener that enables instruments by
 /// <c>instrument.Meter.Name</c> also receives measurements from a DIFFERENT
 /// <see cref="Meter"/> instance carrying the same name in another test running at the
-/// same moment — which is how a real failure landed in phase 134. Register this as
+/// same moment — which is how a real failure landed. Register this as
 /// <see cref="IMeterFactory"/> on the host (<c>TraconTestHost.StartAsync</c>'s
 /// <c>configureServices</c>); <c>TraconMetrics</c> resolves
 /// <see cref="IMeterFactory"/> from DI, so it will publish onto <see cref="Meter"/>.

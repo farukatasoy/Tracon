@@ -5,7 +5,7 @@ namespace Tracon.Sqlite.IntegrationTests;
 /// <summary>
 /// Tests of the SQLite implementation of
 /// <see cref="IRetentionStore.FindRowLimitCutoffAsync"/> against a real
-/// database (Phase 36, <c>MaxRows</c>). Covers the SAME three scenarios as
+/// database (<c>MaxRows</c>). Covers the SAME three scenarios as
 /// <c>RetentionDataPlaneTests</c> (Tracon.PostgreSql.IntegrationTests) for
 /// PostgreSQL; proves behavioral equality.
 /// </summary>
@@ -84,8 +84,8 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     }
 
     /// <summary>
-    /// 🚨 A side finding from Phase 36: the <c>WherePredicate</c> for
-    /// <c>attachments</c> (Phase 25) used the BARE target name ("attachments")
+    /// 🚨 A side finding: the <c>WherePredicate</c> for
+    /// <c>attachments</c> used the BARE target name ("attachments")
     /// as the correlation; in SQLite the actual FROM'd object is prefixed
     /// ("t_...attachments") and the bare name never matched — <c>NOT EXISTS</c>
     /// always evaluated to TRUE, and owned attachments were also considered
@@ -129,9 +129,9 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     }
 
     /// <summary>
-    /// 🚨 F-327: a workflow run waiting for a human keeps its pending request
-    /// event and its checkpoints, however old (K-128, K-130). Also proves the
-    /// correlation uses the prefixed table name on SQLite (K-193).
+    /// A workflow run waiting for a human keeps its pending request
+    /// event and its checkpoints, however old. Also proves the
+    /// correlation uses the prefixed table name on SQLite.
     /// </summary>
     [Fact]
     public async Task A_waiting_workflow_runs_request_and_checkpoints_survive_retention()
@@ -164,7 +164,7 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     }
 
     /// <summary>
-    /// 🚨 F-294: the parameter values a workflow was started with live only in
+    /// The parameter values a workflow was started with live only in
     /// its <c>run_inputs</c> row, and answering the run resumes with them. The
     /// row of a run waiting for a human survives retention and is not counted
     /// toward the row limit; a finished run's row goes by age as before.

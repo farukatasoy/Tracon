@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <!--
-    Phase 265: the two-node acceptance set drives the management API of two hosts that share a SQL database. It reuses
+    The two-node acceptance set drives the management API of two hosts that share a SQL database. It reuses
     the functional tests' request builders (the workflow save request among them), so it reaches the same internals.
   -->
   <ItemGroup Label="Internal visibility - two-node acceptance tests">
@@ -36,7 +36,7 @@
   </ItemGroup>
 
   <!--
-    Phase 236: Tracon.AGUI is a second run surface. It shares the run turn (the gates, the agent resolution, the
+    Tracon.AGUI is a second run surface. It shares the run turn (the gates, the agent resolution, the
     answer matching, the run options) with the management API through AgentTurnService instead of copying it, and
     it maps through the same role, API key and session ownership rules. Those are internal on purpose: no
     consumer is asked to write another surface, so the seam is not public.
@@ -46,12 +46,12 @@
   </ItemGroup>
 
   <!--
-    Phase 74: the OpenAPI document travels with the package that serves the
+    The OpenAPI document travels with the package that serves the
     endpoints it describes, and Tracon.AspNetCore.targets hands its path to
     the local reference file. No dependency is added - this is a static JSON
-    file - so K-039 is untouched.
+    file - so no package reference is added.
 
-    The document is packed FROM ITS SOURCE under docs/openapi. A copy inside
+    The document is packed FROM ITS SOURCE. A copy inside
     this project would be a second surface that can drift, and
     OpenApiSnapshotTests already pins the source against a running host.
 
@@ -75,24 +75,23 @@
     All of Tracon's pre-release MAF dependencies are deliberately
     consolidated into this single package. This keeps Tracon.Abstractions,
     .Core, .PostgreSql, and .OpenAI dependent only on GA packages. Rationale:
-    docs/KARARLAR.md, decision K-008.
   -->
   <ItemGroup Label="Pre-release MAF dependencies">
     <PackageReference Include="Microsoft.Agents.AI.Hosting" />
     <PackageReference Include="Microsoft.Agents.AI.Hosting.OpenAI" />
-    <!-- Phase 50: A2A exposure server. Rationale: Directory.Packages.props. -->
+    <!-- A2A exposure server. Rationale: Directory.Packages.props. -->
     <PackageReference Include="Microsoft.Agents.AI.Hosting.A2A" />
     <PackageReference Include="Microsoft.Agents.AI.Hosting.AspNetCore" />
     <PackageReference Include="A2A.AspNetCore" />
   </ItemGroup>
 
   <!--
-    MCP server (Phase 50). GA package; NOT in the pre-release group. Lives
-    only here per K-057 — Tracon.Mcp (client) stays in `.Core`.
+    MCP server. GA package; NOT in the pre-release group. Lives
+    only here — Tracon.Mcp (client) stays in `.Core`.
   -->
   <ItemGroup Label="Model Context Protocol - server">
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
-    <!-- Phase 117: MCP Tasks extension. Net new transitive weight: zero (Directory.Packages.props). -->
+    <!-- MCP Tasks extension. Net new transitive weight: zero (Directory.Packages.props). -->
     <PackageReference Include="ModelContextProtocol.Extensions.Tasks" />
   </ItemGroup>
 

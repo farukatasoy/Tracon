@@ -10,7 +10,7 @@ using Tracon.AGUI.FunctionalTests.Infrastructure;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// The AG-UI endpoint is a second way to start a run, and it passes through the same doors as the first (Phase 236).
+/// The AG-UI endpoint is a second way to start a run, and it passes through the same doors as the first.
 /// </summary>
 /// <remarks>
 /// The claim is not that a filter exists but that a front end cannot reach an agent through this endpoint that it could not

@@ -3,8 +3,8 @@ using System.Xml.Linq;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 🚨 F-76 guard (K-352): <c>Tracon.Sql.Shared</c> is not a package; the same
-/// source is linked into three assemblies via <c>LinkBase</c> (K-185). The XML
+/// 🚨 An earlier fix guard: <c>Tracon.Sql.Shared</c> is not a package; the same
+/// source is linked into three assemblies via <c>LinkBase</c>. The XML
 /// documentation file of all three assemblies therefore carries the same
 /// <c>&lt;member&gt;</c> ids.
 /// </summary>
@@ -26,7 +26,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// This test guards that fix. If it fails, either the target was removed or
-/// K-185 changed; in the latter case the target is unnecessary and this test
+/// The earlier decision changed; in the latter case the target is unnecessary and this test
 /// should also be removed.
 /// </para>
 /// </remarks>
@@ -51,9 +51,9 @@ public sealed class OpenApiSharedSqlXmlDocTests
                 element.Attribute("Name")?.Value, TargetName, StringComparison.Ordinal));
 
         target.ShouldNotBeNull(
-            $"The '{TargetName}' target was removed. F-76 regresses: /openapi/v1.json returns 500 " +
+            $"The '{TargetName}' target was removed. The regression returns: /openapi/v1.json returns 500 " +
             "because Tracon.SqlServer and Tracon.Sqlite's XML docs carry the same " +
-            "<member> ids (K-185's linked-source pattern). Rationale: K-352.");
+            "<member> ids (the linked-source pattern).");
 
         target.Attribute("AfterTargets")?.Value
             .ShouldBe(

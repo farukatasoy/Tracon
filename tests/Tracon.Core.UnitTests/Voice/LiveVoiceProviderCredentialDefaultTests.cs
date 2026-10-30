@@ -2,7 +2,7 @@ namespace Tracon.Core.UnitTests.Voice;
 
 /// <summary>
 /// The defaults <see cref="ILiveVoiceProvider"/> gives a provider written before the
-/// tenant credential existed (F-306).
+/// tenant credential existed.
 /// </summary>
 /// <remarks>
 /// Both defaults fail closed. A provider that does not opt in is reported as unable

@@ -8,14 +8,14 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Every streaming surface that hands an agent's answer to a program, or speaks
-/// it, gets a harness loop's final iteration only (K-889). The class scan of the
+/// it, gets a harness loop's final iteration only. The class scan of the
 /// workflow step defect (<see cref="WorkflowLoopStepOutputTests"/>).
 /// </summary>
 /// <remarks>
 /// The native agent stream is not here: it is documented to stream every
 /// iteration as it happens.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class LoopAnswerSurfaceTests
 {

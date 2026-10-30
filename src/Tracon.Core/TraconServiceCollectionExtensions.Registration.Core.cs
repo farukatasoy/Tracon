@@ -35,12 +35,12 @@ public static partial class TraconServiceCollectionExtensions
         // this to its own identity pipeline; TryAdd makes that registration win.
         services.TryAddSingleton<IRunAttributionContext>(static _ => new DefaultRunAttributionContext());
 
-        // Tool authorization (phase 69, F-113): allows every call by default, so
+        // Tool authorization: allows every call by default, so
         // an application that registers nothing keeps today's behaviour exactly.
         // A consumer replaces this registration to enforce its own policy.
         services.TryAddSingleton<IToolAuthorizationHandler, AllowAllToolAuthorizationHandler>();
 
-        // Per-tenant tool policy (phase 261, F-759): a gate in front of the handler above, not a replacement for it,
+        // Per-tenant tool policy: a gate in front of the handler above, not a replacement for it,
         // so a consumer's own handler does not switch it off. A tenant with no saved policy is unrestricted unless
         // Tracon:Tools:RequireTenantPolicy is on. The gate resolves the store when the tool registry is first built,
         // so the storage provider's replacement is the one it reads.
@@ -49,14 +49,14 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<ITenantToolPolicyStore>(),
             provider.GetRequiredService<IOptions<TraconOptions>>()));
 
-        // Run and session authorization (phase 139, F-185): Tracon draws
+        // Run and session authorization: Tracon draws
         // ownership at the tenant level and never learns which user inside a
         // tenant a run or session belongs to. Allows every call by default, so
         // an application that registers nothing keeps today's behaviour exactly.
         // A consumer replaces this registration to enforce their own rule.
         services.TryAddSingleton<IRunAuthorizationHandler, AllowAllRunAuthorizationHandler>();
 
-        // Composition gate for the seven embedding points (phase 150, F-202).
+        // Composition gate for the seven embedding points.
         // Registered here, ahead of every IHostedService Tracon itself
         // registers, so a host whose module order left a required binding on the
         // built-in default fails before Tracon's own background work starts.
@@ -68,7 +68,7 @@ public static partial class TraconServiceCollectionExtensions
 
         // Reports store contracts a storage provider declined to overwrite
         // because the application registered its own. The overwrite used to be
-        // silent and that silence is what made HATA-S1-019 expensive to find.
+        // silent and that silence is what made the problem expensive to find.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, PreservedStoreRegistrationWarningService>());
 
@@ -79,7 +79,7 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, UnpricedModelWarningService>());
 
-        // Composition gate for the production decisions (phase 170, F-231).
+        // Composition gate for the production decisions.
         // Its sibling above covers the BINDING half of the same argument; this
         // one covers the OPTIONS half. Registered here for the same reason and
         // with the same guarantee: it resolves nothing at all unless the
@@ -101,24 +101,24 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, TenantEgressProfileCheck>());
 
         // The decisions that exist only when the deployment declares more than one instance
-        // (Tracon:Deployment:Instances, Phase 265). Each is not applicable at the default of one, so a host
+        // (Tracon:Deployment:Instances). Each is not applicable at the default of one, so a host
         // that never declared a second instance is asked exactly what it was asked before.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceStateProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceReconciliationProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceBackgroundWorkProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, InstanceRateLimitProfileCheck>());
 
-        // The checks only a step after Build() can answer (phase 259: MapTracon knows which role
+        // The checks only a step after Build() can answer (MapTracon knows which role
         // policies are registered). The validator reads them with the registered ones.
         services.TryAddSingleton<LateProductionProfileChecks>();
 
-        // Tool argument validation (phase 127): valid by default. Registered as
+        // Tool argument validation: valid by default. Registered as
         // the specific shared instance so ToolWrapperChain.Compose can recognize
         // it by reference and skip installing ValidatingAIFunction when a
         // consumer never registers their own validator.
         services.TryAddSingleton<IToolArgumentsValidator>(NoOpToolArgumentsValidator.Instance);
 
-        // Structured response validation (phase 131): valid by default.
+        // Structured response validation: valid by default.
         // Registered as the specific shared instance for the same reason as
         // IToolArgumentsValidator above; a consumer's own registration wins
         // through TryAddSingleton.
@@ -135,12 +135,12 @@ public static partial class TraconServiceCollectionExtensions
         // chain. Built on first use, so a host that uses none of them never builds it.
         services.TryAddSingleton(static provider => BuiltInToolGovernance.Create(provider));
 
-        // Phase 234: erases, counts and exports the files of a session with the session. Always registered:
+        // Erases, counts and exports the files of a session with the session. Always registered:
         // a definition stored in the database can turn a workspace on at any time, and a host with no
         // workspace has no files to find.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubjectContentEraser, SessionWorkspaceEraser>());
 
-        // The hosted tools a host added with AddHostedTool (F-603). A registry of their own: the
+        // The hosted tools a host added with AddHostedTool. A registry of their own: the
         // contract above returns an AIFunctionDeclaration and a host may decorate it.
         services.TryAddSingleton(static provider => new HostedToolRegistry(provider.GetServices<HostedToolRegistration>()));
 
@@ -153,13 +153,13 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             provider.GetService<TimeProvider>()));
 
-        // Per-provider outgoing concurrency limit (phase 62, F-44). Same
+        // Per-provider outgoing concurrency limit. Same
         // registration rationale as the circuit breaker: registered BEFORE
         // IModelProviderRegistry so its constructor can resolve it.
         services.TryAddSingleton(static provider => new ProviderConcurrencyLimiter(
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>()));
 
-        // Content moderation pipeline (Phase 48). Always registered, but when
+        // Content moderation pipeline. Always registered, but when
         // HasGuards is false, the registry never adds the moderation wrapper.
         // Explicit factory: registration order does not matter, IContentGuard
         // instances can also be added after this call (GetServices resolves lazily).
@@ -172,9 +172,9 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<ILoggerFactory>(),
             provider.GetRequiredService<TraconMetrics>()));
 
-        // Tenant provider bindings / BYOK (Phase 65). The stores are always
-        // registered (K-018: first-class); nothing changes for a tenant with
-        // no binding (K1). Explicit factory: TenantProviderCredentialResolver
+        // Tenant provider bindings / BYOK. The stores are always
+        // registered (first-class); nothing changes for a tenant with
+        // no binding. Explicit factory: TenantProviderCredentialResolver
         // needs IConfiguration, which may not be registered outside ASP.NET
         // Core hosting (see its own null-safety remark).
         services.TryAddTraconDefault<ITenantProviderBindingStore, InMemoryTenantProviderBindingStore>();
@@ -184,7 +184,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IOptionsMonitor<TraconTenantProviderOptions>>(),
             provider.GetRequiredService<IOptions<TraconOptions>>()));
 
-        // Speech providers by name (F-298). Registered here, not in UseVoice(): a
+        // Speech providers by name. Registered here, not in UseVoice(): a
         // host with only AddSpeechSynthesizer(...) or its own ISpeechSynthesizer
         // still passes every speech call through the tenant's checks. Explicit
         // factory: the registrations are read when the resolver is first built,
@@ -198,16 +198,16 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TenantProviderCredentialResolver>(),
             provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
-        // Provider retry classifier (Phase 113, F-149). Registered BEFORE
+        // Provider retry classifier. Registered BEFORE
         // IModelProviderRegistry so its constructor can resolve it. The
         // taxonomy is Tracon's opinion; thanks to TryAddSingleton, the
-        // consumer's own classifier wins (K4) - a consumer that registers
+        // consumer's own classifier wins - a consumer that registers
         // nothing gets DefaultProviderRetryClassifier, so FallbackChatClient's
         // retry decisions stay bit-for-bit identical to before the seam existed.
         services.TryAddSingleton<IProviderRetryClassifier, DefaultProviderRetryClassifier>();
 
         // Sets up the WHOLE registry pipeline (moved out of the provider
-        // packages in Phase 48). An explicit factory is required: the built-in
+        // packages). An explicit factory is required: the built-in
         // DI container does not fill in constructor parameters that carry a
         // default value.
         services.TryAddSingleton<IModelProviderRegistry>(static provider => new ModelProviderRegistry(
@@ -221,7 +221,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<ITenantProviderBindingStore>(),
             provider.GetService<ITenantEgressPolicyStore>(),
             provider.GetService<TenantProviderCredentialResolver>(),
-            // Phase 81 (F-45): when not registered, an agent that enables
+            // When not registered, an agent that enables
             // ModelBinding.ResponseCache fails to compile instead of silently
             // running uncached - see ModelProviderRegistry.BuildPipeline.
             provider.GetService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
@@ -237,22 +237,22 @@ public static partial class TraconServiceCollectionExtensions
             provider,
             provider.GetService<IOptions<TraconTenantProviderOptions>>()));
 
-        // Pre-flight context-window estimator (phase 62, F-59). Registered
+        // Pre-flight context-window estimator. Registered
         // unconditionally: POST /api/agents/{name}/estimate works regardless
         // of TraconPreflightOptions.Enabled — that flag only gates the
         // inline check on the run endpoint, not the diagnostic endpoint.
         services.TryAddSingleton<ContextWindowEstimator>();
 
-        // Cost resolver (Phase 20): model catalog, then Tracon:Pricing.
+        // Cost resolver: model catalog, then Tracon:Pricing.
         services.TryAddSingleton<IRunPricingResolver, RunPricingResolver>();
         services.TryAddSingleton<RunCostRecalculationService>();
 
-        // Error classifier (Phase 44). The taxonomy is Tracon's opinion;
-        // thanks to TryAddSingleton, the consumer's own classifier wins (K4).
+        // Error classifier. The taxonomy is Tracon's opinion;
+        // thanks to TryAddSingleton, the consumer's own classifier wins.
         services.TryAddSingleton<IRunErrorClassifier, DefaultRunErrorClassifier>();
 
-        // Run cancellation registry (Phase 32). Always registered: it has no
-        // side effect beyond holding an in-memory dictionary (K-165's "new
+        // Run cancellation registry. Always registered: it has no
+        // side effect beyond holding an in-memory dictionary (the "new
         // behavior ships disabled by default" decision is for features that
         // produce an overt side effect, this registry is not one of them).
         services.TryAddSingleton<IRunCancellationRegistry, RunCancellationRegistry>();
@@ -274,10 +274,9 @@ public static partial class TraconServiceCollectionExtensions
         // BEFORE their first query; this way, registration order (.UseMcp()
         // first or .UseSqlite() first) does not produce "no such table". When
         // no SQL provider is registered, the gate is open by itself.
-        // Rationale: K-354.
         services.TryAddSingleton<SchemaReadyGate>();
 
-        // Diagnostics collector (Phase 33; embedding points added Phase 85).
+        // Diagnostics collector (embedding points).
         // IAgentCatalog, IToolRegistry, and IAttachmentStorage are registered
         // after this point, but the explicit factory resolves lazily;
         // registration order does not matter.
@@ -320,8 +319,8 @@ public static partial class TraconServiceCollectionExtensions
 
         // File store for memory-backed AIContextProviders (FileMemoryProvider,
         // TextSearchProvider). MAF's own abstraction (not a file system); this
-        // phase has no persistent version, it lives in memory. The persistent
-        // version will connect to Phase 14+'s storage table.
+        // implementation has no persistent version, it lives in memory. The persistent
+        // version will connect to a later storage table.
         // MAAI001: AgentFileStore is marked "evaluation purposes only" - the
         // rationale is the same as in AgentDefinitionCompiler.
 #pragma warning disable MAAI001
@@ -356,12 +355,12 @@ public static partial class TraconServiceCollectionExtensions
             // When not registered, a definition using McpResourceUris gets a
             // compilation error. Tracon.Mcp's UseMcp() call registers this.
             provider.GetService<IMcpResourceContextProviderFactory>(),
-            // Phase 51: when not registered, a definition requesting
+            // When not registered, a definition requesting
             // EnableVectorSearch gets a compilation error.
             // Tracon.PostgreSql's UsePostgreSql() call registers this.
             provider.GetService<IVectorSearchStore>(),
-            // The consumer registers their own IEmbeddingGenerator (the K-032 pattern); the compiler takes it
-            // inside the OpenTelemetry ring (Phase 266).
+            // The consumer registers their own IEmbeddingGenerator; the compiler takes it
+            // inside the OpenTelemetry ring.
             provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
             provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>().Value.MaxResults,
             // Resolves SharedInstructionsName. Registered unconditionally a few
@@ -371,7 +370,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<IAgentDefinitionStore>(),
             provider.GetRequiredService<IOptions<TraconOptions>>().Value.AgentGraph,
             provider.GetService<TimeProvider>(),
-            // Phase 151: the loop stop criteria a host added with
+            // The loop stop criteria a host added with
             // AddLoopEvaluator. Empty when none was added, and a definition
             // that names an unknown kind then fails to compile.
             provider.GetServices<TraconLoopEvaluatorRegistration>(),
@@ -379,25 +378,25 @@ public static partial class TraconServiceCollectionExtensions
             // unless AddModelRunJudge was called, in which case that criterion
             // fails to compile instead of borrowing the agent's own model.
             provider.GetService<IOptions<ModelRunJudgeOptions>>()?.Value,
-            // The SAME store the registry checks (F-304): its policy enters the
+            // The SAME store the registry checks: its policy enters the
             // compiled-agent cache key, so a policy saved after an agent was
             // cached reaches the next resolve.
             provider.GetService<ITenantEgressPolicyStore>(),
-            // Phase 222: the agent extensions a host added with AddAgentExtension.
+            // The agent extensions a host added with AddAgentExtension.
             // Empty when none was added, and a definition that names one then
             // fails to compile.
             provider.GetServices<IAgentExtension>(),
-            // Phase 226: the hosted tools a host added with AddHostedTool. Empty when none was
+            // The hosted tools a host added with AddHostedTool. Empty when none was
             // added, and a definition that selects a name then fails to compile as an unknown tool.
             provider.GetRequiredService<HostedToolRegistry>()));
 #pragma warning restore MAAI001
 
-        // Knowledge base management surface (Phase 51): document upload,
+        // Knowledge base management surface: document upload,
         // search, delete, list. While IsSupported == false, every method
         // throws an overt TraconException.
-        // F-416: every embedding call passes the tenant's provider checks; the
+        // Every embedding call passes the tenant's provider checks; the
         // explicit factory makes the stores reach the check by construction.
-        // Phase 266: the registered generator is wrapped once, and the three callers below take that one.
+        // The registered generator is wrapped once, and the three callers below take that one.
         services.TryAddSingleton(static provider => new InstrumentedEmbeddings(
             provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
             provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()));
@@ -417,7 +416,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
             provider.GetRequiredService<EmbeddingProviderAccess>()));
 
-        // Definition validation endpoint (Phase 34, F-60). Repeats the real
+        // Definition validation endpoint. Repeats the real
         // compilation path in its own order; IAgentCatalog can be taken directly
         // here because, unlike CallableAgentResolver, the validator is not part
         // of IAgentCatalog's OWN setup - it is a consumer added afterward, so
@@ -442,15 +441,15 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddTraconDefault<IAuditLog, InMemoryAuditLog>();
         services.TryAddSingleton<IAuditActorResolver, AmbientAuditActorResolver>();
 
-        // At-rest content protection (Phase 82). The default writes plaintext
-        // unchanged; AddContentProtection(...) replaces it (K1's gate is the
+        // At-rest content protection. The default writes plaintext
+        // unchanged; AddContentProtection(...) replaces it (the zero-surprise rule's gate is the
         // registration itself, same pattern as IAuditLog above).
         services.TryAddSingleton<IContentProtector>(NullContentProtector.Instance);
     }
 
     private static void RegisterCatalogAssembly(IServiceCollection services)
     {
-        // A/B experiments (Phase 19). Since it is an entity the admin
+        // A/B experiments. Since it is an entity the admin
         // creates/starts/stops, it is wrapped with the audit trail decorator
         // for the same rationale as IAgentDefinitionStore (unlike
         // IEvalStore/IJobStore, which are a byproduct of execution).
@@ -483,7 +482,7 @@ public static partial class TraconServiceCollectionExtensions
         // RunRecordingAgentDecorator resolves it.
         services.TryAddSingleton<RunTraceCollector>();
 
-        // Code-defined approval policies (Phase 63, AddToolApprovalPolicy). Always
+        // Code-defined approval policies (AddToolApprovalPolicy). Always
         // registered, even with no policies added — the registry is then empty and
         // every tool falls straight through to the data rules.
         services.TryAddSingleton<ToolApprovalPolicyRegistry>();
@@ -491,7 +490,7 @@ public static partial class TraconServiceCollectionExtensions
         // Service that evaluates approval rules.
         services.TryAddSingleton<ToolApprovalRuleEvaluator>();
 
-        // Phase 142: a consumer's presentation resolver for a pending approval
+        // A consumer's presentation resolver for a pending approval
         // request. NullToolApprovalPresenter is the no-op default; TryAdd
         // means a consumer's own registration always wins.
         services.TryAddSingleton<IToolApprovalPresenter>(NullToolApprovalPresenter.Instance);
@@ -507,11 +506,11 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<IRunAttributionContext>(),
             provider.GetService<Microsoft.Extensions.Options.IOptionsMonitor<TraconSessionOwnershipOptions>>(),
-            // Phase 233: the copy of a session's content a host's vector store keeps (conversation
+            // The copy of a session's content a host's vector store keeps (conversation
             // memory). Empty unless UseConversationMemory was called.
             provider.GetServices<ISubjectContentEraser>()));
 
-        // Phase 255 (F-746): the one path that deletes a session for a caller — record, the
+        // The one path that deletes a session for a caller — record, the
         // copy of its content and its attachments. Internal: the HTTP edge asks the gates
         // first, so no consumer may reach it around them.
         services.TryAddSingleton(static provider => new SessionDeletion(
@@ -519,7 +518,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IAttachmentStore>(),
             provider.GetRequiredService<ITenantContext>()));
 
-        // Conversation branching (Phase 47). IConversationBranchStore is
+        // Conversation branching. IConversationBranchStore is
         // registered only while a SQL provider is on; without it, the service
         // says "not supported" and the endpoint returns 501 (see ConversationBranchService.IsSupported).
         services.TryAddSingleton(static provider => new ConversationBranchService(
@@ -531,8 +530,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<Microsoft.Extensions.Logging.ILogger<ConversationBranchService>>()));
 
         // The one place a parameterized run is compiled outside the catalog
-        // (F-294): queued runs, batch items, approval resumes and workflow steps
-        // all share it, so the decorator chain (K-581) is applied in one spot.
+        // Queued runs, batch items, approval resumes and workflow steps
+        // all share it, so the decorator chain is applied in one spot.
         services.TryAddSingleton(static provider => new ParameterizedAgentFactory(
             provider.GetServices<CodeAgentRegistration>(),
             provider.GetRequiredService<IAgentDefinitionStore>(),
@@ -540,7 +539,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetServices<IAgentDecorator>(),
             provider.GetRequiredService<Microsoft.Extensions.Options.IOptionsMonitor<TraconOptions>>()));
 
-        // Replay (Phase 47). Uses NOT the catalog but the definition store and
+        // Replay. Uses NOT the catalog but the definition store and
         // the compiler: model binding and tool modes require recompiling the
         // definition, and the result does NOT ENTER the cache.
         services.TryAddSingleton(static provider => new RunReplayService(
@@ -569,7 +568,7 @@ public static partial class TraconServiceCollectionExtensions
         // service collection with no host behind it. With constructor resolution
         // the container treats the missing dependency as an error even though the
         // parameter is nullable, and enumerating IHostedService then throws for
-        // every consumer - measured in phase 104.
+        // every consumer - measured.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, NonPersistentStorageWarningService>(
             static provider => new NonPersistentStorageWarningService(
                 provider.GetService<IHostEnvironment>(),
@@ -614,26 +613,25 @@ public static partial class TraconServiceCollectionExtensions
                 // 🚨 Without these two lines, the constructor parameters stay
                 // null and the quota counter never increases, no run.* event is
                 // published - the build and tests would look green
-                // (the lesson of K-157).
                 provider.GetRequiredService<QuotaEnforcer>(),
                 provider.GetRequiredService<IWebhookPublisher>(),
                 provider.GetRequiredService<IRunCancellationRegistry>(),
                 provider.GetRequiredService<IRunErrorClassifier>(),
                 provider.GetRequiredService<IRunInputStore>(),
-                // Phase 49: being registered alone samples nothing, see the
+                // Being registered alone samples nothing, see the
                 // RunSampler/OnlineEvaluationOptions class documentation.
                 provider.GetRequiredService<RunSampler>(),
-                // HATA-S3-006: without this line, the input written to the
+                // Without this line, the input written to the
                 // RunStarted event and IRunInputStore never passes through the guards.
                 provider.GetRequiredService<ContentGuardPipeline>(),
-                // 🚨 Phase 68, and the SAME trap the comment above describes:
+                // And the SAME trap the comment above describes:
                 // without this line every run records a NULL user and NULL
                 // labels while the build and the tests stay green.
                 provider.GetRequiredService<IRunAttributionContext>(),
-                // Phase 70. GetServices resolves lazily and never throws when
+                // GetServices resolves lazily and never throws when
                 // no IRunEventSink is registered — an empty sequence.
                 provider.GetServices<IRunEventSink>(),
-                // Phase 142: without this line no ToolApprovalPresentation is
+                // Without this line no ToolApprovalPresentation is
                 // ever resolved, even when a consumer registered its own
                 // IToolApprovalPresenter — the exact trap the comments above
                 // describe, for one more parameter.
@@ -649,14 +647,14 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CompositeAgentCatalog>>(),
             provider.GetRequiredService<TraconMetrics>()));
 
-        // Graceful-shutdown drain (Phase 87). Registered LAST among
+        // Graceful-shutdown drain. Registered LAST among
         // IHostedService implementations: the generic host stops hosted
         // services in the REVERSE of their registration order, so this one's
         // StopAsync runs FIRST during shutdown -- before JobWorkerBackgroundService
         // and RunReconciliationService stop, while runs they started are
-        // still in flight. Always registered (K-018); while
+        // still in flight. Always registered; while
         // TraconDrainOptions.Enabled is off (the default) IsDraining
-        // never becomes true and StopAsync returns immediately (K1).
+        // never becomes true and StopAsync returns immediately.
         services.TryAddSingleton<TraconDrainService>();
         services.TryAddSingleton<ITraconDrainState>(
             static provider => provider.GetRequiredService<TraconDrainService>());

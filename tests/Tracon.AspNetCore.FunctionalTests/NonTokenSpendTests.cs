@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-299, and the class of K-483: the money a decision reads is a SUM, and a place that
+/// And the class of that decision: the money a decision reads is a SUM, and a place that
 /// reads only the token term under-reports every run that reported something else. Nothing
 /// fails when it happens; a tenant's ceiling is simply passed. One function adds the two
 /// (<see cref="RunSpend"/>), and this class has one test PER PLACE that takes a decision, so a
@@ -95,8 +95,8 @@ public sealed class NonTokenSpendTests
     }
 
     /// <summary>
-    /// F-484: a tool's measurement that its columns cannot hold is refused when it is
-    /// reported, as a function node's item is (K-974), instead of reaching the insert.
+    /// A tool's measurement that its columns cannot hold is refused when it is
+    /// reported, as a function node's item is, instead of reaching the insert.
     /// </summary>
     /// <remarks>
     /// The unit, provider and model columns hold 64, 100 and 200 characters. A

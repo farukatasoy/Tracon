@@ -9,7 +9,7 @@ namespace Tracon.Package.Tests;
 
 /// <summary>
 /// The content contract a <c>v*</c> tag push commits to before it is pushed
-/// (Phase 97, 97.2). Reads the <see cref="ReleaseArtifactFixture"/> packages
+/// (97.2). Reads the <see cref="ReleaseArtifactFixture"/> packages
 /// (not the shared <see cref="TemplateFixture"/> ones) because that pack forces
 /// a specific version - a second, separate <c>dotnet pack</c>, owned by the
 /// <see cref="RepositoryTreeGate"/> collection so it still runs only once.
@@ -59,7 +59,7 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
         missing.ShouldBeEmpty($"Expected package(s) not produced: [{string.Join(", ", missing)}]");
     }
 
-    /// <summary>K-008: only Tracon.AspNetCore may depend on a pre-release third-party package.</summary>
+    /// <summary>Only Tracon.AspNetCore may depend on a pre-release third-party package.</summary>
     [Fact]
     public void OnlyAspNetCoreDeclaresPrereleaseDependency()
     {
@@ -85,13 +85,13 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
         }
 
         offenders.ShouldBeEmpty(
-            $"K-008 boundary violated - only Tracon.AspNetCore may declare a pre-release dependency:\n{string.Join("\n", offenders)}");
+            $"Pre-release boundary violated - only Tracon.AspNetCore may declare a pre-release dependency:\n{string.Join("\n", offenders)}");
     }
 
     /// <summary>
     /// Every Tracon-to-Tracon dependency is an EXACT range on the package's own
     /// version, in every framework group - the nuspec half of the one-version-line
-    /// rule (K-602).
+    /// rule.
     /// </summary>
     /// <remarks>
     /// <c>dotnet pack</c> writes a <c>ProjectReference</c> as a LOWER bound
@@ -203,7 +203,7 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
         }
 
         prereleaseEdges.ShouldBeGreaterThan(
-            0, "Tracon.AspNetCore declares pre-release dependencies (K-008) and none was found; the parser no longer matches the nuspec shape.");
+            0, "Tracon.AspNetCore declares pre-release dependencies and none was found; the parser no longer matches the nuspec shape.");
         violations.ShouldBeEmpty(
             $"{violations.Count} pre-release third-party dependency group(s) keep an open lower bound:\n{string.Join("\n", violations)}");
     }

@@ -24,7 +24,7 @@ public sealed class ContentGuardStreamingTests
     [Fact]
     public async Task A_pattern_split_across_frames_does_not_slip_through_a_buffered_stream()
     {
-        // 🚨 The rationale for this phase's streaming decision: no single frame
+        // 🚨 The rationale for this change's streaming decision: no single frame
         // by itself contains "4539578763621486". Without buffering, the pattern
         // WOULD have slipped through.
         using var chatClient = Guarded(

@@ -94,7 +94,7 @@ internal sealed class EvaluatorRunJudge(
 
         var modelResponse = new ChatResponse(new ChatMessage(ChatRole.Assistant, context.Output));
 
-        // F-361 (K-328 pattern): the evaluator's model calls are counted and written
+        // The evaluator's model calls are counted and written
         // as the judge's own Eval run; the evaluated agent's figures do not grow.
         var counting = new UsageCountingChatClient(chatClient);
         var runId = TraconId.NewId();
@@ -332,7 +332,7 @@ internal sealed class EvaluatorRunJudge(
         // losing the version.
         catch (Exception exception)
         {
-            // No filter: the read is synchronous and takes no token (K-840).
+            // No filter: the read is synchronous and takes no token.
             if (logger?.IsEnabled(LogLevel.Debug) is true)
             {
                 logger.LogDebug(

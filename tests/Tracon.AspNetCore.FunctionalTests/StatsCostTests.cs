@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 20 — <c>/api/stats</c> cost fields and <c>/api/stats/timeseries</c>.
+/// <c>/api/stats</c> cost fields and <c>/api/stats/timeseries</c>.
 /// </summary>
 public sealed class StatsCostTests
 {

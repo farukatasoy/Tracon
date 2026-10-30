@@ -17,10 +17,9 @@ namespace Tracon.Core.UnitTests.Architecture;
 ///     Abstractions -- Testing.Contracts.Xunit (store contract suite; NOT referenced by the meta package)
 ///
 /// The meta package reaches NO storage package (PostgreSql, SqlServer, Sqlite): a store is always an
-/// explicit reference, so a host on another store never takes the PostgreSQL driver (Phase 256).
+/// explicit reference, so a host on another store never takes the PostgreSQL driver.
 ///
 /// Adding a ProjectReference that breaks this graph is forbidden.
-/// Rationale: docs/MIMARI.md, section 2.
 ///
 /// The tests read project files, not the build output. This way the rule
 /// holds even before product code is written, and does not depend on build order.
@@ -34,7 +33,7 @@ public sealed class DependencyDirectionTests
     private static readonly Dictionary<string, string[]> AllowedReferences = new(StringComparer.Ordinal)
     {
         ["Tracon.Abstractions"] = [],
-        // Tracon.Generators (Phase 52) is NOT added here as a runtime
+        // Tracon.Generators is NOT added here as a runtime
         // dependency: its ProjectReference carries ReferenceOutputAssembly=false +
         // OutputItemType=Analyzer, meaning Core.dll never LOADS it - it is only
         // passed to the compiler as an analyzer. Even so, the <ProjectReference>
@@ -61,41 +60,41 @@ public sealed class DependencyDirectionTests
         // reference this package. The exact same pattern as MCP.
         // Tracon.Generators is here for the same reason it is in Core's
         // entry above: OutputItemType=Analyzer does not propagate across a
-        // multi-hop ProjectReference chain (measured, phase 93), so Workflows
+        // multi-hop ProjectReference chain (measured), so Workflows
         // needs its own analyzer reference to run TRC0501/TRC0502 over its
         // own async iterators. Never loaded as a runtime dependency.
         ["Tracon.Workflows"] = ["Tracon.Core", "Tracon.Generators"],
         ["Tracon.AspNetCore"] = ["Tracon.Core"],
         ["Tracon.UI"] = ["Tracon.AspNetCore"],
-        // AG-UI is a second run surface beside the management API (Phase 236). It depends on AspNetCore for the shared
+        // AG-UI is a second run surface beside the management API. It depends on AspNetCore for the shared
         // run turn and the access protection, and it is NOT referenced by the meta package: a consumer whose front end
-        // does not speak AG-UI keeps a dependency graph without the AG-UI SDK (K-007).
+        // does not speak AG-UI keeps a dependency graph without the AG-UI SDK.
         ["Tracon.AGUI"] = ["Tracon.AspNetCore"],
         // Testing is a test-helper package: it is NOT referenced by the meta
-        // package (section 39.1). It references AspNetCore because the type
+        // package. It references AspNetCore because the type
         // consumers ask for most is an in-memory host fixture, which requires
         // the package that wires up the endpoints.
         ["Tracon.Testing"] = ["Tracon.Core", "Tracon.AspNetCore"],
-        // The behavior-contract suite for the store interfaces (Phase 98): it
+        // The behavior-contract suite for the store interfaces: it
         // depends on Abstractions ONLY, for the interfaces and record types
         // themselves. It is NOT referenced by the meta package (same reason
-        // as Testing, section 39.1) and NOT referenced by Tracon.Testing
+        // as Testing) and NOT referenced by Tracon.Testing
         // (the two test packages are independent; one binds no test
         // framework, the other binds xunit.v3 on purpose).
         ["Tracon.Testing.Contracts.Xunit"] = ["Tracon.Abstractions"],
-        // The meta package carries no storage package: a store is an explicit reference (Phase 256).
+        // The meta package carries no storage package: a store is an explicit reference.
         ["Tracon"] = ["Tracon.AspNetCore", "Tracon.Mcp", "Tracon.OpenAI", "Tracon.UI", "Tracon.Workflows"],
         // Client is the CALLING side of the control plane, not the hosting
         // side: it takes NO Tracon reference at all. Its DTOs are
         // generated straight from the OpenAPI document, not reused from
         // Abstractions - reusing Abstractions would fight the code generator
         // and would leak server-side store interfaces (IRunStore and
-        // similar) into an HTTP consumer that never needs them (Phase 83).
+        // similar) into an HTTP consumer that never needs them.
         ["Tracon.Client"] = [],
         // Cli is a dotnet tool, not a library a consumer references: it
         // needs Client for `health` (HTTP) and all three SQL providers for
         // `migrate` (direct database access, chosen because the app has not
-        // started yet at that point - Phase 83, section 83.5).
+        // started yet at that point).
         ["Tracon.Cli"] = ["Tracon.Client", "Tracon.PostgreSql", "Tracon.SqlServer", "Tracon.Sqlite"],
     };
 
@@ -110,7 +109,7 @@ public sealed class DependencyDirectionTests
             actual.ShouldBe(
                 expected,
                 customMessage: $"'{package}' package's Tracon references differ from expected. " +
-                               "If the layer architecture changed, update docs/MIMARI.md and this test first.");
+                               "If the layer architecture changed, update ARCHITECTURE.md and this test first.");
         }
     }
 
@@ -124,8 +123,8 @@ public sealed class DependencyDirectionTests
     [Fact]
     public void The_speech_dialogue_contract_lives_in_abstractions_not_in_the_voice_package()
     {
-        // Phase 203: the HTTP layer and a host's workflow code name these types, and
-        // neither may reference Tracon.Voice (K-215 placed the speech contracts in
+        // The HTTP layer and a host's workflow code name these types, and
+        // neither may reference Tracon.Voice (the earlier decision placed the speech contracts in
         // Abstractions for the same reason). The resolver that hands the capability
         // out is in Core; the ElevenLabs implementation stays in Voice.
         Type[] contract =
@@ -166,12 +165,12 @@ public sealed class DependencyDirectionTests
     [Fact]
     public void Mcp_client_package_does_not_depend_on_server_packages()
     {
-        // Phase 50: Tracon.AspNetCore was exposed as an MCP/A2A SERVER and
+        // Tracon.AspNetCore was exposed as an MCP/A2A SERVER and
         // took on the ModelContextProtocol.AspNetCore + Microsoft.Agents.AI.Hosting.A2A +
         // Microsoft.Agents.AI.Hosting.AspNetCore + A2A.AspNetCore packages.
-        // K-057's dependency direction must not break: these packages live
+        // the dependency direction must not break: these packages live
         // only inside Tracon.AspNetCore; Tracon.Mcp (the client) stays
-        // on the `.Core` line and takes NONE of them. Phase 117 added the MCP
+        // on the `.Core` line and takes NONE of them. An earlier change added the MCP
         // Tasks extension to the same server-only list.
         var forbidden = new[]
         {
@@ -193,14 +192,14 @@ public sealed class DependencyDirectionTests
         {
             references.Any(reference => string.Equals(reference, name, StringComparison.Ordinal)).ShouldBeFalse(
                 $"Tracon.Mcp must not take the '{name}' package; server dependencies " +
-                "must stay inside Tracon.AspNetCore only (K-057).");
+                "must stay inside Tracon.AspNetCore only.");
         }
     }
 
     [Fact]
     public void The_AGUI_sdk_is_taken_only_by_the_AGUI_package_and_the_meta_package_does_not_reach_it()
     {
-        // Phase 236 (K-007): the AG-UI SDK is a third-party dependency of a protocol most applications do not speak. It lives
+        // The AG-UI SDK is a third-party dependency of a protocol most applications do not speak. It lives
         // in Tracon.AGUI alone, so Tracon.AspNetCore and the Tracon meta package keep a dependency graph without it. A consumer
         // opts in by installing Tracon.AGUI.
         var sourceDirectory = Path.Combine(RepositoryRoot, "src");
@@ -222,7 +221,7 @@ public sealed class DependencyDirectionTests
     [Fact]
     public void The_meta_package_reaches_no_storage_package()
     {
-        // Phase 256: the meta package is a control plane without a storage engine. A store is always an explicit
+        // The meta package is a control plane without a storage engine. A store is always an explicit
         // reference, so a host on SQL Server, SQLite or the in-memory stores never takes the PostgreSQL driver. The
         // closure is walked over project files (the shape the nuspec is packed from), not only the direct references.
         string[] storage = ["Tracon.PostgreSql", "Tracon.SqlServer", "Tracon.Sqlite"];
@@ -247,7 +246,7 @@ public sealed class DependencyDirectionTests
         {
             closure.Contains(name).ShouldBeFalse(
                 $"'{name}' is in the closure of the 'Tracon' meta package. The meta package must not reach a " +
-                "storage package; a store is an explicit reference (K-1116 replaces K-185, Phase 256). " +
+                "storage package; a store is an explicit reference. " +
                 "Reference the package from the host project instead.");
         }
     }

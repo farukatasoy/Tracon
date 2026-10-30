@@ -6,13 +6,13 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>The content guard's behavior on the HTTP surface (Phase 48).</summary>
+/// <summary>The content guard's behavior on the HTTP surface.</summary>
 /// <remarks>
 /// 🚨 <c>422</c> is possible only on the <strong>non-streaming</strong> branch. The
 /// streaming branch is the default, and SSE headers are sent before the run
 /// starts; because the guard sits in the model pipeline, the decision forms
 /// AFTER the status code is written. The non-streaming branch is selected with
-/// the <c>Idempotency-Key</c> header (Phase 43).
+/// the <c>Idempotency-Key</c> header.
 /// </remarks>
 public sealed class ContentGuardEndpointTests
 {
@@ -153,8 +153,8 @@ public sealed class ContentGuardEndpointTests
 
         events.ShouldContain("ContentMasked", Case.Sensitive);
 
-        // Phase 145: the SSE "event:" name for this frame is "content.masked",
-        // never "unknown" -- before this phase every ContentMasked frame fell
+        // The SSE "event:" name for this frame is "content.masked",
+        // never "unknown" -- before this change every ContentMasked frame fell
         // through the server's name table and reached the wire unnamed.
         events.ShouldContain("event: content.masked", Case.Sensitive);
         events.ShouldNotContain("event: unknown", Case.Sensitive);
@@ -163,11 +163,11 @@ public sealed class ContentGuardEndpointTests
         // ContentMasked lines and search for the card number.
         //
         // 🚨 The SAME cannot be said for the WHOLE stream, and this is a deliberate
-        // boundary: the RunStarted event carries the user's raw prompt (Phase 45,
+        // boundary: the RunStarted event carries the user's raw prompt (
         // the sole source of production-to-eval case promotion). Masking is a
         // control AT THE MODEL BOUNDARY; it does not retroactively clean
         // Tracon's own records. That is a separate task (retention/redaction)
-        // and out of scope for this phase.
+        // and out of scope for this change.
         var maskedLines = events
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Where(static line => line.Contains("ContentMasked", StringComparison.Ordinal))
@@ -184,7 +184,7 @@ public sealed class ContentGuardEndpointTests
     [Fact]
     public async Task Behavior_is_unchanged_when_the_guard_is_off()
     {
-        // The default setup registers no guard at all: the K1 gate is the registration itself.
+        // The default setup registers no guard at all: the gate is the registration itself.
         await using var host = await TraconTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
@@ -229,7 +229,7 @@ public sealed class ContentGuardEndpointTests
     /// <summary>
     /// Enters the non-streaming branch. A request carrying the
     /// <c>Idempotency-Key</c> header runs with a single JSON response instead
-    /// of SSE (Phase 43), and a status code can only be returned on that branch.
+    /// of SSE, and a status code can only be returned on that branch.
     /// </summary>
     private static async Task<HttpResponseMessage> PostBufferedAsync(TraconTestHost host, AgentRunRequest body)
     {

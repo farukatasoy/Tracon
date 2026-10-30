@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Audit;
 
 /// <summary>
-/// Behavior tests for <see cref="AuditChainWalker"/> with signing keys (phase 260, F-758).
+/// Behavior tests for <see cref="AuditChainWalker"/> with signing keys.
 /// </summary>
 /// <remarks>
 /// Every tamper here is what an actor with write access to the table and NO access to the key can do: rewrite

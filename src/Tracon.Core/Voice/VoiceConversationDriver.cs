@@ -625,7 +625,7 @@ internal sealed class VoiceConversationDriver
             {
                 // An OperationCanceledException reaches here only when it is NOT ours:
                 // a model or speech call that timed out on its own is a failed turn,
-                // not a barge-in (K-840).
+                // not a barge-in.
                 //
                 // HttpRequestException and InvalidOperationException are foreign here (the
                 // former can carry a host:port); only TraconException's own message is ours.
@@ -679,7 +679,7 @@ internal sealed class VoiceConversationDriver
                 RunId = runId.ToString("D"),
             }).ConfigureAwait(false);
 
-            // F-358: a segment longer than the synthesizer accepts would be refused
+            // A segment longer than the synthesizer accepts would be refused
             // mid-turn, after the captions already streamed. A limit that is not
             // positive is a broken implementation; the default limit then applies.
             var segmenter = new VoiceSpeechSegmenter(
@@ -690,7 +690,7 @@ internal sealed class VoiceConversationDriver
 
             using var audio = _options.PersistAudio ? new MemoryStream() : null;
 
-            // F-310: the agent is resolved again for every turn. A compiled agent embeds
+            // The agent is resolved again for every turn. A compiled agent embeds
             // its tool objects, and an MCP tool object calls the connection it was
             // discovered on: the agent resolved at `start` kept calling a closed
             // connection for the rest of the connection after its server was edited
@@ -699,7 +699,7 @@ internal sealed class VoiceConversationDriver
             _agent = await driver._catalog.ResolveAsync(_agentName!, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"There is no agent named '{_agentName}'.");
 
-            // A harness loop hands over its final iteration only (K-889): every
+            // A harness loop hands over its final iteration only: every
             // update below is spoken, and a draft must not be.
             var updates = AgentAnswerStream.RunAsync(
                 _agent,
@@ -806,7 +806,7 @@ internal sealed class VoiceConversationDriver
                 return null;
             }
 
-            // The attachment store DOES NOT validate (phase 28/G2); the guard is
+            // The attachment store DOES NOT validate; the guard is
             // called explicitly here.
             var validation = driver._guard.Validate(data);
 
@@ -825,7 +825,7 @@ internal sealed class VoiceConversationDriver
 
                         // The session identifier is REQUIRED: when it is left empty the
                         // retention policy treats the attachment as orphaned and
-                        // deletes it (phase 28/G1).
+                        // deletes it.
                         SessionId = request.SessionId,
                         FileName = AttachmentFileNames.For("voice", validation.MediaType!, driver._timeProvider.GetUtcNow()),
                         MediaType = validation.MediaType!,

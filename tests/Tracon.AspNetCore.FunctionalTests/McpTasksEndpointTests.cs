@@ -11,13 +11,13 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Phase 117: the MCP Tasks extension, backed by Tracon's run store.</summary>
+/// <summary>The MCP Tasks extension, backed by Tracon's run store.</summary>
 public sealed class McpTasksEndpointTests
 {
     [Fact]
     public async Task Discover_probe_negotiates_2026_07_28_even_when_the_first_response_is_slow()
     {
-        // F-190: McpClient.CreateAsync (ProtocolVersion left unset) first
+        // McpClient.CreateAsync (ProtocolVersion left unset) first
         // probes with server/discover, bounded by the SDK's own
         // McpClientOptions.DiscoverProbeTimeout -- 5 seconds by production
         // default. Miss that window and the client silently falls back to
@@ -301,7 +301,7 @@ public sealed class McpTasksEndpointTests
     [Fact]
     public async Task Approval_requiring_tool_added_after_exposure_rejects_the_task_with_todays_inline_message()
     {
-        // K-103, moved to the task-mode path (Phase 117 § 117.4). The startup
+        // Moved to the task-mode path. The startup
         // guard (ExternalSurfaceGuard) only catches a tool present AT expose
         // time; a tool added afterward reaches CatalogToolCallHandler's own
         // runtime check, unchanged, whether the call is synchronous or
@@ -355,7 +355,7 @@ public sealed class McpTasksEndpointTests
 
         var final = await Poll(() => client.GetTaskAsync(taskId), r => r is CompletedTaskResult or FailedTaskResult);
 
-        // 🚨 Never InputRequired — the actual K-103 safety property.
+        // 🚨 Never InputRequired — the actual that decision safety property.
         final.ShouldNotBeOfType<InputRequiredTaskResult>();
 
         var completed = final.ShouldBeOfType<CompletedTaskResult>();

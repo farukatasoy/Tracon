@@ -111,7 +111,7 @@ export function usePlaygroundRun(
   /**
    * Loads an existing session named by `?sessionId=` in the address bar.
    *
-   * HATA-S4-018: the screen used to ignore this parameter entirely and always
+   * The screen used to ignore this parameter entirely and always
    * reserved a brand-new conversation on the first send, so there was no way
    * to resume a session from the UI (not from a link, not by pasting the URL
    * back). `sessionId` is set to the SAME identity the server already knows —
@@ -209,7 +209,7 @@ export function usePlaygroundRun(
 
       try {
         // A conversation identifier is reserved on the server; conversation and
-        // session are the same identity space (decision K-043), so this is also
+        // session are the same identity space, so this is also
         // the session the run will be recorded against.
         let conversationId = sessionId;
 

@@ -6,7 +6,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Phase 234: the PostgreSQL file store reads, measures and deletes the files of one session's directory, by tenant and
+/// The PostgreSQL file store reads, measures and deletes the files of one session's directory, by tenant and
 /// path and with no agent or run in scope, and a data subject erasure over PostgreSQL takes the workspace with the
 /// session.
 /// </summary>

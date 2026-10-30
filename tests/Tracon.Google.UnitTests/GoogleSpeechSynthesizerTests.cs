@@ -10,7 +10,7 @@ namespace Tracon.Google.UnitTests;
 /// hands back, and every refusal that happens before the network.
 /// </summary>
 /// <remarks>
-/// F-297. The answers are the shapes measured against the live API on 2026-10-25 (WAV with a provenance
+/// The answers are the shapes measured against the live API on 2026-10-25 (WAV with a provenance
 /// chunk from the gemini-3.8 models, raw PCM with two different MIME types from the older ones).
 /// </remarks>
 public sealed class GoogleSpeechSynthesizerTests
@@ -233,7 +233,7 @@ public sealed class GoogleSpeechSynthesizerTests
 
         exception.Message.ShouldContain(expected, Case.Insensitive, because);
 
-        // K-954: the message names the key and the accepted values, never the text or a value.
+        // The message names the key and the accepted values, never the text or a value.
         exception.Message.ShouldNotContain(Secretive);
         handler.Requests.ShouldBeEmpty(because);
     }

@@ -5,7 +5,7 @@ namespace Tracon.Anthropic.UnitTests;
 
 /// <summary>
 /// Verifies <see cref="AnthropicModelProvider"/>'s per-tenant credential
-/// handling (phase 65, BYOK). See <c>OpenAIModelProviderCredentialTests</c>
+/// handling (BYOK). See <c>OpenAIModelProviderCredentialTests</c>
 /// for the shared rationale.
 /// </summary>
 public sealed class AnthropicModelProviderCredentialTests

@@ -10,7 +10,7 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// <para>
 /// <strong>A container is NOT REQUIRED.</strong> Since SQLite is a single
 /// file, a temporary file path is enough; this shortens CI time compared to
-/// the PostgreSQL/SQL Server contract runs (Phase 24, section 24.5).
+/// the PostgreSQL/SQL Server contract runs.
 /// </para>
 /// <para>
 /// 🚨 <strong>Every table prefix gets its OWN database file</strong>
@@ -23,19 +23,19 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// queue: a writer that has waited long polls rarely, and newcomers take the
 /// lock first. Under a saturated machine one statement starved past
 /// Microsoft.Data.Sqlite's 30-second command timeout and failed with
-/// <c>SQLite Error 5: 'database is locked'</c> in a random test (F-307;
+/// <c>SQLite Error 5: 'database is locked'</c> in a random test (an earlier fix;
 /// traced: no transaction held the lock longer than 1.7 s and commits never
 /// paused longer, while single statements in the same runs waited 30-61 s).
 /// PostgreSQL and SQL Server have no per-database writer lock, so the
-/// one-server, schema-per-class model (K-390) stays right for them; for SQLite
+/// one-server, schema-per-class model stays right for them; for SQLite
 /// the lock domain must be no wider than the unit xunit runs in parallel.
 /// </para>
 /// <para>
 /// Contexts that name the SAME prefix share the file on purpose: the
 /// deliberate concurrency tests open several contexts on one prefix
 /// (<see cref="SqliteTestContext.Create(SqliteFixture, string, string, bool)"/>).
-/// Two prefixes in one physical file - a supported production layout (K-193,
-/// K-389) - is proven by tests that build that layout explicitly.
+/// Two prefixes in one physical file - a supported production layout (
+/// That decision) - is proven by tests that build that layout explicitly.
 /// </para>
 /// </remarks>
 public sealed class SqliteFixture : IAsyncLifetime
@@ -63,7 +63,7 @@ public sealed class SqliteFixture : IAsyncLifetime
     /// <inheritdoc />
     /// <remarks>
     /// The directory also holds the journal files and the migration lock files
-    /// (scoped to the table prefix, K-389), so it is removed as a whole.
+    /// (scoped to the table prefix), so it is removed as a whole.
     /// </remarks>
     public ValueTask DisposeAsync()
     {

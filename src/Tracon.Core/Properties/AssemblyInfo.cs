@@ -15,7 +15,7 @@ using System.Runtime.CompilerServices;
 
 // Auditing* stores and InMemoryRunStore are used by the three SQL provider
 // packages in real code (Sql.Shared is a linked-source, not its own
-// assembly - K-176), so visibility is granted per provider package.
+// assembly), so visibility is granted per provider package.
 [assembly: InternalsVisibleTo("Tracon.PostgreSql")]
 [assembly: InternalsVisibleTo("Tracon.SqlServer")]
 [assembly: InternalsVisibleTo("Tracon.Sqlite")]
@@ -29,7 +29,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Tracon.Workflows")]
 [assembly: InternalsVisibleTo("Tracon.Cli")]
 
-// Phase 96: the default $(MSBuildProjectName).UnitTests/.IntegrationTests
+// The default $(MSBuildProjectName).UnitTests/.IntegrationTests
 // pattern only covers a test project that shares Core's own project name
 // prefix. These seven test projects exercise Core in-memory stores through a
 // sibling package's wiring (MCP discovery/tenant tools, workflow test
@@ -44,12 +44,12 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Tracon.Sqlite.IntegrationTests")]
 [assembly: InternalsVisibleTo("Tracon.Core.UnitTests")]
 
-// Phase 265: the two-node acceptance set runs two hosts on one SQL database and drives them through HTTP, the job
+// The two-node acceptance set runs two hosts on one SQL database and drives them through HTTP, the job
 // queue and the distributed cache (WebhookSigner, the cancellation registry), so it reaches the same internals the
 // functional tests do.
 [assembly: InternalsVisibleTo("Tracon.TwoNode.IntegrationTests")]
 
-// Phase 265: the registration parity gate classifies every contract type a SQL provider registers, and the provider
+// The registration parity gate classifies every contract type a SQL provider registers, and the provider
 // now registers Core's internal StateSharing marker next to the stores.
 [assembly: InternalsVisibleTo("Tracon.Sql.Shared.UnitTests")]
 

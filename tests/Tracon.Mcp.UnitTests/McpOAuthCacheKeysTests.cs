@@ -1,6 +1,6 @@
 namespace Tracon.Mcp.UnitTests;
 
-/// <summary>The keys the distributed OAuth state uses (K-525: a key is never an interpolated string).</summary>
+/// <summary>The keys the distributed OAuth state uses (a key is never an interpolated string).</summary>
 public sealed class McpOAuthCacheKeysTests
 {
     /// <summary>

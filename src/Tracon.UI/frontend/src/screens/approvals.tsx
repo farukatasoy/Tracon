@@ -26,12 +26,12 @@ import type { TraconMetaResponse as Meta, PendingApproval } from '@tracon/client
 import { WorkflowRequestsPanel } from './approvals/workflow-requests';
 
 /**
- * Pending tool-approval requests for queued agent runs (phase 55).
+ * Pending tool-approval requests for queued agent runs.
  *
  * A request here is a projection, not the source of truth: the run's own
  * session state owns the pending question. Deciding it does not resume the
  * *same* run — the run row that asked stays `AwaitingApproval` forever
- * (append-only, decision K-014); a new run opens with the answer.
+ * (append-only); a new run opens with the answer.
  *
  * 🚨 This is the console's decision surface and a decision here cannot be taken
  * back, so the row states the consequence before it is taken: the arguments the
@@ -42,7 +42,7 @@ import { WorkflowRequestsPanel } from './approvals/workflow-requests';
  * 🚨 It is also the one action in the console that earns its confirmation under
  * §175.3 criterion (b) rather than (a): nothing is destroyed, but the decision
  * cannot be given a second time. The run that asked stays `AwaitingApproval`
- * forever (K-368) and the answer opens a different run, so a mis-click is not
+ * forever and the answer opens a different run, so a mis-click is not
  * something an operator can walk back — there is no second request to answer.
  * Approve and reject get SEPARATE sentences: one sentence for both would hide
  * exactly that asymmetry.
@@ -260,7 +260,7 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
         </div>
       )}
 
-      {/* Phase 209: the human requests of workflow runs, a different record from the tool approvals above. */}
+      {/* The human requests of workflow runs, a different record from the tool approvals above. */}
       <div className="mt-4">
         <WorkflowRequestsPanel />
       </div>

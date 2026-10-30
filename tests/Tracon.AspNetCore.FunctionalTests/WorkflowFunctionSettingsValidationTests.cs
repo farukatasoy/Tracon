@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.WorkflowSettingsFixtures;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// What <c>PUT /api/workflows/{name}</c> refuses about a node's settings (F-295): the object
+/// What <c>PUT /api/workflows/{name}</c> refuses about a node's settings: the object
 /// must fit the settings type the function declares, and the answer names the node and the member.
 /// </summary>
 /// <remarks>
@@ -97,7 +97,7 @@ public sealed class WorkflowFunctionSettingsValidationTests
     [Fact]
     public async Task Settings_on_a_function_that_declares_none_are_refused()
     {
-        // The function takes the chat message list the agent node before it passes on (F-341).
+        // The function takes the chat message list the agent node before it passes on.
         await using var host = await StartAsync(static builder => builder
             .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>("plain", static _ => static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages)));
 

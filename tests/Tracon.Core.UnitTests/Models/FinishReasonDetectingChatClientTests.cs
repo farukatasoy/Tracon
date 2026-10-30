@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// Turning an empty response cut off by a safety/content filter, and a
-/// structured response stopped at the output token limit (F-320), into an
+/// structured response stopped at the output token limit, into an
 /// explicit error.
 /// </summary>
 /// <remarks>
@@ -125,7 +125,7 @@ public sealed class FinishReasonDetectingChatClientTests
             [new ChatMessage(ChatRole.User, "hi")],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // Since Phase 48 the registry also sets up the tool-call loop: MAF adds
+        // Since then the registry also sets up the tool-call loop: MAF adds
         // a result content for an unresolved call. What matters is that NO
         // exception is thrown — a filtered response carrying a tool call is
         // not counted as empty.
@@ -212,7 +212,7 @@ public sealed class FinishReasonDetectingChatClientTests
     [Fact]
     public async Task Length_on_a_plain_text_response_passes_through()
     {
-        // K1: a partial text answer is still useful; the call does not fail.
+        // A partial text answer is still useful; the call does not fail.
         using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
         {
             Messages = [new ChatMessage(ChatRole.Assistant, "a partial ans")],

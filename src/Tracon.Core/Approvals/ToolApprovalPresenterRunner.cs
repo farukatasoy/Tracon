@@ -99,13 +99,13 @@ internal sealed class ToolApprovalPresenterRunner(
         }
         catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            // 🚨 K-737: `timeoutSource.IsCancellationRequested`, not just the
+            // `timeoutSource.IsCancellationRequested`, not just the
             // negation of the caller's token. A presenter is a consumer seam
             // and may call an HTTP service that reports its OWN request
             // timeout as an OperationCanceledException while nothing here was
             // cancelled; naming our limit then prints a number that never
             // elapsed. Such a call falls through to the general catch below
-            // and is reported as what it is - the presenter threw. Phase 166.
+            // and is reported as what it is - the presenter threw.
             logger.LogWarning(
                 "IToolApprovalPresenter timed out after {Timeout} resolving '{ToolName}'; " +
                 "the approval request is published without a presentation.",

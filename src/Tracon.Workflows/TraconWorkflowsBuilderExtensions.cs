@@ -71,7 +71,7 @@ public static class TraconWorkflowsBuilderExtensions
             services.Configure(configure);
         }
 
-        // Phase 259: the profile gate asks whether one tenant can take every workflow slot. Registered
+        // The profile gate asks whether one tenant can take every workflow slot. Registered
         // here, the one composition that has a slot to take; resolved only when the host also called
         // RequireProductionProfile.
         services.TryAddEnumerable(
@@ -93,23 +93,23 @@ public static class TraconWorkflowsBuilderExtensions
         services.TryAddSingleton<WorkflowCatalog>();
         services.TryAddSingleton<IWorkflowRunner, WorkflowRunner>();
 
-        // F-321: the job handlers and the HTTP layer live in packages that do
+        // The job handlers and the HTTP layer live in packages that do
         // not reference this one; they read the recovery settings through this
         // seam. Registered here and nowhere else, so recovery is off while the
         // engine is not registered.
         services.TryAddSingleton<IWorkflowRecoveryPolicy, TraconWorkflowRecoveryPolicy>();
 
-        // F-405: the save checks a definition's run timeout against the host's
+        // The save checks a definition's run timeout against the host's
         // ceiling through this seam, for the same reason.
         services.TryAddSingleton<IWorkflowRunTimeoutPolicy, TraconWorkflowRunTimeoutPolicy>();
 
-        // Phase 240: the job worker (Tracon.Core) leases queued workflow jobs under a per-tenant ceiling it
+        // The job worker (Tracon.Core) leases queued workflow jobs under a per-tenant ceiling it
         // cannot read from this package's options, so it asks through this seam. Registered here and nowhere
         // else: a host without the engine leases with no ceiling.
         services.TryAddSingleton<IJobTenantCapSource, WorkflowJobTenantCapSource>();
 
-        // Phase 209: closes the runs whose human request expired, so retention can release
-        // what a waiting run keeps (K-888). Scans nothing while no workflow sets a limit.
+        // Closes the runs whose human request expired, so retention can release
+        // what a waiting run keeps. Scans nothing while no workflow sets a limit.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, WorkflowRequestExpirationService>());
 

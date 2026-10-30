@@ -87,19 +87,19 @@ public sealed partial class AgentDefinitionCompiler
     /// of the definition's tools comes from replaceable state. The cache key is then
     /// the same as before the bindings took part in it.
     /// </returns>
-    // 🚨 F-305 (2026-10-11): the compiler bakes the tool OBJECT into the agent, and
+    // The compiler bakes the tool OBJECT into the agent, and
     // an MCP tool object calls through the connection it was discovered on. When a
     // server definition changed or the server was deleted, the catalog closed that
     // connection but the key stayed the same: every later run of the cached agent
     // called the closed connection (HTTP 200, "Error: Function failed."), and a
     // server switched back to requiring approval was called without asking. The
     // registry reports the identity of each connection a tool is bound to - the
-    // thing that is embedded, not a proxy for it (K-811) - so a replaced connection
+    // thing that is embedded, not a proxy for it - so a replaced connection
     // changes the key and the next resolve compiles against the live one. A name
     // missing from the snapshot changes the key too: the cached path then fails the
     // way an uncached compile does.
     //
-    // F-603: a hosted tool is baked in too. Its factory reads state outside the definition (the identifier
+    // A hosted tool is baked in too. Its factory reads state outside the definition (the identifier
     // of a tenant's own vector store), so what the factory builds is hashed with the bindings.
     private (string Fingerprint, bool OpaqueHostedTool) ResolveToolBindingFingerprint(AgentDefinition definition)
     {
@@ -118,12 +118,12 @@ public sealed partial class AgentDefinitionCompiler
     /// the tenant has no saved policy. The cache key is then the same as before
     /// the policy took part in it.
     /// </returns>
-    // 🚨 F-304 (2026-10-11): the registry checks the policy only when it builds
+    // The registry checks the policy only when it builds
     // a model client, so a compiled agent carries the decision the policy made
     // at compile time. Without the policy in the key, an agent cached before a
     // policy was saved kept calling the provider that policy forbids, until its
     // definition changed or the process restarted. The policy's CONTENT is
-    // hashed, not its UpdatedAt (K-811's rule: measure what is embedded, not a
+    // hashed, not its UpdatedAt (the rule: measure what is embedded, not a
     // proxy), and names compare the way the registry compares them:
     // case-insensitive and order-free. Re-saving the same list costs nothing.
     private async ValueTask<string> ResolveEgressPolicyFingerprintAsync(CancellationToken cancellationToken)
@@ -161,7 +161,7 @@ public sealed partial class AgentDefinitionCompiler
     // about AgentDefinition.Model cached an agent whose summarizer carried the
     // tenant's key, and rotating or deleting that key never reached it
     // (2026-10-11). The loop judge is not asked: it keeps the setup-time
-    // credential (K-613).
+    // credential.
     private async ValueTask<bool> HoldsTenantCredentialAsync(AgentDefinition definition, CancellationToken cancellationToken)
     {
         if (await UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))

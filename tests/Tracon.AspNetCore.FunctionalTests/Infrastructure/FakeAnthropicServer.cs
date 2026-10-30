@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// answers a test queued (<see cref="Respond"/>, <see cref="Stream"/>).
 /// </summary>
 /// <remarks>
-/// F-346: what an <c>anthropic.*</c> setting puts on the wire is only proven by
+/// What an <c>anthropic.*</c> setting puts on the wire is only proven by
 /// the body the real SDK sends through the whole host — compiled agent, MAF,
 /// the model pipeline and the Anthropic adapter, which merges fields of its own
 /// into ours.

@@ -7,7 +7,7 @@ using Tracon.AGUI.FunctionalTests.Infrastructure;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// A front end that goes away stops its run (Phase 236).
+/// A front end that goes away stops its run.
 /// </summary>
 public sealed class AGUICancellationTests
 {

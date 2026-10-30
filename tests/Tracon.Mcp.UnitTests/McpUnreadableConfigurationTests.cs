@@ -7,7 +7,7 @@ namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
 /// A <c>Tracon:Mcp</c> value whose text cannot be read stops the host at startup, and the
-/// message names the key and the text (F-572, phase 247).
+/// message names the key and the text.
 /// </summary>
 /// <remarks>
 /// <para>

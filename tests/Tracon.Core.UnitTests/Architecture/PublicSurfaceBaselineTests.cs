@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Pins the public TYPE count of every publicly-tracked package to a
-/// checked-in baseline, so the surface Phase 96 narrowed cannot regrow
+/// checked-in baseline, so the surface narrowed cannot regrow
 /// silently.
 /// </summary>
 /// <remarks>
@@ -18,11 +18,11 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </para>
 /// <para>
 /// Counts TYPES, not entries: <c>PublicAPI.Unshipped.txt</c> lists one line
-/// per member too (a property getter, a constructor), and most of Phase 96's
+/// per member too (a property getter, a constructor), and most of the earlier change's
 /// 8,063 entries were <c>Options</c> accessors that a type-count gate must
 /// not react to (96.5). A line is a type declaration when it names neither a
 /// member signature (<c>(</c>) nor a member's type (<c> -&gt; </c>) - the
-/// same filter as the phase's own measurement command.
+/// same filter as the change's own measurement command.
 /// </para>
 /// <para>
 /// Refresh after a deliberate, reviewed surface change:

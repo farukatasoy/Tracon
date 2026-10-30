@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Tenancy;
 
 /// <summary>
-/// Verifies the canonical form of the tenant identifier (phase 179).
+/// Verifies the canonical form of the tenant identifier.
 /// </summary>
 /// <remarks>
 /// The rule itself is <see cref="AmbientTenantScope.Normalize"/>. What it

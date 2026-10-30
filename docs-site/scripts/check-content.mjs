@@ -318,9 +318,9 @@ for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
 }
 
 // compatibility.md's own package table must track packageCount independently of
-// the landing page - Phase 96 dropped 98 types from the surface but left this
+// the landing page - dropped 98 types from the surface but left this
 // table's heading and row count at a stale "17", two packages short, until this
-// check existed (Phase 97, 97.5).
+// check existed (97.5).
 const compatibility = readFileSync(join(docsRoot, 'reference/compatibility.md'), 'utf8');
 const packagesHeading = compatibility.match(/^## The (\d+) packages$/m);
 const packagesSection = compatibility.split(/^## /m).find((section) => /^The \d+ packages\b/.test(section)) ?? '';
@@ -337,7 +337,7 @@ if (packageRowCount !== packageCount) {
 
 // A package README states its Native AOT status in its own words, and so does the table above. The
 // table is the one place that measures; a README sentence that disagrees with it sends a consumer of
-// that package to the wrong answer on nuget.org (F-575). The README's claim is read as one of three
+// that package to the wrong answer on nuget.org. The README's claim is read as one of three
 // classes: it says the package is not AOT-compatible (or does not support Native AOT, or that the
 // status is not measured), it says the package is AOT-compatible, or it says nothing.
 const aotCell = new Map(
@@ -364,7 +364,7 @@ for (const [name, cell] of aotCell) {
   }
 }
 
-// Counts the code decides and prose restates (F-561, F-446). Nobody recomputes a sentence:
+// Counts the code decides and prose restates. Nobody recomputes a sentence:
 // the store guide said 29 contracts where the package ships 30, the compatibility page said
 // "six" families beside a seventh constant, and the README said 654 public types for weeks
 // while the generated reference listed 590. Each number is derived from the sources below.
@@ -444,7 +444,7 @@ if (!statedFamilies) {
 
 // The Native AOT promise is written as prose in two more places than the table: the README
 // ("Six packages promise …") and packages.md ("Six runtime packages make …", "the six
-// AOT-compatible packages"). Both restated the table by hand (F-575). The table decides:
+// AOT-compatible packages"). Both restated the table by hand. The table decides:
 // a package promises AOT when its `Native AOT` cell is exactly "Yes". Prose that names a
 // package or a count the table does not is drift. The per-package READMEs' own AOT
 // sentences are not covered: they say it in free wording.
@@ -646,7 +646,7 @@ const generatedRoots = [join(docsRoot, 'api', sep), join(docsRoot, 'http-api', s
 // because it is a system route with no sidebar entry and no llms index line - but
 // that exemption used to cover the whole gate, so the page also escaped the rules
 // that have nothing to do with structure: the decision-number leak and this
-// phase's voice rules. An exemption is per rule, not per page.
+// change's voice rules. An exemption is per rule, not per page.
 const handWrittenContent = allContent.filter(
   (file) => !generatedRoots.some((directory) => file.startsWith(directory)),
 );
@@ -656,7 +656,7 @@ const manualContent = handWrittenContent.filter(
   (file) => basename(file) !== '404.md',
 );
 
-// One page per release (F-710). The release notes page is the way in and is in the sidebar and the
+// One page per release. The release notes page is the way in and is in the sidebar and the
 // page index; a release page is reached from it, so it is in neither. Every other rule that reads a
 // hand-written page still reads it: the exemption is per rule, not per page.
 const isReleasePage = (file) => relative(docsRoot, file).startsWith(releasePagesSlug);
@@ -679,7 +679,7 @@ for (const file of allContent) {
 }
 
 // A generated page used to publish the build machine's home directory: xunit's
-// caller-info arguments put `/Users/<name>/...` into 718 API signatures (F-495).
+// caller-info arguments put `/Users/<name>/...` into 718 API signatures.
 // Generated and hand-written pages alike; no page needs a real home path.
 const homeDirectory = /(?:\/Users|\/home)\/[A-Za-z0-9._-]+\/|[A-Za-z]:\\Users\\/;
 for (const file of allContent) {
@@ -889,7 +889,7 @@ errors.push(...checkConsoleScreens(sourceRoot, docsRoot, siteRoot));
 // break every srcset candidate, which the link gate does not read.
 errors.push(...checkLandingCaptures(siteRoot, docsRoot));
 
-// A published capacity number is a shipped claim, and phase 166's audit found
+// A published capacity number is a shipped claim, and the audit found
 // five of them wrong in the step between the measurement file and the page.
 errors.push(...checkCapacityStamp(docsRoot, join(repositoryRoot, 'bench/capacity/measurements')));
 
@@ -1030,7 +1030,7 @@ for (const file of manualContent) {
   }
 }
 
-// 🚨 Marked BEHAVIOR claims (F-171, phase 158). A count can be recomputed from
+// 🚨 Marked BEHAVIOR claims. A count can be recomputed from
 // the code; a sentence like "off by default" cannot - it can only be
 // re-measured. This gate runs BEFORE the solution is built (a clean checkout
 // has no compiled assembly to reflect on - see the ERR_MODULE_NOT_FOUND trap
@@ -1074,7 +1074,7 @@ if (validApiKeyScopes.size === 0) {
 
 // A marker sits right next to the sentence it measures, as an HTML comment -
 // invisible on the rendered page, readable from the source both by a human
-// editing the sentence and by this scan (Open Question 1). The value after
+// editing the sentence and by this scan. The value after
 // the property is a fixed string today because every claim in this first
 // round is a bool (158.3); DocumentedPolicyTests.cs is the one that actually
 // evaluates it against the real code.
@@ -1084,7 +1084,7 @@ if (validApiKeyScopes.size === 0) {
 // "off by default" while its marker still claims `false` after the real
 // default flipped to `true` and BOTH gates would stay green - the marker and
 // the prose would have drifted apart from each other, silently, which is the
-// exact failure this phase exists to prevent. So every marked sentence must
+// exact failure this change exists to prevent. So every marked sentence must
 // also state its value as a literal, backtick-quoted token immediately before
 // the marker (only closing punctuation allowed between them), and this gate
 // checks that literal against the marker's own value - closing the triangle:
@@ -1569,7 +1569,7 @@ const handWritten = [
   ...derivedFromConfig,
   ...collectSources(sourceRoot).filter((file) => basename(file) === 'README.md'),
   // packages/tracon-client/README.md ships to npm the same way a NuGet
-  // README does (Phase 84) — same blind spot, same fix.
+  // README does — same blind spot, same fix.
   ...(existsSync(packagesRoot) ? collectSources(packagesRoot) : []).filter(
     (file) => basename(file) === 'README.md',
   ),

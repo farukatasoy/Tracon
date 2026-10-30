@@ -22,7 +22,7 @@ function extractGeneratedPaths(schemaSource: string): string[] {
   return [...pathsBlock[1].matchAll(/^ {4}"([^"]+)":\s*\{/gmu)].map((match) => match[1]);
 }
 
-describe('paths coverage (section 84.10)', () => {
+describe('paths coverage ', () => {
   it('the generated paths type has an entry for every path in the OpenAPI document', () => {
     const document = stripPrefix(JSON.parse(readFileSync(documentPath, 'utf8')));
     const expected = Object.keys(document.paths).sort();

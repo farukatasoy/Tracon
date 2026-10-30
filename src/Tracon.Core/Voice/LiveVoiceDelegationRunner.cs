@@ -128,13 +128,13 @@ internal sealed class LiveVoiceDelegationRunner
             // writes ambient state would lose that state: an ExecutionContext write
             // does not cross a `yield return` boundary. This class of defect has
             // cost this repository four times.
-            // F-310: resolved here, per delegation. A definition deleted mid-session or
+            // Resolved here, per delegation. A definition deleted mid-session or
             // a tool that is no longer registered fails this delegation the way a new
             // request would fail, and the caller hears the same reference below.
             var agent = await _resolveAgent(cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"There is no agent named '{_agentName}'.");
 
-            // A harness loop hands over its final iteration only (K-889): every
+            // A harness loop hands over its final iteration only: every
             // update below is spoken, and a draft must not be.
             var updates = AgentAnswerStream.RunAsync(
                 agent,
@@ -200,7 +200,7 @@ internal sealed class LiveVoiceDelegationRunner
         {
             // OperationCanceledException reaches here only when it is NOT ours (the
             // catch above takes our own): a delegated run whose model call timed out
-            // on its own failed, and the caller hears so (K-840).
+            // on its own failed, and the caller hears so.
             //
             // 🚨 The raw exception is NEVER spoken: it can carry a host:port, a
             // provider URL or a prompt fragment. The caller gets a correlation

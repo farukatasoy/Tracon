@@ -3,7 +3,7 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// The "views" optional migration set (Phase 111): opt-in via
+/// The "views" optional migration set: opt-in via
 /// <c>EnableReadViews</c>, off by default.
 /// </summary>
 public sealed class ReadViewOptionalSetTests(SqlServerFixture fixture)

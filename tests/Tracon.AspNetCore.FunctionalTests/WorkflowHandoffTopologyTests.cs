@@ -4,7 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// K-269: Tracon.Testing.TraconTestHost and this project's own host share a name, so the package is imported one
+// Tracon.Testing.TraconTestHost and this project's own host share a name, so the package is imported one
 // type at a time.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 using FakeModelRequest = Tracon.Testing.FakeModelRequest;
@@ -12,7 +12,7 @@ using FakeModelRequest = Tracon.Testing.FakeModelRequest;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 270: a stored Handoff workflow hands off along the edges its definition names, and a loop of handoffs
+/// A stored Handoff workflow hands off along the edges its definition names, and a loop of handoffs
 /// stops at the run's limit.
 /// </summary>
 /// <remarks>

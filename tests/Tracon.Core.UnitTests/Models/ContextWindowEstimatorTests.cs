@@ -2,7 +2,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Models;
 
-/// <summary>Verifies the pre-flight context-window estimator (phase 62, F-59).</summary>
+/// <summary>Verifies the pre-flight context-window estimator.</summary>
 public sealed class ContextWindowEstimatorTests
 {
     [Fact]

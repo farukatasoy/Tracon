@@ -8,12 +8,12 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The save rules for credential headers on the two surfaces that store
-/// request headers: MCP servers and webhook subscriptions (phase 190).
+/// request headers: MCP servers and webhook subscriptions.
 /// </summary>
 /// <remarks>
 /// A plain header is stored in the clear, so a credential-looking name is
 /// rejected and pointed at <c>headerConfigurationKeys</c>, which stores only
-/// the NAME of the configuration key (K-059). These run at the HTTP boundary:
+/// the NAME of the configuration key. These run at the HTTP boundary:
 /// the binding, the stored record and the response shape are all part of the
 /// rule.
 /// </remarks>
@@ -289,7 +289,7 @@ public sealed class CredentialHeaderSaveTests
     }
 
     /// <summary>
-    /// 🚨 Phase 218. System.Text.Json drops an unknown field without a word, so a
+    /// System.Text.Json drops an unknown field without a word, so a
     /// client written for the removed field would save a server with NO
     /// credential and meet <c>401</c> on its first tool call. The save refuses
     /// the field and names what replaces it. Case, value and an empty value do

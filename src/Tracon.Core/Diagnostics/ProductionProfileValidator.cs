@@ -190,7 +190,7 @@ internal sealed class ProductionProfileValidator(
             catch (Exception exception)
             {
                 // No filter: Evaluate is synchronous and takes no token, so no
-                // OperationCanceledException here is a cancellation of ours (K-840).
+                // OperationCanceledException here is a cancellation of ours.
                 // A check that throws is not counted as satisfied. A gate that
                 // fails open is worse than no gate at all, and the host learns
                 // WHICH check failed rather than only that startup did.

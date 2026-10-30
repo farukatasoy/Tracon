@@ -94,7 +94,7 @@ public abstract class RetentionStoreContract : StoreCancellationContract<IRetent
     [Fact]
     public async Task Delete_does_NOT_touch_the_others_data()
     {
-        // 🚨 Before phase 41 this test was red: there was no tenant filter,
+        // 🚨 Before that change, this test was red: there was no tenant filter,
         // and a single tenant's policy deleted the entire installation.
         await SeedOldRowAsync(TenantA);
         await SeedOldRowAsync(TenantB);
@@ -125,7 +125,7 @@ public abstract class RetentionStoreContract : StoreCancellationContract<IRetent
     [Fact]
     public async Task Archive_batches_delete_only_the_rows_they_archived()
     {
-        // 🚨 F-372: archive mode read a batch in time order and then deleted a
+        // Archive mode read a batch in time order and then deleted a
         // batch in no order. With more matching rows than one batch, the two
         // sets differ: rows that were never archived were deleted. The rows are
         // written newest first, so their time order is the reverse of their
@@ -163,7 +163,7 @@ public abstract class RetentionStoreContract : StoreCancellationContract<IRetent
     [Fact]
     public async Task A_failed_archive_write_deletes_nothing()
     {
-        // Data that cannot be archived is not dropped (phase 25 decision): the
+        // Data that cannot be archived is not dropped: the
         // archive write runs before the delete, and its failure stops the delete.
         await SeedOldRowAsync(TenantA);
 

@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-605 (phase 227) - a case's <c>expectedTools</c> became <c>expectedToolCalls</c>. The
+/// A case's <c>expectedTools</c> became <c>expectedToolCalls</c>. The
 /// cases endpoint refuses the old key and names the new one, because the JSON reader would
 /// otherwise drop it without a word and the case would expect no tool call at all.
 /// </summary>

@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Closes the loop between a documented behavior claim and the code it
-/// describes (F-171, phase 158). A marked claim names either an option's
+/// describes. A marked claim names either an option's
 /// default or an endpoint's required API-key scope, and this file is the ONLY
 /// place either kind is actually evaluated: <c>check-content.mjs</c> can only
 /// check that a marker's shape is well-formed, because that gate runs BEFORE
@@ -20,7 +20,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A marker is an HTML comment right next to the sentence it measures:
 /// <c>&lt;!-- claim:option TypeName.PropertyName=value --&gt;</c> for an
 /// option default, or <c>&lt;!-- claim:policy METHOD /path scope=ScopeName
-/// --&gt;</c> for an endpoint's required scope (Open Question 1). Every marked
+/// --&gt;</c> for an endpoint's required scope. Every marked
 /// claim in this first round is a <see langword="bool"/> (158.3); a future
 /// non-bool claim needs a small change to the value comparison below, not a
 /// new mechanism.

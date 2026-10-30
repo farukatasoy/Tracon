@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// 🚨 These tests exist because the unit-level ones could not see the defect
-/// they were written for (HATA-S1-026). They wrapped
+/// they were written for. They wrapped
 /// <c>AIFunctionFactory.Create(() =&gt; new string('a', 10_000))</c> — a
 /// <see langword="string"/>-returning stand-in — and proved only that the
 /// wrapper was installed. A real MCP tool answers with
@@ -93,7 +93,7 @@ public sealed class McpToolResultTruncationTests
 
         return await McpClient.CreateAsync(
             transport,
-            // F-190's rationale applies here too: the SDK's 5s production
+            // the rationale applies here too: the SDK's 5s production
             // default can be missed by this in-memory server under the full
             // package run's CPU contention.
             new McpClientOptions { DiscoverProbeTimeout = TimeSpan.FromSeconds(30) });

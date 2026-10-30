@@ -10,7 +10,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 201 (F-301): <c>AddLoopEvaluator(kind, factory)</c> through a real host —
+/// <c>AddLoopEvaluator(kind, factory)</c> through a real host —
 /// the factory reaches the container, may take the agent catalog without a
 /// dependency cycle, fails a save with the kind named and recovers, and a run
 /// cancelled during its evaluation ends as cancelled.
@@ -20,7 +20,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// provider, and the compiler singleton is built inside the catalog's chain) or the
 /// HTTP boundary (the save path); a registry unit test answers none of them.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class LoopEvaluatorFactoryTests
 {
@@ -91,7 +91,7 @@ public sealed class LoopEvaluatorFactoryTests
 
         // Measured, plan 201.1: the reviewer's tokens are its own run's usage; the
         // evaluated run keeps only the writer's two turns (the aiJudge side channel,
-        // K-893, is not involved).
+        // Is not involved).
         root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(20);
         reviews.ShouldAllBe(static review => review.Usage!.TotalTokens == 5);
 
@@ -195,7 +195,7 @@ public sealed class LoopEvaluatorFactoryTests
         root.Status.ShouldBe(RunStatus.Canceled);
 
         // The run's own cancellation is not a criterion failure: nothing names the
-        // criterion as failed (K-840's filter in RecordingLoopEvaluator).
+        // criterion as failed (the filter in RecordingLoopEvaluator).
         (await ReviewerLoopEvaluatorTests.IterationEventsAsync(runs, root.Id))
             .ShouldAllBe(static payload => payload.GetProperty("failedCriterion").ValueKind == System.Text.Json.JsonValueKind.Null);
     }

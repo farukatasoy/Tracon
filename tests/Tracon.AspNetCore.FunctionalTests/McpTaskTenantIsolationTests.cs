@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 117: Tracon's <c>IMcpTaskStore</c> implementation carries no tenant
+/// Tracon's <c>IMcpTaskStore</c> implementation carries no tenant
 /// parameter of its own (the SDK's contract has none — § 117.1); the isolation
 /// guarantee rests entirely on <see cref="IRunStore.GetRunAsync"/>'s own
 /// ambient-tenant filtering. This is the functional proof that the composition

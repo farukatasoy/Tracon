@@ -101,7 +101,7 @@ internal static class ImageEndpoints
 
         try
         {
-            // F-384: the tenant's egress policy and its own credential are
+            // The tenant's egress policy and its own credential are
             // checked before the prompt leaves the process.
             var generator = await imageGeneratorResolver
                 .ResolveForTenantAsync(tenantContext.TenantId, cancellationToken)
@@ -156,7 +156,7 @@ internal static class ImageEndpoints
         catch (TraconTenantProviderRefusedException exception)
         {
             // The tenant's own rule, not a provider failure: 403, as for live
-            // voice (K-878). The message names the tenant and the provider only.
+            // voice. The message names the tenant and the provider only.
             return TypedResults.Problem(
                 title: "Image provider not available for this tenant",
                 detail: exception.Message,

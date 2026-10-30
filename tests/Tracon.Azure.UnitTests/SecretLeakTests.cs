@@ -48,7 +48,7 @@ public sealed class SecretLeakTests
     [Fact]
     public void Options_type_does_not_define_its_own_ToString()
     {
-        // The options type must NOT be a record (K-035): the compiler-generated
+        // The options type must NOT be a record: the compiler-generated
         // ToString would print all properties and expose the key in the first log line.
         typeof(AzureOpenAIProviderOptions).GetMethod(nameof(ToString), Type.EmptyTypes)!
             .DeclaringType.ShouldBe(typeof(object));

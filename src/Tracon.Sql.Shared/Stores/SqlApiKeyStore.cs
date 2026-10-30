@@ -137,7 +137,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
             Name = reader.GetString(2),
 
             // Column 3 (key_hash) is DELIBERATELY skipped: the digest never
-            // enters ApiKeyRecord (section 53.2).
+            // enters ApiKeyRecord.
             KeyPrefix = reader.GetString(4),
             Scopes = [.. Dialect.ReadTextArray(reader, 5).Select(ParseScope)],
             ExpiresAt = DbHelpers.GetNullableTimestamp(reader, 6),

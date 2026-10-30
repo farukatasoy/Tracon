@@ -41,7 +41,7 @@ internal sealed class TempSqliteDatabase : IDisposable
         SqliteConnection.ClearAllPools();
 
         // A glob, not a fixed suffix list: the migration lock file is named
-        // after the table prefix (K-389), so the suffix varies per test.
+        // after the table prefix, so the suffix varies per test.
         var directory = System.IO.Path.GetDirectoryName(Path)!;
         var fileName = System.IO.Path.GetFileName(Path);
 

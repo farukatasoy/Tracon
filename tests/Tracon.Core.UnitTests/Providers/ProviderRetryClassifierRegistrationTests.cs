@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Providers;
 
 /// <summary>
 /// Verifies that <see cref="IProviderRetryClassifier"/>'s DI registration
-/// follows the K4 pattern (the consumer's registration wins) - the same
+/// follows the pattern (the consumer's registration wins) - the same
 /// contract <c>RunErrorClassifierRegistrationTests</c> verifies for
 /// <see cref="IRunErrorClassifier"/>.
 /// </summary>
@@ -27,7 +27,7 @@ public sealed class ProviderRetryClassifierRegistrationTests
         var services = new ServiceCollection();
 
         // The consumer registers BEFORE AddTracon; TryAddSingleton silently
-        // skips the second registration (K4).
+        // skips the second registration.
         services.AddSingleton<IProviderRetryClassifier, SpyProviderRetryClassifier>();
         services.AddTracon();
 

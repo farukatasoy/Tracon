@@ -212,14 +212,14 @@ internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAp
 
         // 🚨 EVERY bootstrap step runs under the same transient-conflict retry as
         // a migration does. They are not "setup that cannot fail": the migration
-        // lock is scoped to the SCHEMA (K-389), so two schemas bootstrapping at
+        // lock is scoped to the SCHEMA, so two schemas bootstrapping at
         // the same time meet on catalog objects shared by the whole database and
         // one of them is chosen as the deadlock victim. Measured on 2026-08-21: a
         // batch run lost 15 SqlServerRunScoreStoreContractTests cases at once
         // because UpgradeMigrationsTableAsync was the victim and the raw
         // SqlException escaped the class fixture's InitializeAsync. All four
         // statements are idempotent — IF NOT EXISTS-guarded DDL plus one SELECT —
-        // so retrying is as safe here as it is inside ApplyOneAsync (K-540).
+        // so retrying is as safe here as it is inside ApplyOneAsync.
         await RetryOnTransientConflictAsync(
             "The Tracon schema could not be created",
             token => ExecuteAsync(connection, sql.CreateSchema, token),
@@ -257,7 +257,7 @@ internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAp
         // the deadlock victim. This step reads sys.columns / information_schema
         // and then scans every tenant table, so it is a LIKELIER victim than
         // the four before it, not a rarer one. It is read-only, therefore
-        // retrying is as safe here as it is there (K-540).
+        // retrying is as safe here as it is there.
         await RetryOnTransientConflictAsync(
             "The Tracon tenant_id case guard could not run",
             token => TenantIdCaseGuard.VerifyAsync(_context, connection, token),
@@ -453,10 +453,10 @@ internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAp
         CancellationToken cancellationToken)
     {
         // The migration's own SQL and the INSERT that writes to the ledger are
-        // sent together in a SINGLE round trip (K-388). The __migrations table
+        // sent together in a SINGLE round trip. The __migrations table
         // already exists BEFORE the migration runs and does not reference any
         // object created/changed by the migration's DDL; so it does not fall
-        // into K-318's "reference to an object changed in the same batch" trap.
+        // into the "reference to an object changed in the same batch" trap.
         var sql = ApplyTemplate(_context.Sql.ApplySchema(migration.Sql))
             + Environment.NewLine
             + _context.Sql.InsertMigration;
@@ -486,7 +486,7 @@ internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAp
                 catch (DbException ex) when (
                     IsTransientConflict(ex) && attempt < TransientConflictRetryAttempts)
                 {
-                    // The migration lock is SCOPED TO THE SCHEMA (K-389): if a
+                    // The migration lock is SCOPED TO THE SCHEMA: if a
                     // catalog object shared across the whole database (for
                     // example a PostgreSQL extension) is created at the same
                     // time by another schema's migration, this hits a

@@ -10,7 +10,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Run parameters of a workflow defined in code (phase 211, <c>WorkflowRegistrationOptions.Parameters</c>): the schema is
+/// Run parameters of a workflow defined in code (<c>WorkflowRegistrationOptions.Parameters</c>): the schema is
 /// checked before the run opens, the values reach the function nodes and the agent steps, a queued run carries them, and a
 /// run that is answered continues with the values it started with.
 /// </summary>
@@ -22,7 +22,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// that reads the id again in the run that answers).
 /// </para>
 /// <para>
-/// An agent step can read its version from a run parameter (phase 249): the run that answers a human request runs the
+/// An agent step can read its version from a run parameter: the run that answers a human request runs the
 /// version the run started with, not the one an edit made in between.
 /// </para>
 /// </remarks>

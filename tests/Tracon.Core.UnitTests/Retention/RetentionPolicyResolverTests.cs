@@ -111,7 +111,7 @@ public sealed class RetentionPolicyResolverTests
     [Fact]
     public async Task A_policy_with_only_MaxRows_set_resolves_correctly()
     {
-        // 🚨 Gap closed by Phase 36: MaxAgeDays EMPTY, only MaxRows set.
+        // 🚨 Gap closed: MaxAgeDays EMPTY, only MaxRows set.
         // ResolveAsync used to treat such a record as "nothing will be deleted".
         var store = new InMemoryRetentionPolicyStore();
         var now = DateTimeOffset.UtcNow;

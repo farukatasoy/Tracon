@@ -5,7 +5,7 @@ using NSubstitute;
 namespace Tracon.ProviderCore.Tests;
 
 /// <summary>
-/// The shared model provider state and rules (phase 181). Linked into the four
+/// The shared model provider state and rules. Linked into the four
 /// provider test projects.
 /// </summary>
 public sealed class ModelProviderCoreTests

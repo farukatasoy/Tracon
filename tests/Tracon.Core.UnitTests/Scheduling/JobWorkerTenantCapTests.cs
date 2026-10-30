@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// Phase 240: the job worker hands the store the per-tenant ceiling its source names, and leases in plain age
+/// The job worker hands the store the per-tenant ceiling its source names, and leases in plain age
 /// order when there is none.
 /// </summary>
 /// <remarks>

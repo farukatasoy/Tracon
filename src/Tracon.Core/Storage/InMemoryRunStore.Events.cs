@@ -19,7 +19,7 @@ internal sealed partial class InMemoryRunStore
                 $"No run with id '{runEvent.RunId}' was found. StartRunAsync must be called before adding an event.");
         }
 
-        // EXPECTED tenant check (K-355). SAME behavior as the SQL store;
+        // EXPECTED tenant check. SAME behavior as the SQL store;
         // contract tests exercise both implementations against the same assertion.
         EnsureExpectedTenant(runEvent.RunId, runEvent.TenantId, "The event was not written.");
 
@@ -83,7 +83,7 @@ internal sealed partial class InMemoryRunStore
         ArgumentNullException.ThrowIfNull(invocation);
         cancellationToken.ThrowIfCancellationRequested();
 
-        // EXPECTED tenant check (K-355).
+        // EXPECTED tenant check.
         EnsureExpectedTenant(invocation.RunId, invocation.TenantId, "The tool invocation was not written.");
 
         // If the run was dropped (MaxRuns), the call is silently discarded:
@@ -107,7 +107,7 @@ internal sealed partial class InMemoryRunStore
         ArgumentNullException.ThrowIfNull(record);
         cancellationToken.ThrowIfCancellationRequested();
 
-        // EXPECTED tenant check (K-355).
+        // EXPECTED tenant check.
         EnsureExpectedTenant(record.RunId, record.TenantId, "The non-token usage item was not written.");
 
         // If the run was dropped (MaxRuns), the item is silently discarded: it is

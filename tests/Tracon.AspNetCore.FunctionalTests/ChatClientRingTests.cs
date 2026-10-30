@@ -3,14 +3,14 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269): a blanket `using Tracon.Testing;`
+// Same rationale as AgentExtensionRunTests.cs: a blanket `using Tracon.Testing;`
 // would make TraconTestHost ambiguous.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 232 (F-594): a chat client ring that an agent extension adds, through a real host — the
+/// A chat client ring that an agent extension adds, through a real host — the
 /// <see cref="ChatClientSlot.ModelCall"/> ring sees each call of the tool loop and the
 /// <see cref="ChatClientSlot.Turn"/> ring one call per turn, on a chat agent and a harness agent;
 /// the summarizer gets no ring; a failure names the extension; a registry that cannot place a ring

@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Every documented webhook event is published by the code path that owns it.
 /// </summary>
 /// <remarks>
-/// F-333: <c>workflow.request.pending</c>, <c>job.completed</c>,
+/// <c>workflow.request.pending</c>, <c>job.completed</c>,
 /// <c>job.failed</c> and <c>eval.completed</c> were defined, accepted on
 /// subscribe and promised on the site, but nothing published them; and a
 /// workflow root, whose agent steps are child runs, produced no <c>run.*</c>

@@ -15,9 +15,9 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon.UI/Tracon.UI.csproj" />
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
-    <!-- Fake model provider (FakeModelProvider): Phase 39, K-007 rationale section 39.1. -->
+    <!-- Fake model provider (FakeModelProvider): an earlier change, that decision. -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
-    <!-- Phase 235: the playground form for a tool's request for input needs a real MCP server to ask it. -->
+    <!-- The playground form for a tool's request for input needs a real MCP server to ask it. -->
     <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
   </ItemGroup>
 
@@ -35,7 +35,7 @@
     INSIDE one, and xunit defaults to one per processor. This caps them, so a
     project cannot saturate the machine on its own.
 
-    Phase 184: until then the cap was moot here - all console tests lived in
+    Until then the cap was moot here - all console tests lived in
     ONE class, and xunit runs the tests of one class one at a time. Split into
     one class per screen, the classes now run four at a time. Measured before
     adopting it: 5 of 5 project runs green in 35-48 s against 93-99 s serial,

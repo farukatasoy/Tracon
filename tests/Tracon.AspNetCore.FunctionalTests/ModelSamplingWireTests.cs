@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-598 — the support table (<c>ModelSamplingSupportTests</c>) against the wire: the request body the real
+/// The support table (<c>ModelSamplingSupportTests</c>) against the wire: the request body the real
 /// SDK adapter of each API surface sends for an agent that sets the request fields.
 /// </summary>
 /// <remarks>
@@ -121,7 +121,7 @@ public sealed class ModelSamplingWireTests
     [Fact]
     public async Task Anthropic_sends_stop_sequences_and_the_tool_choice_and_no_sampling_field_SDK_13_removed()
     {
-        // Phase 255: SDK 12.58 wrote top_k; SDK 13.3.0's MessageCreateParams has no member for temperature, top_p
+        // SDK 12.58 wrote top_k; SDK 13.3.0's MessageCreateParams has no member for temperature, top_p
         // or top_k. The definition cannot set them (the next test), so the proof here is that a request which sets
         // everything the surface does send carries none of the three.
         await using var anthropic = await FakeAnthropicServer.StartAsync();

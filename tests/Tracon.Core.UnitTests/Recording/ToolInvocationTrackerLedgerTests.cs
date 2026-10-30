@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// What <see cref="ToolInvocationTracker"/> takes from the tool-call ledger (F-689): the duration and the settle time
+/// What <see cref="ToolInvocationTracker"/> takes from the tool-call ledger: the duration and the settle time
 /// of a run that does not stream, and the claim that keeps a call to one row.
 /// </summary>
 public sealed class ToolInvocationTrackerLedgerTests

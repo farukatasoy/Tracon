@@ -19,7 +19,7 @@ public sealed class ModelTests(BrowserFixture browsers)
 
         // FakeModelProvider does not implement IModelProviderHealthCheck; this
         // is not a bug and the badge must show "unknown". The leftover
-        // "provider connectivity checks are still missing" note from Phase 6
+        // "provider connectivity checks are still missing" note
         // must no longer appear on screen.
         await Expect(session.Page.GetByText("unknown", new() { Exact = true }).First).ToBeVisibleAsync();
 

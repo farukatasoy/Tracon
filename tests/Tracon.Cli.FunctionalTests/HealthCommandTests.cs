@@ -4,7 +4,7 @@ namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>tracon health</c> against a real, listening Tracon host
-/// (Phase 83, section 83.5, manual cases 5-8): the
+/// (manual cases 5-8): the
 /// client's first consumer.
 /// </summary>
 [Collection(nameof(CliTestGroup))]

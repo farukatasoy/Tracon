@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-297. A unit test of the synthesizer proves the request it builds; only the host proves the request the tenant's
+/// A unit test of the synthesizer proves the request it builds; only the host proves the request the tenant's
 /// key travels on. Every case reads the <c>x-goog-api-key</c> header the server received, so a call that went out on
 /// the wrong key is red even when the answer is <c>200</c>.
 /// </para>

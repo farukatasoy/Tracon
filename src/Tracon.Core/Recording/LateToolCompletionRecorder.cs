@@ -128,8 +128,8 @@ internal static class LateToolCompletionRecorder
         var usage = scope.ToolUsage?.Take(callId);
         var result = ToolResultText.TryGetText(task.Result, out var text) ? text : null;
 
-        // F-482: what the run's total does not hold. The run's snapshot never changes
-        // (K-974), so the counter is where this money lands.
+        // What the run's total does not hold. The run's snapshot never changes
+        // So the counter is where this money lands.
         var lateAmount = scope.NonTokenCost?.TakeLateToolAmount(callId);
 
         if (lateAmount is { } amount)

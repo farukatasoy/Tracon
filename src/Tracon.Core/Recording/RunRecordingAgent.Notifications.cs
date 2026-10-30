@@ -107,7 +107,7 @@ public sealed partial class RunRecordingAgent
 
         var treeUsage = RunUsageSum.Add(usage, DescendantUsage(record));
 
-        // F-419: a tree whose runs are priced in more than one currency has no total;
+        // A tree whose runs are priced in more than one currency has no total;
         // subtracting the row's own share from a partial one would count a wrong amount.
         if (record.TreeCost is { CurrencyCount: > 1 } || record.TreeNonTokenCost is { CurrencyCount: > 1 })
         {
@@ -235,7 +235,7 @@ public sealed partial class RunRecordingAgent
             cancellationToken).ConfigureAwait(false);
 
         // Empty unless TraconQuotaOptions.PublishThresholdToRunStream is
-        // on (K1, 146.5) — QuotaEnforcer itself decides that, this loop does
+        // on (146.5) — QuotaEnforcer itself decides that, this loop does
         // not re-check the option.
         foreach (var crossing in crossings)
         {
@@ -254,7 +254,7 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     private decimal? QuotaAmount(RunScope scope, decimal? ownSpend, RunCost? cost, RunNonTokenCost? nonTokenCost)
     {
-        // K-972, K-976: one rule for money across currencies; the counter holds no currency.
+        // One rule for money across currencies; the counter holds no currency.
         var amount = QuotaAmount(scope.Depth == 0, ownSpend, cost, nonTokenCost, _pricingCurrency, out var tokenCostLeftOut);
 
         if (tokenCostLeftOut)

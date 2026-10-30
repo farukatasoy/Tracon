@@ -1,4 +1,4 @@
-// The Tracon worker harness (Phase 157).
+// The Tracon worker harness.
 //
 // A real, separate process that registers Tracon the way a production
 // worker node does, so the two-process failure proof kills a real host rather
@@ -35,7 +35,7 @@ var tracon = builder.Services.AddTracon();
 
 // The test owns the schema: it migrates once, then starts both processes
 // against it. Migrating here as well would make the harness's startup time
-// part of what the lease clock measures, and K-354's gate still opens on this
+// part of what the lease clock measures, and the gate still opens on this
 // path - MigrationHostedService calls MarkReady even when auto-apply is off.
 if (settings.Provider == WorkerHarnessProvider.SqlServer)
 {
@@ -58,7 +58,7 @@ else
 
 tracon.AddJobHandler<LongRunningJobHandler>(WorkerHarnessContract.HandlerKey);
 
-// Phase 197: the two-step workflow a test kills in its second step. The first
+// The two-step workflow a test kills in its second step. The first
 // step returns at once, so its checkpoint exists before the kill; the second
 // takes the work duration. Both write to the shared execution log with the
 // run they ran in, so the test can tell a repeated step from a resumed one.

@@ -203,7 +203,7 @@ internal static class ContentGuardMessageMasker
         clone.Contents = contents;
 
         // 🚨 The raw representation is DELIBERATELY dropped — see
-        // ContentGuardingChatClient for the same rationale (Phase 26).
+        // ContentGuardingChatClient for the same rationale.
         clone.RawRepresentation = null;
 
         return clone;
@@ -347,7 +347,7 @@ internal static class ContentGuardMessageMasker
     {
         FunctionResultContent result => new FunctionResultContent(result.CallId, text) { Exception = result.Exception },
 
-        // F-386: a masked document stays a document, with a mark built from the
+        // A masked document stays a document, with a mark built from the
         // masked text so neither the raw name nor the raw hash survives the guard.
         TextContent when DocumentChannelMessageBuilder.TryGetSummary(content, out _) => DocumentChannelMessageBuilder.BuildMasked(text),
         _ => new TextContent(text),

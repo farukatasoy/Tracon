@@ -8,7 +8,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>WorkflowFunctionOptions.MaxConcurrency</c> (phase 211): a function that is costly to run in parallel (a GPU voice
+/// <c>WorkflowFunctionOptions.MaxConcurrency</c>: a function that is costly to run in parallel (a GPU voice
 /// synthesis, a render) runs at most that many calls at once in the process, across runs and workflows.
 /// </summary>
 /// <remarks>

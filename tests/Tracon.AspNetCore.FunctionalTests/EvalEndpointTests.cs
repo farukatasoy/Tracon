@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>In-memory behavior tests for the eval suite/case/run endpoints (Phase 18).</summary>
+/// <summary>In-memory behavior tests for the eval suite/case/run endpoints.</summary>
 public sealed class EvalEndpointTests
 {
     private static readonly Uri Suites = new("/tracon/api/evals", UriKind.Relative);
@@ -214,7 +214,7 @@ public sealed class EvalEndpointTests
         save.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- Version selection (Phase 19, open question 2) ---
+    // --- Version selection ---
 
     [Fact]
     public async Task Run_is_triggered_with_a_specific_version()

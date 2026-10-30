@@ -9,14 +9,14 @@ namespace Tracon.Package.Tests;
 /// most minimal (in-memory, no UI) and the most fully loaded (SQL Server +
 /// Azure OpenAI + UI) combination, plus the PostgreSQL combination, whose store
 /// reference comes from the template alone (the meta package carries no store,
-/// Phase 256). The template can break silently when the library changes (37.3);
+/// An earlier change). The template can break silently when the library changes (37.3);
 /// these tests are the only real gate that catches that breakage.
 /// </summary>
 public sealed class TemplateInstantiationTests(TemplateFixture fixture)
 {
     private const string NpgsqlMessage =
         "The generated project's package graph contains Npgsql, but its persistence choice is not PostgreSQL. "
-        + "The meta package must carry no store (Phase 256, K-1116).";
+        + "The meta package must carry no store.";
 
     private static readonly Regex WarningLine = new(
         @"^.*: warning [A-Z]+\d+:",
@@ -74,7 +74,7 @@ public sealed class TemplateInstantiationTests(TemplateFixture fixture)
     [Fact]
     public async Task Postgres_combination_compiles_with_zero_warnings()
     {
-        // Phase 256: PostgreSQL is not in the meta package, so the Tracon.PostgreSql reference of this output comes
+        // PostgreSQL is not in the meta package, so the Tracon.PostgreSql reference of this output comes
         // from the template. A provider outside the meta package (anthropic) is chosen on purpose: the combination
         // proves the store reference does not depend on which provider the project takes.
         using var dir = new TempDirectory();

@@ -54,7 +54,7 @@ internal sealed class OpenAILiveOptionsValidator : IValidateOptions<OpenAILiveOp
                 $"Received value: {options.MaxAppendCharacters}.");
         }
 
-        // F-280: the value becomes HttpClient.Timeout, which refuses more than
+        // The value becomes HttpClient.Timeout, which refuses more than
         // int.MaxValue milliseconds when the client is built.
         if (!TimerPeriod.IsValidHttpTimeout(options.Timeout))
         {

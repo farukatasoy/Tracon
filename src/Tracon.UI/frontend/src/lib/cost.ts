@@ -11,7 +11,7 @@ import type { RunCost } from './server-types';
 const COST_TERMS = ['inputCost', 'outputCost', 'cachedInputCost', 'cacheWriteCost'] as const satisfies readonly (keyof RunCost)[];
 
 /**
- * Compile-time gate for K-483's class: a `*Cost` field added to `RunCost` and not to
+ * Compile-time gate for the class: a `*Cost` field added to `RunCost` and not to
  * {@link COST_TERMS} stops `tsc` here, instead of under-reporting in the console.
  */
 type MissingCostTerm = Exclude<Extract<keyof RunCost, `${string}Cost`>, (typeof COST_TERMS)[number]>;

@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// opens, with the SAME body an agent run gives.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: once the SSE headers are sent the status can no longer change, so
+/// Once the SSE headers are sent the status can no longer change, so
 /// a missing value that only surfaced inside the stream would reach the caller
 /// as a <c>200</c> with an error frame. The body must also match
 /// <c>POST /api/agents/{name}/run</c>: a client that already handles

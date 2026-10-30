@@ -81,7 +81,7 @@ public sealed class AnthropicProviderExtensionsTests
     [Fact]
     public void Relative_address_from_configuration_is_rejected()
     {
-        // HATA-S3-003: Bind() used to leave Endpoint unassigned when
+        // Bind() used to leave Endpoint unassigned when
         // Uri.TryCreate(..., UriKind.Absolute, ...) failed; the value was silently
         // dropped before it ever reached the validator.
         var configuration = new ConfigurationBuilder()
@@ -102,7 +102,7 @@ public sealed class AnthropicProviderExtensionsTests
     [Fact]
     public void Nameless_model_from_configuration_is_rejected()
     {
-        // HATA-S3-004: BindModels() used to never add an entry with an empty Name
+        // BindModels() used to never add an entry with an empty Name
         // to the list; the validator never saw an empty-named entry.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)

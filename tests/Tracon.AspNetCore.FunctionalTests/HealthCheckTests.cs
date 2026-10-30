@@ -9,7 +9,6 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Verifies edge cases of <c>AddTraconHealthChecks()</c> + the <c>/health</c> endpoint
-/// (Phase 33, F-38).
 /// </summary>
 public sealed class HealthCheckTests
 {
@@ -104,7 +103,7 @@ public sealed class HealthCheckTests
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
 
         // 401: not retried by the client, and it counts against the provider. A
-        // 400 does not count since F-354 (it rejects the request, not the provider).
+        // 400 does not count since an earlier fix (it rejects the request, not the provider).
         server.ChatCompletionStatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized;
 
         await using var host = await TraconTestHost.StartAsync(

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ConcurrentToolInvocationTests.cs (K-269): the package's
+// Same rationale as ConcurrentToolInvocationTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -11,7 +11,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <see cref="TraconAgentGraphOptions.MaxDuration"/> (Phase 128, T-7): the
+/// <see cref="TraconAgentGraphOptions.MaxDuration"/> (T-7): the
 /// run tree's fifth budget dimension. The cutoff always lands between two
 /// model turns — a tool call already in progress when the deadline passes is
 /// NOT interrupted — and applies on the queued (durable) run path too, where

@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-247: the binder skipped a column name it did not know and a key entry with
+/// The binder skipped a column name it did not know and a key entry with
 /// an empty name. <c>Columns = ["RunInput", "RunInputt"]</c> started and protected
 /// only <c>RunInput</c>: the column the operator meant stayed in plain text, and
 /// nothing said so.
@@ -52,7 +52,7 @@ public sealed class TraconContentProtectionOptionsBindingTests
         });
 
         // The value is the NAME of the configuration key the raw material is read
-        // from (K-561), kept as written.
+        // from, kept as written.
         options.Keys.Count.ShouldBe(2);
         string.Equals(options.Keys["2026-08"], "Tracon:ContentProtection:RawKeys:2026-08", StringComparison.Ordinal).ShouldBeTrue();
         string.Equals(options.Keys["2026-10"], "Tracon:ContentProtection:RawKeys:2026-10", StringComparison.Ordinal).ShouldBeTrue();
@@ -124,7 +124,7 @@ public sealed class TraconContentProtectionOptionsBindingTests
     [Fact]
     public void Code_that_rewrites_the_members_wins_over_unreadable_entries()
     {
-        // The failure comes from the bound value (K4, the F-385 precedent): code
+        // The failure comes from the bound value (the precedent): code
         // that configures the same member after binding clears it.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -160,7 +160,7 @@ public sealed class TraconContentProtectionOptionsBindingTests
         options.ActiveKeyId.ShouldBeNull();
         options.Keys.ShouldBeEmpty();
 
-        // Every member of ProtectedColumn - twelve today (K-934).
+        // Every member of ProtectedColumn - twelve today.
         options.Columns.Count.ShouldBe(12);
         options.Columns.ShouldBe(Enum.GetValues<ProtectedColumn>(), ignoreOrder: true);
     }

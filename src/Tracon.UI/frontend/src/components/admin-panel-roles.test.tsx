@@ -11,7 +11,7 @@ import { WebhookPanel } from './webhook-panel';
  * A reader opening an administrator-only panel must be told the panel is not
  * theirs — not handed the raw transport failure.
  *
- * 🚨 Measured in a live console (`MT-UIRUN-063`, 2026-09-19), not imagined:
+ * 🚨 Measured in a live console (2026-09-19), not imagined:
  * with `Tracon:Demo:Roles:Enabled` on and the reader role, the settings screen
  * showed five panels reading `HTTP 403` over a `Try again` button. Retrying can
  * never succeed — the role is the reason — so the button offers the one action

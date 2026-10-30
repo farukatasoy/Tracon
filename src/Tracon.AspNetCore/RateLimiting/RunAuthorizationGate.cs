@@ -193,7 +193,7 @@ internal static class RunAuthorizationGate
             LogHandlerFailure(httpContext, exception, handler, request, agentName);
 
             // 🚨 A 404 stays byte for byte the caller's own "not found"
-            // (K-684): wording that said "the check failed" would confirm the
+            // Wording that said "the check failed" would confirm the
             // resource exists. Only a 403 — a list, or a run started from
             // another run — has no identity to hide and can say what happened.
             return denied.StatusCode == StatusCodes.Status403Forbidden

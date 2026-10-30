@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Tools;
 /// <c>ToolRegistry</c> (code-defined tools) and <c>McpTenantTools</c>
 /// (MCP-sourced tools) build on — the two call sites differ only in the
 /// <see cref="ToolDescriptor.Effect"/> they pass in, never in the wrapper
-/// layers or their order (docs/127, 127.1).
+/// layers or their order.
 /// </summary>
 public sealed class ToolWrapperChainTests
 {
@@ -58,7 +58,7 @@ public sealed class ToolWrapperChainTests
 
         // CallRecordingAIFunction is the outermost layer: it sees every call that
         // reaches the chain and the result the model reads, and changes neither.
-        // ExplainedFailureAIFunction is directly inside it (since HATA-S1-024 it covers
+        // ExplainedFailureAIFunction is directly inside it (since then it covers
         // every layer beneath it, so a rejected argument, a denial and a timeout all
         // reach the model with the sentence Tracon wrote).
         codeChain.ShouldBe(typeof(CallRecordingAIFunction));

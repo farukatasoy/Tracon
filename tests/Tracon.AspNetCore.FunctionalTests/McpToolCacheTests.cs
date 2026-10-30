@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// An agent that sits in the compiled-agent cache follows a change to the MCP
-/// server its tool comes from on its very next run (F-305).
+/// server its tool comes from on its very next run.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -129,7 +129,7 @@ public sealed class McpToolCacheTests
     }
 
     /// <summary>
-    /// F-309: one failed <c>tools/list</c> keeps the last good list while it is younger
+    /// One failed <c>tools/list</c> keeps the last good list while it is younger
     /// than <see cref="TraconMcpOptions.StaleToolRetention"/>. The connection is the same,
     /// so the binding is the same: the cached agent keeps running and its call reaches
     /// the server. Before, a single blip refused every agent of the server until the
@@ -161,7 +161,7 @@ public sealed class McpToolCacheTests
     /// The server stops answering and, once the retention has passed, the refresh
     /// drops its tools; the connection itself stays registered. The cached path then
     /// behaves like an uncached compile: the agent is refused with "not registered"
-    /// (K-880, user decision 2026-10-11). A retention of zero drops them at the first
+    /// (user decision 2026-10-11). A retention of zero drops them at the first
     /// failed listing; a millisecond has always passed by the next refresh.
     /// </summary>
     [Theory]
@@ -190,7 +190,7 @@ public sealed class McpToolCacheTests
     }
 
     /// <summary>
-    /// F-308: the server changes the tool's description while the connection stays
+    /// The server changes the tool's description while the connection stays
     /// the same. The cached agent embedded the tool object with the old description;
     /// the binding carries a hash of the definition, so the next run compiles again and
     /// the model sees the new one. Before, the model kept seeing the old description and

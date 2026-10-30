@@ -3,7 +3,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Verifies that every endpoint in the document carries at least two tags (Phase 40, section 40.3).
+/// Verifies that every endpoint in the document carries at least two tags.
 /// </summary>
 /// <remarks>
 /// The first tag is always <c>Tracon</c> — this lets a consumer whose own

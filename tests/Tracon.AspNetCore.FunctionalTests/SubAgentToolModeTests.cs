@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// An agent whose <see cref="SubAgentSettings.CallMode"/> is <see cref="SubAgentCallMode.Tool"/> calls its
-/// callable agent with ONE tool call (Phase 228), on the plain and the harness path.
+/// callable agent with ONE tool call, on the plain and the harness path.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -302,7 +302,7 @@ public sealed class SubAgentToolModeTests
     [InlineData(SubAgentCallMode.Background)]
     public async Task A_child_whose_model_provider_fails_is_reported_to_the_parent_in_both_modes(SubAgentCallMode mode)
     {
-        // The auditor's question (Phase 228): what does the parent see when the sub-agent itself throws?
+        // The auditor's question: what does the parent see when the sub-agent itself throws?
         // Measured per mode, not assumed - the two surfaces report a failed sub-agent differently.
         var provider = Provider(router =>
         {
@@ -401,7 +401,7 @@ public sealed class SubAgentToolModeTests
     [Fact]
     public async Task The_http_stream_of_a_tool_mode_parent_carries_the_child_answer_and_links_the_child_run()
     {
-        // F-609: MT-UIAG-065 was the only check of the streamed HTTP endpoint in tool mode.
+        // The earlier decision was the only check of the streamed HTTP endpoint in tool mode.
         var provider = Provider(static router => router
             .CallsTool(ChildTool, new { query = "sub task" })
             .EchoesLastToolResult("Delegated: "));

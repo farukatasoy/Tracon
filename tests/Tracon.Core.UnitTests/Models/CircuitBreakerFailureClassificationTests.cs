@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// Verifies which failures the circuit breaker counts against a provider (F-354).
+/// Verifies which failures the circuit breaker counts against a provider.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Models;
 /// that says nothing about the provider's health must not count: a tenant could
 /// otherwise open the circuit for all the others with its own bad requests. The
 /// provider is unhealthy when it cannot be reached, times out, answers 5xx, 408 or
-/// 429, or rejects the shared credential (401/403, which MT-MYU-001 depends on).
+/// 429, or rejects the shared credential (401/403, which an earlier defect depends on).
 /// Every other permanent 4xx belongs to the request, not to the provider.
 /// </para>
 /// <para>
@@ -98,7 +98,7 @@ public sealed class CircuitBreakerFailureClassificationTests
 
         await Should.ThrowAsync<Exception>(() => client.GetResponseAsync([User()], cancellationToken: Token));
 
-        breaker.IsOpen(Provider, out _).ShouldBeTrue("MT-MYU-002 opens the circuit with a connection failure.");
+        breaker.IsOpen(Provider, out _).ShouldBeTrue("A connection failure opens the circuit.");
     }
 
     [Fact]
@@ -119,9 +119,9 @@ public sealed class CircuitBreakerFailureClassificationTests
     [Fact]
     public async Task An_exhausted_run_budget_does_not_count()
     {
-        // Same class as F-354: the budget ring sits inside the circuit, the
+        // Same class: the budget ring sits inside the circuit, the
         // request never reaches the network, and the decision belongs to one
-        // tenant's run tree (the same reasoning as K-322's content block).
+        // tenant's run tree (the same reasoning as the content block).
         var raw = new ThrowingChatClient(() => new InvalidOperationException("The provider must not be called."));
         var (breaker, client) = Pipeline(raw);
 

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 229: how <see cref="TraconCallerIsolationKeyProvider"/> names the caller
+/// How <see cref="TraconCallerIsolationKeyProvider"/> names the caller
 /// when Tracon's endpoint filter did not run.
 /// </summary>
 /// <remarks>

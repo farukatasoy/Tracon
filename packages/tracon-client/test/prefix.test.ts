@@ -34,7 +34,7 @@ describe('strip-prefix (build-time)', () => {
   });
 });
 
-describe('TraconClientOptions.baseUrl (section 84.2 — MapTracon prefix)', () => {
+describe('TraconClientOptions.baseUrl (MapTracon prefix)', () => {
   it('reaches the default /tracon prefix', async () => {
     let requestUrl: string | undefined;
     const client = createTraconClient({

@@ -8,7 +8,7 @@ namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
 /// The OpenAI image generator is written over the client's pipeline, not
-/// <c>ImageClient</c> (Native AOT, F-584). These tests pin the request and the
+/// <c>ImageClient</c> (Native AOT). These tests pin the request and the
 /// response mapping that <c>ImageClient.AsIImageGenerator()</c> used to provide.
 /// </summary>
 #pragma warning disable MEAI001

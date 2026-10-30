@@ -14,14 +14,14 @@ namespace Tracon.Sqlite.IntegrationTests;
 /// attempt wait. Microsoft.Data.Sqlite then sends the statement again on
 /// <c>SQLITE_BUSY</c>, <c>SQLITE_LOCKED</c> and <c>262</c>, 150 ms apart,
 /// until <c>CommandTimeout</c> has passed (measured by decompiling
-/// <c>SqliteDataReader.NextResult</c>, 2026-10-11, F-307).
+/// <c>SqliteDataReader.NextResult</c>, 2026-10-11).
 /// </para>
 /// <para>
 /// Tracon used to wrap every data source command in a retry decorator of its
-/// own (K-827). It never retried: its filter read <c>DbCommand.Transaction</c>,
+/// own. It never retried: its filter read <c>DbCommand.Transaction</c>,
 /// the data source's command wrapper throws <c>NotSupportedException</c> from
 /// that getter, and an exception thrown inside a <c>catch … when</c> filter
-/// makes the filter false (F-312). The tests that proved it measured the
+/// makes the filter false. The tests that proved it measured the
 /// mechanism against a fake inner command and the wiring by type, never the
 /// two together. These tests measure the behavior a store actually gets,
 /// against the real data source and a real lock.

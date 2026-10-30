@@ -4,7 +4,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Phase 260. <c>audit_log.key_id</c> arrives with migration 0067. A chain written before it carries no key, and
+/// <c>audit_log.key_id</c> arrives with migration 0067. A chain written before it carries no key, and
 /// the walk must still call it valid, count it, and read every column of the row from the right place.
 /// </summary>
 /// <remarks>
@@ -92,7 +92,7 @@ public sealed class AuditChainKeyMigrationTests(PostgresFixture fixture)
             .Status.ShouldBe(AuditChainStatus.UnknownKey);
     }
 
-    /// <summary>Writes the rows the code of phase 259 would have: a plain SHA-256 linked to the row before.</summary>
+    /// <summary>Writes the rows the code of would have: a plain SHA-256 linked to the row before.</summary>
     private static async Task WriteLegacyChainAsync(PostgresTestContext context, string schemaName, int count)
     {
         string? previous = null;

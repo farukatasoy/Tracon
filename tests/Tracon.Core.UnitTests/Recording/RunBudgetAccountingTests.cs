@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// Phase 114's central claim, measured end to end through the REAL pipeline
+/// the earlier change's central claim, measured end to end through the REAL pipeline
 /// <see cref="AgentDefinitionCompiler"/>/<see cref="ModelProviderRegistry"/>
 /// assemble (not a mock of it): <see cref="RunBudgetChatClient"/> owns 100% of
 /// a run tree's usage accounting, cuts a run off exactly at a tool-turn
@@ -19,8 +19,8 @@ public sealed class RunBudgetAccountingTests
     [Fact]
     public async Task Two_turn_tool_loop_is_recorded_exactly_once_no_cap()
     {
-        // Regression guard for the double-counting class of bug (Open
-        // Question 1): before this phase, BOTH RunBudgetChatClient's
+        // Regression guard for the double-counting class of bug:
+        // before this change, BOTH RunBudgetChatClient's
         // predecessor-less Completion.cs line AND this decorator would have
         // recorded the same tokens, doubling the budget's total silently.
         var (store, client) = CreateToolLoopClient(firstTurnTokens: 600, secondTurnTokens: 300);
@@ -141,7 +141,7 @@ public sealed class RunBudgetAccountingTests
     }
 
     /// <summary>
-    /// Phase 253, K-483's class: the ring builds the usage it hands to the resolver with the same
+    /// the class: the ring builds the usage it hands to the resolver with the same
     /// mapping as the run recorder. A write that reached the run's cost but not this meter would
     /// let a tree pass its cost cap.
     /// </summary>
@@ -286,8 +286,8 @@ public sealed class RunBudgetAccountingTests
     }
 
     /// <summary>
-    /// F-349 (D3): the ring kept only the LAST <see cref="UsageContent"/> of a
-    /// stream, while the run recorder sums them (F-317). A stream that reports
+    /// The ring kept only the LAST <see cref="UsageContent"/> of a
+    /// stream, while the run recorder sums them. A stream that reports
     /// usage in two parts charged the tree budget for the second part only.
     /// </summary>
     [Fact]

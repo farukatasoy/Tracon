@@ -4,7 +4,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Rows written before phase 190's <c>header_configuration_keys</c> column
+/// Rows written before the earlier change's <c>header_configuration_keys</c> column
 /// read back with an empty map, keep their plain headers, and take a map on
 /// the next save.
 /// </summary>

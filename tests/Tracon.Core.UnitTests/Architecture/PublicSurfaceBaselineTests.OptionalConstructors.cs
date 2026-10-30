@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Pins every PUBLIC constructor that takes an optional parameter to a
-/// checked-in baseline with a reason per entry, so the class Phase 188 closed
+/// checked-in baseline with a reason per entry, so the class closed
 /// cannot regrow silently.
 /// </summary>
 /// <remarks>
@@ -13,7 +13,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// A public constructor with optional parameters freezes at <c>1.0.0</c>: the
 /// only non-breaking way to add a dependency afterwards is one more overload,
 /// and the analyzer's RS0026/RS0027 rules make each overload a design exercise.
-/// Phase 188 made the constructors of the fifteen service types the container
+/// An earlier change made the constructors of the fifteen service types the container
 /// or the run pipeline builds <c>internal</c>; the entries left in
 /// <c>optional-parameter-constructor-baseline.txt</c> are types a consumer
 /// builds itself, each with a reason.

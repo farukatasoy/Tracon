@@ -7,7 +7,7 @@ namespace Tracon.Voice.UnitTests;
 
 /// <summary>
 /// A <c>Tracon:Voice</c> value whose text cannot be read stops the host at startup, and the
-/// message names the key and the text (F-572, phase 247).
+/// message names the key and the text.
 /// </summary>
 /// <remarks>
 /// <para>

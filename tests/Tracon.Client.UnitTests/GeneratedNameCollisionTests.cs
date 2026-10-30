@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Tracon.Client.UnitTests;
 
 /// <summary>
-/// The generated client declares no type whose name ends in a digit (Phase 238, section 238.2).
+/// The generated client declares no type whose name ends in a digit.
 /// </summary>
 /// <remarks>
 /// <para>

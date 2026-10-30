@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Tracon.Core.UnitTests.Triggers;
 
-/// <summary>Verifies <see cref="InboundTriggerPayloadReader"/> (section 66.3).</summary>
+/// <summary>Verifies <see cref="InboundTriggerPayloadReader"/>.</summary>
 public sealed class InboundTriggerPayloadReaderTests
 {
     [Fact]
@@ -76,7 +76,7 @@ public sealed class InboundTriggerPayloadReaderTests
     [Fact]
     public void Path_mode_fails_when_the_path_exceeds_the_shared_segment_limit()
     {
-        // The SAME limit ToolArgumentConditionMatcher enforces (phase 63):
+        // The SAME limit ToolArgumentConditionMatcher enforces:
         // one path language, one limit.
         var path = string.Join('.', Enumerable.Repeat("a", ToolArgumentConditionLimits.MaxPathSegments + 1));
         using var document = JsonDocument.Parse("{}");

@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// Phase 137 — the registry decides which handler runs a job, and refuses the
+/// The registry decides which handler runs a job, and refuses the
 /// three registrations that cannot be resolved at run time.
 /// </summary>
 /// <remarks>
@@ -36,7 +36,7 @@ public sealed class JobHandlerRegistryTests
     {
         // 🚨 AddTracon promises TryAdd semantics: calling it twice must not
         // change the container. A handler registration is written with a plain
-        // Add (a setup-time extension must not inspect the collection, K-251),
+        // Add (a setup-time extension must not inspect the collection),
         // so the idempotence has to hold in the registry instead.
         var services = new ServiceCollection();
         services.AddTracon();

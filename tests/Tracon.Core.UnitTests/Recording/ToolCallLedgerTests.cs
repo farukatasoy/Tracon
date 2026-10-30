@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// The tool-call ledger (F-689): what it keeps of a call, in what order it hands the calls back, and that it hands
+/// The tool-call ledger: what it keeps of a call, in what order it hands the calls back, and that it hands
 /// each one over once.
 /// </summary>
 public sealed class ToolCallLedgerTests

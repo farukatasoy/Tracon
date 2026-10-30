@@ -7,7 +7,7 @@ namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
 /// The live voice settings fail when the application starts, not at the first
-/// session (F-336 class scan).
+/// session.
 /// </summary>
 /// <remarks>
 /// <c>OpenAILiveOptionsValidator</c> said "validates while the application

@@ -12,10 +12,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-294: a batch bound every item to the agent's defaults, and an agent with
+/// A batch bound every item to the agent's defaults, and an agent with
 /// a required parameter and no default failed the WHOLE job. A structured item
 /// now names its values; an invalid item fails alone and the rest run, while a
-/// batch where no item carries a value keeps the F-330 rule (the job falls once,
+/// batch where no item carries a value keeps the rule (the job falls once,
 /// up front). The cases run a real job through the real worker, because the item
 /// text is parsed in two places (the schedule endpoint and the handler) that
 /// must agree.
@@ -154,7 +154,7 @@ public sealed class AgentBatchParameterTests
     [Fact]
     public async Task An_agent_batch_item_that_names_a_session_is_refused_when_the_schedule_is_saved_and_when_it_is_triggered()
     {
-        // F-434: 'sessionId' belongs to a workflow batch item. The agent batch handler fails the
+        // 'sessionId' belongs to a workflow batch item. The agent batch handler fails the
         // item when it runs; the save and the trigger accepted it, so the mistake waited for the
         // run - after the schedule had been saved and, for a cron schedule, after it had fired.
         var provider = Provider();

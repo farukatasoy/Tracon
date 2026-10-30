@@ -4,7 +4,7 @@ using Microsoft.Agents.AI.Workflows.Checkpointing;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// F-341: the early check reads a pending request as the waiting run recorded it, and
+/// The early check reads a pending request as the waiting run recorded it, and
 /// refuses exactly what the conversion of the republished request would refuse.
 /// </summary>
 /// <remarks>

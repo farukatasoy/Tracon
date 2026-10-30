@@ -27,7 +27,7 @@ internal sealed class ContextWindowEstimator
     // Fixed reference model/encoding for every estimate (see the type's remarks).
     // Requires the Microsoft.ML.Tokenizers.Data.O200kBase package alongside
     // Microsoft.ML.Tokenizers; CreateForModel throws InvalidOperationException at
-    // runtime without it — measured, phase 62.
+    // runtime without it — measured.
     private static readonly Tokenizer Tokenizer = TiktokenTokenizer.CreateForModel("gpt-4o");
 
     private readonly IModelProviderRegistry _registry;

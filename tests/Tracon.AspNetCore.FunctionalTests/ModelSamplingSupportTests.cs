@@ -6,14 +6,14 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-598 — the support table of the shipped providers, measured from the model adapters, as the
+/// The support table of the shipped providers, measured from the model adapters, as the
 /// validation endpoint and the save path report it. A field the provider's API surface would drop
 /// is an error that names the field and the provider; it is never dropped silently.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The table below is the one in the phase plan (MEAI.OpenAI 10.11.0, Google.GenAI 1.26.1, decompiled
-/// 2026-10-20) with the Anthropic row measured again on 2026-10-28 (SDK 13.3.0, Phase 255: no temperature, top-p
+/// 2026-10-20) with the Anthropic row measured again on 2026-10-28 (SDK 13.3.0, an earlier change: no temperature, top-p
 /// or top-k) and the Google row on SDK 1.27.0. A row changes when an SDK upgrade changes what its adapter sends;
 /// the <c>maf-api-kesfi</c> skill's fourth step measures it again.
 /// </para>
@@ -120,7 +120,7 @@ public sealed class ModelSamplingSupportTests
     }
 
     /// <summary>
-    /// Phase 255: Anthropic SDK 13 has no member for temperature, top-p or top-k. A definition that sets one used to run with
+    /// Anthropic SDK 13 has no member for temperature, top-p or top-k. A definition that sets one used to run with
     /// the field silently gone; now it is not stored, and the answer names the field and the provider.
     /// </summary>
     [Theory]
@@ -215,7 +215,7 @@ public sealed class ModelSamplingSupportTests
 
     /// <summary>
     /// A provider that implements no <c>ISamplingSupport</c> keeps sending temperature and top-p, as every adapter did before
-    /// the two were named; the other fields stay unsupported for it (Phase 255, Open Question 1).
+    /// the two were named; the other fields stay unsupported for it.
     /// </summary>
     [Fact]
     public async Task A_provider_that_states_no_support_is_read_as_sending_temperature_and_top_p_only()

@@ -9,7 +9,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
 /// <c>UseSqlServer(o =&gt; o.DataSource = ...)</c>: a data source Tracon did
-/// not build and must never dispose (Phase 110).
+/// not build and must never dispose.
 /// </summary>
 /// <remarks>
 /// <c>Microsoft.Data.SqlClient</c> does not offer a <see cref="DbDataSource"/>
@@ -108,7 +108,7 @@ public sealed class ExternalDataSourceTests(SqlServerFixture fixture)
     /// <c>SqlStoreContext.Dispose()</c>/<c>DisposeAsync()</c> disposes it at
     /// shutdown (proven directly, with a spy data source, by
     /// <c>SqlStoreContextDisposalTests</c> in the PostgreSQL project — that
-    /// logic is shared source, K-176). This test stops short of asserting
+    /// logic is shared source). This test stops short of asserting
     /// that a disposed <see cref="SqlServerDataSource"/> actually rejects a
     /// later command: unlike <c>NpgsqlDataSource</c>, it owns no unmanaged
     /// pool of its own to release (<c>Microsoft.Data.SqlClient</c>'s pool is
@@ -117,7 +117,7 @@ public sealed class ExternalDataSourceTests(SqlServerFixture fixture)
     /// command legitimately keeps working.
     /// </summary>
     /// <summary>
-    /// Phase 110, K-625: the data source Tracon builds is no longer a
+    /// The data source Tracon builds is no longer a
     /// public DI service — see the matching test and remarks in
     /// <c>Tracon.PostgreSql.IntegrationTests.ServiceRegistrationTests</c>.
     /// </summary>

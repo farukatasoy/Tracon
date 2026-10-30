@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// <see cref="WorkflowFunctionStepOptions.SetSettings{TSettings}"/> (phase 211): a typed value becomes the JSON element a
+/// <see cref="WorkflowFunctionStepOptions.SetSettings{TSettings}"/>: a typed value becomes the JSON element a
 /// stored node carries, written with the options the strict read uses, so the same check applies to both.
 /// </summary>
 public sealed class WorkflowFunctionStepOptionsTests

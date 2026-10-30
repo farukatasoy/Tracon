@@ -24,7 +24,7 @@ public sealed class DashboardTests(BrowserFixture browsers)
 
         // 🚨 `.First` is REQUIRED: the empty-state text is shared by every chart
         // panel, and an empty dashboard now shows it in two of them (the model
-        // breakdown and, since phase 68, the token breakdown). A bare
+        // breakdown and, the token breakdown). A bare
         // GetByText resolves to both and fails Playwright's strict mode.
         await Expect(session.Page.GetByText("No run in this window").First).ToBeVisibleAsync();
 

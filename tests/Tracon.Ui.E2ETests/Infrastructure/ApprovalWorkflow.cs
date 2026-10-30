@@ -29,7 +29,7 @@ internal static class ApprovalWorkflow
 
         // 🚨 The output type is inferred FROM THE HANDLER'S RETURN TYPE; a
         // void handler that calls YieldOutputAsync in its body declares no
-        // output type and fails at run time (measured in Phase 16).
+        // output type and fails at run time.
         var end = ExecutorBindingExtensions.BindAsExecutor<bool, string>(
             static approved => approved ? "approved" : "rejected",
             id: "end");

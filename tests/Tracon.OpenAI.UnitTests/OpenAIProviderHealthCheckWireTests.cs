@@ -4,7 +4,7 @@ using Tracon.ProviderCore.Tests;
 namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
-/// What the OpenAI health check actually puts on the wire (phase 181). The
+/// What the OpenAI health check actually puts on the wire. The
 /// shared body calls a per-provider <c>authorize</c> delegate; this proves the
 /// OpenAI shell hands it the OpenAI header and no other provider's.
 /// </summary>

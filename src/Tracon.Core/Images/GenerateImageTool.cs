@@ -83,7 +83,7 @@ internal sealed class GenerateImageTool : AIFunction
                 "Request fewer images or raise the `Tracon:Images:MaxImagesPerRequest` setting.");
         }
 
-        // The tenant is read BEFORE the provider call: its checks (F-384) run
+        // The tenant is read BEFORE the provider call: its checks run
         // first, and a scope without a tenant must not reach the provider either.
         var scope = TraconRunContext.Current
             ?? throw new TraconException("Image generation requires an active Tracon run scope.");

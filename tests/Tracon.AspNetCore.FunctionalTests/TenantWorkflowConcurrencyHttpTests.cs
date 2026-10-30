@@ -10,7 +10,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 240: <c>TraconWorkflowOptions.MaxConcurrentRunsPerTenant</c>, through the real host: the HTTP status of
+/// <c>TraconWorkflowOptions.MaxConcurrentRunsPerTenant</c>, through the real host: the HTTP status of
 /// a run that waits for a slot, its cancellation, and the job worker's lease order.
 /// </summary>
 /// <remarks>

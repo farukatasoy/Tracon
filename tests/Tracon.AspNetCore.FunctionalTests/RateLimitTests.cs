@@ -4,10 +4,10 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the rate limit (Phase 21).</summary>
+/// <summary>Tests for the rate limit.</summary>
 /// <remarks>
 /// The rate limit is a mechanism <strong>separate from the quota</strong>: it
-/// operates in memory, at second/minute granularity (K-158).
+/// operates in memory, at second/minute granularity.
 /// </remarks>
 public sealed class RateLimitTests
 {
@@ -17,7 +17,7 @@ public sealed class RateLimitTests
     [Fact]
     public async Task Disabled_by_default()
     {
-        // 🚨 An upgrading setup must not see an unexpected 429 (K-165).
+        // 🚨 An upgrading setup must not see an unexpected 429.
         await using var host = await TraconTestHost.StartAsync();
 
         for (var index = 0; index < 50; index++)

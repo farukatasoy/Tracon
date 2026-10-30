@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The circuit of the setup-time credential is shared by every tenant (F-354).
+/// The circuit of the setup-time credential is shared by every tenant.
 /// One tenant's malformed requests must not stop the runs of another.
 /// </summary>
 /// <remarks>
@@ -60,7 +60,7 @@ public sealed class SharedCredentialCircuitTests
     {
         // The other half of the rule: a 401 on the shared credential is the
         // same answer for every tenant, so the shared circuit still opens
-        // (MT-MYU-001 depends on this).
+        // (an earlier defect depends on this).
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
         server.ChatCompletionStatusCode = StatusCodes.Status401Unauthorized;
         server.ChatCompletionErrorHasOpenAiBody = true;

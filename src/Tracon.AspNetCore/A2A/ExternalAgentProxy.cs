@@ -94,7 +94,7 @@ internal sealed class ExternalAgentProxy : AIAgent
         // 🚨 Not drain-gated. The session is saved AFTER the run: a run that was
         // in flight when the process began to drain must still hand its answer
         // over and keep its conversation. Refusing here would throw away a
-        // finished turn (Phase 229).
+        // finished turn.
         var agent = await ResolveAsync(cancellationToken, refuseWhileDraining: false).ConfigureAwait(false);
 
         return await agent
@@ -134,7 +134,7 @@ internal sealed class ExternalAgentProxy : AIAgent
         var runOptions = CreateRunOptions();
         string? pendingApproval = null;
 
-        // A harness loop hands over its final iteration only (K-889): the A2A
+        // A harness loop hands over its final iteration only: the A2A
         // caller reads this stream as the answer, not as a draft forming.
         await foreach (var update in AgentAnswerStream.RunAsync(agent, messages, session, runOptions, cancellationToken).ConfigureAwait(false))
         {
@@ -159,10 +159,10 @@ internal sealed class ExternalAgentProxy : AIAgent
         // Defense layer: the startup check (ExternalSurfaceGuard) already
         // prevents exposing an agent carrying a tool that requires approval,
         // but the definition can be updated AFTERWARD to add an approval-
-        // requiring tool. This is the runtime enforcement of the same K-103
+        // requiring tool. This is the runtime enforcement of the same approval
         // boundary.
         //
-        // F-448: the run closed AwaitingApproval, and an A2A caller never answers
+        // The run closed AwaitingApproval, and an A2A caller never answers
         // one; it is closed as Failed so it does not wait forever.
         await SessionlessApprovalRun.CloseAsFailedAsync(
             _services!.GetService<IRunStore>(),
@@ -205,7 +205,7 @@ internal sealed class ExternalAgentProxy : AIAgent
             "The call to MapTraconA2A() may be missing.");
 
         // 🚨 Both run paths resolve through here, before a run starts: an A2A
-        // message is refused while the process drains (F-431), with the same
+        // message is refused while the process drains, with the same
         // call error an unknown agent gets.
         if (refuseWhileDraining && services.GetRequiredService<ITraconDrainState>().IsDraining)
         {
@@ -224,7 +224,7 @@ internal sealed class ExternalAgentProxy : AIAgent
                 Protocol = "a2a",
             };
 
-        // F-330: an A2A message carries no parameter values; refused as a call
+        // An A2A message carries no parameter values; refused as a call
         // error before a run starts, like an unknown agent.
         if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
         {

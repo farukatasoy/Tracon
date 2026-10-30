@@ -4,7 +4,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Store behavior of conversation branching (Phase 47).
+/// Store behavior of conversation branching.
 /// </summary>
 /// <remarks>
 /// SQLite was chosen because it is the cheapest of the three SQL providers to
@@ -140,7 +140,7 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
     [Fact]
     public async Task A_conversation_with_a_thousand_items_can_be_branched()
     {
-        // Open Question 4 asked that the cost of copying a large conversation
+        // asked that the cost of copying a large conversation
         // be MEASURED. The copy writes row by row in a single transaction
         // (the uuid v7 id is generated in the application, see
         // SqlConversationBranchStore); this test confirms that path works and
@@ -186,7 +186,7 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
 
         // The content mimics a polymorphic ChatMessage: the `$type`
         // discriminator is the FIRST property and must be carried as-is
-        // during the copy (K-027).
+        // during the copy.
         await context.ExecuteAsync(
             $$"""
             INSERT INTO {{context.TablePrefix}}conversation_items (id, conversation_id, seq, item, created_at)
@@ -204,7 +204,7 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
     /// </summary>
     /// <remarks>
     /// 🚨 <c>Microsoft.Data.Sqlite</c> writes <see cref="Guid"/> values as
-    /// UPPERCASE, hyphenated text (K-191), and SQLite text comparison is
+    /// UPPERCASE, hyphenated text, and SQLite text comparison is
     /// case-sensitive. If hand-written SQL uses a lowercase id, <c>WHERE</c>
     /// SILENTLY finds no rows — this test file failed exactly this way on its
     /// first run.

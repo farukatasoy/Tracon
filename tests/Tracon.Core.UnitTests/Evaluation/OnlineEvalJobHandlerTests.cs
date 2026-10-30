@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Evaluation;
 
-/// <summary>Tests for the online evaluation job handler (Phase 49).</summary>
+/// <summary>Tests for the online evaluation job handler.</summary>
 public sealed class OnlineEvalJobHandlerTests
 {
     private const string Tenant = "acme";
@@ -44,7 +44,7 @@ public sealed class OnlineEvalJobHandlerTests
     [Fact]
     public async Task A_run_inputs_record_with_no_messages_is_judged_like_a_missing_one()
     {
-        // 🚨 F-294: a workflow run that declares parameters writes a run_inputs row
+        // A workflow run that declares parameters writes a run_inputs row
         // that holds its values and no messages. Before that row existed the judge
         // skipped such a run; with it, the judge would score blind (an empty input).
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
@@ -340,7 +340,7 @@ public sealed class OnlineEvalJobHandlerTests
     [InlineData(System.Net.HttpStatusCode.NotFound)]
     public async Task A_judge_that_gets_a_permanent_client_error_fails_the_item_without_a_retry(System.Net.HttpStatusCode status)
     {
-        // F-338 class scan: every judge exception was retryable, so a judge
+        // Every judge exception was retryable, so a judge
         // whose model answers 401 or 404 was retried up to MaxAttempts with
         // backoff, and each attempt sent the same rejected request.
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
@@ -431,7 +431,7 @@ public sealed class OnlineEvalJobHandlerTests
         {
             // The judge is released only in the finally block below: a handler
             // that waited for it instead of its 20 ms timeout never completes
-            // here. Phase 184: this raced a one-second timer, a claim about the
+            // here. This raced a one-second timer, a claim about the
             // machine rather than a bound on the failure.
             var result = await judging.WaitAsync(WaitUntil.DefaultTimeout);
             result.Scores.ShouldBeEmpty();

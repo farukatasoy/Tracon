@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Tests for cross-origin access to the Tracon endpoints
-/// (<see cref="TraconEndpointOptions.AllowedOrigins"/>, Phase 61).
+/// (<see cref="TraconEndpointOptions.AllowedOrigins"/>).
 /// </summary>
 /// <remarks>
 /// CORS is a BROWSER-enforced restriction: the server still answers the

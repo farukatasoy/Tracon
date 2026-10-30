@@ -113,7 +113,7 @@ internal static class DataSubjectEndpoints
             .ConfigureAwait(false);
         var isDryRun = dryRun ?? true;
 
-        // F-400: a run still in progress writes its session and its checkpoints
+        // A run still in progress writes its session and its checkpoints
         // back after the erasure commits.
         var activeRunIds = await FindActiveRunsAsync(runs, tenants.TenantId, scope, cancellationToken).ConfigureAwait(false);
 
@@ -139,7 +139,7 @@ internal static class DataSubjectEndpoints
         var actor = actorResolver.Resolve();
         var logger = loggerFactory.CreateLogger("Tracon.DataSubjectEndpoints");
 
-        // 🚨 K-370: the audit entry is written BEFORE the erasure commits, from
+        // The audit entry is written BEFORE the erasure commits, from
         // inside IDataSubjectStore.EraseAsync's transaction. If the write fails,
         // every delete is rolled back and the exception propagates — an erasure
         // that cannot be written to the audit trail is not applied.

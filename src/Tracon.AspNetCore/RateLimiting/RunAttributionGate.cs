@@ -71,7 +71,7 @@ internal static class RunAttributionGate
         catch (Exception)
         {
             // No filter: the getters take no token, so no OperationCanceledException
-            // they throw is a cancellation of ours (K-840).
+            // they throw is a cancellation of ours.
             //
             // A consumer implementation reaches into its own identity pipeline
             // and can fail there. That failure is not the caller's fault and

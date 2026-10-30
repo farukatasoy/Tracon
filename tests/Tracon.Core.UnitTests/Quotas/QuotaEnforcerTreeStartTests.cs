@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Quotas;
 
 /// <summary>
 /// The check a run tree that is already running makes before it starts a function node or an agent step
-/// (F-529): the same rules and reads as the door's check, the tree's own unwritten spend added.
+///The same rules and reads as the door's check, the tree's own unwritten spend added.
 /// </summary>
 public sealed class QuotaEnforcerTreeStartTests
 {
@@ -165,7 +165,7 @@ public sealed class QuotaEnforcerTreeStartTests
     [Fact]
     public async Task A_tenant_with_no_rule_costs_one_read_and_one_with_a_rule_costs_two()
     {
-        // The measured cost of the check at the start of a node (the phase's cost note): the rules,
+        // The measured cost of the check at the start of a node (the change's cost note): the rules,
         // then the current periods' usage.
         var counting = new CountingQuotaStore(new InMemoryQuotaStore());
         var harness = Harness.Create(store: counting);

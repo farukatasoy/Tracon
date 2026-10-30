@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The two Anthropic stop reasons the SDK's adapter reports as an ordinary stop
-/// reach the run as what they are (F-426): an answer cut off at the context window
+/// reach the run as what they are: an answer cut off at the context window
 /// is a cut-off answer, and a paused turn is continued until the model ends it.
 /// </summary>
 /// <remarks>
@@ -143,7 +143,7 @@ public sealed class AnthropicStopReasonTests
     }
 
     /// <summary>
-    /// Phase 255: SDK 12.59 and later hand an event name the adapter does not know to the stream instead of dropping it.
+    /// SDK 12.59 and later hand an event name the adapter does not know to the stream instead of dropping it.
     /// The two rings that read raw events (the stop reason and the cache usage) must let it pass, in a plain turn and in a
     /// paused one, where the stop-reason ring rebuilds the blocks from the events it collected.
     /// </summary>

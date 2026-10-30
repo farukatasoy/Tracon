@@ -71,7 +71,7 @@ internal sealed class TranscribeTool : VoiceToolBase
         var tenantContext = Resolve<ITenantContext>();
         var pricing = Resolve<VoicePricing>();
 
-        // F-298: resolved per call, through the tenant's checks.
+        // Resolved per call, through the tenant's checks.
         var transcriber = await Resolve<ISpeechProviderResolver>()
             .GetTranscriberAsync(name: null, cancellationToken)
             .ConfigureAwait(false);

@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Tools;
 /// <summary>
 /// Verifies the composition order <c>ToolRegistry</c> installs — Authorizing
 /// (outermost) then Timeout then ApprovalRequired (innermost) then the real
-/// function — Phase 69, section 69.1.
+/// function.
 /// </summary>
 public sealed class ToolRegistryWrapperOrderTests
 {

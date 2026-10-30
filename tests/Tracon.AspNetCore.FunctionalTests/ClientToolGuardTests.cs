@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Proves a client-side tool result passes through the same content guard
-/// pipeline as every other message (Phase 61, section 61.4).
+/// pipeline as every other message.
 /// </summary>
 /// <remarks>
 /// No new guard code was written for this: <c>ContentGuardMessageMasker</c>

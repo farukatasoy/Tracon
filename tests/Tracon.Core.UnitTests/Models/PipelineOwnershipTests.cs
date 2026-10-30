@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// Proves that the tool-call loop belongs to <see cref="ModelProviderRegistry"/>
-/// alone (K-320), by measuring the one thing that actually changes when a
+/// alone, by measuring the one thing that actually changes when a
 /// provider builds its own.
 /// </summary>
 /// <remarks>

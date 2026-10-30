@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// Core part of the F-60 definition validation endpoint: a check that repeats
+/// Core part of the definition validation endpoint: a check that repeats
 /// the real compilation path, registers nothing, and calls no model.
 /// </summary>
 public sealed class AgentDefinitionValidatorTests
@@ -346,7 +346,7 @@ public sealed class AgentDefinitionValidatorTests
     [Fact]
     public async Task Actively_refused_unreachable_MCP_server_also_produces_inconclusive()
     {
-        // HATA-006 / MT-CORE-006: "connection refused" does NOT time out —
+        // "connection refused" does NOT time out —
         // McpToolCatalog.RefreshAsync does NOT throw an exception for this, it only
         // returns HadUnreachableServers=true. This used to escape the catch blocks
         // in TryRefreshMcpAsync that only catch exceptions, and was silently

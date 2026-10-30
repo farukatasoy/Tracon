@@ -64,9 +64,9 @@ public sealed partial class AgentDefinitionCompiler
             options.AIContextProviders = providers;
         }
 
-        // Phase 222: the one point where an extension reaches the options, after
+        // The one point where an extension reaches the options, after
         // Tracon has set every member the definition owns and before MAF reads them.
-        // Phase 232: the model client is built after it, with the extensions' rings.
+        // The model client is built after it, with the extensions' rings.
         var extensions = _agentExtensions.Configure(
             definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: options, harnessOptions: null);
         var client = BuildChatClient(definition, pendingClient, extensions.Rings);
@@ -132,8 +132,8 @@ public sealed partial class AgentDefinitionCompiler
     /// </remarks>
     // MAAI001: BackgroundAgentsProvider is marked "evaluation purposes only".
     // The suppression is a deliberate decision resting on the same rationale
-    // as K-020: sub-agent setup is kept in a single method, only this file is
-    // updated if MAF changes this API. Rationale: docs/KARARLAR.md, decision K-097.
+    // Sub-agent setup is kept in a single method, only this file is
+    // updated if MAF changes this API.
 #pragma warning disable MAAI001
     private static BackgroundAgentsProvider? CreateBackgroundAgentsProvider(ChildAgentsBuild? build)
         => build is not null
@@ -296,7 +296,7 @@ public sealed partial class AgentDefinitionCompiler
         var childDeadline = definition.SubAgents?.ChildDeadline ?? _agentGraph.ChildDeadline;
         var waitTimeout = definition.SubAgents?.WaitTimeout ?? _agentGraph.WaitTimeout;
 
-        // F-280: both values arm CancelAfter in every delegation, which refuses more
+        // Both values arm CancelAfter in every delegation, which refuses more
         // than about 49.7 days there - after ChildRunStarted was already written. A
         // definition saved over HTTP carries its own values, so the check lives here
         // and not only in the startup validator.
@@ -345,7 +345,6 @@ public sealed partial class AgentDefinitionCompiler
         // "evaluation purposes only" and may change in the future. The
         // suppression is a deliberate decision: harness usage is kept in a
         // single file, so only this file is updated if MAF changes this API.
-        // Rationale: docs/KARARLAR.md, decision K-020.
 #pragma warning disable MAAI001
         var options = new HarnessAgentOptions
         {
@@ -361,7 +360,7 @@ public sealed partial class AgentDefinitionCompiler
             DisableCompaction = harness.DisableCompaction,
             DisableTodoProvider = harness.DisableTodoProvider,
 
-            // F-339 · F-315 (K-892): MAF turns these three on by itself, and
+            // MAF turns these three on by itself, and
             // each one falls back to something no definition asked for. With
             // no FileMemoryStore it writes model content under the process's
             // working directory (./agent-file-memory) — outside the tenant
@@ -371,7 +370,7 @@ public sealed partial class AgentDefinitionCompiler
             // the Chat Completions surface refuses with a 400. File memory and
             // web search are on only when the definition turns them on.
             //
-            // F-578: MAF's own skill provider is never built. Tracon builds the
+            // MAF's own skill provider is never built. Tracon builds the
             // provider for the named skills (CreateSkillsProvider) and passes it
             // in AIContextProviders, as it does for a plain agent, so one chain
             // serves both and the working directory is never scanned.
@@ -389,11 +388,10 @@ public sealed partial class AgentDefinitionCompiler
 
             // FileAccessStore is INTENTIONALLY left unassigned: it activates
             // only when a value is assigned, and the file tools it builds would
-            // run outside the Tracon tool chain. The session workspace (Phase
-            // 234) adds its own wrapped provider below instead.
-            // Rationale: docs/KARARLAR.md, decisions K-062 and K-1069.
+            // run outside the Tracon tool chain. The session workspace
+            // adds its own wrapped provider below instead.
             //
-            // BackgroundAgents was opened in Phase 12 and follows the same
+            // BackgroundAgents follows the same
             // rule: no value is assigned when the definition carries no agent
             // name, and the feature is off.
         };
@@ -403,7 +401,7 @@ public sealed partial class AgentDefinitionCompiler
         if (definition.SkillNames.Count > 0)
         {
             // The setting turns the skills off, so the named skills would be
-            // dropped without a word (K1 zero surprise).
+            // dropped without a word (zero surprise).
             if (harness.DisableAgentSkillsProvider)
             {
                 throw new TraconCompilationException(
@@ -433,14 +431,14 @@ public sealed partial class AgentDefinitionCompiler
             // 144.4: the option object is built by Tracon on BOTH compile
             // paths, so behavior never depends on what MAF's own null
             // semantics happen to be for BackgroundAgentsProviderOptions
-            // (measured unassigned before this phase — see 144's plan).
+            // (measured unassigned before this change — see 144's plan).
             options.BackgroundAgents = build.Children;
             options.BackgroundAgentsProviderOptions = new BackgroundAgentsProviderOptions { WaitTimeout = build.WaitTimeout };
         }
 
         // Conflict check: if the user has both requested compaction/memory and
         // disabled the same capability in the harness, which one wins must not
-        // silently stay ambiguous (K1 zero surprise).
+        // silently stay ambiguous (zero surprise).
         if (definition.Compaction is { Strategy: not CompactionStrategyKind.None })
         {
             if (harness.DisableCompaction)
@@ -496,7 +494,7 @@ public sealed partial class AgentDefinitionCompiler
             harnessProviders.Add(textSearch);
         }
 
-        // Phase 234: the harness builds its own FileAccessProvider only when FileAccessStore is assigned
+        // The harness builds its own FileAccessProvider only when FileAccessStore is assigned
         // (measured, MAF 1.25). Tracon leaves it unassigned and adds its own wrapped provider here, as
         // it does for skills, so the file tools run through the Tracon tool chain.
         if (CreateWorkspaceProvider(definition) is { } workspace)
@@ -514,10 +512,10 @@ public sealed partial class AgentDefinitionCompiler
             options.AIContextProviders = harnessProviders;
         }
 
-        // The loop (Phase 151) is OFF unless the definition asks for it. While
+        // The loop is OFF unless the definition asks for it. While
         // Harness.Loop is null neither option is assigned, and MAF builds the
         // agent exactly as it did before this member existed — the same
-        // opt-in-by-assignment rule FileAccessStore follows (K-062).
+        // opt-in-by-assignment rule FileAccessStore follows.
         //
         // Tracon hands MAF ONE evaluator, not the definition's list:
         // RecordingLoopEvaluator runs the criteria in MAF's own order and
@@ -533,9 +531,9 @@ public sealed partial class AgentDefinitionCompiler
             options.LoopAgentOptions = loopOptions;
         }
 
-        // Phase 222: the one point where an extension reaches the options, after
+        // The one point where an extension reaches the options, after
         // Tracon has set every member the definition owns and before MAF reads them.
-        // Phase 232: the model client is built after it, with the extensions' rings.
+        // The model client is built after it, with the extensions' rings.
         var extensions = _agentExtensions.Configure(
             definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: null, harnessOptions: options);
         var client = BuildChatClient(definition, pendingClient, extensions.Rings);

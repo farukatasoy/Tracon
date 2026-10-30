@@ -1,11 +1,11 @@
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// F-773 (phase 267): <c>Tracon:RunRecording:RecordCitationUrls</c> really reaches
+/// <c>Tracon:RunRecording:RecordCitationUrls</c> really reaches
 /// <see cref="TraconRunRecordingOptions"/>.
 /// </summary>
 /// <remarks>
-/// The section is bound by hand (K-021, AOT): a key added to the options and not to the binder is
+/// The section is bound by hand (AOT): a key added to the options and not to the binder is
 /// silently ignored, and this one decides whether a signed address reaches the stored record.
 /// </remarks>
 public sealed class TraconRunRecordingOptionsBindingTests

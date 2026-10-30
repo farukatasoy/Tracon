@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <!--
-      Test-only (phase 237): RequiredMemberScanner reads the `required` members out of the C# source, so the
+      Test-only: RequiredMemberScanner reads the `required` members out of the C# source, so the
       snapshot the release rehearsal compares with the baseline tag can be checked against the code.
     -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
@@ -24,7 +24,7 @@
 
   <ItemGroup>
     <!--
-      Test-only (phase 233): a REAL vector store connector, so the filters conversation memory builds
+      Test-only: a REAL vector store connector, so the filters conversation memory builds
       are translated by a connector and not only run by the test double.
     -->
     <PackageReference Include="CommunityToolkit.VectorData.InMemory" />
@@ -32,27 +32,27 @@
 
   <!--
     The package set, read from src/*/*.csproj by the same helper the release
-    artifact facts use (linked, not copied - K-411): the startup alignment check
+    artifact facts use (linked, not copied): the startup alignment check
     carries a fixed list of family assembly names and a test keeps it in step.
   -->
   <ItemGroup>
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
-    <!-- The committed snapshots of the surfaces that are not .NET API (phase 238). -->
+    <!-- The committed snapshots of the surfaces that are not .NET API. -->
     <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" Link="Infrastructure/Shared/ContractSnapshot.cs" />
     <Compile Include="../Shared/Infrastructure/PackableProjects.cs" Link="Infrastructure/Shared/PackableProjects.cs" />
-    <!-- The due-time clock the job worker's poll and deadline tests advance (phase 196). -->
+    <!-- The due-time clock the job worker's poll and deadline tests advance. -->
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
-    <!-- A vector store that runs the filter it is given, for the conversation memory tests (phase 233). -->
+    <!-- A vector store that runs the filter it is given, for the conversation memory tests. -->
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Real Microsoft Agent Framework output, captured from a genuine run (Phase 126). See Fixtures/README.md. -->
+    <!-- Real Microsoft Agent Framework output, captured from a genuine run. See Fixtures/README.md. -->
     <None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--
-    Store contract suite (Phase 23; packaged in Phase 98 as
+    Store contract suite (packaged in as
     Tracon.Testing.Contracts.Xunit), in-memory side only. The same
     abstract classes also run in Tracon.PostgreSql.IntegrationTests and
     Tracon.SqlServer.IntegrationTests against their real backends;

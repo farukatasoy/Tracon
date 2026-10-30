@@ -96,7 +96,7 @@ internal static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}' uses an unknown pattern: '{definition.Kind}'.";
         }
 
-        // Phase 208: every kind may choose a response mode (a workflow's requests can come from
+        // Every kind may choose a response mode (a workflow's requests can come from
         // a plan approval or, in code, from any port), so only a value outside the enum is
         // refused - a number sent on the wire would otherwise be stored as a mode no rule reads.
         if (!Enum.IsDefined(definition.ResponseMode))
@@ -109,10 +109,10 @@ internal static class WorkflowDefinitionValidator
 
         // A definition either lists plain agent names (AgentNames, every
         // pattern) or an ordered mix of agent and function nodes (Nodes,
-        // Sequential only, phase 71). The two are mutually exclusive: letting
+        // Sequential only). The two are mutually exclusive: letting
         // both be set would raise the question of which one the compiler
         // should trust, and a silent "one wins" rule invites the exact class
-        // of surprise K1 exists to rule out.
+        // of surprise this rule exists to rule out.
         if (definition.Nodes.Count > 0)
         {
             if (definition.AgentNames.Count > 0)
@@ -154,7 +154,7 @@ internal static class WorkflowDefinitionValidator
                            "A workflow's node list must have no duplicates.";
                 }
 
-                // Settings belong to a function node (F-295). An agent's behavior
+                // Settings belong to a function node. An agent's behavior
                 // lives in its own definition; letting a node carry a value that
                 // nothing reads would look like a setting that works.
                 if (node.Settings is { } settings)
@@ -258,7 +258,7 @@ internal static class WorkflowDefinitionValidator
                    $"'{definition.Kind}' pattern. This field belongs only to the 'Handoff' pattern.";
         }
 
-        // Phase 270. The topology and its limit belong to the Handoff pattern, the two Magentic limits to Magentic. A
+        // The topology and its limit belong to the Handoff pattern, the two Magentic limits to Magentic. A
         // field that reached another pattern would look like a setting that works while nothing reads it, the same
         // rule as handoffInstructions above.
         if (definition.Kind != WorkflowKind.Handoff)
@@ -331,7 +331,7 @@ internal static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}''s 'maxIterations' value must be positive.";
         }
 
-        // F-405: the run's deadline is armed with this value, and a timer refuses a
+        // The run's deadline is armed with this value, and a timer refuses a
         // value outside its range where it is armed - in a run, long after the save.
         // The ceiling (MaxRunTimeout) is the host's setting, so it is checked where the
         // setting is known: ValidateRunTimeoutCeiling.
@@ -342,16 +342,16 @@ internal static class WorkflowDefinitionValidator
                    "installation's 'Tracon:Workflows:RunTimeout'.";
         }
 
-        // Phase 209: the limit a human request may wait. It arms no timer (the expiry service
+        // The limit a human request may wait. It arms no timer (the expiry service
         // compares times), so the bound is a product rule, not a timer range: an unbounded value
-        // would reopen the growth of a waiting run's rows that the limit exists to close (K-888).
+        // would reopen the growth of a waiting run's rows that the limit exists to close.
         if (definition.RequestTimeout is { } requestTimeout && !IsValidRequestTimeout(requestTimeout))
         {
             return $"Workflow '{definition.Name}' has a 'requestTimeout' of {requestTimeout}. It must be from " +
                    $"{MinRequestTimeout} to {MaxRequestTimeout.TotalDays:0} days; leave it out and a request waits without limit.";
         }
 
-        // Structure only (F-294): valid identifiers, no repeats. Whether the
+        // Structure only: valid identifiers, no repeats. Whether the
         // participants' required parameters are covered is checked when a run
         // STARTS - the participants live in the agent catalog, which can change
         // after this definition is saved, so a save-time check would be a false
@@ -488,7 +488,7 @@ internal static class WorkflowDefinitionValidator
     /// function node's timeout arms a delay of exactly this value; an agent node's arms
     /// the child deadline and, 30 seconds later, the hard cutoff.
     /// </remarks>
-    // F-303 / F-405, open question 12-B: the two timeouts answer different questions.
+    // The two timeouts answer different questions.
     public static string? NodeTimeoutProblem(string workflowName, WorkflowNodeReference node)
     {
         ArgumentNullException.ThrowIfNull(node);
@@ -557,7 +557,7 @@ internal static class WorkflowDefinitionValidator
     /// needs the host's settings. With no ceiling, a definition may only shorten the
     /// installation's run timeout.
     /// </remarks>
-    // F-405, open question 11-B: a running workflow holds a slot every tenant shares.
+    // A running workflow holds a slot every tenant shares.
     public static string? RunTimeoutCeilingProblem(
         WorkflowDefinition definition,
         TimeSpan installationRunTimeout,

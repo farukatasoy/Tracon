@@ -9,7 +9,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 137 §137.4 — which handler keys the HTTP schedule endpoint accepts.
+/// An earlier change §137.4 — which handler keys the HTTP schedule endpoint accepts.
 /// </summary>
 /// <remarks>
 /// 🚨 A SECURITY boundary, not a validation nicety. A handler key is a dispatch
@@ -110,7 +110,7 @@ public sealed class SchedulableHandlerKeyTests
         var keys = (await TraconTestHost.ReadJsonAsync(response))
             .EnumerateArray().Select(static key => key.GetString()).ToArray();
 
-        // A queued workflow run is never schedulable (F-318), so the list leaves it out.
+        // A queued workflow run is never schedulable, so the list leaves it out.
         keys.ShouldBe(
             [.. JobHandlerKeys.BuiltIn.Where(static key => !string.Equals(key, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal))],
             ignoreOrder: true);
@@ -183,7 +183,7 @@ public sealed class SchedulableHandlerKeyTests
     [Fact]
     public async Task A_duplicate_handler_key_stops_the_host_from_starting()
     {
-        // The DI boundary of K-663: a configuration mistake breaks StartAsync,
+        // The DI boundary of that decision: a configuration mistake breaks StartAsync,
         // not the worker's first tick (which only logs and swallows).
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             () => TraconTestHost.StartAsync(

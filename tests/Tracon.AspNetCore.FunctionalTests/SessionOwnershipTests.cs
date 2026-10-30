@@ -13,7 +13,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 148 (F-196) over HTTP: a session records the user it belongs to, and
+/// over HTTP: a session records the user it belongs to, and
 /// the listing narrows to that user before paging.
 /// </summary>
 /// <remarks>
@@ -40,7 +40,7 @@ public sealed class SessionOwnershipTests
     private static readonly Uri Run = new("/tracon/api/agents/kod-agent/run", UriKind.Relative);
 
     // ------------------------------------------------------------------
-    // K1: off by default, and off means nothing changes.
+    // Off by default, and off means nothing changes.
     // ------------------------------------------------------------------
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class SessionOwnershipTests
         identity.UserId = "b";
 
         // A second user sees the first user's session, exactly as before this
-        // phase: with ownership off there IS no owner boundary.
+        // change: with ownership off there IS no owner boundary.
         var listed = await ListAsync(host);
         listed.Length.ShouldBe(1);
 
@@ -69,7 +69,7 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task Ownership_is_off_in_the_default_options()
     {
-        // The K1 claim stated against the type itself, so a future edit to the
+        // The claim stated against the type itself, so a future edit to the
         // default cannot pass unnoticed just because every test above sets the
         // flag explicitly.
         var defaults = new TraconSessionOwnershipOptions();
@@ -350,7 +350,7 @@ public sealed class SessionOwnershipTests
         denied.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        // 🚨 BYTE FOR BYTE (K-671): a denial that reads differently confirms
+        // 🚨 BYTE FOR BYTE: a denial that reads differently confirms
         // the session exists through a side channel.
         (await denied.Content.ReadAsStringAsync())
             .ShouldBe((await missing.Content.ReadAsStringAsync()).Replace("no-such-session", "a-1", StringComparison.Ordinal));
@@ -468,7 +468,7 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task Running_against_another_owners_session_is_refused()
     {
-        // 🚨 The widest door, and the one an earlier draft of this phase left
+        // 🚨 The widest door, and the one an earlier draft of this change left
         // open: continuing a conversation replays its ENTIRE history into the
         // model and appends to it. Gating GET /api/sessions/{id} while leaving
         // POST .../run open would have made the whole boundary decorative.
@@ -500,8 +500,8 @@ public sealed class SessionOwnershipTests
         // 🚨 The same door, a different building. /v1/responses reaches a
         // session through 'conversation'/'previous_response_id' rather than
         // 'sessionId', so a gate installed only on /api/agents/{name}/run
-        // leaves it wide open - the exact coverage mistake phase 139 made and
-        // phase 147 had to come back for.
+        // leaves it wide open - the exact coverage mistake an earlier change made and
+        // An earlier change had to come back for.
         await using var host = await StartAsync(enabled: true, out var identity);
 
         identity.UserId = "a";
@@ -741,7 +741,7 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task Reading_another_owners_conversation_on_the_OpenAI_surface_answers_404()
     {
-        // 🚨 The gap this phase's own audit found. /v1/conversations reaches
+        // 🚨 The gap this change's own audit found. /v1/conversations reaches
         // the SAME sessions under a different name; while it stayed ungated,
         // GET /api/sessions/{id} answered 404 for another user's session and
         // GET /v1/conversations/{id}/items handed back its entire history.
@@ -893,7 +893,7 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task An_unknown_session_still_opens_a_voice_socket()
     {
-        // K-283 survives ownership: a session nothing has written yet carries
+        // The earlier decision survives ownership: a session nothing has written yet carries
         // no owner and is not refused. Breaking this would silently kill the
         // FIRST conversation in every installation.
         var identity = new SwitchableAttribution { UserId = "a" };
@@ -1004,7 +1004,7 @@ public sealed class SessionOwnershipTests
 
 
     // ------------------------------------------------------------------
-    // Phase 149: strict mode. An EXISTING row that belongs to nobody can be
+    // Strict mode. An EXISTING row that belongs to nobody can be
     // refused outright, and "does not exist yet" is a different row.
     // ------------------------------------------------------------------
 
@@ -1028,7 +1028,7 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task An_unowned_session_stays_reachable_on_every_surface_while_strict_mode_is_off()
     {
-        // The K-693 guarantee, restated as the DEFAULT once the strict flag
+        // The guarantee, restated as the DEFAULT once the strict flag
         // exists: every surface that can now refuse must still let this row
         // through until a deployment asks otherwise.
         await using var host = await StartAsync(enabled: true, out var identity);
@@ -1073,7 +1073,7 @@ public sealed class SessionOwnershipTests
 
         denied.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        // 🚨 BYTE FOR BYTE (K-671). Wording that told "refused" apart from
+        // 🚨 BYTE FOR BYTE. Wording that told "refused" apart from
         // "never existed" would let a caller enumerate which sessions predate
         // ownership from a response it is allowed to see.
         (await denied.Content.ReadAsStringAsync())
@@ -1206,7 +1206,7 @@ public sealed class SessionOwnershipTests
         // request answers with a single JSON body instead of SSE. Both are
         // refused BEFORE any response has begun, so both carry a real 403 —
         // this is not the guard class that has to degrade into an SSE 'error'
-        // frame (K-324).
+        // frame.
         await using var host = await StartAsync(
             enabled: true, out var identity, refuseUnownedSessions: true);
 
@@ -1226,7 +1226,7 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task Strict_mode_still_opens_a_session_that_does_not_exist_yet()
     {
-        // 🚨 K-283, the single failure this phase's risk table names first.
+        // The single failure this change's risk table names first.
         // "Never created" and "created without an owner" are DIFFERENT rows.
         // Folding them together would silently kill the first turn of every
         // conversation in every installation that turns strict mode on.
@@ -1279,7 +1279,7 @@ public sealed class SessionOwnershipTests
 
         var error = await connect.ShouldThrowAsync<InvalidOperationException>();
 
-        // 404 (K-687), never 403: a 403 would confirm the conversation exists.
+        // 404, never 403: a 403 would confirm the conversation exists.
         error.Message.ShouldContain("404");
     }
 
@@ -1422,10 +1422,10 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task Strict_mode_is_bound_from_configuration()
     {
-        // 🚨 The section is bound BY HAND (K-021, AOT). A property added to
+        // 🚨 The section is bound BY HAND (AOT). A property added to
         // the type but not to BindSessionOwnership is silently inert for
         // every deployment that configures Tracon through appsettings —
-        // the exact defect class K-406 and K-253 both were.
+        // the exact defect class that decision and that decision both were.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
@@ -1473,7 +1473,7 @@ public sealed class SessionOwnershipTests
     public async Task Strict_mode_refuses_an_unowned_session_on_the_workflow_run_surface()
     {
         // The fourth ownership call site that can name a session. Same helper,
-        // different wiring — phase 148's own audit found a surface whose gate
+        // different wiring — the own audit found a surface whose gate
         // was present but reading the wrong value.
         await using var host = await TraconTestHost.StartAsync(
             builder => builder

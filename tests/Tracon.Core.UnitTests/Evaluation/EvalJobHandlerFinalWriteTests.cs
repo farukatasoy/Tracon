@@ -11,10 +11,10 @@ namespace Tracon.Core.UnitTests.Evaluation;
 /// The write that closes a finished eval run is not part of the work it records.
 /// </summary>
 /// <remarks>
-/// F-365: <c>CompleteRunAsync(Completed)</c> sat inside the try that guards the
+/// <c>CompleteRunAsync(Completed)</c> sat inside the try that guards the
 /// cases. A store error while recording a finished eval was caught as the
 /// eval's own failure: the run was written <c>Failed</c> and the exception was
-/// thrown on, so the worker ran the job again or dropped it. F-348's rule: only
+/// thrown on, so the worker ran the job again or dropped it. the rule: only
 /// the work sits in the work's try; the write of its outcome is separate and is
 /// tried again.
 /// </remarks>
@@ -82,7 +82,7 @@ public sealed class EvalJobHandlerFinalWriteTests
     }
 
     /// <summary>
-    /// F-429: the write that records a failed attempt must not replace the
+    /// The write that records a failed attempt must not replace the
     /// attempt's own failure. Thrown on, the store's error was what the worker
     /// judged, so a judge cut off at its output limit was run again.
     /// </summary>

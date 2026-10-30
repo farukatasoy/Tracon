@@ -80,7 +80,7 @@ public static class VoiceBuilderExtensions
         var services = builder.Services;
 
         // 🚨 Read BEFORE the TryAdd calls below: after them, the built-in
-        // registrations look exactly like the consumer's own (F-336).
+        // registrations look exactly like the consumer's own.
         services.TryAddSingleton(VoiceProviderBinding.Capture(services));
 
         services.Configure(configure);

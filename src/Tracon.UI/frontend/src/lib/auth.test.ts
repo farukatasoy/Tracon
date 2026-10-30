@@ -12,7 +12,7 @@ beforeEach(() => {
 
 describe('rejectToken', () => {
   it('is a no-op when there was no token to reject', () => {
-    // HATA-S4-001: the very first anonymous probe also gets a 401. If this
+    // The very first anonymous probe also gets a 401. If this
     // read back as "rejected", TokenPrompt would show the wrong-token error
     // on a screen the user has not typed anything into yet.
     rejectToken();

@@ -5,7 +5,7 @@ using Tracon.Testing;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Closes the gap an independent phase 64 review found: an ordinary agent session's
+/// Closes the gap an independent review found: an ordinary agent session's
 /// chat history (written by <c>SqlChatHistoryProvider</c>) is reachable from
 /// <see cref="DataSubjectScope.SessionIds"/> alone, without the consumer's own
 /// <see cref="IDataSubjectResolver"/> needing to know Tracon's internal

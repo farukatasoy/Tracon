@@ -131,7 +131,7 @@ internal static class ApiKeyEndpoints
             cancellationToken).ConfigureAwait(false);
 
         // 🚨 The raw value is NOT WRITTEN to the audit trail; only the key's
-        // NAME and scopes are (the same direction as K-059).
+        // NAME and scopes are (the same direction).
         await AuditRecorder.WriteAsync(
             auditLog,
             actorResolver,

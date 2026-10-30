@@ -99,7 +99,7 @@ internal static class AgentTurnService
             return quotaProblem;
         }
 
-        // Pre-flight context-window check (phase 62, F-59): disabled by default, and even when enabled it never touches
+        // Pre-flight context-window check: disabled by default, and even when enabled it never touches
         // a provider - only PreflightGate/ContextWindowEstimator run.
         if (await PreflightGate
                 .CheckAsync(
@@ -316,7 +316,7 @@ internal static class AgentTurnService
         // the stream starts: the default streaming path sends the SSE headers
         // (200, text/event-stream) before BuildMessagesAsync runs, so a 400/409
         // ProblemDetails is no longer possible once execution reaches there
-        // (same physical constraint as decision K-324). BuildMessagesAsync
+        // (same physical constraint). BuildMessagesAsync
         // matches again to build the actual message; matching has no side
         // effects, so repeating it is safe.
         if (request.ToolResults.Count > 0)
@@ -420,7 +420,7 @@ internal static class AgentTurnService
             }
         }
 
-        // F-294: the run records the values it was bound with, defaults
+        // The run records the values it was bound with, defaults
         // included, so a replay and a continuation repeat them. Only an agent
         // that declares a schema has anything to record.
         var recordedValues = parameterGate.Definition is { Parameters.Count: > 0 } declared
@@ -567,7 +567,7 @@ internal static class AgentTurnService
                     });
 
             case TraconSessionConflictException conflict:
-                // 🚨 HATA-004: when two concurrent initial requests arrive for the same NEW session, the loser lands
+                // When two concurrent initial requests arrive for the same NEW session, the loser lands
                 // here. A 502 would say "upstream is broken"; the actual cause is a client-side race condition - a 409
                 // and a short retry are the correct fix.
                 return Results.Problem(
@@ -789,7 +789,7 @@ internal sealed class PreparedTurn(
             Variant = assignment?.Variant,
             ParameterValues = parameterValues,
 
-            // 🚨 Phase 142: this is the ONLY delivery path for a synchronous run's tool-approval presentation - the queue
+            // This is the ONLY delivery path for a synchronous run's tool-approval presentation - the queue
             // path's mailbox (GET /api/approvals/pending) does not exist for a run started without 'Prefer: respond-async',
             // and the updates carry MAF's own ToolApprovalRequestContent verbatim, which has no field to carry a
             // presentation. The hook runs right before the stream's own end, which is how the console's approval card
@@ -800,7 +800,7 @@ internal sealed class PreparedTurn(
                 {
                     var requests = ChildRunApproval.CollectRequests(producedMessages);
 
-                    // F-448: without a session nobody can answer the approval; the run ends with an error instead of an
+                    // Without a session nobody can answer the approval; the run ends with an error instead of an
                     // approval card.
                     if (requests.Count == 0 || session is null)
                     {
@@ -825,7 +825,7 @@ internal sealed class PreparedTurn(
                     await onPendingApprovals(announcements, hookCancellation).ConfigureAwait(false);
                 },
 
-            // Phase 235: a tool's MCP server asked the user for input. Only a run with a session can be answered (the
+            // A tool's MCP server asked the user for input. Only a run with a session can be answered (the
             // answer is the next turn of that session), so only such a run offers it; every other run's request is declined.
             AcceptsToolInput = session is not null,
             ToolInputAnswers = inputAnswers,
@@ -837,7 +837,7 @@ internal sealed class PreparedTurn(
                         .ConfigureAwait(false);
                 },
 
-            // Phase 241: the loop's iteration events go to the surface that streams the run, between two iterations.
+            // The loop's iteration events go to the surface that streams the run, between two iterations.
             AfterLoopIterationRecorded = onLoopIteration,
         };
     /// <summary>
@@ -923,7 +923,7 @@ internal sealed class PreparedTurn(
             }
         }
 
-        // Answers to a tool's request for input (Phase 235) run the suspended tool call again; like
+        // Answers to a tool's request for input run the suspended tool call again; like
         // the two blocks above they come BEFORE the user message. Matching again here, after the
         // endpoint did, is side-effect free; a request answered in between is dropped like a tool
         // result is, because the headers may already be on the wire.
@@ -983,7 +983,7 @@ internal sealed class PreparedTurn(
         foreach (var attachment in attachments)
         {
             // The file's name travels with the reference; resolution hands it
-            // to the model as DataContent.Name (F-580 class scan).
+            // to the model as DataContent.Name.
             contents.Add(new UriContent(AttachmentUriReference.Create(prefix, attachment.Id), attachment.MediaType)
             {
                 AdditionalProperties = new() { [AttachmentUriReference.NameProperty] = attachment.FileName },

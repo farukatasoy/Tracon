@@ -24,13 +24,13 @@ public sealed class TraconBuilderInterfaceTests
 
         members.ToArray().ShouldBe(
             ["Services", "get_Services"],
-            customMessage: "ITraconBuilder must stay a one-member interface (decision K-867): add a registration method as an extension, not as an interface member.");
+            customMessage: "ITraconBuilder must stay a one-member interface: add a registration method as an extension, not as an interface member.");
     }
 
     [Fact]
     public void Builder_extensions_without_a_registration_prefix_are_entry_points()
     {
-        // K-509: the receiver decides, not the name. These three would drop out
+        // The receiver decides, not the name. These three would drop out
         // of the capability gates under a prefix-only rule.
         foreach (var name in new[] { "Configure", "RequireCustomBinding", "RequireProductionProfile", "Services" })
         {

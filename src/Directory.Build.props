@@ -20,7 +20,6 @@
     scanning inherently use reflection, so Tracon.AspNetCore and
     Tracon.UI disable it in their own csproj files by writing
     TraconAotCompatible=false.
-    Rationale: docs/KARARLAR.md, decision K-006.
   -->
   <!--
     NOTE: IsAotCompatible is NOT assigned here. This file loads BEFORE the
@@ -95,7 +94,6 @@
       No other pack reaches the network for a baseline. Strict mode against the
       baseline (EnableStrictModeForBaselineValidation) stays off: it would also
       fail an ADDED member, and the preview surface may grow.
-      Rationale: docs/KARARLAR.md, K-864 (breaking-change gate) and K-865 (strict mode).
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
     <EnableStrictModeForCompatibleTfms>true</EnableStrictModeForCompatibleTfms>
@@ -136,7 +134,7 @@
         would drop the dots from a version like `1.0.0-preview.1`. The page
         exists only after the site is rebuilt and deployed for the version
         being tagged; the metadata gate validates the URL's SHAPE and that it
-        carries the resolved version, not its reachability (K-604 keeps the
+        carries the resolved version, not its reachability (this keeps the
         gate network-free).
       -->
       <PackageReleaseNotes>https://tracon.dev/reference/changelog/#v$(Version)</PackageReleaseNotes>
@@ -144,7 +142,7 @@
   </Target>
 
   <!--
-    Every Tracon package ships on one version line (docs/KARARLAR.md, K-602), so
+    Every Tracon package ships on one version line, so
     a sibling dependency is written as an EXACT range on this package's own
     version: [1.0.0-preview.3], not NuGet's default lower bound. With a lower
     bound, upgrading ONE Tracon package restores a mixed graph with zero
@@ -180,7 +178,6 @@
     while `dotnet pack` collects package files in the OUTER cross-targeting
     build. Include is the working form - this is why README.md is packed the
     same way. Verify with: unzip -l <nupkg> | grep icon.png (all 21 packages).
-    Rationale: docs/hafiza/paketleme-ve-dagitim.md.
   -->
   <ItemGroup Label="Package files">
     <None Include="README.md" Pack="true" PackagePath="\" Visible="true" />
@@ -199,11 +196,11 @@
     ships a consumer-facing API surface - Generators' "API" is its
     diagnostic/source output, Templates' is `dotnet new` content), and
     Tracon.Client and Tracon.Cli (their surface is generated from the
-    OpenAPI document, which already has its own drift gate). Rationale: docs/KARARLAR.md.
-    This is the ONLY public API tracking switch (K-421, K-424). A phase that
+    OpenAPI document, which already has its own drift gate).
+    This is the ONLY public API tracking switch. A phase that
     changes the surface produces a PublicAPI.Unshipped.txt diff;
     PublicAPI.Shipped.txt stays empty through the preview line and is filled
-    once, at 1.0.0 GA (K-603).
+    once, at 1.0.0 GA.
   -->
   <PropertyGroup Label="Public API takibi katilimi">
     <TraconPublicApiTrackingEnabled Condition=" '$(TraconPublicApiTrackingEnabled)' == '' ">true</TraconPublicApiTrackingEnabled>
@@ -245,7 +242,7 @@
     tenant's PLAINTEXT credential. Inside Tracon it never leaves an in-process
     dictionary, but a public helper that hands back a secret invites the one
     debugging move that turns it into a leak - logging the key on a cache miss.
-    K-059 keeps secrets out of files and out of the database; this keeps them
+    Secrets stay out of files and out of the database; this keeps them
     out of the public surface too.
 
     A third-party provider adapter does not need it. What the shipped

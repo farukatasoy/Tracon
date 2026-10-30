@@ -94,11 +94,11 @@ public static class TraconMcpServerBuilderExtensions
         var services = CatalogToolListHandler.RequireServices(request);
         var enabled = services.GetRequiredService<IOptionsMonitor<TraconMcpServerOptions>>().CurrentValue.EnableTasks;
 
-        // K1: a new expansion point defaults off, zero surprises.
+        // A new expansion point defaults off, zero surprises.
         // Optional, not Required, once enabled: Required would break a client
         // that never opted into the tasks capability; Optional keeps today's
         // synchronous response for such a client while still letting a
-        // task-aware client opt into polling (Open Question 3, option A).
+        // task-aware client opt into polling (option A).
         return enabled ? McpTaskExecutionMode.Optional : McpTaskExecutionMode.Synchronous;
     }
 }

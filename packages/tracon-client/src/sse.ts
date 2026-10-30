@@ -5,7 +5,7 @@
  * or the `response` every call returns), so streaming needs no special client
  * method — but every consumer would then have to write this decoder again.
  * It ships here instead: the Tracon UI is one consumer of it, not its
- * owner (Phase 159).
+ * owner.
  */
 /** Options for {@link readSse}. */
 export interface ReadSseOptions {

@@ -79,7 +79,7 @@ public sealed class CompiledAgentCacheTests
     }
 
     /// <summary>
-    /// F-308: the dependency fingerprint changes without an operator: a remote MCP
+    /// The dependency fingerprint changes without an operator: a remote MCP
     /// server that edits a tool description changes it at every refresh. One entry
     /// per definition slot keeps the cache from growing with it.
     /// </summary>

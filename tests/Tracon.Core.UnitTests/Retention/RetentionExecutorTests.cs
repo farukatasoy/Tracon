@@ -84,7 +84,7 @@ public sealed class RetentionExecutorTests
     }
 
     /// <summary>
-    /// 🚨 F-372: archive mode read one batch in time order and then deleted
+    /// Archive mode read one batch in time order and then deleted
     /// another batch in no order, so rows that were never archived were
     /// deleted. It now deletes only through the store's archive batch, which
     /// deletes the rows it handed to the sink — never through a plain batch delete.
@@ -158,7 +158,7 @@ public sealed class RetentionExecutorTests
     }
 
     /// <summary>
-    /// 🚨 Gap closed by Phase 36: a policy with MaxAgeDays EMPTY and only MaxRows
+    /// 🚨 Gap closed: a policy with MaxAgeDays EMPTY and only MaxRows
     /// set used to delete zero rows until now.
     /// </summary>
     [Fact]

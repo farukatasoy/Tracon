@@ -1,7 +1,7 @@
 /**
  * Line- and set-level diffing for version comparison and audit before/after views.
  *
- * No library is used here (decision K-045's rationale extended): a diff library
+ * No library is used here: a diff library
  * costs 8-20 KB gzipped against a 250 KB budget, and a line-based LCS diff is
  * ~120 lines of pure logic. The server never computes a diff — it returns two
  * raw definitions and the client decides how to present them.

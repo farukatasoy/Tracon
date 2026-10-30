@@ -92,7 +92,7 @@ public sealed class EvalRunDiffBuilderTests
     [Fact]
     public void A_case_with_several_rows_counts_as_passed_only_when_every_row_passed()
     {
-        // Repetitions, or an at-least-once job redelivery (K-641): several rows
+        // Repetitions, or an at-least-once job redelivery: several rows
         // for one case within one run. The run summary itself counts the case
         // as passed only when all of them passed; the diff agrees.
         var caseId = Guid.Parse("eeeeeeee-0000-0000-0000-000000000001");

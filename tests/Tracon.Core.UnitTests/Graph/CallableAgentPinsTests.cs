@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
 /// The rules a definition's <see cref="AgentDefinition.CallableAgents"/> entries must meet before the definition is
-/// saved (Phase 250): a name appears once, a version is at least 1, the callee has that version and keeps a history.
+/// saved: a name appears once, a version is at least 1, the callee has that version and keeps a history.
 /// </summary>
 public sealed class CallableAgentPinsTests
 {

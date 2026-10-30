@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Tools;
 
 /// <summary>
 /// Unit-level coverage of <see cref="ValidatingAIFunction"/>: the argument
-/// validation gate installed by <see cref="ToolWrapperChain"/> (docs/127, 127.2).
+/// validation gate installed by <see cref="ToolWrapperChain"/>.
 /// </summary>
 public sealed class ToolArgumentsValidatorTests
 {

@@ -30,7 +30,7 @@ import { TriggerEditorScreen } from './screens/triggers';
 import { WorkflowEditorScreen } from './screens/workflow-editor';
 
 /*
-  Gate for the full-replace class (B01/K-725, HATA-S3-003/K-802, and the
+  Gate for the full-replace class (and the
   2026-10-10 workflow `nodes` and quota `enabled` losses).
 
   Every management PUT is a FULL REPLACE: the server rebuilds the record from
@@ -118,10 +118,10 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
   skillNames: ['returns-policy'],
   skills: { disableReadApproval: true },
   workspace: { enabled: true, readOnly: true, disableReadApproval: true },
-  // Phase 222: 'retired' is a name the host no longer registers. The form keeps it, so an edit that
+  // 'retired' is a name the host no longer registers. The form keeps it, so an edit that
   // does not touch it sends it back unchanged instead of dropping it.
   extensionNames: ['audit', 'retired'],
-  // Phase 250: a pinned callable agent comes back with its version. The agent is not in the catalog the
+  // A pinned callable agent comes back with its version. The agent is not in the catalog the
   // screen lists below, so only the form's own state can carry the pin to the save.
   callableAgents: [{ name: 'billing', version: 2 }],
   subAgents: { childDeadline: '00:00:10', waitTimeout: '00:00:30', callMode: 'Tool' },
@@ -140,7 +140,7 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
     disableAgentSkillsProvider: true,
     disableAgentModeProvider: true,
     loop: {
-      // Phase 201: the console now EDITS the loop, and editing must not cost what
+      // The console now EDITS the loop, and editing must not cost what
       // it does not touch — a field the kind ignores (marker on aiJudge), the
       // todoCompletion modes it offers no control for, and a kind registered in
       // code all come back exactly as loaded.
@@ -148,7 +148,7 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
         { kind: 'aiJudge', marker: 'IGNORED BY AIJUDGE', judgeCriteria: ['Covers the source text'], judgeInstructions: 'Be strict.', modes: [], reviewerAgent: null, reviewerAgentVersion: null },
         { kind: 'todoCompletion', marker: null, judgeCriteria: [], judgeInstructions: null, modes: ['plan', 'execute'], reviewerAgent: null, reviewerAgentVersion: null },
         { kind: 'hasCitations', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [], reviewerAgent: null, reviewerAgentVersion: null },
-        // Phase 242: the reviewer and its version pin come back exactly as loaded.
+        // The reviewer and its version pin come back exactly as loaded.
         { kind: 'agentReview', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [], reviewerAgent: 'billing', reviewerAgentVersion: 2 },
       ],
       maxIterations: 3,
@@ -292,17 +292,17 @@ const ROUND_TRIPS: RoundTrip[] = [
     managerAgentName: 'planner',
     maxIterations: 6,
     handoffInstructions: null,
-    // Phase 270: the topology and the limits are a full replace like every other field.
+    // The topology and the limits are a full replace like every other field.
     handoffs: null,
     maxHandoffs: null,
     maxStalls: 2,
     maxResets: 1,
     requirePlanApproval: true,
-    // Phase 196 (F-405): written back exactly as stored, never re-formatted.
+    // Written back exactly as stored, never re-formatted.
     runTimeout: '00:42:00',
-    // Phase 209: written back exactly as stored; a save that dropped it would remove the limit.
+    // Written back exactly as stored; a save that dropped it would remove the limit.
     requestTimeout: '2.00:00:00',
-    // Phase 208: a save that dropped it would turn a one-answer workflow back into Branch.
+    // A save that dropped it would turn a one-answer workflow back into Branch.
     responseMode: 'SingleAnswer',
   }),
   workflowCase('workflow with handoff instructions', {
@@ -315,7 +315,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     managerAgentName: null,
     maxIterations: 4,
     handoffInstructions: 'Hand billing questions over.',
-    // Phase 270: a save that dropped the edge list would turn the workflow back into the star.
+    // A save that dropped the edge list would turn the workflow back into the star.
     handoffs: [
       { from: 'drafter', to: 'reviewer', reason: 'The draft is ready for review.' },
       { from: 'reviewer', to: 'drafter', reason: null },
@@ -377,7 +377,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     requestTimeout: null,
     responseMode: 'Branch',
   }),
-  // Phase 200: a pinned agent version goes back to the node it belongs to. Version 3 is not in the
+  // A pinned agent version goes back to the node it belongs to. Version 3 is not in the
   // agent's list here (the fixture has none), which must not cost the stored pin; the step beside
   // it stays on the current version, and a timeout rides along on a node list made by the pin.
   workflowCase('workflow that pins a stored agent to a version', {
@@ -754,10 +754,10 @@ const ROUND_TRIPS: RoundTrip[] = [
  */
 const CREATE_ONLY: Record<string, string> = {
   'screens/mcp.tsx::/api/mcp-servers/{name}':
-    'The form only adds a server and starts empty; an absent `headers` keeps the stored value (K-870), and a filled ' +
+    'The form only adds a server and starts empty; an absent `headers` keeps the stored value, and a filled ' +
     '`headerConfigurationKeys` carries the stored key names of a server saved under the same name (mcp.test.tsx).',
   'components/webhook-panel.tsx::/api/webhooks/{name}':
-    'The form only adds a subscription and starts empty; an absent `headers` keeps the stored value (K-870).',
+    'The form only adds a subscription and starts empty; an absent `headers` keeps the stored value.',
   'components/tenant-provider-panel.tsx::/api/tenants/{tenantId}/providers/{provider}':
     'The form only adds a binding and starts empty.',
   'screens/experiment-detail.tsx::/api/experiments/{name}/canary':

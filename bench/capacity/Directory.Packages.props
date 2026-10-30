@@ -1,7 +1,7 @@
 <Project>
 
   <!--
-    Phase 166. Present only to STOP the search: without it, MSBuild walks up and
+    Present only to STOP the search: without it, MSBuild walks up and
     finds the repository's own Directory.Packages.props, which turns central
     package management back on and makes every version in these csproj files an
     error (NU1008) - and would make the copy in the temporary directory resolve

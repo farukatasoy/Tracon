@@ -20,7 +20,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <c>AuditCoverageTests</c> builds its container from <c>AddTracon()</c> alone.
 /// The same blindness covered the audit decorators: a provider that registers
 /// a bare <c>Sql*Store</c> where <c>AddTracon()</c> registers an
-/// <c>Auditing*</c> decorator drops that store's audit trail (F-170's class).
+/// <c>Auditing*</c> decorator drops that store's audit trail.
 /// </para>
 /// <para>
 /// Five checks, each closing a different miss: the three providers touch the
@@ -28,7 +28,7 @@ namespace Tracon.SqlProviders.Tests;
 /// every persistence contract resolves to the provider's own implementation (a
 /// store added to Core and forgotten in all three); every contract keeps the
 /// decorator state <c>AddTracon()</c> gives it; a later provider in the chain
-/// takes over every contract, as K-183 promises (a <c>TryAdd</c> where
+/// takes over every contract, as that decision promises (a <c>TryAdd</c> where
 /// <c>ReplaceTraconDefault</c> belongs); and every contract type a provider
 /// registers is classified, so a persistence contract not named <c>*Store</c>
 /// cannot stay outside the other checks.
@@ -40,7 +40,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <see cref="Every_persistence_contract_resolves_to_the_providers_own_implementation"/>
 /// asserts that the SQLite file still does not exist afterwards. The test never
 /// names an internal provider type — the three providers compile the same
-/// linked-source types (K-176), so a type name here would be ambiguous
+/// linked-source types, so a type name here would be ambiguous
 /// (CS0433); the implementation's assembly is what identifies the provider.
 /// </para>
 /// </remarks>
@@ -135,7 +135,7 @@ public sealed class SqlProviderRegistrationParityTests
     private static readonly Dictionary<Type, string> NotEveryProviderImplements = new()
     {
         [typeof(IVectorSearchStore)] =
-            "PostgreSQL only (K-344): SQL Server and SQLite register nothing, and PostgreSQL's " +
+            "PostgreSQL only: SQL Server and SQLite register nothing, and PostgreSQL's " +
             "factory returns null while EnableKnowledge is off",
     };
 
@@ -150,7 +150,7 @@ public sealed class SqlProviderRegistrationParityTests
             "UseVoiceConversation() and UseLiveVoice() register its in-memory default, not AddTracon()",
         [typeof(IConversationBranchStore)] =
             "no in-memory equivalent: MAF's in-memory history cannot be copied up to a sequence number",
-        [typeof(IVectorSearchStore)] = "PostgreSQL only (K-344)",
+        [typeof(IVectorSearchStore)] = "PostgreSQL only",
         [typeof(IMigrationApplier)] = "provider-only seam: there is no database to migrate without a provider",
         [typeof(IStatePreflightReader)] = "provider-only seam: there is no stored state without a provider",
         [typeof(ISqlPersistenceDiagnostics)] = "provider-only seam: GetService null means 'no SQL provider'",
@@ -165,9 +165,9 @@ public sealed class SqlProviderRegistrationParityTests
     /// 🚨 A deliberate tolerance, not a design statement.
     /// <c>IConversationBranchStore</c> is the only contract the three providers
     /// register with <c>TryAddSingleton</c>; every other one goes through
-    /// <c>ReplaceTraconDefault</c> (K-025). With one provider the two verbs end
+    /// <c>ReplaceTraconDefault</c>. With one provider the two verbs end
     /// the same, because <c>AddTracon()</c> registers no default for it. With two
-    /// providers in one chain — a configuration error K-183 warns about — the
+    /// providers in one chain — a configuration error that decision warns about — the
     /// FIRST provider keeps the branch store while every other contract follows
     /// the second, so branching writes to one database and sessions live in the
     /// other. Changing the verb is an open decision, not this gate's. The entry
@@ -303,7 +303,7 @@ public sealed class SqlProviderRegistrationParityTests
 
     /// <summary>
     /// With two providers in one chain, the later one takes over every
-    /// contract — the "last registration wins" rule K-183 documents.
+    /// contract — the "last registration wins" rule that decision documents.
     /// </summary>
     /// <remarks>
     /// This is the only check that sees the registration VERB of a contract
@@ -356,7 +356,7 @@ public sealed class SqlProviderRegistrationParityTests
 
         drift.ShouldBeEmpty(
             customMessage: "A contract does not follow the chain's registration order. A provider registers " +
-                           "with ReplaceTraconDefault, not TryAdd (K-025); a deliberate exception belongs in " +
+                           "with ReplaceTraconDefault, not TryAdd; a deliberate exception belongs in " +
                            $"FirstProviderInTheChainKeeps with its reason:{Environment.NewLine}" +
                            string.Join(Environment.NewLine, drift));
     }
@@ -368,7 +368,7 @@ public sealed class SqlProviderRegistrationParityTests
     [Fact]
     public async Task Every_exemption_still_matches_what_the_providers_register()
     {
-        // K-344: PostgreSQL registers the vector store; the other two do not.
+        // PostgreSQL registers the vector store; the other two do not.
         var vectorStore = Describe(typeof(IVectorSearchStore), optionsType: null);
         RegisteredServiceTypes(PostgreSql).Contains(vectorStore).ShouldBeTrue("PostgreSQL registers IVectorSearchStore");
         RegisteredServiceTypes(SqlServer).Contains(vectorStore).ShouldBeFalse("SQL Server has no vector store");

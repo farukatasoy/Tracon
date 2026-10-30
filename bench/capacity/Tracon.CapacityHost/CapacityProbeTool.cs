@@ -8,7 +8,7 @@ namespace Tracon.CapacityHost;
 /// <para>
 /// 🚨 Its dependencies are captured AT REGISTRATION TIME, not resolved from the
 /// function's own arguments: Microsoft Agent Framework hands a tool an EMPTY
-/// service provider (K-218), so anything resolved inside the body would be
+/// service provider, so anything resolved inside the body would be
 /// null under load and the failure would look like a capacity limit.
 /// </para>
 /// <para>

@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
 /// Verifies that an agent definition naming a provider a tenant's egress
-/// policy forbids is rejected AT COMPILE TIME (phase 65, F-119) — not only
+/// policy forbids is rejected AT COMPILE TIME — not only
 /// when a real network call would go out.
 /// </summary>
 public sealed class AgentDefinitionCompilerEgressTests

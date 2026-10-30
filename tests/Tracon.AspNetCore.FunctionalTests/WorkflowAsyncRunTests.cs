@@ -8,12 +8,12 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.QueuedWorkflowHarn
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-318: the workflow run, resume and respond endpoints queue the operation with
+/// The workflow run, resume and respond endpoints queue the operation with
 /// <c>Prefer: respond-async</c> and answer <c>202</c>; the run executes in the worker
 /// and no connection holds it.
 /// </summary>
 /// <remarks>
-/// Before this, the three endpoints only streamed (K-845): a client that stopped
+/// Before this, the three endpoints only streamed: a client that stopped
 /// reading cancelled the run, and a host that had to render for minutes kept a
 /// connection open for the whole run.
 /// </remarks>
@@ -210,7 +210,7 @@ public sealed class WorkflowAsyncRunTests
 
     /// <summary>
     /// A queued resume keeps the definition version the run recorded, and one that names a version carries it
-    /// through the job payload to the worker (phase 200).
+    /// through the job payload to the worker.
     /// </summary>
     /// <remarks>
     /// The stamp on the resumed row is the observable: it is the version the worker compiled. If the

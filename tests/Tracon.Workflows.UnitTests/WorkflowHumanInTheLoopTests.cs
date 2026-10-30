@@ -127,11 +127,11 @@ public sealed class WorkflowHumanInTheLoopTests
     }
 
     /// <summary>
-    /// K-130: the answered run keeps its <c>AwaitingInput</c> status and its
+    /// The answered run keeps its <c>AwaitingInput</c> status and its
     /// request. Answering it again opens a branch, on purpose.
     /// </summary>
     /// <remarks>
-    /// F-335: the runner's comment and this class's old test name both said the
+    /// The runner's comment and this class's old test name both said the
     /// answered run "no longer has a pending request". The old test asserted on
     /// the SECOND run, so nothing pinned what the first run really returns.
     /// </remarks>
@@ -260,7 +260,7 @@ public sealed class WorkflowHumanInTheLoopTests
     [Fact]
     public async Task A_request_whose_prompt_outgrows_the_payload_limit_is_still_listed_and_answerable()
     {
-        // F-327: the request event's payload is cut at MaxPayloadLength (8 KB by
+        // The request event's payload is cut at MaxPayloadLength (8 KB by
         // default), and every non-ASCII character is escaped to six. A prompt of
         // 1,500 such characters left unparseable JSON; the request dropped out
         // of the list and the respond endpoint refused its id as unknown.
@@ -287,9 +287,9 @@ public sealed class WorkflowHumanInTheLoopTests
     [Fact]
     public async Task With_cleanup_on_an_answered_request_can_still_be_answered_a_second_time()
     {
-        // F-327: the cleanup deletes per SESSION, and the answer run shares the
+        // The cleanup deletes per SESSION, and the answer run shares the
         // source run's session. When the answer run completed, the source run's
-        // checkpoints went with it, and the second answer K-130 allows failed
+        // checkpoints went with it, and the second answer that decision allows failed
         // with "no checkpoint".
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(
@@ -314,7 +314,7 @@ public sealed class WorkflowHumanInTheLoopTests
     [Fact]
     public async Task With_cleanup_on_a_wrong_answer_does_not_cost_the_request()
     {
-        // F-327: an answer the port cannot take ends its run Failed, and that
+        // An answer the port cannot take ends its run Failed, and that
         // run's cleanup deleted the source run's checkpoints — one typo made the
         // request unanswerable for good.
         var host = new WorkflowTestHost();

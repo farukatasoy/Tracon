@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Graph;
 /// </summary>
 /// <remarks>
 /// The wrapper is called with <c>options = null</c> - this is how Microsoft Agent
-/// Framework's background task tool calls it (measured in Phase 12). The tests
+/// Framework's background task tool calls it. The tests
 /// repeat this real call shape; passing settings as a parameter would skip the
 /// real path and miss regressions.
 /// </remarks>
@@ -184,7 +184,7 @@ public sealed class ChildAgentInvokerTests
         using var cts = new CancellationTokenSource();
         var running = invoker.RunAsync("run", cancellationToken: cts.Token);
 
-        // Phase 184: a CancelAfter(50 ms) timer stood here. Under load it fired
+        // A CancelAfter(50 ms) timer stood here. Under load it fired
         // before the child run had even been recorded, and the read below found
         // no run at all ("Sequence contains no elements", measured on the
         // net8.0 leg). Cancel once the child is really running.
@@ -243,7 +243,7 @@ public sealed class ChildAgentInvokerTests
     [InlineData(true)]
     public async Task A_provider_timeout_is_not_reported_as_the_sub_agents_own_wait_limit(bool streaming)
     {
-        // K-737 regression: the provider reports its OWN request timeout as an
+        // That decision regression: the provider reports its OWN request timeout as an
         // OperationCanceledException while NOTHING was cancelled. Both wait
         // limits are set far longer than this call, so neither layer can fire -
         // the only honest sentence here is "the provider did not answer".
@@ -261,13 +261,13 @@ public sealed class ChildAgentInvokerTests
         text.ShouldContain("did not answer", Case.Sensitive);
         text.ShouldNotContain("did not respond in time", Case.Sensitive);
 
-        // The sub-run itself already recorded the truth (K-737 applies in
+        // The sub-run itself already recorded the truth (that decision applies in
         // RunRecordingAgent): a provider fault is Failed, never Canceled.
         var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
         child.Status.ShouldBe(RunStatus.Failed);
     }
 
-    // --- F-328: a workflow step fails instead of returning the refusal as content ---
+    // --- an earlier fix: a workflow step fails instead of returning the refusal as content ---
 
     [Theory]
     [InlineData(false)]
@@ -336,7 +336,7 @@ public sealed class ChildAgentInvokerTests
     public async Task A_wrapper_in_tool_result_mode_still_refuses_an_approval_and_its_row_fails()
     {
         // The wrapper of a sub-agent is in tool-result mode and builds its own options; it never gets the
-        // hosted step's flag, so below the step the refusal of K-103 holds. The tree below a real step is
+        // hosted step's flag, so below the step the refusal of that decision holds. The tree below a real step is
         // measured by WorkflowToolApprovalPatternTests.A_sub_agent_the_step_calls_is_still_refused_and_the_workflow_does_not_wait.
         var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
         var client = new FakeChatClient(_ => new ChatResponse(

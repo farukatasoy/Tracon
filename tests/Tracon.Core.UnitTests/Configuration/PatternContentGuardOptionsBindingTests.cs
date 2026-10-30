@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// stops the application at startup.
 /// </summary>
 /// <remarks>
-/// 🚨 F-247: one typo in <c>MaskedPii</c> (<c>"Emial,CreditCard"</c>) failed the
+/// One typo in <c>MaskedPii</c> (<c>"Emial,CreditCard"</c>) failed the
 /// whole parse, the value stayed <see cref="PiiPatterns.None"/> and PII masking was
 /// off — including the correctly spelled <c>CreditCard</c>. A number with an
 /// undefined bit (<c>"64"</c>) was accepted. The options had no validator.
@@ -86,7 +86,7 @@ public sealed class PatternContentGuardOptionsBindingTests
     [Fact]
     public void Code_that_sets_the_pii_list_wins_over_an_unreadable_value()
     {
-        // The failure comes from the bound value (K4, the F-385 precedent). The
+        // The failure comes from the bound value (the precedent). The
         // sample application writes MaskedPii in code; a typo in its configuration
         // file must not keep it from starting.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)

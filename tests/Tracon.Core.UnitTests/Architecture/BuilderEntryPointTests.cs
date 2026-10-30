@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 258 (F-753) moved <c>AddJobHandler</c> and <c>UseScheduling</c> from
+/// moved <c>AddJobHandler</c> and <c>UseScheduling</c> from
 /// <c>IServiceCollection</c> to the chain: the site taught two entry points and a
 /// consumer who typed <c>builder.AddTracon().</c> found one capability missing. A
 /// public extension on <c>IServiceCollection</c> or <c>IHostApplicationBuilder</c> is

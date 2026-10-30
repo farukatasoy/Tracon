@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Failure mode 9: a queued workflow operation carries the caller's attribution and
-/// session in its job, because the worker has no request to read them from (K-894).
+/// session in its job, because the worker has no request to read them from.
 /// </summary>
 /// <remarks>
 /// The attribution here is bound to the HTTP request, the way a consumer binds its

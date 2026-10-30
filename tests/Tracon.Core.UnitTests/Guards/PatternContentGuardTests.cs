@@ -222,7 +222,7 @@ public sealed class PatternContentGuardTests
     [Fact]
     public async Task Unknown_source_is_never_treated_as_a_reason_to_allow()
     {
-        // 🚨 Phase 140's rule: an unclassified source must be at least as
+        // 🚨 the rule: an unclassified source must be at least as
         // strict as any known source, never an implicit "skip the check".
         // This guard deliberately does not read Source at all — locking that
         // in guards against a future regression that special-cases Unknown.

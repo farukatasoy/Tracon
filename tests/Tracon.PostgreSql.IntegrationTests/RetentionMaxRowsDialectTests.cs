@@ -2,7 +2,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
 /// Tests for <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'s
-/// PostgreSQL SQL generation (Phase 36, <c>MaxRows</c>). Requires no live
+/// PostgreSQL SQL generation (<c>MaxRows</c>). Requires no live
 /// database — <see cref="PostgresDialect"/> only builds SQL text.
 /// </summary>
 public sealed class RetentionMaxRowsDialectTests

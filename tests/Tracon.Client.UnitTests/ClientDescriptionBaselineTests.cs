@@ -2,7 +2,6 @@ namespace Tracon.Client.UnitTests;
 
 /// <summary>
 /// Guards the XML doc coverage of the generated client against regressing
-/// (section 83.4).
 /// </summary>
 /// <remarks>
 /// <para>

@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
 /// Verifies that <see cref="TraconDiagnosticsCollector"/> produces the correct
-/// report for in-memory, SQL, and duplicate-registration (K-183) cases (Phase 33).
+/// report for in-memory, SQL, and duplicate-registration cases.
 /// </summary>
 public sealed class DiagnosticsCollectorTests
 {
@@ -89,7 +89,7 @@ public sealed class DiagnosticsCollectorTests
     {
         // Simulates two Use*() calls: the marker ACCUMULATES, the winner (ISqlPersistenceDiagnostics,
         // registered with Replace) is singular. In a real run MigrationHostedService logs a
-        // startup warning for this (K-183); this test proves /api/diagnostics sees the same info.
+        // startup warning for this; this test proves /api/diagnostics sees the same info.
         var services = new ServiceCollection();
         services.AddTracon();
         services.AddSingleton(new SqlPersistenceRegistrationMarker("PostgreSQL"));
@@ -145,7 +145,7 @@ public sealed class DiagnosticsCollectorTests
     /// </summary>
     /// <remarks>
     /// The primary use moment for the diagnostics endpoint is exactly when the schema
-    /// is NOT yet ready (<c>AutoApplyMigrations=false</c>). Measured: MT-PG-051 — the
+    /// is NOT yet ready (<c>AutoApplyMigrations=false</c>). Measured: an earlier defect — the
     /// endpoint returned HTTP 500 at the exact moment it was needed.
     /// </remarks>
     [Fact]
@@ -164,7 +164,7 @@ public sealed class DiagnosticsCollectorTests
         report.PersistenceProvider.ShouldNotBeNullOrEmpty();
     }
 
-    // --- Phase 85: embedding points ---
+    // --- an earlier change: embedding points ---
 
     [Fact]
     public async Task Bare_setup_reports_all_seven_embedding_points_as_built_in_default()

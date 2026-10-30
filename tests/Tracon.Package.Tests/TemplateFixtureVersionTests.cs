@@ -17,7 +17,7 @@ namespace Tracon.Package.Tests;
 /// the fixture resolved it: every template test installed the preview.1 template
 /// and restored the LOCAL preview.1 into the global package folder, where
 /// nuget.org's different preview.1 of the same ids belongs. The poisoned cache
-/// directories found while planning phase 185 were exactly the default
+/// directories found while planning were exactly the default
 /// template's package closure.
 /// </remarks>
 public sealed class TemplateFixtureVersionTests(TemplateFixture fixture)

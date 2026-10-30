@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// What a front end is told when a run fails after the stream began (Phase 236).
+/// What a front end is told when a run fails after the stream began.
 /// </summary>
 public sealed class AGUIFailureTests
 {

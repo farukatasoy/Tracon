@@ -7,7 +7,7 @@ using Tracon.Testing;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The pre-flight context-window check on the HTTP surface (phase 62, F-59):
+/// The pre-flight context-window check on the HTTP surface:
 /// the diagnostic <c>POST /api/agents/{name}/estimate</c> endpoint and the
 /// inline check on <c>POST /api/agents/{name}/run</c>.
 /// </summary>

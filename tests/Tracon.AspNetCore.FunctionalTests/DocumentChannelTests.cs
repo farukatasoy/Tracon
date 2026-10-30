@@ -8,7 +8,7 @@ using Tracon.Testing;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The document channel (Phase 86, F-34): reference text attached to a run,
+/// The document channel: reference text attached to a run,
 /// kept apart from the agent's instructions.
 /// </summary>
 public sealed class DocumentChannelTests
@@ -116,7 +116,7 @@ public sealed class DocumentChannelTests
     }
 
     /// <summary>
-    /// F-386: a content guard that masks a document rewrote it as plain text. The
+    /// A content guard that masks a document rewrote it as plain text. The
     /// record then took the document for the run's request (<c>RunStarted</c>) and
     /// wrote no <c>DocumentAttached</c>. The masked document keeps its document mark,
     /// rebuilt from the masked text: the name and the hash are the masked ones, so the

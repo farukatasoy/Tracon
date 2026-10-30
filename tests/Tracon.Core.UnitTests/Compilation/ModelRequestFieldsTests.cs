@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// F-598 — what the compiler makes of the request fields of <see cref="ModelBinding"/>: each reaches
+/// What the compiler makes of the request fields of <see cref="ModelBinding"/>: each reaches
 /// <see cref="ChatOptions"/> and a value the provider would reject, or the run would ignore, stops the
 /// compilation and names the field.
 /// </summary>

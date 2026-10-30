@@ -10,7 +10,7 @@ using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTe
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-603 — a hosted tool a host registered in code, through a real DI-built host: the tool reaches the model
+/// A hosted tool a host registered in code, through a real DI-built host: the tool reaches the model
 /// call, its calls become tool events under the registered name, its cost enters the run's non-token total,
 /// the tenant's quota, the <c>run.completed</c> webhook and the tree's budget exactly once, and a call of a tool
 /// nobody registered (the harness's web search) is billed all the same and recorded as before.

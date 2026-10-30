@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ElevenLabs'in yayimlanan OpenAPI belgesini Tracon.Voice'in bagimlilik beyaniyla karsilastirir.
 
-`Tracon.Voice` ElevenLabs'e ham `HttpClient` ile konusur (K-216); resmi bir .NET
+`Tracon.Voice` ElevenLabs'e ham `HttpClient` ile konusur; resmi bir .NET
 SDK'si yoktur. Bu yuzden sağlayicinin sozlesme degisikligini derleyici gormez.
 `tests/Tracon.Voice.UnitTests/Fixtures/elevenlabs-operations.json` Tracon'un
 kullandigi operasyonlari, sorgu parametrelerini, alan yollarini ve her alanin JSON

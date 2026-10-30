@@ -97,7 +97,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task A_jobs_own_time_limit_survives_the_round_trip_and_the_lease()
     {
-        // Added in phase 196 (F-323). The worker reads the limit from the LEASED record,
+        // The worker reads the limit from the LEASED record,
         // so the lease query has to return it as well as the read: a store that drops it
         // there runs every job without its limit, silently.
         var job = await Store.EnqueueAsync(TestData.Job() with { MaxDuration = TimeSpan.FromMinutes(90) }, ["a"]);
@@ -115,7 +115,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task A_jobs_time_limit_beyond_an_int_of_milliseconds_survives_the_round_trip_and_the_lease()
     {
-        // Added for F-451. A store that keeps the limit in a 32-bit millisecond column
+        // Added. A store that keeps the limit in a 32-bit millisecond column
         // overflows at about 24.8 days and either throws or stores a wrong limit; the
         // 90 minutes above cannot tell it from a correct store. The dispatcher accepts a
         // limit up to the timer ceiling (about 49.7 days), so 30 days is a legal value.
@@ -316,7 +316,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task A_cancelled_job_is_changed_by_neither_completion_nor_release()
     {
-        // F-326: a handler that throws after its job was cancelled reaches the
+        // A handler that throws after its job was cancelled reaches the
         // worker's failure path. Before the store refused these writes, the
         // cancelled job became Failed (last attempt) or Pending — and ran again.
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);

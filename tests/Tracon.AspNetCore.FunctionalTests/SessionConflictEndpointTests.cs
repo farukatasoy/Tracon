@@ -19,7 +19,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// 🚨 Neither mapping had a test. The <c>/api/agents</c> branch was written for
-/// HATA-004, when a conflict needed two concurrent FIRST turns on a brand-new
+/// When a conflict needed two concurrent FIRST turns on a brand-new
 /// session and was therefore nearly unreachable; the OpenAI-compatible branch
 /// was missed entirely and answered <c>502</c>. Once every later save became
 /// guarded too, the condition became reachable in ordinary operation and an
@@ -57,7 +57,7 @@ public sealed class SessionConflictEndpointTests
     }
 
     /// <summary>
-    /// HATA-S1-011: the run record carries the conflict.
+    /// The run record carries the conflict.
     /// </summary>
     /// <remarks>
     /// The run stays <see cref="RunStatus.Completed"/> — it completed, and

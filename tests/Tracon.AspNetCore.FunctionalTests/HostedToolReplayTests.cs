@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-603 — a replay that plays tools back or runs none never runs a hosted tool: the provider runs it inside the model
+/// A replay that plays tools back or runs none never runs a hosted tool: the provider runs it inside the model
 /// call, the replay transform cannot reach it, and a web search would run and bill again.
 /// </summary>
 /// <remarks>
@@ -53,7 +53,7 @@ public sealed class HostedToolReplayTests
     [InlineData("LiveTools", true)]
     public async Task A_replay_offers_the_harness_web_search_only_in_live_mode(string toolMode, bool offered)
     {
-        // F-610: the harness turns the same hosted tool on without a name in the tool list, so the
+        // The harness turns the same hosted tool on without a name in the tool list, so the
         // name filter above never sees it.
         var provider = new ContentModelProvider([new TextContent("replayed")], ProviderName);
 

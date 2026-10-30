@@ -94,7 +94,7 @@ tracon.AddAgent(new AgentDefinition
     ToolNames = ["current_account", "account_balance", "delete_account"],
 });
 
-// Persistence is OPTIONAL (Phase 110). Without a connection string this sample
+// Persistence is OPTIONAL. Without a connection string this sample
 // keeps running fully in memory, exactly as before — CI never depends on a
 // database. With one, the host's OWN schema (HostDbContext) and Tracon's
 // store layer share a SINGLE NpgsqlDataSource: building two separate data
@@ -192,7 +192,7 @@ if (hasPersistence)
 // run endpoints, and (once turned on) diagnostics.
 app.MapTracon("/tracon", options =>
 {
-    // Off by default (K1: a surface that reveals deployment shape is turned on
+    // Off by default (a surface that reveals deployment shape is turned on
     // explicitly). Turned on here so the sample's own manual test case and
     // GET /tracon/api/diagnostics can show the bound embedding points.
     options.EnableDiagnosticsEndpoint = true;

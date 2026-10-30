@@ -4,7 +4,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// An agent node that pins a version runs that version, and only that step (phase 200, failure
+/// An agent node that pins a version runs that version, and only that step (failure
 /// modes 14 and 15).
 /// </summary>
 public sealed class WorkflowNodeAgentVersionTests

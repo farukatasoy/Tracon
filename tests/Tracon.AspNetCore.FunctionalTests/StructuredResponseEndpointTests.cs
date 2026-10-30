@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The structured response validation seam's behavior on the HTTP surface
-/// (docs/131). A dedicated <see cref="FakeModelProvider"/> is scripted per
+///A dedicated <see cref="FakeModelProvider"/> is scripted per
 /// test with an EXACT response text — the host's default "echo" provider
 /// prefixes its reply with <c>"Echo: "</c>, which would itself break JSON
 /// well-formedness and confuse what each test is actually proving.
@@ -21,7 +21,7 @@ public sealed class StructuredResponseEndpointTests
     [Fact]
     public async Task Disabled_by_default_a_malformed_response_does_not_fail_the_run()
     {
-        // K1: no Tracon:StructuredResponse:Enabled configuration at all.
+        // No Tracon:StructuredResponse:Enabled configuration at all.
         await using var host = await StartAsync("not valid json", enabled: false);
 
         using var response = await PostBufferedAsync(host);
@@ -102,7 +102,7 @@ public sealed class StructuredResponseEndpointTests
 
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        // The (invalid) content still reached the client - it cannot be un-sent (docs/131 §131.5).
+        // The (invalid) content still reached the client - it cannot be un-sent.
         body.ShouldContain("not valid json", Case.Sensitive);
         body.ShouldContain("TraconStructuredResponseException", Case.Sensitive);
 
@@ -131,7 +131,7 @@ public sealed class StructuredResponseEndpointTests
         var eventsBody = await EventTypesAsync(host, run.Id);
 
         // 🚨 The WHOLE stream is not redacted: RunStarted legitimately carries
-        // the raw user prompt (Phase 45's eval-promotion source). Only the
+        // the raw user prompt (the earlier change's eval-promotion source). Only the
         // StructuredResponseRejected event's OWN line must exclude the raw
         // response - same boundary ContentGuardEndpointTests measures for
         // ContentBlocked/ContentMasked.
@@ -156,7 +156,7 @@ public sealed class StructuredResponseEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        // 🚨 Phase 157 changed this. The validator throws an
+        // 🚨 changed this. The validator throws an
         // OperationCanceledException while NOTHING was cancelled - the same
         // shape HttpClient produces on its own request timeout. It used to be
         // taken at face value: the run closed as Canceled, the endpoint's
@@ -170,7 +170,7 @@ public sealed class StructuredResponseEndpointTests
 
         run.Status.ShouldBe(RunStatus.Failed);
 
-        // Since the F-279 class fix (K-840) a cancellation nobody requested is a
+        // Since the class fix a cancellation nobody requested is a
         // validator FAILURE like any other, so it takes the same fail-closed
         // branch as A_throwing_consumer_validator_rejects_fail_closed: the
         // response is rejected. Before, the exception slipped past the
@@ -181,7 +181,7 @@ public sealed class StructuredResponseEndpointTests
     [Fact]
     public async Task A_sink_that_cannot_observe_the_rejection_event_still_fails_the_run()
     {
-        // Observability must not block the reject decision (K-493's rule,
+        // Observability must not block the reject decision (the rule,
         // applied to this seam): an IRunEventSink that throws must still let
         // the run close as Failed with the event written to the store.
         await using var host = await StartAsync(
@@ -199,7 +199,7 @@ public sealed class StructuredResponseEndpointTests
     }
 
     /// <summary>
-    /// F-350: a response that stops at a tool approval carries no assistant text yet.
+    /// A response that stops at a tool approval carries no assistant text yet.
     /// The validator must not read it as an empty structured answer and fail the run
     /// before it can wait for the approval.
     /// </summary>
@@ -242,7 +242,7 @@ public sealed class StructuredResponseEndpointTests
     }
 
     /// <summary>
-    /// The same class as the approval (F-350 scan): a response that stops at a
+    /// The same class as the approval: a response that stops at a
     /// client-side tool call waits for the caller's tool result and has no text yet.
     /// </summary>
     [Theory]
@@ -329,7 +329,7 @@ public sealed class StructuredResponseEndpointTests
     /// <summary>
     /// Enters the non-streaming branch. A request carrying the
     /// <c>Idempotency-Key</c> header runs with a single JSON response instead
-    /// of SSE (Phase 43).
+    /// of SSE.
     /// </summary>
     private static async Task<HttpResponseMessage> PostBufferedAsync(TraconTestHost host)
     {

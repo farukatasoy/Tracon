@@ -85,7 +85,7 @@ public sealed class ImageEndpointTests
     public async Task Endpoint_translates_a_provider_failure_to_bad_gateway()
     {
         // The raw provider message ("provider rejected the request") is a foreign
-        // exception's own text and must never reach the client (Phase 119, BL-037):
+        // exception's own text and must never reach the client (BL-037):
         // the response carries only the exception's type name and a correlation id.
         var generator = new StubImageGenerator { Exception = new InvalidOperationException("provider rejected the request") };
         await using var host = await StartWithImagesAsync(generator);
@@ -105,7 +105,7 @@ public sealed class ImageEndpointTests
     {
         // HttpClient.Timeout surfaces as TaskCanceledException while the caller's
         // request is still open. That is a provider failure, the documented 502,
-        // not an unhandled exception (K-840, F-279). Image generation is slow, so
+        // not an unhandled exception. Image generation is slow, so
         // this is the likeliest failure of the endpoint.
         var generator = new StubImageGenerator
         {

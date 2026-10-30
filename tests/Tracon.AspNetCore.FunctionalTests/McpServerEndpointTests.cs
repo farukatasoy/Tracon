@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 50: the MCP server that exposes Tracon agents.
+/// The MCP server that exposes Tracon agents.
 /// </summary>
 public sealed class McpServerEndpointTests
 {
@@ -163,7 +163,7 @@ public sealed class McpServerEndpointTests
 
     /// <summary>
     /// The skill tools are not in the tool registry: the framework adds them when it builds the agent and
-    /// wraps all three for approval. The guard reads the definition's skill settings instead (F-626).
+    /// wraps all three for approval. The guard reads the definition's skill settings instead.
     /// </summary>
     [Fact]
     public async Task Agent_using_skills_with_the_read_approval_on_cannot_be_exposed()

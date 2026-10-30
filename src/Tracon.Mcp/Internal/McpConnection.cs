@@ -33,7 +33,6 @@ internal sealed class McpConnection : IAsyncDisposable
     // Resource cache: URI -> the last content read. A subscription only
     // invalidates this entry (Invalidated = true); the content is not
     // re-read immediately, it is fetched fresh on the next request
-    // (Phase 22, section 22.2).
     private readonly Dictionary<string, CachedResource> _resourceCache = new(StringComparer.Ordinal);
     private readonly HashSet<string> _subscribedUris = new(StringComparer.Ordinal);
     private readonly List<IAsyncDisposable> _subscriptions = [];
@@ -43,7 +42,7 @@ internal sealed class McpConnection : IAsyncDisposable
 
     // When the tool/resource list was last read successfully; null until the first
     // listing. A failed refresh keeps the list while it is younger than
-    // TraconMcpOptions.StaleToolRetention (F-309).
+    // TraconMcpOptions.StaleToolRetention.
     private DateTimeOffset? _listedAt;
 
     private McpConnection(
@@ -69,8 +68,8 @@ internal sealed class McpConnection : IAsyncDisposable
     /// <summary>The fingerprint of the definition the connection was established from.</summary>
     public string FingerprintValue { get; }
 
-    // F-305 / K-880. The fingerprint would be a proxy for the embedded object, the
-    // exact mistake K-811 recorded for the definition version.
+    // The fingerprint would be a proxy for the embedded object, the
+    // exact mistake already made once for the definition version.
     /// <summary>
     /// The identity of this connection instance, unique for the life of the process.
     /// </summary>
@@ -173,7 +172,7 @@ internal sealed class McpConnection : IAsyncDisposable
 
             // Declaring the handler is what makes the SDK announce the elicitation capability (form mode
             // only: Tracon asks for fields, it does not open addresses). A server that never asks costs
-            // nothing; one that asks gets an answer instead of a dropped call (Phase 235).
+            // nothing; one that asks gets an answer instead of a dropped call.
             var clientOptions = new McpClientOptions
             {
                 Handlers = new McpClientHandlers
@@ -225,7 +224,7 @@ internal sealed class McpConnection : IAsyncDisposable
             // tools drop out of the list, the others keep working. BUT this is
             // a REAL network error (timeout/connection refused) — the caller
             // must be able to tell this apart from "the server was deliberately
-            // skipped" (HATA-006, MT-CORE-006).
+            // skipped".
             logger.LogWarning(
                 ex,
                 "MCP server '{ServerName}' ({Endpoint}) could not connect; its tools will not be listed in this refresh.",
@@ -301,7 +300,7 @@ internal sealed class McpConnection : IAsyncDisposable
         {
             // The capability check is mandatory: if the server does not
             // declare tools, the request is never sent at all
-            // (Phase 22, "Verified API").
+            // ("Verified API").
             var discoveredTools = ServerCapabilities.Tools is null
                 ? []
                 : await _client.ListToolsAsync(options: null, timeout.Token).ConfigureAwait(false);
@@ -327,7 +326,7 @@ internal sealed class McpConnection : IAsyncDisposable
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
-            // F-309: one failed tools/list used to drop the server's tools at once, and
+            // One failed tools/list used to drop the server's tools at once, and
             // every agent that used them was refused until the next good refresh. The
             // connection is still registered with the same definition, so the tool
             // objects still call a live client; they are kept for a while. The same

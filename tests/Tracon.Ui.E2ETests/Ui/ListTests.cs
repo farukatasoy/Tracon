@@ -14,7 +14,7 @@ public sealed class ListTests(BrowserFixture browsers)
     public async Task A_failed_list_shows_the_servers_own_words_and_retries_on_one_click()
     {
         // Two rules in one walk. The message is the SERVER's, untranslated
-        // (K-232) — inventing a sentence for a failure the console does not
+        // — inventing a sentence for a failure the console does not
         // recognise hides what actually broke. And the note carries a retry, so
         // a 500 is not a dead end that only a page reload escapes.
         await using var host = await UiHost.StartAsync();
@@ -71,8 +71,8 @@ public sealed class ListTests(BrowserFixture browsers)
     [Fact]
     public async Task Filters_are_labelled_and_the_reset_appears_only_once_something_is_filtered()
     {
-        // The toolbar contract, on a screen that did not have one before phase
-        // 165. A bare <select> in a filter strip has no accessible name — its
+        // The toolbar contract, on a screen that did not have one before.
+        // A bare <select> in a filter strip has no accessible name — its
         // options are its only text, and "All agents" is not what the control
         // IS — and a reset that is always visible cannot say whether anything
         // is narrowed.

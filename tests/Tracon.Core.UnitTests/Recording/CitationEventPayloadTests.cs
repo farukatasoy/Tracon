@@ -4,7 +4,7 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-773 (phase 267): the <see cref="RunEventCustomTypes.Citation"/> draft built for one citation.
+/// The <see cref="RunEventCustomTypes.Citation"/> draft built for one citation.
 /// The payload is written by hand, valid JSON whatever the source carries, and the address in it
 /// is the one field that can hold a credential.
 /// </summary>
@@ -84,7 +84,7 @@ public sealed class CitationEventPayloadTests
     [InlineData(true, "https://example.com/private?sig=abc")]
     public void User_information_is_never_written_in_either_mode(bool recordUrl, string expected)
     {
-        // 🚨 `GetLeftPart(Authority)` keeps `user:password@`; it is a secret (K-059).
+        // 🚨 `GetLeftPart(Authority)` keeps `user:password@`; it is a secret.
         var draft = CitationEventPayload.Describe(Citation("https://alice:hunter2@example.com/private?sig=abc"), recordUrl);
 
         var json = draft.Payload!;

@@ -2,7 +2,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269): the package's Tracon.Testing.TraconTestHost and
+// Same rationale as AgentExtensionRunTests.cs: the package's Tracon.Testing.TraconTestHost and
 // this project's own TraconTestHost share a name.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
@@ -13,7 +13,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 234 (F-628): the file tools of a session workspace are governed like any other tool: the quota refuses a write
+/// The file tools of a session workspace are governed like any other tool: the quota refuses a write
 /// and the run goes on, the timeout ends a call that hangs, and a store that fails ends one call and not the run.
 /// </summary>
 /// <remarks>

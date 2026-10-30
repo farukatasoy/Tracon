@@ -22,7 +22,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Before this rule, a key bound to tenant A with <c>SecurityAdmin</c>, or a
 /// claims-based Admin of tenant A, could point tenant B's provider binding at
 /// an address A controls: every model call of B then sent B's prompts and its
-/// resolved key there. K-469 accepted the route tenant for a "platform
+/// resolved key there. The earlier decision accepted the route tenant for a "platform
 /// admin", but nothing enforced that the caller WAS one.
 /// </para>
 /// <para>
@@ -30,7 +30,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <c>PlatformAdmin</c> scope; the static <c>AuthToken</c> identifies the
 /// installation; a claims principal needs the <c>Tracon.PlatformAdmin</c>
 /// policy, and a missing policy denies; an anonymous loopback caller is the
-/// zero-configuration local operator (K1).
+/// zero-configuration local operator.
 /// </para>
 /// </remarks>
 public sealed class CrossTenantAuthorityTests
@@ -281,7 +281,7 @@ public sealed class CrossTenantAuthorityTests
 
     /// <summary>
     /// 🚨 A missing policy DENIES. The role policies fall back to "allowed"
-    /// when unregistered (K1); a cross-tenant write must not.
+    /// when unregistered; a cross-tenant write must not.
     /// </summary>
     [Fact]
     public async Task Claims_user_without_a_registered_platform_policy_is_denied()

@@ -8,11 +8,11 @@ namespace Tracon.Mcp.UnitTests;
 /// <c>UseMcp(IConfiguration)</c> actually binds the settings.
 /// </summary>
 /// <remarks>
-/// 🚨 This test exists because of a measured defect (2026-08-08 report, section 2.2):
+/// 🚨 This test exists because of a measured defect (2026-08-08 report):
 /// <see cref="TraconMcpOptions.SectionName"/> was defined, but no code
 /// called <c>Bind</c>. An environment variable such as <c>Tracon:Mcp:RefreshInterval</c>
 /// did NOTHING, WITHOUT ANY ERROR. Silent configuration loss is a typical trap
-/// in container/K8s deployments. Rationale: K-353.
+/// in container/K8s deployments.
 /// </remarks>
 public sealed class McpOptionsConfigurationBindingTests
 {
@@ -81,7 +81,7 @@ public sealed class McpOptionsConfigurationBindingTests
     /// <summary>
     /// Resolves the setting through the REAL registration path: <c>AddTracon().UseMcp(section)</c> →
     /// <c>IOptions&lt;TraconMcpOptions&gt;</c>. It is the setup itself that is measured, not a
-    /// probe object (see MEMORY.md: "an isolated measurement does not prove integrated behavior").
+    /// probe object (: "an isolated measurement does not prove integrated behavior").
     /// </summary>
     private static TraconMcpOptions Resolve(
         Dictionary<string, string?> settings,

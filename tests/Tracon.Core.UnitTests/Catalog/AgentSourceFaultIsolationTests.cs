@@ -76,7 +76,7 @@ public sealed class AgentSourceFaultIsolationTests
     // A "real" cancellation is one whose token the CALLER cancelled. An
     // OperationCanceledException while the caller's token is intact is the
     // source's own timeout (an HTTP-backed source reports HttpClient.Timeout as
-    // TaskCanceledException) and is a failure like any other (K-840).
+    // TaskCanceledException) and is a failure like any other.
 
     [Fact]
     public async Task A_real_cancellation_during_listing_is_not_normalized()
@@ -131,7 +131,7 @@ public sealed class AgentSourceFaultIsolationTests
         return source;
     }
 
-    // --- Decorator failure normalization (BL-033, phase 122) ---
+    // --- Decorator failure normalization (BL-033) ---
 
     [Fact]
     public async Task A_throwing_decorator_is_normalized_the_same_way_as_a_source_failure()

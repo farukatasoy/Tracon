@@ -66,7 +66,7 @@ internal sealed class McpDiscoveryService : BackgroundService
         // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt. If
         // registration order puts `.UseMcp()` before `.UseSqlite()`, the
         // migration may not have finished yet and the first pass would get
-        // "no such table". Measured (Phase 42); rationale K-354.
+        // "no such table". Measured.
         try
         {
             await _schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);

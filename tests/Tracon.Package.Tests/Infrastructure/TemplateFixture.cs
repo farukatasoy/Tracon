@@ -24,7 +24,7 @@ public sealed class TemplateFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // TraconSkipCleanWorkingTreeCheck (Phase 136): same reasoning as
+        // TraconSkipCleanWorkingTreeCheck: same reasoning as
         // ReleaseArtifactFixture - this pack backs a local test feed, it is
         // never what a `v*` tag actually publishes.
         var packResult = await ProcessRunner.RunAsync(
@@ -74,8 +74,8 @@ public sealed class TemplateFixture : IAsyncLifetime
     /// extracts a version into the global packages folder ONCE and reuses it
     /// afterwards, so a rebuilt <c>.nupkg</c> with an unchanged version is
     /// never unpacked again - the consumer keeps compiling against the
-    /// assemblies and analyzers of the first pack of the day. Measured in Phase
-    /// 73: an analyzer change was invisible to every consumer test until this
+    /// assemblies and analyzers of the first pack of the day. Measured:
+    /// an analyzer change was invisible to every consumer test until this
     /// directory was removed.
     /// </remarks>
     private void ClearGlobalPackageCache()

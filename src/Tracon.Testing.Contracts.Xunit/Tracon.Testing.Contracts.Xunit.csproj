@@ -14,7 +14,7 @@
     -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <!--
-      K-270 is NOT inherited: that constraint comes from
+      The net10.0 restriction is NOT inherited: that constraint comes from
       Microsoft.AspNetCore.TestHost, which this package does not take. The
       TFM set matches Abstractions (net8.0;net9.0;net10.0) because a
       consumer's own store can target any one of the three - this is the
@@ -32,7 +32,7 @@
       AgentFileStore, which lives in "Microsoft.Agents.AI" (GA), not in
       "Microsoft.Agents.AI.Abstractions" (which Tracon.Abstractions
       already carries). This is a GA package, same as Tracon.Core's own
-      direct reference; K-008's preview restriction does not apply.
+      direct reference; the preview restriction does not apply.
     -->
     <PackageReference Include="Microsoft.Agents.AI" />
     <!--

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// K-269: Tracon.Testing.TraconTestHost and this project's own host share a
+// Tracon.Testing.TraconTestHost and this project's own host share a
 // name, so the package is imported one type at a time.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A run that resumes after an approval decision and asks for a second
-/// approval puts it in the mailbox, and the chain goes on (F-370).
+/// approval puts it in the mailbox, and the chain goes on.
 /// </summary>
 /// <remarks>
 /// 🚨 Only the queued-run handler wrote <see cref="PendingApproval"/> rows. The

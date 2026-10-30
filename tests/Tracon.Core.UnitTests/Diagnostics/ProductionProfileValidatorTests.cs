@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 170 (F-231): <c>RequireProductionProfile()</c> refuses to start the
+/// <c>RequireProductionProfile()</c> refuses to start the
 /// host while a security-sensitive decision is still on its permissive default.
 /// </summary>
 /// <remarks>

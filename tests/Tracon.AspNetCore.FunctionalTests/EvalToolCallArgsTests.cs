@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-605 (phase 227) - the <c>toolCallArgsMatch</c> check, from the case a client writes to the
+/// The <c>toolCallArgsMatch</c> check, from the case a client writes to the
 /// result an eval run records.
 /// </summary>
 /// <remarks>

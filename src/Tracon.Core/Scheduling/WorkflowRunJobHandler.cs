@@ -94,8 +94,8 @@ internal sealed class WorkflowRunJobHandler(
 
         // 🚨 Opened in THIS method's own body and held across every
         // MoveNextAsync of the run's stream: the engine reads the attribution
-        // when it builds the root's scope (F-337), and an AsyncLocal written in
-        // a helper would not flow back here (F-364).
+        // when it builds the root's scope, and an AsyncLocal written in
+        // a helper would not flow back here.
         using var attribution = AmbientRunAttributionScope.Begin(request.UserId, request.Labels);
 
         // A job cancelled after it was leased: the cancel endpoint already
@@ -175,7 +175,7 @@ internal sealed class WorkflowRunJobHandler(
             // The limit arrived before the engine opened the run; its row is closed below.
         }
 
-        // 🚨 F-323, open question 13-A: the job's time limit ends the WORK, not the
+        // The job's time limit ends the WORK, not the
         // attempt. Left to the lease like a shutdown, the next attempt would continue
         // the run from its checkpoint, and the limit would stop nothing.
         if (StoppedAtTimeLimit(context))
@@ -198,7 +198,7 @@ internal sealed class WorkflowRunJobHandler(
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
-            // 🚨 F-348's rule: a store error AFTER the work must not fail the
+            // 🚨 the rule: a store error AFTER the work must not fail the
             // finished work or make the worker run it again. The engine already
             // closed the run, and its row carries the outcome; the job completes.
             logger?.LogWarning(

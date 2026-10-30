@@ -85,7 +85,7 @@ public static class OpenAICompatibleProviderExtensions
         services.TryAddSingleton<OpenAINamedChatClientFactoryCache>();
 
         // A second call merges the options but does not register the providers again;
-        // the same reason as UseOpenAI() (the "AddModelProvider is enough" note of K-025).
+        // the same reason as UseOpenAI() ("AddModelProvider is enough").
         if (services.Any(descriptor =>
                 descriptor.ServiceType == typeof(NamedProviderMarker)
                 && descriptor.ImplementationInstance is NamedProviderMarker marker

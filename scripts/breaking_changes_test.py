@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the breaking-change gate of the release rehearsal (Faz 187).
+"""Tests for the breaking-change gate of the release rehearsal.
 
 Pure logic only: a temp git repository, temp files and a fake restore. The
 MSBuild wiring and the real `dotnet pack` are covered by
@@ -288,7 +288,7 @@ class IlkYayinBayragiTestleri(unittest.TestCase):
 
     # Packages that have no published baseline yet. The flag is required for them (yeni-paket.md): nuget.org has nothing
     # to restore for a rehearsal. `kapi.py yayin` calls the flag stale once the package is in the latest v* tag, and
-    # then the entry goes from here too. Tracon.AGUI (Phase 236) left with 1.0.0-preview.6.
+    # then the entry goes from here too. Tracon.AGUI left with 1.0.0-preview.6.
     NEW_SINCE_LAST_RELEASE: list[str] = []
 
     def test_depoda_bayrak_yalniz_yayinlanmamis_pakette_var(self):
@@ -476,9 +476,9 @@ class KiriciListeTestleri(unittest.TestCase):
         core = changes.types["Tracon.Core"]
         self.assertEqual(changes.errors, [])
         self.assertEqual(changes.dropped_frameworks, {})
-        # 69 types went internal (K-850); two more types lost a member:
+        # 69 types went internal; two more types lost a member:
         # TenantProviderCredentialResolver (ctor, ValidatePrefix) and
-        # SandboxedSkillScriptRunner.RunStoredScriptAsync (Faz 186).
+        # SandboxedSkillScriptRunner.RunStoredScriptAsync.
         self.assertEqual(len(core), 71)
         self.assertIn("AgentCallGraph", core)
         self.assertIn("WorkflowDefinitionValidator", core)
@@ -535,7 +535,7 @@ class SurumNotuEslesmeTestleri(unittest.TestCase):
         self.assertEqual(bc.unnamed_changes(changes, notes), [])
 
     def test_citli_kod_blogu_span_eslesmesini_kaydirmaz(self):
-        # Faz 189: iki çitli blok taşıyan not, doğru yazılmış iki adı kaçırıyordu.
+        # Iki çitli blok taşıyan not, doğru yazılmış iki adı kaçırıyordu.
         changes = self._changes(Tracon_Core={"A", "B", "C"})
         blok = "  ```csharp\n  new A(x, y: 1);\n  ```\n"
         notes = f"- `A` changed:\n\n{blok}\n- `B` changed:\n\n{blok}\n- `C` changed.\n"
@@ -594,7 +594,7 @@ class KapiCagrisiTestleri(unittest.TestCase):
         return code, output, result
 
     def test_etiket_kosumunda_surum_bolumu_okunur(self):
-        """K-825: at tag time [Unreleased] was renamed; the version section is read."""
+        """At tag time [Unreleased] was renamed; the version section is read."""
         code, output, result = self._run(
             reports={"Tracon.Core": [_baseline_record("CP0001", "T:Tracon.TextChunker")]},
             unreleased="", section="### Removed\n- `TextChunker`.\n", version="1.0.0-preview.3")
@@ -665,7 +665,7 @@ class KapiCagrisiTestleri(unittest.TestCase):
 
 
 class HatTestleri(unittest.TestCase):
-    """§237.2: one function decides the line; Faz 238 reuses it."""
+    """§237.2: one function decides the line; the non-.NET gate reuses it."""
 
     def test_surum_sirasi_preview_rc_ga(self):
         ordered = ["1.0.0-preview.5", "1.0.0-preview.12", "1.0.0-rc.1", "1.0.0-rc.2", "1.0.0", "1.0.1", "1.1.0", "2.0.0"]
@@ -684,7 +684,7 @@ class HatTestleri(unittest.TestCase):
         """`preview.5` -> `rc.1` is the step that FREEZES; judging it by the frozen rule would reject the freeze."""
         line = bc.release_line("1.0.0-preview.5", "1.0.0-rc.1")
 
-        self.assertEqual(line.describe(), "Hat: preview (K-602 — kırılma notta adıyla)")
+        self.assertEqual(line.describe(), "Hat: preview (kırılma notta adıyla)")
 
     def test_rc1_tabani_donmustur(self):
         for version in ("1.0.0-rc.2", "1.0.0", "1.0.1", "1.1.0", "1.9.0-preview.0.4"):
@@ -791,7 +791,7 @@ class DonmusHatKapiTestleri(unittest.TestCase):
             records=[self.BREAK], baseline="1.0.0-preview.5", version="1.0.0-preview.6", notes="- Other.")
 
         self.assertEqual(code, 0, output)
-        self.assertIn("Hat: preview (K-602 — kırılma notta adıyla)", output)
+        self.assertIn("Hat: preview (kırılma notta adıyla)", output)
         self.assertEqual(red, 1)
         self.assertIn("Tracon.Abstractions: IThing", red_output)
 
@@ -871,7 +871,7 @@ class YuzeyOkumaTestleri(unittest.TestCase):
         self.assertEqual(surface, {"A", "C"})
 
     def test_ga_dolumu_yuzeyi_degistirmez(self):
-        """Lines that only change file (K-603) are not 'added'."""
+        """Lines that only change file are not 'added'."""
         before = bc.effective_api("", "#nullable enable\nA\nB\n")
         after = bc.effective_api("#nullable enable\nA\nB\n", "#nullable enable\n")
 

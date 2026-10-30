@@ -62,7 +62,7 @@ public sealed class ResponseFormatCapabilityTests
     [Fact]
     public void Check_is_skipped_when_the_model_is_not_in_the_catalog()
     {
-        // K-032: model names can come from configuration, and the catalog is not
+        // Model names can come from configuration, and the catalog is not
         // a validation list. A model absent from the catalog entirely must not
         // be rejected.
         var provider = new FakeModelProvider(models: []);

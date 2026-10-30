@@ -78,7 +78,7 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         // When the Admin policy fails, the "New agent" command must also
         // disappear from the palette: offering an action the server will
         // reject is worse than not offering it. Hiding it is still a
-        // courtesy; the server is what enforces it (Phase 9).
+        // courtesy; the server is what enforces it.
         await using var host = await UiHost.StartAsync(
             configureServices: services => TestAuthenticationHandler.Add(services)
                 .AddAuthorizationBuilder()

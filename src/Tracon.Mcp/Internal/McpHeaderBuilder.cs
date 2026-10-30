@@ -150,7 +150,7 @@ internal static class McpHeaderBuilder
                     header);
             }
 
-            // A row written before phase 190 may carry a credential in the
+            // A row written before may carry a credential in the
             // clear. It is still sent (the connection keeps working), but the
             // operator is told to move it.
             if (CredentialHeaderNames.IsCredential(header))

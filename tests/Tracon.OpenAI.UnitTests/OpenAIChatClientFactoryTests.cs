@@ -64,7 +64,7 @@ public sealed class OpenAIChatClientFactoryTests
     [Fact]
     public void Factory_returns_a_RAW_client_and_does_not_build_the_pipeline()
     {
-        // 🚨 Phase 48: the tool call loop and telemetry moved into
+        // The tool call loop and telemetry moved into
         // ModelProviderRegistry. Had the factory built them, two nested
         // FunctionInvokingChatClient instances would form, and the content guard the
         // registry adds would sit OUTSIDE the loop — tool results would never be

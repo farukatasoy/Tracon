@@ -6,12 +6,12 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.QueuedWorkflowHarn
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A cancelled workflow job stops the workflow run it is running (F-323, failure mode 21),
+/// A cancelled workflow job stops the workflow run it is running (failure mode 21),
 /// through the real worker's cancel watch.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before phase 196 the run of a cancelled <c>tracon.workflow</c> job ran to its end:
+/// Before that change, the run of a cancelled <c>tracon.workflow</c> job ran to its end:
 /// the handler asked <see cref="JobContext.IsCancelledAsync"/> only between items, and
 /// the token the run was given fell only when the worker shut down. The run is now
 /// cancelled within a poll interval and ends <c>Canceled</c>; the job stays
@@ -80,7 +80,7 @@ public sealed class WorkflowJobCancellationTests
 
         await reached.WaitAsync(TimeSpan.FromSeconds(30));
 
-        // The job's id is the run's id (K-924).
+        // The job's id is the run's id.
         using var cancelled = await host.Client.PostAsync($"/tracon/api/jobs/{runId}/cancel", content: null);
         cancelled.StatusCode.ShouldBe(HttpStatusCode.NoContent, await cancelled.Content.ReadAsStringAsync());
 

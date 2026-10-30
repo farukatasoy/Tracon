@@ -14,9 +14,9 @@ public sealed class ApprovalTests(BrowserFixture browsers)
     [Fact]
     public async Task Approval_rule_with_condition_is_created_and_shown()
     {
-        // Phase 63: an admin-authored, argument-conditioned approval rule
+        // An admin-authored, argument-conditioned approval rule
         // ("amount <= 100") written from the screen, then read back — no
-        // free-text expression box, the operator is a closed dropdown (K2).
+        // free-text expression box, the operator is a closed dropdown.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
@@ -40,7 +40,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
     [Fact]
     public async Task Approvals_screen_lists_a_waiting_workflow_request_and_its_row_opens_the_run_card()
     {
-        // Phase 209: the human requests of workflow runs are a second list on the same screen,
+        // The human requests of workflow runs are a second list on the same screen,
         // across every workflow; a row is a pointer to the run's card, where the answer is given.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
@@ -103,15 +103,15 @@ public sealed class ApprovalTests(BrowserFixture browsers)
 
         // The worker leases the job from the queue and waits until it reaches
         // the tool call that requires approval; the screen auto-refreshes every 5 seconds.
-        // 🚨 `Exact` matters from phase 175 on: the confirmation's own heading
+        // 🚨 `Exact` matters from an earlier change on: the confirmation's own heading
         // reads "Approve cancel_order?", so a substring match resolves to two
         // elements the moment the dialog is up and Playwright's strict mode
         // rejects it. The row's cell is the exact string.
         await Expect(session.Page.GetByText("cancel_order", new() { Exact = true })).ToBeVisibleAsync();
 
-        // Phase 175: the answer is no longer one click. Approving is the one
+        // The answer is no longer one click. Approving is the one
         // action in the console that earns a confirmation under criterion (b)
-        // rather than (a) — nothing is destroyed, but K-368 means the decision
+        // rather than (a) — nothing is destroyed, but that decision means the decision
         // cannot be given twice, so the step is deliberate and this case walks
         // it rather than being loosened around it.
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
@@ -131,7 +131,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
         await Expect(session.Page.GetByText("Nothing is waiting")).ToBeVisibleAsync();
 
         // The decision queues a NEW run, which also completes. The Runs list
-        // must show both the old row (which STAYS in AwaitingApproval, K-014)
+        // must show both the old row (which STAYS in AwaitingApproval)
         // and the new (Completed) row.
         await session.Page.GotoAsync($"{host.UiAddress}/runs");
         await Expect(session.Page.GetByText("awaiting approval", new() { Exact = true })).ToBeVisibleAsync();

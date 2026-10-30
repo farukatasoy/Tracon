@@ -20,14 +20,14 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </para>
 /// <para>
 /// Development tooling stays Turkish and is out of scope: <c>docs/</c>,
-/// <c>.agents/skills/</c> and <c>scripts/</c> are never scanned. The user-facing
+/// <c>the development notes</c> and <c>scripts/</c> are never scanned. The user-facing
 /// translation dictionary <c>locales/tr.ts</c> is excluded for the same reason,
 /// and the language-picker label in <c>locales/en.ts</c> is allowed by line.
 /// </para>
 /// <para>
 /// Reads project sources from disk rather than compiled assemblies — the same
 /// pattern as <see cref="DependencyDirectionTests"/> and
-/// <see cref="ProblemDetailsLanguageTests"/>, which enforces the narrower K-232
+/// <see cref="ProblemDetailsLanguageTests"/>, which enforces the narrower that decision
 /// rule and is deliberately kept alongside this one.
 /// </para>
 /// </remarks>
@@ -48,7 +48,7 @@ public sealed class SourceLanguageTests
     /// A package README ships inside the published package and is what the
     /// registry renders — <c>src/Directory.Build.props</c> sets
     /// <c>PackageReadmeFile</c> for NuGet, and <c>packages/tracon-client/README.md</c>
-    /// ships to npm the same way (Phase 84). Markdown is otherwise out of
+    /// ships to npm the same way. Markdown is otherwise out of
     /// scope, so only these are matched.
     /// </summary>
     private static readonly Regex PackagedReadmePattern = new(
@@ -65,7 +65,7 @@ public sealed class SourceLanguageTests
     /// </summary>
     /// <remarks>
     /// The licence files are not merely outward facing — <c>PackageLicenseFile</c>
-    /// packs one of them into every published package (Phase 160), which makes
+    /// packs one of them into every published package, which makes
     /// them shipped artifacts in the same sense a package README is.
     /// </remarks>
     private static readonly string[] ScannedRootFiles =
@@ -81,7 +81,7 @@ public sealed class SourceLanguageTests
     /// in <c>src</c>), so scanning them adds no coverage. It did add local state:
     /// DocFX writes the absolute source path of each test, and a worktree named
     /// after a phase puts a listed word into that path. The result then depended
-    /// on whether the site was built before the tests (F-507).
+    /// on whether the site was built before the tests.
     /// </summary>
     private static readonly string[] GeneratedSitePrefixes =
     [
@@ -92,7 +92,7 @@ public sealed class SourceLanguageTests
 
     /// <summary>
     /// Files excluded in full. These three test files carry the Turkish dictionary
-    /// itself; the locale file is a legitimate translation dictionary (K-228).
+    /// itself; the locale file is a legitimate translation dictionary.
     /// </summary>
     private static readonly string[] SkippedFiles =
     [
@@ -101,8 +101,8 @@ public sealed class SourceLanguageTests
         // Carries the defect-id prefix, which is also a Turkish word.
         "tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs",
         "src/Tracon.UI/frontend/src/locales/tr.ts",
-        // Phase 109 split the monolithic tr.ts into domain fragments — same
-        // K-228 status, still an aggregate-only file with no dictionary text
+        // An earlier change split the monolithic tr.ts into domain fragments — same
+        // That decision status, still an aggregate-only file with no dictionary text
         // of its own once split. Each fragment carries the exemption instead.
         "src/Tracon.UI/frontend/src/locales/tr/common.ts",
         "src/Tracon.UI/frontend/src/locales/tr/agents.ts",
@@ -110,8 +110,8 @@ public sealed class SourceLanguageTests
         "src/Tracon.UI/frontend/src/locales/tr/workflows.ts",
         "src/Tracon.UI/frontend/src/locales/tr/operations.ts",
         "src/Tracon.UI/frontend/src/locales/tr/settings.ts",
-        // The embeddable widget's own small dictionary (Phase 61) is deliberately
-        // separate from the console's locales/ — same K-228 status, split into
+        // The embeddable widget's own small dictionary is deliberately
+        // separate from the console's locales/ — same status, split into
         // its own file (not embed/locale.ts, which also carries English) so this
         // exemption stays as narrow as the console's.
         "src/Tracon.UI/frontend/src/embed/locale.tr.ts",
@@ -120,7 +120,7 @@ public sealed class SourceLanguageTests
     /// <summary>
     /// The language picker labels its own entry in its own language, and the
     /// localization end-to-end test asserts the actual translated heading
-    /// text from <c>locales/tr.ts</c> (K-228) — both are legitimate Turkish.
+    /// text from <c>locales/tr.ts</c> — both are legitimate Turkish.
     /// </summary>
     private static readonly Regex AllowedLinePattern = new(
         @"shell\.language\.tr|Gösterge Paneli",
@@ -129,16 +129,16 @@ public sealed class SourceLanguageTests
 
     /// <summary>
     /// Turkish-named identifiers that are not prose and must survive translation:
-    /// defect ids (<c>HATA-S3-008</c>), manual test case ids (<c>MT-MCP-023</c>),
+    /// defect ids (<c>an earlier defect</c>), manual test case ids (<c>an earlier defect</c>),
     /// and paths into the development tooling, which stays Turkish by design
-    /// (<c>docs/MIMARI.md</c>, <c>scripts/dokuman-bakim.py</c>, and the contract
+    /// (<c>.md</c>, <c>scripts/dokuman-bakim.py</c>, and the contract
     /// snapshots under <c>docs/sozlesme/</c>, whose file names the release gate reads).
     /// They are removed from a line before it is inspected — otherwise
     /// <c>HATA-</c> would forever match the word <c>hata</c> and the baseline
     /// could never reach zero.
     /// </summary>
     private static readonly Regex IdentifierMaskPattern = new(
-        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:md|py|sh)\b|\.agents/skills/[A-Za-z0-9_/-]+|docs/sozlesme/[A-Za-z0-9_./-]+",
+        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:md|py|sh)\b|docs/sozlesme/[A-Za-z0-9_./-]+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 

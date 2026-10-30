@@ -118,7 +118,7 @@ internal sealed class WorkflowRecovery(
             return new WorkflowRecoveryPlan { Step = WorkflowRecoveryStep.Settled, Chain = chain, Last = last };
         }
 
-        // 🚨 F-323, open question 13-A: a run its job stopped at the job's time limit was
+        // A run its job stopped at the job's time limit was
         // not interrupted, it ran out of time. Continuing it would make the limit
         // per attempt and the work unbounded; the work ends here instead. Read from
         // the error type the run closed with, the one fact the run row keeps.
@@ -332,7 +332,7 @@ internal sealed class WorkflowRecovery(
         }
         catch (Exception storeException)
         {
-            // CancellationToken.None: no cancellation of ours (K-840).
+            // CancellationToken.None: no cancellation of ours.
             logger?.LogWarning(storeException, "Could not close queued workflow run {RunId} as Failed.", runId);
 
             return false;
@@ -369,7 +369,7 @@ internal sealed class WorkflowRecovery(
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // The closing event is the record's last line, not its status. A
-            // lost write (the old owner still alive and writing, K-886) must
+            // lost write (the old owner still alive and writing) must
             // not stop the row from closing.
             logger?.LogWarning(exception, "Could not write the closing event of interrupted workflow run {RunId}.", run.Id);
         }

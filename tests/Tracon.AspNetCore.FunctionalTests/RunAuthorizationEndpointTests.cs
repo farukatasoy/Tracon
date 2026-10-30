@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ApprovalEndpointTests.cs (K-269): the package's
+// Same rationale as ApprovalEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -12,7 +12,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 139 (F-185) over HTTP: an installation's own <see cref="IRunAuthorizationHandler"/>
+/// over HTTP: an installation's own <see cref="IRunAuthorizationHandler"/>
 /// gates run start and session access, across every surface that starts a run.
 /// </summary>
 /// <remarks>
@@ -506,7 +506,7 @@ public sealed class RunAuthorizationEndpointTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // "default" is SingleTenantContext's own default (K1), read through
+        // "default" is SingleTenantContext's own default, read through
         // ITenantContext at the moment the gate builds the request - not a
         // literal the gate itself invented.
         handler.RunRequests.ShouldHaveSingleItem().TenantId.ShouldBe("default");
@@ -623,7 +623,7 @@ public sealed class RunAuthorizationEndpointTests
         if (handler is not null)
         {
             // Registered BEFORE Tracon's own TryAdd, the way a consumer
-            // binding its own policy would (K4: the consumer's registration wins).
+            // binding its own policy would (the consumer's registration wins).
             services.Replace(ServiceDescriptor.Singleton<IRunAuthorizationHandler>(handler));
         }
     }

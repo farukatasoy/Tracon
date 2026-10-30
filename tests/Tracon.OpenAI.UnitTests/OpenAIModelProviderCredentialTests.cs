@@ -5,7 +5,7 @@ namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
 /// Verifies <see cref="OpenAIModelProvider"/>'s per-tenant credential handling
-/// (phase 65, BYOK). Measured: <c>OpenAIClient</c> is built once and shared,
+/// (BYOK). Measured: <c>OpenAIClient</c> is built once and shared,
 /// so a tenant credential must build (and cache) a SEPARATE client.
 /// </summary>
 public sealed class OpenAIModelProviderCredentialTests

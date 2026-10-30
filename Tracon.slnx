@@ -65,7 +65,7 @@
       bench/capacity/* is DELIBERATELY absent: the capacity host needs a packed
       feed no ordinary build has, and the acceptance suite needs a database.
       Only tests/Tracon.Capacity.Tests is discovered by the normal suite
-      (Phase 166); it reaches the driver by ProjectReference.
+; it reaches the driver by ProjectReference.
     -->
   </Folder>
 
@@ -78,15 +78,6 @@
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
     <File Path="README.md" />
-    <File Path="AGENTS.md" />
-    <File Path="MEMORY.md" />
-  </Folder>
-
-  <Folder Name="/docs/">
-    <File Path="docs/MIMARI.md" />
-    <File Path="docs/MAF-GENISLEME-NOKTALARI.md" />
-    <File Path="docs/KARARLAR-INDEKS.md" />
-    <File Path="docs/KARARLAR.md" />
   </Folder>
 
 </Solution>

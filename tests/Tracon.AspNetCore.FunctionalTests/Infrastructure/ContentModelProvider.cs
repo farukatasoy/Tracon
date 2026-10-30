@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// <summary>
 /// A model provider whose every turn returns the same scripted <see cref="AIContent"/> list: the one
 /// thing <c>Tracon.Testing.FakeModelProvider</c> (text and tool calls only) cannot script. Used to put
-/// hosted tool, error and data content through the real run recording pipeline (F-589).
+/// hosted tool, error and data content through the real run recording pipeline.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// as its own update, the way a provider adapter does.
 /// </para>
 /// <para>
-/// F-603: it states which hosted tools its surface runs (every kind unless a test narrows it) and keeps the
+/// It states which hosted tools its surface runs (every kind unless a test narrows it) and keeps the
 /// options of every call, so a test sees the tools that reached the model.
 /// </para>
 /// </remarks>

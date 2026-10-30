@@ -93,9 +93,9 @@ internal static class ConfigurationKeyGuard
             ? $"under '{allowedPrefix}{tenantId}:' or a flat name directly under '{allowedPrefix}'"
             : $"under '{allowedPrefix}{tenantId}:'";
 
-        // 🚨 F-291: the given name is never repeated. An operator who typed the
+        // The given name is never repeated. An operator who typed the
         // secret VALUE into this field would get it back in the response, and a
-        // delivery that checks this rule would store it (K-059).
+        // delivery that checks this rule would store it.
         throw new TraconException(
             $"'{fieldName}' names a configuration key outside the key space of tenant '{tenantId}'. " +
             $"It may only reference a configuration key {allowed}.");

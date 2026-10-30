@@ -6,7 +6,7 @@ namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
 /// A value of a named OpenAI compatible provider that cannot be read stops the host at startup,
-/// even when the host never calls <c>UseOpenAI()</c> (phase 247).
+/// even when the host never calls <c>UseOpenAI()</c>.
 /// </summary>
 /// <remarks>
 /// <para>

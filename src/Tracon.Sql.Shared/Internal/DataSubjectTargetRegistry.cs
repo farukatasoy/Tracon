@@ -236,7 +236,7 @@ internal static class DataSubjectTargetRegistry
                 $"tenant_id = @tenant_id AND {InSessions($"{voiceSessions}.session_id")}",
                 "*"),
 
-            // F-371 class sweep: a resolver that named only sessions reached their
+            // A resolver that named only sessions reached their
             // runs (and, by cascade, events and inputs) but not their scores — no
             // foreign key, so no cascade. The runs subquery is why this target is
             // erased BEFORE Runs.
@@ -246,10 +246,10 @@ internal static class DataSubjectTargetRegistry
                 $"WHERE tenant_id = @tenant_id AND {InSessions($"{runs}.session_id")}))",
                 "*"),
 
-            // F-371: no foreign key reaches this table, so nothing cascaded to it
+            // No foreign key reaches this table, so nothing cascaded to it
             // and export/erasure skipped it. The state is opaque Microsoft Agent
             // Framework data: export writes it as the stored JSON text, the same
-            // as sessions.state. A waiting run's checkpoints go too: K-888 is a
+            // as sessions.state. A waiting run's checkpoints go too: the checkpoint rule is a
             // retention rule, and erasure is a right that deletes the run row.
             WorkflowCheckpoints => (
                 workflowCheckpoints,
@@ -262,7 +262,7 @@ internal static class DataSubjectTargetRegistry
                 $"tenant_id = @tenant_id AND {InConversations($"{conversations}.id")}",
                 "*"),
 
-            // F-400: a promoted case is a copy of the subject's run input.
+            // A promoted case is a copy of the subject's run input.
             EvalCases => (
                 evalCases,
                 $"suite_id IN (SELECT id FROM {evalSuites} WHERE tenant_id = @tenant_id) " +
@@ -295,7 +295,7 @@ internal static class DataSubjectTargetRegistry
             // the session-linked branch is therefore scoped through an EXISTS
             // correlation against sessions, which DOES carry tenant_id — without it
             // a session id string that happens to collide across two tenants
-            // (sessions' key is (tenant_id, id), K-278) could touch another
+            // (sessions' key is (tenant_id, id)) could touch another
             // tenant's row.
             Responses => (
                 responses,

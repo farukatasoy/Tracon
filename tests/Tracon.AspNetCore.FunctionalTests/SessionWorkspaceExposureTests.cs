@@ -5,9 +5,9 @@ using Tracon.Tests.Common;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 234 (F-628): the check at the A2A and MCP surfaces. The file tools of a session workspace are not in the tool
+/// The check at the A2A and MCP surfaces. The file tools of a session workspace are not in the tool
 /// registry (the framework adds them when it builds the agent), so the check reads the definition's workspace settings,
-/// as it reads the skill settings (F-626).
+/// as it reads the skill settings.
 /// </summary>
 /// <remarks>
 /// The tools that change a file always ask for approval, and an external caller is not a person who can answer. Only a

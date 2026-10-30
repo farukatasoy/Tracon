@@ -7,9 +7,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The section is bound by hand (K-021, AOT): a key added to the options and not to
+/// The section is bound by hand (AOT): a key added to the options and not to
 /// the binder is silently ignored. <see cref="OptionsKeyCoverage"/> fails this test
-/// before such a key ships unbound (F-247).
+/// before such a key ships unbound.
 /// </para>
 /// <para>
 /// 🚨 This section is not bound by <c>AddTracon</c> but by

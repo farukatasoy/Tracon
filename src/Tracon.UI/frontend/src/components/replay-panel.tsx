@@ -11,7 +11,6 @@ const TOOL_MODES: ReplayToolMode[] = ['ReplayTools', 'NoTools', 'LiveTools'];
 
 /**
  * Replays a finished run with its recorded input under changed conditions
- * (F-54, phase 47).
  *
  * The panel hides itself when the run has no recorded input: a run started
  * while input recording was off — or whose input retention already removed —
@@ -137,7 +136,7 @@ export function ReplayPanel({
 
         {/*
           The server's 422/409/403 explanations are shown verbatim and are not
-          translated (K-232): they name a tool and its arguments, and a
+          translated: they name a tool and its arguments, and a
           translated copy would drift from the server's own wording.
         */}
         {replay.isError && <ErrorNote error={replay.error} onRetry={() => replay.mutate()} />}

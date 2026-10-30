@@ -6,11 +6,11 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Evaluation;
 
 /// <summary>
-/// A bridged evaluator's model calls are recorded like the built-in judge's (K-328):
+/// A bridged evaluator's model calls are recorded like the built-in judge's:
 /// one <c>judge:{name}</c> run of kind <see cref="RunKind.Eval"/> that carries their usage.
 /// </summary>
 /// <remarks>
-/// F-361: the evaluator called the judge model and nothing wrote the spend down, while
+/// The evaluator called the judge model and nothing wrote the spend down, while
 /// the documentation said its cost was added for every sampled run. The judge is built
 /// through the real registration (<c>AddEvaluatorJudge</c>), because the run store
 /// reaching it is a DI fact.

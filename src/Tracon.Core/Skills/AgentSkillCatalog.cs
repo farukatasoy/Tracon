@@ -199,7 +199,7 @@ internal sealed class AgentSkillCatalog
             }
             else if (diskSkills is not null && diskSkills.TryGetValue(name, out var contentHash))
             {
-                // F-481: a disk skill has no version; what the model is shown for it does.
+                // A disk skill has no version; what the model is shown for it does.
                 content.Append(":disk:").Append(contentHash);
             }
             else

@@ -5,7 +5,7 @@ namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
 /// The AG-UI group keeps a rate-limit counter of its own: a request on it does not spend the management API's window,
-/// and the other way round (Phase 263).
+/// and the other way round.
 /// </summary>
 /// <remarks>
 /// The two groups were always two separate limiters; the behaviour was not written down. Moving the count into the

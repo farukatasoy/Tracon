@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Behavior of the inbound trigger admin (CRUD) and unauthenticated accept
-/// endpoints (phase 66).
+/// endpoints.
 /// </summary>
 public sealed class TriggerEndpointTests
 {
@@ -112,7 +112,7 @@ public sealed class TriggerEndpointTests
     [Fact]
     public async Task Save_writes_an_audit_trail_entry_before_the_definition_is_readable()
     {
-        // K-089: this is a functional assertion, not just "no exception" —
+        // This is a functional assertion, not just "no exception" —
         // the entry must actually be there.
         await using var host = await TraconTestHost.StartAsync();
 
@@ -174,7 +174,7 @@ public sealed class TriggerEndpointTests
     }
 
     /// <summary>
-    /// F-432 class: an agent target opens the run's placeholder row before the job.
+    /// An agent target opens the run's placeholder row before the job.
     /// A queue that refuses the job closes the row; a retry opens a new run id, so
     /// a row left <c>Queued</c> would never be picked up.
     /// </summary>
@@ -365,7 +365,7 @@ public sealed class TriggerEndpointTests
     [Fact]
     public async Task A_full_quota_rejects_the_trigger_with_429_and_does_not_bypass_it()
     {
-        // K-394's precedent: a trigger has no bearer token, but it must go
+        // the precedent: a trigger has no bearer token, but it must go
         // through the SAME QuotaGate every other run-starting endpoint uses.
         await using var host = await StartWithSecretAsync();
         await SaveTriggerAsync(host, targetName: "support");

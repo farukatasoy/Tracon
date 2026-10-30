@@ -123,13 +123,13 @@ internal static class RetentionTargetRegistry
         string Table(string name) => dialect.QualifyTable(name);
 
         // 🚨 A workflow run waiting for a human keeps what answering it needs
-        // (F-327, K-128, K-130): its pending request lives ONLY in its
+        // Its pending request lives ONLY in its
         // WorkflowRequest event, and the answer resumes from its checkpoints.
         // Both were deleted by age like any other row — the run has a
         // completed_at once it pauses — and the request became permanently
         // unanswerable. An answered request leaves its run AwaitingInput too
-        // (a second answer opens a new branch, K-130), so these rows are kept
-        // for as long as the run waits. The way out is the run's RequestTimeout (phase 209): when
+        // (a second answer opens a new branch), so these rows are kept
+        // for as long as the run waits. The way out is the run's RequestTimeout: when
         // it passes, the run is closed, no longer AwaitingInput, and the next round deletes
         // these rows by age like any other.
         var awaitingInput = (int)RunStatus.AwaitingInput;
@@ -193,16 +193,16 @@ internal static class RetentionTargetRegistry
             // the archive ordering (OrderColumn), but the MaxRows threshold must be
             // THE SAME as the column the WherePredicate REALLY compares
             // (er.completed_at) — RowLimitOrderExpression is therefore a standalone
-            // correlated subquery. Open Question 2 (phase 36 plan) was resolved this
+            // correlated subquery. was resolved this
             // way: id is NOT a timestamp and cannot be a threshold directly.
             //
             // 🚨 The correlation is written against the FULLY QUALIFIED name
             // (Table(...)), NOT against the BARE target name: on SQLite QualifyTable
-            // CONCATENATES the prefix and the name (no dot, K-193) — a bare
+            // CONCATENATES the prefix and the name (no dot) — a bare
             // "eval_case_results" does NOT MATCH the real object in the FROM clause
             // (for example "t_ab12cd34eval_case_results") and blows up at run time
-            // with "no such column". In phase 36 the MaxRows tests CAUGHT this trap
-            // while running against SQLite; the original WherePredicate of phase 25
+            // with "no such column". The MaxRows tests CAUGHT this trap
+            // while running against SQLite; the original WherePredicate
             // carried the SAME defect and was fixed here at the same time.
             RetentionTargets.EvalCaseResults => new RetentionTargetDefinition(
                 Table("eval_case_results"),
@@ -251,10 +251,10 @@ internal static class RetentionTargetRegistry
             // has no owner in the SAME tenant. An owner is a sessions row, or a
             // workflow run with that session id that can still use the attachment:
             // it waits for a human, it has not finished, or it finished after the
-            // cutoff. A workflow's session id never gets a sessions row (F-332):
+            // cutoff. A workflow's session id never gets a sessions row:
             // without the run branch, an image an agent step made was deleted after
             // seven days while the run waited in AwaitingInput. The tenant is in
-            // both lookups because the session key is (tenant_id, id) (K-278): a
+            // both lookups because the session key is (tenant_id, id): a
             // session id another tenant uses owns nothing here.
             //
             // The correlation is the FULLY QUALIFIED name here as well — the 🚨
@@ -318,7 +318,7 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 IdKey),
 
-            // Stored idempotency responses (phase 43). The basis is their own
+            // Stored idempotency responses. The basis is their own
             // creation time; because there is no FK to runs no EXISTS is needed.
             RetentionTargets.IdempotencyKeys => new RetentionTargetDefinition(
                 Table("idempotency_keys"),
@@ -329,11 +329,11 @@ internal static class RetentionTargetRegistry
                 IdempotencyKey,
                 TenantInKey: true),
 
-            // Run inputs (phase 47). They carry their own tenant_id and created_at
+            // Run inputs. They carry their own tenant_id and created_at
             // columns; because their FK to runs is CASCADE they already go when the
             // run is deleted, but their own lifetime must also be limitable.
             //
-            // 🚨 A run AwaitingInput keeps its row (F-294, K-888): the parameter
+            // 🚨 A run AwaitingInput keeps its row: the parameter
             // values it was started with live ONLY here, and answering the request
             // resumes the workflow with them. Deleted by age, the row left a run
             // whose answer is refused (the resume cannot tell "values deleted"
@@ -350,7 +350,7 @@ internal static class RetentionTargetRegistry
                     + "THEN NULL ELSE created_at END",
                 RunInputKey),
 
-            // The inbox rows of workflow requests (phase 209). A row is OPEN while its run waits for
+            // The inbox rows of workflow requests. A row is OPEN while its run waits for
             // an answer and is the request's entry in the inbox, so it is never old; it is CLOSED when
             // the request expired, and then only its age counts. The row carries a session id, a
             // request id and a workflow name: no prompt and no answer.
@@ -362,10 +362,10 @@ internal static class RetentionTargetRegistry
                 $"CASE WHEN status = {workflowRequestClosed} THEN closed_at ELSE NULL END",
                 WorkflowRequestKey),
 
-            // Knowledge base chunks (phase 51). 🚨 The table exists ONLY in the
+            // Knowledge base chunks. 🚨 The table exists ONLY in the
             // PostgreSQL migration set; binding this target to a policy on SQL
             // Server/SQLite gives a "table does not exist" error at run time — that
-            // is deliberate (see Phase 51, 51.3).
+            // is deliberate (51.3).
             RetentionTargets.DocumentEmbeddings => new RetentionTargetDefinition(
                 Table("document_embeddings"),
                 "created_at < @cutoff",

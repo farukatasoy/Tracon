@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// The run recorder's close step for the tool calls the tool chain recorded (F-689), measured through the real
+/// The run recorder's close step for the tool calls the tool chain recorded, measured through the real
 /// pipeline the compiler assembles: a run that does not stream and fails after a tool turn keeps its calls, in the
 /// order they ran, whatever the clock and the store do while it closes.
 /// </summary>

@@ -10,7 +10,7 @@ never touched:
    (TraconEndpointRouteBuilderExtensions.cs), so a client generated
    straight from the document would 404 against any consumer that calls
    MapTracon with a custom prefix. TraconClientOptions.BaseAddress
-   carries the prefix instead (Phase 83, section 83.3).
+   carries the prefix instead.
 
 2. Close every object schema (`additionalProperties: false`) that does not
    already say otherwise. Every schema here is generated from a concrete C#
@@ -24,7 +24,7 @@ never touched:
    collides with it: CS0102, "type already contains a definition for
    AdditionalProperties". Closing the schemas removes the synthesized
    property everywhere, which is also the more correct contract for DTOs that
-   have no legitimate use for a client-side catch-all (section 83.6).
+   have no legitimate use for a client-side catch-all.
 
 3. Copy a nullable reference's description up to the property that holds it. The
    OpenAPI generator writes a nullable object property as
@@ -32,7 +32,7 @@ never touched:
    description INSIDE the second branch, and NSwag reads a property's
    documentation only from the property itself - so every such property reached the
    client with no XML documentation at all (41 of them when this transform was
-   added, plus the function-settings members of phase 195). The text is not new,
+   added, plus the function-settings members added later). The text is not new,
    only moved.
 
 Usage: nswag-prepare-document.py <input.json> <output.json> [prefix]

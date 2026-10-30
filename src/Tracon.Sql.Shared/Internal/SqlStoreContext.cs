@@ -326,15 +326,15 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
                 return await attempt().ConfigureAwait(false);
             }
 
-            // 🚨 F-430: an upsert transaction holds a range lock until its commit
-            // (F-313), so two of them can wait on each other and the server kills one.
+            // An upsert transaction holds a range lock until its commit
+            // So two of them can wait on each other and the server kills one.
             // Measured: RunScoreStoreContract's concurrent-write case failed once in a
             // full run with SqlException 1205 and passed alone. The retry wraps the
             // WHOLE attempt because that is the boundary that is safe to repeat: the
             // victim's transaction was rolled back, so nothing of it landed, and the
             // next attempt opens a new connection and a new transaction. A retry of one
             // statement inside it, or of a store call above it, would be neither. The
-            // random pause keeps two victims from meeting again at once (K-540).
+            // random pause keeps two victims from meeting again at once.
             catch (Exception exception) when (number < DeadlockAttempts && Dialect.IsDeadlock(exception))
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40) * number), cancellationToken)

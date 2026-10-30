@@ -6,7 +6,7 @@ using static Tracon.AspNetCore.FunctionalTests.OutputTruncationTests;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-773 (phase 267): the citations of an OpenAI Responses answer reach the run record through the real SDK
+/// The citations of an OpenAI Responses answer reach the run record through the real SDK
 /// adapter against a local Responses API, on the buffered and the streamed path alike.
 /// </summary>
 /// <remarks>

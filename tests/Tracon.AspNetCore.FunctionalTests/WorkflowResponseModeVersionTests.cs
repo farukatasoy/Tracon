@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A stored workflow's response mode is read from the definition version the waiting run
-/// recorded (phase 208, K-988's rule for the graph applied to the decision rule).
+/// recorded (the rule for the graph applied to the decision rule).
 /// </summary>
 /// <remarks>
 /// A stored definition asks for human input through a manager agent's plan approval

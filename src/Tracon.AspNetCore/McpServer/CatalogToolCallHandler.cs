@@ -54,7 +54,7 @@ internal static class CatalogToolCallHandler
             : null;
 
         // 🚨 A tools/call starts a run in this process; it is refused while the
-        // process drains, before anything else (F-431). The refusal is the same
+        // process drains, before anything else. The refusal is the same
         // legible error result every other refusal here is.
         if (services.GetRequiredService<ITraconDrainState>().IsDraining)
         {
@@ -85,7 +85,7 @@ internal static class CatalogToolCallHandler
             return Error($"There is no agent named '{agentName}' in the catalog.");
         }
 
-        // F-330: an MCP tool call carries only a message, no parameter values.
+        // An MCP tool call carries only a message, no parameter values.
         if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
         {
             return Error(unbound.Failure().Message);
@@ -94,7 +94,7 @@ internal static class CatalogToolCallHandler
         var runOptions = new TraconRunOptions
         {
             // Reuses the id Tracon's task-provisioning filter already
-            // minted for this call (Phase 117) when one is flowing — task
+            // minted for this call when one is flowing — task
             // mode needs the run id fixed BEFORE this handler runs, since
             // RunBackedMcpTaskStore already promised it as the MCP task id.
             // Falls back to a fresh id so this handler still works when
@@ -131,10 +131,10 @@ internal static class CatalogToolCallHandler
         // prevents exposing an agent carrying a tool that requires approval,
         // but the definition can be updated AFTERWARD to add an approval-
         // requiring tool (dynamic catalog). This is the runtime enforcement of
-        // the same K-103 boundary.
+        // the same boundary.
         if (ChildRunApproval.Describe(response.Messages) is { } pending)
         {
-            // F-448: the run closed AwaitingApproval, and nobody can answer it; it is
+            // The run closed AwaitingApproval, and nobody can answer it; it is
             // closed as Failed so it does not wait forever. A task poller on another
             // instance still sees the refusal below (McpTaskStatusMapping).
             await SessionlessApprovalRun.CloseAsFailedAsync(

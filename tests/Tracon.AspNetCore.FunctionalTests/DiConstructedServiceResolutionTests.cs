@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The service types whose constructors became internal (phase 188) still
+/// The service types whose constructors became internal still
 /// resolve from the container a real host builds.
 /// </summary>
 /// <remarks>

@@ -6,7 +6,7 @@ namespace Tracon.Api;
 
 /// <summary>
 /// An agent extension with a chat client ring: it writes one log line for every model call of
-/// the agents that select it (Phase 232, F-594).
+/// the agents that select it.
 /// </summary>
 /// <remarks>
 /// <para>

@@ -7,13 +7,13 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// The settings of the request limit (phase 209): how long a request may be given, how often the
+/// The settings of the request limit: how long a request may be given, how often the
 /// expiry looks, and the names the new list route takes.
 /// </summary>
 /// <remarks>
 /// The expiry scan runs on a <see cref="PeriodicTimer"/>, which refuses a period outside one
 /// millisecond to about 49.7 days from inside a hosted service, where the default host turns it
-/// into a stopped host after "Application started" (F-278). The interval is therefore checked at
+/// into a stopped host after "Application started". The interval is therefore checked at
 /// startup like every other background interval.
 /// </remarks>
 public sealed class WorkflowRequestTimeoutValidationTests

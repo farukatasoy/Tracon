@@ -6,14 +6,14 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// Phase 137 §137.3 — the worker resolves its handler from a FRESH scope for
+/// An earlier change §137.3 — the worker resolves its handler from a FRESH scope for
 /// every execution.
 /// </summary>
 /// <remarks>
 /// 🚨 The handler is registered by TYPE here, never as an instance. A test that
 /// hands the container a ready-made handler cannot observe a per-execution
 /// instance at all — it would stay green with the handler resolved once from
-/// the root provider, which is exactly the behavior this phase replaced.
+/// the root provider, which is exactly the behavior this change replaced.
 /// </remarks>
 public sealed class JobHandlerScopeTests
 {
@@ -75,7 +75,7 @@ public sealed class JobHandlerScopeTests
     public async Task A_handler_whose_dependency_is_missing_fails_the_job_instead_of_re_leasing_forever()
     {
         // No ScopedMarker registration: the container cannot construct the
-        // handler. Before Phase 137 this broke the host at startup (the
+        // handler. Before that change, this broke the host at startup (the
         // handlers were resolved eagerly); now it has to be caught per
         // execution, or the job never reaches a terminal status.
         using var host = TestJobHandlerHost.With(
@@ -89,7 +89,7 @@ public sealed class JobHandlerScopeTests
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
-        // Phase 184: this loop gave up after 100 x 20 ms - a two-second claim
+        // This loop gave up after 100 x 20 ms - a two-second claim
         // about the machine.
         var record = await WaitUntil.ValueAsync(
             () => jobs.GetAsync("tenant-a", jobId, TestContext.Current.CancellationToken).AsTask(),

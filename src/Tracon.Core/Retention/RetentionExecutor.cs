@@ -126,7 +126,7 @@ internal sealed class RetentionExecutor(
 
         if (policy.Archive && archiveSink is null)
         {
-            // 🚨 Data that cannot be archived is not discarded (phase 25 decision).
+            // 🚨 Data that cannot be archived is not discarded.
             // The run completes successfully, but no row is deleted.
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -149,7 +149,7 @@ internal sealed class RetentionExecutor(
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                // 🚨 F-372: archive mode deletes ONLY the rows the sink received.
+                // Archive mode deletes ONLY the rows the sink received.
                 // A separate read and an unordered batch delete chose different
                 // rows, and rows that were never archived were deleted.
                 var deleted = policy.Archive

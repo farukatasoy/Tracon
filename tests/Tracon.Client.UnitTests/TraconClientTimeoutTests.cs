@@ -8,14 +8,14 @@ namespace Tracon.Client.UnitTests;
 
 /// <summary>
 /// The request budget the registered <see cref="HttpClient"/> actually
-/// enforces (Phase 166).
+/// enforces.
 /// </summary>
 /// <remarks>
 /// 🚨 A caller that wraps a client call in its own
 /// <c>CancellationTokenSource.CancelAfter(budget)</c> only gets that budget if
 /// the transport underneath does not cap it first. <see cref="HttpClient"/>
 /// defaults to 100 seconds and reports its own cap as an
-/// <see cref="OperationCanceledException"/> with nothing cancelled (K-737), so
+/// <see cref="OperationCanceledException"/> with nothing cancelled, so
 /// a longer caller budget silently could not be reached and the caller then
 /// named a limit that never elapsed.
 /// </remarks>
@@ -51,7 +51,7 @@ public sealed class TraconClientTimeoutTests
     }
 
     /// <summary>
-    /// F-280: <c>HttpClient.Timeout</c> refuses more than <see cref="int.MaxValue"/>
+    /// <c>HttpClient.Timeout</c> refuses more than <see cref="int.MaxValue"/>
     /// milliseconds; the registration accepted any positive value and the first client
     /// threw when it was built.
     /// </summary>

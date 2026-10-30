@@ -102,7 +102,7 @@ internal sealed class RunCostRecalculationService
                 }
 
                 // The identities came from a query already FILTERED by tenant; we
-                // carry the same tenant into the write as well (K-355). On this
+                // carry the same tenant into the write as well. On this
                 // two-step path, a record cannot switch to a different tenant in between.
                 await _store.UpdateRunCostAsync(run.Id, cost, run.TenantId, cancellationToken)
                     .ConfigureAwait(false);

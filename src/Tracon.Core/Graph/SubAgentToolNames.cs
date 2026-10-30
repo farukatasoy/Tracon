@@ -40,7 +40,7 @@ internal static class SubAgentToolNames
 
     // The framework's public names for the file memory tools (FileMemoryProvider). Tracon builds that
     // provider when the definition turns file memory on.
-#pragma warning disable MAAI001 // FileMemoryProvider is "evaluation purposes only"; the same rationale as K-020.
+#pragma warning disable MAAI001 // FileMemoryProvider is "evaluation purposes only"; the same rationale.
     internal static readonly string[] FileMemoryToolNames =
     [
         FileMemoryProvider.WriteToolName,

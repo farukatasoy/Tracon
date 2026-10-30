@@ -4,11 +4,11 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// Phase 137 — the SQL Server twin of the PostgreSQL mapping test.
+/// The SQL Server twin of the PostgreSQL mapping test.
 /// </summary>
 /// <remarks>
 /// 🚨 SQL Server compiles a batch UP FRONT, so every statement that names the
-/// column the same file just added has to go through <c>EXEC</c> (the K-475
+/// column the same file just added has to go through <c>EXEC</c> (the that decision
 /// class). A mistake there fails at run time only, against a real server —
 /// which is what this test provides.
 /// </remarks>

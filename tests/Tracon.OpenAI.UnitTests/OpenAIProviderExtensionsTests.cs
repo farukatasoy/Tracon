@@ -12,7 +12,7 @@ namespace Tracon.OpenAI.UnitTests;
 /// <remarks>
 /// <c>UsePostgreSql()</c> uses <c>Replace</c> because it takes the place of existing
 /// stores; this call <em>adds</em> a new provider, so <c>AddModelProvider</c> is enough.
-/// Reason: <c>docs/KARARLAR.md</c>, decision K-025.
+/// Reason: <c>.md</c>, the earlier decision.
 /// </remarks>
 public sealed class OpenAIProviderExtensionsTests
 {
@@ -101,7 +101,7 @@ public sealed class OpenAIProviderExtensionsTests
     [Fact]
     public void Catalog_is_empty_by_default()
     {
-        // Tracon carries no built-in model list; decision K-032.
+        // Tracon carries no built-in model list; the earlier decision.
         using var provider = BuildProvider();
 
         var descriptors = provider.GetRequiredService<IModelProviderRegistry>().List();
@@ -209,7 +209,7 @@ public sealed class OpenAIProviderExtensionsTests
     [Fact]
     public void Relative_address_from_configuration_is_rejected()
     {
-        // HATA-S3-001: Bind() used to never assign Endpoint at all when
+        // Bind() used to never assign Endpoint at all when
         // Uri.TryCreate(..., UriKind.Absolute, ...) failed; the value was silently
         // dropped before it ever reached the validator.
         var configuration = new ConfigurationBuilder()
@@ -233,7 +233,7 @@ public sealed class OpenAIProviderExtensionsTests
     [Fact]
     public void Nameless_model_from_configuration_is_rejected()
     {
-        // HATA-S3-002: BindModels() used to never add an item with an empty Name to the
+        // BindModels() used to never add an item with an empty Name to the
         // list at all; the validator never saw an item with an empty name.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)

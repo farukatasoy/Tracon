@@ -12,9 +12,9 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// one, in the same order, BEFORE its <c>202</c>; a refusal leaves no job and no row.
 /// </summary>
 /// <remarks>
-/// The worker does not see the request (K-894): a gate skipped at queue time is never
+/// The worker does not see the request: a gate skipped at queue time is never
 /// asked. The order is attribution, authorization, session ownership, quota (a run
-/// only, K-394), then parameters; a refusal at one gate must not consume the next.
+/// only), then parameters; a refusal at one gate must not consume the next.
 /// </remarks>
 public sealed class WorkflowAsyncRunGateTests
 {

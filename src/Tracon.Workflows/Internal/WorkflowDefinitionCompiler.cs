@@ -70,7 +70,7 @@ internal sealed class WorkflowDefinitionCompiler
         // in two places would let them drift apart.
         WorkflowDefinitionValidator.Require(definition);
 
-        // A definition that mixes agent and function nodes (phase 71) takes a
+        // A definition that mixes agent and function nodes takes a
         // SEPARATE path: it is always Sequential (the validator enforces
         // this) and its graph is hand-built with WorkflowBuilder instead of
         // AgentWorkflowBuilder, which accepts only agents.
@@ -80,7 +80,7 @@ internal sealed class WorkflowDefinitionCompiler
         }
 
         // Every pattern hosts its participants with the framework's host executor, which turns a tool approval into a
-        // workflow request; each was measured to do so (Sequential, Concurrent, Handoff, GroupChat in phase 230,
+        // workflow request; each was measured to do so (Sequential, Concurrent, Handoff, GroupChat,
         // Magentic on 2026-10-21, MAF-KAPSAMA #49). A wrapper must pass a request on only where a host raises it:
         // otherwise the step waits for an answer nobody can give. The Magentic manager is not a participant and
         // keeps refusing (BuildMagenticAsync).
@@ -157,7 +157,7 @@ internal sealed class WorkflowDefinitionCompiler
         WorkflowDefinition definition,
         CancellationToken cancellationToken)
     {
-        // F-341: the save checked the type chain too, but a function's types can
+        // The save checked the type chain too, but a function's types can
         // change between deployments, and a definition can predate the check.
         // A chain that does not fit would run "Completed" with no output
         // (Microsoft Agent Framework drops a message no handler takes), so it
@@ -169,7 +169,7 @@ internal sealed class WorkflowDefinitionCompiler
                 "the workflow was saved, save the workflow again with a chain that fits.");
         }
 
-        // Phase 200: a pinned step names a version of an agent. The save checked that the agent
+        // A pinned step names a version of an agent. The save checked that the agent
         // has it, but the agent can be deleted afterwards (and a code agent keeps no history),
         // so a pin that cannot hold fails here, before the first node runs, naming the step -
         // not halfway down the chain, after the earlier steps spent their tokens.
@@ -194,7 +194,7 @@ internal sealed class WorkflowDefinitionCompiler
                 continue;
             }
 
-            // F-405: the node's timeout replaces ChildDeadline for this step. It is
+            // The node's timeout replaces ChildDeadline for this step. It is
             // NOT part of the executor id: the wrapper is cached per timeout, and every
             // instance gets the id of the (workflow, agent) pair.
             var agent = await BindOneAsync(
@@ -218,7 +218,7 @@ internal sealed class WorkflowDefinitionCompiler
             builder = builder.WithDescription(description);
         }
 
-        // Phase 266. The telemetry context is fixed when the graph is built, so it is attached here, before Build.
+        // The telemetry context is fixed when the graph is built, so it is attached here, before Build.
         // Message sends and edge groups are off: they are the bulk of a workflow's spans and a run keeps at most
         // Tracon:Observability:MaxSpansPerRun of them, shared with the chat spans a reader debugs a run by.
         // EnableSensitiveData stays the framework's default (off); the trace store filter is a second line.
@@ -274,14 +274,14 @@ internal sealed class WorkflowDefinitionCompiler
 
         if (definition.Handoffs.Count == 0)
         {
-            // No edge list: the star every Handoff definition had before phase 270. The first agent may hand
+            // No edge list: the star every Handoff definition had. The first agent may hand
             // off to ALL of the others and none of them hands off. Not the framework's own default, which
             // connects every agent to every other one when it is given no edge at all.
             builder = builder.WithHandoffs(participants[0], participants.Skip(1));
         }
         else
         {
-            // Phase 270: the edges are the definition's. The validator already refused a name that is not a
+            // The edges are the definition's. The validator already refused a name that is not a
             // participant, a pair twice (the framework throws for it, here, in a run) and an agent that
             // cannot be reached; a participant is looked up by name, the key the edges use.
             var byName = participants.ToDictionary(static participant => participant.Name!, StringComparer.Ordinal);
@@ -302,7 +302,7 @@ internal sealed class WorkflowDefinitionCompiler
             builder = builder.WithHandoffInstructions(instructions);
         }
 
-        // In phase 15 no human intervenes; the handoff chain advances on its
+        // In no human intervenes; the handoff chain advances on its
         // own. Without a turn limit, MAF would stop after the first handoff
         // and the user would see the workflow as "stuck halfway".
         builder = builder.WithAutonomousMode(definition.MaxIterations ?? DefaultAutonomousTurns);
@@ -346,7 +346,7 @@ internal sealed class WorkflowDefinitionCompiler
 
             // While plan approval is on, MAF publishes a RequestInfoEvent at the
             // end of the first super-step and execution stays in the
-            // PendingRequests state (measured in phase 15). Phase 16 satisfies
+            // PendingRequests state. satisfies
             // this request: the run closes as AwaitingInput, its state is
             // written to a checkpoint, and the /respond endpoint resumes it
             // from there. The default remains OFF - a run does not wait for a
@@ -358,7 +358,7 @@ internal sealed class WorkflowDefinitionCompiler
             builder = builder.WithMaxRounds(rounds);
         }
 
-        // Phase 270. Left alone when the definition sets nothing, so the framework's own values (3 stalls, no
+        // Left alone when the definition sets nothing, so the framework's own values (3 stalls, no
         // reset limit) hold for every definition saved before the fields existed.
         if (definition.MaxStalls is { } stalls)
         {

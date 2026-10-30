@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <c>TraconPolicies</c> is in <c>Tracon.AspNetCore</c>;
 /// <c>TraconSessionOwnershipOptions</c> is in
 /// <c>Tracon.Abstractions</c>, because <c>Tracon.Core</c> has to read
-/// its other two members and cannot reference the endpoint package (K-006).
+/// its other two members and cannot reference the endpoint package.
 /// So the default is written as a LITERAL, and the compiler cannot notice when
 /// one side is renamed.
 /// </para>

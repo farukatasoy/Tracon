@@ -5,7 +5,7 @@ import { renderScreen, screen, waitFor } from '../test/render';
 import { AuditScreen } from './audit';
 
 /**
- * The "Verify chain" panel (phase 260). The walk runs when the operator asks for it, and the panel shows the
+ * The "Verify chain" panel. The walk runs when the operator asks for it, and the panel shows the
  * four answers the endpoint can give, the number of entries that carry no signing key, and where the walk stopped.
  */
 describe('AuditScreen chain verification', () => {

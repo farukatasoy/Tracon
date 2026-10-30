@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 156: the read-only state preflight.
+/// The read-only state preflight.
 /// </summary>
 /// <remarks>
 /// <see cref="A_session_written_by_a_fully_wired_agent_decodes_through_the_bare_probe"/>

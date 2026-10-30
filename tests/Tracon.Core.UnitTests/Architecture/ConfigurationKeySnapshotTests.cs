@@ -8,7 +8,7 @@ using Tracon.Core.UnitTests.Configuration;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Pins the configuration keys Tracon reads to <c>docs/sozlesme/yapilandirma.txt</c> (Phase 238, section 238.2).
+/// Pins the configuration keys Tracon reads to <c>docs/sozlesme/yapilandirma.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,7 +16,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// removing or renaming one is a breaking change in 1.x, and so is changing what a key means. A new key is not.
 /// </para>
 /// <para>
-/// Where the keys come from. The options types are bound by hand (K-021, no reflection in the library), so
+/// Where the keys come from. The options types are bound by hand (no reflection in the library), so
 /// there is no schema to read. The public surface of every tracked package is: a <c>PublicAPI.*.txt</c> file
 /// lists every option type with its properties and their types. The tree is walked from every type that names a
 /// section (<c>const SectionName</c>) and from the two sections whose options type does not
@@ -42,7 +42,7 @@ public sealed class ConfigurationKeySnapshotTests
 
     /// <summary>
     /// Keys a consumer writes that are read straight from <c>IConfiguration</c> and bound to no options type, so the
-    /// public API text cannot list them. The audit chain key VALUES are the case: they are a <c>secret</c> (K-059) and
+    /// public API text cannot list them. The audit chain key VALUES are the case: they are a <c>secret</c> and
     /// are not bound to an options object, so nothing that prints an options object can print one.
     /// </summary>
     private static readonly string[] ReadWithoutAnOptionsType =

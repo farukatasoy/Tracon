@@ -11,7 +11,7 @@ namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>
 /// Behaviour 2: <c>Tracon:RateLimit:Scope = Deployment</c> counts requests in the database both nodes share, so a limit
-/// holds across nodes (F-92).
+/// holds across nodes.
 /// </summary>
 /// <remarks>
 /// A frozen clock keeps every request of a test inside one fixed window: the windows are cut from the Unix epoch, and a

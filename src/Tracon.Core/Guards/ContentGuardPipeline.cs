@@ -243,7 +243,7 @@ internal sealed class ContentGuardPipeline
             {
                 case ContentGuardAction.Block:
                     // The blocked text is deliberately not recorded (in the
-                    // spirit of K-059, same rationale as InspectAsync's
+                    // spirit of the secrets rule, same rationale as InspectAsync's
                     // exception message).
                     return "[content_blocked]";
 

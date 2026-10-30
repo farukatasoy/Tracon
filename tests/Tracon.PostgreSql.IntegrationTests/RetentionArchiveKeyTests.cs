@@ -3,7 +3,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// 🚨 F-372: the archive mode of retention deletes by each target's key
+/// The archive mode of retention deletes by each target's key
 /// (<c>RetentionTargetDefinition.KeyColumns</c>), not by a second batch.
 /// </summary>
 /// <remarks>

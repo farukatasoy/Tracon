@@ -4,7 +4,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// K-032: the model catalog comes from configuration, never a list built into
+/// The model catalog comes from configuration, never a list built into
 /// the code. <c>dotnet new tracon-api --model &lt;name&gt;</c> writes the name to
 /// <c>appsettings.json</c> as the provider's default model, and the generated
 /// <c>Program.cs</c> carries no model name at all.

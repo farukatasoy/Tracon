@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// F-603 — the response cache keys a hosted tool by what it puts on the wire, not by its name.
+/// The response cache keys a hosted tool by what it puts on the wire, not by its name.
 /// </summary>
 /// <remarks>
 /// Every file search tool is named <c>file_search</c>, whatever it searches. Keyed by name, two agents of one tenant with the

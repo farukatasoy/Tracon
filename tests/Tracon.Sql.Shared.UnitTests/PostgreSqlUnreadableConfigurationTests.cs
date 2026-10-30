@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The <c>Tracon:PostgreSql</c> binder refuses text it cannot read (F-572). The cases live in
+/// The <c>Tracon:PostgreSql</c> binder refuses text it cannot read. The cases live in
 /// <see cref="SqlUnreadableConfigurationTests{TOptions}"/>.
 /// </summary>
 public sealed class PostgreSqlUnreadableConfigurationTests : SqlUnreadableConfigurationTests<TraconPostgreSqlOptions>

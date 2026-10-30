@@ -9,7 +9,7 @@ namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>tracon eval</c> against a real, listening Tracon host
-/// (Phase 115): triggers a suite through
+///Triggers a suite through
 /// <c>Tracon.Client</c>, polls it to completion through the background job
 /// worker, and applies the CLI's own threshold gate.
 /// </summary>
@@ -163,7 +163,7 @@ public sealed class EvalCommandTests
         // COMPLETED run can therefore never come back through the normal
         // trigger path today. This is exit 2 ("could not run"), not 3 ("ran
         // but missed the gate"): the run never started. PassesThreshold's
-        // Total==0 guard (115.3, open question 3) stays as defense for any
+        // Total==0 guard (115.3) stays as defense for any
         // EvalRunDetailResponse a future server version might still produce
         // with Total==0, but this test documents the path actually reachable now.
         await using var host = await StartHostAsync();
@@ -329,7 +329,7 @@ public sealed class EvalCommandTests
     }
 
     /// <summary>
-    /// F-280: <c>--timeout</c> arms <c>CancelAfter</c> and <c>--poll-interval</c> a
+    /// <c>--timeout</c> arms <c>CancelAfter</c> and <c>--poll-interval</c> a
     /// <c>Task.Delay</c>; past about 49.7 days both threw (and a large enough number
     /// overflowed <c>TimeSpan</c>) instead of being refused as a usage error.
     /// </summary>

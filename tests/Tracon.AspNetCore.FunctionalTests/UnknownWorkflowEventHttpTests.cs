@@ -9,7 +9,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-589 (phase 223) — a <c>WorkflowEvent</c> of the consumer's own, raised by a function node, is in
+/// A <c>WorkflowEvent</c> of the consumer's own, raised by a function node, is in
 /// the run record that <c>GET /api/runs/{id}/events</c> serves, through a real DI-built host. The
 /// runner's own behavior is covered in <c>Tracon.Workflows.UnitTests</c>; the options binding and the
 /// HTTP read model are only real here.

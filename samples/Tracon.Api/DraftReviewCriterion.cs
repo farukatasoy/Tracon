@@ -12,7 +12,7 @@ namespace Tracon.Api;
 
 /// <summary>
 /// A loop stop criterion created from the application's services: a reviewer
-/// agent from the catalog approves the draft (Phase 201, F-301).
+/// agent from the catalog approves the draft.
 /// </summary>
 /// <remarks>
 /// <para>

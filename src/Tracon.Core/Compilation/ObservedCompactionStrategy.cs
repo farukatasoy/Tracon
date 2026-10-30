@@ -25,7 +25,6 @@ namespace Tracon;
 // MAAI001: Microsoft.Agents.AI.Compaction.* is marked "evaluation purposes only".
 // The suppression covers the class body because the complete file uses this API.
 // If MAF changes the API, only this file needs updating. Rationale:
-// docs/KARARLAR.md (the same pattern as K-020).
 #pragma warning disable MAAI001
 internal sealed class ObservedCompactionStrategy : CompactionStrategy
 {

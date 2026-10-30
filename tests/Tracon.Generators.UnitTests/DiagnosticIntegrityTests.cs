@@ -146,7 +146,7 @@ public sealed class DiagnosticIntegrityTests
     /// A <see cref="DiagnosticDescriptor"/> defined in <see cref="ToolDiagnostics"/> but
     /// never added to <see cref="ToolRegistrationGenerator"/>'s private dispatch table is
     /// silently DROPPED - <c>ReportDiagnostic</c> returns without reporting for an unknown
-    /// id. Measured while adding TRC0009 (phase 125): the diagnostic compiled, its message
+    /// id. Measured while adding TRC0009: the diagnostic compiled, its message
     /// was correct, and it never appeared in any build output - only a test that checked
     /// FOR the diagnostic caught it. This closes the defect class instead of one instance.
     /// </summary>
@@ -222,7 +222,7 @@ public sealed class DiagnosticIntegrityTests
     /// <summary>
     /// A coding agent's first sight of a <c>TRC</c> code is the build log, and
     /// the only page that explains all of them is <c>guides/build-diagnostics.md</c>
-    /// (it moved out of <c>troubleshooting.md</c> in F-282 to free the weight
+    /// (it moved out of <c>troubleshooting.md</c> in an earlier fix to free the weight
     /// ceiling). A code missing from it has no explanation anywhere a consumer
     /// would look.
     /// </summary>
@@ -282,7 +282,7 @@ public sealed class DiagnosticIntegrityTests
     /// package's own <c>NoWarn</c> switch, or a consumer who sets
     /// <c>TraconUsageDiagnostics=false</c> still sees the new diagnostic -
     /// the one property the build target documents stops covering the whole
-    /// family it claims to (phase 93).
+    /// family it claims to.
     /// </summary>
     public static TheoryData<string> UsageDiagnosticIds() => [.. Descriptors()
         .Where(descriptor => string.Equals(descriptor.Category, "Tracon.Usage", StringComparison.Ordinal))

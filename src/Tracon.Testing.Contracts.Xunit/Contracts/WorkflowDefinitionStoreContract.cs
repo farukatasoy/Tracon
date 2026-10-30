@@ -77,7 +77,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
         loaded.MaxIterations.ShouldBe(5);
         loaded.HandoffInstructions.ShouldBe("Hand off to the specialist for technical questions.");
 
-        // Added in phase 16. Because the default is false, a missing DTO
+        // Because the default is false, a missing DTO
         // field would show up in this test as "returned false" -- true is
         // written deliberately.
         loaded.RequirePlanApproval.ShouldBeFalse();
@@ -86,7 +86,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Handoff_topology_and_the_handoff_limit_survive_the_round_trip()
     {
-        // Added in phase 270: the same hand-written DTO trap. The edge list is a nested list inside the jsonb
+        // the same hand-written DTO trap. The edge list is a nested list inside the jsonb
         // payload and the limit is nullable, so a payload that forgot either one reads back as the star and as
         // "no limit" - and only a run against a SQL store shows it.
         var definition = new WorkflowDefinition
@@ -154,7 +154,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Node_list_survives_the_round_trip()
     {
-        // Added in phase 71. The same hand-written DTO trap the remark above
+        // The same hand-written DTO trap the remark above
         // describes: a missing field here would silently vanish on save.
         var definition = new WorkflowDefinition
         {
@@ -183,7 +183,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Function_node_settings_survive_the_round_trip()
     {
-        // Added in phase 195 (K-580): the same hand-written DTO trap. The in-memory store hands
+        // the same hand-written DTO trap. The in-memory store hands
         // the record back as it was given, so only a SQL run can show the settings vanishing.
         // The node list is a nested list inside the jsonb payload, so the property has to be
         // carried by the node record itself - the DTO does not copy node fields one by one.
@@ -233,7 +233,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Node_timeouts_and_the_run_timeout_survive_the_round_trip()
     {
-        // Added in phase 196 (F-303, F-405): the hand-written DTO trap again. The run
+        // the hand-written DTO trap again. The run
         // timeout is a definition field the DTO copies by hand; the node timeout rides
         // on the node record. The in-memory store hands the record back as it was given,
         // so only a SQL run can show either one vanishing.
@@ -268,7 +268,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task The_response_mode_survives_the_round_trip()
     {
-        // Added in phase 208: the hand-written DTO trap a third time. A mode the payload
+        // the hand-written DTO trap a third time. A mode the payload
         // dropped would read back as Branch, and a Single-answer workflow would open a
         // branch for every repeated answer with nothing failing.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
@@ -289,7 +289,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task The_request_timeout_survives_the_round_trip()
     {
-        // Added in phase 209: the hand-written DTO trap a fourth time. A limit the payload
+        // the hand-written DTO trap a fourth time. A limit the payload
         // dropped would read back as none, and every request of the workflow would wait for
         // good with nothing failing: the rows the engine writes take their expiry from it.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
@@ -306,7 +306,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
         (await Store.ListAsync("tenant-a")).Single().RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
         (await Store.GetVersionAsync("tenant-a", "approval", 1))!.RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
 
-        // A save replaces the definition (K-725): a version saved without the limit has none,
+        // A save replaces the definition: a version saved without the limit has none,
         // and going back to the first version brings the limit back.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
         {
@@ -326,7 +326,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Saving_again_without_timeouts_clears_them()
     {
-        // A save replaces the definition (K-725): a field the request leaves out is
+        // A save replaces the definition: a field the request leaves out is
         // cleared, never carried over.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
         {
@@ -352,7 +352,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Saving_again_without_node_settings_clears_them()
     {
-        // A save replaces the definition (K-725); the store must not carry the old node's
+        // A save replaces the definition; the store must not carry the old node's
         // settings over to a node that no longer has any.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
         {
@@ -382,7 +382,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Parameter_schema_survives_the_round_trip()
     {
-        // Added in phase 194 (K-580): the same hand-written DTO trap. The
+        // the same hand-written DTO trap. The
         // in-memory store hands the record back as it was given, so only a SQL
         // run can show the schema vanishing.
         var definition = Definition() with
@@ -513,7 +513,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
         (await Store.GetAsync("tenant-a", "review")).ShouldBeNull();
     }
 
-    // --- Version history (phase 200) ---------------------------------------
+    // --- Version history ---------------------------------------
 
     [Fact]
     public async Task Every_save_keeps_its_version_and_the_history_lists_them_newest_first()
@@ -600,8 +600,8 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     public async Task Deleting_keeps_the_history_and_the_numbering_continues_after_it()
     {
         // A version number is an identity: a run that recorded version 3 must never be handed another
-        // content under that number. An agent's history dies with it, but its numbering goes on (phase
-        // 248); a workflow keeps both.
+        // content under that number. An agent's history dies with it, but its numbering goes on;
+        // a workflow keeps both.
         await Store.SaveAsync("tenant-a", Definition() with { Description = "One." });
         await Store.SaveAsync("tenant-a", Definition() with { Description = "Two." });
         await Store.SaveAsync("tenant-a", Definition() with { Description = "Three." });
@@ -697,7 +697,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Every_field_of_a_definition_is_kept_by_the_version_it_was_saved_as()
     {
-        // The history is a second copy of the same hand-written payload (K-580 again): a field
+        // The history is a second copy of the same hand-written payload: a field
         // the current row keeps but the history drops would roll back to a definition with a
         // hole, and only a SQL run can show it.
         var rich = new WorkflowDefinition
@@ -752,7 +752,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task The_handoff_topology_and_the_limits_are_kept_by_the_version_they_were_saved_as()
     {
-        // Phase 270. The history is the second copy of the hand-written payload: a field the current row keeps and
+        // The history is the second copy of the hand-written payload: a field the current row keeps and
         // the history drops would roll back to the star, or to a Magentic task with its limits gone.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
         {
@@ -801,7 +801,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     [Fact]
     public async Task Agent_version_pins_survive_the_round_trip()
     {
-        // Added in phase 200 (K-580): the node record carries the pin, and the in-memory store hands
+        // the node record carries the pin, and the in-memory store hands
         // the record back as it was given, so only a SQL run can show the pin vanishing.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
         {
@@ -824,7 +824,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
         listed.Nodes[0].AgentVersion.ShouldBe(3);
         listed.Nodes[1].AgentVersion.ShouldBeNull();
 
-        // A save replaces the definition (K-725): a pin the request leaves out is cleared.
+        // A save replaces the definition: a pin the request leaves out is cleared.
         await Store.SaveAsync("tenant-a", new WorkflowDefinition
         {
             Name = "pinned",

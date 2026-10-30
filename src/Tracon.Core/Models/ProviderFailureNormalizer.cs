@@ -152,7 +152,7 @@ internal static partial class ProviderFailureNormalizer
 
     // The single status pattern: FallbackRetryClassifier, the circuit breaker
     // and the workflow node retry read a status through ProviderHttpStatus,
-    // which comes here, so no second pattern can drift from this one (F-387).
+    // which comes here, so no second pattern can drift from this one.
     // The shapes are listed on ReadFrameStatus.
     [GeneratedRegex(
         @"\bHTTP\s+(?<status>[1-5]\d{2})\b|\bStatus:\s*(?<status>[1-5]\d{2})\b|\bstatus code\s+(?<status>[1-5]\d{2})\b|\bStatus Code:\s*(?:(?<status>[1-5]\d{2})\b|(?<name>[A-Za-z]+)\b)",
@@ -350,7 +350,7 @@ internal sealed class ProviderInvocationException : TraconException
 
     internal static ProviderInvocationException UpstreamFailure(Exception exception, string provider)
     {
-        // 🚨 F-353: read with the reader every retry decision uses, which takes
+        // Read with the reader every retry decision uses, which takes
         // HttpRequestException.StatusCode first. The text reader alone missed it:
         // .NET writes "Response status code does not indicate success: 401
         // (Unauthorized).", so the record lost the status and a 401 looked like a

@@ -66,7 +66,7 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     [Fact]
     public async Task Missing_measurement_stays_null_NOT_zero()
     {
-        // Tracon never fabricates a measurement (K-032): if the provider
+        // Tracon never fabricates a measurement: if the provider
         // did not report a duration, the field stays empty.
         await Store.SaveAsync(Record() with { InputSeconds = null, OutputChars = null, EndedAt = null });
 
@@ -127,7 +127,7 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     [Fact]
     public async Task The_two_new_end_reasons_round_trip()
     {
-        // Abandoned and Provider were added in phase 161 and must survive the
+        // Abandoned and Provider were added later and must survive the
         // smallint round trip like the five before them.
         var abandoned = Record() with { Id = TraconId.NewId(), EndReason = VoiceSessionEndReason.Abandoned };
         var byProvider = Record() with { Id = TraconId.NewId(), EndReason = VoiceSessionEndReason.Provider };

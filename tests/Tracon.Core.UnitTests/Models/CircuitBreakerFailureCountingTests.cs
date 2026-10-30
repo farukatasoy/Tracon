@@ -3,7 +3,7 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// Which failures count against a provider's circuit (F-354, F-387).
+/// Which failures count against a provider's circuit.
 /// </summary>
 /// <remarks>
 /// The circuit of the setup-time credential is shared by every tenant, so a
@@ -14,7 +14,7 @@ public sealed class CircuitBreakerFailureCountingTests
     [Fact]
     public void A_cancellation_raised_above_the_provider_client_does_not_count()
     {
-        // 🚨 F-387. A tool's own timeout is a TaskCanceledException nobody asked
+        // A tool's own timeout is a TaskCanceledException nobody asked
         // for; the function loop rethrows it inside the circuit's ring, and it
         // counted against the provider every tenant shares.
         CircuitBreakingChatClient.CountsAgainstProvider(new TaskCanceledException("the tool's own call timed out"))
@@ -48,7 +48,7 @@ public sealed class CircuitBreakerFailureCountingTests
     [Fact]
     public void A_permanent_4xx_with_an_empty_body_does_not_count()
     {
-        // F-387: System.ClientModel writes "Status: 400" without OpenAI's body.
+        // System.ClientModel writes "Status: 400" without OpenAI's body.
         var failure = new ForeignProviderInvocationException(new InvalidOperationException("Service request failed.\nStatus: 400 (Bad Request)\n"));
 
         CircuitBreakingChatClient.CountsAgainstProvider(failure).ShouldBeFalse();

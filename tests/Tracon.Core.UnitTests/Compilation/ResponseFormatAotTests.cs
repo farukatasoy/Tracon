@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <c>ForJsonSchema(JsonSerializerOptions, ...)</c> overloads rely on reflection
 /// (<c>AIJsonUtilities.CreateJsonSchema</c>) and break the AOT stance of
 /// <c>Tracon.Abstractions</c> and <c>.Core</c>. This test scans the source
-/// tree to verify these overloads are never called. See Phase 38, 38.4.
+/// tree to verify these overloads are never called.4.
 /// </summary>
 public sealed class ResponseFormatAotTests
 {

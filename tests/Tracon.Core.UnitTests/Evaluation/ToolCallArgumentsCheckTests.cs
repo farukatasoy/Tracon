@@ -5,7 +5,7 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Evaluation;
 
 /// <summary>
-/// F-605 (phase 227) - the <c>toolCallArgsMatch</c> check compares a JSON argument by
+/// The <c>toolCallArgsMatch</c> check compares a JSON argument by
 /// meaning, where MAF's own check compares the .NET type or the text.
 /// </summary>
 public sealed class ToolCallArgumentsCheckTests
@@ -255,7 +255,7 @@ public sealed class ToolCallArgumentsCheckTests
     [Fact]
     public void An_item_a_factory_copied_still_meets_an_object_and_an_array_expectation()
     {
-        // F-611: a copy does not carry the exact form, so the expected object arrives as its JSON
+        // A copy does not carry the exact form, so the expected object arrives as its JSON
         // text while the call carries the object. MAF's check compares the text, and so does this one.
         var original = ItemOf(
             [("lookup", Dict(("address", Dict(("city", "Izmir"))), ("tags", new object[] { "a", "b" })))],

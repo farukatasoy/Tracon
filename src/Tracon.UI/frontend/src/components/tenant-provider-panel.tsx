@@ -21,7 +21,7 @@ import type { SpeechProviderDescriptor, TenantProviderBindingResponse as TenantP
 import type { ModelProviderDescriptor } from '../lib/server-types';
 
 /**
- * Per-tenant provider bindings (BYOK) and egress policy (phase 65).
+ * Per-tenant provider bindings (BYOK) and egress policy.
  *
  * Model and speech providers share ONE name space: a binding and a policy name a
  * provider by the name its instance reports — for a speech provider that is

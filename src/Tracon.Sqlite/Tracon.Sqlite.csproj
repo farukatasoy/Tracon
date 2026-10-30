@@ -6,10 +6,9 @@
   </PropertyGroup>
 
   <!--
-    AOT status NOT MEASURED (Phase 24 opening). SQLitePCLRaw carries a native
+    AOT status NOT MEASURED (opening). SQLitePCLRaw carries a native
     library; this usually affects publish behavior. The flag stays on the
-    safe side until measured. Rationale: docs/KARARLAR.md, decision K-190;
-    status table MIMARI.md section 9.
+    safe side until measured.;
   -->
   <PropertyGroup Label="Trim / AOT">
     <TraconAotCompatible>false</TraconAotCompatible>
@@ -23,45 +22,44 @@
     <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
 
-  <ItemGroup Label="Embedded SQL migrations (Phase 24)">
+  <ItemGroup Label="Embedded SQL migrations">
     <EmbeddedResource Include="Migrations/**/*.sql" />
   </ItemGroup>
 
   <!--
-    Optional migration set (Phase 111): applied only when EnableReadViews is
+    Optional migration set: applied only when EnableReadViews is
     turned on. A published view is a permanent data contract, so it is opt-in
-    (same reasoning as PostgreSQL's "knowledge" set, Phase 67).
+    (same reasoning as PostgreSQL's "knowledge" set).
   -->
-  <ItemGroup Label="Optional 'views' migration set (Phase 111)">
+  <ItemGroup Label="Optional 'views' migration set">
     <EmbeddedResource Include="MigrationsViews/**/*.sql" />
   </ItemGroup>
 
   <!--
-    Shared source (Phase 23). Tracon.Sql.Shared is NOT a package; the same
+    Shared source. Tracon.Sql.Shared is NOT a package; the same
     files also compile into Tracon.PostgreSql and Tracon.SqlServer.
-    Rationale: K-176.
   -->
-  <ItemGroup Label="Shared SQL source (Phase 23)">
+  <ItemGroup Label="Shared SQL source">
     <Compile Include="../Tracon.Sql.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <!--
-    Tracon.Sql.Shared.UnitTests (phase 94) checks the SQL text of the three
+    Tracon.Sql.Shared.UnitTests checks the SQL text of the three
     providers side by side and cannot use the "$(MSBuildProjectName).UnitTests"
     convention below (that name belongs to a single provider). No Docker
     dependency: it never opens a connection, only builds a query-set object.
   -->
-  <ItemGroup Label="Internal visibility - cross-provider SQL text tests (phase 94)">
+  <ItemGroup Label="Internal visibility - cross-provider SQL text tests">
     <InternalsVisibleTo Include="Tracon.Sql.Shared.UnitTests" />
   </ItemGroup>
 
   <!--
-    Tracon.Benchmarks (Phase 116) constructs SqlRunStore directly, the same
+    Tracon.Benchmarks constructs SqlRunStore directly, the same
     way the SQLite integration tests do (SqliteTestContext) - the internal
     plumbing types (SqlStoreContext, SqliteDialect, SqliteDataSource) have no
     public DI-free construction path.
   -->
-  <ItemGroup Label="Internal visibility - allocation benchmarks (phase 116)">
+  <ItemGroup Label="Internal visibility - allocation benchmarks">
     <InternalsVisibleTo Include="Tracon.Benchmarks" />
   </ItemGroup>
 

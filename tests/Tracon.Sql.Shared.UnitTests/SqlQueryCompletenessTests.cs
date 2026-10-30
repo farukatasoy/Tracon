@@ -10,7 +10,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <para>
 /// <c>SqlQueriesBase</c>'s own XML documentation names this risk: a query
 /// left unassigned stays <see cref="string.Empty"/> and the error surfaces
-/// only at run time, when the empty text reaches the server. Phase 94 moves
+/// only at run time, when the empty text reaches the server. moves
 /// 117 queries into the base class's constructor; a derived class that still
 /// assigns the same property afterward would silently overwrite the shared
 /// text (94.3, step 3) with whatever it computes -- or, if it simply forgets
@@ -19,7 +19,7 @@ namespace Tracon.SqlProviders.Tests;
 /// instead, which fails on ANY text drift, not just emptiness).
 /// </para>
 /// <para>
-/// One <see cref="object"/>, one exemption list (K-247: the same
+/// One <see cref="object"/>, one exemption list (the same
 /// <c>SqlQueriesBase</c> source compiles into three separate assemblies, so
 /// there is no single shared type to reflect over once -- each provider is
 /// checked independently, by its own concrete class name).
@@ -35,7 +35,7 @@ public sealed class SqlQueryCompletenessTests
     {
         // SQLite cannot express "add this column only if missing" or widen a
         // primary key in a static SQL string; SqliteDialect.UpgradeMigrationsTableAsync
-        // does the equivalent rebuild in code instead (K-475).
+        // does the equivalent rebuild in code instead.
         [nameof(SqliteQueries)] = ["UpgradeMigrationsTable"],
     };
 

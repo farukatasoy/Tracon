@@ -5,10 +5,10 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Family H (HATA-S2-003/HATA-S3-005) regression tests: the narrow exception
+/// Family H regression tests: the narrow exception
 /// filter on the non-streaming run endpoints let real provider SDK exceptions
 /// escape and leak into ASP.NET Core's generic handler — the client got a bare
-/// <c>500</c> instead of the expected <c>502</c>/<c>upstream_error</c>. K-296/K-384
+/// <c>500</c> instead of the expected <c>502</c>/<c>upstream_error</c>. That decision/that decision
 /// already fixed this pattern on the sibling streaming (SSE) paths; the three
 /// non-streaming paths fixed here are verified with the SAME <see cref="ThrowingModelProvider"/>.
 /// </summary>
@@ -17,7 +17,7 @@ public sealed class ProviderOutageErrorHandlingTests
     private const string AgentName = "broken-agent";
     private const string IdempotencyHeader = "Idempotency-Key";
 
-    // Section 103.2.3 secret-like fake message: proves the raw provider exception
+    // An earlier plan.3 secret-like fake message: proves the raw provider exception
     // text never reaches a public response surface, whatever it happens to contain.
     private const string SecretLikeMessage =
         "https://tenant-private.example; Authorization=Bearer sk-secret-preview1; account=acct-42";

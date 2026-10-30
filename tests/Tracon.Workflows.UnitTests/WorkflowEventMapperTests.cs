@@ -65,7 +65,7 @@ public sealed class WorkflowEventMapperTests
     [Fact]
     public void Executor_error_is_mapped_with_the_safe_text_it_is_given()
     {
-        // F-334: the mapper never reads an exception's own message; the runner
+        // The mapper never reads an exception's own message; the runner
         // hands it the text it logged under a correlation id.
         var mapping = WorkflowEventMapper.Map(
             new ExecutorFailedEvent("writer", new InvalidOperationException("blew up")),
@@ -101,7 +101,7 @@ public sealed class WorkflowEventMapperTests
     [Fact]
     public void Unknown_event_is_marked_as_unrecognized_and_described_for_the_record()
     {
-        // F-589: an event silently dropped would make debugging impossible the day MAF
+        // An event silently dropped would make debugging impossible the day MAF
         // adds a new type, or when a code workflow raises its own. It is recorded.
         var mapping = WorkflowEventMapper.Map(new UnknownEvent());
 

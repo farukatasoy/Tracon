@@ -189,7 +189,7 @@ public sealed class WorkflowEndpointTests
             .AddAgent(TestData.Definition("editor"))
             .UseWorkflows()
 
-            // F-341: each node takes what the one before it passes on - an agent
+            // Each node takes what the one before it passes on - an agent
             // node passes on a chat message list, so the function takes one too.
             .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
                 "uppercase",
@@ -331,7 +331,7 @@ public sealed class WorkflowEndpointTests
     [Fact]
     public async Task Recorded_event_stream_uses_the_workflow_frame_names()
     {
-        // Phase 145: before this phase, every one of these frames fell through
+        // Before this change, every one of these frames fell through
         // to the server's "unknown" branch on the RECORDED stream (this test
         // reads GET /api/runs/{id}/events, not the direct run POST stream that
         // Run_streams_over_SSE_and_produces_a_tree above already covers).
@@ -420,7 +420,7 @@ public sealed class WorkflowEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    // --- Phase 16: graph, pending request, response ---
+    // --- an earlier change: graph, pending request, response ---
 
     [Fact]
     public async Task Graph_endpoint_returns_nodes_edges_and_mermaid()
@@ -449,7 +449,7 @@ public sealed class WorkflowEndpointTests
         nodes.Count.ShouldBeGreaterThanOrEqualTo(3);
         edges.ShouldNotBeEmpty();
 
-        // Enums are written on the wire as NAMES (K-040).
+        // Enums are written on the wire as NAMES.
         nodes.Select(static node => node.GetProperty("kind").GetString())
             .ShouldContain(static kind => string.Equals(kind, "Agent", StringComparison.Ordinal));
 
@@ -573,7 +573,7 @@ public sealed class WorkflowEndpointTests
     }
 
     /// <summary>
-    /// F-382: <c>GET /api/workflows/functions</c> matches before
+    /// <c>GET /api/workflows/functions</c> matches before
     /// <c>/api/workflows/{name}</c>, so a workflow under that name could be saved
     /// and never read back — a client got the function list instead. The name is
     /// reserved, in any letter case, because the route matches case-insensitively.
@@ -591,8 +591,8 @@ public sealed class WorkflowEndpointTests
         (await response.Content.ReadAsStringAsync()).ShouldContain("reserved");
     }
 
-    // F-396: the streamed resume and respond check their source BEFORE the
-    // stream opens, the way the queued path does (F-318). An answer that came
+    // The streamed resume and respond check their source BEFORE the
+    // stream opens, the way the queued path does. An answer that came
     // as 200 plus an SSE error frame left the client to parse the stream for a
     // problem the status code could carry, and a resume from a checkpoint that
     // does not exist opened a Failed run row.

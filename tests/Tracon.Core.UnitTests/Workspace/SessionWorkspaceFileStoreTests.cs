@@ -12,7 +12,7 @@ namespace Tracon.Core.UnitTests.Workspace;
 /// The store reads the session from the run that is calling (<see cref="TraconRunContext"/>, an <c>AsyncLocal</c>),
 /// so each test sets the scope in its own body and the class clears it.
 /// </remarks>
-// MAAI001: AgentFileStore is marked "evaluation purposes only" - see K-020.
+// MAAI001: AgentFileStore is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class SessionWorkspaceFileStoreTests : IDisposable
 {

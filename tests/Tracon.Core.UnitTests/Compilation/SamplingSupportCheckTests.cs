@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// F-606 and F-607 — a model can reject a request field that its provider's API surface sends, and a
+/// A model can reject a request field that its provider's API surface sends, and a
 /// provider can refuse (or silently change) a value outside the range its surface accepts. Both are
 /// findings of the one check (<see cref="SamplingSupportCheck"/>) that the compiler and the validator read.
 /// </summary>
@@ -28,7 +28,7 @@ public sealed class SamplingSupportCheckTests
 
     public static TheoryData<string> Fields() => SamplingSupportTests.Fields();
 
-    // F-606 — the model's own rejection ------------------------------------------------------------
+    // The model's own rejection ------------------------------------------------------------
 
     /// <param name="field">The request field the definition sets and the catalog says the model rejects.</param>
     [Theory]
@@ -181,7 +181,7 @@ public sealed class SamplingSupportCheckTests
         message.Message.ShouldContain("'backup' provider");
     }
 
-    // F-607 — the provider's value ranges ----------------------------------------------------------
+    // The provider's value ranges ----------------------------------------------------------
 
     /// <param name="seed">A seed outside the range of a 32-bit integer.</param>
     [Theory]

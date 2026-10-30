@@ -12,7 +12,7 @@ namespace Tracon.Core.UnitTests.Fakes;
 /// A real container, not a stub. The worker's contract is "one scope per
 /// execution, handler resolved from that scope"; a fake scope factory would
 /// let a test pass while the real registration path was broken — the exact
-/// failure mode Phase 137 exists to close.
+/// failure mode an earlier change exists to close.
 /// </para>
 /// <para>
 /// Registrations are marked built-in so a fake handler may stand in for a

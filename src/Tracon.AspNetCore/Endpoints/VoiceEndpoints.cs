@@ -154,7 +154,7 @@ internal static class VoiceEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // F-298: the tenant's checks run before the provider is reached, and before
+        // The tenant's checks run before the provider is reached, and before
         // the limit is read: the limit belongs to the synthesizer the name selects.
         var (resolved, refusal) = await ResolveSynthesizerAsync(speechProviders, request.Provider, cancellationToken)
             .ConfigureAwait(false);
@@ -224,7 +224,7 @@ internal static class VoiceEndpoints
                 // The session id is REQUIRED: if left blank, the retention policy
                 // treats the attachment as orphaned and deletes it.
                 SessionId = request.SessionId,
-                // F-336: the extension follows the DETECTED type; a fixed '.mp3'
+                // The extension follows the DETECTED type; a fixed '.mp3'
                 // misnamed OGG and WAV output.
                 FileName = AttachmentFileNames.For("speech", validation.MediaType!, DateTimeOffset.UtcNow),
                 MediaType = validation.MediaType!,
@@ -377,7 +377,7 @@ internal static class VoiceEndpoints
 
         IReadOnlyList<VoiceDescriptor> voices;
 
-        // F-443: the provider's failure is a bad gateway, as on /speak; it escaped as a 500.
+        // The provider's failure is a bad gateway, as on /speak; it escaped as a 500.
         try
         {
             voices = await synthesizer!.ListVoicesAsync(cancellationToken).ConfigureAwait(false);

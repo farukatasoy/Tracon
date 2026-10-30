@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ApprovalEndpointTests.cs (K-269): the package's
+// Same rationale as ApprovalEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -11,13 +11,13 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Tests for tool authorization (F-113) and execution timeout (F-114) driven
+/// Tests for tool authorization and execution timeout driven
 /// through a REAL Microsoft Agent Framework tool-calling loop
 /// (<c>FunctionInvokingChatClient</c>, via <see cref="FakeModelProvider"/> —
 /// <c>ModelProviderRegistry</c> wraps every raw client it returns with
 /// <c>UseFunctionInvocation()</c>), not by constructing
 /// <c>AuthorizingAIFunction</c>/<c>TimeoutAIFunction</c> directly and calling
-/// <c>InvokeAsync</c>. K-218's lesson: an isolated construction proves nothing
+/// <c>InvokeAsync</c>. the lesson: an isolated construction proves nothing
 /// about the real pipeline.
 /// </summary>
 public sealed class ToolGovernanceEndpointTests
@@ -51,7 +51,7 @@ public sealed class ToolGovernanceEndpointTests
     [Fact]
     public async Task Rejected_arguments_complete_the_run_and_are_recorded_as_ToolFailed()
     {
-        // docs/127, 127.2: unlike an authorization denial (recorded as an
+        // the development notes, 127.2: unlike an authorization denial (recorded as an
         // ordinary successful result), a rejected call is recorded as
         // ToolFailed - the same conversion TimeoutAIFunction's thrown
         // exception already produces.
@@ -142,7 +142,7 @@ public sealed class ToolGovernanceEndpointTests
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         // The denial does NOT fail the run: the model receives the reason as
-        // an ordinary tool result and finishes its turn (docs/69, 69.2).
+        // an ordinary tool result and finishes its turn.
         (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
@@ -183,7 +183,7 @@ public sealed class ToolGovernanceEndpointTests
                         async () =>
                         {
                             // Deliberately does NOT accept a CancellationToken:
-                            // the non-cooperative case docs/69 Manual Case 8 covers.
+                            // the non-cooperative case the development notes Manual Case 8 covers.
                             await Task.Delay(TimeSpan.FromSeconds(30)); // delay: simulated
                             return "too late";
                         },
@@ -221,7 +221,7 @@ public sealed class ToolGovernanceEndpointTests
     [Fact]
     public async Task Repeated_tool_timeouts_never_open_the_providers_circuit_breaker()
     {
-        // Manual Case 5 (docs/69): ModelProviderCircuitBreaker wraps only the
+        // Manual Case 5: ModelProviderCircuitBreaker wraps only the
         // IChatClient pipeline (CircuitBreakingChatClient); a tool exception
         // never reaches it structurally. This proves it BEHAVIORALLY: if a
         // tool timeout were miscounted as a provider failure, the circuit
@@ -274,10 +274,10 @@ public sealed class ToolGovernanceEndpointTests
     [Fact]
     public async Task Approval_wait_is_not_bounded_by_the_tools_own_timeout()
     {
-        // Manual Case 6 (docs/69): a Destructive + RequiresApproval tool ALSO
+        // Manual Case 6: a Destructive + RequiresApproval tool ALSO
         // carries a short timeout. The timeout must bound only the real
         // execution after approval, never the human wait — ApprovalRequiredAIFunction
-        // defers before TimeoutAIFunction's race ever starts (K-368: the
+        // defers before TimeoutAIFunction's race ever starts (the
         // decision resumes as a NEW run, never inside the pending call).
         await using var host = await TraconTestHost.StartAsync(
             builder =>

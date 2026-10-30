@@ -6,14 +6,14 @@ namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
 /// An upsert the server picks as a deadlock victim is run again, whole, and its
-/// write lands once (F-430).
+/// write lands once.
 /// </summary>
 /// <remarks>
 /// <para>
 /// 🚨 Regression (2026-10-13): <c>RunScoreStoreContract</c>'s concurrent-write case
 /// failed once in a full-solution run with <c>SqlException</c> 1205 ("chosen as the
 /// deadlock victim") and passed alone five times. The upsert transaction holds a
-/// range lock until its commit (F-313), so two of them can wait on each other.
+/// range lock until its commit, so two of them can wait on each other.
 /// </para>
 /// <para>
 /// The race is made deterministic instead of being waited for: a second session

@@ -7,7 +7,7 @@ namespace Tracon.Voice.UnitTests;
 
 /// <summary>
 /// Verifies <c>UseVoice(...)</c> with a consumer's own speech provider, and the
-/// startup validation of the settings (F-336).
+/// startup validation of the settings.
 /// </summary>
 /// <remarks>
 /// <para>

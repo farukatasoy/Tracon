@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The committed snapshots of the surfaces that are not .NET API (phase 238). -->
+    <!-- The committed snapshots of the surfaces that are not .NET API. -->
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
     <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
   </ItemGroup>

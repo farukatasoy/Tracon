@@ -49,7 +49,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
     // A threshold is published only ONCE per period. Since the counter
     // increases on every run, every run above the threshold would otherwise
     // produce a new event. This in-process set is only the fast path: the
-    // durable claim (IQuotaStore.TryClaimThresholdNotificationAsync, K-682) is
+    // durable claim (IQuotaStore.TryClaimThresholdNotificationAsync) is
     // the single source of truth, so dropping an entry can never publish twice;
     // at worst it costs one more store round-trip.
     //
@@ -121,7 +121,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
     }
 
     // The limits a check compares. A new run is held to all three; a tree that is already
-    // running starts new work, not a new run (a child run adds Runs = 0, K-990), and a function
+    // running starts new work, not a new run (a child run adds Runs = 0), and a function
     // node spends no tokens.
     [Flags]
     private enum Compared
@@ -166,7 +166,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
             }
 
             // Only the current periods: without the filter every check read
-            // the tenant's whole usage history, which only grows (F-275).
+            // the tenant's whole usage history, which only grows.
             usage = await _store
                 .GetUsageAsync(
                     new QuotaUsageQuery

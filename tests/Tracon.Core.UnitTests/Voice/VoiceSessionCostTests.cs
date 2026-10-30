@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Voice;
 /// unpriced session is reported as unpriced rather than free.
 /// </summary>
 /// <remarks>
-/// 🚨 K-483. A total spelled out by hand in several call sites loses a term the
+/// A total spelled out by hand in several call sites loses a term the
 /// day a third addend arrives; that defect once let a tenant with a cost ceiling
 /// exceed it, and 4241 tests did not see it. The sum lives in
 /// <see cref="VoiceSessionCost.Total"/> and nowhere else.
@@ -81,7 +81,7 @@ public sealed class VoiceSessionCostTests
         VoiceDurationPricing.ComputeDurationCost(90m, 0.60m).ShouldBe(0.90m);
         VoiceDurationPricing.ComputeDurationCost(0m, 0.10m).ShouldBe(0m);
 
-        // The number the real provider reported in the phase's own live run, priced
+        // The number the real provider reported in the change's own live run, priced
         // at the rate that run used.
         VoiceDurationPricing.ComputeDurationCost(57m, 0.60m).ShouldBe(0.57m);
     }

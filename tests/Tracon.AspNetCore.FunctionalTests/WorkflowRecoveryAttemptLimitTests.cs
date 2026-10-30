@@ -5,7 +5,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.QueuedWorkflowHarn
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-321: the job's LAST lease reaches its handler, and the handler closes the work
+/// The job's LAST lease reaches its handler, and the handler closes the work
 /// the interruptions left behind.
 /// </summary>
 /// <remarks>

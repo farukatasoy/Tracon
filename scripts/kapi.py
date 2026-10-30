@@ -33,7 +33,7 @@ PACKAGE_RELEASE_DIR = ARTIFACTS / "package" / "release"
 # `yayin --kuru` (pack modu) çıktısı: sürüm başına AYRI bir dizin. `release/`
 # geliştirme döngüsünün feed'idir (`dotnet pack`, kapanış, paket testleri oraya
 # yazar); prova oraya promote ettiğinde her eski sürüm provanın sample kapısını
-# düşürüyordu ve Faz 136 dosya silmez. Ayrı dizinde farklı sürüm hiç karışmaz.
+# düşürüyordu ve hicbir dosya silinmez. Ayrı dizinde farklı sürüm hiç karışmaz.
 PACKAGE_REHEARSAL_ROOT = ARTIFACTS / "package" / "yayin"
 PACKABLE_SOLUTION_FILTER = ROOT / "Tracon.src.slnf"
 PACKAGE_MANIFEST_NAME = "package-manifest.json"
@@ -47,7 +47,7 @@ EXACT_RANGE_PATTERN = re.compile(r"\[(?P<version>[^,\]\s]+)(?:\s*,\s*(?P=version
 REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="(?P<commit>[0-9a-f]{7,})"[^>]*/>')
 RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>")
 K008_EXEMPT_PACKAGE = "Tracon.AspNetCore"
-# Faz 215 (K-1018): sevk edilen contract paketi xunit.v3 3.x tüketicisini zorlamaz.
+# Sevk edilen contract paketi xunit.v3 3.x tüketicisini zorlamaz.
 # Reponun kendi testleri xunit.v3 4.x'te koşar ve her tüketici bu repoda (örnekler dahil)
 # 4.x'tir; 3.x tüketicisini hiçbir koşum ölçmez. Alt sınırı nuspec'e bakan bu kapı sabitler.
 SHIPPED_DEPENDENCY_FLOORS = {
@@ -62,21 +62,21 @@ THIRD_PARTY_NOTICE_PACKAGES = {"Tracon.UI": pathlib.PurePath("src", "Tracon.UI",
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
 APPLIED_MIGRATION_DIRECTORIES = ("Migrations", "MigrationsKnowledge", "MigrationsViews")
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
-# Faz 184: iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
-# timeout uretiyordu, Faz 100). Sabit beklemeler kosul-beklemeye donunce
+# Iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
+# timeout uretiyordu). Sabit beklemeler kosul-beklemeye donunce
 # olculdu, ayni makine, ayni kod (d0cdd2c2): 1 modul 863 ve 879 sn,
 # 2 modul 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
 # ci.yml 1'de KALIR: runner donanimi olculmedi. Kaynak cekismesi imzali bir
 # kapanis kirmizisi (izole tekrar kosumda gecen) gorulurse 1'e don ve
-# docs/hafiza/test-paralellik-ve-zamanlama.md'ye yaz.
+# gelistirme notlarina yaz.
 #
-# Faz 215: `dotnet test` MTP kipindedir (global.json `test.runner`). Eski
+# `dotnet test` MTP kipindedir (global.json `test.runner`). Eski
 # `-maxcpucount:N` bu kipte HIC TEST KOSTURMADAN cikis kodu 5 verir; esdegeri
 # `--max-parallel-test-modules N`'dir. Sayi ayni kalir: bir "modul" bir test
 # ikilisidir (cok hedefli projede her TFM bacagi ayri modul).
 TEST_MAX_CPU_COUNT = 2
 
-# Faz 215: MTP 2 TRX'i test ikilisinin yanina degil `--results-directory`'ye
+# MTP 2 TRX'i test ikilisinin yanina degil `--results-directory`'ye
 # yazar; `per-module` dizilimi `<proje>/<tfm>_<mimari>/*.trx` verir. ci.yml
 # "Test et" adimlari ve "Test sonuclarini yukle" adimi AYNI yolu tasir
 # (`kapi_test.py` ikisini birlikte denetler).
@@ -95,7 +95,7 @@ SYNC_NAME = re.compile(r".+ 2(?:\..+)?$")
 # keeps `docs-site/src/content/docs/...` out: that is a SITE path, not a path in
 # the `docs/` tree, and without the guard this gate produces dozens of false
 # positives and gets switched off.
-DOC_REFERENCE = re.compile(r"(?<![\w/-])docs/[A-Za-z0-9._/\-]+\.md")
+DOC_REFERENCE = re.compile(r"(?<![\w/-])docs" r"/[A-Za-z0-9._/\-]+\.md")
 DOC_REFERENCE_ROOTS = ("src", "tests", "samples", "bench", "scripts", "docs-site", ".github")
 # Metavariable filenames: an illustrative path in a template or in the archiving
 # script's own comments. These never resolve and are not a defect.
@@ -108,7 +108,7 @@ DOC_REFERENCE_PLACEHOLDER = re.compile(r"(^|[-/])(NN|X|Y)([-.]|$)")
 # exempt; the comment stays true of the moment the migration shipped.
 DOC_REFERENCE_FROZEN_DIR = re.compile(r"(^|[\\/])Migrations[A-Za-z]*[\\/]")
 # 🚨 İki katman (2026-09-19). Tek desen tek kapsamla koşarken kapı yeşil derken
-# `docs/arsiv/fazlar/53-*.md` içinde GERÇEK bir `ApiKeyGenerator` çıktısı duruyordu.
+# `arsiv` altinda GERÇEK bir `ApiKeyGenerator` çıktısı duruyordu.
 # İki bağımsız boşluk vardı ve ikisi de tek başına yeterliydi: desen ürünün KENDİ
 # anahtar formatını (`ap_*`) tanımıyordu, ve kapsam `arsiv` ile `manuel-test`
 # ağaçlarını hiç yürümüyordu — oysa üretilmiş bir credential'ın yapışacağı tek
@@ -142,7 +142,7 @@ LOCAL_CREDENTIAL_PATTERN = re.compile(r"(?:Password|pwd)=[^ \";']{6,}")
 # CREDENTIAL_SHAPE_PATTERN koşar - şekil taraması bu ağaçlara GİRER, çünkü
 # kaçırılan gerçek anahtar tam olarak burada duruyordu.
 RUN_RECORD_DIRS = {"arsiv", "manuel-test", "manuel-test-kosumu"}
-# Bir secret tarayıcısını doğrulamak için sahte bir credential gerekir (Faz 166).
+# Bir secret tarayıcısını doğrulamak için sahte bir credential gerekir.
 # İstisna GİZLENMEZ, İŞARETLENİR: bu belirteci taşıyan satır atlanır ve kaç
 # satırın atlandığı raporlanır.
 SYNTHETIC_MARKER = "SYNTHETIC-CREDENTIAL"
@@ -271,7 +271,7 @@ ZERO_TESTS_EXIT_CODE = 8  # MTP'nin kendi "sifir test" cikis kodu
 def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
     """0 if the run left TRX reports with tests in them, else `ZERO_TESTS_EXIT_CODE`.
 
-    Faz 215: cikis kodu 0 "test kostu" demek degildir. Kosum ya hic TRX
+cikis kodu 0 "test kostu" demek degildir. Kosum ya hic TRX
     yazmadiysa (yol degisti, bayrak yutuldu) ya da TRX'ler bos ise kapi YESIL
     degil KIRMIZI doner; ayrintiyi basar ki "yesil" sayiyla okunsun."""
     tests, modules = executed_tests_from_trx(since, root)
@@ -314,7 +314,7 @@ def find_sync_copies(
 def find_secrets(root: pathlib.Path = ROOT) -> tuple[list[str], int]:
     """Return matching path/line records and how many marked fixtures were skipped.
 
-    🚨 Faz 166. Bir secret TARAYICISINI test etmenin tek yolu ona credential
+    🚨 Bir secret TARAYICISINI test etmenin tek yolu ona credential
     şeklinde bir şey göstermektir; kapasite aparatı hem redaction testlerinde
     hem de koştuğu her koşumda kasıtlı olarak SENTETİK bir canary kullanır
     (hiçbir yere bağlanmaz). O satırlar bu kapıyı kırardı.
@@ -354,7 +354,7 @@ def find_stale_doc_references(
 ) -> list[str]:
     """Return `path:line:reference` records for `docs/` targets that do not exist.
 
-    Closing a phase deletes `docs/NN-AD.md` (`dokuman-bakim.py faz-kapat`, which
+    Closing a phase deletes its document (a private script, which
     also rewrites references to it); archiving used to move it. Either way every
     reference OUTSIDE `docs/` — a migration comment, an analyzer release note
     that SHIPS in the package, a CI workflow — could be left pointing at a path
@@ -388,7 +388,7 @@ PUBLIC_SURFACE_AUDIT = pathlib.Path("scripts") / "public-yuzey-envanteri.py"
 
 
 def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
-    """K-850 ratchet: public types with no external evidence, and stale justifications.
+    """Ratchet: public types with no external evidence, and stale justifications.
 
     A public type must be seen by a consumer (site page, sample, template, README),
     be a seam, or carry a written reason in
@@ -447,7 +447,7 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
         if len(stale_docs) > 20:
             print(f"  … +{len(stale_docs) - 20}")
     if public_surface:
-        print("Tarama: ❌ kanıtsız public yüzey (K-850) — tipi `internal` yap, rehberde adıyla an "
+        print("Tarama: ❌ kanıtsız public yüzey — tipi `internal` yap, rehberde adıyla an "
               "ya da `scripts/public-yuzey-gerekceleri.tsv`'ye gerekçe yaz")
         for violation in public_surface:
             print(f"  {violation}")
@@ -512,7 +512,7 @@ def migration_integrity_violations(
             return result.stdout if result.returncode == 0 else None
 
     # `MigrationsViews` ships and is checksummed at startup like the other two
-    # sets, so an in-place edit must fail here, not in a user's database (F-726).
+    # sets, so an in-place edit must fail here, not in a user's database.
     migrations = sorted(
         migration
         for directory in APPLIED_MIGRATION_DIRECTORIES
@@ -540,7 +540,7 @@ def changed_paths(base: str = "HEAD") -> list[str] | None:
 
     `base` defaults to HEAD (uncommitted changes only, used by `ic-dongu`);
     `kapanis` passes its own `--taban` so the performance gate's trigger check
-    (see `performance_gate_triggered`) sees the WHOLE phase's changes, not just
+    (see `performance_gate_triggered`) sees the WHOLE change set, not just, not just
     what happens to be uncommitted at closing time.
     """
     paths: set[str] = set()
@@ -560,7 +560,7 @@ def frontend_changed(paths: Iterable[str]) -> bool:
 
 
 # -----------------------------------------------------------------------------
-# `performans` - allocation gate (Phase 116)
+# `performans` - allocation gate
 #
 # The gate compares ALLOCATED BYTES, never wall-clock duration: on a shared CI
 # runner, allocation is deterministic (same code -> same byte count) while
@@ -747,7 +747,7 @@ def performance_gate(
     return exit_code
 
 
-# Faz 181: src/Tracon.Providers.Shared ve tests/Shared/Providers dort saglayici
+# src/Tracon.Providers.Shared ve tests/Shared/Providers dort saglayici
 # test projesine birden baglanir (<Compile Include>); etki alani tam bu dortlu.
 PROVIDER_TEST_PROJECTS: tuple[str, ...] = (
     "Tracon.OpenAI.UnitTests",
@@ -768,7 +768,7 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # SQL metni snapshot'i) Tracon.Sql.Shared.UnitTests'te yasar. Tek bir Use*
     # dosyasina dokunan degisiklik onlari da secmezse kayma yalniz tam kosumda
     # gorunur.
-    # Faz 265: iki dugumlu kabul seti her iki sunucu saglayicisinda calisir; bir saglayicinin sorgusu (sayac
+    # Iki dugumlu kabul seti her iki sunucu saglayicisinda calisir; bir saglayicinin sorgusu (sayac
     # upsert'i, kira, iptal istegi) degisince onu da secer. Tracon.Sqlite secilmez: SQLite bu sette yoktur.
     "Tracon.PostgreSql": (
         "Tracon.PostgreSql.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests"),
@@ -779,10 +779,10 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests",),
     "Tracon.Google": ("Tracon.Google.UnitTests",),
     "Tracon.Azure": ("Tracon.Azure.UnitTests",),
-    # Faz 181: paket DEGIL, dort saglayici paketine derlenen paylasimli kaynak.
+    # Paket DEGIL, dort saglayici paketine derlenen paylasimli kaynak.
     # Haritada olmasa tam kosuma duserdi; oysa tam etki alani bu dort projedir.
     "Tracon.Providers.Shared": PROVIDER_TEST_PROJECTS,
-    # F-584: paket DEGIL; OpenAI istemci kutuphanesini kullanan iki pakete
+    # Paket DEGIL; OpenAI istemci kutuphanesini kullanan iki pakete
     # (Tracon.OpenAI, Tracon.Azure) derlenen paylasimli kaynak.
     "Tracon.OpenAI.Shared": ("Tracon.OpenAI.UnitTests", "Tracon.Azure.UnitTests"),
     "Tracon.Voice": ("Tracon.Voice.UnitTests",),
@@ -796,13 +796,13 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # Sevk edilen sozlesme paketi: kendi birim testleri ve sozlesmeyi tureten
     # her proje (bellek ici store'lar Core'da, saglayici ayar sozlesmesi dort
     # saglayicida, store sozlesmeleri uc SQL saglayicisinda). Haritada yokken
-    # her degisiklik tam kosuma genisliyordu (2026-10-13, Faz 196 ve 202).
+    # her degisiklik tam kosuma genisliyordu (2026-10-13).
     "Tracon.Testing.Contracts.Xunit": (
         "Tracon.Testing.Contracts.Xunit.UnitTests", "Tracon.Core.UnitTests",
         *PROVIDER_TEST_PROJECTS,
         "Tracon.PostgreSql.IntegrationTests", "Tracon.SqlServer.IntegrationTests",
         "Tracon.Sqlite.IntegrationTests"),
-    # Paket DEGIL: uc SQL paketine derlenen paylasimli kaynak (Faz 23, 94).
+    # Paket DEGIL: uc SQL paketine derlenen paylasimli kaynak.
     "Tracon.Sql.Shared": (
         "Tracon.Sql.Shared.UnitTests", "Tracon.PostgreSql.IntegrationTests",
         "Tracon.SqlServer.IntegrationTests", "Tracon.Sqlite.IntegrationTests"),
@@ -821,11 +821,11 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
 EXAMPLE_COMPILING_TEST_PROJECT = "Tracon.Generators.UnitTests"
 
 # The only test project that needs the UI built into the solution: it serves
-# the embedded assets and waits for pages a UI-less build never ships (F-356).
+# the embedded assets and waits for pages a UI-less build never ships.
 UI_TEST_PROJECT = "Tracon.Ui.E2ETests"
 
 # A sample directory the solution really tests, and the project that tests it
-# (via ProjectReference). Measured escape: 6e9cc8f6 - phase 139 added a sixth
+# (via ProjectReference). Measured escape: 6e9cc8f6 - a sixth
 # embedding point, samples/Tracon.Embedded fell behind, and `ic-dongu`
 # selected NO test project at all for a samples/ change.
 SAMPLE_TEST_PROJECTS: dict[str, str] = {
@@ -840,7 +840,7 @@ RELEASE_ONLY_SAMPLE_PREFIX = "samples/Tracon.Samples."
 
 
 # -----------------------------------------------------------------------------
-# Test framework matrix (Faz 183)
+# Test framework matrix
 #
 # A representative set of test projects runs on every framework the packages
 # ship; the rest stays on net10.0. The set and the framework list live in ONE
@@ -963,7 +963,7 @@ def _global_dotnet_root(
 ) -> str | None:
     """Where a Unix apphost looks when no DOTNET_ROOT is set.
 
-    Measured (Faz 183, this machine): /etc/dotnet/install_location_arm64 names
+    Measured (this machine): /etc/dotnet/install_location_arm64 names
     /usr/local/share/dotnet while the plain install_location names .../x64 -
     the architecture-specific file wins. None on Windows (registry-based):
     the caller then falls back to the muxer on PATH."""
@@ -992,7 +992,7 @@ def installed_runtime_majors(
 ) -> tuple[str, set[int]] | None:
     """(root, majors) of the Microsoft.NETCore.App runtimes a test apphost can load.
 
-    Measured (Faz 183): `dotnet test` starts each MTP test through its apphost,
+    Measured: `dotnet test` starts each MTP test through its apphost,
     and the apphost resolves the runtime from DOTNET_ROOT_<ARCH> or DOTNET_ROOT,
     then from the GLOBAL install location - never from the `dotnet` muxer that
     happens to be on PATH. A private SDK put first on PATH without DOTNET_ROOT
@@ -1067,14 +1067,14 @@ def require_test_runtimes(
           f" (kurulu: {', '.join(str(major) for major in sorted(majors)) or 'hiçbiri'}).")
     print("   Test apphost'u runtime'ı DOTNET_ROOT_<ARCH>/DOTNET_ROOT'tan, yoksa global kurulumdan"
           " çözer — PATH'teki `dotnet`'ten DEĞİL."
-          " Kurulum: docs/hafiza/test-kosum-tuzaklari.md — 'Çoklu TFM test runtime'ları'.")
+          " Kurulum: gelistirme notlarindaki 'Çoklu TFM test runtime'ları' basligi.")
     return False
 
 
 def _test_target(args: Sequence[str]) -> str:
     """The project or solution a `dotnet test` command targets.
 
-    Faz 215: MTP kipi hedefi `--solution` / `--project` ile alir; ilk konumsal
+MTP kipi hedefi `--solution` / `--project` ile alir; ilk konumsal
     arguman (eski bicim) hala kabul edilir."""
     for flag in ("--solution", "--project"):
         if flag in args and args.index(flag) + 1 < len(args):
@@ -1113,7 +1113,7 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
                 projects.add(match.group(1))
             else:
                 # tests/Directory.Build.props and friends reach every test
-                # project. Before Faz 183 this branch selected NOTHING, silently.
+                # project. This branch used to select NOTHING, silently.
                 needs_full = True
             continue
         if path.startswith("src/"):
@@ -1152,7 +1152,7 @@ def full_solution_test_command() -> Command:
     package fixture can starve each other and turn healthy short deadlines into
     timeouts. Two projects at a time is the measured limit (TEST_MAX_CPU_COUNT):
     three starved each other, two ran green three times once the tests stopped
-    sleeping fixed times (Phase 184).
+    sleeping fixed times.
     """
     # TRX bayraklari ci.yml "Test et" adimlariyla AYNI: dusen testin adi makine
     # okunur hale gelir ve `isolate_failed_tests` onu izole tekrar kosar.
@@ -1186,7 +1186,7 @@ class FailedTest:
 def _recent_trx_reports(since: float, root: pathlib.Path) -> Iterable[tuple[str, pathlib.Path, Any]]:
     """`since`'ten sonra yazilmis her TRX: (proje, dosya, ayristirilmis agac).
 
-    Faz 215: dizilim `--results-directory-layout per-module`'dur,
+dizilim `--results-directory-layout per-module`'dur,
     `<TEST_RESULTS_DIRECTORY>/<proje>/<tfm>_<mimari>/*.trx`. Okunamayan dosya
     atlanir; TRX hic yoksa bos doner (cagiran bunu "sifir test" olarak yorumlar)."""
     import xml.etree.ElementTree as elementtree
@@ -1209,7 +1209,7 @@ def _trx_output_directory(tree: Any) -> str:
     TRX'in kendisinden okunur: bayat bir `release/` klasoru yanlis ikiliyi
     kosturmaz. `codeBase` yoksa tek hedefli projenin `release` klasoru varsayilir;
     canli TRX'lerde `codeBase` her zaman vardir, bu dal cok hedefli bir bacaga
-    dusmez (F-573)."""
+    dusmez."""
     for method in tree.getroot().iter(TRX_NS + "TestMethod"):
         code_base = method.get("codeBase")
         if code_base:
@@ -1222,11 +1222,11 @@ def _trx_output_directory(tree: Any) -> str:
 def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[FailedTest]:
     """`since`'ten sonra yazilmis her TRX'teki dusen test.
 
-    Faz 183: cok hedefli bir projenin her TFM bacagi AYRI bir TRX'tir; bacagin
+cok hedefli bir projenin her TFM bacagi AYRI bir TRX'tir; bacagin
     ikilisi (`release_<tfm>`) TRX'ten okunur, yoksa o projelerin dusen testi
     SESSIZCE kaybolur ve izole yeniden kosum hic tetiklenmezdi.
 
-    Faz 215: TRX artik ikilinin yaninda degil `TEST_RESULTS_DIRECTORY` altindadir.
+TRX artik ikilinin yaninda degil `TEST_RESULTS_DIRECTORY` altindadir.
     Eski yolu taramak HIC dusen test bulmaz ve kapi "izole kosacak bir sey yok"
     der - kirmizi kirmizi kalir ama teshis sessizce kaybolur."""
     failures: list[FailedTest] = []
@@ -1243,7 +1243,7 @@ def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[Faile
 def executed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> tuple[int, int]:
     """(koşulan test sayisi, modul sayisi): `since`'ten sonra yazilmis TRX'lerden.
 
-    Faz 215: MTP kipinde yanlis bir bayrak (`-maxcpucount` gibi) cikis kodu
+MTP kipinde yanlis bir bayrak (`-maxcpucount` gibi) cikis kodu
     vererek HIC test kosturmeden de bitebilir; tersi de dogru - cikis kodu 0
     ve TRX'siz bir kosum "yesil" gorunur. Bu sayi o sessizligin kapisidir."""
     tests = 0
@@ -1264,8 +1264,8 @@ def isolate_failed_tests(
 
     `kusur-giderme` Adim 2'nin uc adimli el yordami budur. Bu repoda "tam
     kosumda duser, izole gecer" sinifi YEDI kez kayda gecti: alti vaka
-    `docs/hafiza/test-yalitimi.md`'de belgelidir (sinif Faz 103'te acildi;
-    Faz 82 · 130 · 134 · 141 ayri testlerle tekrarladi), yedincisini
+    gelistirme notlarinda belgelidir (sinif acildi;
+    ayri testlerle tekrarladi), yedincisini
     2026-09-04 surec denetiminin taban kosumu uretti. Her seferinde ayirt
     etme ELLE yapildi — cogu kez TAM paketi ikinci kez kosarak (~9 dakika,
     olculdu: 553 sn). Izole kosum saniyeler surer (olculdu: 2,5 sn).
@@ -1299,7 +1299,7 @@ def isolate_failed_tests(
         print(f"   {'✅ izole GEÇTİ' if passed else '❌ izole de DÜŞTÜ'}  {label} · {name}")
     if all(passed for _, _, passed in verdicts):
         print("   → Hepsi izole geçti: tam koşum kaynak çekişmesi sınıfı"
-              " (docs/hafiza/test-altyapisi.md). Tam paketi TEKRAR koş;"
+              " (gelistirme notlari). Tam paketi TEKRAR koş;"
               " ikinci koşumda da düşerse gerçek kusurdur.")
     else:
         print("   → İzole de düşen test GERÇEK regresyondur;"
@@ -1309,7 +1309,7 @@ def isolate_failed_tests(
 
 def inner_loop_commands(paths: list[str]) -> list[Command]:
     projects, needs_full = affected_test_projects(paths)
-    # F-356: the E2E suite serves the UI assets embedded by this build. A run
+    # The E2E suite serves the UI assets embedded by this build. A run
     # that reaches it (a full run, or the E2E project itself) built without
     # them failed every E2E test and buried the real regression in that noise.
     needs_frontend = frontend_changed(paths) or needs_full or UI_TEST_PROJECT in projects
@@ -1350,17 +1350,17 @@ def closing_commands(
         Command(("python3", extension.program, "tarama")),
         *extension.after_scan(base),
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
-        # F-525: a cached restore is a no-op and never re-runs the NuGet audit, so
+        # A cached restore is a no-op and never re-runs the NuGet audit, so
         # an advisory published after the last restore stayed invisible here while
         # CI's cold checkout turned it into NU1902/NU1903 (a warning-as-error).
         # `--force` re-evaluates every project (~5 s measured, 2026-10-17).
         Command(("dotnet", "restore", "Tracon.slnx", "--force")),
         Command(("dotnet", "build", "Tracon.slnx", "-c", "Release")),
-        # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
-        # PACKAGING CONTRACT (README, icon, K-008) during iteration - it is not
+        # TraconSkipCleanWorkingTreeCheck: this pack validates the
+        # PACKAGING CONTRACT (README, icon) during iteration - it is not
         # a release candidate, so it must still work on an uncommitted tree.
         # The real release rehearsal (`kapi.py yayin`) and `kapi.py paketle` -
-        # the build job's pack that a `v*` tag publishes (Faz 191) - both leave
+        # the build job's pack that a `v*` tag publishes - both leave
         # this unset and stay fully gated by TraconValidateCleanWorkingTree.
         Command((
             "dotnet", "pack", "Tracon.slnx", "-c", "Release", "--no-build",
@@ -1368,7 +1368,7 @@ def closing_commands(
     ]
     # After the build: DocFX reads the XML documentation the build wrote. Before
     # format and the tests: ~35 s and the most frequent late red (6 of 11).
-    # F-507 made `SourceLanguageTests` skip the gitignored trees the site build
+    # The earlier fix made `SourceLanguageTests` skip the gitignored trees the site build
     # generates, so building the site first no longer changes a test result.
     if site:
         commands.append(Command(("npm", "run", "check"), ROOT / "docs-site"))
@@ -1409,7 +1409,7 @@ def test_commands(
 
 
 # -----------------------------------------------------------------------------
-# `yayin` - release rehearsal (Phase 97, 97.2)
+# `yayin` - release rehearsal (97.2)
 #
 # Writes nothing to a network. It packs the solution (forcing a version via the
 # MinVerVersionOverride environment variable when --surum is given - no git tag
@@ -1443,7 +1443,7 @@ POLYFORM_LICENSE_FILE = "LICENSE.md"
 MIT_LICENSE_FILE = "LICENSE-MIT.md"
 LICENSE_FILES = (POLYFORM_LICENSE_FILE, MIT_LICENSE_FILE)
 
-# Faz 160. Her paketin lisansı BURADA açıkça yazılıdır; varsayılan yoktur.
+# Her paketin lisansı BURADA açıkça yazılıdır; varsayılan yoktur.
 # Yeni bir paket eklendiğinde bu tabloya girmezse kapı hata verir - amaç tam
 # olarak budur: lisans bir sonuç değil, bilinçli bir karardır. Üç paket MIT'dir
 # ki üçüncü taraf ticari lisans almadan eklenti yazıp test edebilsin ve
@@ -1521,7 +1521,7 @@ def _sha256(path: pathlib.Path) -> str:
 # compiler's own DLL/PDB output. Comparing raw file hashes here would make
 # `kapi.py yayin` report a false "different artifact" conflict on every
 # second run against an unchanged commit, which is precisely the false
-# positive Faz 136's own manual case 8 exists to rule out.
+# positive a manual case exists to rule out.
 _VOLATILE_OPC_ENTRY = re.compile(r"^_rels/\.rels$|^package/services/metadata/core-properties/[0-9a-f]{32}\.psmdcp$")
 
 
@@ -1564,7 +1564,7 @@ def _promote_staged_packages(
     file already carries what this run would have produced, so it is left in
     place as the one true copy.
 
-    `copy=True` (Faz 191, `yayin --paket-dizini`) leaves `staging_dir`
+    `copy=True` (`yayin --paket-dizini`) leaves `staging_dir`
     untouched: the input is the artifact CI verified and it must not change.
     Each file is copied under a temporary name that does not end in
     `.nupkg`/`.snupkg` and then renamed with `os.replace`, so an interrupted
@@ -1761,7 +1761,7 @@ def _package_manifest_entries(directory: pathlib.Path, file_names: Mapping[str, 
 
 
 # -----------------------------------------------------------------------------
-# Faz 191 - one build, one pack. `paketle` packs the build CI just tested;
+# One build, one pack. `paketle` packs the build CI just tested;
 # `paket-dogrula` proves a directory still holds exactly what its manifest
 # names; `yayin --paket-dizini` rehearses those files without packing again.
 # -----------------------------------------------------------------------------
@@ -1909,12 +1909,12 @@ def pack_command(
     *,
     no_build: bool,
 ) -> Command:
-    """The ONE `dotnet pack` a release artifact comes from (Faz 191).
+    """The ONE `dotnet pack` a release artifact comes from.
 
     `--no-build` packs the build the caller already tested (`paketle`, CI);
     without it the pack builds first (`yayin --kuru`, a human's rehearsal).
     Neither shape carries `TraconSkipCleanWorkingTreeCheck` or
-    `TraconAllowDirtyPack`: a release candidate stays gated (K-661)."""
+    `TraconAllowDirtyPack`: a release candidate stays gated."""
     return Command((
         "dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release",
         *(("--no-build",) if no_build else ()),
@@ -1940,7 +1940,7 @@ def _pack_release(
     requested_version: str | None,
 ) -> PackedRelease | int:
     """The pack stage: every check that needs `obj/`, the pack start time or
-    the temporary baseline cache runs HERE, next to the pack (Faz 191.3).
+    the temporary baseline cache runs HERE, next to the pack.
 
     Returns an exit code on failure. The artifact stage
     (`_finish_release_rehearsal`) never repeats these - in `release-dryrun`
@@ -1948,7 +1948,7 @@ def _pack_release(
     sys.path.insert(0, str(ROOT / "scripts"))
     import breaking_changes
 
-    # Faz 187 - taban: son yayınlanmış `v*` sürümü. Pack'ten ÖNCE çözülür,
+    # Taban: son yayınlanmış `v*` sürümü. Pack'ten ÖNCE çözülür,
     # çünkü pack taban yolunu ister. Git yoksa temizlik denetimi uyarıyla
     # atlanır (MSBuild kapısı ikinci hattır); tabanın ikinci hattı yoktur, bu
     # yüzden burada sessiz atlama yok.
@@ -2000,7 +2000,7 @@ def _pack_release(
         shutil.rmtree(baseline_work, ignore_errors=True)
 
     # Kanıt pack'i koşan süreçte hesaplanır: semaphore bu makinenin
-    # artifacts/obj/'undadır. Artifact aşamasına TAŞINMAZ (Faz 191.8) -
+    # artifacts/obj/'undadır. Artifact aşamasına TAŞINMAZ -
     # `release-dryrun`'da obj/ yoktur; sonuç `paketle` manifest'ine girer.
     not_run = breaking_changes.validation_not_run(root, library_ids, pack_started)
     if not_run:
@@ -2017,10 +2017,10 @@ def rehearsal_release_dir(version: str, rehearsal_root: pathlib.Path | None = No
     Never `release/`: that is the development feed every `dotnet pack`, the
     closing gate and the package tests write into, so a rehearsal promoted
     there met every older version and its sample gate failed after minutes of
-    packing. Faz 136 deletes nothing; a directory of its own leaves nothing to
-    delete. Inside it Faz 136 still holds: an `<id, version>` pair names one
+    packing. Nothing is deleted; a directory of its own leaves nothing to
+    delete. Inside it the same rule still holds: an `<id, version>` pair names one
     artifact, so a NEW commit rehearsed under the same version is refused and
-    the existing file stays (MT-PKG-116); the same commit twice is a no-op."""
+    the existing file stays; the same commit twice is a no-op."""
     return (rehearsal_root or PACKAGE_REHEARSAL_ROOT) / version
 
 
@@ -2036,7 +2036,7 @@ def release_rehearsal(
     # `dotnet pack`e girilir. MSBuild kapısı (TraconValidateCleanWorkingTree)
     # zaten aynı sonucu verirdi; bu adım yalnız geri bildirimi öne çeker.
     # Koşulsuzdur - bir yayın provasının kanıt değeri kirli bir ağaçta yoktur,
-    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR (Faz 136,
+    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR (
     # Açık Soru 3). git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
     # ATLANIR - `dotnet pack` kendi MSBuild kapısı üzerinden aynı denetimi
     # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
@@ -2050,12 +2050,12 @@ def release_rehearsal(
 
     (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
 
-    # Staging dizini koşum başına benzersizdir (Faz 136, Açık Soru 1: paralel
+    # Staging dizini koşum başına benzersizdir (Açık Soru 1: paralel
     # koşumlar desteklenmez, ama bu en azından ikisinin BİRBİRİNİN çıktısını
     # ezmesini önler). `artifacts/` .gitignore'dadır - staging burada yaşarsa
     # bir sonraki koşumun kendi "erken ret" denetimini kirletmez. Rapor dizini
     # de aynı sebeple koşum başınadır; ayrıca yok olan bir çıktı dosyası SDK'nın
-    # artımlı doğrulama hedefini yeniden koşturur (Faz 187, 187.0 adım 5).
+    # artımlı doğrulama hedefini yeniden koşturur (187.0 adım 5).
     package_root = release_dir.parent if release_dir else PACKAGE_RELEASE_DIR.parent
     staging_root = package_root / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)
@@ -2213,7 +2213,7 @@ def rehearse_package_directory(
         return 1
 
     # Açık Soru 5 = A: `release_dir` girdi dışı paket taşıyorsa ret. Kopya
-    # başlamadan söylenir; hiçbir dosya silinmez (K-661).
+    # başlamadan söylenir; hiçbir dosya silinmez.
     input_files = {entry["file"] for entry in manifest["packages"]} | {
         entry["symbolsFile"] for entry in manifest["packages"] if entry.get("symbolsFile")}
     foreign = sorted(
@@ -2223,7 +2223,7 @@ def rehearse_package_directory(
     if foreign:
         print(f"❌ {release_dir} girdi dışı paket taşıyor ({len(foreign)}): {', '.join(foreign[:5])}"
               + (" …" if len(foreign) > 5 else ""))
-        print(f"   Yerel eski sürümler temizlenmez (Faz 136); gerekiyorsa: rm -rf {release_dir}")
+        print(f"   Yerel eski sürümler temizlenmez; gerekiyorsa: rm -rf {release_dir}")
         return 1
 
     (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
@@ -2241,10 +2241,10 @@ def rehearse_package_directory(
 
 @dataclasses.dataclass(frozen=True)
 class BreakingChangeGate:
-    """What the breaking-change gate (Faz 187) needs from the pack it follows.
+    """What the breaking-change gate needs from the pack it follows.
 
     Only artifact-time input: the pack-time proof (semaphore) was checked by
-    `_pack_release` and never travels here (Faz 191.3)."""
+    `_pack_release` and never travels here."""
 
     baseline: str
     report_dir: pathlib.Path
@@ -2270,7 +2270,7 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
     if result:
         return result
 
-    # Faz 238 - ApiCompat .NET assembly'lerini okur; HTTP, SSE, telemetri, yapılandırma,
+    # ApiCompat .NET assembly'lerini okur; HTTP, SSE, telemetri, yapılandırma,
     # hata kodu ve CLI için son sürümle karşılaştırma ayrı bir okuyucudur ve ApiCompat'tan
     # SONRA koşar (hat satırı iki kez yazılır, ikincisi bu yüzeylerin hattıdır).
     import sozlesme_kirilma
@@ -2339,7 +2339,7 @@ def _finish_release_rehearsal_unchecked(
         # Yalnız GERÇEK bir sürüm şeklinde çözümlenen koşumda zorlanır - ya
         # `--surum` ile insan tarafından yerel bir provada, ya da gerçek bir
         # `v*` etiketiyle. Etiketlenmemiş her rutin CI koşumu yukarıdaki dalı
-        # alır ve bu kapıyı hiç görmez (Faz 123, 123.3).
+        # alır ve bu kapıyı hiç görmez.
         sys.path.insert(0, str(ROOT / "scripts"))
         import changelog
 
@@ -2349,7 +2349,7 @@ def _finish_release_rehearsal_unchecked(
             return 1
         # Sürüm bölümü ETİKET anında yazılır: `## [Unreleased]` başlığı sürüme
         # ve sevk tarihine dönüştürülür. O ana kadar bir sonraki sürümün notları
-        # Unreleased altındadır, bu yüzden prova oradan okur (K-825). Kapının
+        # Unreleased altındadır, bu yüzden prova oradan okur. Kapının
         # koruduğu şey "bölüm var mı" değil, NOTSUZ SÜRÜM ÇIKMASIN'dır.
         _, notes_heading = changelog.read_release_notes(changelog_path, resolved_version)
         if notes_heading is None:
@@ -2390,7 +2390,7 @@ def _finish_release_rehearsal_unchecked(
         else:
             if f'<license type="file">{expected_license}</license>' not in nuspec:
                 errors.append(f"{project_id}: .nuspec '<license type=\"file\">{expected_license}</license>' taşımıyor")
-            # Ölçüldü (Faz 160): NuGet requireLicenseAcceptance'ı yalnız TRUE
+            # Ölçüldü: NuGet requireLicenseAcceptance'ı yalnız TRUE
             # iken yazar; false varsayılandır ve element hiç görünmez. Bu yüzden
             # MIT tarafı elementin YOKLUĞU ile doğrulanır, "false" metniyle değil.
             acceptance_declared = "<requireLicenseAcceptance>true</requireLicenseAcceptance>" in nuspec
@@ -2403,7 +2403,7 @@ def _finish_release_rehearsal_unchecked(
             for other in LICENSE_FILES:
                 if other != expected_license and other in entries:
                     errors.append(f"{project_id}: yanlış lisans dosyası da paketlenmiş: {other}")
-        # Faz 191: yalnız VARLIK değil, DEĞER de. PR'de iki iş aynı merge
+        # Yalnız VARLIK değil, DEĞER de. PR'de iki iş aynı merge
         # commit'ini checkout eder; başka bir commit'ten gelen paket burada
         # düşer. git yoksa (commit 'unknown') yalnız varlık denetlenir.
         repository_match = REPOSITORY_COMMIT_PATTERN.search(nuspec)
@@ -2447,7 +2447,7 @@ def _finish_release_rehearsal_unchecked(
         if project_id != K008_EXEMPT_PACKAGE:
             offenders = sorted({dependency for dependency, _ in prerelease})
             if offenders:
-                errors.append(f"{project_id}: K-008 sınırı ihlal edildi - ön sürüm bağımlılık: {', '.join(offenders)}")
+                errors.append(f"{project_id}: ön sürüm sınırı ihlal edildi - ön sürüm bağımlılık: {', '.join(offenders)}")
         # A-59: ön sürüm upstream kendi önizlemeleri arasında kırar. Açık alt
         # sınır (`version="x"` = `>= x`) tüketicinin yükseltmesini uyarısız
         # restore edip çalışma anında düşürüyordu; tam aralıkta NuGet onu
@@ -2469,15 +2469,15 @@ def _finish_release_rehearsal_unchecked(
                 errors.append(f"{project_id}: {notice_error}")
 
     if errors:
-        print("❌ Metaveri/K-008 sözleşmesi ihlal edildi:")
+        print("❌ Metaveri/ön sürüm sözleşmesi ihlal edildi:")
         for error in errors:
             print(f"  {error}")
         return 1
 
-    # Faz 187 - promote'tan ÖNCE: kırmızı bir kırıcı kapı release dizinine
+    # Promote'tan ÖNCE: kırmızı bir kırıcı kapı release dizinine
     # paket bırakmaz. Not okumak çözümlenen sürümü ister, bu yüzden sürüm
     # çözümünden SONRA koşar. Her koşumda okur (yalnız sürüm biçimli olanda
-    # değil): K-602 kırıcı değişikliğe izin verir, duyurusuz sevke izin vermez.
+    # değil): Kırıcı değişikliğe izin verir, duyurusuz sevke izin vermez.
     breaking_result = _check_breaking_changes(root, breaking_gate, resolved_version)
     if breaking_result:
         return breaking_result
@@ -2525,7 +2525,7 @@ def _finish_release_rehearsal_unchecked(
 
     # Envanterdeki her extension sample'ı ve AOT smoke, tek exact-version bu
     # koşumun ürettiği paketlere karşı izole bir NUGET_PACKAGES cache'iyle
-    # çalışır (Faz 103, §103.8; envanter kapısı Faz 123, §123.1). `dotnet
+    # çalışır (envanter kapısı). `dotnet
     # pack`/npm gibi ağa hiçbir şey yazmaz.
     sys.path.insert(0, str(ROOT / "scripts"))
     import release_extension_samples
@@ -2559,9 +2559,9 @@ def _npm_dry_run() -> int:
 
 
 def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> int:
-    """Faz 166'nın kapasite ölçümünü koşar.
+    """Kapasite ölçümünü koşar.
 
-    🚨 Bu bir KAPI DEĞİLDİR. K-738 yük ve arıza ölçümlerinin rapor olduğunu,
+    🚨 Bu bir KAPI DEĞİLDİR. Yük ve arıza ölçümlerinin rapor olduğunu,
     sürenin hiçbir eşiğe bağlanmadığını söyler; `kapanis` bu komutu çağırmaz ve
     hiçbir profili standart kapanışa, PR yoluna veya release hattına eklemez.
     Ölçüm mantığı `scripts/capacity.py` içindedir; burada yalnız komut yüzeyi
@@ -2586,7 +2586,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
     ic_dongu = subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
     ic_dongu.add_argument(
         "--taban", default="HEAD",
-        help="değişiklik aralığının tabanı; commit edilen işi de görmek için faz öncesi commit (F-356)")
+        help="değişiklik aralığının tabanı; commit edilen işi de görmek için faz öncesi commit")
     closing = subparsers.add_parser("kapanis", help="tam doğrulama kapıları")
     closing.add_argument("--taban", required=True, help="faz öncesi commit SHA")
     closing.add_argument("--site-atla", action="store_true", help="docs-site kapısını atla")
@@ -2596,12 +2596,12 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
         help="bench/baseline.json'ı bu koşumun sonucuyla değiştirir (karşılaştırma yapılmaz)")
     test = subparsers.add_parser("test", help="MTP filtresiyle tek test alt kümesi")
     # extend: `--sinif A B` ile `--sinif A --sinif B` aynıdır. Varsayılan davranış
-    # ikinci bayrakta birinciyi sessizce ezerdi (Faz 187 kapanışında ölçüldü).
+    # ikinci bayrakta birinciyi sessizce ezerdi (bir kapanışta ölçüldü).
     test.add_argument("--sinif", nargs="+", action="extend", required=True, help="sınıf desenleri")
     test.add_argument("--proje", default="Tracon.Core.UnitTests", help="test proje adı")
     test.add_argument(
         "--tfm",
-        help="çoklu TFM projesinde tek bacak (ör. net8.0); verilmezse her bacak koşar (Faz 183)")
+        help="çoklu TFM projesinde tek bacak (ör. net8.0); verilmezse her bacak koşar")
     yayin = subparsers.add_parser("yayin", help="yayın provası - ağa hiçbir şey yazmaz")
     yayin.add_argument(
         "--kuru", action="store_true", required=True,
@@ -2613,14 +2613,14 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
              "verilmezse MinVer'in bugünkü değeri kullanılır")
     yayin.add_argument(
         "--paket-dizini",
-        help="paketlemeden doğrula: 'kapi.py paketle' çıktısı (Faz 191); dizin değişmez")
-    # Faz 191: CI'ın tek pack'i. Bypass seçeneği YOKTUR (K-661).
+        help="paketlemeden doğrula: 'kapi.py paketle' çıktısı; dizin değişmez")
+    # CI'ın tek pack'i. Bypass seçeneği YOKTUR.
     paketle = subparsers.add_parser("paketle", help="test edilen derlemeyi --no-build ile paketler + manifest")
     paketle.add_argument("--cikti", required=True, help="boş veya olmayan çıktı dizini; doluysa ret (silinmez)")
     paket_dogrula = subparsers.add_parser(
         "paket-dogrula", help="dizindeki dosyalar manifest'teki SHA-256 ile aynı mı")
     paket_dogrula.add_argument("dizin", help="package-manifest.json taşıyan dizin")
-    # Faz 166. Kapasite ölçümü bir KAPI DEĞİLDİR (K-738: yük ölçümü rapordur).
+    # Kapasite ölçümü bir KAPI DEĞİLDİR (yük ölçümü rapordur).
     # `kapanis` onu asla koşmaz; burada olması yalnız komut yüzeyini tek yerde
     # tutmak içindir. Ağır profiller açık komutla, eli isteyerek koşar.
     kapasite = subparsers.add_parser(
@@ -2646,7 +2646,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             print("❌ git çağrısı başarısız; etkilenen proje seçilemedi.")
             return 1
         if not paths:
-            # F-356: after a commit, HEAD..working tree is empty and only the
+            # After a commit, HEAD..working tree is empty and only the
             # build runs - a "green" that tested nothing.
             print(f"⚠️ {args.taban}'e karşı değişiklik yok; yalnız build koşar. "
                   "Commit edilen işi sınamak için `--taban <faz öncesi commit>` ver.")
@@ -2656,7 +2656,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             return 1
         return run_commands("ic-dongu", commands, dry_run=args.komutlari_bas)
     if args.stage == "kapanis":
-        # The performance gate is path-triggered against the WHOLE phase's
+        # The performance gate is path-triggered against the WHOLE change set's
         # changes (--taban..working tree), not just what is uncommitted right
         # now - a phase that touched a hot path in an earlier commit and only
         # has unrelated uncommitted changes left must still measure it (116.4).
@@ -2704,7 +2704,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             else:
                 print(f"$ {pack_command('<staging>', ('<187 taban özellikleri>',), no_build=False).display}")
             return 0
-        # Faz 183: prova bir net8.0 tüketicisini .NET 8 runtime'ında koşturur.
+        # Prova bir net8.0 tüketicisini .NET 8 runtime'ında koşturur.
         # Eksik runtime dakikalarca paketlemeden SONRA değil, şimdi söylenir.
         sys.path.insert(0, str(ROOT / "scripts"))
         import release_extension_samples

@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Storage;
 /// The key used to be the two strings joined with an invisible U+001F. Nothing at
 /// the store layer keeps that character out of a tenant id or a server name, so
 /// two different pairs could produce the same key and one tenant's definition
-/// could replace another's (Phase 182). HTTP validates both values before they
+/// could replace another's. HTTP validates both values before they
 /// reach the store; a direct store caller does not.
 /// </remarks>
 public sealed class InMemoryMcpServerStoreTests

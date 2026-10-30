@@ -245,7 +245,7 @@ public sealed class GeneratedOutputTests
     {
         // GetArray returns IReadOnlyList<T>; there is no implicit conversion to a T[] parameter.
         // This test verifies not just the text but also that the OUTPUT COMPILATION IS ERROR-FREE -
-        // it catches the CS1503 regression found in MT-PKG-044. Other tests only check the
+        // it catches the CS1503 regression found. Other tests only check the
         // generated text and never run the compilation at all.
         const string Source = """
             using Tracon;

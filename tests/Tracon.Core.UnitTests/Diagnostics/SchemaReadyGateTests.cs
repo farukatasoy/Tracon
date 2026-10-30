@@ -4,12 +4,12 @@ namespace Tracon.Core.UnitTests.Diagnostics;
 /// <see cref="SchemaReadyGate"/> contract.
 /// </summary>
 /// <remarks>
-/// 🚨 The reason these tests exist is a measured defect (Phase 42, 2026-08-08
-/// report section 2.3): <c>MigrationHostedService.StartAsync</c> waits fully
+/// 🚨 The reason these tests exist is a measured defect (2026-08-08
+/// report an earlier plan): <c>MigrationHostedService.StartAsync</c> waits fully
 /// for migrations, but <c>BackgroundService.StartAsync</c> returns without
 /// waiting for <c>ExecuteAsync</c>. If the registration order is
 /// <c>.UseMcp()</c> → <c>.UseSqlite()</c>, the first SQL attempt runs before
-/// migration finishes and produces "no such table". Rationale: K-354.
+/// migration finishes and produces "no such table".
 /// </remarks>
 public sealed class SchemaReadyGateTests
 {

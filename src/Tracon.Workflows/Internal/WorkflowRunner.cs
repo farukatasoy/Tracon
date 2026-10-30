@@ -218,9 +218,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         var record = await RequireWorkflowRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
         // A run that was answered STAYS in AwaitingInput (status history is not
-        // rewritten afterwards, K-014) and still lists its request; the
+        // rewritten afterwards) and still lists its request; the
         // continuing work lives on a new run row. Answering it again opens a
-        // branch, on purpose (K-130).
+        // branch, on purpose.
         if (record.Status != RunStatus.AwaitingInput)
         {
             return [];
@@ -473,7 +473,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             DefinitionVersion = request.DefinitionVersion,
 
             // A queued run, or a recovery's continuation that starts the work again, arrives under an id whose row
-            // is already open and may already name the run it continues (F-531).
+            // is already open and may already name the run it continues.
             RowMayBeOpen = request.RunId is not null,
         };
 
@@ -587,7 +587,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             DefinitionVersion = definitionVersion,
 
             // The answer names the run it answers in its own history (WorkflowResponseApplied), and the
-            // budget is read back along that link. The row does not name it as a continuation (K-130).
+            // budget is read back along that link. The row does not name it as a continuation.
             SourceRunId = record.Id,
             RowMayBeOpen = request.NewRunId is not null,
         };
@@ -807,7 +807,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // Timeout and cancellation merge into a single token: even when the client
         // drops the connection, the server-side execution must not run forever.
         // Armed with the installation's value now, when the run starts; a definition
-        // that sets its own (F-405) re-arms the same source from this moment once it
+        // that sets its own re-arms the same source from this moment once it
         // is read, so the deadline still counts from the start of the run.
         using var timeout = new CancellationTokenSource(settings.RunTimeout, _timeProvider);
         var deadline = new RunDeadline(timeout, _timeProvider.GetTimestamp(), settings.RunTimeout, cancellationToken);
@@ -827,7 +827,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // of a run with no row: a run whose deadline passed while it queued
         // ended with an OperationCanceledException before its first event, the
         // stream closed without a closing frame, and the run id the endpoint had
-        // already announced pointed at nothing (F-325).
+        // already announced pointed at nothing.
         await foreach (var runEvent in RunGuardedAsync(execution, settings, deadline, linked).ConfigureAwait(false))
         {
             yield return runEvent;
@@ -847,10 +847,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // is an AsyncLocal, and an assignment made inside a helper method does not
         // flow back to the caller; if the span were started there, the spans of the
         // agents would be siblings of the root span instead of its children
-        // (measured in phase 6).
         var activity = ActivitySource.StartActivity(TraconDiagnostics.RunActivityName, ActivityKind.Internal);
 
-        // F-337: read BEFORE the scope is built. The scope promises the same
+        // Read BEFORE the scope is built. The scope promises the same
         // user and labels the run record carries (AgentRunScope.UserId/Labels),
         // and every node and tool of the root reads them from it; built first,
         // it carried neither. The read writes no AsyncLocal.
@@ -862,7 +861,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 message,
                 execution.RunId));
 
-        // Phase 200: the definition is read ONCE, here, BEFORE the row opens. The row stamps the
+        // The definition is read ONCE, here, BEFORE the row opens. The row stamps the
         // version it was compiled from (runs.agent_version), and the graph, the parameter schema
         // and the run timeout below all come from this same read - a stamp and a graph taken from
         // two reads could name two versions of a workflow being edited. A failure of the read is
@@ -881,12 +880,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             lookupFailure = ExceptionDispatchInfo.Capture(exception);
         }
 
-        // Phase 209: how long a request this run publishes may wait. Taken from the SAME read as the
+        // How long a request this run publishes may wait. Taken from the SAME read as the
         // graph, so a run compiled from a version carries that version's limit; the row it writes
         // freezes the time, and an edit made while the run waits does not move it.
         var requestTimeout = found?.Code?.RequestTimeout ?? found?.Definition?.RequestTimeout;
 
-        // F-531: the ceiling is the logical run's. A run that continues an earlier one (a person's answer, an
+        // The ceiling is the logical run's. A run that continues an earlier one (a person's answer, an
         // operator's resume, a recovery) starts from what the chain already spent. Read before the budget is
         // built and held like the definition's read: the row must open first, and a chain that cannot be read
         // fails the run in the setup block below, not with a budget of zero.
@@ -909,7 +908,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider, carryOver);
 
-        // F-418: the workflow names the counter its steps add to. An agent step is a child
+        // The workflow names the counter its steps add to. An agent step is a child
         // run of this root and writes its own tokens and cost when it ends, even one that a
         // step left running in the background past the workflow's last event.
         budget.Account = new TreeAccount(_tenantContext.TenantId, execution.WorkflowName, attribution.UserId, _quotaEnforcer);
@@ -923,14 +922,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             TenantId = _tenantContext.TenantId,
             SessionId = execution.SessionId,
 
-            // A workflow's session id never gets a sessions record (F-332); everything below inherits that.
+            // A workflow's session id never gets a sessions record; everything below inherits that.
             SessionHasNoRecord = true,
             UserId = attribution.UserId,
             Labels = attribution.Labels,
             Budget = budget,
             Writer = writer,
 
-            // Phase 270: the handoff count of this run, from the SAME read of the definition the graph is
+            // The handoff count of this run, from the SAME read of the definition the graph is
             // compiled from. The scope is the run's own object, so every step adds to one counter; a resume
             // or an answer is a new run and builds its own.
             Handoffs = found?.Definition is { Kind: WorkflowKind.Handoff } handoffDefinition
@@ -939,7 +938,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
             // What the function nodes of this workflow report beyond tokens adds up
             // here; the agent steps below keep their own (a tool's measurement) and
-            // reach the same budget (phase 199).
+            // reach the same budget.
             NonTokenCost = new NonTokenCostAccumulator(_traconOptions.Value.Pricing.Currency, budget),
         };
 
@@ -955,7 +954,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         TraconRunContext.SetCurrent(scope);
 
-        // Phase 240: a read, not a reservation. The slot is taken after setup; if one is free now the row opens
+        // A read, not a reservation. The slot is taken after setup; if one is free now the row opens
         // Running as it always did, and a race with another run only shows a run as Queued (or Running) for
         // a moment longer than it was.
         //
@@ -973,7 +972,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             StartedAt = _timeProvider.GetUtcNow(),
             TenantId = scope.TenantId,
 
-            // A workflow is ONE run for quota purposes (K-394), so it is one
+            // A workflow is ONE run for quota purposes, so it is one
             // run for attribution too: the whole workflow belongs to whoever
             // started it. The agent steps underneath resolve the same
             // ambient attribution independently and record it on their own
@@ -994,10 +993,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             AgentVersion = found?.Definition?.Version,
 
             // A resume points back at the run it resumes, so the chain a later continuation reads
-            // its budget back along is whole (F-531). Null when the row was opened with a link already.
+            // its budget back along is whole. Null when the row was opened with a link already.
             ContinuedFromRunId = continues,
 
-            // Phase 240: a run that would wait for a slot is Queued while it waits and Running once it has
+            // A run that would wait for a slot is Queued while it waits and Running once it has
             // one, so what the list shows is what the run is doing.
             Status = opensQueued ? RunStatus.Queued : RunStatus.Running,
         };
@@ -1006,8 +1005,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             startInfo,
 
             // Workflow runs start with a structured input, not a single user
-            // message; phase 45's eval case promotion covers only agent
-            // runs (Phase 45).
+            // message; the eval case promotion covers only agent
+            // runs.
             query: null,
             linked.Token).ConfigureAwait(false);
 
@@ -1050,9 +1049,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             yield return FirstEvent(execution);
 
-            // Phase 208: a run that answers a request names, in its own history, the run and
+            // A run that answers a request names, in its own history, the run and
             // the request it answers - the only link back, since the answer starts a new row
-            // (K-130). Written on None like the closing event: the link must not be lost to a
+            // Written on None like the closing event: the link must not be lost to a
             // stop that comes before the graph does anything.
             if (execution.AnsweredRequest is { } answered)
             {
@@ -1070,7 +1069,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // invalid definition) is one the user can fix, and it must not leave
             // the run open.
             //
-            // 🚨 F-405: set up BEFORE the slot wait, not after it. The definition
+            // Set up BEFORE the slot wait, not after it. The definition
             // carries its own run timeout, and the deadline counts the slot wait;
             // read after the wait, a workflow allowed an hour timed out in the
             // queue on the installation's ten minutes. Setup spends no model call,
@@ -1090,7 +1089,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                 await ApplyRunTimeoutAsync(execution, resolved, settings, deadline).ConfigureAwait(false);
 
-                // F-294: values are checked against the schema of the SAME
+                // Values are checked against the schema of the SAME
                 // definition the graph was built from, before any model
                 // call. A failure here closes the run like a graph-setup
                 // failure: the caller can fix it and nothing was spent.
@@ -1114,7 +1113,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // already counts it, so a run that times out here closes like any
             // other timed-out run — Canceled, naming the setting.
             //
-            // 🚨 Phase 240: the tenant's slot comes FIRST, the shared one second, and they are given back
+            // The tenant's slot comes FIRST, the shared one second, and they are given back
             // the other way round. A run held back by its tenant's limit then waits holding no shared
             // slot, so it delays nobody else; taken the other way round it would sit on a shared slot
             // that another tenant's run could use. Both are released in the finally below.
@@ -1181,8 +1180,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                 // 🚨 MAF ends the stream QUIETLY when the token is canceled: no
                 // OperationCanceledException reaches the pump, MoveNextAsync simply
-                // returns false. Measured on a real sequential graph (2026-08-18,
-                // defect F-107): the caller cancels, the graph stops after the
+                // returns false. Measured on a real sequential graph (2026-08-18):
+                // the caller cancels, the graph stops after the
                 // running step, and without this line the run was recorded as
                 // Completed with error: null — the caller was told the opposite of
                 // what happened. A silent stop is a CANCELLATION, not a completion.
@@ -1267,7 +1266,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         CancellationToken cancellationToken)
     {
         // A stored workflow declares its schema in its definition, a workflow defined in code in its
-        // registration (F-537): the same schema, checked by the same code below.
+        // registration: the same schema, checked by the same code below.
         var definition = found.Definition;
         var schema = definition?.Parameters ?? found.Code?.Parameters ?? [];
 
@@ -1472,14 +1471,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // RunGuardedAsync does not survive the first `yield return` (the next MoveNextAsync runs in the consumer's
         // context), so without it every span of every executor and every agent step was a root of its own trace and
         // the collector, which finds the owning run by walking the parent chain, gave it to no run (measured in
-        // phase 266: a stored workflow's run trace held `tracon.run` and nothing else).
+        // A stored workflow's run trace held `tracon.run` and nothing else).
         if (runActivity is not null)
         {
             Activity.Current = runActivity;
         }
 
         // 🚨 The scope is written BEFORE execution starts; the assignment
-        // inside the loop is not enough. Measured (phase 15):
+        // inside the loop is not enough. Measured:
         // InProcessExecution.RunStreamingAsync starts a background task that
         // runs the executors, and that task captures the ExecutionContext AT
         // THAT EXACT MOMENT. If the scope were only written before
@@ -1500,7 +1499,6 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // workflow timeout cancelled anything is a provider failure - most
         // often HttpClient reporting its own deadline - and recording it as a
         // cancelled workflow hid a real outage behind a user action.
-        // Phase 157.
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
             startupFailure = PumpedEvent.FromCancellation();
@@ -1536,14 +1534,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
             var delivered = new HashSet<string>(StringComparer.Ordinal);
 
-            // F-334 (K-640): the failure an executor event reports is logged
+            // The failure an executor event reports is logged
             // ONCE, under one ref, and the same ref names it on the event and
             // on the run row - MAF can report one exception as an executor
             // failure, a graph error and a thrown step.
             (Exception Exception, string CorrelationId)? loggedFailure = null;
 
             // 🚨 The stream must be reopened AFTER the response is sent.
-            // Measured (phase 16): SendResponseAsync queues a message, but the
+            // Measured: SendResponseAsync queues a message, but the
             // WatchStreamAsync enumerator being consumed at that moment has
             // already decided to finish; only a new enumerator sees the
             // continuing super-steps.
@@ -1559,8 +1557,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     while (true)
                     {
                         // 🚨 MAF does NOT honor an external cancellation token in
-                        // the middle of a running step. Measured (2026-08-18,
-                        // defect F-107) on a real sequential graph: the caller
+                        // the middle of a running step. Measured (2026-08-18)
+                        // on a real sequential graph: the caller
                         // cancels, MoveNextAsync still returns the remaining
                         // events, the stream ends normally and the run was
                         // recorded as Completed with error: null — the opposite
@@ -1669,7 +1667,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         var mapping = WorkflowEventMapper.Map(
                             workflowEvent, failureText, recording.MaxPayloadLength, asked.Presentation, asked.AgentName);
 
-                        // F-589: an unrecognized event is in the run record now
+                        // An unrecognized event is in the run record now
                         // (tracon.workflow.event), so the log drops to Debug: it is no
                         // longer the only trace of it.
                         if (!mapping.IsKnown && _logger.IsEnabled(LogLevel.Debug))
@@ -1701,7 +1699,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                                 ? await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false)
                                 : await writer.AppendReservedAsync(draft, linked.Token).ConfigureAwait(false);
                         }
-                        // 🚨 F-550: the deadline or the caller can stop the run between
+                        // The deadline or the caller can stop the run between
                         // reading this event and writing it. That is the run stopping, as at
                         // a step boundary above, not an error for the caller to catch: the
                         // exception used to leave the stream, which ended without its closing
@@ -1722,7 +1720,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         yield return PumpedEvent.FromEvent(appended);
 
                         // 🚨 A graph-level error FAILS the run. Measured
-                        // (phase 16): when it was only written to the event
+                        // When it was only written to the event
                         // stream without changing the status, an executor had
                         // crashed, no output was ever produced, and the run
                         // was still recorded as "Completed" - a row that
@@ -1744,8 +1742,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 }
 
                 // 🚨 An answered request does NOT prove the orchestration still
-                // has work left. Measured (2026-08-14, defect F-106 / HATA-K-003,
-                // K-401): a Magentic orchestration that hits its round limit
+                // has work left. Measured (2026-08-14): a Magentic orchestration
+                // that hits its round limit
                 // produces its own WorkflowOutputEvent and finishes; the pump
                 // then reopened the stream, Microsoft Agent Framework rejected
                 // the call with "the orchestration has already completed", and
@@ -1954,9 +1952,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 // MAF's raw message ("not compatible with the workflow") does
                 // not say what to do about it. The cause is that executor ids
                 // changed. A restart does not change them: WorkflowAgentIdentity
-                // gives every agent step a permanent id (K-127). A change to the
+                // gives every agent step a permanent id. A change to the
                 // graph does: the pattern, the steps, their order or the
-                // node-list form (K-901), or a code-defined graph whose own
+                // node-list form, or a code-defined graph whose own
                 // executors take a new id in each process.
                 throw new TraconException(
                     $"Workflow '{execution.WorkflowName}' cannot be resumed from this checkpoint: " +
@@ -2009,9 +2007,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     cancellationToken).ConfigureAwait(false);
         }
 
-        // 🚨 MT-WF-062: an EXTRA TurnToken must NOT be sent on a /respond call
+        // An EXTRA TurnToken must NOT be sent on a /respond call
         // (Answers non-empty): the checkpoint already republishes the pending
-        // request BY ITSELF (Phase 16 #3) - the extra token
+        // request BY ITSELF - the extra token
         // has a VISIBLE side effect whenever the graph's ENTRY node is an
         // AIAgentBinding (an agent-host SUBSCRIBED to the turn token): the
         // agent thinks it is "a new turn", reruns FROM SCRATCH, produces a
@@ -2049,7 +2047,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         // 🚨 Classified HERE, where the row closes, so every error the runner
         // builds gets a class: a participant's exception, the deadline, the
-        // super-step limit, an undeliverable answer (F-314). Before, none did,
+        // super-step limit, an undeliverable answer. Before, none did,
         // and a workflow failure was invisible on the error-class dashboard
         // while its own participant's row carried the class.
         if (error is not null)
@@ -2057,7 +2055,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             error = Classify(error);
         }
 
-        // A workflow row has no model of its own (phase 20): only the agent
+        // A workflow row has no model of its own: only the agent
         // runs beneath it carry token cost, which shows up in the tree total. What
         // its own function nodes reported beyond tokens is the row's own snapshot,
         // read once here; an item reported later stays in the run's detail.
@@ -2239,7 +2237,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// functionality).
     /// </para>
     /// </remarks>
-    // F-333: before this a workflow produced no run.* event at all, and the
+    // Before this a workflow produced no run.* event at all, and the
     // documented workflow.request.pending was never sent.
     private async ValueTask PublishWebhooksAsync(
         WorkflowExecution execution,
@@ -2335,8 +2333,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             return;
         }
 
-        // F-418: only this root's own share is written here; its steps wrote theirs (K-394 keeps
-        // the workflow one run). F-337: the quota.threshold webhook names the run that crossed
+        // Only this root's own share is written here; its steps wrote theirs (this keeps
+        // the workflow one run). The quota.threshold webhook names the run that crossed
         // the threshold and its user, as it does for an agent run. The token cost is the steps';
         // RunSpend adds nothing across currencies, so the root's amount is the one it reported.
         _ = await TreeQuota.RecordAsync(
@@ -2420,7 +2418,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
         catch (Exception exception)
         {
-            // CancellationToken.None again, so no cancellation of ours (K-840).
+            // CancellationToken.None again, so no cancellation of ours.
             _logger.LogWarning(
                 exception,
                 "Could not check the session of run {RunId} for runs that still need its checkpoints; they are kept.",
@@ -2441,7 +2439,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         catch (Exception exception)
         {
             // No filter: the delete runs on CancellationToken.None, so no
-            // OperationCanceledException here is a cancellation of ours (K-840).
+            // OperationCanceledException here is a cancellation of ours.
             // Cleanup is not functional; its failure does not affect the run.
             _logger.LogWarning(
                 exception,
@@ -2458,7 +2456,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
-            // The run's own token decides (K-840): after the caller cancelled,
+            // The run's own token decides: after the caller cancelled,
             // the cancellation propagates as before; on the super-step limit
             // path nothing of ours is cancelled, so an OperationCanceledException
             // here is a failure and must not turn the limit into "Canceled".
@@ -2526,7 +2524,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             return deadline.ToRunError();
         }
 
-        // F-323, open question 13-A: the job's time limit is a reason of its own, not an
+        // The job's time limit is a reason of its own, not an
         // interruption; WorkflowRecovery never continues a run closed with it.
         return deadline.CallerStopped &&
                AmbientJobAttempt.Current is { Reason: JobStopReason.MaxDurationExceeded } attempt
@@ -2612,7 +2610,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             _logger.LogError(unwrapped, "Workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
         }
 
-        // 🚨 The SAME stable identity the agent run path writes (F-314): a
+        // 🚨 The SAME stable identity the agent run path writes: a
         // TraconException's ErrorType, not its CLR name. The class is added
         // where the row closes (CompleteAsync), for every error, not only this one.
         return new RunError
@@ -2680,7 +2678,6 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <see cref="SafeErrorText.ForPersistence"/>; the detail lives in the log
     /// under the ref. An exception already logged keeps its ref.
     /// </remarks>
-    // K-640, F-334.
     private (Exception Exception, string CorrelationId) LogFailure(
         Exception failure,
         Guid runId,

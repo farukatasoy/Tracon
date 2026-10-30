@@ -6,7 +6,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// What the engine itself writes for an answer (phase 208): the run that answers names its
+/// What the engine itself writes for an answer: the run that answers names its
 /// source in a <see cref="RunEventType.WorkflowResponseApplied"/> event, and marks the answer
 /// delivered once the workflow received it - best-effort, never at the run's expense.
 /// </summary>

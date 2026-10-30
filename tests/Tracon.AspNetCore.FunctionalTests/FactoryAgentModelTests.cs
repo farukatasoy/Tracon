@@ -5,13 +5,13 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269).
+// Same rationale as AgentExtensionRunTests.cs.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 258 (F-752): a factory agent that declares its model keeps what a definition agent keeps -
+/// A factory agent that declares its model keeps what a definition agent keeps -
 /// the tenant's own provider key, the tenant's egress policy, the model in the run record, the cost
 /// and the cost quota.
 /// </summary>

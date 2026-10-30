@@ -86,7 +86,7 @@ internal sealed class RunSampler
             var now = _clock.GetUtcNow();
             var runIdText = request.RunId.ToString();
 
-            // 🚨 Payload must be assigned (K-166). Otherwise JsonElement remains
+            // 🚨 Payload must be assigned. Otherwise JsonElement remains
             // `default` and the complete /api/jobs list returns 500. It shares the
             // webhook-delivery job shape, string[], so a second JsonSerializerContext is unnecessary.
             var payload = JsonSerializer.SerializeToElement(

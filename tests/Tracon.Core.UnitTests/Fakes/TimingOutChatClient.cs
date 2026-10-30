@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Fakes;
 /// <summary>
 /// A chat client that reports its OWN request timeout, the way
 /// <see cref="HttpClient"/> does: an <see cref="OperationCanceledException"/>
-/// raised while NOTHING was cancelled (K-737).
+/// raised while NOTHING was cancelled.
 /// </summary>
 /// <remarks>
 /// Every official provider SDK talks over <see cref="HttpClient"/>, so this

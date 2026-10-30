@@ -6,7 +6,7 @@ using Tracon.ProviderCore.Tests;
 namespace Tracon.Google.UnitTests;
 
 /// <summary>
-/// What the Google provider states through <see cref="ISamplingSupport.SamplingLimits"/> (phase 252), and the
+/// What the Google provider states through <see cref="ISamplingSupport.SamplingLimits"/>, and the
 /// request body the real Google.GenAI chat client adapter writes for the seed that the limit protects.
 /// </summary>
 /// <remarks>

@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269): the package's
+// Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-598 — the members of <c>ModelBinding.ToolLoop</c> that change what the loop does, through the whole host:
+/// The members of <c>ModelBinding.ToolLoop</c> that change what the loop does, through the whole host:
 /// HTTP definition, store, compiler, model pipeline and the real <c>FunctionInvokingChatClient</c>.
 /// </summary>
 /// <remarks>

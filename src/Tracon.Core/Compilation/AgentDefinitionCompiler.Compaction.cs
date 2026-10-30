@@ -8,8 +8,7 @@ namespace Tracon;
 /// </summary>
 // MAAI001: Microsoft.Agents.AI.Compaction.* is marked "evaluation purposes
 // only". Compaction setup is kept in a single file; only this file is
-// updated if MAF changes this API. Rationale: docs/KARARLAR.md (same pattern
-// as K-020).
+// updated if MAF changes this API. (same pattern
 #pragma warning disable MAAI001
 public sealed partial class AgentDefinitionCompiler
 {
@@ -177,7 +176,7 @@ public sealed partial class AgentDefinitionCompiler
             ?? DefaultContextWindowMaxOutputTokens;
 
         // toolEvictionThreshold/truncationThreshold are not exposed in
-        // CompactionSettings in this phase (the doc's §13.1 shape does not
+        // CompactionSettings in this change (the doc's §13.1 shape does not
         // include them) - reasonable constant values are used. If needed, add
         // them as a separate field later.
         return new ContextWindowCompactionStrategy(

@@ -3,7 +3,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// <summary>
 /// A queue whose enqueue fails for one handler key and passes every other call
 /// to <paramref name="inner"/>. It reproduces a queue that refuses the job after
-/// the endpoint has opened the run's placeholder row (F-432).
+/// the endpoint has opened the run's placeholder row.
 /// </summary>
 /// <param name="inner">The store every other call goes to.</param>
 /// <param name="refusedHandlerKey">The handler key whose enqueue throws.</param>

@@ -6,7 +6,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-598 — <c>model.allowConcurrentToolCalls</c> moved to <c>model.toolLoop.allowConcurrentToolCalls</c>. The
+/// <c>model.allowConcurrentToolCalls</c> moved to <c>model.toolLoop.allowConcurrentToolCalls</c>. The
 /// agent endpoints refuse the old key and name the new place, because the JSON reader would otherwise drop
 /// it without a word and the agent would run its tool calls one after another.
 /// </summary>

@@ -6,7 +6,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A run that names a definition version compiles and stamps that version (F-492).
+/// A run that names a definition version compiles and stamps that version.
 /// </summary>
 /// <remarks>
 /// <para>

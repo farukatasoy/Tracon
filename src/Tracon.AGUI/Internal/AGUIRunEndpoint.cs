@@ -103,7 +103,7 @@ internal static class AGUIRunEndpoint
         request = request with { Approvals = resume.Approvals, InputResponses = resume.Inputs };
 
         // The tools of the run are the tools of the version the experiment assigns, which is known inside the
-        // preparation; a check before it read the latest definition (F-667).
+        // preparation; a check before it read the latest definition.
         var tools = ToolBoundary.None;
 
         var preparation = await AgentTurnService

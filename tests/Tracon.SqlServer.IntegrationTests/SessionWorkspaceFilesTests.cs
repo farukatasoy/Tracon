@@ -6,7 +6,7 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// Phase 234: the SQL Server file store reads, measures and deletes the files of one session's directory, by tenant and
+/// The SQL Server file store reads, measures and deletes the files of one session's directory, by tenant and
 /// path and with no agent or run in scope, and a data subject erasure over SQL Server takes the workspace with the
 /// session.
 /// </summary>

@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// node reach the instance the name registered, never another.
 /// </summary>
 /// <remarks>
-/// F-298: a process knew one unnamed provider with one process-wide key. A host that
+/// A process knew one unnamed provider with one process-wide key. A host that
 /// picks the text-to-speech engine per tenant or per pipeline (a hosted service, a
 /// local GPU model) had no way to name the engine. Each case counts the calls of every
 /// registered instance, so a name that reaches the wrong one is red even when the
@@ -101,7 +101,7 @@ public sealed class NamedSpeechProviderTests
     [Fact]
     public async Task Providers_reports_the_dialogue_limits_of_a_provider_that_voices_a_dialogue_and_null_for_the_rest()
     {
-        // F-465: a caller learned that a provider cannot voice a dialogue from the failure of
+        // A caller learned that a provider cannot voice a dialogue from the failure of
         // GetDialogueSynthesizerAsync. The list says it up front, for the default synthesizer too.
         var engines = new Engines();
         var duo = new CountingDialogueSpeechProvider("duo-engine");

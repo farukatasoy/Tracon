@@ -15,9 +15,9 @@ namespace Tracon.Core.UnitTests.Memory;
 /// </summary>
 /// <remarks>
 /// What this cannot prove is a database connector's own translation (PgVector, SQL Server): that is the
-/// connector's contract. The sample host run against PostgreSQL (phase 233, manual cases) covers one.
+/// connector's contract. The sample host run against PostgreSQL (manual cases) covers one.
 /// </remarks>
-// MAAI001: the context provider contexts are marked "evaluation purposes only" - see K-020.
+// MAAI001: the context provider contexts are marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class ConversationMemoryConnectorTests : IDisposable
 {

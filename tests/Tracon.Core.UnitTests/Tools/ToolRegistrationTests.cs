@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Tools;
 /// </summary>
 /// <remarks>
 /// Tools are defined only in code; the interface only picks from this list.
-/// This is a security boundary. Rationale: <c>docs/MIMARI.md</c>, rule K2.
+/// This is a security boundary.
 /// </remarks>
 public sealed class ToolRegistrationTests
 {
@@ -238,7 +238,7 @@ public sealed class ToolRegistrationTests
     [Fact]
     public void AddToolsFrom_rejects_the_sample_method_at_scan_time()
     {
-        // K-218 fix: MAF passes an EMPTY provider as AIFunctionArguments.Services
+        // That decision fix: MAF passes an EMPTY provider as AIFunctionArguments.Services
         // into the tool body (EmptyServiceProvider, NOT null). This check used to
         // sit behind an `is { }` pattern at call time that never triggered.
         // Fix: move the rejection to SCAN time instead of waiting for the first
@@ -253,7 +253,7 @@ public sealed class ToolRegistrationTests
         exception.Message.ShouldContain("Greet");
         exception.Message.ShouldContain("empty provider");
 
-        // K-347 does NOT reopen (the instance method is still
+        // The earlier decision does NOT reopen (the instance method is still
         // rejected) - the rejection text now also names AddScopedTool, the
         // API a caller reaches for when the dependency must be resolved per call.
         exception.Message.ShouldContain("AddScopedTool");

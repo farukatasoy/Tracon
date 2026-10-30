@@ -96,13 +96,13 @@ internal sealed class WebhookPublisher(
                     },
                     cancellationToken).ConfigureAwait(false);
 
-                // Delivery uses the same Phase 17 queue, not a separate one (K-160).
+                // Delivery uses the same queue, not a separate one.
                 // The retry limit is the ladder length.
                 //
                 // Assign the payload. Otherwise, the field becomes `default(JsonElement)`
                 // with ValueKind Undefined. `JsonElementConverter.Write` cannot serialize it
                 // and throws InvalidOperationException, causing GET /api/jobs to return 500
-                // for the full job list. This was detected by running the sample application (K-166).
+                // for the full job list. This was detected by running the sample application.
                 var jobPayload = JsonSerializer.SerializeToElement(
                     new[] { deliveryId.ToString() },
                     WebhookJobPayloadJsonContext.Default.StringArray);

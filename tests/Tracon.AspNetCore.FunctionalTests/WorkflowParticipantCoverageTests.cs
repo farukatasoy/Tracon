@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// bound.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: participants resolve lazily, one step at a time. Without the check
+/// Participants resolve lazily, one step at a time. Without the check
 /// at the start of the run, the third step's missing required parameter
 /// surfaced only after the first two steps had spent their tokens.
 /// </remarks>

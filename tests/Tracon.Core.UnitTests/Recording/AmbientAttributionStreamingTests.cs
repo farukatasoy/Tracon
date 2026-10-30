@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
 /// Verifies that <see cref="AmbientRunAttributionScope"/> survives the streaming
-/// path (phase 68).
+/// path.
 /// </summary>
 /// <remarks>
 /// 🚨 The trap this file exists for has been paid for four times in this repo: an

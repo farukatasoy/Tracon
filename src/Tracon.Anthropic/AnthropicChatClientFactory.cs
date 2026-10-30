@@ -129,7 +129,7 @@ internal sealed class AnthropicChatClientFactory
         // (ModelOutputLimit). With no setting that changes the body, it passes
         // the caller's options through without a copy or a raw body.
         // The stop-reason reader sits on the adapter itself, inside the settings:
-        // a paused turn's continuation goes out with the same settings (F-426).
+        // a paused turn's continuation goes out with the same settings.
         // The cache-usage reader sits below it, directly on the adapter, so every API call
         // (a continuation included) reports its own cache writes before the layers above sum them.
         return new AnthropicProviderSettingsChatClient(

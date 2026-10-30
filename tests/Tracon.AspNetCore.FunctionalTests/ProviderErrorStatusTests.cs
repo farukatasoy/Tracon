@@ -10,14 +10,14 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>
 /// Every shipped provider SDK, answered with an HTTP error and an EMPTY body: the
 /// status is read, so a permanent 4xx neither switches provider nor counts against
-/// the circuit (F-387).
+/// the circuit.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-387. A System.ClientModel client writes an empty or non-OpenAI body as
+/// A System.ClientModel client writes an empty or non-OpenAI body as
 /// "Service request failed. Status: 400 (Bad Request)" — no "HTTP nnn" text. The
 /// status reader saw nothing: the fallback chain took a 401/403/404 for a
-/// connection failure and moved to the next provider (K-449, F-338), and the
+/// connection failure and moved to the next provider, and the
 /// circuit counted a 400/404 against a credential every tenant shares.
 /// </para>
 /// <para>

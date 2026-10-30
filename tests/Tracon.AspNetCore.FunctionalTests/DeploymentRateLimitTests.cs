@@ -14,7 +14,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 263 (F-92): <c>Tracon:RateLimit:Scope = Deployment</c> counts requests in the shared counter store, so a
+/// <c>Tracon:RateLimit:Scope = Deployment</c> counts requests in the shared counter store, so a
 /// limit holds across instances.
 /// </summary>
 /// <remarks>
@@ -104,7 +104,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task The_instance_scope_still_admits_the_limit_per_instance()
     {
-        // 🚨 The default does not change (K-165): two instances admit twice the limit.
+        // 🚨 The default does not change: two instances admit twice the limit.
         var clock = new ManualTimeProvider(FrozenNow);
         await using var pair = await StartPairAsync(clock, RateLimitScope.Instance);
 

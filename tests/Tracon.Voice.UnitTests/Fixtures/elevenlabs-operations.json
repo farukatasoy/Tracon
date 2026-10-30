@@ -1,5 +1,5 @@
 {
-  "_comment": "Tracon.Voice's declared dependency on ElevenLabs (K-216, Phase 217). Equal to what the code does: ElevenLabsOperationDriftTests. Still valid against the live OpenAPI document: python3 scripts/elevenlabs-kayma.py. Field paths are dotted; [] marks an array element. `types` gives the JSON type (string, integer, number, boolean, array, object) of each JSON field path; a multipart form declares none.",
+  "_comment": "Tracon.Voice's declared dependency on ElevenLabs. Equal to what the code does: ElevenLabsOperationDriftTests. Still valid against the live OpenAPI document: python3 scripts/elevenlabs-kayma.py. Field paths are dotted; [] marks an array element. `types` gives the JSON type (string, integer, number, boolean, array, object) of each JSON field path; a multipart form declares none.",
   "source": "https://api.elevenlabs.io/openapi.json",
   "operations": [
     {

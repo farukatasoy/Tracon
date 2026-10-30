@@ -217,7 +217,7 @@ internal sealed partial class AgentDefinitionValidator
 
         try
         {
-            // This is the same call as the real path (phase 65: including the
+            // This is the same call as the real path (including the
             // requesting tenant's own provider credential and egress policy).
             // It creates the chat client but sends no request.
             _ = await _models.CreateChatClientAsync(definition.Model, cancellationToken).ConfigureAwait(false);
@@ -312,7 +312,7 @@ internal sealed partial class AgentDefinitionValidator
 
             var outcome = await _mcpRefresher!.RefreshAsync(cts.Token).ConfigureAwait(false);
 
-            // 🚨 HATA-006 / MT-CORE-006: when an MCP server actively refuses a
+            // When an MCP server actively refuses a
             // connection, McpToolCatalog does not throw. Its tools disappear from
             // the list and refresh reports success. Only a timeout throws below.
             // Both cases must behave the same; HadUnreachableServers closes the gap.

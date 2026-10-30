@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
 /// Every scalar a configuration section can set stops the host at startup when its text
-/// cannot be read, and the message names the key and the text (F-572).
+/// cannot be read, and the message names the key and the text.
 /// </summary>
 /// <remarks>
 /// <para>

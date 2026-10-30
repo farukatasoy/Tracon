@@ -149,7 +149,7 @@ internal sealed class LiveVoiceSessionLauncher
         var options = _options.CurrentValue;
 
         // Before anything else - no session row, no slot, no provider call - for a
-        // tenant whose policy refuses the provider (F-306).
+        // tenant whose policy refuses the provider.
         ModelProviderCredential? credential;
 
         try
@@ -189,7 +189,7 @@ internal sealed class LiveVoiceSessionLauncher
             return new LiveVoiceLaunchResult(null, null, LiveVoiceLaunchFailure.AgentFailed, exception.Message);
         }
 
-        // F-310: the agent resolved above opens the session and writes its history;
+        // The agent resolved above opens the session and writes its history;
         // every delegation resolves the same name again (LiveVoiceDelegationRunner).
         var catalog = _catalog;
         var agentName = request.AgentName;

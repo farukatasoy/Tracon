@@ -10,7 +10,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 242 (F-411): the built-in <c>agentReview</c> loop criterion. Another agent of the catalog reviews
+/// The built-in <c>agentReview</c> loop criterion. Another agent of the catalog reviews
 /// the draft as a CHILD run, answers with <c>{"approved", "feedback"}</c>, and the iteration event says who
 /// reviewed.
 /// </summary>
@@ -21,7 +21,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// loop, and every gate (tenant, depth, budget, approval) is a property of the run tree, not of the criterion.
 /// </para>
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class AgentReviewLoopTests
 {

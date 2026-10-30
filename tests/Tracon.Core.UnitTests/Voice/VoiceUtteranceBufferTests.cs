@@ -49,7 +49,7 @@ public sealed class VoiceUtteranceBufferTests
     public void Compressed_container_duration_is_unknown()
     {
         // Duration can only be determined by decoding; rather than guessing,
-        // the value reported by the provider is used (K-032).
+        // the value reported by the provider is used.
         var buffer = Create(VoiceAudioFormats.WebmOpus, maxBytes: 1_000_000);
 
         buffer.Append(new byte[1024]);

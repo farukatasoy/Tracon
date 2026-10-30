@@ -48,7 +48,7 @@ public abstract class StoreCancellationContract<TStore> : IAsyncLifetime
     /// <returns>A completed task.</returns>
     protected virtual ValueTask OnDisposeAsync() => default;
 
-    // --- Cancellation hooks (phase 177) ---
+    // --- Cancellation hooks ---
 
     /// <summary>
     /// Calls one <strong>read</strong> method of the store with the given

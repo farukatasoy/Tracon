@@ -1,6 +1,6 @@
 namespace Tracon;
 
-// F-305 (kusur-giderme 2026-10-11, K-880): McpToolCacheTests measured the defect
+// McpToolCacheTests measured the defect
 // this interface closes - HTTP 200, "Error: Function failed.", and no approval
 // asked after approval was switched back on.
 

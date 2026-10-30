@@ -8,7 +8,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Scheduling;
 
-/// <summary>Tests for <see cref="AgentRunJobHandler"/> (Phase 46).</summary>
+/// <summary>Tests for <see cref="AgentRunJobHandler"/>.</summary>
 public sealed class AgentRunJobHandlerTests
 {
     [Fact]
@@ -33,7 +33,7 @@ public sealed class AgentRunJobHandlerTests
         var runId = TraconId.NewId();
 
         // The placeholder row that promises the 202: the HTTP layer writes such a
-        // row AT enqueue time (Phase 46, AgentEndpoints.RunQueuedAsync).
+        // row AT enqueue time (AgentEndpoints.RunQueuedAsync).
         await runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
@@ -53,7 +53,7 @@ public sealed class AgentRunJobHandlerTests
     }
 
     /// <summary>
-    /// Phase 142: a registered <see cref="IToolApprovalPresenter"/> reaches the
+    /// A registered <see cref="IToolApprovalPresenter"/> reaches the
     /// PERSISTED <see cref="PendingApproval"/> row, not just the closing run event.
     /// This is the fast, isolated proof the plan's own test matrix names
     /// (<c>QueuedApprovalTests</c>) — the DI + queue + store boundary the
@@ -136,7 +136,7 @@ public sealed class AgentRunJobHandlerTests
     }
 
     /// <summary>
-    /// F-351: the fields the HTTP layer writes at enqueue time reach the
+    /// The fields the HTTP layer writes at enqueue time reach the
     /// catalog (version, culture) and the run (version, arm).
     /// </summary>
     [Fact]
@@ -167,7 +167,7 @@ public sealed class AgentRunJobHandlerTests
     }
 
     /// <summary>
-    /// F-369: the labels the HTTP layer resolved travel in the payload with the
+    /// The labels the HTTP layer resolved travel in the payload with the
     /// user, and the run (with every sub-agent and tool under it) reads both
     /// from the scope the worker opens.
     /// </summary>
@@ -228,7 +228,7 @@ public sealed class AgentRunJobHandlerTests
     }
 
     /// <summary>
-    /// F-367: a store error on the session save after the model answered is
+    /// A store error on the session save after the model answered is
     /// tried again while the worker can prove its lease; the turn is not.
     /// </summary>
     [Fact]
@@ -381,7 +381,7 @@ public sealed class AgentRunJobHandlerTests
     }
 
     /// <summary>
-    /// F-351: an administrator can schedule an AgentRun job with a hand-written
+    /// An administrator can schedule an AgentRun job with a hand-written
     /// payload; an arm that does not match a started experiment of this tenant
     /// for this agent, with this exact version, refuses the run.
     /// </summary>

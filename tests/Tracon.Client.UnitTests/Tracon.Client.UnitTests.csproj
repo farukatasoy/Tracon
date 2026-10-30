@@ -5,7 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Reads the generated sources by path (phase 238). -->
+    <!-- Reads the generated sources by path. -->
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
   </ItemGroup>
 

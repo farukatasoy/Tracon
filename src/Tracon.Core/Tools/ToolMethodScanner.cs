@@ -97,7 +97,7 @@ internal static class ToolMethodScanner
 
         if (!method.IsStatic)
         {
-            // K-218: MAF supplies an empty provider as AIFunctionArguments.Services,
+            // MAF supplies an empty provider as AIFunctionArguments.Services,
             // not null. This check used to run during service resolution at invocation
             // time and never executed because `is { }` was always true. It now runs
             // during scanning, where it reliably executes.

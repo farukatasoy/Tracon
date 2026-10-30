@@ -281,7 +281,7 @@ internal sealed class SchemaArgumentGenerator
             "integer" => IntegerElement(NextInteger(propertySchema)),
             "number" => NumberElement(NextNumber(propertySchema)),
             "boolean" => BooleanElement(_random.Next(2) == 0),
-            _ => null, // array, object, null, missing/other keyword — not modeled (K-615)
+            _ => null, // array, object, null, missing/other keyword — not modeled
         };
     }
 

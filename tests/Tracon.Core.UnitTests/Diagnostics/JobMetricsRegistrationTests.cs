@@ -7,11 +7,11 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 133: the DI graph must really hand the worker its
+/// The DI graph must really hand the worker its
 /// <see cref="TraconMetrics"/>.
 /// </summary>
 /// <remarks>
-/// 🚨 This is the phase's silent-failure risk. Adding an OPTIONAL
+/// 🚨 This is the change's silent-failure risk. Adding an OPTIONAL
 /// <c>TraconMetrics?</c> parameter to <c>JobWorkerBackgroundService</c>
 /// produces no compiler error anywhere: if the container never supplies it, the
 /// parameter stays <see langword="null"/> and every job metric is silently

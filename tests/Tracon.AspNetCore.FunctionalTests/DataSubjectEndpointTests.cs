@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the data subject export/erasure endpoints (Phase 64).</summary>
+/// <summary>Tests for the data subject export/erasure endpoints.</summary>
 public sealed class DataSubjectEndpointTests
 {
     private static readonly Uri ExportUri = new("/tracon/api/data-subjects/subject-1/export", UriKind.Relative);
@@ -95,7 +95,7 @@ public sealed class DataSubjectEndpointTests
     [Fact]
     public async Task Erase_with_dryRun_false_completes_on_sqlite_and_writes_the_audit_entry()
     {
-        // 🚨 F-644: on SQLite the audit write reached the erasure's single write lock
+        // On SQLite the audit write reached the erasure's single write lock
         // from a second connection, so the request did not return within 200 seconds.
         using var database = new TempSqliteDatabase("data-subject-erase");
 
@@ -117,7 +117,7 @@ public sealed class DataSubjectEndpointTests
         audit.ShouldContain(entry => entry.Action == "data_subject.erase");
     }
 
-    // F-400: a run of the subject that is still running writes its session and its
+    // A run of the subject that is still running writes its session and its
     // checkpoints back after the erasure commits. The erasure is refused while one
     // runs, the preview names them, and 'force=true' erases anyway: a row a crashed
     // process left 'Running' must not lock a subject's erasure forever.
@@ -234,7 +234,7 @@ public sealed class DataSubjectEndpointTests
     [Fact]
     public async Task Erase_fails_loudly_when_the_audit_write_fails()
     {
-        // K-370: the store's beforeCommitAsync callback (which writes the audit
+        // The store's beforeCommitAsync callback (which writes the audit
         // entry) is invoked from INSIDE EraseAsync; when IAuditLog itself is
         // unreachable, the erasure must not silently succeed. The in-process
         // test host has no exception-handler middleware, so the unhandled
@@ -252,7 +252,7 @@ public sealed class DataSubjectEndpointTests
 
         // The refusal is the shared fail-closed policy's, so it names the refused
         // operation and keeps the store's own failure as the inner exception. Before
-        // phase 171 this one site leaked the store's raw exception instead — the five
+        // this one site leaked the store's raw exception instead — the five
         // other fail-closed operations already wrapped it.
         var refusal = await Should.ThrowAsync<TraconException>(async () =>
             await host.Client.DeleteAsync(

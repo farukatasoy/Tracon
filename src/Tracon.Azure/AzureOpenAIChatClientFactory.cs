@@ -124,7 +124,7 @@ internal sealed class AzureOpenAIChatClientFactory
         // Every key that is not in the supported list is rejected here and the
         // error is wrapped by AgentDefinitionCompiler into
         // TraconCompilationException. Silently ignoring it would leave the
-        // user without the behavior they expected (K-208).
+        // user without the behavior they expected.
         ModelProviderSettings.Validate(
             binding,
             AzureOpenAIProviderNames.SettingsPrefix,

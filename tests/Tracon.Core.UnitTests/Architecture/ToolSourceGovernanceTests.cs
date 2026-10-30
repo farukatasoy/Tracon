@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Every place in <c>src/</c> that gives a model request a tool is a known source, and each source is either run
-/// through the tool chain or named as one that stays outside it, with the decision that says so (F-688).
+/// through the tool chain or named as one that stays outside it, with the decision that says so.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -57,7 +57,7 @@ public sealed partial class ToolSourceGovernanceTests
         // The tools of an MCP server, composed with the tenant's tool set.
         ["src/Tracon.Mcp/Internal/McpConnection.cs :: AIFunctionFactory.Create"] = "src/Tracon.Mcp/Internal/McpTenantTools.cs",
 
-        // The tools Tracon adds to a run itself, composed by BuiltInToolGovernance (F-627, F-628, F-688).
+        // The tools Tracon adds to a run itself, composed by BuiltInToolGovernance.
         ["src/Tracon.Core/Knowledge/VectorSearchToolFactory.cs :: AIFunctionFactory.Create"] = "src/Tracon.Core/Compilation/AgentDefinitionCompiler.Memory.cs",
         ["src/Tracon.Core/Memory/ConversationMemoryScopeProvider.cs :: framework provider:ChatHistoryMemoryProvider"] = "src/Tracon.Core/Memory/ConversationMemoryScopeProvider.cs",
         ["src/Tracon.Core/Memory/ConversationMemoryScopeProvider.cs :: Tracon context provider:ConversationMemoryScopeProvider"] = "src/Tracon.Core/Memory/ConversationMemoryScopeProvider.cs",
@@ -71,19 +71,19 @@ public sealed partial class ToolSourceGovernanceTests
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.ChatOptions.cs :: HostedToolRegistry.Create"] =
             "A hosted tool runs at the model provider; the call never reaches the process, so there is no body to wrap (K-1044).",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs :: SubAgentToolNames.CreateFunctions"] =
-            "A sub-agent in tool mode: ChildAgentInvoker carries the depth, the budget, the tenant and the wait limits (K-1043, Phase 243).",
+            "A sub-agent in tool mode: ChildAgentInvoker carries the depth, the budget, the tenant and the wait limits.",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.Agents.cs :: framework provider:BackgroundAgentsProvider"] =
-            "The background sub-agents: ChildAgentInvoker carries the budget and the wait (K-1043, Phase 243).",
+            "The background sub-agents: ChildAgentInvoker carries the budget and the wait.",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.Skills.cs :: framework provider:AgentSkillsProviderBuilder"] =
-            "load_skill, read_skill_resource and run_skill_script are the framework's; the script budget is checked at the entry of the runner (Phase 243).",
+            "load_skill, read_skill_resource and run_skill_script are the framework's; the script budget is checked at the entry of the runner.",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.Memory.cs :: framework provider:FileMemoryProvider"] =
-            "The file memory tools report no cost and change only Tracon's own store (Phase 243).",
+            "The file memory tools report no cost and change only Tracon's own store.",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.Memory.cs :: framework provider:TodoProvider"] =
-            "The todo tools report no cost and change only the session state (Phase 243).",
+            "The todo tools report no cost and change only the session state.",
         ["src/Tracon.Core/Compilation/AgentDefinitionCompiler.Agents.cs :: AsHarnessAgent"] =
-            "The harness agent's own providers (mode_* and the rest) report no cost and change only the agent's own state (Phase 243).",
+            "The harness agent's own providers (mode_* and the rest) report no cost and change only the agent's own state.",
         ["src/Tracon.Core/Graph/SubAgentToolNames.cs :: AsAIFunction"] =
-            "Makes the function of an agent called as a tool; the wrapper owns the depth, the budget, the tenant and the wait limits (K-1043, Phase 243).",
+            "Makes the function of an agent called as a tool; the wrapper owns the depth, the budget, the tenant and the wait limits.",
         ["src/Tracon.Core/Extensions/AgentOptionsGuard.cs :: extension provider ×2"] =
             "A provider an agent extension adds brings its own tools; the guard lets the provider through and does not inspect its tools (K-1030).",
     };

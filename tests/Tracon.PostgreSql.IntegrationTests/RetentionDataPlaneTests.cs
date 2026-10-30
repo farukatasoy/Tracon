@@ -5,7 +5,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <summary>
 /// The counting/deletion/archive-read behavior of the PostgreSQL
 /// implementation of <see cref="IRetentionStore"/>. Meets the real evidence
-/// requirement in Phase 25's DoD: old rows are dropped, while the <c>runs</c>
+/// requirement in the earlier change's DoD: old rows are dropped, while the <c>runs</c>
 /// summary and <c>audit_log</c> are PRESERVED.
 /// </summary>
 public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLifetime
@@ -137,7 +137,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     /// <summary>
-    /// 🚨 Phase 36's core evidence requirement: the <c>MaxRows</c> threshold is
+    /// 🚨 the earlier change's core evidence requirement: the <c>MaxRows</c> threshold is
     /// computed correctly from the OWN column of the Nth row, counting from the
     /// newest, and feeding that threshold into the EXISTING batch deletion
     /// mechanism leaves the table at exactly N rows.
@@ -211,10 +211,10 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     /// <summary>
-    /// 🚨 F-327: a workflow run waiting for a human keeps its pending request
+    /// A workflow run waiting for a human keeps its pending request
     /// event and its checkpoints, however old. Retention deleted both by age —
     /// the run has a completed_at once it pauses — and the request became
-    /// permanently unanswerable (K-128, K-130).
+    /// permanently unanswerable.
     /// </summary>
     [Fact]
     public async Task A_waiting_workflow_runs_request_and_checkpoints_survive_retention()
@@ -247,7 +247,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     /// <summary>
-    /// 🚨 F-294: the parameter values a workflow was started with live only in
+    /// The parameter values a workflow was started with live only in
     /// its <c>run_inputs</c> row, and answering the run resumes with them. The
     /// row of a run waiting for a human survives retention and is not counted
     /// toward the row limit; a finished run's row goes by age as before.

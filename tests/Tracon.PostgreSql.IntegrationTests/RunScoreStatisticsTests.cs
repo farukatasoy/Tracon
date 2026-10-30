@@ -5,7 +5,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <summary>
 /// Verifies the hand-written SQL (FILTER/CASE, scalar subquery) behind the
 /// <see cref="RunStatistics.ScoredRuns"/>/<see cref="RunStatistics.PositiveRate"/>
-/// computation on PostgreSQL, against a real database (Phase 31).
+/// computation on PostgreSQL, against a real database.
 /// </summary>
 public sealed class RunScoreStatisticsTests(PostgresFixture fixture) : IAsyncLifetime
 {

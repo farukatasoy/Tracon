@@ -3,7 +3,7 @@ using System.Xml.Linq;
 namespace Tracon.Testing.UnitTests;
 
 /// <summary>
-/// 🚨 Guards <c>Tracon.Testing</c>'s K-007/39.1 rationale: it pulls in no
+/// 🚨 Guards <c>Tracon.Testing</c>'s that decision.1 rationale: it pulls in no
 /// test framework, and the meta package does not depend on it.
 /// </summary>
 public sealed class TestingPackageDependencyTests
@@ -23,7 +23,7 @@ public sealed class TestingPackageDependencyTests
             references.ShouldNotContain(
                 reference => reference.StartsWith(banned, StringComparison.OrdinalIgnoreCase),
                 customMessage: $"'Tracon.Testing' references a test framework ({banned}); " +
-                               "the package must bind to no framework (section 39.2).");
+                               "the package must bind to no framework.");
         }
     }
 
@@ -35,7 +35,7 @@ public sealed class TestingPackageDependencyTests
         references.ShouldNotContain(
             reference => string.Equals(reference, "Tracon.Testing", StringComparison.Ordinal),
             customMessage: "The meta package must not depend on 'Tracon.Testing'; test code " +
-                           "is not part of the meta package's promised 'everything with one reference' (section 39.1).");
+                           "is not part of the meta package's promised 'everything with one reference'.");
     }
 
     private static List<string> ReadPackageReferences(string package)

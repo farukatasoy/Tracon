@@ -6,8 +6,8 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// The node's timeout is named only when the node's OWN delay ended the call (F-303,
-/// failure mode 5, the K-844 rule): a run its caller cancelled, or one that reached its
+/// The node's timeout is named only when the node's OWN delay ended the call (
+/// failure mode 5): a run its caller cancelled, or one that reached its
 /// own deadline, while a bounded node was running ends <c>Canceled</c> with the reason it
 /// already carries.
 /// </summary>
@@ -85,7 +85,7 @@ public sealed class WorkflowFunctionTimeoutReasonTests
     {
         // One clock, both limits at ten minutes: the run's deadline was armed first,
         // so it fires first and cancels the node's caller token before the node's own
-        // delay lands. The caller's stop wins (K-844).
+        // delay lands. The caller's stop wins.
         var clock = new ManualClock();
         var host = Host(clock);
         var started = Signal();

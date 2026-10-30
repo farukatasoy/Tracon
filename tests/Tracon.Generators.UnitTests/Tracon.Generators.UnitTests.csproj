@@ -12,7 +12,7 @@
     <ProjectReference Include="../../src/Tracon.Generators/Tracon.Generators.csproj" />
     <ProjectReference Include="../../src/Tracon.Core/Tracon.Core.csproj" />
     <!--
-      Phase 73: TraconUsageAnalyzer resolves REAL symbols. TRC0101 needs
+      TraconUsageAnalyzer resolves REAL symbols. TRC0101 needs
       MapTracon (AspNetCore) and TRC0102 needs UseOpenAI (OpenAI); a stub
       declared in the test source would prove only that the analyzer matches a
       name, not that it matches this package's API.
@@ -20,9 +20,9 @@
     <ProjectReference Include="../../src/Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
     <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
     <!--
-      Phase 79: Examples/ExampleCompilationTests.cs compiles every shipped
+      Examples/ExampleCompilationTests.cs compiles every shipped
       <example> block, and the 49 blocks are spread across 15 packages
-      (measured, docs/79-*.md §79.2). Tracon.Abstractions comes in
+. Tracon.Abstractions comes in
       transitively through Core; these 11 are the rest.
     -->
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
@@ -36,16 +36,16 @@
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
     <ProjectReference Include="../../src/Tracon.Google/Tracon.Google.csproj" />
     <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
-    <!-- Phase 236: MapTraconAGUI carries an <example>; it compiles against this project's reference set like every other. -->
+    <!-- MapTraconAGUI carries an <example>; it compiles against this project's reference set like every other. -->
     <ProjectReference Include="../../src/Tracon.AGUI/Tracon.AGUI.csproj" />
-    <!-- Phase 84: TraconClientServiceCollectionExtensions carries an <example> too; missed when Phase 83 added the package. -->
+    <!-- TraconClientServiceCollectionExtensions carries an <example> too; missed when an earlier change added the package. -->
     <ProjectReference Include="../../src/Tracon.Client/Tracon.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <!--
-      Phase 155: a shipped <example> names Microsoft.Extensions.AI.Evaluation.Quality's
+      A shipped <example> names Microsoft.Extensions.AI.Evaluation.Quality's
       RelevanceEvaluator. ExampleCompilationTests compiles every block against THIS
       project's reference set, so the type has to be resolvable here - and only here:
       no shipped package references the catalog.

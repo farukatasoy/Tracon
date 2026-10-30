@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// HATA-S4-003: a content guard that THROWS while inspecting the first user
+/// A content guard that THROWS while inspecting the first user
 /// message must still leave a run record behind.
 /// </summary>
 /// <remarks>
@@ -18,7 +18,7 @@ namespace Tracon.Core.UnitTests.Recording;
 /// idempotency could none of them find the run.
 /// </para>
 /// <para>
-/// The sibling of HATA-S4-012 (<see cref="RunStartCancellationTests"/>), where
+/// The sibling of an earlier defect (<see cref="RunStartCancellationTests"/>), where
 /// the cancellation arrived AFTER the row was written. Both windows now close
 /// the run instead of losing it.
 /// </para>
@@ -87,7 +87,7 @@ public sealed class RunStartGuardFailureTests
     }
 
     /// <summary>
-    /// The class scan HATA-S4-003's record asked for and left unmeasured: a
+    /// The class scan the record asked for and left unmeasured: a
     /// guard that throws while inspecting the MODEL OUTPUT fails after the row
     /// exists, inside the protected region, so it was expected to record
     /// correctly. Expected is not measured — this measures it.

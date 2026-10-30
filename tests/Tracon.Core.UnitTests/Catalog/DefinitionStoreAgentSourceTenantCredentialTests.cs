@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Catalog;
 /// <summary>
 /// Verifies that <see cref="DefinitionStoreAgentSource"/> never hands
 /// <see cref="CompiledAgentCache"/> an agent built with a tenant-specific
-/// provider credential (phase 65, BYOK — independent audit finding).
+/// provider credential (BYOK — independent audit finding).
 /// </summary>
 /// <remarks>
 /// 🚨 Regression: before this fix, a compiled agent's chat client — with a

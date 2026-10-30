@@ -3,12 +3,12 @@ using Microsoft.Extensions.Configuration;
 namespace Tracon.Core.UnitTests.Audit;
 
 /// <summary>
-/// Behavior tests for <see cref="AuditChainKeyRing"/> (phase 260, F-758): what the host accepts as a key and what
+/// Behavior tests for <see cref="AuditChainKeyRing"/>: what the host accepts as a key and what
 /// it refuses to start with.
 /// </summary>
 /// <remarks>
 /// The message of a refusal names the configuration KEY that is wrong. It never carries a value: the key is a
-/// <c>secret</c> (K-059) and a start failure lands in logs.
+/// <c>secret</c> and a start failure lands in logs.
 /// </remarks>
 public sealed class AuditChainKeyRingTests
 {

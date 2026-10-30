@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Catalog;
 
 /// <summary>
 /// Verifies that a tenant egress policy saved after an agent was compiled and
-/// cached reaches the very next resolve (F-304).
+/// cached reaches the very next resolve.
 /// </summary>
 /// <remarks>
 /// 🚨 Regression (2026-10-11): the policy is checked only when a model client

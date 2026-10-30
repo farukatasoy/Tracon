@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <summary>
 /// Enforces that every store holding GOVERNANCE state resolves to an
 /// audit-trail decorator, and that the stores deliberately left out stay out
-/// for a written reason (F-170).
+/// for a written reason.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -13,12 +13,12 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// missing one because it reads as complete: <c>ISkillScriptGrantStore</c>
 /// was audited while <c>IAgentSkillStore</c> was not, so the trail recorded
 /// who PERMITTED a script to run and not who WROTE it — and a skill carries
-/// both the model's instructions and the scripts themselves. Phase 121's
+/// both the model's instructions and the scripts themselves. the earlier change's
 /// independent audit found it; nothing mechanical would have.
 /// </para>
 /// <para>
 /// This resolves from a real container rather than scanning source: the
-/// decorator only matters if it is REGISTERED, and phase 9's own pattern is
+/// decorator only matters if it is REGISTERED, and the own pattern is
 /// that every persistence provider must re-apply it (a provider's
 /// <c>services.Replace</c> silently drops one otherwise). <c>IAuditDecorated</c>
 /// is the marker each decorator already implements for

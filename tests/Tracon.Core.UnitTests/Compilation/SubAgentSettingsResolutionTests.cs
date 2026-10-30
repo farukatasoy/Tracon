@@ -107,7 +107,7 @@ public sealed class SubAgentSettingsResolutionTests
     }
 
     /// <summary>
-    /// F-280: both values arm <c>CancelAfter</c> in every delegation, which refuses
+    /// Both values arm <c>CancelAfter</c> in every delegation, which refuses
     /// more than about 49.7 days there. A definition saved over HTTP carries its own
     /// values, so the startup validator cannot see them.
     /// </summary>

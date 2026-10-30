@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-607 — the value ranges the shipped providers state (<see cref="ISamplingSupport.SamplingLimits"/>), as the validation
+/// The value ranges the shipped providers state (<see cref="ISamplingSupport.SamplingLimits"/>), as the validation
 /// endpoint and the save path report them. A value the provider would refuse, or silently change, is an error that names
 /// the field, the value and the provider.
 /// </summary>

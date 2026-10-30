@@ -102,11 +102,11 @@ internal sealed class CircuitBreakingChatClient(
         }
     }
 
-    // 🚨 F-354. This used to be a bare catch (Exception): every exception counted.
+    // This used to be a bare catch (Exception): every exception counted.
     // The setup-time credential's circuit is shared by every tenant, so one
     // tenant's repeated 400s opened it for all of them. An exhausted run budget,
     // a missing attachment and a tool failure the loop rethrows counted too:
-    // those rings sit inside this one. Only K-322's content block was excluded.
+    // those rings sit inside this one. Only the content block was excluded.
 
     /// <summary>
     /// Determines whether <paramref name="exception"/> shows that the provider,
@@ -143,7 +143,7 @@ internal sealed class CircuitBreakingChatClient(
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        // F-387: a cancellation nobody requested counted whatever raised it. A
+        // A cancellation nobody requested counted whatever raised it. A
         // tool's own timeout, rethrown by the function loop inside this ring,
         // opened the circuit every tenant shares. Only the provider client's own
         // deadline says something about the provider.

@@ -78,9 +78,9 @@ public sealed class OrderingContractDocumentationTests
             ["lower value wins"]
         },
         {
-            // BL-008 (phase 122): the example used to register AFTER
+            // BL-008: the example used to register AFTER
             // AddTracon(), contradicting the "registered before wins"
-            // prose right above it - K-642's exact defect shape, on a
+            // prose right above it - the exact defect shape, on a
             // different contract. The phrase is bonded to the example's OWN
             // code text, not to the prose, because the prose was already
             // correct: only the example regressed, and a phrase describing

@@ -10,7 +10,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <remarks>
 /// A gap or a duplicate here means <c>SqlRunStore</c>'s reader and the documented
 /// column sequence have drifted apart -- the exact "runs gets a new column, three
-/// places must agree" trap the phase 94 ordinal contract exists to catch at build
+/// places must agree" trap the ordinal contract exists to catch at build
 /// time instead of at a wrong value silently reaching the API surface.
 /// </remarks>
 public sealed class RunOrdinalsCrossCheckTests

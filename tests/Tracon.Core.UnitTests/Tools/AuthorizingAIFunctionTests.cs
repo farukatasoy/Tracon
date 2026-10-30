@@ -27,7 +27,7 @@ public sealed class AuthorizingAIFunctionTests
             NullLogger<AuthorizingAIFunction>.Instance);
 
         // A bare AIFunctionArguments() carries the SAME empty service provider
-        // MAF supplies at call time (K-218). This proves the wrapper resolves
+        // MAF supplies at call time. This proves the wrapper resolves
         // nothing from it — every dependency was already captured at
         // construction time.
         var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
@@ -79,7 +79,7 @@ public sealed class AuthorizingAIFunctionTests
         ran.ShouldBeFalse();
     }
 
-    // --- The tenant tool policy, in front of the handler (phase 261) ---
+    // --- The tenant tool policy, in front of the handler ---
 
     private static AuthorizingAIFunction Wrap(
         AIFunction inner,

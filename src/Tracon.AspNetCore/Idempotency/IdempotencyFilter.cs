@@ -109,7 +109,7 @@ internal sealed class IdempotencyFilter : IEndpointFilter
         // 🚨 Refused BEFORE the reservation and the run: without the preference
         // the endpoint answers with a stream, and the capturing result below
         // would buffer the whole run in memory to store a copy no replay can
-        // reproduce (F-318).
+        // reproduce.
         if (_requireRespondAsync && !RespondAsyncPreference.IsRequested(httpContext))
         {
             return Results.Problem(

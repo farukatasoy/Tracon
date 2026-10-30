@@ -28,7 +28,7 @@ import type { AgentSkillDefinition } from '../lib/server-types';
  * Stored skills.
  *
  * The editor and the script grants panel live in `skills/` — this file is the
- * list pattern and nothing else. Before phase 165 all three were one 374-line
+ * list pattern and nothing else. Before all three were one 374-line
  * file carrying two of the console's five patterns at once.
  */
 export function SkillsScreen({ meta }: { meta: Meta }): ReactNode {

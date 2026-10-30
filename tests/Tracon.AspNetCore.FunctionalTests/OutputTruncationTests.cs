@@ -9,7 +9,7 @@ using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTe
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-320 — a model response stopped at the output token limit, through a real
+/// A model response stopped at the output token limit, through a real
 /// DI-built host on the non-streaming (buffered) path. The decorator's own
 /// rules are covered at unit level in
 /// <c>Tracon.Core.UnitTests.Models.FinishReasonDetectingChatClientTests</c>; the
@@ -390,7 +390,7 @@ public sealed class OutputTruncationTests
 
     /// <summary>
     /// The non-streaming branch: a request carrying <c>Idempotency-Key</c> runs
-    /// with one JSON response instead of SSE (Phase 43).
+    /// with one JSON response instead of SSE.
     /// </summary>
     internal static async Task<HttpResponseMessage> PostBufferedAsync(TraconTestHost host)
     {

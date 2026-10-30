@@ -105,7 +105,7 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
     {
         var observability = _options.CurrentValue.Observability;
 
-        // Off by default: no timer, no query (K1).
+        // Off by default: no timer, no query.
         if (!IsEnabled(observability))
         {
             return;
@@ -114,7 +114,7 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
         try
         {
             // 🚨 BackgroundService.StartAsync does not wait for this method,
-            // so the first query can run before the migrations do (K-354).
+            // so the first query can run before the migrations do.
             await _schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
 
             using var timer = new PeriodicTimer(GetRefreshInterval(observability), Clock);

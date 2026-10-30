@@ -242,7 +242,7 @@ internal sealed class RunPricingResolver : IRunPricingResolver
 
             // Reasoning tokens are already inside OutputTokens and are charged at
             // the output rate; providers do not bill them separately today, and an
-            // unmeasured distinction is not worth a wider price schema (K-032).
+            // unmeasured distinction is not worth a wider price schema.
             CachedInputCost = cachedRate is { } cachedRateValue ? cachedRateValue * cachedTokens / 1_000_000m : null,
             CachedInputPricePerMillionTokens = cachedRate,
             CacheWriteCost = cacheWriteCost,

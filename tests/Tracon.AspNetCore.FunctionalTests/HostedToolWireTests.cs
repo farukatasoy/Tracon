@@ -9,13 +9,13 @@ using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTe
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-603 — the support table (<c>HostedToolSupportTests</c>) and the content shapes the recorder reads, against
+/// The support table (<c>HostedToolSupportTests</c>) and the content shapes the recorder reads, against
 /// the wire: the request body the real SDK adapter of each API surface sends for a hosted tool, and what the same
 /// adapter builds from the provider's answer.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 A table is a copy of the provider constants until the wire says otherwise (F-598 found a cell that was
+/// 🚨 A table is a copy of the provider constants until the wire says otherwise (the earlier decision found a cell that was
 /// wrong, and the tests mirrored the constants). Each row below is read from the request the adapter wrote, so a
 /// kind that the table says a surface runs but is not on the wire fails here, and a kind the table refuses but the
 /// adapter sends fails too.
@@ -56,7 +56,7 @@ public sealed class HostedToolWireTests
     {
         // The table refuses all three for this surface (the validation report says so). The adapter is called
         // directly, past that refusal, to see WHY: it drops the code interpreter and the file search in silence,
-        // and it maps the web search to a field only a search model accepts (K-892).
+        // and it maps the web search to a field only a search model accepts.
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
         await using var host = await StartOpenAIAsync(server, [], "wire-openai");
 

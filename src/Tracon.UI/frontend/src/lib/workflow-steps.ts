@@ -27,7 +27,7 @@ export interface Step {
   timeout: string;
   /**
    * The timeout the server sent, kept so an untouched field goes back exactly as stored
-   * (K-918): the field shows seconds, and `00:00:02.5000000` would otherwise come back as
+   *The field shows seconds, and `00:00:02.5000000` would otherwise come back as
    * `00:00:02.500`.
    */
   storedTimeout?: string | null;
@@ -36,7 +36,7 @@ export interface Step {
    * version, resolved each time the step runs. Only a stored agent keeps versions, and only a
    * node can carry the pin: a chain with one is saved as a node list (`canonicalForm`).
    *
-   * 🚨 A pin the server sent goes back as it is, whatever the step looks like (K-918): the save is
+   * 🚨 A pin the server sent goes back as it is, whatever the step looks like: the save is
    * a full replace, and dropping one silently would move the step to the current version.
    */
   agentVersion?: number | null;
@@ -77,12 +77,12 @@ export function hasStepTimeouts(steps: readonly Step[]): boolean {
  * Whether a step carries a timeout that the form the chain is saved in cannot keep: a plain
  * agent list has nowhere to put one.
  *
- * 🚨 A step timeout does NOT turn an agent list into a node list (phase 196 decision, K-901
- * unchanged): the change of form would make a run waiting to be resumed unresumable and stop
+ * 🚨 A step timeout does NOT turn an agent list into a node list:
+ * the change of form would make a run waiting to be resumed unresumable and stop
  * the agents' live token stream. Such a chain loaded from a node list written over HTTP, or
  * one whose last function step was removed, is held back instead of losing its timeouts on a
- * full-replace save (K-725). A pinned agent version is the other thing that makes a node list
- * (phase 200): the operator asked for a node there, so a timeout beside it is kept.
+ * full-replace save. A pinned agent version is the other thing that makes a node list
+ *The operator asked for a node there, so a timeout beside it is kept.
  */
 export function hasStrandedTimeouts(kind: WorkflowKind, steps: readonly Step[]): boolean {
   return canonicalForm(kind, steps) === 'agentNames' && hasStepTimeouts(steps);
@@ -98,7 +98,7 @@ export function storedFormOf(definition: Pick<WorkflowDefinition, 'nodes'>): Sto
 
 /**
  * The form the console writes: `nodes` when a Sequential chain has a function or an agent step
- * pinned to a version, `agentNames` otherwise. One canonical form per chain (K-901); the server
+ * pinned to a version, `agentNames` otherwise. One canonical form per chain; the server
  * accepts both, so a definition written over HTTP in the other form keeps loading. A step
  * timeout does not change the form; see `hasStrandedTimeouts`. A pin does: only a node can
  * carry one, and a plain agent list has nowhere to put it.
@@ -111,7 +111,7 @@ export function canonicalForm(kind: WorkflowKind, steps: readonly Step[]): Store
  * The step fields of a save request.
  *
  * 🚨 Both fields are always written - the other one empty. `PUT /api/workflows/{name}`
- * replaces the whole definition (K-725), and the server refuses a request that sets both.
+ * replaces the whole definition, and the server refuses a request that sets both.
  * A node that carries no settings, timeout or pin writes an explicit `null`.
  */
 export function chainBody(
@@ -149,7 +149,7 @@ export function chainBody(
 /**
  * The settings as the request carries them: parsed JSON, or `null` for none.
  *
- * 🚨 Text that is not JSON is neither: a full-replace save (K-725) would take `null` for "no
+ * 🚨 Text that is not JSON is neither: a full-replace save would take `null` for "no
  * settings" and erase what the node stores. The screen holds Save and Retry back while
  * `hasInvalidSettings` is true; this is the last line, so no future caller can turn a typing
  * slip into a silent deletion.
@@ -234,7 +234,7 @@ export function timeoutText(value: string | null | undefined): string {
 
 /**
  * The timeout a request carries. A field the operator did not touch goes back exactly as the
- * server stored it (K-918); a changed one is written as `hh:mm:ss`.
+ * server stored it; a changed one is written as `hh:mm:ss`.
  *
  * 🚨 Text that is neither seconds nor `hh:mm:ss` throws, like settings text that is not JSON:
  * a full-replace save would otherwise take it for "none" and erase the stored value. The
@@ -329,7 +329,7 @@ export function handoffsOf(definition: Pick<WorkflowDefinition, 'handoffs'>): Ha
 
 /**
  * The edges of a save request. Only a `Handoff` workflow has any, so the other patterns send `null`
- * (decision K-125: the server refuses a field the pattern does not use). An edge with no reason sends
+ * (the server refuses a field the pattern does not use). An edge with no reason sends
  * `null`, so the target agent's own description is what the model reads.
  */
 export function handoffsBody(kind: WorkflowKind, edges: readonly HandoffEdge[]): WorkflowHandoff[] | null {
@@ -349,7 +349,7 @@ export function hasUnfinishedHandoff(kind: WorkflowKind, edges: readonly Handoff
 /**
  * The edges a `Handoff` graph has, as sorted `from>to` pairs. An empty list is the star the server
  * compiles for it: the first step hands off to every other one, so writing the star out is no change
- * of graph (measured, phase 270) and adding an edge to it is.
+ * of graph (measured) and adding an edge to it is.
  */
 function graphEdges(steps: readonly Step[], edges: readonly HandoffEdge[]): string[] {
   const pairs =

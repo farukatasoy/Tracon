@@ -52,7 +52,7 @@ public static class TraconContentProtectionExtensions
         {
             // Runs AFTER configuration binding: the value written in code
             // overrides the Tracon:ContentProtection section. Same order
-            // as other settings (K4 — the caller's registration wins).
+            // as other settings (the caller's registration wins).
             builder.Services.Configure(configure);
         }
 

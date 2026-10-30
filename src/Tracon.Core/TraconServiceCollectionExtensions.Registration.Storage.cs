@@ -17,7 +17,7 @@ public static partial class TraconServiceCollectionExtensions
         // decorators. The persistence package (Tracon.PostgreSql) wraps its
         // own implementations with the same decorators (see UsePostgreSql);
         // this way the audit trail works identically no matter which store is
-        // registered. Rationale: Phase 9, section 9.2.
+        // registered.
         services.TryAddTraconDefault<IAgentDefinitionStore>(static provider => new AuditingAgentDefinitionStore(
             new InMemoryAgentDefinitionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),
@@ -27,7 +27,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<TraconMetrics>()));
         // A skill carries instructions AND server-side scripts, so saving or
         // deleting one enters the audit trail for the same reason an agent
-        // definition does (F-170). Its script GRANT store was already audited
+        // definition does. Its script GRANT store was already audited
         // while the skill itself was not, which recorded who permitted a
         // script to run but not who wrote it.
         services.TryAddTraconDefault<IAgentSkillStore>(static provider => new AuditingAgentSkillStore(
@@ -41,9 +41,9 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IAgentSkillStore>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<TraconOptions>>(),
-            // F-481: present only after UseSkillScripts; the catalog then finds disk skills too.
+            // Present only after UseSkillScripts; the catalog then finds disk skills too.
             provider.GetService<SkillScriptSupport>()));
-        // Run/message scores (Phase 31). Registered BEFORE IRunStore:
+        // Run/message scores. Registered BEFORE IRunStore:
         // InMemoryRunStore.GetStatisticsAsync's summary calculation obtains
         // this shared single instance via DI (see the InMemoryRunStore constructor).
         //
@@ -51,7 +51,6 @@ public static partial class TraconServiceCollectionExtensions
         // GetRequiredService<IRunStore>() until it actually RUNS (inside a later
         // SummarizeAsync call) -- IRunStore's own factory needs IRunScoreStore,
         // so resolving it eagerly here would be a constructor-time cycle
-        // (Phase 154).
         services.TryAddTraconDefault<IRunScoreStore>(provider => new InMemoryRunScoreStore(
             provider.GetRequiredService<ITenantContext>(),
             (runId, cancellationToken) => ResolveScoredRunAgentNameAsync(provider, runId, cancellationToken)));
@@ -59,25 +58,25 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IRunScoreStore>(),
             provider.GetRequiredService<ITenantContext>()));
 
-        // Run inputs (Phase 47). The store is always registered (K-018:
+        // Run inputs. The store is always registered (stores are
         // first-class) - replay works even without a SQL provider. Persistent
         // providers replace this with their own implementations.
         services.TryAddTraconDefault<IRunInputStore, InMemoryRunInputStore>();
 
-        // Async approval inbox (Phase 55). The store is always registered (the
-        // SAME rationale as K-018): if a queued run requests approval, the
+        // Async approval inbox. The store is always registered (the
+        // SAME rationale): if a queued run requests approval, the
         // store works even without a persistent provider. Persistent providers
         // replace this with their own implementations.
         services.TryAddTraconDefault<IPendingApprovalStore>(static provider => new InMemoryPendingApprovalStore(
             provider.GetRequiredService<ITenantContext>()));
 
-        // Answers to workflow requests (Phase 208). Always registered, like the approval
+        // Answers to workflow requests. Always registered, like the approval
         // inbox: the respond endpoint records every answer, and a Single-answer workflow
         // claims its request here. Persistent providers replace it.
         services.TryAddTraconDefault<IWorkflowResponseStore>(static provider => new InMemoryWorkflowResponseStore(
             provider.GetRequiredService<ITenantContext>()));
 
-        // The inbox of workflow requests (Phase 209). Always registered, like the answers above:
+        // The inbox of workflow requests. Always registered, like the answers above:
         // a run that waits writes its rows here, and the expiry reads them. Persistent
         // providers replace it.
         services.TryAddTraconDefault<IWorkflowRequestStore>(static provider => new InMemoryWorkflowRequestStore(
@@ -125,7 +124,7 @@ public static partial class TraconServiceCollectionExtensions
         // the conditional generate_image tool or its optional HTTP endpoint exists.
         services.TryAddSingleton<ImagePricing>();
         services.TryAddSingleton<ImageAttachmentWriter>();
-        // F-384: explicit factory, so the tenant's provider checks reach the
+        // Explicit factory, so the tenant's provider checks reach the
         // resolver by construction rather than by optional-parameter activation.
         services.TryAddSingleton(static provider => new ImageGeneratorResolver(
             provider,
@@ -148,23 +147,23 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<TraconMetrics>()));
         services.TryAddTraconDefault<IWorkflowCheckpointStore, InMemoryWorkflowCheckpointStore>();
 
-        // Job queue and scheduling stores (Phase 17). Same split as the
+        // Job queue and scheduling stores. Same split as the
         // workflow stores: the stores are ALWAYS registered; the background
         // worker is turned on/off with TraconSchedulingOptions.RunWorker.
         // Neither of these two is wrapped with a decorator - the job queue
-        // carries its own state machine, and an audit trail can be added here in Phase 18.
+        // carries its own state machine, and an audit trail can be added here.
         services.TryAddTraconDefault<IJobStore, InMemoryJobStore>();
         services.TryAddTraconDefault<IJobScheduleStore, InMemoryJobScheduleStore>();
 
-        // Rate-limit counter (Phase 263): the shared counter behind
+        // Rate-limit counter: the shared counter behind
         // Tracon:RateLimit:Scope = Deployment. The in-memory default adds no
-        // database call and is what Scope = Instance never touches (K-165);
+        // database call and is what Scope = Instance never touches;
         // each SQL provider replaces it. DeploymentRateLimiter is the one place
         // that calls the store, so the endpoint filter and the inbound trigger
         // limiter share the same failure fallback and metric.
         services.TryAddTraconDefault<IRateLimitCounterStore, InMemoryRateLimitCounterStore>();
 
-        // What the bound storage provider shares between processes (Phase 265). Not a store and not a contract
+        // What the bound storage provider shares between processes. Not a store and not a contract
         // a consumer replaces: each provider package overwrites it, and only the production profile reads it.
         services.TryAddSingleton(StateSharing.InProcessMemory);
         services.TryAddSingleton(static provider => new DeploymentRateLimiter(
@@ -173,10 +172,10 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TraconMetrics>(),
             provider.GetService<ILogger<DeploymentRateLimiter>>()));
 
-        // Inbound triggers (Phase 66): an external, signed event queues a run
+        // Inbound triggers: an external, signed event queues a run
         // through the SAME job queue as everything else. The store is always
-        // registered (K-018); the accept endpoint is unauthenticated by
-        // design (K-395's pattern), so the dispatcher itself, not an
+        // registered; the accept endpoint is unauthenticated by
+        // design (the pattern), so the dispatcher itself, not an
         // ASP.NET Core filter, verifies the signature. Explicit factories:
         // IConfiguration may not be registered outside ASP.NET Core hosting,
         // and the built-in DI container does not fill in constructor
@@ -213,11 +212,11 @@ public static partial class TraconServiceCollectionExtensions
         services.AddBuiltInJobHandler<AgentBatchJobHandler>(JobHandlerKeys.AgentBatch);
         services.AddBuiltInJobHandler<AgentRunJobHandler>(JobHandlerKeys.AgentRun);
 
-        // Post-approval resume (Phase 55). SEPARATE from AgentRunJobHandler:
-        // runs with a NEW RunId, does not touch the old one (K-014).
+        // Post-approval resume. SEPARATE from AgentRunJobHandler:
+        // runs with a NEW RunId, does not touch the old one.
         services.AddBuiltInJobHandler<ApprovalResumeJobHandler>(JobHandlerKeys.ApprovalResume);
 
-        // Interrupted-run continuation (Phase 87). Triggered only by
+        // Interrupted-run continuation. Triggered only by
         // RunReconciliationService, never by a client request; SEPARATE from
         // both AgentRunJobHandler and ApprovalResumeJobHandler for the same
         // "new RunId, old row never changes" reason.
@@ -229,7 +228,7 @@ public static partial class TraconServiceCollectionExtensions
         // UseWorkflows() is called) - the same rationale applies to the
         // RunRecordingAgentDecorator registration too.
         //
-        // 🚨 F-321: both workflow handlers take WorkflowRecovery, and it takes
+        // Both workflow handlers take WorkflowRecovery, and it takes
         // IWorkflowRecoveryPolicy, which only UseWorkflows() registers. A
         // factory that drops it leaves recovery off with no error, whatever
         // ResumeInterruptedRuns says; one that drops the scheduling options
@@ -243,7 +242,7 @@ public static partial class TraconServiceCollectionExtensions
                 CreateWorkflowRecovery(provider),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowJobHandler>>()));
 
-        // A single queued workflow operation (Prefer: respond-async, F-318).
+        // A single queued workflow operation (Prefer: respond-async).
         services.AddBuiltInJobHandler(
             JobHandlerKeys.WorkflowRun,
             static provider => new WorkflowRunJobHandler(
@@ -251,25 +250,25 @@ public static partial class TraconServiceCollectionExtensions
                 CreateWorkflowRecovery(provider),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowRunJobHandler>>()));
 
-        // Evaluation (eval) infrastructure (Phase 18). The suite/case/run store
+        // Evaluation (eval) infrastructure. The suite/case/run store
         // is always registered; runs execute through the same job queue
         // (JobHandlerKeys.Eval). The check registry is built from custom records
         // (added via AddEvalCheck); the built-in kinds are fixed inside EvalCheckRegistry.
         services.TryAddTraconDefault<IEvalStore, InMemoryEvalStore>();
         services.TryAddSingleton<EvalCheckRegistry>();
 
-        // Phase 155: the seam around "what grades a suite". TryAdd, so a
+        // The seam around "what grades a suite". TryAdd, so a
         // consumer's own factory wins and registering none keeps MAF's
         // LocalEvaluator built over the suite's own checks.
         services.TryAddSingleton<IEvalEvaluatorFactory, LocalEvalEvaluatorFactory>();
         services.AddBuiltInJobHandler<EvalJobHandler>(JobHandlerKeys.Eval);
 
-        // Promoting production cases (Phase 45, F-53). Reads the query text
+        // Promoting production cases. Reads the query text
         // from the run's session; all of its dependencies are already registered above.
         services.TryAddSingleton<RunToCasePromoter>();
 
-        // Online evaluation (Phase 49). The sampler and job handler are always
-        // registered (K-018: first-class); nothing SCORES anything because the
+        // Online evaluation. The sampler and job handler are always
+        // registered (first-class); nothing SCORES anything because the
         // OnlineEvaluationOptions default keeps both gates closed
         // (Enabled=false, SampleRate=0) and no IRunJudge is registered - the
         // way to turn on the built-in judge is the AddModelRunJudge() call.
@@ -287,32 +286,32 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RunJudgeValidationService>());
 
         // The POST /api/runs/{id}/judge endpoint requests OnlineEvalJobHandler
-        // by its OWN type to call JudgeRunAsync directly. Since Phase 137 a
+        // by its OWN type to call JudgeRunAsync directly. Since then a
         // handler is registered by its concrete type anyway (the worker
         // resolves it through the registry's key -> type map), so ONE scoped
         // registration now serves both the endpoint and the worker.
         services.AddBuiltInJobHandler<OnlineEvalJobHandler>(JobHandlerKeys.OnlineEval);
 
-        // Quotas and event publishing (Phase 21). The stores are always
+        // Quotas and event publishing. The stores are always
         // registered; nothing is rejected unless a rule is defined, and no
         // event is published when there is no subscriber. This is why no
         // separate Use...() call is needed.
         services.TryAddTraconDefault<IQuotaStore, InMemoryQuotaStore>();
         services.TryAddTraconDefault<IWebhookStore, InMemoryWebhookStore>();
 
-        // Tenant-scoped API keys (Phase 53). The store is always registered
-        // (K-018: first-class); the static bearer token's behavior does not
-        // change unless a key is created (K1 - zero surprise).
+        // Tenant-scoped API keys. The store is always registered
+        // (first-class); the static bearer token's behavior does not
+        // change unless a key is created (zero surprise).
         services.TryAddTraconDefault<IApiKeyStore, InMemoryApiKeyStore>();
 
         // 🚨 The one guard every outbound surface builds its client from
-        // (K-164). Registered unconditionally: a surface that could not
+        // Registered unconditionally: a surface that could not
         // resolve it would fall back to its own unguarded handler.
         services.TryAddSingleton(static provider => new EgressSocketGuard(
             provider.GetRequiredService<IOptionsMonitor<TraconEgressOptions>>()));
 
         // 🚨 SSRF protection is embedded inside this client; the consumer
-        // cannot change it (K-164). Explicit factory: TimeProvider may not be
+        // cannot change it. Explicit factory: TimeProvider may not be
         // registered.
         services.TryAddSingleton(static provider => new WebhookHttpClient(
             provider.GetRequiredService<IOptionsMonitor<TraconWebhookOptions>>(),
@@ -332,13 +331,13 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaEnforcer>>()));
 
-        // Quota gauge (Phase 35). A BackgroundService: the gauge callback reads
+        // Quota gauge. A BackgroundService: the gauge callback reads
         // only the cached snapshot and this service refreshes it on a timer.
         // Registered unconditionally, because the on/off flag is not known
         // here - the consumer may configure TraconOptions after AddTracon
-        // (K-251). Hosting it also makes the container build the object EARLY,
+        // Hosting it also makes the container build the object EARLY,
         // so the ObservableGauges exist. While EnableQuotaUsageGauge is off
-        // (the default) ExecuteAsync returns at once: no timer, no query (K1).
+        // (the default) ExecuteAsync returns at once: no timer, no query.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, QuotaUsageObserver>(
             static provider => new QuotaUsageObserver(
                 provider.GetRequiredService<IQuotaStore>(),
@@ -350,7 +349,7 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaUsageObserver>>())));
 
-        // The delivery handler uses the SAME queue as Phase 17 (K-160).
+        // The delivery handler uses the SAME queue.
         services.AddBuiltInJobHandler(
             JobHandlerKeys.WebhookDelivery,
             static provider => new WebhookDeliveryJobHandler(
@@ -362,29 +361,29 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>(),
 
-                // 🚨 F-388: without this the handler checked every delivery
+                // Without this the handler checked every delivery
                 // against `new TraconEgressOptions()`, so a host that opened
                 // private targets with `Tracon:Egress:AllowPrivateNetworkTargets`
                 // alone saved the subscription and saw every delivery Dropped.
                 egressOptions: provider.GetService<IOptionsMonitor<TraconEgressOptions>>(),
                 schedulingOptions: provider.GetService<IOptionsMonitor<TraconSchedulingOptions>>()));
 
-        // Idempotency-Key support (Phase 43). The store is always registered
-        // (K-018: first-class); InMemoryIdempotencyStore is sufficient for a
+        // Idempotency-Key support. The store is always registered
+        // (first-class); InMemoryIdempotencyStore is sufficient for a
         // single-instance deployment. No separate Use...() call is needed.
         services.TryAddTraconDefault<IIdempotencyStore, InMemoryIdempotencyStore>();
 
-        // Data retention and archiving (Phase 25). The policy/run store is
+        // Data retention and archiving. The policy/run store is
         // always registered (control plane); the data plane
         // (IRetentionStore), however, is non-functional in an in-memory setup
         // (NullRetentionStore) - retention is meaningful only with a
         // persistent SQL provider on. When IArchiveSink is NOT registered, a
-        // policy requesting archiving deletes no rows (the Phase 25 decision).
+        // policy requesting archiving deletes no rows.
         services.TryAddTraconDefault<IRetentionPolicyStore, InMemoryRetentionPolicyStore>();
         services.TryAddTraconDefault<IRetentionStore, NullRetentionStore>();
         services.TryAddSingleton<RetentionPolicyResolver>();
 
-        // Data subject export/erasure (Phase 64). Same precedent as
+        // Data subject export/erasure. Same precedent as
         // IRetentionStore above: the data plane is non-functional in an
         // in-memory setup (NullDataSubjectStore). There is deliberately NO
         // default registration for IDataSubjectResolver — Tracon does not
@@ -436,9 +435,9 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
 
-        // Queue-depth gauge (Phase 133). The same shape and the same reasons as
+        // Queue-depth gauge. The same shape and the same reasons as
         // QuotaUsageObserver above: a background refresh behind a cache-only
-        // callback, registered unconditionally (K-251). While
+        // callback, registered unconditionally. While
         // EnableJobQueueDepthGauge is off (the default) ExecuteAsync returns
         // at once and the store is never queried.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, JobQueueDepthObserver>(
@@ -451,23 +450,23 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<JobQueueDepthObserver>>(),
                 provider.GetRequiredService<TraconMetrics>())));
 
-        // Orphaned run reconciliation (Phase 54). Both return immediately and
+        // Orphaned run reconciliation. Both return immediately and
         // issue no query to the store while RunReconciliationOptions.Enabled is
-        // off (the default) (K1).
+        // off (the default).
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, RunHeartbeatWriter>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, RunReconciliationService>());
 
-        // Approval expiration scan (Phase 55). TraconApprovalOptions.ExpirationEnabled
+        // Approval expiration scan. TraconApprovalOptions.ExpirationEnabled
         // defaults to ON (a safety requirement unlike RunReconciliationOptions),
         // but when SQL is not registered, SchemaReadyGate opens immediately and
         // no new query is issued after the first tick.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ApprovalExpirationService>());
 
-        // Canary evaluation and automatic rollback (Phase 56).
-        // CanaryOptions.AutoRollbackEnabled defaults to DISABLED (K1); no
+        // Canary evaluation and automatic rollback.
+        // CanaryOptions.AutoRollbackEnabled defaults to DISABLED; no
         // experiment is scanned unless turned on.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, CanaryEvaluationService>());

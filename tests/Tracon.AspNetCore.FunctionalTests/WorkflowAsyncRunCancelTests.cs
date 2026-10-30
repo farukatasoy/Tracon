@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <c>POST /api/runs/{id}/cancel</c> cancels a queued row through the job queue, and
-/// that only works because the job id is the run id (K-305). A cancelled run is not an
+/// that only works because the job id is the run id. A cancelled run is not an
 /// interruption: recovery must not continue it when its job is leased again.
 /// </remarks>
 public sealed class WorkflowAsyncRunCancelTests
@@ -84,7 +84,7 @@ public sealed class WorkflowAsyncRunCancelTests
         await host.WaitForRunStatusAsync(runId, nameof(RunStatus.Canceled));
 
         // The endpoint cancelled the job before it stopped the handler, so the job is Cancelled and
-        // stays so (F-765). It used to read Failed: the operator's cancel looked like an error, and
+        // stays so. It used to read Failed: the operator's cancel looked like an error, and
         // with attempts left the worker would have taken it for an interruption. No retry follows.
         var job = await WaitForJobAsync(host, runId);
         job.Status.ShouldBe(JobStatus.Cancelled);

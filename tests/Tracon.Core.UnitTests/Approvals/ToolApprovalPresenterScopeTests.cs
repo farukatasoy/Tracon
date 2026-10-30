@@ -9,10 +9,10 @@ namespace Tracon.Core.UnitTests.Approvals;
 /// <see cref="IToolApprovalPresenter"/> registered as a SINGLETON that resolves a
 /// SCOPED dependency through <c>IServiceScopeFactory</c> — the exact shape the
 /// interface's own <c>&lt;example&gt;</c> documents, driven through a REAL DI
-/// container rather than a hand-built fake (docs/142, section 142.1, K-218).
+/// container rather than a hand-built fake.
 /// </summary>
 /// <remarks>
-/// An isolated probe does not prove this: K-218's own original case had a separate
+/// An isolated probe does not prove this: the own original case had a separate
 /// console probe where the same call worked, while the real MAF pipeline handed the
 /// tool an empty <c>IServiceProvider</c>. This class never touches MAF at all — it
 /// exercises exactly what <see cref="ToolApprovalPresenterRunner"/> does, resolving
@@ -46,7 +46,7 @@ public sealed class ToolApprovalPresenterScopeTests
 
         var result = await runner.ResolveAllAsync([request], "tenant-a", "agent-a", CancellationToken.None);
 
-        // A null here is exactly the K-218 failure mode: the scoped repository
+        // A null here is exactly the failure mode: the scoped repository
         // silently returning nothing because the presenter never got a REAL
         // service provider. It must resolve the real skill name.
         result["req-1"].ShouldNotBeNull();

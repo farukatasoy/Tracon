@@ -9,7 +9,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// A tool call that waits for approval inside a workflow becomes a request of the <c>ToolApproval</c>
-/// form, and the answer is built from the request the checkpoint holds (phase 230, K-1051).
+/// form, and the answer is built from the request the checkpoint holds.
 /// </summary>
 /// <remarks>
 /// <para>

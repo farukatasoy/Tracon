@@ -130,7 +130,7 @@ describe('WorkflowDetailScreen run parameters', () => {
   });
 });
 
-// Phase 200 (200.5): the version history of a stored workflow, a comparison of two versions and
+// The version history of a stored workflow, a comparison of two versions and
 // a rollback. A workflow defined in code keeps no history and gets no section.
 describe('WorkflowDetailScreen version history', () => {
   let restoreFetch: () => void;
@@ -277,7 +277,7 @@ describe('WorkflowDetailScreen version history', () => {
     );
   });
 
-  it('compares the handoff edges and the limits of two versions of a Handoff workflow (phase 270)', async () => {
+  it('compares the handoff edges and the limits of two versions of a Handoff workflow', async () => {
     const user = userEvent.setup();
     const star = definition(1, { kind: 'Handoff', agentNames: ['front', 'billing'], handoffs: [], maxHandoffs: null });
     const edges = definition(2, {
@@ -439,7 +439,7 @@ describe('WorkflowDetailScreen version history', () => {
   });
 });
 
-describe('WorkflowDetailScreen answers (phase 208)', () => {
+describe('WorkflowDetailScreen answers', () => {
   let restoreFetch: (() => void) | undefined;
 
   afterEach(() => restoreFetch?.());
@@ -522,7 +522,7 @@ describe('WorkflowDetailScreen answers (phase 208)', () => {
   });
 });
 
-describe('WorkflowDetailScreen tool approval (phase 230)', () => {
+describe('WorkflowDetailScreen tool approval', () => {
   let restoreFetch: (() => void) | undefined;
 
   afterEach(() => restoreFetch?.());

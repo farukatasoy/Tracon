@@ -301,7 +301,7 @@ public sealed class CapabilityExampleTests
     /// <c>UseArtifactsOutput</c> the test assembly lands in
     /// <c>artifacts/bin/&lt;project&gt;/&lt;configuration&gt;</c>, or in
     /// <c>&lt;configuration&gt;_&lt;tfm&gt;</c> once the project targets more than
-    /// one framework (phase 183), so the last segment up to the first
+    /// one framework, so the last segment up to the first
     /// underscore names it; reading the wrong configuration's documentation
     /// would silently report a stale answer.
     /// </summary>

@@ -2,7 +2,7 @@ namespace Tracon.Core.UnitTests.Approvals;
 
 /// <summary>
 /// <see cref="ToolApprovalPolicyRegistry"/>: holds the code-defined approval
-/// policies registered through <c>AddToolApprovalPolicy</c> (Phase 63).
+/// policies registered through <c>AddToolApprovalPolicy</c>.
 /// </summary>
 public sealed class ToolApprovalPolicyRegistryTests
 {

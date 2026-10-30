@@ -20,7 +20,7 @@ namespace Tracon.Core.UnitTests.Extensions;
 /// (<see cref="Every_protected_row_catches_a_change"/>). The second test builds the change
 /// from the member's type, so a row added later is covered without a hand-written case.
 /// </remarks>
-// MAAI001: the harness option types are marked "evaluation purposes only" — see K-020.
+// MAAI001: the harness option types are marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class AgentOptionsGuardTests
 {

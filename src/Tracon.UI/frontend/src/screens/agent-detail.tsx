@@ -344,7 +344,7 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
             right={data.right.callableAgents.map(describeCallable)}
           />
 
-          {/* Phase 228: a version that changes how the agent calls its callable agents shows it. */}
+          {/* A version that changes how the agent calls its callable agents shows it. */}
           {((data.left.subAgents?.callMode ?? 'Background') !== 'Background' ||
             (data.right.subAgents?.callMode ?? 'Background') !== 'Background') && (
             <CompareSection title={t('fields.callMode')}>
@@ -356,7 +356,7 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
             </CompareSection>
           )}
 
-          {/* Phase 231: a version that turns the skill read approval on or off shows it, because it loosens a gate. */}
+          {/* A version that turns the skill read approval on or off shows it, because it loosens a gate. */}
           {((data.left.skills?.disableReadApproval ?? false) || (data.right.skills?.disableReadApproval ?? false)) && (
             <CompareSection title={t('fields.disableSkillReadApproval')}>
               <FieldDiffTable
@@ -424,7 +424,7 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
             </CompareSection>
           )}
 
-          {/* Phase 234: a version that turns the workspace on, or loosens its approval, shows it. */}
+          {/* A version that turns the workspace on, or loosens its approval, shows it. */}
           {(data.left.workspace ?? data.right.workspace) !== undefined && (
             <CompareSection title={t('agentEditor.workspace')}>
               <FieldDiffTable

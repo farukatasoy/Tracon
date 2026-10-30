@@ -9,7 +9,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-341: <c>POST /api/workflows/runs/{runId}/respond</c> refuses a response that does
+/// <c>POST /api/workflows/runs/{runId}/respond</c> refuses a response that does
 /// not fit the port's response type with <c>400</c>, before any run opens.
 /// </summary>
 /// <remarks>

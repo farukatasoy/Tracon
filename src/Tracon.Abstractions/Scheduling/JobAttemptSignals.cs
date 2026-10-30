@@ -33,8 +33,8 @@ internal enum JobStopReason
 /// cancelled whatever the clock says.
 /// </para>
 /// </remarks>
-// K-737 (an OperationCanceledException is a question) and Phase 196 open question 13-A
-// (a time limit is its own reason; recovery never continues the run it stopped).
+// Two rules shape these signals: an OperationCanceledException is a question,
+// a time limit is its own reason, and recovery never continues the run it stopped.
 internal sealed class JobAttemptSignals
 {
     /// <summary>

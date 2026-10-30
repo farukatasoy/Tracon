@@ -3,7 +3,7 @@ using Tracon.OpenAI.UnitTests.Infrastructure;
 namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
-/// What the OpenAI provider states through <see cref="ISamplingSupport.SamplingLimits"/> (phase 252): the four stop
+/// What the OpenAI provider states through <see cref="ISamplingSupport.SamplingLimits"/>: the four stop
 /// sequences OpenAI documents for Chat Completions, for OpenAI's own service only.
 /// </summary>
 /// <remarks>

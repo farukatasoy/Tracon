@@ -11,20 +11,20 @@
   </ItemGroup>
 
   <!--
-    Phase 181: the tests of src/Tracon.Providers.Shared are linked into all four
+    The tests of src/Tracon.Providers.Shared are linked into all four
     provider test projects, so each assembly's compiled copy of the shared
     source is tested.
   -->
-  <ItemGroup Label="Shared provider source tests (Phase 181)">
+  <ItemGroup Label="Shared provider source tests">
     <Compile Include="../Shared/Providers/**/*.cs" LinkBase="Shared/Providers" />
   </ItemGroup>
 
   <!--
-    Phase 245: the tests of src/Tracon.OpenAI.Shared are linked into both OpenAI-client test projects,
+    The tests of src/Tracon.OpenAI.Shared are linked into both OpenAI-client test projects,
     so each assembly's compiled copy of the shared source is tested. Each project supplies its own
     Infrastructure/StrictWireHarness.cs.
   -->
-  <ItemGroup Label="Shared OpenAI source tests (Phase 245)">
+  <ItemGroup Label="Shared OpenAI source tests">
     <Compile Include="../Shared/OpenAI/**/*.cs" LinkBase="Shared/OpenAI" />
   </ItemGroup>
 

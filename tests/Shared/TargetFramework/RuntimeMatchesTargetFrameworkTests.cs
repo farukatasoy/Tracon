@@ -8,7 +8,7 @@ namespace Tracon.Tests.Common;
 /// Proves that a multi-targeted test assembly ran on the runtime it was built for.
 /// </summary>
 /// <remarks>
-/// Phase 183 runs a representative set of test projects on every framework the
+/// runs a representative set of test projects on every framework the
 /// packages ship. The whole point of the net8.0 leg is the net8.0 runtime: a leg
 /// that rolled forward onto a newer runtime (<c>DOTNET_ROLL_FORWARD</c>, a
 /// <c>RollForward</c> property) would pass every other test and prove nothing.

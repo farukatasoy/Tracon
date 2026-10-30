@@ -8,7 +8,7 @@ using Tracon.TwoNode.IntegrationTests.Infrastructure;
 namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>
-/// The definition transfer on a real database server (Phase 269): a file leaves one database and enters another, and
+/// The definition transfer on a real database server: a file leaves one database and enters another, and
 /// what is read back is the same file.
 /// </summary>
 /// <remarks>

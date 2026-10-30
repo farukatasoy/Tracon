@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-299: a node that synthesized speech, rendered video or used a GPU could report
+/// A node that synthesized speech, rendered video or used a GPU could report
 /// nothing, so none of it reached the run's total, its budget or the tenant's quota; the
 /// host kept its own ledger. The cases run through the real host and the real graph:
 /// <c>IWorkflowContext</c> carries neither the executor's identity nor a service provider,
@@ -214,7 +214,7 @@ public sealed class NodeUsageTests
                     await context.ReportUsageAsync(Speech(0.1m));
 
                     // 🚨 Ignores its token on purpose: the run stopped waiting for this body at the
-                    // timeout, and the body outlives the run's closed row (K-806's case).
+                    // timeout, and the body outlives the run's closed row (the case).
                     await Task.Delay(TimeSpan.FromSeconds(2), CancellationToken.None); // delay: simulated
 
                     (await context.ReportUsageAsync(Speech(5m))).ShouldBeTrue();

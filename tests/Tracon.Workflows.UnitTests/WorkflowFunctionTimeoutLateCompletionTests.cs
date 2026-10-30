@@ -7,7 +7,7 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A function that ignores its token (F-303, failure mode 4): the run must not wait for
+/// A function that ignores its token (failure mode 4): the run must not wait for
 /// it, its late end must not touch the closed run, and a late fault must not go
 /// unobserved.
 /// </summary>

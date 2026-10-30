@@ -12,11 +12,11 @@
       `dotnet nswag run` regeneration into a multi-thousand-line
       PublicAPI.Unshipped.txt diff nobody reviews line by line - the same
       reasoning Tracon.Templates and Tracon.Generators already use
-      for their own generated/non-authored surface. Decision: docs/KARARLAR.md.
+      for their own generated/non-authored surface.
     -->
     <TraconPublicApiTrackingEnabled>false</TraconPublicApiTrackingEnabled>
     <!--
-      🚨 MEASURED (Phase 83, section 83.6/risk table):
+      🚨 MEASURED:
       the AOT promise does NOT hold for the NSwag-generated client. Every
       request/response call is hand-wired to TraconClientJsonContext (a
       source-generated JsonSerializerContext, see TraconApiClient.JsonContext.cs)
@@ -31,16 +31,16 @@
       coverage statically - measured with -p:TraconAotCompatible=true:
       146 IL2026/IL3050/IL2075 diagnostics across those 42 lines x 3 TFMs.
       Rewriting the generated call sites to typed JsonTypeInfo<T> overloads
-      is out of proportion to what this package promises. K-006 is
+      is out of proportion to what this package promises. The AOT promise is
       layer-based, not a global promise: Tracon.AspNetCore and
-      Tracon.UI already opt out for their own reasons. Decision: docs/KARARLAR.md.
+      Tracon.UI already opt out for their own reasons.
     -->
     <TraconAotCompatible>false</TraconAotCompatible>
   </PropertyGroup>
 
   <!--
-    NO Tracon package is taken on (Phase 83, section
-    83.6). The generated client's DTOs mirror the OpenAPI document, not
+    NO Tracon package is taken on.
+    The generated client's DTOs mirror the OpenAPI document, not
     Tracon.Abstractions - reusing Abstractions would fight the code
     generator and would leak server-side store interfaces (like IRunStore)
     into an HTTP consumer. Serialization uses raw System.Text.Json source
@@ -52,7 +52,7 @@
     transitive dependencies of its own and is already present, directly or
     transitively, in effectively every .NET app that uses DI.
     IHttpClientFactory (Microsoft.Extensions.Http) is deliberately NOT used -
-    same reasoning as WebhookHttpClient (K-164): it would add a second
+    same reasoning as WebhookHttpClient: it would add a second
     package, and a consumer could reconfigure the named client and undo
     AddTraconClient's setup. The HttpClient is constructed once and kept
     for the singleton's lifetime instead, the pattern Microsoft recommends

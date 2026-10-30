@@ -9,10 +9,10 @@ import { ErrorNote, Loading, Panel } from './ui';
 import type { RunComparisonResponse, RunComparisonSide } from '../lib/server-types';
 
 /**
- * Two runs side by side (F-54, phase 47).
+ * Two runs side by side.
  *
  * The server returns two summaries and computes nothing: the comparison is
- * drawn here with the components phase 19 already built for definition version
+ * drawn here with the components already built for definition version
  * diffs. A second diff implementation would mean maintaining the same logic in
  * two places, and a diff library would not fit the bundle budget.
  */

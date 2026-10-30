@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 188 made fifteen constructors internal and pinned the ones that take an
+/// An earlier change made fifteen constructors internal and pinned the ones that take an
 /// optional parameter (<see cref="Public_constructors_with_optional_parameters_match_the_checked_in_baseline"/>).
 /// That gate cannot see a constructor WITHOUT an optional parameter, and five
 /// service types the container builds kept a public one for that reason

@@ -11,7 +11,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 238 (A-68): <c>tracon.tenant.id</c> is on a metric only when
+/// <c>tracon.tenant.id</c> is on a metric only when
 /// <see cref="TraconObservabilityOptions.IncludeTenantTag"/> is on.
 /// </summary>
 /// <remarks>

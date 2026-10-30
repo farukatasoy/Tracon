@@ -4,7 +4,7 @@ using Tracon.ProviderCore.Tests;
 namespace Tracon.Azure.UnitTests;
 
 /// <summary>
-/// What the Azure OpenAI health check actually puts on the wire (phase 181).
+/// What the Azure OpenAI health check actually puts on the wire.
 /// The shared body calls a per-provider <c>authorize</c> delegate; this proves
 /// the Azure shell hands it the <c>api-key</c> header, or a Bearer token when a
 /// credential factory is set.

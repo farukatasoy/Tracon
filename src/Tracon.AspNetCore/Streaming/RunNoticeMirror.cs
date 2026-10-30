@@ -57,8 +57,8 @@ namespace Tracon;
 /// </remarks>
 internal static class RunNoticeMirror
 {
-    // K-679: the frame name is always "custom", whatever the event's own type; the
-    // reading side was built on that in phase 146 (design b) and phase 207 widened it.
+    // The frame name is always "custom", whatever the event's own type; the
+    // reading side was built on that and later widened it.
 
     /// <summary>The SSE event name of every mirrored notice, whatever its custom type.</summary>
     internal const string FrameName = "custom";

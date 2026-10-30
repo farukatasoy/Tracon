@@ -1,7 +1,7 @@
 namespace Tracon;
 
-// 🚨 F-338. RunErrorClass.ProviderError answers "which fault was this", and
-// K-817 widened it on purpose to every provider HTTP error, 4xx included. A
+// RunErrorClass.ProviderError answers "which fault was this", and
+// It is widened on purpose to every provider HTTP error, 4xx included. A
 // retry asks a different question. A workflow node retry that read only the
 // class repeated a 401 MaxAttempts times, and a retried 409 on a
 // non-idempotent call repeated its side effect. The fallback chain had the

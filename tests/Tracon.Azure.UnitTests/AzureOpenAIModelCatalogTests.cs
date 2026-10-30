@@ -2,7 +2,7 @@ using Tracon.Azure.UnitTests.Infrastructure;
 
 namespace Tracon.Azure.UnitTests;
 
-/// <summary>The catalog comes only from configuration (K-032).</summary>
+/// <summary>The catalog comes only from configuration.</summary>
 /// <remarks>
 /// In Azure this rule is even more binding: the name in the catalog is not
 /// a model name, it is a deployment name defined on that resource, and two
@@ -58,7 +58,7 @@ public sealed class AzureOpenAIModelCatalogTests
     [Fact]
     public void Deployment_not_in_the_catalog_is_not_rejected()
     {
-        // The catalog is not a validation list (K-032): opening a new
+        // The catalog is not a validation list: opening a new
         // deployment in Azure should not have to wait for a Tracon
         // configuration update.
         var provider = new AzureOpenAIModelProvider(

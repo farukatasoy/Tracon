@@ -17,7 +17,7 @@ describe('EvalSuiteDetailScreen', () => {
     restoreFetch();
   });
 
-  it('does not allow a new case while the initial cases load (F-130)', async () => {
+  it('does not allow a new case while the initial cases load', async () => {
     restoreFetch = installApiMock([
       fixture('GET', 'api/evals/:name', {
         name: 'support-eval',
@@ -97,7 +97,7 @@ describe('EvalSuiteDetailScreen', () => {
     ]);
   });
 
-  it('keeps the line breaks of a promoted context the operator edits (F-343)', async () => {
+  it('keeps the line breaks of a promoted context the operator edits', async () => {
     // A promoted case stores the run's documents in `context` as document
     // blocks, one per document, and each block goes back to the agent as its
     // own document. A single-line input drops line breaks the moment the

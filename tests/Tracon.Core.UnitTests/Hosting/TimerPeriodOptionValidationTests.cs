@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Hosting;
 
 /// <summary>
 /// Every option that becomes the period of a background timer must fail at
-/// startup when the timer cannot take it (F-278).
+/// startup when the timer cannot take it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -80,7 +80,7 @@ public sealed class TimerPeriodOptionValidationTests
         => ShouldFailAtStartup("PollInterval", ("Tracon:Scheduling:PollInterval", value));
 
     [Theory]
-    [InlineData("00:00:00.0020")]   // renewal every 0.67 ms (a third of the lease, F-326)
+    [InlineData("00:00:00.0020")]   // renewal every 0.67 ms (a third of the lease)
     [InlineData("150.00:00:00")]    // renewal every 50 days
     public void Job_lease_duration_whose_renewal_timer_cannot_run_is_checked_at_startup(string value)
         => ShouldFailAtStartup("LeaseDuration", ("Tracon:Scheduling:LeaseDuration", value));

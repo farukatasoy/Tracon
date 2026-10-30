@@ -168,7 +168,7 @@ public sealed partial class HttpTenantContext : ITenantContext
         // A value outside the allowlist returns null HERE, and TenantId's `??`
         // chain then falls back to DefaultTenantId - so this method ALONE does not
         // keep an unauthorized request away from the default tenant's data. The
-        // rejection lives in the endpoint filter (K-382), which reads the same
+        // rejection lives in the endpoint filter, which reads the same
         // candidate from the same source and answers 403 before the request ever
         // reaches an endpoint. Do not weaken that filter on the assumption that
         // this line already refuses the request.

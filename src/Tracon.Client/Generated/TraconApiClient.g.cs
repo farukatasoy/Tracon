@@ -980,7 +980,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -1167,7 +1167,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not
+                            // The STREAMING sibling. The body is Server-Sent Events, not
                             // JSON. Framing and this guard are hand-written in
                             // TraconApiClient.Sse.cs so a regeneration cannot change them.
                             await EnsureContentTypeAsync(
@@ -3119,7 +3119,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -3219,7 +3219,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not
+                            // The STREAMING sibling. The body is Server-Sent Events, not
                             // JSON. Framing and this guard are hand-written in
                             // TraconApiClient.Sse.cs so a regeneration cannot change them.
                             await EnsureContentTypeAsync(
@@ -4779,7 +4779,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -4943,7 +4943,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not
+                            // The STREAMING sibling. The body is Server-Sent Events, not
                             // JSON. Framing and this guard are hand-written in
                             // TraconApiClient.Sse.cs so a regeneration cannot change them.
                             await EnsureContentTypeAsync(
@@ -5192,7 +5192,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -5346,7 +5346,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not
+                            // The STREAMING sibling. The body is Server-Sent Events, not
                             // JSON. Framing and this guard are hand-written in
                             // TraconApiClient.Sse.cs so a regeneration cannot change them.
                             await EnsureContentTypeAsync(
@@ -5720,7 +5720,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -5884,7 +5884,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not
+                            // The STREAMING sibling. The body is Server-Sent Events, not
                             // JSON. Framing and this guard are hand-written in
                             // TraconApiClient.Sse.cs so a regeneration cannot change them.
                             await EnsureContentTypeAsync(
@@ -16546,7 +16546,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: with "stream": true in the body this endpoint answers with
+                            // With "stream": true in the body this endpoint answers with
                             // Server-Sent Events, and the JSON read below would fail with an opaque
                             // "could not deserialize" message. Name the real cause instead.
                             await EnsureContentTypeAsync(
@@ -16692,7 +16692,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not
+                            // The STREAMING sibling. The body is Server-Sent Events, not
                             // JSON. Framing and this guard are hand-written in
                             // TraconApiClient.Sse.cs so a regeneration cannot change them.
                             await EnsureContentTypeAsync(
@@ -16838,7 +16838,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: with "stream": true in the body this endpoint answers with
+                            // With "stream": true in the body this endpoint answers with
                             // Server-Sent Events, and the JSON read below would fail with an opaque
                             // "could not deserialize" message. Name the real cause instead.
                             await EnsureContentTypeAsync(
@@ -16998,7 +16998,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not
+                            // The STREAMING sibling. The body is Server-Sent Events, not
                             // JSON. Framing and this guard are hand-written in
                             // TraconApiClient.Sse.cs so a regeneration cannot change them.
                             await EnsureContentTypeAsync(

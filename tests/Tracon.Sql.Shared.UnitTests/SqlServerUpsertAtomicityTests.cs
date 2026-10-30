@@ -5,7 +5,7 @@ namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
 /// Every two-statement SQL Server upsert runs inside a transaction and seeks its
-/// key (F-313).
+/// key.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -93,7 +93,7 @@ public sealed partial class SqlServerUpsertAtomicityTests
 
         wrapped.ShouldBeEmpty(
             "Compare a nullable key column with EXISTS (SELECT col INTERSECT SELECT @p), " +
-            "or through a persisted computed column (F-215); a wrapped column cannot seek.");
+            "or through a persisted computed column; a wrapped column cannot seek.");
     }
 
     private static bool RunsInsideATransaction(string[] lines, int index)

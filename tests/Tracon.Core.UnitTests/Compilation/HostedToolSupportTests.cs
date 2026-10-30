@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// F-603 — a hosted tool the provider's API surface would drop stops the compilation and makes the
+/// A hosted tool the provider's API surface would drop stops the compilation and makes the
 /// validation report name the tool and the provider (<see cref="IHostedToolSupport"/>); a tool the
 /// provider runs reaches the model call.
 /// </summary>

@@ -38,7 +38,7 @@ public sealed class LiveVoiceAuthorizationTests
     [Fact]
     public async Task A_delegation_run_is_recorded_under_the_sessions_OWN_tenant()
     {
-        // 🚨 The phase's most likely silent defect. The pump is not on the request's
+        // 🚨 The change's most likely silent defect. The pump is not on the request's
         // thread and inherits nothing from it; if the ambient tenant is not opened on
         // the pump itself, every delegated run lands in "default" and every test that
         // only ever uses one tenant stays green.
@@ -150,7 +150,7 @@ public sealed class LiveVoiceAuthorizationTests
     [Fact]
     public async Task An_unknown_session_is_still_opened_when_the_handler_allows_it()
     {
-        // K-283's case on the live surface: a session that does not exist yet is
+        // the case on the live surface: a session that does not exist yet is
         // NOT an error — the conversation opens it. A gate that refused unknown
         // sessions would break the first conversation of every installation.
         var handler = new ConfigurableRunAuthorizationHandler();

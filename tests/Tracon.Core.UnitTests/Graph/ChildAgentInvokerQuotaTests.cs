@@ -7,7 +7,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
-/// The tenant's quota stands in front of a child agent run, as the tree's budget does (F-529): in a workflow
+/// The tenant's quota stands in front of a child agent run, as the tree's budget does: in a workflow
 /// the refusal ends the step, in agent delegation it comes back to the model as a tool result.
 /// </summary>
 /// <remarks>

@@ -7,7 +7,7 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A timeout and a retry policy together (F-303, failure mode 6, open question 3-A):
+/// A timeout and a retry policy together (failure mode 6):
 /// <c>retry(timeout(handler))</c>, so each attempt gets the whole timeout and a timed-out
 /// attempt is retried; a caller's stop is never retried.
 /// </summary>

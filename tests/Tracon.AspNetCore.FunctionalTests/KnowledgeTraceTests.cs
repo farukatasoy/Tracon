@@ -8,11 +8,11 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 266: the embedding call of the knowledge base is a span of the run that made it.
+/// The embedding call of the knowledge base is a span of the run that made it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before this phase the consumer's embedding generator was called as it was, so a slow query embedding was
+/// Before this change the consumer's embedding generator was called as it was, so a slow query embedding was
 /// invisible in the trace and the tool's own span read as one slow tool. The ring is built once over the registered
 /// generator, and every caller (the search tool, the ingestion service, the provider checks) takes that one.
 /// </para>

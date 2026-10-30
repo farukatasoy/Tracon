@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// HATA-S4-012: verifies that a cancellation arriving while the <c>RunStarted</c>
+/// Verifies that a cancellation arriving while the <c>RunStarted</c>
 /// event is ALREADY written to the store, but BEFORE the model call has started
 /// (during the input-recording step), moves the run to <see cref="RunStatus.Canceled"/>
 /// instead of leaving it stuck in <see cref="RunStatus.Running"/> forever.
@@ -15,7 +15,7 @@ namespace Tracon.Core.UnitTests.Recording;
 /// exactly this narrow window: the old single-block form of
 /// <c>RunRecordingAgent.BeginRunAsync</c> left an <see cref="OperationCanceledException"/>
 /// thrown during input recording (<see cref="IRunInputStore.SaveAsync"/>) OUTSIDE
-/// the caller's try/finally safety net (HATA-S1-015).
+/// the caller's try/finally safety net.
 /// </remarks>
 public sealed class RunStartCancellationTests
 {

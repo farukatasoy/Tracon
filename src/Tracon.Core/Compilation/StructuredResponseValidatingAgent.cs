@@ -311,7 +311,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
                 }
                 catch (TraconOutputTruncatedException)
                 {
-                    // F-320: the stream already reached the caller; the rejection
+                    // The stream already reached the caller; the rejection
                     // only says why the run ends. Repair never runs here anyway.
                     await RejectedAsync(format, TruncatedReason, attempt: 1, maxAttempts: 1, repairSuppressed: false, cancellationToken)
                         .ConfigureAwait(false);

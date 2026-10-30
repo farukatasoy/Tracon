@@ -6,7 +6,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// What a structural edit of a stored workflow does to a run that is waiting to be resumed
-/// (F-292, section 195.4 of the phase document; phase 200).
+/// (an earlier plan of the phase document; an earlier change).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,7 +17,7 @@ namespace Tracon.Workflows.UnitTests;
 /// what it compares.
 /// </para>
 /// <para>
-/// Since phase 200 a run resumes with the version it recorded, so the edit no longer strands it:
+/// Since then a run resumes with the version it recorded, so the edit no longer strands it:
 /// every test below proves BOTH halves - the recorded version resumes, and the edited version,
 /// named on purpose, is the one the checkpoint does not fit.
 /// </para>
@@ -176,7 +176,7 @@ public sealed class WorkflowStructuralChangeResumeTests
     [Fact]
     public async Task Adding_a_handoff_edge_makes_the_old_checkpoint_unusable_for_the_edited_version()
     {
-        // Phase 270. The edge list is the graph of a Handoff workflow: the console warns before it saves a change of
+        // The edge list is the graph of a Handoff workflow: the console warns before it saves a change of
         // an edge the same way it does for an agent added to a chain.
         var host = new WorkflowTestHost("one", "two");
 
@@ -239,7 +239,7 @@ public sealed class WorkflowStructuralChangeResumeTests
     [Fact]
     public async Task Re_pinning_an_agent_step_leaves_the_old_checkpoint_usable_for_either_version()
     {
-        // Phase 200, failure mode 15: the pin is a property of the wrapper, never of the executor id.
+        // Failure mode 15: the pin is a property of the wrapper, never of the executor id.
         // A pin that reached the id would strand every waiting run the moment an operator pinned.
         var host = new WorkflowTestHost("one", "two");
 

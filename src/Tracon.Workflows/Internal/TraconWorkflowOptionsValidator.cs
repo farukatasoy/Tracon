@@ -47,7 +47,7 @@ internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowReg
                 $" when {nameof(TraconWorkflowOptions.Enabled)} is on"));
         }
 
-        // Phase 240: the per-tenant limit is a share of the process limit, so it cannot be larger than it. The
+        // The per-tenant limit is a share of the process limit, so it cannot be larger than it. The
         // runner takes at least one shared slot (Math.Max), and the comparison reads it the same way.
         if (options.MaxConcurrentRunsPerTenant is { } perTenant)
         {
@@ -71,7 +71,7 @@ internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowReg
                 $"(bytes of a node's settings JSON). Actual value: {options.MaxNodeSettingsLength}.");
         }
 
-        // F-405: checked whether or not the engine is on, like the settings cap: the
+        // Checked whether or not the engine is on, like the settings cap: the
         // ceiling guards a definition SAVE. A ceiling below the installation's own
         // run timeout would let a definition shorten nothing it could not already,
         // and the save would refuse a value the installation runs every day.
@@ -94,7 +94,7 @@ internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowReg
             }
         }
 
-        // F-537: the ceiling a workflow registered in code is held to. Only while the engine is on:
+        // The ceiling a workflow registered in code is held to. Only while the engine is on:
         // nothing arms a run timeout otherwise.
         if (options.Enabled && codeWorkflows is not null)
         {
@@ -121,7 +121,7 @@ internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowReg
             }
         }
 
-        // F-321: recovery resumes from checkpoints, so it cannot work without
+        // Recovery resumes from checkpoints, so it cannot work without
         // them. Refused at startup rather than discovered when the first job is
         // leased again and finds nothing to resume from.
         if (options.ResumeInterruptedRuns && !options.EnableCheckpointing)
@@ -132,9 +132,9 @@ internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowReg
                 "run is resumed from its latest checkpoint. Turn checkpointing on, or turn recovery off.");
         }
 
-        // Phase 209: the expiry scan runs on a PeriodicTimer, which refuses a period outside
+        // The expiry scan runs on a PeriodicTimer, which refuses a period outside
         // one millisecond to about 49.7 days from inside a hosted service, where the default
-        // StopHost turns it into a stopped host (F-278). Only while the engine is on.
+        // StopHost turns it into a stopped host. Only while the engine is on.
         if (options.Enabled && !TimerPeriod.IsValid(options.RequestExpirationScanInterval))
         {
             return ValidateOptionsResult.Fail(TimerPeriod.Failure(

@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// What a replace does to a case's identity, its parameter values and its
-/// promotion record (HATA-S3-003 and its class scan).
+/// promotion record (an earlier defect and its class scan).
 /// </summary>
 /// <remarks>
 /// A case holds its identifier for life: <c>EvalRunDiffBuilder</c> matches

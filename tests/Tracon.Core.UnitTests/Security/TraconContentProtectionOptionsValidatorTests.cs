@@ -16,7 +16,7 @@ public sealed class TraconContentProtectionOptionsValidatorTests
     [Fact]
     public void Disabled_options_with_an_empty_configuration_key_name_fail()
     {
-        // F-247: Keys is read while protection is off too - an old row is still
+        // Keys is read while protection is off too - an old row is still
         // decrypted through it - so the check no longer waits for Enabled.
         var options = new TraconContentProtectionOptions { Enabled = false };
         options.Keys["old"] = "";

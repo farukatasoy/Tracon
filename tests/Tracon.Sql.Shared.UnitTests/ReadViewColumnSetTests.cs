@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The <c>runs_v1</c> read contract view (Phase 111, 111.5 "column set gate"):
+/// The <c>runs_v1</c> read contract view (111.5 "column set gate"):
 /// a published column is never lost or renamed. Adding a column is free.
 /// </summary>
 /// <remarks>
@@ -16,7 +16,7 @@ namespace Tracon.SqlProviders.Tests;
 public sealed class ReadViewColumnSetTests
 {
     /// <summary>
-    /// The published contract (Phase 111,
+    /// The published contract (
     /// 111.2). A column dropped from here is a BREAKING change and ships as
     /// <c>runs_v2</c>, never edited in place.
     /// </summary>

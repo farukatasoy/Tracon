@@ -73,7 +73,7 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
         // column is `json`.
         //
         // The discriminator is kept inside a nested object because that is
-        // how MAF's real payload is shaped too (measured in phase 15: a
+        // how MAF's real payload is shaped too (measured: a
         // 7,537-byte checkpoint contains `{"$type":0,...}`).
         const string Payload = """
             {"stepNumber":0,"edges":{"writer":[{"$type":0,"hasCondition":false,"kind":0}]},"zzzz":"last"}
@@ -201,7 +201,7 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     [Fact]
     public async Task StateSchemaVersion_and_StateMafVersion_round_trip_through_listing_metadata()
     {
-        // Phase 126: these are metadata fields carried through verbatim, the
+        // These are metadata fields carried through verbatim, the
         // same as ParentCheckpointId or RunId — the store does not compute or
         // validate them. Only listing metadata carries them (State is
         // omitted there); Store.ReadAsync's contract is JsonElement only.

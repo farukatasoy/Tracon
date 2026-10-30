@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A live voice session follows a change to the MCP server its agent's tool comes
-/// from on its next delegation (F-310).
+/// from on its next delegation.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,7 +16,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// the connection it was discovered on, so after the server was edited or deleted
 /// mid-session every later delegation called a closed connection; after approval was
 /// switched back on, it ran the tool without asking. <c>McpToolCacheTests</c> closed
-/// the same defect for the request path (K-880); a session is the long-lived holder
+/// the same defect for the request path; a session is the long-lived holder
 /// that path never sees.
 /// </para>
 /// <para>

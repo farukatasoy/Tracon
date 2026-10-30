@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// What a workflow defined in code may declare about its run time and its parameters (phase 211): a registration is
+/// What a workflow defined in code may declare about its run time and its parameters: a registration is
 /// checked when it is made, and its run timeout is held to the host's ceiling when the host starts.
 /// </summary>
 /// <remarks>

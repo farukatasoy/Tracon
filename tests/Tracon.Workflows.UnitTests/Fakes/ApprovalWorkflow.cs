@@ -16,7 +16,7 @@ namespace Tracon.Workflows.UnitTests.Fakes;
 /// <para>
 /// 🚨 <c>WithOutputFrom</c> is required. If it is not called, the graph runs but
 /// the executor that tries to produce output fails with <c>Cannot output object
-/// of type String. Expecting one of []</c> — measured (Phase 16).
+/// of type String. Expecting one of []</c> — measured.
 /// </para>
 /// </remarks>
 internal static class ApprovalWorkflow
@@ -37,7 +37,7 @@ internal static class ApprovalWorkflow
         // 🚨 The output handler is inferred from its RETURN TYPE. A handler whose
         // body calls YieldOutputAsync but has no return type declares no output
         // type at all, and fails at run time with "Cannot output object of type
-        // String. Expecting one of []" — measured (Phase 16).
+        // String. Expecting one of []" — measured.
         var end = ExecutorBindingExtensions.BindAsExecutor<bool, string>(
             static approved => approved ? "approved" : "rejected",
             id: "end");

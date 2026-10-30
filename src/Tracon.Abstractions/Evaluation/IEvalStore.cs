@@ -188,7 +188,7 @@ public sealed record EvalRunQuery
     // back to the AMBIENT tenant for the same null. Two contracts with opposite
     // meanings for the same value is a trap for a consumer of this package, who
     // would write `new EvalRunQuery { SuiteId = x }` and silently receive other
-    // tenants' runs. K-277 settled the principle: the tenant filter is not
+    // tenants' runs. The principle is settled: the tenant filter is not
     // optional.
 
     /// <summary>Fetches only this tenant's runs.</summary>

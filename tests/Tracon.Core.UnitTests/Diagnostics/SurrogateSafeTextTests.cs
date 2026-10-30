@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// The one cut-by-count helper (F-241): a cut never leaves half of a surrogate pair.
+/// The one cut-by-count helper: a cut never leaves half of a surrogate pair.
 /// </summary>
 public sealed class SurrogateSafeTextTests
 {

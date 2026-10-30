@@ -43,7 +43,7 @@ internal sealed class SingletonExecutionOptionsValidator : IValidateOptions<Sing
         }
 
         // The renewal loop runs on a PeriodicTimer; a lease longer than three
-        // times the timer's ceiling gives it a period it refuses (F-278).
+        // times the timer's ceiling gives it a period it refuses.
         if (options.Enabled && !TimerPeriod.IsValid(SingletonGuard.ComputeRenewInterval(options.LeaseDuration)))
         {
             return ValidateOptionsResult.Fail(

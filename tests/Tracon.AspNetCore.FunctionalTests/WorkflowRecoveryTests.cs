@@ -6,7 +6,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.QueuedWorkflowHarn
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-321: a workflow run a queued job was running when its worker stopped is
+/// A workflow run a queued job was running when its worker stopped is
 /// continued from its latest checkpoint when the job is leased again.
 /// </summary>
 /// <remarks>
@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Before this, a workflow job leased again ran its item from the beginning: every
 /// step finished before the crash ran again (a second model call, a second render),
 /// and the run the crash left behind stayed <see cref="RunStatus.Running"/>. The job
-/// owns the run now; reconciliation still never resumes a workflow (K-909).
+/// owns the run now; reconciliation still never resumes a workflow.
 /// </para>
 /// <para>
 /// The crash is played in-process (<see cref="QueuedWorkflowHarness.StartDoomedAttemptAsync"/>):
@@ -290,7 +290,7 @@ public sealed class WorkflowRecoveryTests
     [InlineData(false)]
     public async Task A_run_stopped_by_a_graceful_shutdown_is_continued_by_the_next_worker(bool keepCheckpointsAfterCompletion)
     {
-        // F-433: with KeepCheckpointsAfterCompletion off, the stopped run's close deleted
+        // With KeepCheckpointsAfterCompletion off, the stopped run's close deleted
         // the session's checkpoints, and the continuation ran the first step again.
         using var database = new TempSqliteDatabase($"workflow-graceful-resume-{keepCheckpointsAfterCompletion}");
         var probe = new RecoveryProbe();

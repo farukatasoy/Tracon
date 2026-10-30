@@ -7,7 +7,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>In-memory behavior tests for the A/B experiment endpoints (Phase 19.3-19.4).</summary>
+/// <summary>In-memory behavior tests for the A/B experiment endpoints.</summary>
 public sealed class ExperimentEndpointTests
 {
     private static readonly Uri Experiments = new("/tracon/api/experiments", UriKind.Relative);
@@ -240,7 +240,7 @@ public sealed class ExperimentEndpointTests
     }
 
     /// <summary>
-    /// F-351: a queued run was assigned to no arm and ran the CURRENT version
+    /// A queued run was assigned to no arm and ran the CURRENT version
     /// (2), so a queued run of an agent under an experiment never counted in
     /// the arm its key falls in, and ran instructions the arm did not name.
     /// </summary>
@@ -273,7 +273,7 @@ public sealed class ExperimentEndpointTests
     }
 
     /// <summary>
-    /// F-351: an Admin can schedule an <c>AgentRun</c> job with a hand-written
+    /// An Admin can schedule an <c>AgentRun</c> job with a hand-written
     /// payload. A payload naming an arm whose version it does not carry must
     /// not produce a run recorded under that arm.
     /// </summary>

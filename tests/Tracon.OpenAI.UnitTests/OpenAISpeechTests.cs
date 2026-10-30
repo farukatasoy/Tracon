@@ -203,7 +203,7 @@ public sealed class OpenAISpeechTests
     [Fact]
     public async Task A_default_that_stays_is_named_in_one_warning_at_start()
     {
-        // F-586: TryAdd keeps the first default, and the loser used to say nothing.
+        // TryAdd keeps the first default, and the loser used to say nothing.
         using var logs = new RecordingLoggerProvider();
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddProvider(logs).SetMinimumLevel(LogLevel.Trace));

@@ -5,7 +5,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>
 /// Every stored type that carries free-form request headers also carries a
 /// <c>HeaderConfigurationKeys</c> map, so a credential header always has a
-/// place that stores only the key NAME (phase 190, K-059).
+/// place that stores only the key NAME.
 /// </summary>
 /// <remarks>
 /// Scans instead of listing, like Core's <c>SecretBearingTypeTests</c>: a new
@@ -52,7 +52,7 @@ public sealed class HeaderBearingTypeTests
     }
 
     // GetTypes, not GetExportedTypes: the HTTP request DTOs are internal since
-    // Phase 212 (WebhookSaveRequest is one; McpServerRequest stays public), and a
+    // An earlier change (WebhookSaveRequest is one; McpServerRequest stays public), and a
     // scan limited to public types would stop seeing the types this rule exists for.
     private static IEnumerable<Type> HeaderBearingTypes()
         => new[] { typeof(McpServerDefinition).Assembly, typeof(McpServerRequest).Assembly }

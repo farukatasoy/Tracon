@@ -255,7 +255,7 @@ public sealed class CompiledAgentCache
     /// <summary>Empties the cache entirely.</summary>
     public void Clear() => _entries.Clear();
 
-    // F-308: without the slot, a remote tool schema that changed on every refresh
+    // Without the slot, a remote tool schema that changed on every refresh
     // would have added an entry every five minutes, and none was ever removed.
     /// <summary>
     /// Stores a freshly compiled agent in its slot, replacing an entry compiled under

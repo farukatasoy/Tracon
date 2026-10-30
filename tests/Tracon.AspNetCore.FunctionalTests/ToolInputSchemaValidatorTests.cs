@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// What a user may enter for the fields an MCP server asked for (Phase 235): each wrong value is a message the
+/// What a user may enter for the fields an MCP server asked for: each wrong value is a message the
 /// user can act on, never a tool call the server then fails.
 /// </summary>
 public sealed class ToolInputSchemaValidatorTests

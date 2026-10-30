@@ -4,7 +4,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// The "knowledge" optional migration set (phase 67): opt-in, needs
+/// The "knowledge" optional migration set: opt-in, needs
 /// <c>pgvector</c>, numbers its own files independently from the core set.
 /// </summary>
 public sealed class OptionalMigrationSetTests(PostgresFixture fixture)
@@ -228,7 +228,7 @@ public sealed class OptionalMigrationSetTests(PostgresFixture fixture)
 
     /// <summary>
     /// A database that already applied the core set under the shape that
-    /// existed before phase 67 (id-only ledger primary key, no
+    /// existed before an earlier change (id-only ledger primary key, no
     /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely:
     /// the pre-existing row is backfilled as <c>core</c>, and the knowledge
     /// set (also numbering from 1) can apply afterward without a primary key

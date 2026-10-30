@@ -160,7 +160,7 @@ public sealed class WorkflowRunnerTests
     [Fact]
     public async Task Resuming_with_a_future_schema_generation_is_a_defined_error_and_the_checkpoint_survives()
     {
-        // Phase 126: unlike the InvalidDataException case below (executor
+        // Unlike the InvalidDataException case below (executor
         // ids changed - a DIFFERENT, already-handled cause), this simulates
         // a checkpoint written by a NEWER Tracon generation than this
         // build understands. Corrupting only the metadata (not the state

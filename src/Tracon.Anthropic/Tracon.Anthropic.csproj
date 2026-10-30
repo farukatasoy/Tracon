@@ -13,18 +13,18 @@
     Anthropic's OFFICIAL .NET SDK (owner: Anthropic, MIT). It carries its own
     `AsIChatClient` adapter, so message mapping/streaming/tool calling is not
     written in Tracon. Its transitive dependencies are Microsoft/System
-    packages only. Rationale: docs/KARARLAR.md, decision K-204.
+    packages only.
   -->
   <ItemGroup>
     <PackageReference Include="Anthropic" />
   </ItemGroup>
 
   <!--
-    Shared source (Phase 181). Tracon.Providers.Shared is NOT a package; the same
+    Shared source. Tracon.Providers.Shared is NOT a package; the same
     files also compile into the other three provider adapters. Rationale and
     rules: src/Tracon.Providers.Shared/README.md.
   -->
-  <ItemGroup Label="Shared provider source (Phase 181)">
+  <ItemGroup Label="Shared provider source">
     <Compile Include="../Tracon.Providers.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 

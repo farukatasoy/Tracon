@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// An Anthropic cache write is priced as the fourth term of a run's cost, in every place that
-/// decides about money (phase 253, F-420, K-483's class).
+/// decides about money.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -99,7 +99,7 @@ public sealed class AnthropicCacheWriteTests
     [Fact]
     public async Task The_quota_counter_and_the_webhook_carry_the_whole_cost_including_the_write()
     {
-        // K-483's twin: a tenant's ceiling is read from this number. The write is 1.35 of the 1.49.
+        // the twin: a tenant's ceiling is read from this number. The write is 1.35 of the 1.49.
         var publisher = new RecordingPublisher();
 
         await using var anthropic = await FakeAnthropicServer.StartAsync();

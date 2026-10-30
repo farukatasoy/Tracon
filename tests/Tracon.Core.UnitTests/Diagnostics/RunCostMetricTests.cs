@@ -7,14 +7,14 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Verifies the Phase 35 contract of the <c>tracon.run.cost</c> counter: it is
+/// Verifies the contract of the <c>tracon.run.cost</c> counter: it is
 /// emitted when a price is defined, the tag set is stable, and it does NOT include
-/// the subtree total (K-151).
+/// the subtree total.
 /// </summary>
 /// <remarks>
 /// The tests run END TO END through <see cref="RunRecordingAgent"/>; they do not
 /// call <see cref="TraconMetrics.RecordCost"/> in isolation — the lesson from
-/// Phase 20 (K-157): adding a parameter is not the same as USING it, and if the
+/// Adding a parameter is not the same as USING it, and if the
 /// layer in between is skipped, unit tests will not catch it.
 /// </remarks>
 public sealed class RunCostMetricTests
@@ -104,7 +104,7 @@ public sealed class RunCostMetricTests
     }
 
     /// <summary>
-    /// 🚨 K-151 regression protection: for a root + two sub-runs, the counter
+    /// 🚨 That decision regression protection: for a root + two sub-runs, the counter
     /// produces only THREE independent measurements, and their sum gives the
     /// three runs' OWN costs, NOT the subtree total.
     /// </summary>

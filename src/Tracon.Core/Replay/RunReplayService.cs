@@ -163,7 +163,7 @@ internal sealed class RunReplayService
 
         var effective = ApplyOverrides(definition, request);
 
-        // F-294: the replay is bound with the values the source run recorded, the
+        // The replay is bound with the values the source run recorded, the
         // request's overrides laid over them, checked against the schema of the
         // version the replay runs.
         var values = DecideValues(definition, source.Id, input, request);
@@ -182,7 +182,7 @@ internal sealed class RunReplayService
         // overridden model and played-back tools are specific to this call;
         // letting them enter the cache would also corrupt later normal runs.
         // The async overload is used so a replay honors the run's own
-        // tenant's provider credential and egress policy (phase 65) the same
+        // tenant's provider credential and egress policy the same
         // way the original run did, instead of silently falling back to the
         // global setup-time credential.
         AIAgent agent;
@@ -316,7 +316,7 @@ internal sealed class RunReplayService
         // approval-tool protection is still needed here: otherwise a
         // code-defined agent carrying a tool that requires approval would,
         // unlike a DB-defined one, silently end in "nothing happened" with
-        // no 409 (HATA-S4-014). Tool names are read from the catalog
+        // no 409. Tool names are read from the catalog
         // descriptor (the same data that also feeds the UI's agent list),
         // not from AgentDefinition.
         var descriptors = await _catalog.ListAsync(cancellationToken).ConfigureAwait(false);
@@ -346,7 +346,7 @@ internal sealed class RunReplayService
 
         IReadOnlyDictionary<string, string>? catalogValues = null;
 
-        // F-294: a code-defined agent that declares parameters replays with the
+        // A code-defined agent that declares parameters replays with the
         // recorded values too. The catalog's own copy bound the defaults, so the
         // agent is rebuilt with the recorded ones - through the same factory, which
         // applies the decorator chain the catalog would have.

@@ -147,7 +147,7 @@ internal static class WorkflowResponseGate
 
         if (answer.Mode == WorkflowResponseMode.Branch)
         {
-            // K-130 kept: every answer opens its own run. The record claims nothing.
+            // Every answer opens its own run. The record claims nothing.
             await AuditAsync(answer, answer.NewRunId, redrive: false, actor, services, cancellationToken).ConfigureAwait(false);
             await OpenRunAsync(answer, answer.NewRunId, services).ConfigureAwait(false);
             await RecordOrCloseAsync(
@@ -546,7 +546,7 @@ internal static class WorkflowResponseGate
         CancellationToken cancellationToken)
     {
         // A tool approval is also an approval decision: the same row, the same guarantee, whichever
-        // surface carried it (K-089, K-370, K-1051). It comes first - the decision is what is applied -
+        // surface carried it. It comes first - the decision is what is applied -
         // and a row that cannot be written refuses the whole answer.
         if (answer.ToolApproval is { } approval)
         {

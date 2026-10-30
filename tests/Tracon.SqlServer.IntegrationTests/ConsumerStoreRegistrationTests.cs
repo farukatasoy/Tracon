@@ -6,7 +6,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// <c>UseSqlServer()</c> overrides Tracon's own defaults and nothing else.
 /// </summary>
 /// <remarks>
-/// The class scan for HATA-S1-019: the defect was found through
+/// The class scan: the defect was found through
 /// <c>UsePostgreSql</c>, but all three providers shared the same 39
 /// <c>Replace</c> calls, so all three overwrote a consumer's store. See the
 /// PostgreSQL copy of this file for the full rationale.
@@ -56,7 +56,7 @@ public sealed class ConsumerStoreRegistrationTests
     public void UseSqlServer_says_its_state_is_shared_between_processes()
     {
         // The production profile reads this to refuse a declared multi-instance host whose store serves one
-        // process (Phase 265). A database server is the answer it accepts.
+        // process. A database server is the answer it accepts.
         using var provider = Build(static _ => { });
 
         provider.GetRequiredService<StateSharing>().AcrossProcesses.ShouldBeTrue();

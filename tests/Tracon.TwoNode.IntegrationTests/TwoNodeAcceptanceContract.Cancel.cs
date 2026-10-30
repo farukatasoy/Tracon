@@ -7,7 +7,7 @@ using Tracon.TwoNode.IntegrationTests.Infrastructure;
 
 namespace Tracon.TwoNode.IntegrationTests;
 
-/// <summary>Behaviour 1: <c>POST /api/runs/{id}/cancel</c> stops a run whichever node the request lands on (F-764).</summary>
+/// <summary>Behaviour 1: <c>POST /api/runs/{id}/cancel</c> stops a run whichever node the request lands on.</summary>
 public abstract partial class TwoNodeAcceptanceContract
 {
     private const string AgentName = "kod-agent";
@@ -26,7 +26,7 @@ public abstract partial class TwoNodeAcceptanceContract
 
         try
         {
-            // Node A runs it, node B receives the cancel. B holds no registration for A's run: before this phase the
+            // Node A runs it, node B receives the cancel. B holds no registration for A's run: before this change the
             // endpoint answered 409 and the run went on.
             using var response = await pair.B.Client.PostAsync(CancelUri(runId), content: null);
 

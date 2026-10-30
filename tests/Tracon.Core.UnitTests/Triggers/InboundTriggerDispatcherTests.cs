@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Triggers;
 
-/// <summary>Verifies <see cref="InboundTriggerDispatcher"/> (phase 66).</summary>
+/// <summary>Verifies <see cref="InboundTriggerDispatcher"/>.</summary>
 public sealed class InboundTriggerDispatcherTests
 {
     private const string TenantId = "default";
@@ -29,7 +29,7 @@ public sealed class InboundTriggerDispatcherTests
     [Fact]
     public async Task Unknown_tenant_is_unauthorized_and_does_not_fall_back_to_a_default_tenant()
     {
-        // K-382's rule, applied here: a trigger registered for "default" must
+        // the rule, applied here: a trigger registered for "default" must
         // NEVER answer a request addressed to an unrelated tenant segment.
         var (dispatcher, _) = await CreateDispatcherWithSavedTriggerAsync();
 
@@ -311,7 +311,7 @@ public sealed class InboundTriggerDispatcherTests
     [InlineData("""{"message":"hello","user":"bob"}""")]
     public async Task A_workflow_trigger_body_runs_as_the_message_and_never_names_parameter_values(string body)
     {
-        // 🚨 F-294: the body is the SENDER's text. Read as a structured batch item,
+        // The body is the SENDER's text. Read as a structured batch item,
         // `parameters` would let the sender choose the workflow's values, which reach
         // the model's instructions, and an unknown member would fail the item. The
         // pair under test is the dispatcher's output and the handler's input.

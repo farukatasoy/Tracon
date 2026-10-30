@@ -45,7 +45,7 @@ public sealed class SecretLeakTests
     [Fact]
     public void Settings_object_does_not_define_its_own_ToString()
     {
-        // The settings object MUST NOT be a record (K-035): the compiler-generated
+        // The settings object MUST NOT be a record: the compiler-generated
         // ToString would print every property and expose the key in the first log line.
         typeof(GoogleProviderOptions).GetMethod(nameof(ToString), Type.EmptyTypes)!
             .DeclaringType.ShouldBe(typeof(object));

@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269): the package's
+// Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>AddScopedTool</c> (docs/127, 127.3), driven through a REAL
+/// <c>AddScopedTool</c>, driven through a REAL
 /// <c>FunctionInvokingChatClient</c> loop and the FULL application's own root
 /// provider — not by constructing <c>ScopedAIFunction</c> directly. The
 /// unit-level coverage in <c>Tracon.Core.UnitTests</c> proves the wrapper's

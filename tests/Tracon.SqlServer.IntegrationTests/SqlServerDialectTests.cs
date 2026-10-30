@@ -70,7 +70,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     }
 
     /// <summary>
-    /// Polymorphic JSON round-trips unchanged. K-027's key-ordering issue does
+    /// Polymorphic JSON round-trips unchanged. the key-ordering issue does
     /// not exist on SQL Server; this test proves that this is really the case.
     /// </summary>
     [Fact]
@@ -110,7 +110,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     /// 🚨 SQL Server's <c>uniqueidentifier</c> ordering is NOT byte-order
     /// based; uuid v7 identifiers do not appear time-ordered in a clustered
     /// key. So in high-write tables the primary key is NONCLUSTERED, and the
-    /// clustered index is built on the time column instead (K-185).
+    /// clustered index is built on the time column instead.
     /// </summary>
     [Fact]
     public async Task High_write_tables_primary_key_is_not_clustered()
@@ -196,7 +196,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     /// <summary>
     /// 🚨 A deadlock victim is TRANSIENT, not a schema error. Concurrent
     /// first-time migrations of DIFFERENT schemas (the migration lock is scoped
-    /// to the schema, K-389) touch catalog objects shared by the whole database
+    /// to the schema) touch catalog objects shared by the whole database
     /// and SQL Server kills one of them with error 1205. Before this was
     /// classified, <c>MigrationRunner</c> wrapped it in a
     /// <c>TraconException</c> and the fixture never came up: measured on

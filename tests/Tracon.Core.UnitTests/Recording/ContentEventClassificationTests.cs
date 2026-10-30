@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-589 (phase 223): which model content becomes a <see cref="RunEventCustomTypes.Content"/>
+/// Which model content becomes a <see cref="RunEventCustomTypes.Content"/>
 /// event and which does not. Content Tracon recognizes but records elsewhere (or by option,
 /// not at all) must never fall through to the "unrecognized" record.
 /// </summary>

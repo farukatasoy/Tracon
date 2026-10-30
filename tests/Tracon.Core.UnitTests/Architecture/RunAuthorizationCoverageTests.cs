@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <summary>
 /// Enforces that every HTTP surface that starts a run, or reaches a run's
 /// resources, still calls <c>RunAuthorizationGate</c> (phases 139 and 147,
-/// F-185 and F-195).
+/// An earlier fix and an earlier fix).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,11 +22,11 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </para>
 /// <para>
 /// 🚨 The scan cannot discover a brand-new run-starting or resource endpoint
-/// added in a later phase — that judgment call ("is this a run-starting
-/// surface") is not mechanical, and phase 139 got it wrong: it declared FOUR
+/// added in a later change — that judgment call ("is this a run-starting
+/// surface") is not mechanical, and got it wrong: it declared FOUR
 /// run-starting files while <c>POST /api/runs/{id}/replay</c> and
 /// <c>/v1/chat/completions</c> were already starting real runs without the
-/// gate. Phase 147 found them and the list below is now SIX. What this test
+/// gate. An earlier change found them and the list below is now SIX. What this test
 /// catches is a REGRESSION: a known call site silently losing its call during
 /// a later edit. When a new surface is added, this list must be added to BY
 /// HAND, and the handover note of the phase that adds it must say so.
@@ -36,7 +36,7 @@ public sealed class RunAuthorizationCoverageTests
 {
     // 🚨 The real call is formatted across two lines (`RunAuthorizationGate`
     // then `.CheckRunAsync(` on the next, indented line) at every call site -
-    // a plain substring search would never match, the exact K-642 "split
+    // a plain substring search would never match, the exact that decision "split
     // phrase" trap SeamContractDocumentationTests warns about. The regex
     // tolerates any whitespace (including a newline) between the two halves.
     private static readonly Regex StartMarker = new(
@@ -71,7 +71,7 @@ public sealed class RunAuthorizationCoverageTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// Phase 148's own ratchet, kept in this class rather than a new one
+    /// the earlier change's own ratchet, kept in this class rather than a new one
     /// because it guards the SAME failure in the same way: an HTTP surface
     /// that reaches a session without asking whose it is. Session ownership is
     /// a second boundary drawn under the tenant, and it is enforced by explicit
@@ -80,7 +80,7 @@ public sealed class RunAuthorizationCoverageTests
     /// </summary>
     /// <summary>
     /// The call a run-starting surface makes to pass the gates its turn shares with every other surface that runs an
-    /// agent: attribution, authorization, session ownership, quota and pre-flight (phase 236).
+    /// agent: attribution, authorization, session ownership, quota and pre-flight.
     /// </summary>
     /// <remarks>
     /// 🚨 The gates themselves live ONCE, in <c>AgentTurnService.CheckRunGatesAsync</c>, and the markers below find them
@@ -109,7 +109,7 @@ public sealed class RunAuthorizationCoverageTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// The files that START a run. Four came from phase 139; replay, Chat
+    /// The files that START a run. Four came; replay, Chat
     /// Completions, and the two workflow continuation endpoints from 147.
     /// </summary>
     /// <remarks>
@@ -119,7 +119,7 @@ public sealed class RunAuthorizationCoverageTests
     /// a NEW run row from an existing one and therefore call
     /// <c>CheckRunResourceAsync</c> with <c>RunAccess.Start</c>). A single
     /// file-level entry would have gone green on the first call alone and
-    /// hidden the other two — which is exactly how phase 147's audit found them
+    /// hidden the other two — which is exactly how the audit found them
     /// still ungated.
     /// </remarks>
     private static readonly (string Path, Regex Marker, int Calls)[] ExpectedRunStartingFiles =
@@ -136,11 +136,11 @@ public sealed class RunAuthorizationCoverageTests
         ("src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs", ResourceStartMarker, 1),
     ];
 
-    /// <summary>The files that reach a run's or a session's RESOURCES behind the same handler (phase 147).</summary>
+    /// <summary>The files that reach a run's or a session's RESOURCES behind the same handler.</summary>
     /// <remarks>
-    /// 🚨 <c>OpenAIConversationsEndpoints</c> joined in phase 149, one phase
+    /// 🚨 <c>OpenAIConversationsEndpoints</c> joined, one phase
     /// after it joined the ownership list below — the same file, the same
-    /// miss, found twice. Phase 148 gave it Tracon's own ownership
+    /// miss, found twice. An earlier change gave it Tracon's own ownership
     /// boundary and stopped there; the consumer's own
     /// <c>IRunAuthorizationHandler</c> was still never asked, so an
     /// installation whose handler refused <c>GET /api/sessions/{id}</c> had
@@ -155,14 +155,14 @@ public sealed class RunAuthorizationCoverageTests
         ("src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs", ResourceMarker, 4),
         ("src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs", ResourceMarker, 3),
         ("src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs", ResourceMarker, 4),
-        // Phase 208: the third is GET /api/workflows/runs/{runId}/responses (read access,
-        // the same 404 as the request list). Phase 209: the fourth is GET /api/workflows/requests,
+        // The third is GET /api/workflows/runs/{runId}/responses (read access,
+        // the same 404 as the request list). The fourth is GET /api/workflows/requests,
         // the tenant-wide list (read access, a denial is a 403 and never filters the page).
         ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceMarker, 4),
         ("src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs", ResourceMarker, 2),
-        // 🚨 Phase 161 moved the voice surface's gate calls into a SHARED helper so
+        // 🚨 moved the voice surface's gate calls into a SHARED helper so
         // that the conversation endpoint and the live endpoints deny with the same
-        // bytes (K-687). The call did not disappear — it is now made once, here, on
+        // bytes. The call did not disappear — it is now made once, here, on
         // behalf of both. A future voice endpoint that hand-rolls its own gate is
         // the regression this list still catches.
         ("src/Tracon.AspNetCore/Voice/VoiceEndpointGates.cs", ResourceMarker, 1),
@@ -171,16 +171,16 @@ public sealed class RunAuthorizationCoverageTests
 
     /// <summary>
     /// The run-starting files that can name a SESSION, and therefore have to
-    /// ask whose it is (phase 148).
+    /// ask whose it is.
     /// </summary>
     /// <remarks>
     /// 🚨 <c>OpenAIConversationsEndpoints</c> is on this list because the
-    /// phase's own audit found it OUTSIDE it: <c>/v1/conversations/{id}</c>
+    /// change's own audit found it OUTSIDE it: <c>/v1/conversations/{id}</c>
     /// reaches the very same sessions under a different name, so while
     /// <c>GET /api/sessions/{id}</c> answered 404 for another user's session,
     /// <c>GET /v1/conversations/{id}/items</c> returned its whole history and
-    /// <c>DELETE</c> removed it. The same class of miss phase 139 made and
-    /// phase 147 had to come back for — a compatibility surface is a surface.
+    /// <c>DELETE</c> removed it. The same class of miss an earlier change made and
+    /// An earlier change had to come back for — a compatibility surface is a surface.
     ///
     /// 🚨 Three run-starting files, not six. <c>TriggerEndpoints</c> and
     /// <c>OpenAIChatCompletionsEndpoints</c> pass <c>sessionId: null</c> to the
@@ -207,8 +207,7 @@ public sealed class RunAuthorizationCoverageTests
         => AssertEveryFileMatches(
             ExpectedSessionOwnershipFiles,
             "'SessionOwnershipGate.CheckRunSessionAsync(' or '.DeniesAsync(' — another user's session " +
-            "can be read, continued, or spoken into there WITHOUT the per-user ownership boundary " +
-            "(phase 148, F-196)");
+            "can be read, continued, or spoken into there WITHOUT the per-user ownership boundary");
 
     [Fact]
     public void Every_known_run_starting_surface_still_calls_the_gate()
@@ -223,10 +222,10 @@ public sealed class RunAuthorizationCoverageTests
             ExpectedResourceFiles,
             "'RunAuthorizationGate.CheckRunResourceAsync(' or '.CheckSessionAsync(' — another user's run, " +
             "attachments, approvals, or session can be reached there WITHOUT going through the " +
-            "installation's own IRunAuthorizationHandler (phase 147, F-195)");
+            "installation's own IRunAuthorizationHandler");
 
     /// <summary>
-    /// F-337: every run-starting surface checks the run's attribution BEFORE the
+    /// Every run-starting surface checks the run's attribution BEFORE the
     /// run starts, as many times as it starts a run. Only the agent run
     /// endpoint did; the workflow, replay, OpenAI-compatible and trigger
     /// endpoints started an unattributed run with <c>200</c> where the agent
@@ -245,10 +244,10 @@ public sealed class RunAuthorizationCoverageTests
                     .Select(static group => (group.Key, AttributionMarker, group.Sum(static file => file.Calls))),
             ],
             "'RunAttributionGate.Check(' or '.Validate(' — a run can start there with an attribution " +
-            "that breaks a limit, unattributed, where the agent run endpoint answers 400 (F-337)");
+            "that breaks a limit, unattributed, where the agent run endpoint answers 400");
 
     /// <summary>
-    /// F-431: the drain refusal, in each surface's own protocol shape. A file
+    /// The drain refusal, in each surface's own protocol shape. A file
     /// counts one match per run it can start in this process.
     /// </summary>
     private static readonly Regex DrainMarker = new(
@@ -257,8 +256,8 @@ public sealed class RunAuthorizationCoverageTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// F-431: every surface that starts a run IN THIS PROCESS refuses it while the
-    /// process drains. Only the agent run endpoint did (phase 87); the workflow
+    /// Every surface that starts a run IN THIS PROCESS refuses it while the
+    /// process drains. Only the agent run endpoint did; the workflow
     /// run, resume and respond endpoints, replay, both OpenAI-compatible
     /// endpoints, the MCP server's <c>tools/call</c>, A2A and the voice
     /// conversation socket started runs during a drain.
@@ -285,11 +284,11 @@ public sealed class RunAuthorizationCoverageTests
                 ("src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs", DrainMarker, 1),
             ],
             "the drain refusal — a run can start there while the process drains, and is cut off " +
-            "when it stops (F-431)");
+            "when it stops");
 
     /// <summary>Regression coverage for the scan itself, isolated from the real repository tree.</summary>
     /// <remarks>
-    /// 🚨 The point is K-642: a plain <c>Contains</c> would find NEITHER real
+    /// 🚨 The point is that decision: a plain <c>Contains</c> would find NEITHER real
     /// call, because every call site wraps the line after the class name. A
     /// scan that silently matches nothing is a test that reports green while
     /// proving nothing, so both directions are asserted here.
@@ -326,7 +325,7 @@ public sealed class RunAuthorizationCoverageTests
             ResourceStartMarker.IsMatch(File.ReadAllText(replayCall)).ShouldBeTrue();
             ResourceStartMarker.IsMatch(File.ReadAllText(withResourceCall)).ShouldBeFalse();
 
-            // 🚨 The gate counts, it does not merely detect (F-204). A marker
+            // 🚨 The gate counts, it does not merely detect. A marker
             // that matched only the FIRST call site would make every expected
             // count 1 and re-open the exact gap this ratchet closes, so the
             // counting behavior is asserted here rather than inferred from the
@@ -354,7 +353,7 @@ public sealed class RunAuthorizationCoverageTests
     /// <remarks>
     /// 🚨 This used to assert PRESENCE, and presence is not coverage: a file
     /// holds one entry per marker while carrying many call sites, so deleting
-    /// all but one left the gate green. MEASURED (2026-09-06, F-204):
+    /// all but one left the gate green. MEASURED (2026-09-06):
     /// <c>RunEndpoints.cs</c> carries TWELVE resource checks — eleven could
     /// have been removed silently, and <c>OpenAIConversationsEndpoints.cs</c>
     /// carries three, the file phases 147 and 149 each had to come back for.

@@ -19,7 +19,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// application would keep working with the in-memory store without erroring, and
 /// all data would be lost with the process.
 /// </para>
-/// <para>Rationale: <c>docs/KARARLAR.md</c>, decision K-025.</para>
+/// <para>Rationale: <c>.md</c>, the earlier decision.</para>
 /// </remarks>
 public sealed class ServiceRegistrationTests(PostgresFixture fixture)
 {
@@ -28,7 +28,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     {
         using var provider = BuildProvider();
 
-        // Write-capable stores are wrapped by Phase 9's audit-trail decorators;
+        // Write-capable stores are wrapped by the audit-trail decorators;
         // the actual thing this test verifies (Postgres won, not in-memory) is
         // preserved by looking at the real implementation the decorator wraps.
         provider.GetRequiredService<IAgentDefinitionStore>()
@@ -44,7 +44,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     public void UsePostgreSql_says_its_state_is_shared_between_processes()
     {
         // The production profile reads this to refuse a declared multi-instance host whose store serves one
-        // process (Phase 265). A database server is the answer it accepts.
+        // process. A database server is the answer it accepts.
         using var provider = BuildProvider();
 
         provider.GetRequiredService<StateSharing>().AcrossProcesses.ShouldBeTrue();
@@ -68,10 +68,10 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// Phase 67, K-476: <c>IVectorSearchStore</c> stays REGISTERED either way
+    /// <c>IVectorSearchStore</c> stays REGISTERED either way
     /// (<c>TryAddSingleton</c> ran); the factory decides whether it resolves
     /// to a real store or <see langword="null"/> based on <c>EnableKnowledge</c>,
-    /// reusing the "GetService null = not available" gate from phase 51
+    /// reusing the "GetService null = not available" gate
     /// (<c>TraconServiceCollectionExtensions</c>, <c>EnableVectorSearch</c>).
     /// </summary>
     [Fact]
@@ -91,10 +91,10 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// Phase 110, K-625: the data source Tracon builds is no longer a
+    /// The data source Tracon builds is no longer a
     /// public DI service — resolving it under its concrete Npgsql type must
     /// fail the same way it would for a type nobody ever registered. Before
-    /// this phase, <c>TryAddSingleton&lt;NpgsqlDataSource&gt;</c> meant a
+    /// this change, <c>TryAddSingleton&lt;NpgsqlDataSource&gt;</c> meant a
     /// consumer's own registration could silently win (or lose) depending on
     /// call order; the only way in now is the explicit
     /// <see cref="TraconPostgreSqlOptions.DataSource"/> field.
@@ -190,8 +190,8 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// 🚨 MT-PKG-082 regression test. <c>Tracon.Sql.Shared</c> is compiled
-    /// SEPARATELY into each SQL provider (K-176, link-based sharing): so
+    /// 🚨 An earlier defect regression test. <c>Tracon.Sql.Shared</c> is compiled
+    /// SEPARATELY into each SQL provider (link-based sharing): so
     /// <c>SqlStoreContext</c>/<c>MigrationRunner</c>/<c>MigrationHostedService</c>
     /// are a DIFFERENT CLR type per provider, and <c>services.Replace(...)</c>
     /// replaces only ITS OWN type — it does NOT REMOVE the competing provider's

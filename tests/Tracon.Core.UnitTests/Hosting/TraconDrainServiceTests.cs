@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Hosting;
 
 /// <summary>
-/// <see cref="TraconDrainService"/> contract (Phase 87.6): a stuck run
+/// <see cref="TraconDrainService"/> contract: a stuck run
 /// must not block shutdown forever, and a disabled setup must not wait at all.
 /// </summary>
 public sealed class TraconDrainServiceTests
@@ -52,7 +52,7 @@ public sealed class TraconDrainServiceTests
         var runCts = new CancellationTokenSource();
         var registration = registry.Register(Guid.NewGuid(), Guid.NewGuid(), tenantId: null, runCts);
 
-        // Phase 184: the run used to end on a 150 ms timer while the test raced
+        // The run used to end on a 150 ms timer while the test raced
         // StopAsync against a 4-second one. The drain timeout is now far longer
         // than the test's own bound, so a drain that returns only on timeout
         // fails instead of passing late.

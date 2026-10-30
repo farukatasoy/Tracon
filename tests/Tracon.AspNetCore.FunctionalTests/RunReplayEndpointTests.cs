@@ -5,14 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 // 🚨 `using Tracon.Testing;` is NOT WRITTEN: the package's TraconTestHost
 // and this project's own (TestServer-based) TraconTestHost have the SAME
-// name, and CS0104 fires when both are visible (K-269). Only the type is
+// name, and CS0104 fires when both are visible. Only the type is
 // aliased.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Tests for the replay, input, and compare endpoints (Phase 47).
+/// Tests for the replay, input, and compare endpoints.
 /// </summary>
 public sealed class RunReplayEndpointTests
 {
@@ -195,7 +195,7 @@ public sealed class RunReplayEndpointTests
     [Fact]
     public async Task A_tool_requiring_approval_on_a_code_sourced_agent_also_returns_409_with_LiveTools()
     {
-        // HATA-S4-014: the approval-tool guard only ran on the `definition is
+        // The approval-tool guard only ran on the `definition is
         // not null` branch (DB-sourced agent, test above).
         // `PrepareFromCatalogAsync` (the code-sourced agent path) did NOT
         // apply the SAME guard — the request would open "successfully" with
@@ -220,7 +220,7 @@ public sealed class RunReplayEndpointTests
     {
         // A code agent has no AgentDefinition counterpart; model overriding
         // and tool modes require recompiling, and silently falling back to
-        // LiveTools would violate K1.
+        // LiveTools would violate the zero-surprise rule.
         await using var host = await TraconTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition("kod-agent")));
 

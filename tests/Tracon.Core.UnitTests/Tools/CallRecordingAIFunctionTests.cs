@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Tools;
 
 /// <summary>
-/// The layer that writes a tool call into the run's ledger (F-689): what it records, and that it changes nothing
+/// The layer that writes a tool call into the run's ledger: what it records, and that it changes nothing
 /// else. Every case runs through a real <see cref="FunctionInvokingChatClient"/>, because the call identity the
 /// layer keys on exists only inside the tool-call loop.
 /// </summary>

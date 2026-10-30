@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Audit;
 /// best-effort swallows, fail-closed refuses, and both count the failure.
 /// </summary>
 /// <remarks>
-/// Phase 171 replaced four hand-written copies of the fail-closed path with this one,
+/// replaced four hand-written copies of the fail-closed path with this one,
 /// plus two direct calls that differed from all of them: one logged a warning and
 /// returned instead of throwing, and one skipped the secret filter. The behaviour is
 /// pinned here rather than being re-decided at each call site.
@@ -126,7 +126,7 @@ public sealed class AuditRecorderTests
         // A cancelled write is the caller going away, not the audit store breaking.
         // Counting it would raise a false alarm on every shutdown, and swallowing it
         // on the best-effort path would hide the cancellation from the caller.
-        // "The caller going away" means the caller's token IS cancelled (K-840).
+        // "The caller going away" means the caller's token IS cancelled.
         using var meterFactory = new TestMeterFactory();
         using var collector = new MetricCollector(meterFactory.Meter);
         var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());

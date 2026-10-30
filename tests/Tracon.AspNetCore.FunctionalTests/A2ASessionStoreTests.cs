@@ -7,11 +7,11 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 // MAAI001: the session store types are marked "evaluation purposes only"; this
-// file is where the A2A store's contract with them is pinned (Phase 229).
+// file is where the A2A store's contract with them is pinned.
 #pragma warning disable MAAI001
 
 /// <summary>
-/// Phase 229: the identity an A2A conversation is stored under, and the keys
+/// The identity an A2A conversation is stored under, and the keys
 /// <see cref="A2ASessionStore"/> refuses.
 /// </summary>
 /// <remarks>
@@ -151,7 +151,7 @@ public sealed class A2ASessionStoreTests
     [Fact]
     public async Task A_delete_removes_the_conversation_under_its_digest_and_not_the_plain_identity()
     {
-        // Phase 255: DelegatingAgentSessionStore forwards a delete with the key as it came. Forwarded
+        // DelegatingAgentSessionStore forwards a delete with the key as it came. Forwarded
         // as it is, the bridge would fold the isolation partition into "apikey\:key-1::ctx-1", delete
         // nothing, and leave the conversation this store wrote under "a2a:<digest>".
         await using var host = await StartAsync();

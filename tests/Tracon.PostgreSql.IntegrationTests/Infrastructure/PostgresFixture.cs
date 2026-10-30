@@ -15,15 +15,15 @@ namespace Tracon.PostgreSql.IntegrationTests.Infrastructure;
 /// The container starts once for the whole assembly; the schema is shared per
 /// contract test CLASS (see <see cref="PostgresSchemaFixture"/>,
 /// <see cref="PostgresTestContext"/>), and isolation between tests is achieved
-/// by resetting data (K-390). The migration lock is also now scoped to the
-/// schema rather than the whole database (K-389); together these two let class
+/// by resetting data. The migration lock is also now scoped to the
+/// schema rather than the whole database; together these two let class
 /// fixtures run their migrations in PARALLEL.
 /// </para>
 /// <para>
 /// 🚨 The image is <c>pgvector/pgvector:pg18</c>, NOT <c>postgres:18-alpine</c>
-/// (Phase 51). The "knowledge" set's <c>0001_vector</c> migration runs
+///The "knowledge" set's <c>0001_vector</c> migration runs
 /// <c>CREATE EXTENSION IF NOT EXISTS vector;</c>; <see cref="PostgresTestContext"/>
-/// enables that set by DEFAULT (phase 67), so it applies on EVERY test (not
+/// enables that set by DEFAULT, so it applies on EVERY test (not
 /// just vector tests) and the plain Postgres image would blow up the whole
 /// test suite for lacking the extension. The <c>pgvector/pgvector</c> image
 /// adds only this extension on top of the official <c>postgres</c> image and
@@ -50,7 +50,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <see cref="PostgresSchemaFixture"/>) run their first migration
     /// concurrently, all of them try to create the same row and hit a
     /// uniqueness violation (SQLSTATE 23505). <c>MigrationRunner.ApplyOneAsync</c>
-    /// retries that violation (K-389), but the realistic production scenario
+    /// retries that violation, but the realistic production scenario
     /// (installing the extension on a database ONCE, at setup time) is mirrored
     /// here, which avoids the race entirely — a race produced only by the
     /// test's artificial "29 schemas migrate for the first time at once"

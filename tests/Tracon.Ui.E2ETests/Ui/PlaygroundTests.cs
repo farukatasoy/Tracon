@@ -76,7 +76,7 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
     [Fact]
     public async Task Playground_asks_for_the_fields_an_mcp_server_requests_and_sends_the_answer()
     {
-        // Phase 235: an MCP server asks the user for input in the middle of a tool call. The form is made
+        // An MCP server asks the user for input in the middle of a tool call. The form is made
         // from the schema the server sent, says where the answer goes, and its answer is the next turn.
         await using var server = await ElicitingMcpServer.StartAsync();
         await using var host = await UiHost.StartAsync(
@@ -137,7 +137,7 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
     [Fact]
     public async Task Playground_separates_the_iterations_of_a_looping_agent_with_a_divider()
     {
-        // Phase 241: the native stream carries every iteration of a harness loop as one run of updates. The
+        // The native stream carries every iteration of a harness loop as one run of updates. The
         // loop.iteration-completed frame between them is what lets the screen draw where one iteration ends.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
@@ -190,7 +190,7 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
-        // 🚨 Phase 184: the commit below used to be clicked the moment its
+        // The commit below used to be clicked the moment its
         // button appeared. A commit that reaches the server before any audio
         // closes nothing: the server answers `idle`, the panel goes back to
         // listening, and the transcript this test waits for never comes - the

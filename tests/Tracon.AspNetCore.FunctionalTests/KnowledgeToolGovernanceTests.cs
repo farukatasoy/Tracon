@@ -8,12 +8,12 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 246 (F-688): <c>search_knowledge</c> runs through the tool chain like every other tool: the authorization
+/// <c>search_knowledge</c> runs through the tool chain like every other tool: the authorization
 /// handler decides, the argument validator and the timeout apply, and the query's token count reaches the run record.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before this phase the knowledge tool was added to the agent as a bare function. The chain was composed for the
+/// Before this change the knowledge tool was added to the agent as a bare function. The chain was composed for the
 /// registry, the MCP tools and the workspace tools, and this tool was none of those, so a handler written to close a
 /// collection for a user never saw it. The embedding call of the tool sends the query to the tenant's embedding
 /// provider, so a denial that comes late is a query already sent.
@@ -117,7 +117,7 @@ public sealed class KnowledgeToolGovernanceTests
 
         usage.Unit.ShouldBe(ToolUsageUnits.Tokens);
         usage.Quantity.ShouldBe(7m);
-        usage.Cost.ShouldBeNull("the embedding has no price identity yet (F-363); a cost here would reach the budget");
+        usage.Cost.ShouldBeNull("the embedding has no price identity yet; a cost here would reach the budget");
         usage.IsEstimated.ShouldBeFalse();
 
         var run = await RunRecordAsync(host);

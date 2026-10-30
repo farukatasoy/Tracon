@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHa
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A pending request whose type is a record of the graph's own is answered like a string one (phase 211).
+/// A pending request whose type is a record of the graph's own is answered like a string one.
 /// </summary>
 /// <remarks>
 /// 🚨 The run that answers reads the request back from a checkpoint, where its data is JSON, and

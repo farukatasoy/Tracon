@@ -9,7 +9,6 @@ import { Tooltip } from './tooltip';
 
 /**
  * Branches a session's conversation at one message and opens the branch
- * (F-66, phase 47).
  *
  * `upToSequence` is the message's own index. That index is exact here and only
  * here: `GET /api/sessions/{id}` reads the history through the registered
@@ -20,7 +19,7 @@ import { Tooltip } from './tooltip';
  *
  * A 501 means the deployment has no SQL provider — history then lives inside
  * the opaque session state and cannot be copied up to a point. The server's own
- * explanation is shown verbatim (K-232).
+ * explanation is shown verbatim.
  */
 export function BranchButton({
   sessionId,

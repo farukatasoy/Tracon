@@ -10,7 +10,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A function node's settings (F-295): the function declares a settings type, the
+/// A function node's settings: the function declares a settings type, the
 /// node's JSON is checked by being read into it, and the function receives the
 /// object that read produced.
 /// </summary>
@@ -131,7 +131,7 @@ public sealed class WorkflowFunctionSettingsTests
     [Fact]
     public void A_refusal_never_repeats_the_value_it_refused()
     {
-        // K-059: a value an operator typed may be a credential they should not have typed.
+        // A value an operator typed may be a credential they should not have typed.
         var message = HostWithTts().Functions
             .ValidateSettings("tts", Json("""{"voice":"alloy","loudnessLufs":"sk-live-0123456789"}"""));
 
@@ -317,7 +317,7 @@ public sealed class WorkflowFunctionSettingsTests
     [Fact]
     public async Task A_resume_runs_with_the_settings_of_the_version_the_run_recorded()
     {
-        // Phase 200: an edit made while a run waited must not change what resumes. The run recorded
+        // An edit made while a run waited must not change what resumes. The run recorded
         // version 1; the operator then saved voice=nova as version 2; the resume still speaks alloy.
         var host = new WorkflowTestHost("writer");
         var voices = new ConcurrentQueue<string>();

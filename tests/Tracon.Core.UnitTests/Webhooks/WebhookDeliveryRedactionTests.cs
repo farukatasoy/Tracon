@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Webhooks;
 
 /// <summary>
-/// Phase 119 (BL-027/BL-037): neither the remote target's own response body nor a
+/// Neither the remote target's own response body nor a
 /// raw <see cref="HttpRequestException"/> message may reach <c>webhook_deliveries.error</c>.
 /// </summary>
 public sealed class WebhookDeliveryRedactionTests

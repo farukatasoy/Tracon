@@ -144,7 +144,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
             // The registry is the only place that enforces the "an agent can
             // only refer to a registered tool" rule; every wrapper comes from
             // ToolWrapperChain.Compose, the single composition point shared
-            // with the MCP tenant tool set (docs/127, 127.1) — a call site
+            // with the MCP tenant tool set — a call site
             // building its own chain by hand could silently miss a layer.
             var descriptor = new ToolDescriptor
             {

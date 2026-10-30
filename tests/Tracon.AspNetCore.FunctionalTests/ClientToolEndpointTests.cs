@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Tests for client-side tools (<c>AddClientTool</c>) and the
-/// <c>toolResults</c> run request field (Phase 61).
+/// <c>toolResults</c> run request field.
 /// </summary>
 public sealed class ClientToolEndpointTests
 {
@@ -264,7 +264,7 @@ public sealed class ClientToolEndpointTests
     public async Task Streaming_path_client_tool_call_and_result_round_trip()
     {
         // Every other test in this file forces the buffered branch
-        // (Idempotency-Key) for simple JSON assertions. K-439's entire
+        // (Idempotency-Key) for simple JSON assertions. the entire
         // rationale is a constraint SPECIFIC to the default streaming
         // branch (SSE headers sent before BuildMessagesAsync runs) — this
         // test proves that branch actually works, not just the one every

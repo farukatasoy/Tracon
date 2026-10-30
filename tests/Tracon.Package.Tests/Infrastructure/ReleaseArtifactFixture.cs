@@ -2,7 +2,7 @@ namespace Tracon.Package.Tests.Infrastructure;
 
 /// <summary>
 /// Packs the solution ONCE with a forced version, mirroring what the release
-/// rehearsal command does before a real <c>v*</c> tag is pushed (Phase 97,
+/// rehearsal command does before a real <c>v*</c> tag is pushed (
 /// 97.2). Shared by every fact in <c>ReleaseArtifactTests</c> so the pack
 /// only runs once per test session.
 /// </summary>
@@ -24,7 +24,7 @@ public sealed class ReleaseArtifactFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // TraconSkipCleanWorkingTreeCheck (Phase 136): this fixture validates
+        // TraconSkipCleanWorkingTreeCheck: this fixture validates
         // the packaging CONTENT CONTRACT during test runs, not a release
         // candidate - it must not be blocked by TraconValidateCleanWorkingTree
         // the way `kapi.py yayin` (the real release rehearsal) is.

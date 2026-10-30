@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace Tracon.Workflows.UnitTests.Fakes;
 
 /// <summary>
-/// The shared setup of the timeout tests (phase 196): a host whose function wrappers
+/// The shared setup of the timeout tests: a host whose function wrappers
 /// and runner read the same <see cref="ManualClock"/>, and the calls that save a chain,
 /// run it and read its row.
 /// </summary>

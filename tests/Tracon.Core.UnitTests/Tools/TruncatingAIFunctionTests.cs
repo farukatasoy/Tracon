@@ -20,7 +20,7 @@ namespace Tracon.Core.UnitTests.Tools;
 /// <see cref="AIFunctionFactory"/>, whose default result marshaling boxes
 /// every return value (including a plain <see langword="string"/> or
 /// <see langword="null"/>) into a <see cref="JsonElement"/>. The generator's
-/// own emitted wrapper (Phase 102) matches this raw form only for
+/// own emitted wrapper matches this raw form only for
 /// <see langword="string"/>/primitive returns; a complex return type is
 /// emitted as a <see cref="JsonElement"/> too, via the caller's own
 /// <c>JsonSerializerContext</c> (<c>TRC0008</c>). Using the raw form here

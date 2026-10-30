@@ -8,7 +8,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 241: the native agent stream (<c>POST /api/agents/{name}/run</c>) carries a <c>loop.iteration-completed</c>
+/// The native agent stream (<c>POST /api/agents/{name}/run</c>) carries a <c>loop.iteration-completed</c>
 /// frame after every evaluated iteration of a harness loop, between that iteration's last update and the next
 /// iteration's first.
 /// </summary>
@@ -23,7 +23,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// nothing may carry it into the stream of the run above it.
 /// </para>
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class LoopIterationFrameTests
 {

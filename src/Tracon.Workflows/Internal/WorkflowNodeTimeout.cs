@@ -27,8 +27,8 @@ namespace Tracon;
 /// attempt and a timed-out attempt is retried like any transient failure.
 /// </para>
 /// </remarks>
-// K-497 / K-805: the tool timeout's pattern, reused for the code node (F-303).
-// K-844: only the node's own delay names the timeout; the caller's stop stays Canceled.
+// The tool timeout's pattern, reused for the code node.
+// Only the node's own delay names the timeout; the caller's stop stays Canceled.
 internal static class WorkflowNodeTimeout
 {
     /// <summary>Checks a registration's timeout when the function is registered.</summary>
@@ -39,7 +39,7 @@ internal static class WorkflowNodeTimeout
     /// </exception>
     public static void Validate(TimeSpan timeout)
     {
-        // F-280: checked here, where the value meets the timer at registration, not at
+        // Checked here, where the value meets the timer at registration, not at
         // the first call in the middle of a run.
         if (!TimerPeriod.IsValid(timeout))
         {

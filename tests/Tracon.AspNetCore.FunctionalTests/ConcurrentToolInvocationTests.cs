@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ToolGovernanceEndpointTests.cs (K-269): the package's
+// Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <see cref="ModelBinding.AllowConcurrentToolCalls"/> (Phase 81, F-134):
+/// <see cref="ModelBinding.AllowConcurrentToolCalls"/>:
 /// three independent tool calls issued in the SAME turn, driven through a
 /// REAL <c>FunctionInvokingChatClient</c> loop (via <see cref="FakeModelProvider"/>,
 /// same rationale as ToolGovernanceEndpointTests.cs), not by invoking
@@ -112,7 +112,7 @@ public sealed class ConcurrentToolInvocationTests
         // own converter round-trips its raw text) - so a delegate tool returning a bare
         // `string` reaches the model JSON-quoted, unlike a source-generated tool
         // returning `string` directly. `ToolInvocationRecord.Result` mirrors the wire
-        // bytes exactly (Phase 102 / K-615), so the expectation here carries the quotes.
+        // bytes exactly, so the expectation here carries the quotes.
         foreach (var (name, result, quantity) in new[] { ("tool_a", "\"result_a\"", 1m), ("tool_b", "\"result_b\"", 2m), ("tool_c", "\"result_c\"", 3m) })
         {
             var record = invocations.Where(item => string.Equals(item.ToolName, name, StringComparison.Ordinal)).ShouldHaveSingleItem();
@@ -120,7 +120,7 @@ public sealed class ConcurrentToolInvocationTests
             record.Succeeded.ShouldBeTrue();
             record.AuthorizationDenied.ShouldBeFalse();
 
-            // 🚨 Regression (audit finding, phase 81 closure): TraconToolUsage.Report
+            // 🚨 Regression: TraconToolUsage.Report
             // reads the call identity from the FunctionInvokingChatClient.CurrentContext
             // AsyncLocal; under real concurrent dispatch a wrongly-shared ambient
             // context would attribute every quantity to the SAME (usually last) call.
@@ -178,7 +178,7 @@ public sealed class ConcurrentToolInvocationTests
     [Fact]
     public async Task One_tool_timing_out_does_not_stop_its_siblings_from_completing()
     {
-        // 🚨 Regression (audit finding, phase 81 closure): tool_b's own
+        // 🚨 Regression: tool_b's own
         // timeout must bound only ITS call. Under real concurrent dispatch, a
         // wrongly-shared cancellation would also cut off tool_a/tool_c, which
         // have no timeout of their own and are only slower than tool_b's short one.

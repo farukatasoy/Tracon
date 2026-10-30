@@ -4,7 +4,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Phase 137 — the SQLite twin of the PostgreSQL mapping test.
+/// The SQLite twin of the PostgreSQL mapping test.
 /// </summary>
 /// <remarks>
 /// 🚨 SQLite deviates twice and both deviations need real rows to check.

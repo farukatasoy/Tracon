@@ -7,7 +7,7 @@ namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>tracon state-check</c> against a real SQLite file, without an
-/// application ever starting (Phase 156, manual cases 1-5).
+/// application ever starting (manual cases 1-5).
 /// </summary>
 [Collection(nameof(CliTestGroup))]
 public sealed class StateCheckCommandTests

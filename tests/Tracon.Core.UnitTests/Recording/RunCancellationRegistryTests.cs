@@ -82,7 +82,7 @@ public sealed class RunCancellationRegistryTests
     [Fact]
     public void A_run_that_finishes_while_a_cancel_request_is_in_flight_is_reported_as_not_cancelled()
     {
-        // F-564 class: the run's `using` order is registration first, source second,
+        // The run's `using` order is registration first, source second,
         // so a TryCancel that already holds the entry can reach a source that the
         // finished run has disposed. Disposing the source while it is still
         // registered is that interleaving, without the timing.
@@ -120,7 +120,7 @@ public sealed class RunCancellationRegistryTests
     }
 
     /// <summary>
-    /// BL-028 / Phase 121: measures that <see cref="IRunCancellationRegistry.TryCancel"/>'s
+    /// BL-028 / an earlier change: measures that <see cref="IRunCancellationRegistry.TryCancel"/>'s
     /// guarantee is cooperative, not forced. The interface's own XML doc now states this;
     /// this test proves the DOCUMENTED limit, not just the documented behavior — a "run
     /// body" that never reads its token must keep running (and keep "spending", the same

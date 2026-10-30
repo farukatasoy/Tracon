@@ -12,8 +12,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-298: the egress policy was applied to model calls (K-467, K-874), live voice
-/// (K-878) and image generation, but not to text-to-speech or speech-to-text. A tenant
+/// The egress policy was applied to model calls, live voice
+/// and image generation, but not to text-to-speech or speech-to-text. A tenant
 /// whose policy named only its model provider still had its text sent to the speech
 /// provider. Each refusal case asserts the provider's call count stays <c>0</c>.
 /// </para>
@@ -46,7 +46,7 @@ public sealed class SpeechTenantPolicyTests
     [Fact]
     public async Task With_RequireEgressPolicy_a_tenant_without_a_policy_is_refused_the_speech_provider()
     {
-        // F-254: the speech resolver is one of the callers that must read the switch.
+        // The speech resolver is one of the callers that must read the switch.
         var engine = new CountingSpeechProvider(Provider);
         await using var host = await StartAsync(
             engine,

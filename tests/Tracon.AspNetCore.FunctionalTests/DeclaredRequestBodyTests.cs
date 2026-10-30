@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <remarks>
 /// <para>
 /// 🚨 The trap this closes is already recorded in
-/// <c>docs/hafiza/aspnetcore-json.md</c>: turning a typed body parameter
+/// <c>.md</c>: turning a typed body parameter
 /// (<c>T request</c>) into <c>HttpContext</c> plus a hand-read SILENTLY drops
 /// the operation's <c>requestBody</c> metadata. .NET derives the body schema
 /// from the endpoint's PARAMETER TYPE; remove the parameter and there is

@@ -9,7 +9,7 @@
       throws `NotSupportedException: Globalization Invariant Mode is not supported.`
       and an application using `UseSqlServer()` NEVER starts. The error message
       does not mention Tracon, so the consumer cannot find the root cause.
-      Measured (manual test MT-SQL-024). Rationale: docs/KARARLAR.md, decision K-392.
+      Measured in a manual test.
     -->
   </PropertyGroup>
 
@@ -21,7 +21,7 @@
       - measured, AddGeneratedTools() gives CS1061 without this line.
       NuGet's analyzers/dotnet/cs propagation applies only to PACKAGE consumption
       (PackageReference); a real external consumer only takes `Tracon.Core` via
-      PackageReference and does not need this line. See Phase 52.
+      PackageReference and does not need this line.
     -->
     <ProjectReference Include="../../src/Tracon.Generators/Tracon.Generators.csproj"
                        PrivateAssets="all"
@@ -30,7 +30,7 @@
     <!--
       PostgreSQL, SQL Server and SQLite are NOT included in the meta package, so
       consumers are not forced to pull in Npgsql, Microsoft.Data.SqlClient or
-      SQLitePCLRaw (K-185 for SQL Server and SQLite, K-1116 for PostgreSQL).
+      SQLitePCLRaw.
       A consumer who wants one references it explicitly; the sample app
       references all three to show every store.
     -->
@@ -39,7 +39,7 @@
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
     <!--
       Anthropic and Google providers are also NOT included in the meta package
-      (K-185 pattern): a consumer using OpenAI should not be forced to pull in the
+: a consumer using OpenAI should not be forced to pull in the
       Anthropic SDK, and a consumer not using Gemini should not be forced to pull
       in the Google.Apis.Auth chain. The sample app references them explicitly to
       show all three providers together.
@@ -50,25 +50,25 @@
     <!-- Voice tools. NOT included in the meta package; referenced explicitly. -->
     <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
     <!--
-      The AG-UI endpoint (phase 236). NOT included in the meta package: it takes the AG-UI protocol SDK, which an application
-      whose front end does not speak AG-UI should not carry (K-007). The sample maps it so the `support` agent - which has a
+      The AG-UI endpoint. NOT included in the meta package: it takes the AG-UI protocol SDK, which an application
+      whose front end does not speak AG-UI should not carry. The sample maps it so the `support` agent - which has a
       client-side tool and a tool that waits for approval - can be driven by an AG-UI front end.
     -->
     <ProjectReference Include="../../src/Tracon.AGUI/Tracon.AGUI.csproj" />
     <!--
-      Conversation memory (phase 233) keeps its records in a vector store the HOST registers. This sample
+      Conversation memory keeps its records in a vector store the HOST registers. This sample
       registers the PgVector connector over the same PostgreSQL database; any other connector of
       Microsoft.Extensions.VectorData works the same way, if it is built against a version of
       Microsoft.Extensions.VectorData.Abstractions that the Microsoft Agent Framework package accepts.
     -->
     <PackageReference Include="CommunityToolkit.VectorData.PgVector" />
     <!--
-      A distributed cache that several instances share (phase 264). Used only when
+      A distributed cache that several instances share. Used only when
       `Tracon:Demo:RedisConnectionString` is set; see the cache registration in Program.cs.
     -->
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
     <!--
-      Telemetry export (phase 268). Used only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set - the Aspire AppHost
+      Telemetry export. Used only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set - the Aspire AppHost
       (samples/Tracon.AppHost) sets it; see the registration in Program.cs. Tracon takes none of these packages: a
       consumer who wants the export adds them, exactly as here. The instrumentation set is the ASP.NET Core one only,
       because the request span is the parent of the `tracon.run` span.
@@ -85,7 +85,7 @@
       framework and appear in the document automatically when AddOpenApi() is called.
     -->
     <!--
-      Phase 155: the calibrated evaluator catalog. This is exactly what a consumer
+      The calibrated evaluator catalog. This is exactly what a consumer
       does - Tracon does not reference it, so anyone who wants the catalog adds
       the package themselves.
     -->
@@ -100,8 +100,8 @@
   </ItemGroup>
 
   <!--
-    🚨 F-76 (measured 2026-08-08). Tracon.Sql.Shared is NOT a package; the
-    same source links into three assemblies via LinkBase (K-185). The three
+    Tracon.Sql.Shared is NOT a package; the
+    same source links into three assemblies via LinkBase. The three
     assemblies' XML documentation files therefore carry the SAME member ids -
     measured: 620 shared <member> ids between SqlServer and Sqlite, the first
     being `T:Tracon.MigrationRunner`.
@@ -123,7 +123,6 @@
     Fix: keep the documentation of the conflicting shared source in ONE assembly
     only. None of the SQL provider types appear in the HTTP contract, so nothing
     is lost from the document. PostgreSql remains the canonical one.
-    Rationale and measurement: docs/KARARLAR.md K-352, Phase 40.
   -->
   <Target Name="TraconRemoveDuplicateSqlXmlDocs"
           AfterTargets="GenerateAdditionalXmlFilesForOpenApi">

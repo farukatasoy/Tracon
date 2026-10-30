@@ -95,11 +95,11 @@ public sealed class ResponseCacheLifetimeTests
     [Fact]
     public async Task Cancellation_during_a_cache_write_propagates_as_a_cancellation_not_a_swallowed_failure()
     {
-        // 🚨 Regression (audit finding, phase 81 closure): a caller's OWN
+        // 🚨 Regression: a caller's OWN
         // cancellation is never mistaken for a store failure and
         // logged/swallowed - it must surface as a cancellation like any other
         // canceled call in this codebase. "Own" means the caller's token is
-        // cancelled while the write is in flight (K-840).
+        // cancelled while the write is in flight.
         using var caller = new CancellationTokenSource();
         var cache = new FakeDistributedCache
         {
@@ -120,7 +120,7 @@ public sealed class ResponseCacheLifetimeTests
     {
         // The caller is still there; a distributed cache's own client timeout
         // surfaced as TaskCanceledException. The cache is an optimization, not a
-        // dependency: the model still answers (K-840).
+        // dependency: the model still answers.
         var cache = new FakeDistributedCache
         {
             ThrowOnGet = new TaskCanceledException("the cache timed out"),

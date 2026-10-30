@@ -3,7 +3,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// The "views" optional migration set (Phase 111): opt-in via
+/// The "views" optional migration set: opt-in via
 /// <c>EnableReadViews</c>, off by default.
 /// </summary>
 public sealed class ReadViewOptionalSetTests(SqliteFixture fixture)

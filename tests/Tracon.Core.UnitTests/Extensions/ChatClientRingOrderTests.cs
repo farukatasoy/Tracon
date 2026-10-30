@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Extensions;
 
 /// <summary>
-/// The order the documentation gives for chat client rings (Phase 232): in one slot the first ring
+/// The order the documentation gives for chat client rings: in one slot the first ring
 /// added is the innermost, across the extensions in the order the definition names them; a Turn ring
 /// is outside every ModelCall ring; and both compile paths place them.
 /// </summary>
@@ -64,7 +64,7 @@ public sealed class ChatClientRingOrderTests
     }
 
     /// <summary>
-    /// The synchronous path (K-466) builds a fallback link through its own resolver. That resolver
+    /// The synchronous path builds a fallback link through its own resolver. That resolver
     /// must pass the rings too, or an agent compiled with <c>Compile</c> runs its fallback model
     /// without them.
     /// </summary>

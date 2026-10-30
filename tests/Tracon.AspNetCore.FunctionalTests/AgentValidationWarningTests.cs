@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-320 / F-346 through the real host and the real Anthropic provider:
+/// An earlier fix / an earlier fix through the real host and the real Anthropic provider:
 /// <c>POST /api/agents/validate</c> warns about the Anthropic default output
 /// limit, a catalog model that rejects sampling cannot be saved with
 /// <c>temperature</c>, and <c>GET /api/models</c> carries the new flag.
@@ -122,7 +122,7 @@ public sealed class AgentValidationWarningTests
 
         report.GetProperty("valid").GetBoolean().ShouldBeFalse();
 
-        // Phase 255: the catalog says the model rejects sampling, and since Anthropic SDK 13 the provider does not
+        // The catalog says the model rejects sampling, and since Anthropic SDK 13 the provider does not
         // send the field either. Both findings are true and both name the path; the catalog one is the one this
         // test is about, so it is looked up by its code.
         var errors = report.GetProperty("messages").EnumerateArray().ToList();

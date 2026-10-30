@@ -82,7 +82,7 @@ internal sealed class ExplainedEnumConverter<TEnum> : JsonConverter<TEnum>
             // MA0054 (embed the caught exception) is suppressed on purpose: the
             // caught exception IS the stock message this converter replaces. It
             // carries the CLR type name and the byte offset, and a chain that
-            // reaches the caller would bring them back (Phase 215).
+            // reaches the caller would bring them back.
 #pragma warning disable MA0054
             throw new JsonException(Explain(ref snapshot));
 #pragma warning restore MA0054

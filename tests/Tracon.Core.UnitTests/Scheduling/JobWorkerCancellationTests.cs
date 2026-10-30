@@ -3,11 +3,11 @@ using static Tracon.Core.UnitTests.Scheduling.JobAttemptProbes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// A cancel reaches the running handler's token (F-323, failure modes 14, 17 and 18).
+/// A cancel reaches the running handler's token (failure modes 14, 17 and 18).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before phase 196 the cancel endpoint only wrote the store, and the token a handler
+/// Before that change, the cancel endpoint only wrote the store, and the token a handler
 /// received was cancelled only when the worker shut down: a cancelled job ran on until
 /// its handler happened to ask (<see cref="JobContext.IsCancelledAsync"/>), between items.
 /// The worker now reads a running job's status every <c>PollInterval</c>.
@@ -128,7 +128,7 @@ public sealed class JobWorkerCancellationTests
     [Fact]
     public async Task A_store_error_in_the_watch_neither_ends_the_watch_nor_touches_the_handler()
     {
-        // The F-326 rule for a per-tick loop: one failed read must not end it.
+        // The rule for a per-tick loop: one failed read must not end it.
         var store = new ProbeJobStore(new InMemoryJobStore());
         var handler = new TokenProbeHandler();
         var (worker, host) = Worker(store, handler);

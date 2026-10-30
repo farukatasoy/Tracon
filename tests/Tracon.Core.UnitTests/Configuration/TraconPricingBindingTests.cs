@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// MT-CORE-065: <c>Tracon:Pricing:{provider}:{model}</c> reads only the
-/// short <c>Input</c>/<c>Output</c> keys (K-021, manual binding). Per K-034, a
+/// <c>Tracon:Pricing:{provider}:{model}</c> reads only the
+/// short <c>Input</c>/<c>Output</c> keys (manual binding). Per that decision, a
 /// price entry written with the C# property name (<c>InputCostPerMillionTokens</c>)
 /// or another spelling must not drop COMPLETELY SILENTLY.
 /// </summary>
@@ -53,7 +53,7 @@ public sealed class TraconPricingBindingTests
     [Fact]
     public void The_cache_write_prices_are_read_from_CacheWrite_and_CacheWriteLong()
     {
-        // Phase 253: one rate per time-to-live class, bound from the short keys like Input/Output/CachedInput.
+        // One rate per time-to-live class, bound from the short keys like Input/Output/CachedInput.
         var options = BindOnly(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Pricing:anthropic:claude-x:Input"] = "1",
@@ -129,7 +129,7 @@ public sealed class TraconPricingBindingTests
 
     /// <summary>
     /// The rejection reaches the consumer's console, so it must read as English
-    /// (K-228). Both messages used to glue a two-letter Turkish correlative
+    ///Both messages used to glue a two-letter Turkish correlative
     /// conjunction around the two key names, which the language gate could not
     /// see while it skipped two-letter words. It no longer skips them, so the
     /// phrase cannot be quoted here either — see
@@ -186,7 +186,7 @@ public sealed class TraconPricingBindingTests
         options.Pricing.Providers["echo"]["echo-1"].InputCostPerMillionTokens.ShouldBe(0.25m);
     }
 
-    // --- F-603: Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall ---
+    // --- an earlier fix: Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall ---
 
     [Fact]
     public void A_hosted_tool_price_is_bound_by_provider_and_kind_and_the_key_is_not_a_provider()
@@ -336,7 +336,7 @@ public sealed class TraconPricingBindingTests
 
     /// <summary>
     /// Calls <c>TraconServiceCollectionExtensions.Bind</c> (the private,
-    /// manually written K-021 binder) directly, without DI or the validator
+    /// manually written that decision binder) directly, without DI or the validator
     /// kicking in. Purpose: these tests measure only BINDING behavior — the
     /// validation tests further down verify the same scenario as a startup
     /// failure.

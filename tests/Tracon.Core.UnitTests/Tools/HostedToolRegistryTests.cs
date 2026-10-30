@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Tools;
 
 /// <summary>
-/// F-603 — what the registry of hosted tools accepts, what it refuses, and what it builds for a
+/// What the registry of hosted tools accepts, what it refuses, and what it builds for a
 /// definition. The registry is the one rule set the compiler and the validator share.
 /// </summary>
 public sealed class HostedToolRegistryTests

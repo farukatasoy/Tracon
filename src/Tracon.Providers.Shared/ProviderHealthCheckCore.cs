@@ -36,7 +36,7 @@ internal sealed class ProviderHealthCheckCore(string providerName, ILogger? logg
     // EgressSocketGuard.CreateHandler.
     //
     // A shared static client, not IHttpClientFactory: Microsoft.Extensions.Http
-    // would join the consumer's dependency graph (K-007). One long-lived client
+    // would join the consumer's dependency graph. One long-lived client
     // is an accepted pattern for low-volume health checks. The source is linked
     // into each provider assembly, so each package still owns its own client.
     private static readonly HttpClient SharedHttpClient = new(
@@ -85,7 +85,7 @@ internal sealed class ProviderHealthCheckCore(string providerName, ILogger? logg
                 // A credential that throws (Azure.Identity's
                 // CredentialUnavailableException without `az login`) is this
                 // provider's status, not an exception for the caller: before
-                // phase 181 it escaped and failed /api/models/health for every
+                // it escaped and failed /api/models/health for every
                 // provider. Only the type name is reported - a credential
                 // library's message can carry tenant and client identifiers;
                 // the operator gets the message and stack trace in the log.
@@ -136,7 +136,7 @@ internal sealed class ProviderHealthCheckCore(string providerName, ILogger? logg
             // On failures such as a refused connection, exception.Message embeds
             // the target address (host:port) in its text. That is not a secret,
             // but it breaks the rule that the endpoint address must not leak
-            // (Phase 8, DoD).
+            // (DoD).
             // HttpRequestError is a category name that carries no address.
             return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }

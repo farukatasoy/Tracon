@@ -5,7 +5,7 @@ namespace Tracon.OpenAIShared.Tests;
 
 /// <summary>
 /// The schema the OpenAI clients send for an author's schema, and the two lists that tell the author what
-/// differs (Phase 245).
+/// differs.
 /// </summary>
 /// <remarks>
 /// Linked into <c>Tracon.OpenAI.UnitTests</c> and <c>Tracon.Azure.UnitTests</c>: the source under test is

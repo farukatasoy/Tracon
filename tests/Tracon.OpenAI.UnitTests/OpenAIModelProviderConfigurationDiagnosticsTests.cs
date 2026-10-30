@@ -4,7 +4,7 @@ namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
 /// Verifies that <see cref="OpenAIModelProvider.GetConfigurationDiagnostic"/> follows
-/// K-059: it returns whether the key was resolved, never the key's VALUE.
+/// It returns whether the key was resolved, never the key's VALUE.
 /// </summary>
 public sealed class OpenAIModelProviderConfigurationDiagnosticsTests
 {

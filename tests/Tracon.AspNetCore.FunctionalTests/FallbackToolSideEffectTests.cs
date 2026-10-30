@@ -61,7 +61,7 @@ public sealed class FallbackToolSideEffectTests
 
         var runId = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("runId").GetGuid();
 
-        // The defect this phase fixes: the tool body must run exactly ONCE,
+        // The defect this change fixes: the tool body must run exactly ONCE,
         // even though both the primary and the fallback asked for it.
         ChargeProbeTool.Calls.ShouldBe(1);
 

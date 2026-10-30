@@ -234,7 +234,7 @@ internal sealed class RunBackedMcpTaskStore : IMcpTaskStore
         // into CatalogToolCallHandler's agent.RunAsync call (it is the token
         // this very method receives, sourced from the SDK's per-task
         // CancellationTokenSource). RunRecordingAgent links it into its own
-        // registered source (Phase 32) and closes the run itself; writing
+        // registered source and closes the run itself; writing
         // here too would race it.
         return run.Status == RunStatus.Running;
     }

@@ -159,7 +159,7 @@ public sealed class WorkflowDefinitionCompilerTests
         // Framework derives executor ids from the agent INSTANCE; if the ids
         // change on every compile, MAF rejects the checkpoint ("The specified
         // checkpoint is not compatible with the workflow"). Measured
-        // (Phase 15): a graph built with fresh agent instances came out incompatible.
+        // A graph built with fresh agent instances came out incompatible.
         var host = new WorkflowTestHost("writer", "editor");
 
         var definition = new WorkflowDefinition

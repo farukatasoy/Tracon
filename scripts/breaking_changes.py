@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Breaking-change gate of the release rehearsal (`kapi.py yayin`, Faz 187).
+"""Breaking-change gate of the release rehearsal (`kapi.py yayin`).
 
 Packages are validated against the last published `v*` release (ApiCompat
 package validation, driven by `Directory.Build.targets`). The SDK writes what
@@ -7,9 +7,9 @@ it found as a suppression file per project; this module turns those files
 into a list of broken public types and dropped target frameworks, and
 checks that the release notes name every one of them.
 
-K-602 still allows a breaking change in the preview line. The gate does not
+A breaking change is still allowed in the preview line. The gate does not
 reject one there; it rejects shipping one that the notes do not announce.
-From `1.0.0-rc.1` on (Faz 237) the line is frozen: a breaking change is red
+From `1.0.0-rc.1` on the line is frozen: a breaking change is red
 whatever the notes say, and a patch release may not grow the public surface.
 `release_line` decides which rule a release is judged by.
 
@@ -152,7 +152,7 @@ LINE_FROZEN = "frozen"
 class ReleaseLine:
     """Which rule set a release is judged by.
 
-    `preview` - the baseline is below `1.0.0-rc.1`: K-602 allows a breaking
+    `preview` - the baseline is below `1.0.0-rc.1`: a breaking
     change if the notes announce it. `major` - the baseline is frozen but the
     version raises the major: the same rule, because a major is where 1.x
     allows a break. `frozen` - baseline `1.0.0-rc.1` or above and the same
@@ -170,7 +170,7 @@ class ReleaseLine:
 
     def describe(self) -> str:
         if self.kind == LINE_PREVIEW:
-            return "Hat: preview (K-602 — kırılma notta adıyla)"
+            return "Hat: preview (kırılma notta adıyla)"
         if self.kind == LINE_MAJOR:
             return "Hat: major artışı (kırılma notta adıyla)"
         if self.patch:
@@ -179,7 +179,7 @@ class ReleaseLine:
 
 
 def release_line(baseline: str, version: str | None) -> ReleaseLine:
-    """The one function that decides the line (Faz 237, §237.2). Faz 238 reuses
+    """The one function that decides the line. The non-.NET gate reuses
     it for the HTTP and name-set gates; a second copy would drift.
 
     `version` may be None only while the baseline is a preview: nothing below
@@ -331,7 +331,7 @@ def baseline_source_violations(ids: Iterable[str], version: str, cache: pathlib.
 
 
 def pack_properties(cache: pathlib.Path, version: str, report_dir: pathlib.Path) -> list[str]:
-    """The three `-p:` a baseline-validating pack takes (Faz 191 carries them)."""
+    """The three `-p:` a baseline-validating pack takes (the release pack carries them)."""
     return [
         f"-p:TraconPackageBaselineRoot={cache}",
         f"-p:TraconPackageBaselineVersion={version}",
@@ -477,7 +477,7 @@ def read_breaking_changes(report_dir: pathlib.Path) -> BreakingChanges:
 
 
 def release_notes_for(changelog: pathlib.Path, version: str) -> tuple[str | None, str | None]:
-    """The notes a release of `version` ships and their heading (K-825).
+    """The notes a release of `version` ships and their heading.
 
     Read with `changelog.read_release_notes`, never from `[Unreleased]`
     alone: at tag time that heading is renamed to the version."""
@@ -510,7 +510,7 @@ _CODE_SPAN = re.compile(r"`([^`]+)`")
 # A fenced code block is code, not a span. Its three backticks would also pair
 # with the prose around it: every fence shifts which text counts as a span, so
 # two fences in one release note made the gate miss names written correctly
-# (measured, phase 189). Fences are removed before spans are read.
+# (measured). Fences are removed before spans are read.
 _FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$", re.MULTILINE | re.DOTALL)
 _ANGLE = re.compile(r"<[^<>]*>")
 _PAREN = re.compile(r"\([^()]*\)")
@@ -589,7 +589,7 @@ def unnamed_changes(changes: BreakingChanges, notes: str | None) -> list[str]:
 # 237.3 / 237.4 - what the ApiCompat report cannot see
 # -----------------------------------------------------------------------------
 #
-# Measured 2026-10-24 (Faz 237, §237.3), SDK 10.0.402, baseline validation on:
+# Measured 2026-10-24, SDK 10.0.402, baseline validation on:
 # an added `required` member is NOT reported (not even when an optional member
 # becomes `required`); an interface member without a body is CP0006, an
 # abstract member CP0005, an enum renumber CP0011, a removed enum value CP0002,
@@ -621,7 +621,7 @@ def effective_api(shipped: str, unshipped: str) -> set[str]:
 
     `Shipped` is the promise, `Unshipped` what is new since; an
     `*REMOVED*` line in `Unshipped` takes a `Shipped` line out. At the `1.0.0`
-    fill (K-603) lines move from one file to the other, so only the union
+    fill lines move from one file to the other, so only the union
     says whether the surface changed."""
     surface: set[str] = set()
     removed: set[str] = set()
@@ -640,7 +640,7 @@ def effective_api(shipped: str, unshipped: str) -> set[str]:
 def _show(root: pathlib.Path, tag: str, path: str) -> str | None:
     """A file as it was at `tag`, None when the tag has no such path.
 
-    "No such path" and "cannot be read" are different answers (Faz 238 audit): a missing file is a first record,
+    "No such path" and "cannot be read" are different answers (audit finding): a missing file is a first record,
     an unreadable one is a hole, and a gate that treats the hole as a first record turns green on a broken
     baseline. `ls-tree` tells them apart; a failure of either git call raises BaselineError."""
     listing = _git(root, "ls-tree", tag, "--", path)
@@ -887,7 +887,7 @@ def check(
 
     The release line (§237.2) decides the rule. In a preview or a major
     release a broken type or dropped framework passes when the notes name it
-    (K-602: the gate rejects the unannounced break, not the break). In a
+    (the gate rejects the unannounced break, not the break). In a
     frozen release it is red whatever the notes say, and a frozen patch also
     rejects an added public member. A contract test added since the baseline
     must be named in the notes on every line.
@@ -1000,7 +1000,7 @@ def check(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Kırıcı değişiklik raporunu sürüm notuna karşı denetler (Faz 187, 237).")
+    parser = argparse.ArgumentParser(description="Kırıcı değişiklik raporunu sürüm notuna karşı denetler.")
     parser.add_argument("--rapor-dizini", required=True, type=pathlib.Path, help="<paket>.xml bastırma raporlarının dizini")
     parser.add_argument("--taban", required=True, help="karşılaştırılan yayınlanmış sürüm, 'v'siz")
     parser.add_argument("--surum", help="notu okunacak sürüm; verilmezse '## [Unreleased]' (donmuş hatta sürüm gerekir)")

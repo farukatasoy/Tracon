@@ -2,7 +2,7 @@
 //
 // Four places need it — three site generators and the .NET ratchet in
 // tests/Tracon.Core.UnitTests/Architecture — and four copies drift. Measured:
-// while there were copies, a `section 39` in a doc comment passed the .NET gate and
+// while there were copies, a stray plan-section reference in a doc comment passed the .NET gate and
 // then failed the site generator. The pattern lives in a plain file so a regex
 // engine on either side can read it unchanged.
 import { readFileSync } from 'node:fs';

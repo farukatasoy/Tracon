@@ -6,12 +6,12 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 214: an A2A <c>SendMessage</c> is answered with a message, never with a
+/// An A2A <c>SendMessage</c> is answered with a message, never with a
 /// task.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tracon cannot suspend a run for approval mid-run (K-103), and an A2A task
+/// Tracon cannot suspend a run for approval mid-run, and an A2A task
 /// is exactly that shape: a handle the caller polls while the run goes on in
 /// the background. Microsoft Agent Framework 1.20 had a switch that turned
 /// background responses off (<c>AllowBackgroundResponses = false</c>); 1.22

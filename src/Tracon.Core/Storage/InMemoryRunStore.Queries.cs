@@ -52,7 +52,7 @@ internal sealed partial class InMemoryRunStore
 
         var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
 
-        // HATA-S2-001: SessionId is set only on the ROOT run (K-217); a child
+        // SessionId is set only on the ROOT run; a child
         // run's own SessionId is always null. A direct equality check would
         // therefore never match any child run when given together with
         // "includeChildren=true". First collect the identities of the ROOT
@@ -236,7 +236,7 @@ internal sealed partial class InMemoryRunStore
         string? costCurrency = null;
         long unknownPricing = 0;
 
-        // F-419: amounts in two currencies are never added. Only a run that carries an
+        // Amounts in two currencies are never added. Only a run that carries an
         // amount counts, and letter case is not a second currency; the SQL stores count
         // the same way (CurrencyTotals).
         var costCurrencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

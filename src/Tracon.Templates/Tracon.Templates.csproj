@@ -17,8 +17,8 @@
     <!--
       The template package is NOT a library: it does not compile, it only
       carries content. IncludeBuildOutput=false + the NU5128 suppression is the
-      SAME pattern as the meta package (Tracon.csproj) - see the K-007 note
-      in docs/KARARLAR.md and src/Tracon/Tracon.csproj.
+      SAME pattern as the meta package (Tracon.csproj) - see the note
+ and src/Tracon/Tracon.csproj.
     -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <!-- No consumer-facing API surface - it ships `dotnet new` content, not a library. -->
@@ -52,7 +52,7 @@
       (.gitignore) that start with a dot. Without NoDefaultExcludes, the
       template's definition file never enters the package and `dotnet new
       install` silently installs a non-functional package (see
-      docs/hafiza/build-ve-analyzer.md - same class as the "duplicate files"
+.md - same class as the "duplicate files"
       trap: silent poisoning).
     -->
     <NoDefaultExcludes>true</NoDefaultExcludes>

@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 133 — <c>tracon.job.executions</c> and <c>tracon.job.duration</c>
+/// <c>tracon.job.executions</c> and <c>tracon.job.duration</c>
 /// are verified end to end through a real DI registration, a real HTTP request
 /// and the real background worker.
 /// </summary>
@@ -29,7 +29,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class JobMetricEndToEndTests
 {
-    // Phase 238: the tenant tag is off by default; the counter carries it only when the setting is on.
+    // The tenant tag is off by default; the counter carries it only when the setting is on.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

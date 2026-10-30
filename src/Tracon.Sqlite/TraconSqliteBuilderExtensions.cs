@@ -78,9 +78,9 @@ public static class TraconSqliteBuilderExtensions
             TraconSqliteOptionsValidator>());
 
         // The shared store layer's context. Everything provider-specific is
-        // collected here; stores never see the Microsoft.Data.Sqlite type (K-176).
+        // collected here; stores never see the Microsoft.Data.Sqlite type.
         //
-        // Phase 110: the data source is resolved HERE, not registered as its own
+        // The data source is resolved HERE, not registered as its own
         // public DI service — see the matching comment in
         // TraconPostgreSqlBuilderExtensions.UsePostgreSql for the rationale.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton(static provider =>
@@ -97,15 +97,15 @@ public static class TraconSqliteBuilderExtensions
                 Dialect = new SqliteDialect(options.TablePrefix),
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
-                // Phase 111: the "views" set publishes runs_v1 and is opt-in --
-                // a published view is a permanent data contract (K1).
+                // The "views" set publishes runs_v1 and is opt-in --
+                // a published view is a permanent data contract.
                 EnabledMigrationSets = options.EnableReadViews
                     ? new HashSet<string>(StringComparer.Ordinal) { "views" }
                     : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
                 ProviderName = "SQLite",
                 ContentProtector = contentProtector,
-                // Phase 82: empty unless the protector is actually enabled -
-                // K1 (identical behavior with the feature off) does not depend
+                // Empty unless the protector is actually enabled -
+                // The zero-surprise rule (identical behavior with the feature off) does not depend
                 // on what TraconContentProtectionOptions.Columns holds.
                 ProtectedColumns = contentProtector.IsEnabled
                     ? (IReadOnlySet<ProtectedColumn>)contentProtectionOptions.Columns
@@ -115,7 +115,7 @@ public static class TraconSqliteBuilderExtensions
 
         // 🚨 If two persistence providers are registered at the same time, the
         // last registration wins. This is a configuration error; a warning is
-        // logged at startup and /api/diagnostics reports it. Rationale: K-183.
+        // logged at startup and /api/diagnostics reports it.
         services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
 
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
@@ -123,20 +123,20 @@ public static class TraconSqliteBuilderExtensions
             provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
 
-        // Diagnostics (Phase 33): the winning provider's MigrationRunner is also
+        // Diagnostics: the winning provider's MigrationRunner is also
         // resolved as ISqlPersistenceDiagnostics; the same instance, no extra
         // SQL connection produced.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
-        // Same reasoning, for the `tracon migrate` CLI command (Phase 83,
-        // section 83.5): MigrationRunner is linked-source, so a consumer that
+        // Same reasoning, for the `tracon migrate` CLI command (
+        // An earlier plan): MigrationRunner is linked-source, so a consumer that
         // references more than one provider sees ambiguous types with the
         // same name (CS0433). IMigrationApplier is the resolvable seam.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IMigrationApplier>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
-        // State preflight (Phase 156): read-only, tenant-agnostic counting of
+        // State preflight: read-only, tenant-agnostic counting of
         // the stored schema generations. A separate seam from ISessionStore on
         // purpose - that one always filters by tenant, pages, and pulls the
         // whole state payload, none of which a whole-database preflight wants.
@@ -189,73 +189,73 @@ public static class TraconSqliteBuilderExtensions
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
-        // Tenant-scoped API keys (Phase 53). Not decorated: same rationale as
+        // Tenant-scoped API keys. Not decorated: same rationale as
         // the quota/webhook stores, admin actions are separately written to the
         // audit log in the HTTP layer.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
 
-        // Tenant provider bindings (BYOK) and egress policy (Phase 65). Same
+        // Tenant provider bindings (BYOK) and egress policy. Same
         // rationale as the API key store: not wrapped, administrator actions
         // are written to the audit trail separately at the HTTP layer.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantToolPolicyStore, SqlTenantToolPolicyStore>());
 
-        // Data retention and archiving (Phase 25).
+        // Data retention and archiving.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
-        // Built like SqlAttachmentStore (F-332): the optional IAttachmentStorage
+        // Built like SqlAttachmentStore: the optional IAttachmentStorage
         // must reach the data plane, which deletes an attachment's external
         // content before its row.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlRetentionStore>(provider)));
 
-        // Data subject export/erasure (Phase 64). Replaces the in-memory
+        // Data subject export/erasure. Replaces the in-memory
         // NullDataSubjectStore; meaningful only with a SQL provider on. Built
         // like the retention data plane, for the same reason.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IDataSubjectStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlDataSubjectStore>(provider)));
 
-        // Single-executor election (Phase 42). Replaces the in-memory
+        // Single-executor election. Replaces the in-memory
         // InMemorySingletonLeaseStore; lease sharing is only meaningful here in
         // a multi-instance deployment.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
-        // A SQLite file serves one process (Phase 265): the production profile refuses it when the
+        // A SQLite file serves one process: the production profile refuses it when the
         // deployment declares more than one instance.
         services.Replace(ServiceDescriptor.Singleton(StateSharing.SqliteFile));
 
-        // Shared rate-limit counter (Phase 263). Replaces the in-memory
+        // Shared rate-limit counter. Replaces the in-memory
         // InMemoryRateLimitCounterStore; what makes Tracon:RateLimit:Scope =
         // Deployment hold across instances. Scope = Instance never calls it.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRateLimitCounterStore, SqlRateLimitCounterStore>());
 
-        // Voice session recording (Phase 29). Only writes anything if
+        // Voice session recording. Only writes anything if
         // UseVoiceConversation() was called; the store stays empty if it was
         // not. NOT decorated with the audit log: recording is a byproduct of
         // execution, not an admin decision.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
 
-        // Run/message scores (Phase 31). NOT decorated with the audit log:
+        // Run/message scores. NOT decorated with the audit log:
         // same rationale as the quota/webhook stores -- a score is not an
         // admin decision, it is user-supplied feedback.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
 
-        // Idempotency-Key support (Phase 43). Replaces the in-memory
+        // Idempotency-Key support. Replaces the in-memory
         // InMemoryIdempotencyStore; deduplication is only meaningful here in a
         // multi-instance deployment.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
 
-        // Run inputs (Phase 47). Replaces the in-memory InMemoryRunInputStore;
+        // Run inputs. Replaces the in-memory InMemoryRunInputStore;
         // replay only keeps working after the process restarts once the input
         // is persisted.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
 
-        // Async approval inbox (Phase 55).
+        // Async approval inbox.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWorkflowResponseStore, SqlWorkflowResponseStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWorkflowRequestStore, SqlWorkflowRequestStore>());
 
-        // Conversation branching (Phase 47). There is NO in-memory equivalent:
+        // Conversation branching. There is NO in-memory equivalent:
         // MAF's InMemoryChatHistoryProvider keeps history in an opaque blob of
         // session state and cannot be copied up to a given sequence number.
         // Registration only happens here; a stateless setup returns 501.

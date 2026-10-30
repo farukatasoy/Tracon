@@ -6,14 +6,14 @@ namespace Tracon;
 
 // Google.GenAI 1.16.0 does not ship an MEAI image adapter. This narrow adapter
 // implements only IImageGenerator.GenerateAsync; editing and upscaling need
-// attachment authorization rules and are intentionally out of this phase.
+// attachment authorization rules and are intentionally out of this change.
 //
 // 🚨 The image is produced with GenerateContentAsync, NOT GenerateImagesAsync.
 // The latter targets the Imagen `:predict` surface, which the Gemini API no
 // longer serves: measured against a live key, EVERY generation answered 502,
 // ListModels returned 58 models and NONE of the six image models supported
 // `predict`, and the SDK's own run log says GenerateImagesAsync is deprecated
-// in favour of GenerateContentAsync with an image model (K-835).
+// in favour of GenerateContentAsync with an image model.
 #pragma warning disable MEAI001
 internal sealed class GoogleImageGenerator : IImageGenerator
 {

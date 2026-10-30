@@ -1,6 +1,6 @@
 // What one documentation page costs a reader, measured rather than assumed.
 //
-// This phase added a token layer, a section rule, diagrams to nine guides, and a
+// This change added a token layer, a section rule, diagrams to nine guides, and a
 // symptom index. None of that is free, and nothing was measuring it. The ceiling
 // below is the measured worst page plus headroom — it is a ratchet against silent
 // growth, not a target anybody has to design against.
@@ -51,7 +51,7 @@ const dist = resolve(here, '../dist');
 // moved to guides/voice.md (#troubleshooting), next to the feature, and the page
 // dropped to 58 151 B. Ceiling unchanged.
 //
-// Split again 2026-10-17 (F-282): the page was back at 58 994 B, 6 B under the ceiling, and the
+// Split again 2026-10-17: the page was back at 58 994 B, 6 B under the ceiling, and the
 // next symptom entry could not fit. The build-diagnostics section (twenty headings, one per
 // TRC id and agent-map symptom) moved to guides/build-diagnostics.md; troubleshooting dropped
 // to 49 054 B and the new page weighs 43 648 B. The heaviest page is now guides/production.
@@ -66,7 +66,7 @@ const dist = resolve(here, '../dist');
 // guides/production-upgrades. The heaviest page is now concepts/governance at 58 194 B
 // locally. Ceiling unchanged.
 //
-// Raised 2026-10-30 (phase 269) from 59 000 to 59 200 B instead of split: a new guide's sidebar entry is on
+// Raised 2026-10-30 from 59 000 to 59 200 B instead of split: a new guide's sidebar entry is on
 // every page, about 45 B gzip, and pushed concepts/governance from about 58 975 B (25 B under the ceiling
 // before the entry) to 59 032 B locally. The sidebar label was shortened ("Move definitions", -14 B); trimming
 // filler words out of the page itself recovered 3 B, because gzip already removes them, so the page was
@@ -78,7 +78,7 @@ const CEILING = 59_200;
 // needs from one visit: a reader lands on one version's anchor (each package's PackageReleaseNotes
 // links there). It crossed its ceiling twice - 97 534 B at the 1.0.0-preview.4 cut (ceiling 110 000 B),
 // 131 792 B at the 1.0.0-preview.6 cut (raised to 150 000 B once, with the split promised for the
-// next release). Split 2026-10-29 (F-710): `reference/changelog/` is the index (a summary and a link
+// next release). Split 2026-10-29: `reference/changelog/` is the index (a summary and a link
 // per version, under CEILING) and every release has its own page under `reference/releases/`.
 // Measured the same day: 1.0.0-preview.6 stays under CEILING; 1.0.0-preview.4 does not, at 75 956 B
 // (its section alone is 131 194 B of Markdown, 44 221 B gzipped, on top of the 23 925 B every page
@@ -89,7 +89,7 @@ const PAGE_CEILINGS_RELEASE = [['reference/releases/1.0.0-preview.4/index.html',
 
 // The generated API page of TraconBuilderExtensions is the second page that grows with the product and
 // not with what a reader needs from one visit: DocFX writes one page per type, and every capability of the
-// Tracon chain is a method of this one static class. Measured 2026-10-28 (phase 258): 61 137 B gzip after
+// Tracon chain is a method of this one static class. Measured 2026-10-28: 61 137 B gzip after
 // the page took AddJobHandler and UseScheduling from IServiceCollection, the model-declaring forms of
 // AddAgent (each a pair, because the public API analyzer refuses two overloads with an optional parameter)
 // and the factory forms of AddTool - eleven methods with their remarks and examples. The description-taking

@@ -1,7 +1,7 @@
 namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
-/// A server name or a tool name that ends in a line feed is not a name (phase 260, F-756).
+/// A server name or a tool name that ends in a line feed is not a name.
 /// </summary>
 /// <remarks>
 /// The pattern was <c>^[a-zA-Z0-9_-]+$</c>, and .NET's <c>$</c> also matches before a trailing <c>\n</c>. The

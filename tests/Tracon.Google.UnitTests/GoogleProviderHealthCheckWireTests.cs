@@ -4,7 +4,7 @@ using Tracon.ProviderCore.Tests;
 namespace Tracon.Google.UnitTests;
 
 /// <summary>
-/// What the Gemini health check actually puts on the wire (phase 181). The
+/// What the Gemini health check actually puts on the wire. The
 /// shared body calls a per-provider <c>authorize</c> delegate; this proves the
 /// Google shell hands it the Google header and keeps the key out of the URL.
 /// </summary>

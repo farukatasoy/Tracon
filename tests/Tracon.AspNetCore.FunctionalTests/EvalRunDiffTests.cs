@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Behavior tests for <c>GET /api/evals/runs/{id}/diff</c> (Phase 153).
+/// Behavior tests for <c>GET /api/evals/runs/{id}/diff</c>.
 /// </summary>
 public sealed class EvalRunDiffTests
 {

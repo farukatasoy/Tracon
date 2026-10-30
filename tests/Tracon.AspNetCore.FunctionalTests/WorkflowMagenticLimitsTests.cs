@@ -2,14 +2,14 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// K-269: Tracon.Testing.TraconTestHost and this project's own host share a name, so the package is imported one
+// Tracon.Testing.TraconTestHost and this project's own host share a name, so the package is imported one
 // type at a time.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 270: the stall and reset limits of a stored Magentic workflow reach the framework's orchestrator.
+/// The stall and reset limits of a stored Magentic workflow reach the framework's orchestrator.
 /// </summary>
 /// <remarks>
 /// <para>

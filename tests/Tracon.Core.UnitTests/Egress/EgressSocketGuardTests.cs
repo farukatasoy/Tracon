@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Egress;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is the check that decides whether a socket opens, and until Phase 77 it
+/// This is the check that decides whether a socket opens, and until it
 /// had no test at all (B05-6). A validator test cannot stand in for it: the
 /// address rules could be perfect while the callback ignored them, or resolved
 /// the name a second time and reopened the DNS rebinding window that the whole

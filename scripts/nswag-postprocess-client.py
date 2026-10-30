@@ -11,7 +11,7 @@ resolves the concrete enum type via `MakeGenericType`, which is
 [JsonConverter] always wins over anything registered on
 JsonSerializerOptions.Converters, so this cannot be fixed by configuration
 alone - the attribute itself has to name the closed generic
-JsonStringEnumConverter<TEnum> (Phase 83, section 83.6).
+JsonStringEnumConverter<TEnum>.
 
 Every OTHER enum (the ~37 plain business enums: RunStatus, ApiKeyScope, ...)
 carries no per-property attribute at all. MEASURED (2026-08-22): registering
@@ -41,7 +41,7 @@ of the real one. MEASURED (2026-08-26): discovered via JsonElement, whose 16
 affected properties throw JsonException on any wire value that is not a JSON
 object (an array, e.g. EvalCaseResult.Scores) - a pre-existing, previously
 undetected defect found while adding the eval CLI command (EvalCommandTests,
-Phase 115). CLASS SWEEP found a second instance:
+the eval tests). CLASS SWEEP found a second instance:
 ChatRole (ChatMessage.Role) has the identical empty-schema shape for the
 identical reason (its own [JsonConverter(typeof(ChatRole.Converter))]).
 Renaming a colliding schema would only rename the collision, not fix it: a
@@ -56,7 +56,7 @@ was found: after regenerating docs/openapi/tracon.json, run
 ['components']['schemas']; print([k for k, v in s.items() if v == {}])"` -
 add every name beyond JsonElement/ChatRole to COLLIDING_ANY_TYPES.
 
-A fourth pass fixes a JSON-vs-SSE class of defect (Faz 145, found by
+A fourth pass fixes a JSON-vs-SSE class of defect (found by
 independent audit): every pure `text/event-stream` 200 response has a bare
 `string` schema, so NSwag generates `Task<string>` and reads it through the
 SAME `ReadObjectResponseAsync<T>` helper every JSON-bodied operation uses -
@@ -80,8 +80,8 @@ endpoints - `/v1/responses`, `/v1/chat/completions` - generate a JSON return
 type instead and are unaffected, a separate pre-existing limitation this pass
 does not attempt to fix).
 
-A fifth pass fixes a NULL-COLLECTION class of defect (F-197, found by phase
-145's independent audit while writing a real-server test). NJsonSchema emits
+A fifth pass fixes a NULL-COLLECTION class of defect (found by an
+independent audit while writing a real-server test). NJsonSchema emits
 `= default!` for EVERY property - including the ones it declares as
 NON-nullable collections (`ICollection<T>`/`IDictionary<K,V>` with no `?`).
 The declared type promises non-null and the value is null, so nothing warns
@@ -101,9 +101,9 @@ NSwag declared `ICollection<T>?` says "not provided" is distinguishable from
 non-nullable ones are rewritten, to `new List<T>()`/`new Dictionary<K,V>()`.
 This pass fixes the TYPED CLIENT only - a raw HTTP caller can still send an
 explicit null, which the server rejects with a 400 instead of a 500
-(`RequestBodyBinding`'s RespectNullableAnnotations, same class, K-694).
+(`RequestBodyBinding`'s RespectNullableAnnotations, same class).
 
-A sixth pass fixes a CONDITIONAL-SHAPE class of defect (Faz 159). Seven
+A sixth pass fixes a CONDITIONAL-SHAPE class of defect. Seven
 operations answer 200 with `text/event-stream`; NSwag can express only ONE
 return type per operation, so all seven are callable in exactly one shape:
 the five pure-SSE ones buffer the WHOLE stream into a `Task<string>` (the
@@ -203,7 +203,7 @@ def bare_reference_re(short_name: str) -> re.Pattern[str]:
 # NJsonSchema guards a REQUIRED request body with `if (body == null)`, which
 # stops compiling (CS0019) the moment the third pass turns that body's type
 # into a struct - the same defect class as the root-response null check below,
-# on a different axis (Faz 159, when /v1/responses and /v1/chat/completions
+# on a different axis (when /v1/responses and /v1/chat/completions
 # started declaring a JsonElement body).
 #
 # Here the guard is REPLACED rather than dropped, unlike the response side.
@@ -363,7 +363,7 @@ def rewrite_sse_string_responses(source: str) -> tuple[str, int]:
         return (
             f"{indent}if (status_ == 200)\n"
             f"{indent}{{\n"
-            f"{indent}    // Phase 145: an SSE body is not JSON - ReadObjectResponseAsync<string>\n"
+            f"{indent}    // An SSE body is not JSON - ReadObjectResponseAsync<string>\n"
             f"{indent}    // would JsonSerializer.Deserialize<string> the raw \"event: ...\\ndata: ...\"\n"
             f"{indent}    // text and throw. Read it as plain text instead. response_.Content is\n"
             f"{indent}    // nullable per HttpResponseMessage's own contract - same null check\n"
@@ -532,7 +532,7 @@ def _streaming_200_branch(indent: str, json_method: str | None) -> str:
     return (
         f"{indent}if (status_ == 200)\n"
         f"{indent}{{\n"
-        f"{indent}    // Phase 159: the STREAMING sibling. The body is Server-Sent Events, not\n"
+        f"{indent}    // The STREAMING sibling. The body is Server-Sent Events, not\n"
         f"{indent}    // JSON. Framing and this guard are hand-written in\n"
         f"{indent}    // TraconApiClient.Sse.cs so a regeneration cannot change them.\n"
         + _ensure_content_type_call(f"{indent}    ", "true", sentences)
@@ -554,7 +554,7 @@ def _json_200_guard(indent: str, stream_method: str) -> str:
     ]
 
     return (
-        f"{indent}// Phase 159: with \"stream\": true in the body this endpoint answers with\n"
+        f"{indent}// With \"stream\": true in the body this endpoint answers with\n"
         f"{indent}// Server-Sent Events, and the JSON read below would fail with an opaque\n"
         f"{indent}// \"could not deserialize\" message. Name the real cause instead.\n"
         + _ensure_content_type_call(indent, "false", sentences)

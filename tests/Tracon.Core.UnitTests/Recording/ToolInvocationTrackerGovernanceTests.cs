@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
 /// Verifies that <see cref="ToolInvocationTracker"/> marks a denied or
-/// timed-out call distinctly from an ordinary success or failure (phase 69).
+/// timed-out call distinctly from an ordinary success or failure.
 /// </summary>
 public sealed class ToolInvocationTrackerGovernanceTests
 {
@@ -21,8 +21,8 @@ public sealed class ToolInvocationTrackerGovernanceTests
         tracker.OnCall(new FunctionCallContent("call-1", "cancel_order", arguments: null), source: null, arguments: null);
 
         // AuthorizingAIFunction returns the denial reason as an ordinary
-        // (non-exceptional) result — see Phase 69,
-        // section 69.2. The tracker can only tell it apart from a real success
+        // (non-exceptional) result,
+        // The tracker can only tell it apart from a real success
         // through the accumulator marker.
         authorization.RecordDenied("call-1");
 

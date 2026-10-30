@@ -187,7 +187,7 @@ public sealed class SideChannelUsageAccumulatorTests
     }
 
     /// <summary>
-    /// F-349: another model's share is kept apart from the agent's share and
+    /// Another model's share is kept apart from the agent's share and
     /// grouped by provider and model, so each share is priced at its own model.
     /// </summary>
     [Fact]

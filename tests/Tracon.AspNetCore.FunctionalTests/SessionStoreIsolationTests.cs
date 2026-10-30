@@ -7,11 +7,11 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 // MAAI001: the session store types are marked "evaluation purposes only"; this
-// file is where the bridge's contract with them is pinned (Phase 214).
+// file is where the bridge's contract with them is pinned.
 #pragma warning disable MAAI001
 
 /// <summary>
-/// Phase 214: <see cref="TraconAgentSessionStore"/> against Microsoft Agent
+/// <see cref="TraconAgentSessionStore"/> against Microsoft Agent
 /// Framework 1.26's <see cref="AgentSessionStore"/> contract.
 /// </summary>
 /// <remarks>
@@ -99,7 +99,7 @@ public sealed class SessionStoreIsolationTests
     [Fact]
     public async Task Deleting_through_an_isolation_partition_deletes_that_callers_session_and_no_other()
     {
-        // Phase 255: MAF 1.26 added DeleteSessionAsync. Folding the partition into the identity
+        // MAF 1.26 added DeleteSessionAsync. Folding the partition into the identity
         // must hold for the delete as it does for every other call, or one caller's delete
         // removes the session of the caller who shares the conversation id.
         await using var host = await StartAsync();

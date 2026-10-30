@@ -7,7 +7,7 @@ import { tr } from '../locales/tr';
  *
  * `react-i18next` and `i18next` cost 15–25 KB gzipped and bring plural rule
  * tables, namespaces and lazy loading that two closely related languages do not
- * need. The same reasoning as the hand-written router (K-045): the small thing
+ * need. The same reasoning as the hand-written router: the small thing
  * that fits is cheaper than the general thing that does not.
  *
  * What is NOT translated here, on purpose:
@@ -78,7 +78,7 @@ export function matchLocale(tags: readonly string[]): Locale | null {
 /**
  * Reads the stored language preference.
  *
- * `localStorage`, while the bearer token lives in `sessionStorage` (K-047): a
+ * `localStorage`, while the bearer token lives in `sessionStorage`: a
  * language is not a secret, and a preference that had to be set again in every
  * new tab would not be a preference at all.
  */

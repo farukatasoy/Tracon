@@ -2,7 +2,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Every <c>new PeriodicTimer(</c> in <c>src/</c> must be a known site whose
-/// period is either a constant or an option checked at startup (F-278).
+/// period is either a constant or an option checked at startup.
 /// </summary>
 /// <remarks>
 /// <para>

@@ -101,7 +101,7 @@ public sealed class WorkflowAgentBindingTests
     /// <summary>
     /// The executor id stays derived from the <c>(workflow, agent)</c> pair ONLY.
     /// Adding the tenant to the cache key must not reach the identity: checkpoints
-    /// written before the fix have to stay readable (Phase 16).
+    /// written before the fix have to stay readable.
     /// </summary>
     [Fact]
     public void Tenant_does_not_change_the_executor_id()

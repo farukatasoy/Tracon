@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
 /// <see cref="IJobDispatcher"/> carries a job's own time limit to the store and refuses one
-/// a timer cannot arm (F-323, the F-280 rule): the worker arms it as the attempt's
+/// a timer cannot arm: the worker arms it as the attempt's
 /// deadline, long after the call that queued the job returned.
 /// </summary>
 public sealed class JobDispatcherMaxDurationTests

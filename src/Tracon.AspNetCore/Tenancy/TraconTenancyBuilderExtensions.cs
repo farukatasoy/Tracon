@@ -59,7 +59,7 @@ public static class TraconTenancyBuilderExtensions
                 provider.GetRequiredService<IOptions<TraconOptions>>(),
                 provider.GetRequiredService<IOptions<TraconTenancyOptions>>())));
 
-        // Phase 170: the production profile gate's tenant question is answered
+        // The production profile gate's tenant question is answered
         // in Core by WHICH ITenantContext is bound, which this call has just
         // changed. That answer is wrong for Enabled=false, so the refinement is
         // registered exactly here - the one composition where it has something
@@ -68,7 +68,7 @@ public static class TraconTenancyBuilderExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IProductionProfileCheck, TenancyResolutionProfileCheck>());
 
-        // Phase 259: whether the request's header can name the tenant unverified is the same kind of
+        // Whether the request's header can name the tenant unverified is the same kind of
         // question (only this package sees the setting), and the core's egress check asks the switch
         // below whether tenants are separated, because Enabled=false still binds HttpTenantContext.
         services.TryAddEnumerable(

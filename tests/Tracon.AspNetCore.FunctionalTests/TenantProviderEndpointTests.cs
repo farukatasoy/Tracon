@@ -8,11 +8,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// CRUD and validation behavior of the <c>/api/tenants/{tenantId}/providers</c>
-/// and <c>/api/tenants/{tenantId}/egress</c> endpoints (phase 65, BYOK).
+/// and <c>/api/tenants/{tenantId}/egress</c> endpoints (BYOK).
 /// </summary>
 /// <remarks>
 /// 🚨 The rule these tests guard above all others: no response, under any
-/// condition, carries a credential value (section 65.1/65.5).
+/// condition, carries a credential value.
 /// </remarks>
 public sealed class TenantProviderEndpointTests
 {

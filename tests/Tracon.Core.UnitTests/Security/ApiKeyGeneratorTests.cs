@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Security;
 /// </summary>
 /// <remarks>
 /// Verifies that the key cannot be reversed, and that the hash cannot be
-/// predicted (Phase 53, section 53.2).
+/// predicted.
 /// </remarks>
 public sealed class ApiKeyGeneratorTests
 {

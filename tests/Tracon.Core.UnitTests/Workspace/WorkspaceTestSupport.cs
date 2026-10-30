@@ -7,7 +7,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Workspace;
 
 /// <summary>What the workspace tests share: a run scope, the limits, and a store with the walk fallback.</summary>
-// MAAI001: AgentFileStore is marked "evaluation purposes only" - see K-020.
+// MAAI001: AgentFileStore is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 internal static class WorkspaceTestSupport
 {

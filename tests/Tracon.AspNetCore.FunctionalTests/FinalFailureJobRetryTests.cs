@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A job whose failure carries a stable identity that a repeat cannot change fails on
-/// that attempt, whatever attempts are left (F-429).
+/// that attempt, whatever attempts are left.
 /// </summary>
 /// <remarks>
 /// <para>

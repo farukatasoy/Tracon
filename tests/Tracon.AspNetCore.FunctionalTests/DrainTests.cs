@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the graceful-shutdown drain gate on the run-starting endpoints (Phase 87.6, F-431).</summary>
+/// <summary>Tests for the graceful-shutdown drain gate on the run-starting endpoints.</summary>
 public sealed class DrainTests
 {
     private const string PreferHeaderName = "Prefer";
@@ -113,7 +113,7 @@ public sealed class DrainTests
             },
             []);
 
-        // Give the worker several ticks to (wrongly) pick this up. Phase 184:
+        // Give the worker several ticks to (wrongly) pick this up. An earlier change:
         // this used to be a fixed 200 ms, which under load could pass without
         // a single tick - a green test that proved nothing. Every tick reads
         // the drain state first, so counting reads counts refused ticks.
@@ -134,7 +134,7 @@ public sealed class DrainTests
         settled.ShouldBe(JobStatus.Completed);
     }
 
-    // --- F-431: the workflow endpoints start runs too ---
+    // --- an earlier fix: the workflow endpoints start runs too ---
     //
     // Each endpoint gets its own test: they do not share a filter, so a test of
     // one says nothing about another (the RunAuthorizationEndpointTests rule).

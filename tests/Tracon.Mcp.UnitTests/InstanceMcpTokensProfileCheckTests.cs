@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
-/// Phase 265 (F-768): the production decision that MCP OAuth tokens live where every declared instance reads
+/// The production decision that MCP OAuth tokens live where every declared instance reads
 /// them.
 /// </summary>
 /// <remarks>

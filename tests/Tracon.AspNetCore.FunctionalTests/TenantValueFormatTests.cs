@@ -13,7 +13,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 259 (F-755): a tenant value that is SENT and is not a well-formed tenant id is refused,
+/// A tenant value that is SENT and is not a well-formed tenant id is refused,
 /// instead of silently becoming the default tenant.
 /// </summary>
 /// <remarks>
@@ -200,7 +200,7 @@ public sealed class TenantValueFormatTests
     [Fact]
     public async Task A_missing_claim_still_resolves_the_default_tenant()
     {
-        // A missing value is not a malformed one. That is a separate question this phase does not change.
+        // A missing value is not a malformed one. That is a separate question this change does not change.
         await using var host = await StartWithClaimAsync();
 
         using var response = await host.Client.GetAsync(CurrentTenant, TestContext.Current.CancellationToken);
@@ -371,7 +371,7 @@ public sealed class TenantValueFormatTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    // ---- a value that ends in a line feed (phase 260, F-756) --------------------------
+    // ---- a value that ends in a line feed --------------------------
     // .NET's `$` matches before a trailing '\n' as well as at the very end, so a pattern written
     // `^...$` accepted "acme\n". A header cannot carry the character (the transport forbids it), so the
     // two places it can arrive are a claim an identity provider issued and a route segment.

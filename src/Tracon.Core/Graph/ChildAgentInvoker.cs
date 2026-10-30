@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
-// Phase 144: 144.1's two-layer wait limit. This mirrors the shape
-// OnlineEvalJobHandler.JudgeOneAsync uses for JudgeTimeout (K-621) — the
+// 144.1's two-layer wait limit. This mirrors the shape
+// OnlineEvalJobHandler.JudgeOneAsync uses for JudgeTimeout — the
 // same semantic is deliberately not reinvented for sub-agents.
 
 /// <summary>
@@ -266,7 +266,7 @@ public sealed class ChildAgentInvoker : AIAgent
         if (winner != invocation && !cancellationToken.IsCancellationRequested)
         {
             // The child is abandoned running in the background; its eventual
-            // result — success or failure — is discarded (K-621 semantics).
+            // result — success or failure — is discarded.
             // deadline is disposed by the observer once invocation settles,
             // never here: it is already canceled (childDeadline < waitTimeout),
             // but the child may still be reading its .Token.
@@ -281,7 +281,7 @@ public sealed class ChildAgentInvoker : AIAgent
             var response = await invocation.ConfigureAwait(false);
 
             // A step whose host turns the approval into a workflow request passes it on and the workflow
-            // waits for the answer (K-1051). An agent tree (K-103) and a plain function step refuse it.
+            // waits for the answer. An agent tree and a plain function step refuse it.
             if (!_hostsApproval && ChildRunApproval.Describe(response.Messages) is { } pending)
             {
                 return Refused(ApprovalRefusal(pending));
@@ -300,15 +300,15 @@ public sealed class ChildAgentInvoker : AIAgent
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && _refusalMode == ChildRefusalMode.ToolResult)
         {
-            // 🚨 K-737: NEITHER token was cancelled, so this is the provider
+            // NEITHER token was cancelled, so this is the provider
             // reporting its OWN request timeout - every provider SDK talks over
             // HttpClient, which raises exactly this exception. Calling it the
             // sub-agent's wait limit sends the operator to the wrong dial and
             // counts a provider outage on the wait-limit metric, so no
-            // ChildRunTimedOut event is written here. Phase 166.
+            // ChildRunTimedOut event is written here.
             //
             // A workflow step (ChildRefusalMode.Fail) does not reach this catch:
-            // the provider's own exception fails the step as it is (F-328).
+            // the provider's own exception fails the step as it is.
             return new AgentResponse(new ChatMessage(ChatRole.Assistant, ProviderFaultRefusal()));
         }
         finally
@@ -384,7 +384,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
                 if (step.Outcome == ChildStepOutcome.ProviderFault)
                 {
-                    // K-737, same distinction as the non-streaming path: no
+                    // Same distinction as the non-streaming path: no
                     // wait limit fired, so no ChildRunTimedOut event. A
                     // workflow step fails with the provider's own exception.
                     if (_refusalMode == ChildRefusalMode.Fail)
@@ -500,9 +500,9 @@ public sealed class ChildAgentInvoker : AIAgent
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            // 🚨 K-737: only OUR deadline firing makes this a wait limit. An
+            // Only OUR deadline firing makes this a wait limit. An
             // OperationCanceledException raised while neither token was
-            // cancelled is the provider's own request timeout. Phase 166.
+            // cancelled is the provider's own request timeout.
             return deadline.IsCancellationRequested
                 ? ChildStep.TimedOut()
                 : ChildStep.Faulted(ExceptionDispatchInfo.Capture(exception));
@@ -571,7 +571,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
         if (scope.Budget is { } budget)
         {
-            // F-529: the tenant's quota is read where the work begins. A spent tree budget answers
+            // The tenant's quota is read where the work begins. A spent tree budget answers
             // first, because it is held in memory and a quota read is not; and the quota is read
             // BEFORE the run is reserved, because a refused step must not use up a run of the tree.
             if (!budget.IsExhausted &&
@@ -633,7 +633,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
             // A step's workflow waits for the answer to a tool approval (K-1051), so its row closes
             // AwaitingApproval. The sub-agent a step's agent calls builds its OWN options and never gets
-            // this: below the step the approval is still refused (K-103).
+            // this: below the step the approval is still refused.
             SuspendsWorkflowOnApproval = _hostsApproval,
         };
     }

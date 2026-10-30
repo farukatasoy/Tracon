@@ -139,7 +139,7 @@ export function TriggersScreen({ meta }: { meta: Meta }): ReactNode {
                   </Td>
                   <Td>
                     {/* 🚨 Only the CONFIGURATION KEY NAME is ever shown or stored
-                        (K-059); "resolved" says the key was found at run time,
+                        ; "resolved" says the key was found at run time,
                         never what it contains. */}
                     {trigger.resolved ? (
                       <Badge tone="success">{t('triggers.resolved')}</Badge>
@@ -269,7 +269,7 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
   // 🚨 The tenant id is PART of the address an external system will sign
   // against. When the lookup fails, `…` used to be substituted silently and the
   // operator copied a URL that can never match — the same class of defect this
-  // phase closed on the settings screen, where a failed tenant lookup showed
+  // change closed on the settings screen, where a failed tenant lookup showed
   // the same em dash as "no tenant".
   const acceptUrl =
     tenant.isSuccess
@@ -287,7 +287,7 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
             {editing && (
               /* No confirmation step: §175.3 fails on both counts. The row
                   holds only the signing secret's configuration KEY NAME
-                  (K-059), never the secret, so re-creating the trigger from
+                  , never the secret, so re-creating the trigger from
                   this same form restores it exactly. */
               <Tooltip text={t('triggers.deleteEffect')}>
                 <Button tone="danger" busy={remove.isPending} onClick={() => remove.mutate()}>

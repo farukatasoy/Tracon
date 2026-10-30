@@ -64,7 +64,7 @@ describe('AgentEditorScreen', () => {
   });
 
   it('turning web search on clears the old off switch a stored definition carries', async () => {
-    // Web search is opt-in since F-315; a definition saved before it may still
+    // Web search is opt-in; a definition saved before it may still
     // carry disableWebSearch: true, and the server refuses both at once.
     let sent: { harness?: { enableWebSearch?: boolean; disableWebSearch?: boolean } } | undefined;
 
@@ -97,7 +97,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  // F-627: conversation memory is one box and one choice in the context section.
+  // Conversation memory is one box and one choice in the context section.
   describe('conversation memory', () => {
     type Sent = { memory?: Record<string, unknown> | null };
 
@@ -178,7 +178,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  // F-598: the request fields and the tool-call loop are edited in the model section.
+  // The request fields and the tool-call loop are edited in the model section.
   describe('request fields and tool-call loop', () => {
     type Sent = { model?: Record<string, unknown> };
 
@@ -276,7 +276,7 @@ describe('AgentEditorScreen', () => {
       });
     });
 
-    // F-607: a seed the browser cannot hold exactly is refused with an error, never rounded and sent.
+    // A seed the browser cannot hold exactly is refused with an error, never rounded and sent.
     describe('seed range', () => {
       const SEED_ERROR = /Seed must be a whole number from -9007199254740991 to 9007199254740991/;
 
@@ -455,7 +455,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  it('defaults the provider for a new agent once the catalogue loads (HATA-S4-009)', async () => {
+  it('defaults the provider for a new agent once the catalogue loads', async () => {
     restoreFetch = installApiMock(baseOverrides());
 
     renderScreen(<AgentEditorScreen />);
@@ -527,7 +527,7 @@ describe('AgentEditorScreen', () => {
     expect(await screen.findByText('Valid')).toBeTruthy();
   });
 
-  describe('callable agents section (Phase 228)', () => {
+  describe('callable agents section', () => {
     type Sent = { subAgents?: Record<string, unknown> | null };
 
     function validateInto(capture: (body: Sent) => void) {
@@ -609,7 +609,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  describe('skill read approval (Phase 231)', () => {
+  describe('skill read approval', () => {
     function withSkills(stored: { disableReadApproval?: boolean } | null) {
       return [
         fixture('GET', 'api/tools', []),
@@ -703,7 +703,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  describe('session workspace (Phase 234)', () => {
+  describe('session workspace', () => {
     type Sent = { workspace?: { enabled?: boolean; readOnly?: boolean; disableReadApproval?: boolean } | null };
 
     function withWorkspace(stored: NonNullable<Sent['workspace']> | null) {
@@ -813,7 +813,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  describe('extensions section (Phase 222)', () => {
+  describe('extensions section', () => {
     const registered = [
       { name: 'audit', description: 'Records every model call.' },
       { name: 'policy', description: null },
@@ -939,7 +939,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  describe('callable agents (Phase 250)', () => {
+  describe('callable agents', () => {
     type Sent = { callableAgents?: Array<{ name: string; version: number | null }> };
 
     const listed = [
@@ -1075,7 +1075,7 @@ describe('AgentEditorScreen', () => {
     });
   });
 
-  describe('loop section (Phase 201)', () => {
+  describe('loop section', () => {
     const catalog = {
       kinds: [
         { kind: 'completionMarker', builtIn: true, description: 'x' },
@@ -1259,7 +1259,7 @@ describe('AgentEditorScreen', () => {
       expect(screen.queryByText('Not registered')).toBeNull();
     });
 
-    // Phase 242 (F-411): the built-in agentReview kind names a reviewer agent of the catalog.
+    // The built-in agentReview kind names a reviewer agent of the catalog.
     describe('agentReview', () => {
       const agents = [
         { name: 'support', description: 'Answers support questions.', origin: 'Database' },
@@ -1426,7 +1426,7 @@ describe('AgentEditorScreen', () => {
       });
 
       it('loading and saving keep the reviewer fields of a kind that does not read them', async () => {
-        // K-918: only a kind CHANGE clears. A definition written over the API with a reviewer on another kind survives a save.
+        // Only a kind CHANGE clears. A definition written over the API with a reviewer on another kind survives a save.
         const validate = captureValidate();
 
         restoreFetch = installApiMock([

@@ -5,7 +5,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The consumer-facing half of Phase 73: the <c>buildTransitive</c> target that
+/// The consumer-facing half of an earlier change: the <c>buildTransitive</c> target that
 /// writes <c>AGENTS.md</c>, and the usage analyzer that reaches a consumer
 /// through the package.
 /// </summary>
@@ -24,7 +24,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     /// </summary>
     /// <remarks>
     /// 🚨 It used to be a mirrored <c>const</c>, with a comment saying so.
-    /// Phase 153 raised the generator's ceiling and this copy stayed behind:
+    /// raised the generator's ceiling and this copy stayed behind:
     /// the generator, its own gate and the site all agreed, and only this test
     /// failed — the repeated-expression class the repository has paid for
     /// before. The value now has one home; a second edit cannot desynchronise

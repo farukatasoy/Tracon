@@ -94,7 +94,7 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
     [Fact]
     public async Task Non_token_measurement_round_trips()
     {
-        // Phase 28: voice tools are billed by CHARACTER or SECOND, not token.
+        // Voice tools are billed by CHARACTER or SECOND, not token.
         // Five columns (unit, quantity, estimate, amount, currency) must
         // round-trip identically across all three dialects.
         var runId = TraconId.NewId();
@@ -115,7 +115,7 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
                 // 🚨 Verifies the fractional part is NOT TRUNCATED. On SQL
                 // Server, a decimal parameter with no explicit type is
                 // treated as decimal(18,0) and the fraction is silently
-                // dropped (a phase 23 lesson).
+                // dropped.
                 Cost = 0.0001357m,
                 Currency = "USD",
                 IsEstimated = true,
@@ -417,7 +417,7 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
     [Fact]
     public async Task Late_settlement_from_the_wrong_tenant_writes_nothing()
     {
-        // K-355: an EXPECTED-tenant write guard. The SQL side updates zero
+        // An EXPECTED-tenant write guard. The SQL side updates zero
         // rows rather than throwing; the in-memory side must not disagree.
         AmbientTenant.TenantId = TenantA;
 

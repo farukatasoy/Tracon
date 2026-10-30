@@ -350,7 +350,7 @@ public sealed class NonTokenCostAccumulatorTests
     [Fact]
     public void A_tool_amount_reported_after_the_total_was_read_is_held_for_the_quota_and_not_added()
     {
-        // F-482: the run's snapshot never changes after Seal (K-974); the amount is not lost,
+        // The run's snapshot never changes after Seal; the amount is not lost,
         // it is handed once to the one reader that must still count it.
         var accumulator = new NonTokenCostAccumulator("USD");
 

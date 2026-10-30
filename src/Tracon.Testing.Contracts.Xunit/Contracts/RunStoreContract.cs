@@ -81,7 +81,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task StartRunAsync_upserts_when_called_twice_with_the_same_id()
     {
-        // Phase 46: a queued run is first written as Queued, then written again
+        // A queued run is first written as Queued, then written again
         // with the SAME id (default Running) once the worker actually picks up
         // the job. The second call must NOT open a new row -- it must UPDATE
         // the existing row.
@@ -256,7 +256,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Custom_event_custom_type_round_trips_and_stays_null_for_every_other_type()
     {
-        // Phase 141: CustomType is the only field the Custom escape hatch
+        // CustomType is the only field the Custom escape hatch
         // adds to the wire; every store (in-memory and all three SQL
         // dialects) must carry it through unchanged, and must NOT invent one
         // for a built-in event type that never set it.
@@ -359,7 +359,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Completion_overrides_the_model_id_when_a_fallback_answered()
     {
-        // Phase 62, F-44: runs.model_id is written at start from the PRIMARY
+        // runs.model_id is written at start from the PRIMARY
         // binding, before it is known whether a ModelBinding.Fallbacks link
         // will answer instead; CompleteRunAsync corrects it so
         // GetStatisticsAsync's ByModel breakdown groups by the model that
@@ -397,7 +397,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Completion_overrides_the_model_provider_when_a_fallback_answered()
     {
-        // Phase 132, F-175: runs.model_provider is written at start from the
+        // runs.model_provider is written at start from the
         // PRIMARY binding and corrected at completion the same way model_id is,
         // when a ModelBinding.Fallbacks link answered instead.
         var runId = TraconId.NewId();
@@ -476,7 +476,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     // ---------------------------------------------------------------------
-    // Phase 68 -- run attribution and the token breakdown.
+    // Run attribution and the token breakdown.
     // ---------------------------------------------------------------------
 
     [Fact]
@@ -855,7 +855,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task The_cache_write_counters_round_trip_and_stay_null_when_they_were_never_reported()
     {
-        // Phase 253 (F-420): the written tokens are INSIDE input_tokens, reported beside them.
+        // The written tokens are INSIDE input_tokens, reported beside them.
         var written = TraconId.NewId();
         var silent = TraconId.NewId();
 
@@ -1015,8 +1015,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Applied_unit_prices_round_trip_and_do_not_enter_the_total()
     {
-        // Phase 132, F-175: the price snapshot carries the RATE that produced
-        // each cost term, not just the amount. K-483's rule extends to these
+        // The price snapshot carries the RATE that produced
+        // each cost term, not just the amount. the rule extends to these
         // three fields: they are never summed into RunCost.Total().
         var runId = TraconId.NewId();
         await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
@@ -1233,7 +1233,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Tree_usage_sums_the_breakdown_across_child_runs()
     {
-        // 🚨 The phase 20 lesson applied to four new fields at once: a field can
+        // 🚨 The lesson applied to four new fields at once: a field can
         // be added to the record, written to the row, read back correctly, and
         // STILL be dropped by the tree aggregation. This is the only test that
         // looks at that specific seam.
@@ -1918,7 +1918,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Query_filters_by_error_type()
     {
-        // HATA-S3-007: before RunQuery.ErrorType was added, this filter was
+        // Before RunQuery.ErrorType was added, this filter was
         // silently ignored and ALL runs were returned.
         var blockedId = TraconId.NewId();
         await Store.StartRunAsync(TestData.Run(blockedId));
@@ -1973,7 +1973,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     public async Task Summary_excludes_eval_runs()
     {
         // Eval case runs are synthetic test calls; they must not pollute
-        // normal statistics (Phase 18, open question 4).
+        // normal statistics.
         await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
 
         var evalRunId = TraconId.NewId();
@@ -2059,7 +2059,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     public async Task Summary_rows_with_no_error_class_appear_in_the_unknown_bucket()
     {
         // Simulates a row written before the error class was added: Class and
-        // Fingerprint are DELIBERATELY empty (K-014 -- historical records are
+        // Fingerprint are DELIBERATELY empty (historical records are
         // not backfilled). The query must not crash, and the row must appear
         // in the Unknown bucket.
         var runId = TraconId.NewId();
@@ -2145,7 +2145,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         stats.ErrorRate.ShouldBeNull();
     }
 
-    // --- Version and experiment breakdown (Phase 19.2-19.3) ---
+    // --- Version and experiment breakdown ---
 
     [Fact]
     public async Task Summary_computes_version_breakdown()
@@ -2249,7 +2249,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     public async Task Experiment_results_average_a_run_level_score_written_with_an_empty_message_id()
     {
         // RunScore.MessageId is documented as "if empty, the score belongs to
-        // the whole run" -- empty, not null. The score summary (phase 154)
+        // the whole run" -- empty, not null. The score summary
         // reads it that way; the experiment average did not, so the same row
         // counted as run-level in one query and message-level in the other,
         // silently dropping out of the arm's average.
@@ -2382,9 +2382,9 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Workflow_run_lives_in_the_same_table()
     {
-        // There is NO SEPARATE TABLE for workflow runs (Phase 15). The
+        // There is NO SEPARATE TABLE for workflow runs. The
         // distinction is made with the `kind` column, and the agents inside a
-        // workflow are attached under the same row using Phase 12's tree
+        // workflow are attached under the same row using the tree
         // mechanism.
         var workflowRunId = TraconId.NewId();
         var agentRunId = TraconId.NewId();
@@ -2442,7 +2442,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Query_session_filter_with_includeChildren_also_returns_child_runs()
     {
-        // HATA-S2-001: SessionId is set only on the ROOT run (K-217); a child
+        // SessionId is set only on the ROOT run; a child
         // run's own SessionId is NULL. Direct equality, when combined with
         // "includeChildren=true", used to match no child runs at all.
         var rootId = TraconId.NewId();
@@ -2566,7 +2566,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         root!.TreeUsage.ShouldBeNull();
     }
 
-    // --- Cost (Phase 20) ---
+    // --- Cost ---
 
     [Fact]
     public async Task Cost_is_written_and_read_back()
@@ -2747,8 +2747,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Time_series_does_not_exclude_eval_runs()
     {
-        // Unlike /api/stats (K-141), the time series does NOT exclude
-        // Eval/Workflow runs by default (see docs/KARARLAR.md K-152).
+        // Unlike /api/stats, the time series does NOT exclude
+        // Eval/Workflow runs by default.
         var now = DateTimeOffset.UtcNow;
         var from = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-1);
         var to = from.AddHours(1);
@@ -2918,7 +2918,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     [Fact]
     public async Task Run_record_is_stamped_with_the_current_tenant()
     {
-        // Moved from IsolationTests.cs (Phase 41): now runs across all four
+        // Moved from IsolationTests.cs: now runs across all four
         // test runs, not just PostgreSQL.
         AmbientTenant.TenantId = TenantA;
 
@@ -2929,9 +2929,9 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.GetRunAsync(runId))!.TenantId.ShouldBe(TenantA);
     }
 
-    // --- EXPECTED tenant on sub-write paths (K-355) ---
+    // --- EXPECTED tenant on sub-write paths ---
     //
-    // 🚨 These four tests close a defect. From Phase 41 until 2026-08-08,
+    // 🚨 These four tests close a defect. From until 2026-08-08,
     // AppendEventAsync / CompleteRunAsync / UpdateRunCostAsync /
     // RecordToolInvocationAsync carried NO tenant filter at all. Filtering by
     // the ambient tenant was tried and REVERTED: RunStartInfo.TenantId
@@ -3048,7 +3048,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
     }
 
-    // --- Orphaned run reconciliation (Phase 54) ---
+    // --- Orphaned run reconciliation ---
 
     [Fact]
     public async Task TouchHeartbeatAsync_silently_skips_a_nonexistent_or_non_Running_id()
@@ -3144,7 +3144,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     {
         // Same reason as the ContinuedFromRunId case above: reconciliation decides
         // from the CLAIMED record whether a run may be continued, and only a root
-        // agent run may (F-344). A store that dropped Kind or ParentRunId here would
+        // agent run may. A store that dropped Kind or ParentRunId here would
         // send a workflow root or a workflow step into agent continuation.
         AmbientTenant.TenantId = TenantA;
 
@@ -3307,7 +3307,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
     }
 
-    // --- Cross-instance run cancellation (Phase 262, F-764) ---
+    // --- Cross-instance run cancellation ---
 
     private static readonly TimeSpan CancelTimeTolerance = TimeSpan.FromSeconds(1);
 

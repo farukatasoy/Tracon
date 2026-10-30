@@ -5,7 +5,7 @@ namespace Tracon.Anthropic.UnitTests;
 
 /// <summary>
 /// A value under <c>Tracon:Providers:Anthropic</c> that the binder cannot read stops the host at startup
-/// and is named by its full key (phase 247).
+/// and is named by its full key.
 /// </summary>
 /// <remarks>
 /// <para>

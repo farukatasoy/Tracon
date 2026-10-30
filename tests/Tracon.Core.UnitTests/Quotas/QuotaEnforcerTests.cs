@@ -255,7 +255,7 @@ public sealed class QuotaEnforcerTests
 
     /// <summary>
     /// The admission check and the threshold accounting read only the current
-    /// periods' counters, computed in the configured time zone (F-275). They
+    /// periods' counters, computed in the configured time zone. They
     /// passed no period filter before, so every run read the tenant's whole
     /// usage history twice, and that history only grows.
     /// </summary>

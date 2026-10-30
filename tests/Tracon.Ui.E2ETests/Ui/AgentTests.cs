@@ -41,7 +41,7 @@ public sealed class AgentTests(BrowserFixture browsers)
     [Fact]
     public async Task Navigating_directly_to_code_agent_edit_URL_fills_form_with_name()
     {
-        // BUG-S4-010: the list screen hides "Edit" (per task K1), but
+        // the list screen hides "Edit" (per the zero-surprise rule), but
         // navigating directly to the edit URL opened the form empty with a
         // read-only "Name" field — the Validate/Save buttons could never be
         // enabled, so the expected 409 flow for the case was unreachable.
@@ -110,7 +110,7 @@ public sealed class AgentTests(BrowserFixture browsers)
         await Expect(session.Page.GetByTestId("fallback-model-0")).ToHaveValueAsync(ScriptedModels.Support);
 
         // Removing the only row returns to the empty-list hint, and a save
-        // round trip persists the now-empty list (K1: no lingering fallback).
+        // round trip persists the now-empty list (no lingering fallback).
         await session.Page.GetByTestId("remove-fallback-0").ClickAsync();
         await Expect(session.Page.GetByTestId("fallback-provider-0")).ToHaveCountAsync(0);
 
@@ -120,7 +120,7 @@ public sealed class AgentTests(BrowserFixture browsers)
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
 
         // The count below is also 0 before the form has loaded; wait for the
-        // loaded form first, or the check proves nothing (Phase 184).
+        // loaded form first, or the check proves nothing.
         await Expect(session.Page.GetByTestId("agent-name")).ToHaveValueAsync("fallback-agent");
         await Expect(session.Page.GetByTestId("fallback-provider-0")).ToHaveCountAsync(0);
     }
@@ -154,7 +154,7 @@ public sealed class AgentTests(BrowserFixture browsers)
     [Fact]
     public async Task Workspace_box_shows_its_two_options_and_the_request_carries_all_three()
     {
-        // Phase 234 (F-628): one box and two options. The options only exist while the box is checked.
+        // One box and two options. The options only exist while the box is checked.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
@@ -184,7 +184,7 @@ public sealed class AgentTests(BrowserFixture browsers)
     [Fact]
     public async Task Conversation_memory_box_shows_the_search_choice_and_the_request_carries_both()
     {
-        // Phase 233 (F-627): one box and one choice. The choice only exists while the box is checked.
+        // One box and one choice. The choice only exists while the box is checked.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
@@ -212,7 +212,7 @@ public sealed class AgentTests(BrowserFixture browsers)
     [Fact]
     public async Task Loop_built_in_the_console_is_saved_read_back_and_runs()
     {
-        // Phase 201 (F-302): the console builds the loop, not only carries it. The
+        // The console builds the loop, not only carries it. The
         // proof that it runs is the run's own LoopIterationCompleted event.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
@@ -268,7 +268,7 @@ public sealed class AgentTests(BrowserFixture browsers)
     [Fact]
     public async Task Request_fields_and_tool_loop_set_in_the_console_are_saved_and_read_back()
     {
-        // Phase 225 (F-598): the model section edits the request fields and the tool-call loop.
+        // The model section edits the request fields and the tool-call loop.
         // Both groups are closed while empty, open themselves once a value is stored, and the
         // value the server returns is the value typed.
         await using var host = await UiHost.StartAsync();
@@ -332,7 +332,7 @@ public sealed class AgentTests(BrowserFixture browsers)
     [Fact]
     public async Task A_seed_outside_the_safe_integer_range_is_refused_in_the_form_and_nothing_is_sent()
     {
-        // Phase 252 (F-607): the server takes a 64-bit seed, and a browser number is exact up to 2^53 - 1. 9007199254740993
+        // The server takes a 64-bit seed, and a browser number is exact up to 2^53 - 1. 9007199254740993
         // typed into the field would go out as 9007199254740992, a seed nobody wrote. The form refuses it instead.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
@@ -482,7 +482,7 @@ public sealed class AgentTests(BrowserFixture browsers)
     [Fact]
     public async Task Callable_agent_pinned_in_the_console_is_saved_read_back_and_sent_to_the_server()
     {
-        // Phase 250 (F-409): the editor shows the version a callable agent runs, lets the user pin it, and a
+        // The editor shows the version a callable agent runs, lets the user pin it, and a
         // save and a reopen keep the choice. The server's own read-back is the second witness: the select
         // could hold a value the request never carried.
         await using var host = await UiHost.StartAsync();

@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-564: <c>LiveVoiceSessionHost.StopDelegationsAsync</c> cancelled a snapshot of
+/// <c>LiveVoiceSessionHost.StopDelegationsAsync</c> cancelled a snapshot of
 /// sources that finished delegations dispose; one disposed source aborted the close.
 /// The interleaving cannot be forced through the host, so the snapshot is built by hand.
 /// </summary>

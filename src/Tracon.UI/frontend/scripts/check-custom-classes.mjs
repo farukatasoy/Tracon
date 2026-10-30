@@ -10,7 +10,7 @@ import { join, relative, resolve } from 'node:path';
  * classes are the exception - they are written by hand in `styles.css` and
  * referenced by hand in a component, with nothing tying the two together.
  *
- * Phase 162 renamed the product, and with it the `ap-` class prefix to
+ * renamed the product, and with it the `ap-` class prefix to
  * `tracon-`. One reference did not move: `transcript.tsx` kept applying
  * `ap-stream-caret` while the rule stayed `.tracon-stream-caret::after`. The
  * streaming caret was therefore never drawn, on every streaming turn, for as

@@ -17,7 +17,7 @@ internal sealed class CanaryOptionsValidator : IValidateOptions<CanaryOptions>
         ArgumentNullException.ThrowIfNull(options);
 
         // The evaluation loop scans on a PeriodicTimer; a period it refuses
-        // stops the host after startup (F-278). With automatic rollback off no
+        // stops the host after startup. With automatic rollback off no
         // timer exists, so the value is not checked.
         if (options.AutoRollbackEnabled && !TimerPeriod.IsValid(options.ScanInterval))
         {

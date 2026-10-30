@@ -9,11 +9,11 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 // MAAI001: the session store types are marked "evaluation purposes only"; this
-// file pins the bridge's delete against them (Phase 255).
+// file pins the bridge's delete against them.
 #pragma warning disable MAAI001
 
 /// <summary>
-/// Phase 255 (F-746): every path that deletes a session deletes the same things —
+/// Every path that deletes a session deletes the same things —
 /// the session record, the copy of its content that conversation memory keeps,
 /// and its attachments.
 /// </summary>
@@ -21,7 +21,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// 🚨 Three callers share one internal deletion: <c>DELETE /api/sessions/{id}</c>,
 /// <c>DELETE /v1/conversations/{id}</c> and the bridge Microsoft Agent Framework 1.26
-/// asks for (<c>AgentSessionStore.DeleteSessionAsync</c>). Before this phase the
+/// asks for (<c>AgentSessionStore.DeleteSessionAsync</c>). Before this change the
 /// conversation endpoint left the attachments behind: the session was gone, so no
 /// later call could reach them.
 /// </para>
@@ -472,7 +472,7 @@ public sealed class SessionDeletionPathTests
 
     private static async Task AssertAttachmentGoneAsync(TraconTestHost host, Guid attachmentId)
         => (await StatusOfAsync(host, attachmentId))
-            .ShouldBe(HttpStatusCode.NotFound, "the attachment must go with its session (F-746)");
+            .ShouldBe(HttpStatusCode.NotFound, "the attachment must go with its session");
 
     private static async Task AssertSessionExistsAsync(TraconTestHost host, string sessionId)
     {

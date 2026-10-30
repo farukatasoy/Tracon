@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Attachments;
 /// Verifies that audio types are recognized from their magic bytes.
 /// </summary>
 /// <remarks>
-/// Phase 28 finding G3: the list used to recognize only <c>ID3</c>, <c>FF FB</c>,
+/// finding G3: the list used to recognize only <c>ID3</c>, <c>FF FB</c>,
 /// and <c>FF F3</c>. The MPEG frame sync is an 11-bit MASK and produces many
 /// valid second-byte values; a fixed list produced a SILENT rejection on real
 /// provider output.

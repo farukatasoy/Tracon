@@ -9,7 +9,7 @@ namespace Tracon.Voice.UnitTests;
 /// <summary>
 /// The ElevenLabs operations and fields <c>Tracon.Voice</c> depends on, derived
 /// from the CODE and compared with the declaration in
-/// <c>Fixtures/elevenlabs-operations.json</c> (Phase 217, K-216).
+/// <c>Fixtures/elevenlabs-operations.json</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -101,7 +101,7 @@ public sealed class ElevenLabsOperationDriftTests
     [Fact]
     public void The_JSON_types_of_the_fields_the_client_uses_are_the_declared_ones()
     {
-        // F-576: a field whose JSON type changes (a number the provider turns into a string)
+        // A field whose JSON type changes (a number the provider turns into a string)
         // keeps its name, so the name-only declaration could not see it. A multipart form
         // carries every value as text on the wire, so it declares no types.
         foreach (var operation in Declaration())

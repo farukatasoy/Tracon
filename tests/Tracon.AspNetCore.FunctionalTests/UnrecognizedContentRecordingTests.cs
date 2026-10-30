@@ -8,7 +8,7 @@ using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTe
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-589 (phase 223) — model content Tracon has no event for (a hosted web search, a provider
+/// Model content Tracon has no event for (a hosted web search, a provider
 /// error, generated data) reaches the run record, through a real DI-built host and both the
 /// buffered and the streaming path. The payload rules are covered at unit level in
 /// <c>ContentEventPayloadTests</c> and <c>ReservedPayloadPolicyTests</c>; the options binding,
@@ -83,7 +83,7 @@ public sealed class UnrecognizedContentRecordingTests
 
         run.Status.ShouldBe(RunStatus.Completed);
 
-        // Every run records its context (F-773); nothing else is a Custom event here.
+        // Every run records its context; nothing else is a Custom event here.
         events.Where(static e => e.Type == RunEventType.Custom)
             .ShouldAllBe(static e => string.Equals(e.CustomType, RunEventCustomTypes.Context, StringComparison.Ordinal));
     }
@@ -91,7 +91,7 @@ public sealed class UnrecognizedContentRecordingTests
     [Fact]
     public async Task The_live_stream_does_not_carry_the_content_events()
     {
-        // K-991: the live run stream mirrors a closed list of notices. A content event is read
+        // The live run stream mirrors a closed list of notices. A content event is read
         // from the record, not pushed to every caller of the stream.
         await using var host = await StartAsync(Scripted());
 

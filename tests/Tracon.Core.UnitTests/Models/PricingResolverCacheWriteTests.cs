@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// Verifies how input tokens written into the provider's prompt cache are priced (phase 253): the
+/// Verifies how input tokens written into the provider's prompt cache are priced: the
 /// computation is subtractive, each time-to-live class has its own rate, and an undefined rate
 /// changes nothing.
 /// </summary>
@@ -64,7 +64,7 @@ public sealed class PricingResolverCacheWriteTests
     [Fact]
     public void A_write_priced_above_the_input_rate_costs_more_than_the_same_call_without_that_rate()
     {
-        // The fault this phase closes: the written tokens were priced as plain input.
+        // The fault this change closes: the written tokens were priced as plain input.
         var priced = CreateResolver(WritePricedModel());
         var unpriced = CreateResolver(WritePricedModel() with
         {

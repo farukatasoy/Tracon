@@ -9,7 +9,7 @@ namespace Tracon.Workflows.UnitTests.Fakes;
 /// </summary>
 /// <remarks>
 /// Answering one request resumes the run from its checkpoint, and the checkpoint republishes the
-/// request that is still open with the same request id (K-128). That is the shape that makes one
+/// request that is still open with the same request id. That is the shape that makes one
 /// request appear on two runs - the run that was answered, which stays
 /// <see cref="RunStatus.AwaitingInput"/>, and the run that continued it.
 /// </remarks>

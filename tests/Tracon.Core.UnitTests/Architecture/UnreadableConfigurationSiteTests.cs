@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// No configuration binder reads a scalar with the skip-and-keep-the-default pattern: every
-/// binder file reads through <c>ConfigurationValueReader</c> (F-572).
+/// binder file reads through <c>ConfigurationValueReader</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -118,7 +118,7 @@ public sealed partial class UnreadableConfigurationSiteTests
 
     // A typed TryParse, the repository's own wrappers around it, an enum TryParse, the old shared
     // readers of ProviderRegistrationCore, and an absolute-only Uri.TryCreate: it kept the default for
-    // a relative or mistyped address (F-702). RelativeOrAbsolute is left alone - the options validator
+    // a relative or mistyped address. RelativeOrAbsolute is left alone - the options validator
     // refuses the relative address it lets through (ProviderRegistrationCore.ReadEndpoint).
     [GeneratedRegex(
         @"\b(?:int|long|double|float|decimal|bool|TimeSpan)\.TryParse\(|\bEnum\.TryParse\b|\bTryReadBool\(|\bTryInt\(|\bTryTimeSpan\(|ProviderRegistrationCore\.Read(?:Int32|TimeSpan|Boolean|Decimal)\(|\bUri\.TryCreate\([^)]*\bUriKind\.Absolute\b",

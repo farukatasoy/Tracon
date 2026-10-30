@@ -19,12 +19,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
     {
         CreateSchema = $"CREATE SCHEMA IF NOT EXISTS {Schema};";
 
-        // set_name (phase 67): each migration SET numbers its own files from
+        // set_name: each migration SET numbers its own files from
         // 0001, so id alone is no longer unique — the primary key is
         // (set_name, id). A fresh database gets this shape directly; an
-        // existing one (created before phase 67) is upgraded by
+        // existing one (created) is upgraded by
         // UpgradeMigrationsTable below — NOT a numbered migration file
-        // (K-475: it would collide with InsertMigration's fixed text, see
+        // (it would collide with InsertMigration's fixed text, see
         // SqlDialect.UpgradeMigrationsTableAsync).
         CreateMigrationsTable = $"""
             CREATE TABLE IF NOT EXISTS {Schema}.__migrations (
@@ -191,7 +191,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // letting the caller's (possibly stale) value land would let a later
         // conditional update match a generation that no longer describes the
         // stored state.
-        // 🚨 owner_id is COALESCEd, never assigned from EXCLUDED (K-486's
+        // 🚨 owner_id is COALESCEd, never assigned from EXCLUDED (the
         // rule): a session's owner is claimed once, and "set -> unset" is
         // never a legitimate transition for it. An unconditional save that
         // carries no owner - a background continuation, a worker with no
@@ -230,7 +230,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // --- Runs ---
 
-        // 🚨 Phase 46: this is an UPSERT. A queued run is first written as
+        // This is an UPSERT. A queued run is first written as
         // Queued; when the worker actually runs the job it is called a second
         // time with the SAME id and the row is updated in place (no new row
         // is OPENED).
@@ -259,12 +259,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 experiment_id = EXCLUDED.experiment_id,
                 variant       = EXCLUDED.variant,
                 replay_of_run_id = EXCLUDED.replay_of_run_id,
-                -- F-321: COALESCE for the same reason as the attribution below. The
+                -- COALESCE for the same reason as the attribution below. The
                 -- party that opens a continuation writes the row with the link; the
                 -- engine that runs it writes it again and does not know the link.
                 continued_from_run_id = COALESCE(EXCLUDED.continued_from_run_id, {Schema}.runs.continued_from_run_id),
-                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
-                -- 46): a queued run's placeholder row is written during the HTTP
+                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
+                -- a queued run's placeholder row is written during the HTTP
                 -- request, where the user IS known, and rewritten later by the
                 -- background worker, where it is NOT (an HTTP-bound
                 -- IRunAttributionContext has no request to read). A plain
@@ -334,13 +334,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Orphaned run reconciliation (Phase 54). Affects only Running and Queued
-        // rows (Phase 240: a run waiting in-process for a workflow slot is Queued
+        // Orphaned run reconciliation. Affects only Running and Queued
+        // rows (a run waiting in-process for a workflow slot is Queued
         // and still owned by this process); for an id that does not exist or is in
         // another status it silently updates zero rows (a maintenance signal, not
         // a thrown error).
         //
-        // F-764: the statement also reads the row's cancellation request back (RETURNING),
+        // The statement also reads the row's cancellation request back (RETURNING),
         // so the owner finds a cancel in the same round trip that writes its heartbeat.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
@@ -357,8 +357,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // failure, and this is how behavioral parity with InMemoryRunStore is
         // achieved (ErrorFingerprint is internal in Tracon.Core and cannot
         // be reached from this assembly). A Queued row is claimed only when it
-        // has a heartbeat (Phase 240): the job queue owns a Queued row that never
-        // sent one (the Phase 46 ownership split), while a Queued row that did is
+        // has a heartbeat: the job queue owns a Queued row that never
+        // sent one (the ownership split), while a Queued row that did is
         // a run waiting in a process for a workflow slot, and that process is gone.
         ClaimOrphanedRuns = $"""
             UPDATE {Schema}.runs
@@ -409,7 +409,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        SUM(sub.input_cost)                         AS cost_input,
                        SUM(sub.output_cost)                        AS cost_output,
                        SUM(sub.cached_input_cost)                  AS cost_cached_input,
-                       -- phase 253 (F-420): what the descendants wrote into the prompt cache.
+                       -- What the descendants wrote into the prompt cache.
                        -- NOT coalesced, like the cache read above; cache_write_cost is the
                        -- FOURTH addend of the tree total, not a subset of input_cost.
                        {TreeSum("cache_write_input_tokens", "sub", false)}::bigint      AS cache_write_input_tokens,
@@ -418,14 +418,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        {CostCurrencyLabel("sub")}                  AS cost_currency,
                        COUNT(*) FILTER (WHERE sub.pricing_source = 2)::bigint AS unknown_pricing_rows,
                        COUNT(sub.pricing_source)::bigint           AS pricing_rows,
-                       -- phase 199: what the descendants reported beyond tokens. Their own
+                       -- What the descendants reported beyond tokens. Their own
                        -- totals, NOT terms of the token cost above, and NOT coalesced:
                        -- non_token_unsummed is NULL when no descendant reported anything.
                        SUM(sub.non_token_cost)                     AS non_token_cost,
                        {ReportedCurrencyLabel("sub")}              AS non_token_currency,
                        COUNT(*) FILTER (WHERE sub.non_token_estimated)::bigint AS non_token_estimated_rows,
                        SUM(sub.non_token_unsummed)::bigint         AS non_token_unsummed,
-                       -- F-419: the descendants' currencies the run's own row does not
+                       -- The descendants' currencies the run's own row does not
                        -- carry; the reader adds the own one and leaves a mixed total out.
                        {DescendantCurrencyCount(PricedCurrency, "sub", PricedCurrency("r"))}::bigint   AS cost_currencies,
                        {DescendantCurrencyCount(ReportedCurrency, "sub", ReportedCurrency("r"))}::bigint AS non_token_currencies
@@ -434,7 +434,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ) AS tree ON TRUE
             """;
 
-        // Phase 68 attribution filter, written ONCE and reused by the run list
+        // attribution filter, written ONCE and reused by the run list
         // and by every result set of the statistics query. Repeating it by hand
         // in eight places is how the copies drift apart.
         //
@@ -501,8 +501,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND (@kind       IS NULL OR r.kind       = @kind)
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
-                    -- HATA-S2-001: session_id is set only on the ROOT run
-                    -- (K-217); a child run's own session_id is NULL. Direct
+                    -- Session_id is set only on the ROOT run
+                    --A child run's own session_id is NULL. Direct
                     -- equality combined with "includeChildren=true" would
                     -- match no child run at all -- a row also matches when
                     -- its own tree's ROOT belongs to this session.
@@ -538,8 +538,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // explicit.
         // kind <> @kind_eval: eval case runs are synthetic test calls, not
         // real traffic; they are excluded so they do not pollute the summary
-        // (Phase 18, open question 4).
-        // scored_runs/positive_rate (Phase 31): matched_run_scores repeats the
+        // scored_runs/positive_rate: matched_run_scores repeats the
         // SAME filter as runs (tenant/eval/agent/date) -- it is added as a
         // scalar subquery instead of moving it into a separate CTE so the
         // existing total row is extended with the smallest possible change.
@@ -590,9 +589,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    {TreeSum("reasoning_tokens", null, true)}::bigint,
                    {TreeSum("audio_input_tokens", null, true)}::bigint,
                    {TreeSum("audio_output_tokens", null, true)}::bigint,
-                   -- Ordinal 18 (F-419): the currencies the costs above are in.
+                   -- Ordinal 18: the currencies the costs above are in.
                    {CostCurrencyCount(null)}::bigint,
-                   -- Ordinals 19-20 (F-420): the cache writes, counted INSIDE the input total.
+                   -- Ordinals 19-20: the cache writes, counted INSIDE the input total.
                    {TreeSum("cache_write_input_tokens", null, true)}::bigint,
                    {TreeSum("cache_write_long_input_tokens", null, true)}::bigint
             FROM {Schema}.runs
@@ -650,9 +649,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY agent_name, agent_version DESC
             LIMIT @max_agents;
 
-            -- Fifth result set: error class breakdown (Phase 44). Rows where
+            -- Fifth result set: error class breakdown. Rows where
             -- error_class is NULL (written before the error class column
-            -- existed) fall into the Unknown (0) bucket -- K-014 does not
+            -- existed) fall into the Unknown (0) bucket -- the earlier decision does not
             -- backfill.
             SELECT COALESCE(error_class, 0)::smallint,
                    COUNT(*)::bigint
@@ -711,7 +710,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE cluster_rank <= @top_clusters
             ORDER BY error_class, cluster_count DESC;
 
-            -- Seventh result set: breakdown by user (phase 68). Runs carrying no
+            -- Seventh result set: breakdown by user. Runs carrying no
             -- user stay OUT of this list but remain in the totals, exactly as
             -- runs with an unknown model do -- otherwise the two figures would
             -- disagree. APPENDED after the existing sets so their positions in
@@ -770,14 +769,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 SET updated_at = EXCLUDED.updated_at;
             """;
 
-        // --- Conversation branching (Phase 47) ---
+        // --- Conversation branching ---
 
-        // --- Run inputs (Phase 47) ---
+        // --- Run inputs ---
 
         // 🚨 The `messages` column is `json`, NOT `jsonb`: ChatMessage
         // contents are polymorphic and the `$type` discriminator must be the
-        // FIRST property of the object (K-027). A second write is ignored: a
-        // queued run (Phase 46) starts twice with the same id, and its input
+        // FIRST property of the object. A second write is ignored: a
+        // queued run starts twice with the same id, and its input
         // must not change.
         InsertRunInput = $"""
             INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at, parameters)
@@ -785,7 +784,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ON CONFLICT (run_id) DO NOTHING;
             """;
 
-        // --- Tool invocations (Phase 6) ---
+        // --- Tool invocations ---
 
         // Average duration is computed only over calls that carry a
         // duration: AVG already skips NULL values, so the denominator is correct.
@@ -804,7 +803,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             LIMIT @max_tools;
             """;
 
-        // --- Experiments (Phase 19) ---
+        // --- Experiments ---
 
         SelectExperiments = $"""
             SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
@@ -901,7 +900,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 -- RunScore.MessageId is "if EMPTY, the score belongs to the
                 -- whole run" -- empty covers both NULL and ''. Matching only
                 -- NULL would drop a '' row out of the arm average while the
-                -- score summary (phase 154) still counted it as run-level.
+                -- score summary still counted it as run-level.
                 WHERE tenant_id = @tenant_id AND kind = @score_kind_numeric
                   AND (message_id IS NULL OR message_id = '')
                 GROUP BY run_id
@@ -920,7 +919,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                         THEN NULL ELSE {CostTotal("r")} END,
                    {CostCurrencyLabel("r")},
                    AVG(s.avg_score),
-                   -- F-419: the currencies the arm's cost is in.
+                   -- The currencies the arm's cost is in.
                    {CostCurrencyCount("r")}::bigint
             FROM {Schema}.runs r
             LEFT JOIN run_avg_scores s ON s.run_id = r.id
@@ -931,7 +930,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // 🚨 date_trunc(unit, timestamptz) depends on the SESSION time zone --
         // a non-UTC `TimeZone` setting would silently shift every bucket
         // boundary relative to SQLite/SQL Server/the in-memory store, all of
-        // which truncate in UTC unconditionally (measured, Phase 154). The
+        // which truncate in UTC unconditionally (measured). The
         // "AT TIME ZONE 'UTC'" round trip forces UTC regardless of the
         // session setting: the first leg reads the instant as UTC wall-clock
         // time (timestamptz -> timestamp, no zone left to apply), date_trunc
@@ -944,9 +943,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // Empty buckets are also returned (generate_series + LEFT JOIN):
         // otherwise a gap in the chart would look like "zero" instead of "no
         // data". Eval/Workflow runs are DELIBERATELY NOT excluded — unlike
-        // SelectRunStatistics (see docs/KARARLAR.md K-152); they are filtered
+        // SelectRunStatistics; they are filtered
         // if @kind is given.
-        // One filter for the buckets and for the series' currency count (F-419): a copy
+        // One filter for the buckets and for the series' currency count: a copy
         // that drifted would count the currencies of other runs than the ones it adds.
         var timeSeriesFilter = """
                 WHERE tenant_id = @tenant_id
@@ -984,7 +983,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             {timeSeriesFilter}
                 GROUP BY {TruncateUtc("@bucket_unit", "started_at")}
             ),
-            -- F-419: a point carries no currency, so the WHOLE series is judged as one.
+            -- A point carries no currency, so the WHOLE series is judged as one.
             series AS (
                 SELECT {CostCurrencyCount(null)}::bigint AS currencies
                 FROM {Schema}.runs
@@ -1004,7 +1003,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY buckets.bucket;
             """;
 
-        // --- Spans (Phase 6) ---
+        // --- Spans ---
 
         // A trace header is unique on the (tenant, W3C id) pair; a second
         // write for the same run just updates the header.
@@ -1031,15 +1030,15 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     status     = EXCLUDED.status;
             """;
 
-        // --- Tool approval rules (Phase 6) ---
+        // --- Tool approval rules ---
 
         // A second rule for the same scope is not opened; the existing
         // record is returned. The constraint is a COALESCE'd expression
         // index because NULLs are not considered equal to each other in
         // PostgreSQL, and a plain UNIQUE constraint would not prevent the duplicate.
-        // conditions_hash (Phase 63) joined the key so a data-rule condition set
+        // conditions_hash joined the key so a data-rule condition set
         // is bound by the same "no unbounded duplicates" rule as arguments_hash.
-        // source_fingerprint (F-283) joined it too: a rule for the same tool of a
+        // source_fingerprint joined it too: a rule for the same tool of a
         // server that moved to another endpoint is a NEW rule, never the old one
         // returned in its place.
         InsertToolApprovalRule = $"""
@@ -1051,7 +1050,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions, source_fingerprint;
             """;
 
-        // --- MCP servers (Phase 6) ---
+        // --- MCP servers ---
 
         UpsertMcpServer = $"""
             INSERT INTO {Schema}.mcp_servers
@@ -1081,7 +1080,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING {McpServerColumns};
             """;
 
-        // --- Tenants (Phase 6) ---
+        // --- Tenants ---
 
         UpsertTenantDescriptor = $"""
             INSERT INTO {Schema}.tenants (id, slug, display_name, created_at)
@@ -1091,7 +1090,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id, slug, display_name, created_at;
             """;
 
-        // --- Attachments (Phase 14) ---
+        // --- Attachments ---
 
         SelectAttachments = $"""
             SELECT id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at
@@ -1124,7 +1123,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     updated_at = EXCLUDED.updated_at;
             """;
 
-        // Phase 51, Work Item A: the prefix, depth limit, and glob go down to
+        // Work Item A: the prefix, depth limit, and glob go down to
         // SQL; PostgreSQL also pushes the regex down as a pre-filter with the
         // `~` operator (the final match is always done client-side with .NET
         // Regex, unchanged).
@@ -1139,14 +1138,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY path;
             """;
 
-        // Phase 234: the session workspace is measured by the bytes the text takes (UTF-8).
+        // The session workspace is measured by the bytes the text takes (UTF-8).
         SelectAgentFileTreeUsage = $"""
             SELECT COUNT(*), COALESCE(SUM(octet_length(content)), 0)
             FROM {Schema}.agent_files
             WHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\';
             """;
 
-        // --- Workflows (Phase 15) ---
+        // --- Workflows ---
 
         // A name with no current row (new, or deleted and saved again) continues from the
         // highest version in the history, so a number is never given to a second content.
@@ -1164,7 +1163,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING version, updated_at;
             """;
 
-        // --- Audit log (Phase 9) ---
+        // --- Audit log ---
 
         SelectAuditLog = $"""
             SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash, key_id
@@ -1179,7 +1178,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             LIMIT @take;
             """;
 
-        // --- Audit hash chain (Phase 64) ---
+        // --- Audit hash chain ---
 
         SelectLastAuditHash = $"""
             SELECT hash, key_id
@@ -1199,7 +1198,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY chain_seq;
             """;
 
-        // --- Scheduling and job queue (Phase 17) ---
+        // --- Scheduling and job queue ---
 
         UpsertJobSchedule = $"""
             INSERT INTO {Schema}.job_schedules
@@ -1229,7 +1228,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE enabled = TRUE AND cron IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= @as_of;
             """;
 
-        // --- Inbound triggers (Phase 66) ---
+        // --- Inbound triggers ---
 
         UpsertInboundTrigger = $"""
             INSERT INTO {Schema}.inbound_triggers
@@ -1276,7 +1275,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING {JobColumns};
             """;
 
-        // The same statement with a per-tenant ceiling (Phase 240). A job whose handler key is one of
+        // The same statement with a per-tenant ceiling. A job whose handler key is one of
         // @cap_keys is skipped while its tenant holds @cap_max or more LIVE leases on those keys
         // (status IN (1, 2) AND lease_until >= @now); an expired lease does not count. The tenants at the
         // ceiling come from ONE uncorrelated subquery, which the planner hashes and evaluates once per
@@ -1336,7 +1335,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
              WHERE id = @job_id;
             """;
 
-        // --- Evaluation / eval (Phase 18) ---
+        // --- Evaluation / eval ---
 
         UpsertEvalSuite = $"""
             INSERT INTO {Schema}.eval_suites
@@ -1353,7 +1352,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // 🚨 `seq` is generated atomically here BY THE STORE (a MAX+1
         // subquery); the caller does not compute it
-        // (Phase 45, section 45.2). Two concurrent
+        // Two concurrent
         // promotions can compute the same seq; in that case the
         // eval_cases_suite_seq_uq violation is caught by
         // SqlDialect.IsUniqueViolation and SqlEvalStore retries. A
@@ -1389,7 +1388,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 21 -- quota
+        // Quota
         // -------------------------------------------------------------------
 
         // 🚨 The conflict target is the expression COALESCE(agent_name, ''),
@@ -1450,7 +1449,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 21 -- webhook
+        // Webhook
         // -------------------------------------------------------------------
 
         UpsertWebhookSubscription = $"""
@@ -1510,7 +1509,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 53 -- tenant-scoped API keys
+        // Tenant-scoped API keys
         // -------------------------------------------------------------------
 
         InsertApiKey = $"""
@@ -1521,7 +1520,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                  @last_used_at, @created_at);
             """;
 
-        // Setup health check (ExternalSurfaceGuard, section 53.4): the tenant
+        // Setup health check (ExternalSurfaceGuard): the tenant
         // filter is DELIBERATELY absent.
         HasApiKeyWithScope = $"""
             SELECT EXISTS (
@@ -1589,13 +1588,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 31 -- run/message score
+        // Run/message score
         // -------------------------------------------------------------------
 
         // 🚨 The conflict target is the expression COALESCE(message_id, '')
         // (must be IDENTICAL to the uniqueness index in migration 0017);
         // author is a plain column -- when it is NULL no conflict occurs at
-        // all and every call opens a new row (K1: no silent uniqueness
+        // all and every call opens a new row (no silent uniqueness
         // mechanism is introduced for an identity-less setup).
         UpsertRunScore = $"""
             INSERT INTO {Schema}.run_scores
@@ -1614,7 +1613,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 154 -- score summary (a query, not a counter; 154.1)
+        // Score summary (a query, not a counter; 154.1)
         // -------------------------------------------------------------------
 
         // Shared by every breakdown AND the series query below. `prefix` is
@@ -1723,7 +1722,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // A single result set, run only when RunScoreQuery.Bucket is given
-        // (154, open question 5: no cost when it is not). Buckets with no
+        // (154: no cost when it is not). Buckets with no
         // matching score are NOT produced -- a sparse series, unlike
         // SelectRunTimeSeries. date_trunc('week', ...) truncates to the
         // preceding Monday (ISO 8601), matching RunScoreBucketing.Truncate.
@@ -1748,7 +1747,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // If the lease is held by someone else and has not expired, WHERE
         // stays false; the conflict row is NOT UPDATED and RETURNING
-        // produces no row (the PostgreSQL side of K-177: a single-statement
+        // produces no row (the PostgreSQL side of the rule: a single-statement
         // upsert, no second result set).
         AcquireSingletonLease = $"""
             INSERT INTO {Schema}.singleton_leases (name, owner_id, expires_at, updated_at)
@@ -1762,7 +1761,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING name;
             """;
 
-        // Rate-limit window counter (Phase 263). One atomic upsert; ON CONFLICT DO UPDATE
+        // Rate-limit window counter. One atomic upsert; ON CONFLICT DO UPDATE
         // locks the row, so concurrent callers are counted one after the other. Every
         // right-hand side reads the row as it was BEFORE the update, so the CASE and
         // GREATEST see the same stored window. A later window restarts the count; an
@@ -1782,7 +1781,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // A PLAIN INSERT, not a DO NOTHING/UPDATE conflict clause: the caller
         // catches the violation with SqlDialect.IsUniqueViolation and reads
         // the existing record with SelectIdempotencyKey (DIFFERENT from
-        // K-177's two-branch upsert pattern -- here "already exists" is not
+        // the two-branch upsert pattern -- here "already exists" is not
         // an error, it is a normal flow branch).
         InsertIdempotencyKey = $"""
             INSERT INTO {Schema}.idempotency_keys (tenant_id, "key", fingerprint, state, created_at)
@@ -1822,7 +1821,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        decided_by, decided_at, expires_at, created_at, presentation;
             """;
 
-        // Phase 209 -- the workflow request inbox. The same close-and-read pattern as
+        // The workflow request inbox. The same close-and-read pattern as
         // ExpirePendingApprovals: the outer WHERE repeats status = open, so of two statements
         // that pick the same row the second waits on the row lock, re-reads it closed and
         // returns nothing. There is NO tenant filter -- this is a maintenance operation.
@@ -1844,7 +1843,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 65 -- tenant provider bindings (BYOK) and egress policy
+        // Tenant provider bindings (BYOK) and egress policy
         // -------------------------------------------------------------------
 
         UpsertTenantProviderBinding = $"""

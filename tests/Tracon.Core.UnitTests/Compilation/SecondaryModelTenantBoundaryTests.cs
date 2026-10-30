@@ -102,7 +102,7 @@ public sealed class SecondaryModelTenantBoundaryTests
     [Fact]
     public async Task The_aiJudge_model_keeps_the_setup_credential_even_when_the_tenant_binds_its_provider()
     {
-        // K-613/K-706: the host configures and pays for ONE judge model, the
+        // The host configures and pays for ONE judge model, the
         // same one the run judge uses. The tenant's egress policy applies to
         // it; the tenant's own key does not.
         var host = await Host.CreateAsync(bindAnthropic: true, judgeModel: Binding("anthropic"));

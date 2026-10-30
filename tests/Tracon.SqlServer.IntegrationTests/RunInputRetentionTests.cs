@@ -3,7 +3,7 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// 🚨 F-294: the parameter values a workflow was started with live only in its
+/// The parameter values a workflow was started with live only in its
 /// <c>run_inputs</c> row, and answering the run resumes with them. The retention
 /// target keeps the row of a run waiting for a human, on SQL Server too.
 /// </summary>

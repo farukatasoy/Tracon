@@ -142,9 +142,9 @@ internal sealed class OnlineEvalJobHandler(
         var input = await runInputStore.GetAsync(tenantContext.TenantId, run.Id, cancellationToken).ConfigureAwait(false);
 
         // When there is no run_inputs record, the judge would run blind; a
-        // silent half-scoring is not performed (Open Question 1). A record with no
+        // silent half-scoring is not performed. A record with no
         // messages is the same case: a workflow run that declares parameters keeps
-        // its values in such a row (F-294) and has no input text to judge against.
+        // its values in such a row and has no input text to judge against.
         if (input is null || input.Messages.Count == 0)
         {
             return ([], []);
@@ -214,7 +214,7 @@ internal sealed class OnlineEvalJobHandler(
     private async ValueTask<Dictionary<string, List<RunScore>>> ReadAlreadyScoredJudgesAsync(RunRecord run, CancellationToken cancellationToken)
     {
         // 🚨 "Has this judge already scored this run?" is asked over Author
-        // ALONE, never over the (author, name) pair (K-638, phase 152). Names
+        // ALONE, never over the (author, name) pair. Names
         // became part of the uniqueness key, so a judge may one day write more
         // than one row for a run; the checkpoint must still see it as scored,
         // or a retry would call that judge again.
@@ -298,11 +298,11 @@ internal sealed class OnlineEvalJobHandler(
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
-            // F-338: a permanent 4xx from the judge's model gets the same answer
+            // A permanent 4xx from the judge's model gets the same answer
             // on every attempt; retrying it only repeats the rejected request.
             // A structured answer cut off at the output limit is the same
             // case: the next attempt sends the same limit, pays for the same
-            // tokens and is cut off again. Raising the limit is the fix. F-429:
+            // tokens and is cut off again. Raising the limit is the fix. An earlier fix:
             // the question has one answer, FinalFailure, which the job worker and
             // the workflow node retry read too.
             failures.Add(Failure(
@@ -322,7 +322,7 @@ internal sealed class OnlineEvalJobHandler(
         }
 
         // 🚨 Validated BEFORE the first write. RunScore.Name is part of the
-        // stored uniqueness key (K-710), so a judgment that repeats a name
+        // stored uniqueness key, so a judgment that repeats a name
         // would silently overwrite its own earlier row. Validating the whole
         // list first keeps a bad judgment from writing a partial set.
         if (!TryValidate(judgment, judge, judgeContext, out var contractError))
@@ -430,7 +430,7 @@ internal sealed class OnlineEvalJobHandler(
             catch (Exception exception)
             {
                 // No filter: the delete runs on CancellationToken.None, so no
-                // OperationCanceledException here is a cancellation of ours (K-840).
+                // OperationCanceledException here is a cancellation of ours.
                 logger?.LogWarning(
                     exception,
                     "Judge '{Judge}' failed partway through writing its scores for run {RunId}, and score {ScoreId} could not be removed. That judge is now skipped on a retry and its remaining metrics stay unwritten.",

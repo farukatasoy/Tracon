@@ -3,7 +3,7 @@
  *
  * Hand written rather than pulled from a charting library, for the same
  * reason the workflow graph and the trace waterfall are hand drawn: the
- * bundle has a hard gzip budget enforced at build time (decision K-002).
+ * bundle has a hard gzip budget enforced at build time.
  * Kept pure and DOM-free so it is unit-testable without a browser; the
  * rendering lives in `components/charts.tsx`.
  */

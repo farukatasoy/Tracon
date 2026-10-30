@@ -54,8 +54,8 @@ internal static class TreeQuota
     {
         ArgumentNullException.ThrowIfNull(account);
 
-        // K-483 class: the one gate every writer goes through, so a term added to what a run
-        // spends is added once. F-418: the identity is the tree's, read from the account,
+        // The one gate every writer goes through, so a term added to what a run
+        // spends is added once. The identity is the tree's, read from the account,
         // because a child that ends after its root carries neither the root's tenant nor user.
         if (account.Quota is not { } quota || (runs <= 0 && tokens <= 0 && amount is null or <= 0m))
         {
@@ -76,7 +76,7 @@ internal static class TreeQuota
             },
             cancellationToken).ConfigureAwait(false);
 
-        // F-529: the ledger is the other side of the difference the budget's live meter makes with the
+        // The ledger is the other side of the difference the budget's live meter makes with the
         // counter. It is written here and nowhere else, after the entry went to the store, so a quota check
         // at the start of new work adds to the counter only the spend that entry has not covered yet. A
         // counter that could not be written does not fail a run (RecordAsync keeps that contract) and is

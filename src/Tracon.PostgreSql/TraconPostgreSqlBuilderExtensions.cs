@@ -91,13 +91,13 @@ public static class TraconPostgreSqlBuilderExtensions
             TraconPostgreSqlOptionsValidator>());
 
         // The context for the shared store layer. Everything provider-specific
-        // is collected here; the stores never see an Npgsql type (Phase 23, K-176).
+        // is collected here; the stores never see an Npgsql type.
         // Same rule as the store registrations: the last call wins. If this were
         // TryAdd, registering a second provider would leave the stores pointing
         // at the new provider while the context still pointed at the old one,
         // and the two would silently diverge.
         //
-        // Phase 110: the data source is resolved HERE, not registered as its own
+        // The data source is resolved HERE, not registered as its own
         // public NpgsqlDataSource DI service. Doing so used to be a two-way race:
         // either the consumer's own NpgsqlDataSource registration silently won
         // (TryAddSingleton) and Tracon's ConnectionString became a dead
@@ -123,13 +123,13 @@ public static class TraconPostgreSqlBuilderExtensions
                 AutoApplyMigrations = options.AutoApplyMigrations,
                 ProviderName = "PostgreSQL",
                 ContentProtector = contentProtector,
-                // Phase 82: empty unless the protector is actually enabled -
-                // K1 (identical behavior with the feature off) does not depend
+                // Empty unless the protector is actually enabled -
+                // The zero-surprise rule (identical behavior with the feature off) does not depend
                 // on what TraconContentProtectionOptions.Columns holds.
                 ProtectedColumns = contentProtector.IsEnabled
                     ? (IReadOnlySet<ProtectedColumn>)contentProtectionOptions.Columns
                     : System.Collections.Immutable.ImmutableHashSet<ProtectedColumn>.Empty,
-                // Phase 51: the {dimension} placeholder of the knowledge set's
+                // The {dimension} placeholder of the knowledge set's
                 // 0001_vector migration. Kept SEPARATE from the fixed schema
                 // placeholder (schema) because it comes from
                 // TraconKnowledgeOptions at startup, not headed by the provider.
@@ -137,16 +137,16 @@ public static class TraconPostgreSqlBuilderExtensions
                 {
                     ["dimension"] = knowledgeOptions.Dimensions.ToString(CultureInfo.InvariantCulture),
                 },
-                // Phase 67: the "knowledge" set needs pgvector and is opt-in.
-                // Phase 111: the "views" set publishes runs_v1 and is opt-in for
-                // the same K1 reason -- a published view is a permanent contract.
+                // The "knowledge" set needs pgvector and is opt-in.
+                // The "views" set publishes runs_v1 and is opt-in for
+                // the same reason -- a published view is a permanent contract.
                 EnabledMigrationSets = BuildEnabledMigrationSets(options),
             };
         }));
 
         // The marker accumulates (not TryAdd): if more than one provider is
         // registered, MigrationHostedService warns at startup and
-        // /api/diagnostics reports it. Rationale: K-183.
+        // /api/diagnostics reports it.
         services.AddSingleton(new SqlPersistenceRegistrationMarker("PostgreSQL"));
 
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
@@ -154,20 +154,20 @@ public static class TraconPostgreSqlBuilderExtensions
             provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
 
-        // Diagnostics (Phase 33): the winning provider's MigrationRunner is also
+        // Diagnostics: the winning provider's MigrationRunner is also
         // resolved as ISqlPersistenceDiagnostics; the same instance produces no
         // extra SQL connection.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
-        // Same reasoning, for the `tracon migrate` CLI command (Phase 83,
-        // section 83.5): MigrationRunner is linked-source, so a consumer that
+        // Same reasoning, for the `tracon migrate` CLI command (
+        // An earlier plan): MigrationRunner is linked-source, so a consumer that
         // references more than one provider sees ambiguous types with the
         // same name (CS0433). IMigrationApplier is the resolvable seam.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IMigrationApplier>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
-        // State preflight (Phase 156): read-only, tenant-agnostic counting of
+        // State preflight: read-only, tenant-agnostic counting of
         // the stored schema generations. A separate seam from ISessionStore on
         // purpose - that one always filters by tenant, pages, and pulls the
         // whole state payload, none of which a whole-database preflight wants.
@@ -179,11 +179,10 @@ public static class TraconPostgreSqlBuilderExtensions
 
         // Replaces the in-memory stores. TryAdd would not work here.
         //
-        // All five write-performing stores are registered wrapped in Phase 9's
+        // All five write-performing stores are registered wrapped in the
         // audit-trail decorators, so the audit trail behaves the same way
         // whether the store is in-memory or PostgreSQL. Rationale: same pattern
         // as the AddTracon() registration in Tracon.Core
-        // (Phase 9).
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
             static provider => new AuditingAgentDefinitionStore(
                 ActivatorUtilities.CreateInstance<SqlAgentDefinitionStore>(provider),
@@ -211,7 +210,7 @@ public static class TraconPostgreSqlBuilderExtensions
                 provider.GetRequiredService<TraconMetrics>())));
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
 
-        // Workflow definitions and checkpoints (Phase 15). The definition store
+        // Workflow definitions and checkpoints. The definition store
         // is wrapped in the audit-trail decorator; the checkpoint store is not:
         // a checkpoint is not a user decision, it is a byproduct of execution
         // and is written on every super-step — it would flood the audit trail.
@@ -225,18 +224,18 @@ public static class TraconPostgreSqlBuilderExtensions
         services.ReplaceTraconDefault(
             ServiceDescriptor.Singleton<IWorkflowCheckpointStore, SqlWorkflowCheckpointStore>());
 
-        // Job queue and schedule stores (Phase 17). Neither is wrapped: the
+        // Job queue and schedule stores. Neither is wrapped: the
         // queue carries its own state machine (Pending/Leased/Running/...),
         // same rationale as the workflow checkpoint store.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IJobStore, SqlJobStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IJobScheduleStore, SqlJobScheduleStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IInboundTriggerStore, SqlInboundTriggerStore>());
 
-        // Eval suite/case/run store (Phase 18). Not wrapped: same rationale as
+        // Eval suite/case/run store. Not wrapped: same rationale as
         // the job queue stores, it carries its own state machine.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IEvalStore, SqlEvalStore>());
 
-        // Quota and webhook stores (Phase 21).
+        // Quota and webhook stores.
         //
         // 🚨 In a multi-instance deployment this store is REQUIRED for quotas:
         // the in-memory counter is separate per process, and the quota ends up
@@ -252,84 +251,84 @@ public static class TraconPostgreSqlBuilderExtensions
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
-        // Tenant-scoped API keys (Phase 53). Not wrapped: same rationale as the
+        // Tenant-scoped API keys. Not wrapped: same rationale as the
         // quota/webhook stores, administrator actions are written to the audit
         // trail separately at the HTTP layer.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
 
-        // Tenant provider bindings (BYOK) and egress policy (Phase 65). Same
+        // Tenant provider bindings (BYOK) and egress policy. Same
         // rationale as the API key store: not wrapped, administrator actions
         // are written to the audit trail separately at the HTTP layer.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantToolPolicyStore, SqlTenantToolPolicyStore>());
 
-        // Retention and archival (Phase 25). The policy/run store (control
+        // Retention and archival. The policy/run store (control
         // plane) is NOT wrapped in the audit-trail decorator: same rationale as
         // the webhook/quota stores (administrator actions are written
         // separately at the HTTP layer). The data plane (IRetentionStore) is
         // meaningful only while a SQL provider is enabled; it replaces the
         // in-memory NullRetentionStore here.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
-        // Built like SqlAttachmentStore (F-332): the optional IAttachmentStorage
+        // Built like SqlAttachmentStore: the optional IAttachmentStorage
         // must reach the data plane, which deletes an attachment's external
         // content before its row.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlRetentionStore>(provider)));
 
-        // Data subject export/erasure (Phase 64). Replaces the in-memory
+        // Data subject export/erasure. Replaces the in-memory
         // NullDataSubjectStore; meaningful only with a SQL provider on. Built
         // like the retention data plane, for the same reason.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IDataSubjectStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlDataSubjectStore>(provider)));
 
-        // Single-executor election (Phase 42). Replaces the in-memory
+        // Single-executor election. Replaces the in-memory
         // InMemorySingletonLeaseStore; lease sharing is only meaningful here in
         // a multi-instance deployment.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
-        // The state lives in a database server, so every instance that reaches it shares the state (Phase 265).
+        // The state lives in a database server, so every instance that reaches it shares the state.
         services.Replace(ServiceDescriptor.Singleton(StateSharing.DatabaseServer("PostgreSQL")));
 
-        // Shared rate-limit counter (Phase 263). Replaces the in-memory
+        // Shared rate-limit counter. Replaces the in-memory
         // InMemoryRateLimitCounterStore; what makes Tracon:RateLimit:Scope =
         // Deployment hold across instances. Scope = Instance never calls it.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRateLimitCounterStore, SqlRateLimitCounterStore>());
 
-        // Call recording (Phase 29). Writes only if UseVoiceConversation() was
+        // Call recording. Writes only if UseVoiceConversation() was
         // called; the store stays empty otherwise. NOT wrapped in the
         // audit-trail decorator: the record is not an administrator decision,
         // it is a byproduct of execution.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
 
-        // Run/message scores (Phase 31). NOT wrapped in the audit-trail
+        // Run/message scores. NOT wrapped in the audit-trail
         // decorator: same rationale as the quota/webhook stores — a score is
         // not an administrator decision, it is feedback coming from a user.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
 
-        // Idempotency-Key support (Phase 43). Replaces the in-memory
+        // Idempotency-Key support. Replaces the in-memory
         // InMemoryIdempotencyStore; deduplication is only meaningful here in a
         // multi-instance deployment.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
 
-        // Run inputs (Phase 47). Replaces the in-memory InMemoryRunInputStore;
+        // Run inputs. Replaces the in-memory InMemoryRunInputStore;
         // replay keeps working after the process restarts only once the input
         // is persisted.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
 
-        // Asynchronous approval inbox (Phase 55).
+        // Asynchronous approval inbox.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWorkflowResponseStore, SqlWorkflowResponseStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWorkflowRequestStore, SqlWorkflowRequestStore>());
 
-        // Conversation branching (Phase 47). There is NO in-memory
+        // Conversation branching. There is NO in-memory
         // counterpart: MAF's InMemoryChatHistoryProvider keeps history in an
         // opaque blob of session state and cannot be copied up to a given
         // sequence number. Recording only happens here; without a registered
         // store the endpoint returns 501.
         services.TryAddSingleton<IConversationBranchStore, SqlConversationBranchStore>();
 
-        // A/B experiments (Phase 19). Wrapped in the audit-trail decorator for
+        // A/B experiments. Wrapped in the audit-trail decorator for
         // the same rationale as IAgentDefinitionStore: an admin's deliberate
         // decision, not a byproduct of execution.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
@@ -383,17 +382,17 @@ public static class TraconPostgreSqlBuilderExtensions
             static provider => ActivatorUtilities.CreateInstance<SqlAttachmentStore>(provider)));
 
         // Persistent agent file memory: FileMemoryProvider and TextSearchProvider
-        // resolve here without code changes (K-110).
+        // resolve here without code changes.
 #pragma warning disable MAAI001 // AgentFileStore — same rationale as TraconServiceCollectionExtensions.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<AgentFileStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAgentFileStore>(provider)));
 #pragma warning restore MAAI001
 
-        // Vector-based semantic search (Phase 51). K4: the ONLY concrete
+        // Vector-based semantic search. The ONLY concrete
         // implementation. TryAdd: if a consumer has already registered their
         // own IVectorSearchStore (for SQL Server/SQLite), theirs wins.
         //
-        // Phase 67: returns null while EnableKnowledge is off, so
+        // Returns null while EnableKnowledge is off, so
         // provider.GetService<IVectorSearchStore>() sees "not available" the
         // same way it would if this line never ran — an agent definition
         // requesting EnableVectorSearch fails compilation with a clear error

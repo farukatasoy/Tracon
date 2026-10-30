@@ -74,11 +74,11 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup(normalizedPattern).WithTags("Tracon", "AG-UI");
 
-        // The stream keeps itself alive at the cadence MapTracon's group sets (F-325).
+        // The stream keeps itself alive at the cadence MapTracon's group sets.
         group.WithMetadata(new SseKeepAliveMetadata(endpointOptions.StreamKeepAliveInterval));
         group.AddEndpointFilter(new TraconEndpointFilter(endpointOptions));
 
-        // Off by default, like the management API's (K-165). The group counts its own window: an AG-UI
+        // Off by default, like the management API's. The group counts its own window: an AG-UI
         // request does not spend the management API's, with Scope Instance or Deployment alike.
         if (TraconRateLimitFilter.ForAgUi(services) is { } rateLimitFilter)
         {

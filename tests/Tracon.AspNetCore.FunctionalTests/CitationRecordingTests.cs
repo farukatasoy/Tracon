@@ -8,7 +8,7 @@ using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTe
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-773 (phase 267) — the citations of a model response reach the run record, through a real DI-built
+/// The citations of a model response reach the run record, through a real DI-built
 /// host and both the buffered and the streaming path. The payload rules are covered at unit level in
 /// <c>CitationEventPayloadTests</c> and <c>CitationRecordingTests</c>; the options binding, the store, the
 /// HTTP read model and the live stream are only real here.
@@ -106,7 +106,7 @@ public sealed class CitationRecordingTests
     [Fact]
     public async Task The_live_stream_does_not_carry_the_citation_events()
     {
-        // K-991: the live run stream mirrors a closed list of notices. A citation is read from the
+        // The live run stream mirrors a closed list of notices. A citation is read from the
         // record, not pushed to every caller of the stream.
         await using var host = await StartAsync(Scripted());
 

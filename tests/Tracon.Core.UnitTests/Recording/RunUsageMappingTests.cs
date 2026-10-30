@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// Verifies how <c>UsageDetails</c> maps onto <see cref="RunUsage"/> (phase 68).
+/// Verifies how <c>UsageDetails</c> maps onto <see cref="RunUsage"/>.
 /// </summary>
 /// <remarks>
 /// The load-bearing assertion in this file is the NEGATIVE one: a provider that
@@ -142,7 +142,7 @@ public sealed class RunUsageMappingTests
     }
 
     /// <summary>
-    /// The class guard of the one mapping (K-483): every property of <see cref="RunUsage"/> is
+    /// The class guard of the one mapping: every property of <see cref="RunUsage"/> is
     /// filled from a <see cref="UsageDetails"/> that reports everything. A counter added to
     /// <see cref="RunUsage"/> and not to <see cref="UsageBreakdown.ToRunUsage"/> would stay null
     /// at the run recorder, the budget ring and both judges at once.

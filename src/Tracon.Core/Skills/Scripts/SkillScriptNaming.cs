@@ -8,7 +8,7 @@ namespace Tracon;
 // executed from there, and survived the cleanup - which only deletes the scratch
 // directory itself.
 //
-// K-087 kept the skill ROOT out of the interface's reach; this closes the other
+// The skill ROOT is kept out of the interface's reach; this closes the other
 // half, where the interface supplied the target PATH instead. The rule is
 // enforced in TWO places on purpose: the save endpoint, so the caller gets a 400
 // instead of a failed run, and the runner, because that is the boundary that

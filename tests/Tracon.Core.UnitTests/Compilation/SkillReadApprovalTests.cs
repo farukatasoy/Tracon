@@ -7,14 +7,14 @@ namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
 /// The definition decides whether the two skill tools that read text ask for approval; the
-/// tool that runs a script always asks (F-626, Phase 231).
+/// tool that runs a script always asks.
 /// </summary>
 /// <remarks>
 /// Microsoft Agent Framework wraps all three skill tools for approval by default. The proof is
 /// the tool list the model receives from a compiled agent: a tool the framework wrapped
 /// carries <see cref="ApprovalRequiredAIFunction"/>, and the function-invoking client
 /// reads exactly that to decide whether to stop the run. Both agent types are covered
-/// because they share one provider chain (F-578) and one of them could still drop the setting.
+/// because they share one provider chain and one of them could still drop the setting.
 /// </remarks>
 public sealed class SkillReadApprovalTests
 {

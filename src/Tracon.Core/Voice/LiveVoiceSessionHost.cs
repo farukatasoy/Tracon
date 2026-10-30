@@ -386,7 +386,7 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
             // Only the session's own close is a client end; a transport's own
-            // timeout is a failure of the sideband (K-840).
+            // timeout is a failure of the sideband.
             reason = VoiceSessionEndReason.Client;
         }
         catch (Exception exception)
@@ -515,7 +515,7 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            // Only a delegation WE cancelled is an interruption (K-840); a delegated
+            // Only a delegation WE cancelled is an interruption; a delegated
             // run that timed out on its own is logged as a failure below.
             //
             // A cancelled delegation still contributes what it already said, so the

@@ -4,9 +4,9 @@ namespace Tracon.Core.UnitTests.Coordination;
 
 /// <summary>
 /// End-to-end scenario where two <see cref="SingletonGuard"/> instances share
-/// the SAME lease store (Phase 42): only one holds the lease, and the other
+/// the SAME lease store: only one holds the lease, and the other
 /// takes over when the owner drops. The store's clock is a manual one
-/// (Phase 184): the takeover test used to sleep 200 ms past a 20 ms lease.
+///The takeover test used to sleep 200 ms past a 20 ms lease.
 /// </summary>
 public sealed class SingletonLeaseTakeoverTests
 {

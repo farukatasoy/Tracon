@@ -70,7 +70,7 @@ describe('money', () => {
   });
 
   it('never rounds a real, tiny cost down to the same text as zero', () => {
-    // HATA-S4-019: a single turn on a cheap model can cost less than 4
+    // A single turn on a cheap model can cost less than 4
     // decimals can represent. Rounded to "0.00" it is indistinguishable from
     // a genuinely free run — the exact confusion `money(0, ...)` vs
     // `money(null, ...)` already exists to avoid for an undefined price.
@@ -162,7 +162,7 @@ describe('splitTarget', () => {
     expect(splitTarget('agents/support/')).toEqual({ path: 'agents/support', search: '' });
   });
 
-  it('feeds matchRoute a path that matches the same pattern the query-free path would (HATA-S4-017)', () => {
+  it('feeds matchRoute a path that matches the same pattern the query-free path would', () => {
     // Before the fix, `navigate()` stored the WHOLE target — query string
     // still attached — as the path routes match against; the query string
     // glued itself to the last segment on the `/` split and no pattern

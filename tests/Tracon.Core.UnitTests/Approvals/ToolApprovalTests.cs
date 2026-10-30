@@ -16,11 +16,11 @@ public sealed class ToolApprovalTests
         // rule "an agent can only reference a registered tool" is enforced. No
         // other code path should be able to skip the wrapping.
         //
-        // Every server-side tool is wrapped in AuthorizingAIFunction (F-113)
-        // and TimeoutAIFunction (F-114), whether it requires approval or not
-        // (docs/69, section 69.1); approval alone no longer determines the
+        // Every server-side tool is wrapped in AuthorizingAIFunction
+        // and TimeoutAIFunction, whether it requires approval or not
+        // Approval alone no longer determines the
         // outermost type, and the outermost layer is CallRecordingAIFunction (with
-        // ExplainedFailureAIFunction directly inside it since HATA-S1-024). The
+        // ExplainedFailureAIFunction directly inside it). The
         // descriptor's RequiresApproval flag is the stable, wrapping-order-independent
         // way to observe approval.
         var withApproval = new ToolRegistry(
@@ -276,7 +276,7 @@ public sealed class ToolApprovalTests
         // "A store error does not grant approval ... the system asks the user."
         // The evaluator runs inside MAF's auto-approval callback with no token
         // of its own, so a store's TaskCanceledException is a store error, not
-        // a cancellation (K-840).
+        // a cancellation.
         var evaluator = CreateEvaluator(new ThrowingRuleStore(new TaskCanceledException("the rule store timed out")));
 
         (await evaluator.IsAutoApprovedAsync("support", Call("cancel_order"))).ShouldBeFalse();

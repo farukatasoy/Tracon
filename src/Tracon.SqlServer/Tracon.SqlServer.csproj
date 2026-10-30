@@ -15,13 +15,12 @@
 
     The flag is nonetheless DELIBERATELY false: even though static analysis is
     clean, the query path against a LIVE server has not yet been verified
-    under AOT (see Phase 23, the SQL Server container could not be run on
+    under AOT (the SQL Server container could not be run on
     this machine at the time). SqlClient's Azure AD authentication providers
     also rely on reflection and are a path a consumer can use. The library
     only makes a promise once it can verify it; the flag can be turned on
     after live verification.
 
-    Rationale: docs/KARARLAR.md, decision K-181; status table MIMARI.md section 9.
   -->
   <PropertyGroup Label="Trim / AOT">
     <TraconAotCompatible>false</TraconAotCompatible>
@@ -33,38 +32,38 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
-    <!-- CVE zorlamasi (Directory.Packages.props, SqlClient satirinin altindaki not; F-524). -->
+    <!-- CVE zorlamasi (Directory.Packages.props, SqlClient satirinin altindaki not). -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
-  <ItemGroup Label="Embedded SQL migrations (Phase 23)">
+  <ItemGroup Label="Embedded SQL migrations">
     <EmbeddedResource Include="Migrations/**/*.sql" />
   </ItemGroup>
 
   <!--
-    Optional migration set (Phase 111): applied only when EnableReadViews is
+    Optional migration set: applied only when EnableReadViews is
     turned on. A published view is a permanent data contract, so it is opt-in
-    (same reasoning as PostgreSQL's "knowledge" set, Phase 67).
+    (same reasoning as PostgreSQL's "knowledge" set).
   -->
-  <ItemGroup Label="Optional 'views' migration set (Phase 111)">
+  <ItemGroup Label="Optional 'views' migration set">
     <EmbeddedResource Include="MigrationsViews/**/*.sql" />
   </ItemGroup>
 
   <!--
-    Shared source (Phase 23). Tracon.Sql.Shared is NOT a package; the same
-    files also compile into Tracon.PostgreSql. Rationale: K-176.
+    Shared source. Tracon.Sql.Shared is NOT a package; the same
+    files also compile into Tracon.PostgreSql.
   -->
-  <ItemGroup Label="Shared SQL source (Phase 23)">
+  <ItemGroup Label="Shared SQL source">
     <Compile Include="../Tracon.Sql.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <!--
-    Tracon.Sql.Shared.UnitTests (phase 94) checks the SQL text of the three
+    Tracon.Sql.Shared.UnitTests checks the SQL text of the three
     providers side by side and cannot use the "$(MSBuildProjectName).UnitTests"
     convention below (that name belongs to a single provider). No Docker
     dependency: it never opens a connection, only builds a query-set object.
   -->
-  <ItemGroup Label="Internal visibility - cross-provider SQL text tests (phase 94)">
+  <ItemGroup Label="Internal visibility - cross-provider SQL text tests">
     <InternalsVisibleTo Include="Tracon.Sql.Shared.UnitTests" />
   </ItemGroup>
 

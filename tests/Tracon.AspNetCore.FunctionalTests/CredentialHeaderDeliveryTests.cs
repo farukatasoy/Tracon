@@ -17,7 +17,6 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A credential header declared by configuration key NAME reaches the remote
 /// MCP server and the webhook receiver with the value read from
 /// configuration, and a key outside the record's tenant is never read
-/// (phase 190).
 /// </summary>
 /// <remarks>
 /// Both targets are real HTTP servers on loopback: the header is added by the

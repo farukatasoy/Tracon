@@ -52,7 +52,7 @@ internal sealed class WorkflowFunctionRegistry : IWorkflowFunctionCatalog
             // Dependencies are resolved HERE, ONCE - when this singleton is
             // first built - not on every workflow compile. Microsoft Agent
             // Framework passes an empty service provider to executors at call
-            // time (K-218); a function node's own dependencies hit the exact
+            // time; a function node's own dependencies hit the exact
             // same trap unless they are captured now.
             var createExecutor = registration.CreateExecutorFactory(services);
 
@@ -171,7 +171,7 @@ internal sealed class WorkflowFunctionRegistry : IWorkflowFunctionCatalog
             throw new WorkflowFunctionSettingsException(WorkflowFunctionSettings.NoSettings(name));
         }
 
-        // F-303: the node's value wins over the registration's (K1); neither means the
+        // The node's value wins over the registration's; neither means the
         // function has no limit of its own and only the run's deadline stops it.
         return factory(executorId, settings, timeout ?? _descriptorsByName[name].Timeout);
     }

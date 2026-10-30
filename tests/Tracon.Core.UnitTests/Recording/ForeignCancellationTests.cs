@@ -120,7 +120,7 @@ public sealed class ForeignCancellationTests
     {
         // "Store failures do not interrupt the run": the event write is
         // observability. An HTTP-backed store's own timeout used to escape
-        // the writer and fail the run it was only recording (K-840, F-279).
+        // the writer and fail the run it was only recording.
         var store = new CancellingRunStore(new InMemoryRunStore()) { AppendTimesOut = true };
         var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
 

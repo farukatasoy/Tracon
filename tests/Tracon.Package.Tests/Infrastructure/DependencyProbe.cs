@@ -5,7 +5,7 @@ namespace Tracon.Package.Tests.Infrastructure;
 /// <summary>
 /// Measures the full transitive dependency closure a consumer gets from a
 /// single <c>PackageReference</c>, using <c>dotnet list package
-/// --include-transitive --format json</c> (Phase 95, item 22).
+/// --include-transitive --format json</c> (item 22).
 /// </summary>
 internal static class DependencyProbe
 {

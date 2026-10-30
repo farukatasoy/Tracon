@@ -42,7 +42,7 @@ internal sealed class TraconSchedulingOptionsValidator : IValidateOptions<Tracon
         // The worker polls on a PeriodicTimer and renews each job's lease on a
         // second one at a third of the lease; a period the timer refuses stops the
         // host (poll) or silently loses the lease (renewal) after startup
-        // (F-278). A process that runs no worker creates neither timer.
+        // A process that runs no worker creates neither timer.
         if (options.Enabled && options.RunWorker)
         {
             if (options.PollInterval > TimeSpan.Zero && !TimerPeriod.IsValid(options.PollInterval))
@@ -123,7 +123,7 @@ internal sealed class TraconSchedulingOptionsValidator : IValidateOptions<Tracon
             }
         }
 
-        // F-323, F-280: the worker arms each value as an attempt's deadline, and a
+        // The worker arms each value as an attempt's deadline, and a
         // timer refuses a value outside its range where it is armed - while a job is
         // already running. Checked whether or not this process runs the worker: the
         // map describes jobs, and another process's worker reads the same section.

@@ -11,7 +11,7 @@ namespace Tracon.Client.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The gap this closes was measured, not imagined. Phase 176 added
+/// 🚨 The gap this closes was measured, not imagined. An earlier change added
 /// <c>EvaluatorVersion</c> to a response record, the OpenAPI snapshot picked it
 /// up, and the generated client was never re-run: the field was absent from
 /// <c>TraconApiClient.g.cs</c> for a whole phase. Neither existing gate could

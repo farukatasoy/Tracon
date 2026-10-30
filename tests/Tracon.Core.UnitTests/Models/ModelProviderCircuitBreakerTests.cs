@@ -278,7 +278,7 @@ public sealed class ModelProviderCircuitBreakerTests
     [Fact]
     public async Task Wrap_does_not_count_a_failure_thrown_above_the_provider()
     {
-        // F-354: without the provider-boundary tag the failure came from a
+        // Without the provider-boundary tag the failure came from a
         // Tracon ring or a tool inside the circuit, not from the provider.
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
         using var wrapped = breaker.Wrap(Provider, new ThrowingChatClient());

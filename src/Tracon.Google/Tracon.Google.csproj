@@ -18,18 +18,17 @@
     dependency lives only in this package, and a consumer who does not use
     Gemini pulls none of it. The alternative (a single-maintainer, pre-1.0
     community package) was judged a bigger long-term risk. Rationale:
-    docs/KARARLAR.md, decision K-205.
   -->
   <ItemGroup>
     <PackageReference Include="Google.GenAI" />
   </ItemGroup>
 
   <!--
-    Shared source (Phase 181). Tracon.Providers.Shared is NOT a package; the same
+    Shared source. Tracon.Providers.Shared is NOT a package; the same
     files also compile into the other three provider adapters. Rationale and
     rules: src/Tracon.Providers.Shared/README.md.
   -->
-  <ItemGroup Label="Shared provider source (Phase 181)">
+  <ItemGroup Label="Shared provider source">
     <Compile Include="../Tracon.Providers.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 

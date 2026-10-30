@@ -124,7 +124,7 @@ public static class RunLabels
 
     // A broken key is echoed back to the caller; a very long one is cut so the
     // error message stays readable in a log line. The cut keeps a whole character: the
-    // message is written as JSON, and half of a surrogate pair cannot be (F-241).
+    // message is written as JSON, and half of a surrogate pair cannot be.
     private static string Describe(string key)
         => key.Length <= MaxKeyLength ? key : string.Concat(SurrogateSafeText.Prefix(key, MaxKeyLength), "...");
 }

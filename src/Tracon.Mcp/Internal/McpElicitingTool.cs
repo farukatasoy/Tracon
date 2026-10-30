@@ -60,7 +60,7 @@ internal sealed class McpElicitingTool : DelegatingAIFunction
         var scope = new McpToolCallScope(_serverName, Name, run, call, canTerminate: loop is not null, answers);
 
         // 🚨 Opened HERE, in the body: an assignment made in a helper async method does not flow back to
-        // this method, and the SDK's handler must see it (docs/hafiza/cekirdek-calistirma.md).
+        // this method, and the SDK's handler must see it.
         McpToolCallScope.Open(scope);
 
         try

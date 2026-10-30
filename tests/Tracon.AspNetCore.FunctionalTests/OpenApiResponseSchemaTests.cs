@@ -4,16 +4,16 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Verifies that the eleven <c>Task&lt;IResult&gt;</c> endpoints that used to
-/// report no response schema now report at least one (Phase 40, section 40.2).
+/// report no response schema now report at least one.
 /// </summary>
 /// <remarks>
-/// State measured before Phase 40: these eleven endpoints carried no entry
-/// under <c>responses</c> at all (see Phase 40, "What
+/// State measured: these eleven endpoints carried no entry
+/// under <c>responses</c> at all ("What
 /// doesn't work today").
 /// </remarks>
 public sealed class OpenApiResponseSchemaTests
 {
-    /// <summary>The operationIds of the eleven endpoints that reported no response schema before Phase 40.</summary>
+    /// <summary>The operationIds of the eleven endpoints that reported no response schema.</summary>
     public static TheoryData<string> HamTaskIResultOperationIds { get; } = new()
     {
         "TraconRunAgent",
@@ -101,7 +101,7 @@ public sealed class OpenApiResponseSchemaTests
     [Fact]
     public async Task Recorded_event_stream_endpoint_reports_SSE_and_404()
     {
-        // Phase 145 (K-273 class): before this phase, this was the only SSE
+        // Before this change, this was the only SSE
         // endpoint in the family that reported NO content type at all -- the
         // "200" response had a bare description and no "content" key, so a
         // generated client treated the stream as plain JSON.

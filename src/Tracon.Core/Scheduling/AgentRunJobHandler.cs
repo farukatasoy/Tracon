@@ -98,7 +98,7 @@ internal sealed class AgentRunJobHandler(
         // session is saved. Everything the run touches - the session manager's
         // owner resolution, the run record's attribution, its sub-agents and
         // tools - reads from this one scope, which is why the value has to be
-        // replayed rather than passed as a parameter to one of them. F-369: the
+        // replayed rather than passed as a parameter to one of them. The
         // labels travel too; opened with the user alone, the run's sub-agents
         // and tools saw none of the labels its own row carried.
         using var attribution = AmbientRunAttributionScope.Begin(userId, labels);
@@ -111,7 +111,7 @@ internal sealed class AgentRunJobHandler(
 
         try
         {
-            // F-351: the version, the arm and the culture were fixed at enqueue
+            // The version, the arm and the culture were fixed at enqueue
             // time. Resolving without them ran the current version with the
             // default instructions, and the run counted in no arm.
             arm = await VerifyArmAsync(context.Job, cancellationToken).ConfigureAwait(false);
@@ -125,7 +125,7 @@ internal sealed class AgentRunJobHandler(
                 ?? throw new TraconException(
                     $"No agent named '{context.Job.TargetName}' was found. The job will be marked as failed.");
 
-            // F-294: an agent that declares a schema carries the guard the
+            // An agent that declares a schema carries the guard the
             // compiler puts on it, which tells us without a store read; an
             // agent without one and a payload without values skips the lookup
             // entirely (the common case pays nothing).
@@ -170,9 +170,9 @@ internal sealed class AgentRunJobHandler(
         List<ChatMessage> messages = [.. documents.Select(DocumentChannelMessageBuilder.Build), new(ChatRole.User, message)];
 
         // 🚨 The session and the approvals are written BEFORE the run's terminal
-        // AwaitingApproval status is published, session first (F-133) - see
+        // AwaitingApproval status is published, session first - see
         // QueuedTurn. A store error on the save no longer fails the turn or
-        // runs it again (F-367).
+        // runs it again.
         var turn = new QueuedTurn(
             sessions, approvalStore, options, approvalOptionsMonitor, webhookPublisher, _clock, logger,
             context, runId, agent, session);
@@ -249,7 +249,7 @@ internal sealed class AgentRunJobHandler(
                         Message = SafeErrorText.ForPersistence(exception, correlationId),
                     },
 
-                    // The job's own tenant; the party that enqueued it wrote it (K-355).
+                    // The job's own tenant; the party that enqueued it wrote it.
                     TenantId = tenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -303,7 +303,7 @@ internal sealed class AgentRunJobHandler(
                 "and 'agentVersion' go together. The run will not start.");
         }
 
-        // 🚨 Fail closed (F-351). AgentRun is a built-in handler key an
+        // 🚨 Fail closed. AgentRun is a built-in handler key an
         // administrator can schedule with a hand-written payload. Recording a
         // run under an arm whose version it did not run would corrupt the
         // experiment's results, so the arm must name a variant of this

@@ -4,7 +4,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269): the package's Tracon.Testing.TraconTestHost and
+// Same rationale as AgentExtensionRunTests.cs: the package's Tracon.Testing.TraconTestHost and
 // this project's own TraconTestHost share a name.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
@@ -15,7 +15,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 234 (F-628): the approval of the file tools of a session workspace. A tool that changes a file always
+/// The approval of the file tools of a session workspace. A tool that changes a file always
 /// waits for a person; a tool that reads waits unless the definition turns that off.
 /// </summary>
 /// <remarks>

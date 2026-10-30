@@ -85,7 +85,7 @@ public abstract class RunInputStoreContract : StoreCancellationContract<IRunInpu
         await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "first")]));
         await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "second")]));
 
-        // 🚨 A queued run (phase 46) starts twice with the SAME id; the input
+        // 🚨 A queued run starts twice with the SAME id; the input
         // must not change.
         var read = await Store.GetAsync(Tenant, runId);
 

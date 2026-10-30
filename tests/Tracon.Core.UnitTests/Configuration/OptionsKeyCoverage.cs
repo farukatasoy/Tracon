@@ -13,7 +13,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// class exists and carries a test. It cannot prove what the class covers. A test
 /// that lists keys by hand locks today's members, but a member added tomorrow to the
 /// options type and to neither the binder nor the test leaves both silent — the
-/// shape that produced <c>TraconImageOptions.Timeout</c> and the F-385 lane
+/// shape that produced <c>TraconImageOptions.Timeout</c> and the lane
 /// collections. This helper closes that gap from the test side, the way
 /// <see cref="TraconOptionsBindingCoverageTests"/> does for the <c>TraconOptions</c>
 /// tree.
@@ -28,7 +28,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// the right member.
 /// </para>
 /// <para>
-/// Reflection is allowed here. The AOT rule (K-021) binds the library, not its tests.
+/// Reflection is allowed here. The AOT rule binds the library, not its tests.
 /// </para>
 /// </remarks>
 internal static class OptionsKeyCoverage

@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>
 /// Failure modes 7 and 8: <c>Idempotency-Key</c> on the workflow run endpoints. A repeated
 /// queued request returns the same <c>202</c> and queues nothing; a key without
-/// <c>Prefer: respond-async</c> is refused with <c>400</c> (open question 5, option A).
+/// <c>Prefer: respond-async</c> is refused with <c>400</c> (option A).
 /// </summary>
 /// <remarks>
 /// The filter stores the response it captures in memory. On these endpoints the

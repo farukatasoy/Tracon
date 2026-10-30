@@ -2,15 +2,15 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// K-269: Tracon.Testing.TraconTestHost and this project's own host share a
+// Tracon.Testing.TraconTestHost and this project's own host share a
 // name, so the package is imported one type at a time.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The session save ends a queued turn (F-133), but a store error on it after
-/// the model has answered is not a failure of the turn (F-367).
+/// The session save ends a queued turn, but a store error on it after
+/// the model has answered is not a failure of the turn.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -159,7 +159,7 @@ public sealed class QueuedTurnSessionSaveTests
     }
 
     /// <summary>
-    /// F-391: the approval row is written after the session, inside the same hook. A
+    /// The approval row is written after the session, inside the same hook. A
     /// store error there failed the run, and a job with attempts left called the model
     /// and ran the tool loop a second time.
     /// </summary>

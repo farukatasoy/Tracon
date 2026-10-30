@@ -13,7 +13,7 @@ public sealed class RoleTests(BrowserFixture browsers)
     [Fact]
     public async Task Write_buttons_are_hidden_for_reader_role()
     {
-        // Phase 9: when the Admin policy fails, the UI must hide write
+        // When the Admin policy fails, the UI must hide write
         // buttons — server-side authorization is still the only real
         // enforcement, this only prevents a bad experience (show it, get a 403).
         await using var host = await UiHost.StartAsync(
@@ -35,7 +35,7 @@ public sealed class RoleTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/mcp");
 
         // Anchor on the rendered screen first: the button is absent before the
-        // screen has rendered too (Phase 184).
+        // screen has rendered too.
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "MCP and approvals", Exact = true })).ToBeVisibleAsync();
         await Expect(session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" })).ToHaveCountAsync(0);
     }

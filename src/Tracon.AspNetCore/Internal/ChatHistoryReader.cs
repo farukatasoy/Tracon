@@ -98,7 +98,6 @@ internal static class ChatHistoryReader
         // and lives in EXACTLY ONE PLACE: there is no other public way to read the
         // history (ProvideChatHistoryAsync is protected), and this call only reads.
         // If MAF changes this API, only this spot needs updating.
-        // Rationale: docs/KARARLAR.md, decision K-037.
 #pragma warning disable MAAI001
         var context = new ChatHistoryProvider.InvokingContext(agent, session, []);
 #pragma warning restore MAAI001

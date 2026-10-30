@@ -7,11 +7,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A caller that cancels while a bound step is in flight leaves no open row.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: a bound step does more before its model call than a catalog step
+/// A bound step does more before its model call than a catalog step
 /// (a definition lookup, a compile outside the cache, the decorator chain), and a
 /// parameterized run also writes a <c>run_inputs</c> row. A cancellation landing
 /// anywhere in that stretch must still close the workflow row as
-/// <c>Canceled</c> (K-845) and close the step's own row; a row left
+/// <c>Canceled</c> and close the step's own row; a row left
 /// <c>Running</c> is reported minutes later as a failure that never happened.
 /// </remarks>
 public sealed class WorkflowParameterCancellationTests

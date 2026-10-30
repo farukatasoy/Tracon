@@ -12,12 +12,12 @@ import type { McpPromptSummary, McpResourceContent } from '../lib/server-types';
 import { Tooltip } from './tooltip';
 
 /**
- * A registered MCP server's prompts and resources (Phase 22.1 / 22.2).
+ * A registered MCP server's prompts and resources.
  *
  * Prompt content is a SNAPSHOT: the button copies it to the clipboard for
  * pasting into an agent's instructions, it never wires the agent to fetch it
  * live. A remote server changing its prompt must never change agent behavior
- * without a human re-copying it (decision, Phase 22 §22.1).
+ * without a human re-copying it.
  */
 export function McpServerDetail({
   serverName,

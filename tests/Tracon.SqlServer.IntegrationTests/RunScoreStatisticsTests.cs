@@ -5,7 +5,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// <summary>
 /// Verifies the hand-written SQL (CASE/SUM, scalar subquery) behind the
 /// <see cref="RunStatistics.ScoredRuns"/>/<see cref="RunStatistics.PositiveRate"/>
-/// computation on SQL Server, against a real database (Phase 31).
+/// computation on SQL Server, against a real database.
 /// </summary>
 public sealed class RunScoreStatisticsTests(SqlServerFixture fixture) : IAsyncLifetime
 {

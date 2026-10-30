@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <!--
-    The AG-UI protocol SDK (K-007, rationale in Directory.Packages.props). AGUI.Server turns a Microsoft.Extensions.AI
+    The AG-UI protocol SDK (rationale in Directory.Packages.props). AGUI.Server turns a Microsoft.Extensions.AI
     update stream into AG-UI events; AGUI.Abstractions carries the event and input types. Both are named here because
     this project uses types from both. The ASP.NET Core mapping and the SSE writing are NOT in the SDK: Tracon writes
     them, so the endpoint passes the same protection as every other Tracon surface.

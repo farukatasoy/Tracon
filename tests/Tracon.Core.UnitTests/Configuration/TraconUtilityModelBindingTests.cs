@@ -7,11 +7,11 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// and a number that cannot be read stops the application at startup.
 /// </summary>
 /// <remarks>
-/// 🚨 F-568: <c>Tracon:UtilityModel:Temperature = "abc"</c> failed the parse, the
+/// <c>Tracon:UtilityModel:Temperature = "abc"</c> failed the parse, the
 /// out value stayed <c>0</c>, and the key was non-empty, so the binder wrote
 /// <c>Temperature = 0</c>. The compaction summarizer ran at temperature zero and
 /// nothing named the typo. <c>MaxOutputTokens = "1.5"</c> became <c>0</c> and
-/// <c>TopP</c> the same. The F-385 rule (an unreadable value is not skipped) missed
+/// <c>TopP</c> the same. The rule (an unreadable value is not skipped) missed
 /// this binder because it builds an immutable record in one expression.
 /// </remarks>
 public sealed class TraconUtilityModelBindingTests
@@ -105,7 +105,7 @@ public sealed class TraconUtilityModelBindingTests
     {
         // The failure comes from the bound binding, not from a record of the raw
         // text: code that assigns UtilityModel after binding replaces it, and the
-        // application starts (K4, the F-385 precedent).
+        // application starts (the precedent).
         var values = Required();
         values[$"{Section}:Temperature"] = "abc";
 

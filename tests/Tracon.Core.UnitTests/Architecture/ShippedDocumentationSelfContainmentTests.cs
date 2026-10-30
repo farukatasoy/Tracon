@@ -1,28 +1,39 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Enforces the second half of the documentation boundary: everything that ships
-/// to a consumer is self-contained and written in the consumer's voice.
+/// Enforces the second half of the documentation boundary: the public tree is
+/// self-contained. A reader who holds only the public tree finds no pointer to a
+/// development record they were never given.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <see cref="SourceLanguageTests"/> settled the language question — a shipped
-/// document is English. This one settles the audience question. A shipped
-/// document may only point at things the consumer holds: the package's own types,
-/// members, configuration keys, HTTP paths, MSBuild properties, and the
-/// documentation site. It may not point at the development record, which the
-/// consumer never receives: phase numbers, decision ids, candidate ids, and the
-/// Turkish journal under <c>docs/</c>.
+/// document is English. This one settles the audience question. Every file of the
+/// public tree (<c>scripts/kamu-agaci.txt</c>) may point only at things the reader
+/// holds: the package's own types, members, configuration keys, HTTP paths, MSBuild
+/// properties, the contract directories <c>docs/sozlesme/</c> and
+/// <c>docs/openapi/</c>, and the documentation site. It may not point at the
+/// development record: phase numbers, decision, candidate and defect ids, the
+/// agent folder, the memory file, or the Turkish journal under <c>docs/</c>.
 /// </para>
 /// <para>
-/// The second pattern covers voice rather than reference. The documentation-site
-/// generators already strip alarm emoji, <c>Rationale:</c> openers, and
-/// <c>Measured (…)</c> blocks before publishing, which is the project's own
-/// judgement that they do not belong on a consumer surface. The package ships the
-/// unstripped text, so the same judgement has to be enforced at the source.
+/// A comment is part of the tree. A <c>//</c> line reaches a public reader the same
+/// way a <c>&lt;summary&gt;</c> does, and the reader does not hold the ledger the
+/// reference points at. The link between code and ledger runs one way: the ledger
+/// names a file and a symbol, the code does not name the ledger.
+/// </para>
+/// <para>
+/// Text that ships to a consumer is held to a second rule about voice. The
+/// documentation-site generators already strip alarm emoji, <c>Rationale:</c>
+/// openers and <c>Measured (…)</c> blocks before publishing, which is the project's
+/// own judgement that they do not belong on a consumer surface. The package ships
+/// the unstripped text, so the same judgement is enforced at the source for
+/// <c>///</c> blocks, package READMEs, template content, MSBuild imports, the
+/// licence files and the packed OpenAPI document.
 /// </para>
 /// <para>
 /// This is a ratchet, not a snapshot, and deliberately mirrors
@@ -35,13 +46,6 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// Refresh the baseline after a clean-up pass:
 /// <c>TRACON_SHIPPED_DOCS_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release</c>.
 /// </para>
-/// <para>
-/// Scope is exactly what reaches a consumer. Implementation comments (<c>//</c>)
-/// are out of scope on purpose: a maintainer reading the source benefits from
-/// "K-320 measured this position", and that line never leaves the repository.
-/// The same sentence inside <c>&lt;summary&gt;</c> does leave, because
-/// <c>GenerateDocumentationFile</c> ships it as XML.
-/// </para>
 /// </remarks>
 public sealed class ShippedDocumentationSelfContainmentTests
 {
@@ -50,9 +54,8 @@ public sealed class ShippedDocumentationSelfContainmentTests
     /// <remarks>Declared first: a static initialiser below reads it.</remarks>
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 
-
     /// <summary>
-    /// References into the development record. The consumer holds none of these, so a
+    /// References into the development record. The reader holds none of these, so a
     /// sentence that leans on one leaves them with a gap.
     /// </summary>
     /// <remarks>
@@ -74,6 +77,16 @@ public sealed class ShippedDocumentationSelfContainmentTests
     private static Regex InternalReferencePattern => InternalReferenceRegex.Value;
 
     /// <summary>
+    /// The memory file of the development repository. It is matched here, case-sensitively,
+    /// rather than in the shared pattern: that pattern ignores case, and a file called
+    /// <c>memory.md</c> is an ordinary name in the session-workspace tests and the site.
+    /// </summary>
+    private static readonly Regex MemoryFilePattern = new(
+        @"(?<![\w./-])MEMORY\.md\b",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
     /// The development journal's voice. Alarm emoji, a <c>Rationale:</c> opener and
     /// a dated measurement are notes to the next maintainer, not API documentation.
     /// </summary>
@@ -86,25 +99,50 @@ public sealed class ShippedDocumentationSelfContainmentTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// The repository README is read inside the repository, where <c>docs/</c>
-    /// resolves. Its links there are correct and stay; only the record references
-    /// are wrong for a first-time reader.
+    /// A comment marker at the start of a line. Removed from the second line of a pair
+    /// before the pair is joined, so a reference that wraps across two comment lines
+    /// reads as one.
     /// </summary>
-    private static readonly Regex DocumentationPathPattern = new(
-        @"\bdocs/[^\s`<),""]+",
+    private static readonly Regex LeadingCommentMarker = new(
+        @"^\s*(?:///?|#+|\*|--|>)\s?",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// This file names every forbidden pattern in order to test for it.
+    /// Everything below here is a private root: it is in the development repository and
+    /// never in the public tree. <c>docs/</c> is private except the two directories the
+    /// tree list names, which are checked first.
+    /// </summary>
+    private static readonly string[] PrivateRoots =
+    [
+        "docs/",
+        ".agents/",
+        ".claude/",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "MEMORY.md",
+        ".mcp.json",
+        "skills-lock.json",
+    ];
+
+    /// <summary>
+    /// Files that name every forbidden pattern in order to define or test it.
     /// </summary>
     private static readonly string[] SkippedFiles =
     [
         "tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs",
+        "docs-site/scripts/internal-history.pattern",
     ];
 
-    private static readonly string[] SkippedDirectorySegments =
-        ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];
+    /// <summary>
+    /// The lower-case forms that look like a reference but are ordinary code: a utility
+    /// class such as <c>mt-4</c>, a configuration key such as <c>k1</c> and a file name such as
+    /// <c>hata-kodlari.txt</c>. The ids the pattern exists for are upper-case.
+    /// </summary>
+    private static readonly Regex CodeTokenPattern = new(
+        @"^(?:k[1-4]|mt-.*|hata-.*)$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
 
     [Fact]
     public void Shipped_documentation_points_only_at_what_the_consumer_holds()
@@ -151,13 +189,158 @@ public sealed class ShippedDocumentationSelfContainmentTests
                            "dotnet test tests/Tracon.Core.UnitTests -c Release");
     }
 
+    [Fact]
+    public void The_public_tree_list_accounts_for_every_tracked_file()
+    {
+        var entries = ReadTreeList(TreeListPath);
+        var unaccounted = TrackedFiles()
+            .Where(path => !IsPublic(path, entries) && !IsPrivate(path))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        unaccounted.ShouldBeEmpty(
+            customMessage: "These tracked files are neither in scripts/kamu-agaci.txt nor under a private root, " +
+                           "so no gate scans them and the mirror would drop them. Add each one to the list " +
+                           $"(public) or to PrivateRoots (private):{Environment.NewLine}" +
+                           string.Join(Environment.NewLine, unaccounted));
+    }
+
+    [Fact]
+    public void The_scan_reads_every_public_root_and_no_private_one()
+    {
+        var entries = ReadTreeList(TreeListPath);
+        var scanned = EnumeratePublicFiles().Select(file => file.Relative).ToList();
+        var tracked = TrackedFiles();
+
+        scanned.ShouldNotContain(path => IsPrivate(path) && !IsPublic(path, entries));
+
+        foreach (var entry in entries.Where(entry => entry.EndsWith('/')))
+        {
+            if (tracked.Any(path => path.StartsWith(entry, StringComparison.Ordinal)))
+            {
+                scanned.ShouldContain(
+                    path => path.StartsWith(entry, StringComparison.Ordinal),
+                    $"The public root '{entry}' has tracked files but the scan read none of them.");
+            }
+        }
+    }
+
+    [Fact]
+    public void The_tree_list_skips_blank_and_comment_lines()
+    {
+        var entries = ParseTreeList(["# comment", "", "src/", "  README.md  ", "   ", "# src/ignored/", "Tracon.*.slnf"]);
+
+        entries.ShouldBe(["src/", "README.md", "Tracon.*.slnf"]);
+    }
+
+    [Fact]
+    public void A_missing_tree_list_fails_loudly()
+    {
+        var missing = Path.Combine(RepositoryRoot, "scripts", "no-such-tree-list.txt");
+
+        var error = Should.Throw<InvalidOperationException>(() => ReadTreeList(missing));
+
+        error.Message.ShouldContain("kamu-agaci.txt");
+    }
+
+    [Theory]
+    [InlineData("src/Tracon.Core/Foo.cs", true)]
+    [InlineData("docs/sozlesme/hata-kodlari.txt", true)]
+    [InlineData("docs/openapi/tracon.json", true)]
+    [InlineData("docs/KARARLAR.md", false)]
+    [InlineData("docs/hafiza/00-INDEKS.md", false)]
+    [InlineData("README.md", true)]
+    [InlineData("Tracon.src.slnf", true)]
+    [InlineData("Tracon.slnx", true)]
+    [InlineData("AGENTS.md", false)]
+    [InlineData("MEMORY.md", false)]
+    [InlineData(".agents/skills/x/SKILL.md", false)]
+    [InlineData("subdir/README.md", false)]
+    public void The_tree_list_decides_what_is_public(string path, bool expected)
+    {
+        var entries = ParseTreeList(
+            ["src/", "docs/sozlesme/", "docs/openapi/", "README.md", "Tracon.slnx", "Tracon.*.slnf"]);
+
+        IsPublic(path, entries).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData("// the retry loop (K-320 measured this position)")]
+    [InlineData("/// Added in phase 65 for the queue.")]
+    [InlineData("# see docs/KARARLAR.md for the rationale")]
+    [InlineData("description: \"Score given by a judge (Phase 49).\"")]
+    [InlineData("// the agent skill lives in .agents/skills/faz-uygulama")]
+    [InlineData("// the memory file MEMORY.md names this trap")]
+    [InlineData("// recorded as HATA-S3-008 and MT-MCP-023")]
+    [InlineData("// see section 53.4 of the plan")]
+    [InlineData("// This phase widens the store.")]
+    public void A_reference_into_the_development_record_is_flagged(string line)
+    {
+        CountOffendingLines([line], Rules.Reference).ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("see docs/sozlesme/hata-kodlari.txt for the codes")]
+    [InlineData("the snapshot docs/openapi/tracon.json is packed")]
+    [InlineData("see docs-site/src/content/docs/guides/x.md")]
+    [InlineData("../src/content/docs/reference/y.md")]
+    [InlineData("<div class=\"mt-4 mb-2\">")]
+    [InlineData("var key = \"k1\";")]
+    [InlineData("the snapshot hata-kodlari.txt lists the codes")]
+    [InlineData("See https://tracon.dev/docs/guides/setup")]
+    [InlineData("the phase of the moon")]
+    [InlineData("an ordinary comment about retries")]
+    public void Text_the_public_reader_holds_is_not_flagged(string line)
+    {
+        CountOffendingLines([line], Rules.Reference).ShouldBe(0);
+    }
+
+    [Fact]
+    public void A_reference_wrapped_across_two_comment_lines_is_flagged_on_both()
+    {
+        string[] lines =
+        [
+            "// the queue was reworked (phase",
+            "// 65) to drop the lock",
+            "// unrelated line",
+        ];
+
+        CountOffendingLines(lines, Rules.Reference).ShouldBe(2);
+    }
+
+    [Fact]
+    public void The_voice_rule_applies_only_where_the_text_ships()
+    {
+        string[] lines = ["🚨 a note to the next maintainer", "plain text"];
+
+        CountOffendingLines(lines, Rules.Reference).ShouldBe(0);
+        CountOffendingLines(lines, Rules.Reference | Rules.VoiceEveryLine).ShouldBe(1);
+    }
+
+    [Fact]
+    public void The_voice_rule_on_a_source_file_reads_documentation_comments_only()
+    {
+        string[] lines =
+        [
+            "// 🚨 an implementation comment stays",
+            "/// <summary>Measured (2026-09-04): fast.</summary>",
+        ];
+
+        CountOffendingLines(lines, Rules.Reference | Rules.VoiceDocumentationComments).ShouldBe(1);
+    }
+
     private static SortedDictionary<string, int> Scan()
     {
         var results = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
-        foreach (var (relative, absolute, kind) in EnumerateShippedFiles())
+        foreach (var (relative, absolute, rules) in EnumeratePublicFiles())
         {
-            var count = CountOffendingLines(absolute, kind);
+            if (IsBinary(absolute))
+            {
+                continue;
+            }
+
+            var count = CountOffendingLines(File.ReadAllLines(absolute), rules);
 
             if (count > 0)
             {
@@ -168,86 +351,135 @@ public sealed class ShippedDocumentationSelfContainmentTests
         return results;
     }
 
-    /// <summary>Every file that a consumer receives, with the rule that applies to it.</summary>
-    private static IEnumerable<(string Relative, string Absolute, ScanKind Kind)> EnumerateShippedFiles()
+    /// <summary>Every file of the public tree, with the rules that apply to it.</summary>
+    private static IEnumerable<(string Relative, string Absolute, Rules Rules)> EnumeratePublicFiles()
     {
-        var sourceRoot = Path.Combine(RepositoryRoot, "src");
+        var entries = ReadTreeList(TreeListPath);
 
-        if (Directory.Exists(sourceRoot))
+        foreach (var relative in TrackedFiles())
         {
-            foreach (var file in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
+            if (!IsPublic(relative, entries) || SkippedFiles.Contains(relative, StringComparer.Ordinal))
             {
-                var relative = Path.GetRelativePath(RepositoryRoot, file).Replace('\\', '/');
-
-                if (IsSkipped(relative))
-                {
-                    continue;
-                }
-
-                // The project template's content becomes the consumer's OWN project,
-                // and buildTransitive/ is imported into every consumer build: both
-                // are read by someone who has no access to the development record.
-                var shippedWhole =
-                    relative.Contains("/content/", StringComparison.Ordinal) ||
-                    relative.Contains("/buildTransitive/", StringComparison.Ordinal);
-
-                // A package README is PackageReadmeFile: nuget.org renders it.
-                if (relative.EndsWith("/README.md", StringComparison.Ordinal) &&
-                    relative.Count(character => character == '/') == 2)
-                {
-                    yield return (relative, file, ScanKind.EveryLine);
-                }
-                else if (shippedWhole && !relative.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-                {
-                    yield return (relative, file, ScanKind.EveryLine);
-                }
-                else if (Path.GetExtension(file).Equals(".cs", StringComparison.OrdinalIgnoreCase))
-                {
-                    yield return (relative, file, ScanKind.DocumentationComments);
-                }
+                continue;
             }
-        }
 
-        // The repository landing page. Its docs/ links resolve for a reader who is
-        // already in the repository, so only record references count against it.
-        var readme = Path.Combine(RepositoryRoot, "README.md");
+            var absolute = Path.Combine(RepositoryRoot, relative);
 
-        if (File.Exists(readme))
-        {
-            yield return ("README.md", readme, ScanKind.EveryLineKeepingDocumentationLinks);
-        }
-
-        // PackageLicenseFile packs one of these into every package (Phase 160), so
-        // they reach a consumer exactly the way a package README does.
-        foreach (var licence in new[] { "LICENSE.md", "LICENSE-MIT.md" })
-        {
-            var path = Path.Combine(RepositoryRoot, licence);
-
-            if (File.Exists(path))
+            if (File.Exists(absolute))
             {
-                yield return (licence, path, ScanKind.EveryLine);
+                yield return (relative, absolute, RulesFor(relative));
             }
-        }
-
-        // Packaged into Tracon.AspNetCore under buildTransitive/.
-        var openApi = Path.Combine(RepositoryRoot, "docs", "openapi", "tracon.json");
-
-        if (File.Exists(openApi))
-        {
-            yield return ("docs/openapi/tracon.json", openApi, ScanKind.EveryLine);
         }
     }
 
-    private static bool IsSkipped(string relativePath)
+    /// <summary>
+    /// The reference rule covers the whole tree. The voice rule covers what reaches a
+    /// consumer: the project template's content becomes the consumer's OWN project and
+    /// <c>buildTransitive/</c> is imported into every consumer build, both read by
+    /// someone with no access to the development record; a package README is
+    /// <c>PackageReadmeFile</c> and nuget.org renders it; <c>PackageLicenseFile</c> packs
+    /// the licence files; the OpenAPI document is packaged into
+    /// <c>Tracon.AspNetCore</c>; and <c>GenerateDocumentationFile</c> ships every
+    /// <c>///</c> block as XML.
+    /// </summary>
+    private static Rules RulesFor(string relative)
     {
-        if (SkippedFiles.Contains(relativePath, StringComparer.Ordinal))
+        var shippedWhole =
+            relative.StartsWith("src/", StringComparison.Ordinal) &&
+            (relative.Contains("/content/", StringComparison.Ordinal) ||
+             relative.Contains("/buildTransitive/", StringComparison.Ordinal)) &&
+            !relative.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+
+        var packageReadme =
+            relative.StartsWith("src/", StringComparison.Ordinal) &&
+            relative.EndsWith("/README.md", StringComparison.Ordinal) &&
+            relative.Count(character => character == '/') == 2;
+
+        var shippedFile = relative is "README.md" or "LICENSE.md" or "LICENSE-MIT.md" or "docs/openapi/tracon.json";
+
+        if (shippedWhole || packageReadme || shippedFile)
         {
-            return true;
+            return Rules.Reference | Rules.VoiceEveryLine;
         }
 
-        foreach (var segment in SkippedDirectorySegments)
+        if (relative.StartsWith("src/", StringComparison.Ordinal) &&
+            relative.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
         {
-            if (relativePath.Contains($"/{segment}/", StringComparison.Ordinal))
+            return Rules.Reference | Rules.VoiceDocumentationComments;
+        }
+
+        return Rules.Reference;
+    }
+
+    /// <summary>
+    /// Tracked files plus untracked ones that are not ignored, so a file added in the
+    /// working tree is scanned before it is committed. Git decides what exists: a walk
+    /// of the disk would read the generated and ignored trees the site build writes.
+    /// </summary>
+    private static List<string> TrackedFiles()
+    {
+        var start = new ProcessStartInfo("git")
+        {
+            WorkingDirectory = RepositoryRoot,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+        };
+
+        foreach (var argument in new[] { "ls-files", "--cached", "--others", "--exclude-standard", "-z" })
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(start)
+            ?? throw new InvalidOperationException("Could not start 'git'. The public-tree scan lists files with git.");
+
+        var errors = process.StandardError.ReadToEndAsync();
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"'git ls-files' failed with exit code {process.ExitCode}: {errors.GetAwaiter().GetResult()}");
+        }
+
+        return output.Split('\0', StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    private static string TreeListPath { get; } = Path.Combine(RepositoryRoot, "scripts", "kamu-agaci.txt");
+
+    private static List<string> ReadTreeList(string path)
+    {
+        if (!File.Exists(path))
+        {
+            throw new InvalidOperationException(
+                $"The public tree list '{path}' (scripts/kamu-agaci.txt) is missing. " +
+                "The gate cannot tell which files are public without it, and it does not guess.");
+        }
+
+        return ParseTreeList(File.ReadAllLines(path));
+    }
+
+    private static List<string> ParseTreeList(IEnumerable<string> lines) =>
+        lines
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && line[0] != '#')
+            .ToList();
+
+    private static bool IsPublic(string relative, IReadOnlyList<string> entries)
+    {
+        foreach (var entry in entries)
+        {
+            if (entry.EndsWith('/'))
+            {
+                if (relative.StartsWith(entry, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            else if (!relative.Contains('/', StringComparison.Ordinal) && MatchesFileName(entry, relative))
             {
                 return true;
             }
@@ -256,99 +488,207 @@ public sealed class ShippedDocumentationSelfContainmentTests
         return false;
     }
 
-    /// <remarks>
-    /// A documentation comment is inspected as a block rather than line by line: an
-    /// XML comment wraps at the source width, so "(phase 65)" is routinely split
-    /// across two lines and a per-line scan sees neither half. Measured: three such
-    /// references survived a per-line pass and were only caught when the generator
-    /// joined the block.
-    /// </remarks>
-    private static int CountOffendingLines(string file, ScanKind kind)
+    private static bool MatchesFileName(string entry, string name)
     {
-        var count = 0;
-
-        if (kind == ScanKind.DocumentationComments)
+        if (!entry.Contains('*', StringComparison.Ordinal))
         {
-            var block = new List<string>();
-
-            foreach (var line in File.ReadLines(file))
-            {
-                var trimmed = line.AsSpan().TrimStart();
-
-                if (trimmed.StartsWith("///"))
-                {
-                    block.Add(trimmed[3..].ToString().Trim());
-                    continue;
-                }
-
-                count += CountOffendingBlockLines(block);
-                block.Clear();
-            }
-
-            count += CountOffendingBlockLines(block);
-
-            return count;
+            return string.Equals(entry, name, StringComparison.Ordinal);
         }
 
-        foreach (var line in File.ReadLines(file))
+        var expression = "^" + Regex.Escape(entry).Replace("\\*", "[^/]*", StringComparison.Ordinal) + "$";
+
+        return Regex.IsMatch(name, expression, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
+    }
+
+    private static bool IsPrivate(string relative) =>
+        PrivateRoots.Any(root => root.EndsWith('/')
+            ? relative.StartsWith(root, StringComparison.Ordinal)
+            : string.Equals(root, relative, StringComparison.Ordinal));
+
+    private static bool IsBinary(string path)
+    {
+        using var stream = File.OpenRead(path);
+        var buffer = new byte[8000];
+        var read = stream.Read(buffer, 0, buffer.Length);
+
+        return Array.IndexOf(buffer, (byte)0, 0, read) >= 0;
+    }
+
+    /// <summary>
+    /// Counts the lines that carry a reference or, where the rules ask for it, the
+    /// wrong voice. A line is counted once, however many patterns it breaks.
+    /// </summary>
+    private static int CountOffendingLines(string[] lines, Rules rules)
+    {
+        var offending = new HashSet<int>();
+
+        for (var index = 0; index < lines.Length; index++)
         {
-            if (line.Length == 0)
+            if (HasReference(lines[index]))
+            {
+                offending.Add(index);
+            }
+        }
+
+        // A comment wraps at the source width, so "(phase 65)" is routinely split across
+        // two lines and a line-by-line scan sees neither half. Measured: three such
+        // references survived a per-line pass and were only caught when the site
+        // generator joined the block.
+        for (var index = 0; index + 1 < lines.Length; index++)
+        {
+            if (offending.Contains(index) && offending.Contains(index + 1))
             {
                 continue;
             }
 
-            var inspected = kind == ScanKind.EveryLineKeepingDocumentationLinks
-                ? DocumentationPathPattern.Replace(line, string.Empty)
-                : line;
-
-            if (InternalReferencePattern.IsMatch(inspected) || InternalVoicePattern.IsMatch(inspected))
+            if (ReferenceSpansBoundary(lines[index], lines[index + 1]))
             {
-                count++;
+                offending.Add(index);
+                offending.Add(index + 1);
             }
         }
 
-        return count;
+        if (rules.HasFlag(Rules.VoiceEveryLine))
+        {
+            for (var index = 0; index < lines.Length; index++)
+            {
+                if (InternalVoicePattern.IsMatch(lines[index]))
+                {
+                    offending.Add(index);
+                }
+            }
+        }
+
+        if (rules.HasFlag(Rules.VoiceDocumentationComments))
+        {
+            AddOffendingDocumentationLines(lines, offending);
+        }
+
+        return offending.Count;
+    }
+
+    private static bool HasReference(string text)
+    {
+        if (MemoryFilePattern.IsMatch(text))
+        {
+            return true;
+        }
+
+        foreach (Match match in InternalReferencePattern.Matches(text))
+        {
+            if (!IsAllowed(text, match))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ReferenceSpansBoundary(string first, string second)
+    {
+        var left = first.TrimEnd();
+        var right = LeadingCommentMarker.Replace(second, string.Empty).Trim();
+
+        if (left.Length == 0 || right.Length == 0)
+        {
+            return false;
+        }
+
+        var joined = left + " " + right;
+
+        foreach (Match match in InternalReferencePattern.Matches(joined))
+        {
+            if (match.Index < left.Length && match.Index + match.Length > left.Length && !IsAllowed(joined, match))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
-    /// Counts the lines of one comment block that carry a reference. The block is
-    /// matched as joined text, and a match is then attributed to the lines it spans
-    /// so the baseline still counts lines rather than blocks.
+    /// A match the reader may hold: a lower-case code token, a path into one of the two
+    /// contract directories, or a path inside the documentation site's own content tree
+    /// (<c>…/content/docs/…</c>), which is not the repository's <c>docs/</c>.
     /// </summary>
-    private static int CountOffendingBlockLines(List<string> block)
+    private static bool IsAllowed(string text, Match match)
+    {
+        if (CodeTokenPattern.IsMatch(match.Value))
+        {
+            return true;
+        }
+
+        var docsAt = match.Value.IndexOf("docs/", StringComparison.OrdinalIgnoreCase);
+
+        if (docsAt < 0)
+        {
+            return false;
+        }
+
+        var path = match.Value[docsAt..];
+
+        if (path.StartsWith("docs/sozlesme/", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("docs/openapi/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return text.AsSpan(0, match.Index + docsAt).EndsWith("content/", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A documentation comment is inspected as a block rather than line by line, for
+    /// the same reason as the pair check: the voice phrase "Measured (2026" wraps too.
+    /// A match is attributed to the lines it spans so the baseline still counts lines.
+    /// </summary>
+    private static void AddOffendingDocumentationLines(string[] lines, HashSet<int> offending)
+    {
+        var block = new List<(int Line, string Text)>();
+
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var trimmed = lines[index].AsSpan().TrimStart();
+
+            if (trimmed.StartsWith("///"))
+            {
+                block.Add((index, trimmed[3..].ToString().Trim()));
+                continue;
+            }
+
+            AddOffendingBlockLines(block, offending);
+            block.Clear();
+        }
+
+        AddOffendingBlockLines(block, offending);
+    }
+
+    private static void AddOffendingBlockLines(List<(int Line, string Text)> block, HashSet<int> offending)
     {
         if (block.Count == 0)
         {
-            return 0;
+            return;
         }
 
-        var joined = string.Join(' ', block);
+        var joined = string.Join(' ', block.Select(entry => entry.Text));
 
-        if (!InternalReferencePattern.IsMatch(joined) && !InternalVoicePattern.IsMatch(joined))
-        {
-            return 0;
-        }
-
-        var offending = new HashSet<int>();
-
-        foreach (var match in InternalReferencePattern.Matches(joined).Concat(InternalVoicePattern.Matches(joined)))
+        foreach (var match in InternalVoicePattern.Matches(joined).Cast<Match>())
         {
             var cursor = 0;
 
-            for (var index = 0; index < block.Count; index++)
+            foreach (var (line, text) in block)
             {
-                var end = cursor + block[index].Length;
+                var end = cursor + text.Length;
 
                 if (match.Index < end && match.Index + match.Length > cursor)
                 {
-                    offending.Add(index);
+                    offending.Add(line);
                 }
 
                 cursor = end + 1;
             }
         }
-
-        return offending.Count;
     }
 
     private static Dictionary<string, int> ReadBaseline()
@@ -412,16 +752,17 @@ public sealed class ShippedDocumentationSelfContainmentTests
                 $"Repository root not found. Searched upwards from '{AppContext.BaseDirectory}' for Tracon.slnx.");
     }
 
-    /// <summary>Which lines of a shipped file the rule applies to.</summary>
-    private enum ScanKind
+    /// <summary>Which rules apply to a file of the public tree.</summary>
+    [Flags]
+    private enum Rules
     {
-        /// <summary>Only <c>///</c> lines: the rest of a source file never ships.</summary>
-        DocumentationComments,
+        /// <summary>Every line is checked for a pointer into the development record.</summary>
+        Reference = 1,
 
-        /// <summary>Every line, both patterns.</summary>
-        EveryLine,
+        /// <summary>Every line is also checked for the journal's voice.</summary>
+        VoiceEveryLine = 2,
 
-        /// <summary>Every line, but <c>docs/</c> links are allowed and removed before inspection.</summary>
-        EveryLineKeepingDocumentationLinks,
+        /// <summary>Only <c>///</c> blocks are also checked for the journal's voice.</summary>
+        VoiceDocumentationComments = 4,
     }
 }

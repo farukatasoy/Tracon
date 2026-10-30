@@ -86,7 +86,7 @@ public sealed class AgentDelegationTests
     [Fact]
     public async Task Each_run_of_the_tree_writes_its_own_context_event()
     {
-        // F-773: the one-per-run claim belongs to the run's own scope. A child run that shared the
+        // The one-per-run claim belongs to the run's own scope. A child run that shared the
         // root's claim would write nothing, and a root that took the child's would write the child's
         // request; the tool loop of the root asks the model four times and must still write one.
         await using var host = await StartAsync();

@@ -20,7 +20,7 @@ export function builtInKind(kind: string): BuiltInLoopKind | null {
 
 /**
  * The criterion with its kind replaced and every field the NEW kind does not
- * read cleared (open question 6-A). A field the new kind reads keeps its value.
+ * read cleared. A field the new kind reads keeps its value.
  *
  * Only a kind change clears: loading and saving keep every field as it is, so a
  * definition written over the API with a field its kind ignores survives a
@@ -72,7 +72,7 @@ function swap<T>(items: readonly T[], from: number, to: number): T[] {
 }
 
 /**
- * The definition's harness loop (F-302): its criteria, ceiling and outcomes.
+ * The definition's harness loop: its criteria, ceiling and outcomes.
  *
  * Rendered only while harness features are on; the loop lives in
  * `form.harness.loop` and travels through `toRequest`/`fromDefinition` like the

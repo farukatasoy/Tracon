@@ -11,7 +11,7 @@ namespace Tracon.Mcp.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This test says the opposite of what it said until phase 264. Phase 42 put discovery behind a
+/// 🚨 This test says the opposite of what it said. An earlier change put discovery behind a
 /// single-executor lease and this class asserted that it ran on ONLY ONE instance. That choice was
 /// wrong: the catalog is a cache of the process and holds the live connection a tool call goes
 /// through, so an instance that did not discover had no MCP tool at all (measured on two hosts:
@@ -40,7 +40,7 @@ public sealed class McpDiscoverySingletonTests
         await serviceB.StartAsync(CancellationToken.None);
 
         // Neither instance waits for the other: each one completes its own passes. Two passes
-        // on each, not a window of time (phase 184 removed the fixed delay this test once had).
+        // on each, not a window of time (removed the fixed delay this test once had).
         await WaitUntil.TrueAsync(
             () => loggerA.CountContaining(DiscoveryCompleted) >= 2 && loggerB.CountContaining(DiscoveryCompleted) >= 2,
             "two MCP discovery passes on each instance");
@@ -71,7 +71,7 @@ public sealed class McpDiscoverySingletonTests
             attribution: null);
 
         // No SQL persistence provider is registered: the gate is open by
-        // itself, and discovery starts without waiting (K-354).
+        // itself, and discovery starts without waiting.
         var schemaReadyGate = new SchemaReadyGate([]);
 
         return new McpDiscoveryService(catalog, mcpOptions, schemaReadyGate, logger);

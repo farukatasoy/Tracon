@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// Shared helpers for walking the operation list in an OpenAPI document (Phase 40).
+/// Shared helpers for walking the operation list in an OpenAPI document.
 /// </summary>
 internal static class OpenApiTestHelpers
 {

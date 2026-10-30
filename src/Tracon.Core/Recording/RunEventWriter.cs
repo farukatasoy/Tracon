@@ -62,7 +62,7 @@ public sealed class RunEventWriter
     private readonly TraconMetrics? _metrics;
     private readonly TimeProvider _timeProvider;
 
-    // F-257: numbering, the store write and the sink dispatch of ONE event form
+    // Numbering, the store write and the sink dispatch of ONE event form
     // a single step. Without it two writers took 5 and 6, the second one's store
     // write and dispatch overtook the first one's, and a sink saw 6 before 5 -
     // against IRunEventSink's documented "in sequence order". Uncontended,
@@ -172,7 +172,7 @@ public sealed class RunEventWriter
     {
         ArgumentNullException.ThrowIfNull(info);
 
-        // The run's own tenant. Every subsequent sub-write carries this (K-355).
+        // The run's own tenant. Every subsequent sub-write carries this.
         TenantId = info.TenantId;
 
         if (IsDisabled)
@@ -191,7 +191,7 @@ public sealed class RunEventWriter
             // attempt's events. The collision disabled this writer for the rest of
             // the run, and CompleteAsync then skipped CompleteRunAsync silently:
             // the work finished, the job said Completed, and the run stayed in
-            // Running forever with no usage and no cost (HATA-S3-004). That is not
+            // Running forever with no usage and no cost. That is not
             // an edge case - it was the deterministic outcome of EVERY lease
             // takeover, which is the entire point of the feature.
             var lastSequence = await _store
@@ -360,9 +360,9 @@ public sealed class RunEventWriter
             // the function itself: the UI reads pending requests only from
             // this event, and if the payload were suppressed the user would
             // never see the question they need to answer. The same
-            // rationale was established in K-089 (a script that cannot be
+            // rationale holds elsewhere (a script that cannot be
             // written to the audit trail does not run). The quota threshold
-            // notice (phase 146) is the SAME exception: NoticeId is the
+            // notice is the SAME exception: NoticeId is the
             // dedup key a client reads to suppress a repeated warning, not
             // an observability detail, and it exists only inside this
             // reserved-prefix event's own payload -- suppressing it would
@@ -371,13 +371,13 @@ public sealed class RunEventWriter
             // The request payload is still CUT at MaxPayloadLength like any
             // other, so its reader must not need the whole JSON: the request
             // id is read from Text, and the prompt - written last - is the only
-            // field a cut can reach (F-327, WorkflowRequestDescriptor.Parse).
+            // field a cut can reach (WorkflowRequestDescriptor.Parse).
             //
-            // Phase 208: an answer's run names the run it answered only here
+            // An answer's run names the run it answered only here
             // (WorkflowResponseApplied), so that link is the function too. It
             // carries two ids, never the answer itself.
             //
-            // Phase 223: a reserved type is exempt only when it is named in
+            // A reserved type is exempt only when it is named in
             // KeepsPayloadWithPayloadsOff. The two content notices carry
             // provider text and workflow data, which are observability
             // details, so they follow the option.
@@ -388,7 +388,7 @@ public sealed class RunEventWriter
                 ? Truncate(draft.Payload)
                 : null,
 
-            // Expected tenant stamp (K-355).
+            // Expected tenant stamp.
             TenantId = TenantId,
         };
 
@@ -433,7 +433,7 @@ public sealed class RunEventWriter
     /// <summary>Fans the event out to every registered, not-yet-failed sink.</summary>
     private async ValueTask DispatchToSinksAsync(RunEvent runEvent, CancellationToken cancellationToken)
     {
-        // K1: no sink registered ⇒ this is the only cost paid on the hot path.
+        // No sink registered ⇒ this is the only cost paid on the hot path.
         if (_sinks.Count == 0)
         {
             return;
@@ -643,7 +643,7 @@ public sealed class RunEventWriter
         // type): IsDisabled tracks the STORE only, and AppendAsync below still
         // dispatches the closing event to every registered sink even when the
         // store already failed earlier in this run — a sink must never miss
-        // the terminal event just because the store did (docs/70).
+        // the terminal event just because the store did.
         var closingEvent = status switch
         {
             RunStatus.Completed => new RunEventDraft(RunEventType.RunCompleted),
@@ -682,7 +682,7 @@ public sealed class RunEventWriter
                     ModelId = modelId,
                     ModelProvider = modelProvider,
 
-                    // Expected tenant stamp (K-355).
+                    // Expected tenant stamp.
                     TenantId = TenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -754,7 +754,7 @@ public sealed class RunEventWriter
             return value;
         }
 
-        // 🚨 F-241: never between the halves of a surrogate pair. A lone high surrogate in a
+        // Never between the halves of a surrogate pair. A lone high surrogate in a
         // stored event is not text; the store refuses it and the writer would give up on the
         // run's recording from that event on.
         return string.Concat(

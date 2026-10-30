@@ -38,10 +38,10 @@ env:
 # Kural: sinir = olculen en uzun surenin ~2 kati, 5 dk'ya yukari yuvarlanir.
 # Bir dakikanin altindaki islerde taban 10 dk'dir: kurulum adimlarinin ag
 # gecikmesi yanlis bir kirmizi uretmesin. Olcum: GitHub Actions API, 16 kosum
-# (2026-09-06..21), is ve adim sureleri; tablo
-# `docs/hafiza/test-kosum-olcumleri.md` icindedir. Bir is sinirinin yarisini
+# (2026-09-06..21), is ve adim sureleri.
+# Bir is sinirinin yarisini
 # gecerse once yeniden olc, sonra yukselt. `--max-parallel-test-modules 1` -> 2
-# gecisi (F-267) sureyi kisaltir; sinirlar iki ayari da kapsar.
+# gecisi sureyi kisaltir; sinirlar iki ayari da kapsar.
 #
 # Adim siniri yalniz test ve kapasite adimlarindadir. Adim siniri yalniz o
 # adimi kirar; sonraki `if: always()` yukleme adimlari yine kosar ve biten test
@@ -56,7 +56,7 @@ jobs:
     # uzaga da itilir (ikinci bir uzak); orada hicbir is
     # kosmaz. Kosul YALNIZ burada durur: diger her is `needs` ile `build`'e
     # (dogrudan veya zincirle) baglidir ve atlanan bir bagimlilik onlari da
-    # atlar. `release-dryrun` zaten `if:` tasiyamaz (K-604). `needs: build`
+    # atlar. `release-dryrun` zaten `if:` tasiyamaz. `needs: build`
     # tasimayan yeni bir is eklenirse ayni kosulu kendisi tasir. Izin
     # listesidir: fork'lar da kosmaz. Repo tasinirsa bu satir guncellenir.
     if: github.repository == 'farukatasoy/Tracon'
@@ -66,7 +66,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        # Faz 183: temsilci test projeleri (tests/Directory.Build.props)
+        # Temsilci test projeleri (tests/Directory.Build.props)
         # net8.0;net9.0;net10.0 derlenir ve kosar. TFM matrisi ubuntu
         # bacaginin isidir; Windows bacagi PLATFORM farkini olcer ve
         # net10.0'da kalir. Bos deger = props dosyasinin varsayilani.
@@ -92,7 +92,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Faz 183: cok hedefli test bacaklari net8.0/net9.0 RUNTIME'ini ister.
+      # Cok hedefli test bacaklari net8.0/net9.0 RUNTIME'ini ister.
       # SDK global.json'dan secilir (10.0.x); bu surumler yalniz runtime
       # icin kurulur. Test apphost'u runtime'i DOTNET_ROOT'tan cozer ve
       # setup-dotnet ikisini ayni dizine kurar.
@@ -149,8 +149,8 @@ jobs:
       # dort kapinin dordu de yesil kalir ve nupkg BAYAT harita sevk eder. Bu adim
       # o bosluktur; hicbir npm bagimliligi istemez.
       #
-      # `reference/changelog.md` ve surum basina sayfalar (`reference/releases/`,
-      # F-710) .gitignore'dadir (CHANGELOG.md'den uretilir, kaynagiyla iki kopya
+      # `reference/changelog.md` ve surum basina sayfalar (`reference/releases/`)
+      #.gitignore'dadir (CHANGELOG.md'den uretilir, kaynagiyla iki kopya
       # olmasin diye) ama build-agent-map.mjs onlari hala `reference/` dizininden
       # okur - llmsBudgetBytes yorumu bu sayfanin llms.txt'ten DUSURULEMEYECEGINI
       # acikca soyler. Taze bir checkout'ta dosya
@@ -175,8 +175,8 @@ jobs:
       - name: Script tests
         run: python3 -m unittest discover -s scripts -p "*_test.py" -v
 
-      # @tracon/client'in kendi kapisi (Phase 84,
-      # bolum 84.10): schema-drift + paths-coverage + error-mapping + prefix +
+      # @tracon/client'in kendi kapisi:
+      # schema-drift + paths-coverage + error-mapping + prefix +
       # client testleri. `npm test`'e baglidir, `dotnet test`'e degil -- dort
       # kapinin suresi uretec/paket surumune baglanmaz.
       - name: TypeScript istemcisi bagimliliklari
@@ -191,7 +191,7 @@ jobs:
         run: dotnet build Tracon.slnx -c Release --no-restore
 
       # ---------------------------------------------------------------------
-      # Faz 191 - tek derleme zinciri. Bir `v*` etiketinin nuget.org'a ittigi
+      # Tek derleme zinciri. Bir `v*` etiketinin nuget.org'a ittigi
       # dosyalar BU adimin urettigi dosyalardir: test edilen derleme
       # `--no-build` ile paketlenir, `release-dryrun` onlari paketlemeden
       # dogrular, `publish` ayni baytlari iter.
@@ -204,14 +204,14 @@ jobs:
       # paketlerdi. Kapi: `dokuman-bakim.py --denetle` ("CI tek derleme
       # zinciri"). Yalniz ubuntu bacagi paketler; Windows platform farkini olcer.
       #
-      # Taban dogrulamasi (Faz 187) pack aninin isidir: son `v*` etiketinin
+      # Taban dogrulamasi pack aninin isidir: son `v*` etiketinin
       # paketleri izole bir cache'e nuget.org'dan restore edilir. Ag gerekir.
       # ---------------------------------------------------------------------
       - name: Paketle
         if: matrix.os == 'ubuntu-latest'
         run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket
 
-      # Faz 116: tahsis kapısı yalnız üç sıcak yoldan biri (veya bench/ kendisi)
+      # Tahsis kapısı yalnız üç sıcak yoldan biri (veya bench/ kendisi)
       # değiştiyse koşar - `kapi.py performans`'ın kendi mantığı
       # (`performance_gate_triggered`) yeniden kullanılır, CI kendi diff
       # tabanını hesaplar (PR'de taban dal, push'ta önceki commit).
@@ -278,16 +278,16 @@ jobs:
       # SKIPPED olarak gorunur (Assert.SkipWhen); ubuntu ayagi onlari kosar.
       - name: Test et (tum projeler)
         if: matrix.os == 'ubuntu-latest'
-        # Olculen en uzun 24,6 dk, ama Faz 183'un uc TFM bacagindan ONCE.
+        # Olculen en uzun 24,6 dk, ama uc TFM bacagindan ONCE.
         # Bacaklar yerel tam kosumu 782 -> 910 sn uzatti (%16): 24,6 x 1,16 x 2 = 57.
         timeout-minutes: 60
-        # Faz 215: `dotnet test` Microsoft Testing Platform kipindedir (global.json
+        # `dotnet test` Microsoft Testing Platform kipindedir (global.json
         # `test.runner`); `-maxcpucount` bu kipte HIC TEST KOSTURMADAN cikis kodu 5
         # verir ve `--` ayiricisi yoktur. Esdegeri `--max-parallel-test-modules`.
         # TRX `--results-directory`'ye yazilir (ikilinin yanina degil); asagidaki
         # "Test sonuclarini yukle" adimi ve kapi.py (TEST_RESULTS_DIRECTORY) AYNI
         # yolu okur - kapi_test.py ucunun bir arada kaldigini denetler.
-        # --max-parallel-test-modules 1 BILEREK: yerel kapi (kapi.py) Faz 184'ten beri
+        # --max-parallel-test-modules 1 BILEREK: yerel kapi (kapi.py) bir sure once
         # 2 ile kosar, ama o olcum gelistirici makinesindeydi; runner donanimi
         # olculmeden burasi degismez.
         run: dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
@@ -298,10 +298,10 @@ jobs:
         timeout-minutes: 65
         run: dotnet test --solution Tracon.no-docker.slnf -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      # Faz 166. Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
+      # Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
       # DEGIL. Uc HTTP yolu, iki kiraci, gercek TCP, gercek SQL ve packed
       # tuketici provenance'i kontrol edilir; hicbir sure esige baglanmaz
-      # (K-738). Agir profiller (sweep/arrival/workers/soak/nodes) CI'a GIRMEZ.
+      # Agir profiller (sweep/arrival/workers/soak/nodes) CI'a GIRMEZ.
       #
       # 🚨 Yalniz Linux: kendi PostgreSQL container'ini baslatir ve
       # `windows-latest` runner'i Linux image calistiramaz - ayni sebep
@@ -356,27 +356,27 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Yayın provası (Phase 97, 97.2)
+  # Yayın provası (97.2)
   #
-  # Faz 191: kendi `dotnet pack`'ini KOSMAZ. `build` isinin ubuntu bacaginin
+  # Kendi `dotnet pack`'ini KOSMAZ. `build` isinin ubuntu bacaginin
   # paketledigi `nuget-packages` artifact'ini indirir ve `kapi.py yayin --kuru
   # --paket-dizini` ile dogrular: manifest SHA-256'lari, commit ve taban
-  # esitligi, K-008 siniri, paket icerik sozlesmesi, kirici degisiklik raporu
-  # (Faz 187), dis sample'lar ve AOT smoke. Dogrulanan kume SHA-256
+  # esitligi, on surum siniri, paket icerik sozlesmesi, kirici degisiklik raporu
+  # dis sample'lar ve AOT smoke. Dogrulanan kume SHA-256
   # manifest'iyle `nuget-verified` olarak yuklenir; `publish` YALNIZ onu iter.
   # Bayt esitligi her push'ta (PR dahil) sinanir - etiket yolunda yeni mantik
   # yoktur.
   #
   # `--surum` GECILMEZ: bu is her push'ta (PR dahil) kosar ve o an bir etiket
   # olmayabilir. Zorlanmis bir surum yalniz INSANIN gercek etiketten ONCE
-  # yerelde kostugu provada anlamlidir (MT-PKG-097). Bir GERCEK `v*` etiketinde
+  # yerelde kostugu provada anlamlidir. Bir GERCEK `v*` etiketinde
   # MinVer'in kendi hesapladigi surum zaten hedeftir - zorlamaya gerek yoktur.
   # ---------------------------------------------------------------------------
   release-dryrun:
     name: Yayin provasi (kapi.py yayin --kuru --paket-dizini)
     runs-on: ubuntu-latest
     needs: build
-    # Olculen en uzun 5,7 dk (Faz 191 oncesi, kendi pack'iyle). Pack artik
+    # Olculen en uzun 5,7 dk (kendi pack'iyle). Pack artik
     # bu iste degil; sinir ilk yeni koşumda yeniden olculur.
     timeout-minutes: 15
 
@@ -386,7 +386,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 8.0.x: Faz 183'un net8.0 tuketici smoke'u (Tracon.Samples.Net8Consumer)
+      # 8.0.x: net8.0 tuketici smoke'u (Tracon.Samples.Net8Consumer)
       # paketleri .NET 8 runtime'inda kosturur. SDK yine global.json'dan secilir.
       - name: .NET SDK kur
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
@@ -450,7 +450,7 @@ jobs:
     needs: [release-dryrun, npm-publish]
     # Olculen en uzun 0,5 dk; taban 10 dk. Sinir push'un ortasinda keserse bir
     # kisim paket yayinda kalir; `--skip-duplicate` isi yeniden kosmayi guvenli yapar.
-    # Faz 191 checkout + Python + dogrulama ekledi (her biri saniyeler).
+    # Checkout + Python + dogrulama eklendi (her biri saniyeler).
     timeout-minutes: 10
     permissions:
       contents: read
@@ -459,7 +459,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment: nuget
 
-    # Faz 191: bu is DERLEMEZ ve PAKETLEMEZ. `release-dryrun`'in dogruladigi
+    # Bu is DERLEMEZ ve PAKETLEMEZ. `release-dryrun`'in dogruladigi
     # `nuget-verified` kumesini indirir, provanin kullandigi AYNI komutla
     # (`kapi.py paket-dogrula`) yeniden sinar ve tam o baytlari iter.
     # Dogrulama login'den ONCE kosar: repo kodu calisirken API anahtari yoktur.
@@ -518,7 +518,7 @@ jobs:
           --skip-duplicate
 
   # ---------------------------------------------------------------------------
-  # @tracon/client -> npm.org (Phase 84, bolum 84.11)
+  # @tracon/client -> npm.org (bolum 84.11)
   #
   # NuGet yayiniyla AYNI 'v*' etiketinde tetiklenir ve surumu AYNI etiketten
   # turetir -- iki kanal boylece YAPISAL olarak eslesir, ayri bir surum dosyasi
@@ -552,7 +552,7 @@ jobs:
         working-directory: packages/tracon-client
         run: npm ci
 
-      # MinVer .NET surumunu ayni etiketten turetir (K-007 deseni); npm'in boyle
+      # MinVer.NET surumunu ayni etiketten turetir; npm'in boyle
       # bir mekanizmasi yoktur, o yuzden ayni etiketten elle turetilir.
       - name: Surumu etiketten turet
         id: version
@@ -638,7 +638,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ---------------------------------------------------------------------------
-  # GitHub release (Phase 123, 123.3)
+  # GitHub release (123.3)
   #
   # `publish` VE `npm-publish`'ten SONRA kosar: paket yayini bu ise bagli
   # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse (OP-007
@@ -646,7 +646,7 @@ jobs:
   # `scripts/changelog.py` kapi.py'nin surum-notu kapisiyla AYNI ayrıştırıcıdır,
   # iki ayri parser yazmak drift uretirdi. Surum bolumu yoksa `## [Unreleased]`
   # okunur: bolum ETIKET aninda yazilir, yani bu is kosarken heniz yazilmamis
-  # olabilir (K-825). Iki taraf ayni fallback'i kullanmazsa prova yesil,
+  # olabilir. Iki taraf ayni fallback'i kullanmazsa prova yesil,
   # release govdesi bos olurdu.
   # ---------------------------------------------------------------------------
   github-release:
@@ -733,7 +733,7 @@ jobs:
   #
   # Bu is YAYINLAMAZ. Site kendi sunucumuzda barinir ve yayini
   # `scripts/site-deploy.sh` yapar -- ozel repo'da GitHub Pages ucretli plan
-  # ister (K-542). Burada kalan sey, siteyi DERLEYIP kapilarini kosmaktir:
+  # ister. Burada kalan sey, siteyi DERLEYIP kapilarini kosmaktir:
   # derlenmeyen bir site yayin gunune kadar sessiz kalmasin.
   #
   # Site AYRI bir yayin hattidir: `dotnet build`'e baglanmaz ve pakete girmez.

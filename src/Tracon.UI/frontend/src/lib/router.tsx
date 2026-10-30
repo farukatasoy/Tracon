@@ -77,7 +77,6 @@ export function toRelativePath(pathname: string, base: string): string {
  * whole thing landed in one path segment and matched no pattern, so
  * `runs?sessionId=...` 404'd on SPA navigation while a full page load (which
  * reads `window.location.pathname`, naturally excluding the query) worked
- * (HATA-S4-017).
  */
 export function splitTarget(to: string): { path: string; search: string } {
   const withoutLeadingSlash = to.replace(/^\/+/, '');

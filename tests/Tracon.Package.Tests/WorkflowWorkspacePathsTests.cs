@@ -20,7 +20,7 @@ namespace Tracon.Package.Tests;
 public sealed partial class WorkflowWorkspacePathsTests
 {
     // The timeout is not optional: MA0009 flags every regex whose match time is
-    // unbounded (docs/hafiza/analyzer-tanilari.md).
+    // unbounded.
     [GeneratedRegex(@"\$\{\{\s*github\.workspace\s*\}\}/(?<path>[^\s'""]+)", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex WorkspacePath();
 
@@ -55,7 +55,7 @@ public sealed partial class WorkflowWorkspacePathsTests
 
     /// <summary>
     /// The relative <c>path:</c> of every artifact upload and download step is
-    /// git-ignored too (Phase 191). A download lands inside the checkout; the
+    /// git-ignored too. A download lands inside the checkout; the
     /// release rehearsal that follows refuses a dirty tree, and the tracked
     /// <c>packages/tracon-client/</c> directory once shared its name with the
     /// publish job's download path. Like <c>.nuget/</c>, this class only fails in CI.

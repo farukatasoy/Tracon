@@ -1,6 +1,6 @@
 namespace Tracon.Core.UnitTests.Runs;
 
-/// <summary>Tests for <see cref="RunAuthorizationResult"/>'s factory methods (Phase 139, F-185).</summary>
+/// <summary>Tests for <see cref="RunAuthorizationResult"/>'s factory methods.</summary>
 public sealed class RunAuthorizationResultTests
 {
     [Fact]

@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Memory;
 /// What the compiler does with a definition that asks for conversation memory: it builds the provider
 /// when the host set memory up, and stops, naming the missing piece, when it did not.
 /// </summary>
-// MAAI001: the context provider types are marked "evaluation purposes only" - see K-020.
+// MAAI001: the context provider types are marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class ConversationMemoryCompileTests
 {
@@ -113,7 +113,7 @@ public sealed class ConversationMemoryCompileTests
     [Fact]
     public void The_on_demand_mode_without_the_tool_chain_stops_the_build_instead_of_offering_an_ungoverned_tool()
     {
-        // F-688: the search tool must run through the tool chain, so a compiler that cannot build it does not offer the tool.
+        // The search tool must run through the tool chain, so a compiler that cannot build it does not offer the tool.
         var compiler = Compiler(Services(new InMemoryVectorStore(), dimensions: 8));
 
         var failure = Should.Throw<TraconCompilationException>(() => compiler.Compile(Definition() with

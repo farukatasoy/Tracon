@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// <see cref="RunEventType.Custom"/> (phase 141): the two-way rule between
+/// <see cref="RunEventType.Custom"/>: the two-way rule between
 /// <see cref="RunEventDraft.Type"/> and <see cref="RunEventDraft.CustomType"/>,
 /// and the <see cref="RunEventCustomTypes"/> shape it is validated against.
 /// </summary>

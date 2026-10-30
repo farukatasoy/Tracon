@@ -33,7 +33,7 @@ public sealed partial class RunRecordingAgent
         // separately: otherwise masked or blocked content stays RAW in the RunStarted event
         // and in IRunInputStore — the text that goes to the model is already masked inside
         // ContentGuardingChatClient, but this record NEVER passes through that client
-        // (HATA-S3-006). ContentGuardPipeline.PreviewAsync is used, not InspectAsync,
+        // ContentGuardPipeline.PreviewAsync is used, not InspectAsync,
         // because the run row (runs) does not exist yet at this point — see the
         // documentation of that method. The `messages` variable that is passed on to the
         // caller is DELIBERATELY left unchanged; the text that goes to the model must not
@@ -41,7 +41,7 @@ public sealed partial class RunRecordingAgent
         // A guard FAILURE leaves the verdict on this text unknown, and unknown
         // content does not pass through - the exception is rethrown below and the
         // run never reaches the model. But the run must still leave a record:
-        // before HATA-S4-003 the row was never opened, so the client saw an error
+        // before that change, the row was never opened, so the client saw an error
         // frame on the stream while GET /api/runs/{id} answered 404 forever, and
         // audit, retry and idempotency could none of them find the run.
         //
@@ -61,7 +61,7 @@ public sealed partial class RunRecordingAgent
             catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
             {
                 // A cancellation is deliberately NOT caught here: the caller's
-                // finally already writes Canceled for it (HATA-S4-012), and that
+                // finally already writes Canceled for it, and that
                 // is the truthful status for a run the caller gave up on.
                 guardFailure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex);
                 input = [];
@@ -169,7 +169,7 @@ public sealed partial class RunRecordingAgent
     {
         // A run with values and no message still records its values: a workflow
         // starts from an empty message list in a resume, and its values must
-        // survive the chain (F-294).
+        // survive the chain.
         if (_runInputStore is null ||
             !_options.RecordRunInput ||
             (messages.Count == 0 && start.ParameterValues is null))
@@ -231,7 +231,7 @@ public sealed partial class RunRecordingAgent
 
                     break;
 
-                // Separate event type — never merged into MessageDelta (docs/70).
+                // Separate event type — never merged into MessageDelta.
                 case TextReasoningContent reasoning:
                     if (_options.RecordReasoningDeltas && !string.IsNullOrEmpty(reasoning.Text))
                     {
@@ -579,10 +579,10 @@ public sealed partial class RunRecordingAgent
     // value into the record, the field is left empty.
     private static string? GetSessionId(AgentSession session) => AgentSessionIdentity.GetId(session);
 
-    // Phase 45 (F-53): the first user message that triggered this run is written into the
+    // The first user message that triggered this run is written into the
     // RunEventType.RunStarted event, so the run list can show what a run was asked. The
     // text is cut at MaxPayloadLength like any event text; the full input lives in
-    // IRunInputStore (phase 47), which is where promotion reads it first (F-343).
+    // IRunInputStore, which is where promotion reads it first.
     //
     // 🚨 A document channel message is ChatRole.User too (it needs to sit
     // beside the actual message in a turn) and, when documents are given,

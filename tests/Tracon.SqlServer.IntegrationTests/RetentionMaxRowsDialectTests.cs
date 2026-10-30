@@ -2,7 +2,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
 /// Tests for <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'s SQL
-/// Server SQL generation (Phase 36, <c>MaxRows</c>). Requires no live database
+/// Server SQL generation (<c>MaxRows</c>). Requires no live database
 /// — <see cref="SqlServerDialect"/> only builds SQL text.
 /// </summary>
 public sealed class RetentionMaxRowsDialectTests
@@ -10,7 +10,7 @@ public sealed class RetentionMaxRowsDialectTests
     private readonly SqlServerDialect _dialect = new("tracon");
 
     /// <summary>
-    /// 🚨 K-026 pitfall: in SQL Server, <c>OFFSET</c>/<c>FETCH</c> throws
+    /// 🚨 That decision pitfall: in SQL Server, <c>OFFSET</c>/<c>FETCH</c> throws
     /// WITHOUT an <c>ORDER BY</c>. This template must always carry an
     /// <c>ORDER BY</c>.
     /// </summary>

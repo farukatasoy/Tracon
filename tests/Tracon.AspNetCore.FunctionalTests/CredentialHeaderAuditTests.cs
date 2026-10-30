@@ -6,11 +6,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The audit trail records header NAMES and configuration key NAMES, and no
-/// header value (phase 190, decision 6).
+/// header value (decision 6).
 /// </summary>
 /// <remarks>
 /// <para>
-/// The trail is plain text (K-779). <c>X-Tenant</c> is outside both the audit
+/// The trail is plain text. <c>X-Tenant</c> is outside both the audit
 /// secret filter and the credential header rule, so its value is stored as
 /// sent — only the record's own masking keeps it out of the trail.
 /// </para>
@@ -18,7 +18,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A configuration key map is keyed by credential-looking names
 /// (<c>Authorization</c>, <c>X-API-Key</c>). The name-based filter would
 /// redact every entry, although none holds a value; the trail would then no
-/// longer say which key a header reads (open question 5 = A).
+/// longer say which key a header reads.
 /// </para>
 /// </remarks>
 public sealed class CredentialHeaderAuditTests

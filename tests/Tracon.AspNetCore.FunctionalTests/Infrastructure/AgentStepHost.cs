@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// function node) and a graph built in code (<c>GetWorkflowAgentStep</c>), over the same agent.
 /// </summary>
 /// <remarks>
-/// Both ways run the same executor, so a test that runs each proves the executor and not one door to it (phase 211).
+/// Both ways run the same executor, so a test that runs each proves the executor and not one door to it.
 /// </remarks>
 internal static class AgentStepHost
 {

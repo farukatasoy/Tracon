@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// Verifies the struct trap from MEMORY.md for <see cref="AgentResponseFormat.Schema"/>:
+/// Verifies the struct trap for <see cref="AgentResponseFormat.Schema"/>:
 /// an unassigned <see cref="JsonElement"/> field stays <c>default</c>, which is
 /// <c>ValueKind = Undefined</c>, and serialization then collapses the ENTIRE
 /// list containing it. Because the contract makes <c>Schema</c> a

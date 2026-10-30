@@ -99,12 +99,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                 EXEC(N'CREATE SCHEMA {Schema};');
             """;
 
-        // set_name (phase 67): each migration SET numbers its own files from
+        // set_name: each migration SET numbers its own files from
         // 0001, so id alone is no longer unique — the primary key is
         // (set_name, id). A fresh database gets this shape directly; an
-        // existing one (created before phase 67) is upgraded by
+        // existing one (created) is upgraded by
         // UpgradeMigrationsTable below — NOT a numbered migration file
-        // (K-475: it would collide with InsertMigration's fixed text, see
+        // (it would collide with InsertMigration's fixed text, see
         // SqlDialect.UpgradeMigrationsTableAsync).
         CreateMigrationsTable = $"""
             IF OBJECT_ID(N'{Schema}.__migrations', N'U') IS NULL
@@ -260,9 +260,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // SQL Server treats NULLs as EQUAL in a unique index; PostgreSQL's
-        // COALESCE-based expression index is not needed here (K-184). A plain
+        // COALESCE-based expression index is not needed here. A plain
         // `=` would return UNKNOWN when @script_name is NULL, and ISNULL on the
-        // column cannot seek (deadlock under concurrent first grants, F-313):
+        // column cannot seek (deadlock under concurrent first grants):
         // the INTERSECT form is the NULL-safe equality that seeks.
         // 🚨 The update branch writes content_hash too: granting the same key again
         // must pin the content of THIS grant, not keep the previous one's hash.
@@ -290,7 +290,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // A grant is NOT DELETED, it is revoked. The same seekable NULL-safe match
         // as the upsert: a revoke that scans the neighbouring keys races a grant
-        // in flight for the locks it reads (F-313).
+        // in flight for the locks it reads.
         RevokeSkillScriptGrant = $"""
             UPDATE {Schema}.skill_script_grants
                SET revoked_at = @revoked_at
@@ -305,10 +305,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // See PostgresQueries: `version` advances, it is never taken from
         // the incoming row.
         // See PostgresQueries: owner_id is COALESCEd, never assigned straight
-        // (K-486). 🚨 BOTH branches of the two-branch upsert carry the column,
+        // 🚨 BOTH branches of the two-branch upsert carry the column,
         // the UPDATE with its COALESCE and the INSERT with the raw parameter -
-        // adding it to only one is the silent provider difference K-608 and
-        // phase 137 both recorded.
+        // adding it to only one is the silent provider difference the two
+        // providers guard against.
         UpsertSession = $"""
             UPDATE {Schema}.sessions WITH (UPDLOCK, SERIALIZABLE)
                SET agent_name           = @agent_name,
@@ -341,7 +341,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Runs ---
 
-        // 🚨 Phase 46: this is an UPSERT (UPDATE-then-INSERT pattern, the same
+        // This is an UPSERT (UPDATE-then-INSERT pattern, the same
         // as UpsertConversation). A queued run is first written as Queued;
         // when the worker actually runs the job it is called a second time
         // with the SAME id, and the row is updated in place (no new row is
@@ -365,12 +365,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    experiment_id = @experiment_id,
                    variant       = @variant,
                    replay_of_run_id = @replay_of_run_id,
-                   -- F-321: COALESCE for the same reason as the attribution below. The
+                   -- COALESCE for the same reason as the attribution below. The
                    -- party that opens a continuation writes the row with the link; the
                    -- engine that runs it writes it again and does not know the link.
                    continued_from_run_id = COALESCE(@continued_from_run_id, continued_from_run_id),
-                   -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
-                   -- 46): a queued run's placeholder row is written during the HTTP
+                   -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
+                   -- a queued run's placeholder row is written during the HTTP
                    -- request, where the user IS known, and rewritten later by the
                    -- background worker, where it is NOT (an HTTP-bound
                    -- IRunAttributionContext has no request to read). A plain
@@ -448,12 +448,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Orphaned run reconciliation (Phase 54). Only affects Running and Queued
-        // rows (Phase 240: a run waiting in-process for a workflow slot is Queued
+        // Orphaned run reconciliation. Only affects Running and Queued
+        // rows (a run waiting in-process for a workflow slot is Queued
         // and still owned by this process); silently updates zero rows for an id
         // that does not exist or is in a different status.
         //
-        // F-764: the statement also reads the row's cancellation request back. OUTPUT sits
+        // The statement also reads the row's cancellation request back. OUTPUT sits
         // after SET and before WHERE (T-SQL), and the statement is a single UPDATE, not an
         // upsert, so the two-branch OUTPUT trap does not apply.
         TouchRunHeartbeat = $"""
@@ -466,7 +466,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // TOP (@n) = 0 does NOT raise an error (unlike SQL Server's FETCH
         // NEXT); no extra guard is needed. error_fingerprint is a FIXED
         // string ("orphaned") -- the rationale is the same as in the
-        // PostgreSQL version, and so is the Queued rule (Phase 240): a Queued
+        // PostgreSQL version, and so is the Queued rule: a Queued
         // row is claimed only when it has a heartbeat.
         ClaimOrphanedRuns = $"""
             UPDATE r
@@ -518,7 +518,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                        SUM(sub.input_cost)                                 AS cost_input,
                        SUM(sub.output_cost)                                AS cost_output,
                        SUM(sub.cached_input_cost)                          AS cost_cached_input,
-                       -- phase 253 (F-420): what the descendants wrote into the prompt cache.
+                       -- What the descendants wrote into the prompt cache.
                        -- NOT coalesced, like the cache read above; cache_write_cost is the
                        -- FOURTH addend of the tree total, not a subset of input_cost.
                        CAST({TreeSum("cache_write_input_tokens", "sub", false)} AS bigint)      AS cache_write_input_tokens,
@@ -527,14 +527,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                        {CostCurrencyLabel("sub")}                          AS cost_currency,
                        CAST(COALESCE(SUM(CASE WHEN sub.pricing_source = 2 THEN 1 ELSE 0 END), 0) AS bigint) AS unknown_pricing_rows,
                        CAST(COUNT(sub.pricing_source) AS bigint)           AS pricing_rows,
-                       -- phase 199: what the descendants reported beyond tokens. Their own
+                       -- What the descendants reported beyond tokens. Their own
                        -- totals, NOT terms of the token cost above, and NOT coalesced:
                        -- non_token_unsummed is NULL when no descendant reported anything.
                        SUM(sub.non_token_cost)                             AS non_token_cost,
                        {ReportedCurrencyLabel("sub")}                      AS non_token_currency,
                        CAST(COALESCE(SUM(CASE WHEN sub.non_token_estimated = 1 THEN 1 ELSE 0 END), 0) AS bigint) AS non_token_estimated_rows,
                        CAST(SUM(sub.non_token_unsummed) AS bigint)         AS non_token_unsummed,
-                       -- F-419: the descendants' currencies the run's own row does not
+                       -- The descendants' currencies the run's own row does not
                        -- carry; the reader adds the own one and leaves a mixed total out.
                        CAST({DescendantCurrencyCount(PricedCurrency, "sub", "own.cost_currency")} AS bigint)       AS cost_currencies,
                        CAST({DescendantCurrencyCount(ReportedCurrency, "sub", "own.non_token_currency")} AS bigint) AS non_token_currencies
@@ -549,7 +549,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ) AS tree
             """;
 
-        // Phase 68 attribution filter, written ONCE and reused by the run list
+        // attribution filter, written ONCE and reused by the run list
         // and by every result set of the statistics query.
         //
         // 🚨 The NULL check is written as an explicit guard rather than an
@@ -617,8 +617,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@kind       IS NULL OR r.kind       = @kind)
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
-                    -- HATA-S2-001: session_id is set only on the ROOT run
-                    -- (K-217); a child run's own session_id is NULL. Direct
+                    -- Session_id is set only on the ROOT run
+                    --A child run's own session_id is NULL. Direct
                     -- equality would match no child run at all when combined
                     -- with "includeChildren=true" -- a row also matches when
                     -- the ROOT of its own tree belongs to this session.
@@ -646,7 +646,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             {Paging}
             """;
 
-        // scored_runs/positive_rate (Phase 31): matchedRunScoresFilter repeats
+        // scored_runs/positive_rate: matchedRunScoresFilter repeats
         // the SAME filter (tenant/eval/agent/date) as runs -- it is added as a
         // scalar subquery instead of a separate CTE so the existing totals
         // row can be extended with the smallest possible change.
@@ -691,9 +691,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    CAST({TreeSum("reasoning_tokens", null, true)} AS bigint),
                    CAST({TreeSum("audio_input_tokens", null, true)} AS bigint),
                    CAST({TreeSum("audio_output_tokens", null, true)} AS bigint),
-                   -- Ordinal 18 (F-419): the currencies the costs above are in.
+                   -- Ordinal 18: the currencies the costs above are in.
                    CAST({CostCurrencyCount(null)} AS bigint),
-                   -- Ordinals 19-20 (F-420): the cache writes, counted INSIDE the input total.
+                   -- Ordinals 19-20: the cache writes, counted INSIDE the input total.
                    CAST({TreeSum("cache_write_input_tokens", null, true)} AS bigint),
                    CAST({TreeSum("cache_write_long_input_tokens", null, true)} AS bigint)
             FROM {Schema}.runs
@@ -751,9 +751,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             GROUP BY agent_name, agent_version
             ORDER BY agent_name, agent_version DESC;
 
-            -- Fifth result set: error class breakdown (Phase 44). Rows with a
+            -- Fifth result set: error class breakdown. Rows with a
             -- NULL error_class (written before the error class column existed)
-            -- fall into the Unknown (0) bucket -- K-014 does not backfill.
+            -- fall into the Unknown (0) bucket -- the earlier decision does not backfill.
             SELECT CAST(COALESCE(error_class, 0) AS smallint),
                    CAST(COUNT(*) AS bigint)
             FROM {Schema}.runs
@@ -808,7 +808,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE cluster_rank <= @top_clusters
             ORDER BY error_class, cluster_count DESC;
             
-            -- Seventh result set: breakdown by user (phase 68). Runs carrying no
+            -- Seventh result set: breakdown by user. Runs carrying no
             -- user stay OUT of this list but remain in the totals, exactly as
             -- runs with an unknown model do. APPENDED after the existing sets so
             -- their positions in SqlRunStore hold.
@@ -869,12 +869,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@id, @tenant_id, @agent_name, @now, @now);
             """;
 
-        // --- Conversation branching (Phase 47) ---
+        // --- Conversation branching ---
         // See PostgresQueries for the rationale and the meaning of the columns.
 
-        // --- Run inputs (Phase 47) ---
+        // --- Run inputs ---
         // 🚨 A second write is ignored; T-SQL has no ON CONFLICT, so the
-        // condition is written with NOT EXISTS (K-177: MERGE is not used).
+        // condition is written with NOT EXISTS (MERGE is not used).
         InsertRunInput = $"""
             INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at, parameters)
             SELECT @run_id, @tenant_id, @messages, @created_at, @parameters
@@ -1006,7 +1006,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                 -- RunScore.MessageId is "if EMPTY, the score belongs to the
                 -- whole run" -- empty covers both NULL and ''. Matching only
                 -- NULL would drop a '' row out of the arm average while the
-                -- score summary (phase 154) still counted it as run-level.
+                -- score summary still counted it as run-level.
                 WHERE tenant_id = @tenant_id AND kind = @score_kind_numeric
                   AND (message_id IS NULL OR message_id = N'')
                 GROUP BY run_id
@@ -1026,7 +1026,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                         THEN NULL ELSE {CostTotal("r")} END,
                    {CostCurrencyLabel("r")},
                    AVG(s.avg_score),
-                   -- F-419: the currencies the arm's cost is in.
+                   -- The currencies the arm's cost is in.
                    CAST({CostCurrencyCount("r")} AS bigint)
             FROM {Schema}.runs r
             LEFT JOIN run_avg_scores s ON s.run_id = r.id
@@ -1042,7 +1042,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         //
         // Empty buckets are also returned: otherwise a gap in the chart would
         // look like "zero" instead of "no data".
-        // One filter for the buckets and for the series' currency count (F-419): a copy
+        // One filter for the buckets and for the series' currency count: a copy
         // that drifted would count the currencies of other runs than the ones it adds.
         var timeSeriesFilter = """
                 WHERE tenant_id = @tenant_id
@@ -1087,7 +1087,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                               ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
                          END
             ),
-            -- F-419: a point carries no currency, so the WHOLE series is judged as one.
+            -- A point carries no currency, so the WHOLE series is judged as one.
             series AS (
                 SELECT CAST({CostCurrencyCount(null)} AS bigint) AS currencies
                 FROM {Schema}.runs
@@ -1152,7 +1152,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // --- Tool approval rules ---
 
         // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
-        // reads argument_conditions by fixed ordinal 7 (docs/hafiza/postgresql.md's
+        // reads argument_conditions by fixed ordinal 7 (.md's
         // ordinal-position lesson applies equally here).
         const string approvalColumns = """
             id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions, source_fingerprint
@@ -1161,9 +1161,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // A second rule is not opened for the same scope; the existing record
         // is returned. UPDATE deliberately replaces a column with itself: the
         // goal is not to write, but to return the existing row via OUTPUT.
-        // conditions_hash (Phase 63) joined the WHERE match: a data-rule condition
+        // conditions_hash joined the WHERE match: a data-rule condition
         // set is bound by the same "no unbounded duplicates" rule as arguments_hash.
-        // source_fingerprint (F-283) joined it so a rule for a server that moved to
+        // source_fingerprint joined it so a rule for a server that moved to
         // another endpoint is a new rule, never the old one returned in its place.
         InsertToolApprovalRule = $"""
             UPDATE {Schema}.tool_approval_rules WITH (UPDLOCK, SERIALIZABLE)
@@ -1279,7 +1279,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@id, @tenant_id, @agent_name, @path, @content, @now, @now);
             """;
 
-        // Phase 51, Work Item A: the prefix, depth limit, and glob go down to
+        // Work Item A: the prefix, depth limit, and glob go down to
         // SQL. SQL Server carries no native regex; the regex_pattern
         // parameter is sent to keep the same call shape as PostgresQueries
         // but is NOT USED here -- the final match is always done client-side
@@ -1294,7 +1294,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY path;
             """;
 
-        // Phase 234: the session workspace is measured by the bytes the column stores. SQL Server keeps text
+        // The session workspace is measured by the bytes the column stores. SQL Server keeps text
         // as UTF-16, so DATALENGTH counts two bytes for an ASCII character.
         SelectAgentFileTreeUsage = $"""
             SELECT COUNT(*), COALESCE(SUM(CAST(DATALENGTH(content) AS bigint)), 0)
@@ -1338,7 +1338,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             OFFSET 0 ROWS FETCH NEXT (CASE WHEN @take < 1 THEN 1 ELSE @take END) ROWS ONLY;
             """;
 
-        // --- Audit hash chain (Phase 64) ---
+        // --- Audit hash chain ---
 
         SelectLastAuditHash = $"""
             SELECT TOP (1) hash, key_id
@@ -1389,7 +1389,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE enabled = 1 AND cron IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= @as_of;
             """;
 
-        // --- Inbound triggers (Phase 66) ---
+        // --- Inbound triggers ---
 
         UpsertInboundTrigger = $"""
             UPDATE {Schema}.inbound_triggers WITH (UPDLOCK, SERIALIZABLE)
@@ -1412,7 +1412,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // 🚨 SQL Server has no array parameter: instead of `UNNEST(@ids,
         // @inputs) WITH ORDINALITY`, the two JSON arrays are opened with
-        // OPENJSON and matched on `[key]` (0-based index). Rationale: K-182.
+        // OPENJSON and matched on `[key]` (0-based index).
         InsertJobItems = $"""
             INSERT INTO {Schema}.job_items (id, job_id, seq, input, status)
             SELECT CAST(ids.value AS uniqueidentifier), @job_id, CAST(ids.[key] AS int), inputs.value, 0
@@ -1444,7 +1444,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT {InsertedJobColumns};
             """;
 
-        // The same statement with a per-tenant ceiling (Phase 240); the rule is the PostgreSQL text's. The
+        // The same statement with a per-tenant ceiling; the rule is the PostgreSQL text's. The
         // tenants at the ceiling are collected into a table variable FIRST, then probed by key.
         //
         // 🚨 Measured on SQL Server 2022 with 100,000 ready jobs: the same set written as an uncorrelated
@@ -1539,7 +1539,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
-        // (Phase 45, section 45.2); MERGE is not used (K-177).
+        // MERGE is not used.
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}.eval_cases
                 (id, suite_id, seq, query, expected_output, expected_tool_calls, context,
@@ -1709,7 +1709,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             {Paging}
             """;
 
-        // --- Phase 53: tenant-scoped API keys ---
+        // --- Tenant-scoped API keys ---
 
         InsertApiKey = $"""
             INSERT INTO {Schema}.api_keys ({ApiKeyColumns})
@@ -1717,8 +1717,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     @last_used_at, @created_at);
             """;
 
-        // Setup health check (ExternalSurfaceGuard, section 53.4): the tenant
-        // filter is DELIBERATELY absent. scopes is a JSON array (K-182).
+        // Setup health check (ExternalSurfaceGuard): the tenant
+        // filter is DELIBERATELY absent. scopes is a JSON array.
         HasApiKeyWithScope = $"""
             SELECT CASE WHEN EXISTS (
                 SELECT 1 FROM {Schema}.api_keys
@@ -1733,8 +1733,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             inserted.archive, inserted.enabled, inserted.created_at, inserted.updated_at
             """;
 
-        // K-177 two-branch upsert pattern: when UPDATE affects 0 rows, the
-        // real row is in the SECOND result set (K-188); DbHelpers.ReadSingleAsync
+        // That decision two-branch upsert pattern: when UPDATE affects 0 rows, the
+        // real row is in the SECOND result set; DbHelpers.ReadSingleAsync
         // steps into it with NextResultAsync.
         UpsertRetentionPolicy = $"""
             UPDATE {Schema}.retention_policies WITH (UPDLOCK, SERIALIZABLE)
@@ -1768,7 +1768,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by, "
             + "provider, model, live_seconds, duration_cost, character_cost, currency";
 
-        // 🚨 MERGE IS NOT USED (K-177): first a locked UPDATE, then INSERT if no row exists.
+        // 🚨 MERGE IS NOT USED: first a locked UPDATE, then INSERT if no row exists.
         UpsertVoiceSession = $"""
             UPDATE {Schema}.voice_sessions WITH (UPDLOCK, SERIALIZABLE)
                SET ended_at       = @ended_at,
@@ -1804,7 +1804,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 31 -- run/message score
+        // Run/message score
         // -------------------------------------------------------------------
 
         const string runScoreOutput =
@@ -1812,18 +1812,18 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             "inserted.value, inserted.comment, inserted.source, inserted.author, inserted.created_at, " +
             "inserted.name, inserted.text_value, inserted.evaluator_version";
 
-        // 🚨 MERGE IS NOT USED (K-177): first a locked UPDATE, then INSERT if
+        // 🚨 MERGE IS NOT USED: first a locked UPDATE, then INSERT if
         // no row exists.
         //
-        // 🚨 NULL uniqueness works in REVERSE here (K-184): the
+        // 🚨 NULL uniqueness works in REVERSE here: the
         // `author = @author` comparison ALWAYS returns UNKNOWN when @author
         // is NULL (an identity-less setup) -- no row matches and the flow
         // falls through to INSERT. This is DELIBERATE: the uniqueness index
         // is filtered with `WHERE author IS NOT NULL` for the same reason
         // (migration 0005).
         //
-        // 🚨 message_key, NOT ISNULL(message_id, N''), closes F-215
-        // (docs/hafiza/sql-server-tuzaklari.md): wrapping the COLUMN in
+        // 🚨 message_key, NOT ISNULL(message_id, N''), closes a defect.
+        // Wrapping the COLUMN in
         // ISNULL made the predicate non-sargable, so WITH (UPDLOCK,
         // SERIALIZABLE) could not range-lock `run_scores_target_author_name_idx`
         // and two concurrent upserts of the same target both inserted.
@@ -1853,7 +1853,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 154 -- score summary (a query, not a counter; 154.1)
+        // Score summary (a query, not a counter; 154.1)
         // -------------------------------------------------------------------
 
         // Shared by every breakdown AND the series query below. `prefix` is
@@ -1976,7 +1976,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // A single result set, run only when RunScoreQuery.Bucket is given
-        // (154, open question 5: no cost when it is not). Buckets with no
+        // (154: no cost when it is not). Buckets with no
         // matching score are NOT produced -- a sparse series, unlike
         // SelectRunTimeSeries.
         SelectRunScoreSeries = $"""
@@ -1996,11 +1996,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY 1, name;
             """;
 
-        // MERGE is not used (K-177). Two-branch pattern: first UPDATE (if we
+        // MERGE is not used. Two-branch pattern: first UPDATE (if we
         // are the owner or the lease expired), then INSERT only if the row is
         // absent. Both branches return the same single column (name) the
         // same way; DbHelpers.ExecuteScalarAsync falls through to the second
-        // result set by itself against K-188's multi-result-set trap.
+        // result set by itself against the multi-result-set trap.
         AcquireSingletonLease = $"""
             DECLARE @updated int;
 
@@ -2019,13 +2019,13 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@name, @owner_id, @expires_at, @now);
             """;
 
-        // Rate-limit window counter (Phase 263). MERGE is not used (K-177): the two-branch
+        // Rate-limit window counter. MERGE is not used: the two-branch
         // pattern of AcquireSingletonLease, inside the transaction ExecuteUpsertAsync opens.
         // Every column reference on the right of SET reads the row as it was BEFORE the
         // update, so the two CASE expressions see the same stored window. A later window
         // restarts the count; an earlier one is counted in the stored window and does not
         // move it back. Both branches return the same two columns; DbHelpers.ReadSingleAsync
-        // falls through to the second result set when the UPDATE touched no row (K-188).
+        // falls through to the second result set when the UPDATE touched no row.
         IncrementRateLimitCounter = $"""
             DECLARE @updated int;
 
@@ -2089,7 +2089,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    );
             """;
 
-        // Phase 209 -- the workflow request inbox (see PostgreSQL for the pattern). SQL Server has
+        // The workflow request inbox (see PostgreSQL for the pattern). SQL Server has
         // no row-value IN, so the candidates are a CTE joined back on the key. take >= 1 is
         // guaranteed by the store, which cuts it to 1..200.
         SelectWorkflowRequests = BuildSelectWorkflowRequests("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
@@ -2114,11 +2114,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Phase 65 -- tenant provider bindings (BYOK) and egress policy
+        // Tenant provider bindings (BYOK) and egress policy
         // -------------------------------------------------------------------
 
-        // Two-branch upsert (K-177: no MERGE). Neither branch needs OUTPUT --
-        // UpsertAsync returns no value -- so the K-187/188/189 "OUTPUT lands
+        // Two-branch upsert (no MERGE). Neither branch needs OUTPUT --
+        // UpsertAsync returns no value -- so the "OUTPUT lands
         // in the second result set" pitfall does not apply here.
         UpsertTenantProviderBinding = $"""
             UPDATE {Schema}.tenant_provider_bindings WITH (UPDLOCK, SERIALIZABLE)

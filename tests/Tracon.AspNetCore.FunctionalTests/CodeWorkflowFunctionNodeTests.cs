@@ -8,7 +8,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A function node of a graph built in code (phase 211, <c>GetWorkflowFunction</c>) has what the same function has in a
+/// A function node of a graph built in code (<c>GetWorkflowFunction</c>) has what the same function has in a
 /// stored chain: its time limit, its retry policy, the budget gate, a cost line that names the node and a strict read of
 /// its settings.
 /// </summary>

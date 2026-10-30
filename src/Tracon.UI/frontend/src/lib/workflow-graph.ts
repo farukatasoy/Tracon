@@ -6,7 +6,7 @@ import type { WorkflowGraph } from './server-types';
  *
  * Hand written rather than pulled from a graph library, for the same reason the
  * trace waterfall is hand drawn: the bundle has a hard gzip budget enforced at
- * build time (decision K-002) and mermaid.js alone costs around 100 KB gzipped —
+ * build time and mermaid.js alone costs around 100 KB gzipped —
  * roughly 40% of the budget for a single screen.
  *
  * The layout is deliberately simple: one column per layer, nodes stacked inside

@@ -2,7 +2,7 @@ using System.Net;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269): the package's Tracon.Testing.TraconTestHost and
+// Same rationale as AgentExtensionRunTests.cs: the package's Tracon.Testing.TraconTestHost and
 // this project's own TraconTestHost share a name.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
@@ -12,14 +12,14 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 234 (F-628): over a SQL host, the files an agent wrote in a session go when the session goes, and only
+/// Over a SQL host, the files an agent wrote in a session go when the session goes, and only
 /// those.
 /// </summary>
 /// <remarks>
 /// The SQL stores take the content erasers from the container (<c>ActivatorUtilities</c>); a test that builds them by
 /// hand cannot see a constructor that would leave them out. The data subject erasure and the retention target over SQLite
 /// are driven through the store interfaces in <c>Tracon.Sqlite.IntegrationTests</c>, because the HTTP erasure ends in an audit
-/// write that hangs over SQLite for a reason of its own (F-644).
+/// write that hangs over SQLite for a reason of its own.
 /// </remarks>
 public sealed class SessionWorkspaceErasureTests
 {

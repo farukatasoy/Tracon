@@ -4,14 +4,14 @@ using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
-// 🚨 This class exists for K-687. A denial must be BYTE FOR BYTE identical to the
+// 🚨 This class exists. A denial must be BYTE FOR BYTE identical to the
 // answer an unreachable session gets, otherwise the status code becomes an oracle
 // for which sessions exist in another tenant. Two hand-written copies of that 404
 // are a violation waiting to happen, so there is exactly one writer.
 //
 // The credential layer is deliberately NOT here. The conversation endpoint reads its
 // token from the WebSocket subprotocol because a browser cannot put an Authorization
-// header on a handshake (K-224); the live endpoints are plain HTTP and use the
+// header on a handshake; the live endpoints are plain HTTP and use the
 // ordinary bearer layer. That exemption is specific to the handshake.
 /// <summary>The session gates and the problem writer every voice endpoint shares.</summary>
 /// <remarks>
@@ -42,11 +42,11 @@ internal static class VoiceEndpointGates
             return false;
         }
 
-        // 🚨 K-283 (phase 41) removed the "someone else's session" rejection here ON
+        // 🚨 The "someone else's session" rejection was removed here ON
         // PURPOSE. GetAsync is scoped to the ambient tenant, so another tenant's
         // record returns null, the caller opens a FRESH session in their own tenant,
         // and the other tenant's record is never touched. That removes an existence
-        // oracle. Do NOT "fix" this into an owner lookup without reopening K-283 --
+        // oracle. Do NOT "fix" this into an owner lookup without reopening that choice --
         // the OpenAI-compatible endpoints answer 404 instead, and the difference
         // between the two surfaces is a decision, not an oversight.
         var store = services.GetRequiredService<ISessionStore>();
@@ -73,7 +73,7 @@ internal static class VoiceEndpointGates
     {
         var services = context.RequestServices;
 
-        // 🚨 K-283: a session nothing has written yet is still offered to the
+        // A session nothing has written yet is still offered to the
         // handler; refusing an unknown session here would break the FIRST
         // conversation of every installation and no other test would see it.
         if (await RunAuthorizationGate
@@ -92,7 +92,7 @@ internal static class VoiceEndpointGates
 
         // 🚨 A voice connection writes into the session it opens. Leaving this
         // ungated would let one user speak into another user's conversation while
-        // every HTTP route to it answered 404. K-283 survives: a session nothing has
+        // every HTTP route to it answered 404. The rule still holds: a session nothing has
         // written yet carries no owner and is not refused here.
         return await SessionOwnershipGate
             .DeniesAsync(

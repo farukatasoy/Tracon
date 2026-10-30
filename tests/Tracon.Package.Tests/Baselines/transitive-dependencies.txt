@@ -1,8 +1,8 @@
-# Faz 95, madde 22 tabani. dotnet list package --include-transitive --format json ile olculdu (2026-08-24, SDK 10.0.100).
+# Tabani. dotnet list package --include-transitive --format json ile olculdu (2026-08-24, SDK 10.0.100).
 # Kural: paket KIMLIGI karsilastirilir, surum degil (95.3). Yeni bir ad girerse test kirilir ve mesaj hangi sekilde belirdigini yazar.
 # Bilerek buyutulen bir satir taban cizgisine BURADA eklenir.
-# Faz 214 (2026-10-16): Microsoft.Bcl.AsyncInterfaces, .HashCode ve .Memory uc paketin grafiginden CIKTI - Microsoft.ML.Tokenizers.Data.O200kBase 2.0.1 kendi net8.0 grubunu tasir (netstandard2.0 grubu artik secilmez). Taban yalniz kuculdu.
-# Faz 256 (2026-10-28): Npgsql ve Tracon.PostgreSql `# Tracon` grafindan CIKTI - meta paket depo icermez, depo her zaman acik referanstir (K-1116). Taban yalniz kuculdu.
+# (2026-10-16): Microsoft.Bcl.AsyncInterfaces, .HashCode ve .Memory uc paketin grafiginden CIKTI - Microsoft.ML.Tokenizers.Data.O200kBase 2.0.1 kendi net8.0 grubunu tasir (netstandard2.0 grubu artik secilmez). Taban yalniz kuculdu.
+# (2026-10-28): Npgsql ve Tracon.PostgreSql `# Tracon` grafindan CIKTI - meta paket depo icermez, depo her zaman acik referanstir. Taban yalniz kuculdu.
 
 # Tracon
 A2A

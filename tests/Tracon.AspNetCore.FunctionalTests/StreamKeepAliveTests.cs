@@ -12,10 +12,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-325: the workflow stream wrote nothing while a node worked. The console
+/// The workflow stream wrote nothing while a node worked. The console
 /// reads every run stream with a 30-second idle limit, so a node that took
 /// longer looked like a dead connection: the console closed it, and a closed
-/// connection cancels the workflow run (K-845). A healthy run ended
+/// connection cancels the workflow run. A healthy run ended
 /// <c>Canceled</c> because it was quiet. The agent stream had the same gap for
 /// any reader with an idle limit, a reverse proxy among them.
 /// </para>

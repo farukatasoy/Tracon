@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// F-598 — <see cref="ModelBinding.ToolLoop"/>: each member reaches the tool-call loop the registry builds
+/// <see cref="ModelBinding.ToolLoop"/>: each member reaches the tool-call loop the registry builds
 /// around the provider client, and a link of the fallback chain gets the same settings as one object.
 /// </summary>
 /// <remarks>

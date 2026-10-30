@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// F-321: what <see cref="WorkflowRecovery"/> decides for each state a crash, a
+/// What <see cref="WorkflowRecovery"/> decides for each state a crash, a
 /// deploy or a graceful shutdown can leave a queued workflow's chain in.
 /// </summary>
 /// <remarks>
@@ -263,7 +263,7 @@ public sealed class WorkflowRecoveryPlanTests
     }
 
     /// <summary>
-    /// F-323, open question 13-A: a run its job stopped at the job's time limit ran out of
+    /// A run its job stopped at the job's time limit ran out of
     /// time, it was not interrupted. Continuing it would make the limit per attempt and
     /// the work unbounded, so the plan ends the work instead - whatever continuations
     /// are left and whatever attempts the job has.

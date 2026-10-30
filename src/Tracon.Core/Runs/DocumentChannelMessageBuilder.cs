@@ -59,7 +59,7 @@ internal static class DocumentChannelMessageBuilder
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        // 🚨 The name is escaped exactly like the content (K-320-style
+        // 🚨 The name is escaped exactly like the content (a
         // measurement: the first draft only escaped Content, leaving Name a
         // second, unguarded way to forge the end-of-document boundary before
         // the real content even starts).
@@ -176,7 +176,7 @@ internal static class DocumentChannelMessageBuilder
         return (TextContent)CreateMessage(maskedText, name, content).Contents[0];
     }
 
-    // 🚨 F-343, measured on SQLite 2026-10-12: a SQL IRunInputStore keeps
+    // Measured on SQLite 2026-10-12: a SQL IRunInputStore keeps
     // messages as JSON, and AdditionalProperties read back holds JsonElement,
     // not string/int. Accepting only the CLR types made every stored input that
     // a replay, a continuation or a promotion read back look like it carried no

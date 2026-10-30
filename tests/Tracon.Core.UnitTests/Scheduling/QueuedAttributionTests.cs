@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// the workflow handler replays from it.
 /// </summary>
 /// <remarks>
-/// F-364: a queued workflow ran with no user and no labels. The envelope is how
+/// A queued workflow ran with no user and no labels. The envelope is how
 /// the identity of whoever queued the job travels to the worker; the boundary
 /// cases (dispatcher, trigger, schedule) are in
 /// <c>QueuedWorkflowAttributionTests</c>, which runs the real host.

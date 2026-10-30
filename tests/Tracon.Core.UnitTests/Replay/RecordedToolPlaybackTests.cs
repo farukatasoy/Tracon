@@ -3,11 +3,11 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Replay;
 
 /// <summary>
-/// <see cref="RecordedToolPlayback"/>'s mismatch-policy contract (Phase 87.3):
+/// <see cref="RecordedToolPlayback"/>'s mismatch-policy contract:
 /// replay's <see cref="ToolPlaybackMismatchPolicy.Stop"/> behavior must stay
 /// unchanged, and continuation's <see cref="ToolPlaybackMismatchPolicy.RunLive"/>
 /// must run the real tool body for a call with no recorded result — this is
-/// the phase's first (and most likely) failure mode.
+/// the change's first (and most likely) failure mode.
 /// </summary>
 public sealed class RecordedToolPlaybackTests
 {
@@ -115,7 +115,7 @@ public sealed class RecordedToolPlaybackTests
         // could not read those, so the ledger entry was written with a null
         // Result: the next fallback link asking the same question replayed
         // "nothing" instead of the tool's real answer, and never ran the tool
-        // again to find out (HATA-S1-026's class scan).
+        // again to find out.
         var playback = new RecordedToolPlayback(
             [], ToolPlaybackMismatchPolicy.RunLive, recordLiveCalls: true);
 

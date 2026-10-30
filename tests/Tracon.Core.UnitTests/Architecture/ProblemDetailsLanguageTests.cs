@@ -3,12 +3,12 @@ using System.Text.RegularExpressions;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Enforces K-232: <c>ProblemDetails</c> <c>title</c> texts stay in English.
+/// Enforces that decision: <c>ProblemDetails</c> <c>title</c> texts stay in English.
 /// </summary>
 /// <remarks>
 /// <para>
-/// HATA-S4-007 (MT-UI-032, family N): the server hardcoded Turkish ProblemDetails
-/// titles — 113 distinct <c>title:</c> literals across 26 files. K-232 already
+/// The server hardcoded Turkish ProblemDetails
+/// titles — 113 distinct <c>title:</c> literals across 26 files. That decision already
 /// forbids that ("ProblemDetails texts ... stay in English"); this test makes the
 /// rule permanent by scanning the sources.
 /// </para>

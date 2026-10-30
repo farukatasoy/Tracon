@@ -148,7 +148,7 @@ internal sealed class SideChannelUsageTrackingChatClient : DelegatingChatClient
                 // 🚨 Rewritten before EVERY step: an ambient write made in an
                 // async iterator does not cross a yield return, and the next
                 // MoveNextAsync would run the fallback chain with the run's own
-                // scope (RunRecordingAgent.RunCoreStreamingAsync, phase 12).
+                // scope (RunRecordingAgent.RunCoreStreamingAsync).
                 if (callScope is not null)
                 {
                     TraconRunContext.SetCurrent(callScope);

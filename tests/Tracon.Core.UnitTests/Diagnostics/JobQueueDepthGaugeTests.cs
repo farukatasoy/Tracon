@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 133.4: the <c>tracon.job.queue.depth</c> gauge is off by default,
+/// The <c>tracon.job.queue.depth</c> gauge is off by default,
 /// caches its reads, carries no tenant tag, and never breaks the worker when
 /// the store fails. A scrape only reads the cache; a background refresh on a
 /// timer queries the store.

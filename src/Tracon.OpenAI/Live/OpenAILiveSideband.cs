@@ -328,7 +328,7 @@ internal sealed class OpenAILiveSideband : ILiveVoiceSideband
             },
 
             // 🚨 session.input_audio.append and session.output_audio.delta land here.
-            // The provider does mirror the media onto this socket; this phase does
+            // The provider does mirror the media onto this socket; this change does
             // not consume it.
             _ => null,
         };

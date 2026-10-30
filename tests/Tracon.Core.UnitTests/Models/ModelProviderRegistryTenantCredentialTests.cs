@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// Verifies <see cref="ModelProviderRegistry.CreateChatClientAsync"/>'s tenant
-/// credential and egress policy resolution (phase 65, BYOK/F-119).
+/// credential and egress policy resolution (BYOK/an earlier fix).
 /// </summary>
 public sealed class ModelProviderRegistryTenantCredentialTests
 {
@@ -181,7 +181,7 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     [Fact]
     public async Task Egress_check_runs_before_the_binding_lookup()
     {
-        // 🚨 Section 65.4: looking up a key for a forbidden provider is a path
+        // Looking up a key for a forbidden provider is a path
         // that must not run at all. A binding STORE that throws if queried
         // proves the egress check short-circuits before it.
         var provider = new FakeModelProvider(name: "openai");
@@ -215,7 +215,7 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     [Fact]
     public async Task Egress_policy_rejects_a_fallback_provider_not_in_the_allowed_list()
     {
-        // 🚨 Regression for an independent-audit finding (phase 65): a
+        // 🚨 Regression for an independent-audit finding: a
         // fallback link is a first-class ModelBinding.Provider in its own
         // right and must be checked at compile time too, not only lazily the
         // first time the primary actually fails over to it.
@@ -240,7 +240,7 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     [Fact]
     public async Task A_triggered_fallback_resolves_its_own_tenant_credential_through_the_async_entry_point()
     {
-        // 🚨 Regression for an independent-audit finding (phase 65):
+        // 🚨 Regression for an independent-audit finding:
         // FallbackChatClient used to be built with the SYNC, global-only
         // CreateChatClient method group even when reached through
         // CreateChatClientAsync — a triggered fallback silently used the

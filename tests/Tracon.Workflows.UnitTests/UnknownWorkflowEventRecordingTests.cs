@@ -7,7 +7,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// F-589 (phase 223): a <c>WorkflowEvent</c> Tracon has no event type for is in the run
+/// A <c>WorkflowEvent</c> Tracon has no event type for is in the run
 /// record as <see cref="RunEventCustomTypes.WorkflowEvent"/>, through the real runner and a
 /// real function node. It used to be a warning in the log and nothing in the record.
 /// </summary>

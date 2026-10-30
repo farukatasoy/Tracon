@@ -8,7 +8,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// <see cref="WorkflowNodeRetryPolicy"/>'s wrapping contract (Phase 87.5):
+/// <see cref="WorkflowNodeRetryPolicy"/>'s wrapping contract:
 /// only a transient provider error is retried, cancellation is never
 /// retried, and <c>MaxAttempts</c> bounds the loop.
 /// </summary>
@@ -17,7 +17,7 @@ public sealed class WorkflowNodeRetryTests
     [Fact]
     public async Task A_transient_error_in_a_function_node_is_retried_and_costs_no_extra_super_step()
     {
-        // Measured (Phase 87.5, Open Question 2): the retry loop runs INSIDE
+        // Measured: the retry loop runs INSIDE
         // the function node's own call, which Microsoft Agent Framework
         // invokes exactly once per routed message regardless of how many
         // attempts Tracon's wrapper makes internally - so a retried node
@@ -151,7 +151,7 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
-    /// F-407: a budget refusal never changes inside a run (cost and time only grow), so a
+    /// A budget refusal never changes inside a run (cost and time only grow), so a
     /// retry cannot fix it. A consumer's classifier that files <c>run_budget_exceeded</c>
     /// under a transient class would otherwise make the node wait and ask <c>MaxAttempts</c>
     /// times for the same answer; the retry does not ask the classifier.
@@ -167,7 +167,7 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
-    /// F-529: a tenant's spent quota is not given back between two attempts a few milliseconds apart,
+    /// A tenant's spent quota is not given back between two attempts a few milliseconds apart,
     /// whatever class a registered classifier files it under.
     /// </summary>
     [Fact]
@@ -181,7 +181,7 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
-    /// F-338: <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx (K-817
+    /// <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx (that decision
     /// widened it on purpose), so the class alone cannot say whether a retry helps. A node
     /// that calls <c>EnsureSuccessStatusCode()</c> and gets a 401 used to run
     /// <c>MaxAttempts</c> times; a retried 409 on a non-idempotent call repeats its side
@@ -202,7 +202,7 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
-    /// F-338: the same status when only the message carries it — a provider failure that
+    /// The same status when only the message carries it — a provider failure that
     /// Tracon's chat client normalized to <c>upstream_error</c>, and an SDK exception that a
     /// node let escape without normalizing.
     /// </summary>
@@ -339,7 +339,7 @@ public sealed class WorkflowNodeRetryTests
             new FixedClassifier(RunErrorClass.ProviderUnavailable),
             TimeProvider.System);
 
-        // 🚨 Phase 157 (K-737): the token is ACTUALLY cancelled. It used to be
+        // The token is ACTUALLY cancelled. It used to be
         // enough for the exception to be an OperationCanceledException, and
         // that is what made this policy useless for the one failure it lists as
         // transient - HttpClient reports its own request timeout as a
@@ -447,7 +447,7 @@ public sealed class WorkflowNodeRetryTests
     [Fact]
     public async Task Every_failed_attempt_that_is_retried_is_logged_with_its_error()
     {
-        // F-527: a retried failure left no trace. When the last attempt then ended
+        // A retried failure left no trace. When the last attempt then ended
         // in a different error (a spent budget refused the next attempt), the run
         // row held that error only, and the transient error that started the
         // retry was nowhere in the record.
@@ -507,7 +507,7 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
-    /// F-280: the delay doubles on every attempt and used to meet the timer's ceiling
+    /// The delay doubles on every attempt and used to meet the timer's ceiling
     /// unchecked; past about 49.7 days the next <c>Task.Delay</c> threw
     /// <see cref="ArgumentOutOfRangeException"/> in the middle of a run instead of
     /// retrying. The delay is now capped where a delay can still wait.

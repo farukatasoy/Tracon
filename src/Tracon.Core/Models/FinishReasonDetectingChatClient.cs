@@ -194,7 +194,7 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     internal static bool IsIncomplete(ChatFinishReason? finishReason)
         => IsTruncated(finishReason) || IsContentFilter(finishReason);
 
-    // F-426 added the context window; phase 207 opened the predicate to the endpoints.
+    // The predicate covers the context window and the endpoints.
 
     /// <summary>Tells whether a finish reason means the answer was cut off.</summary>
     /// <param name="finishReason">The finish reason a model call reported.</param>

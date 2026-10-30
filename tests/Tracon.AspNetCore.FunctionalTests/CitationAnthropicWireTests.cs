@@ -6,7 +6,7 @@ using static Tracon.AspNetCore.FunctionalTests.OutputTruncationTests;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-773 (phase 267): the citations of an Anthropic answer reach the run record through the real SDK adapter
+/// The citations of an Anthropic answer reach the run record through the real SDK adapter
 /// against a local Messages API, on the buffered and the streamed path alike.
 /// </summary>
 /// <remarks>

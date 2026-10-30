@@ -24,7 +24,6 @@ import type { AgentDescriptor, RunRecord, WorkflowDescriptor } from '../lib/serv
  * must not be offered "New agent" — the server would refuse it, and offering an
  * action that always fails is worse than not offering it. As everywhere else in
  * this console, hiding is a courtesy; the server is the enforcement
- * (Phase 9).
  */
 
 export interface PaletteCommand {

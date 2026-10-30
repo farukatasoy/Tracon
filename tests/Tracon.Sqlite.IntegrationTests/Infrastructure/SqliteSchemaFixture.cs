@@ -11,7 +11,7 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// <remarks>
 /// The prefix is one per class and so is its database file
 /// (<see cref="SqliteFixture.ConnectionStringFor"/>): classes that xunit runs
-/// in parallel never wait for each other's writer lock (F-307).
+/// in parallel never wait for each other's writer lock.
 /// </remarks>
 public sealed class SqliteSchemaFixture(SqliteFixture database) : IAsyncLifetime
 {

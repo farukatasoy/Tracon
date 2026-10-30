@@ -5,14 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.VectorData;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Tests.Common;
-// Same rationale as AgentExtensionRunTests.cs (K-269): the package's Tracon.Testing.TraconTestHost and
+// Same rationale as AgentExtensionRunTests.cs: the package's Tracon.Testing.TraconTestHost and
 // this project's own TraconTestHost share a name.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 233 (F-627): conversation memory over a SQL host. The SQL stores take the content erasers from the
+/// Conversation memory over a SQL host. The SQL stores take the content erasers from the
 /// container (<c>ActivatorUtilities</c>); a unit test builds them by hand and so cannot see a constructor that
 /// would leave them out.
 /// </summary>
@@ -20,7 +20,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Data subject erasure and the sessions retention target run through the stores a SQLite host registers, with the
 /// real session rows, and the memory records must go with them. Both are driven through the store interfaces
 /// (<see cref="IDataSubjectStore"/>, <see cref="IRetentionStore"/>): the retention policy endpoints queue a job, and
-/// the erasure endpoint hangs over SQLite for a reason of its own (F-644).
+/// the erasure endpoint hangs over SQLite for a reason of its own.
 /// </remarks>
 public sealed class ConversationMemorySqlTests
 {
@@ -34,7 +34,7 @@ public sealed class ConversationMemorySqlTests
     {
         // Driven through the IDataSubjectStore the SQLite host registers, not through the HTTP endpoint: over SQLite
         // the endpoint's audit write, made inside the erasure transaction on another connection, never returns
-        // (F-644, measured). The store is what takes the content erasers from the container.
+        // (measured). The store is what takes the content erasers from the container.
         using var database = new TempSqliteDatabase("memory-erasure");
         var memory = new InMemoryVectorStore();
 

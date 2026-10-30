@@ -2,7 +2,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Evaluation;
 
-/// <summary>Tests for the online evaluation window summary (Phase 49).</summary>
+/// <summary>Tests for the online evaluation window summary.</summary>
 public sealed class OnlineEvalSummaryServiceTests
 {
     private const string Tenant = "acme";
@@ -79,7 +79,7 @@ public sealed class OnlineEvalSummaryServiceTests
         await SeedJudgeRunAsync(runs, "judge:model", 0.05m, "USD", clock.GetUtcNow());
         await SeedJudgeRunAsync(runs, "judge:model", 0.03m, "USD", clock.GetUtcNow());
 
-        // A different suite's case run (Phase 18) — does NOT carry the
+        // A different suite's case run — does NOT carry the
         // "judge:" prefix; must not be mixed into judge cost.
         await SeedJudgeRunAsync(runs, "customer-support-agent", 100m, "USD", clock.GetUtcNow());
 

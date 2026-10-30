@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-330: only <c>POST /api/agents/{name}/run</c> and eval bound values. The
+/// Only <c>POST /api/agents/{name}/run</c> and eval bound values. The
 /// queued run, batch, replay, the OpenAI-compatible endpoints, MCP and A2A
 /// compiled the definition as written, and the model received the literal
 /// <c>{{customer}}</c>; defaults were not applied either. A definition
@@ -75,7 +75,7 @@ public sealed class AgentParameterPathTests
     [Fact]
     public async Task A_replay_of_an_agent_with_a_required_parameter_repeats_the_values_its_run_recorded()
     {
-        // F-294 reopened K-890's replay refusal: a run records the values it was
+        // The earlier decision reopened the replay refusal: a run records the values it was
         // bound with, so a replay no longer has to refuse for want of them. The
         // refusal that remains - a run that recorded NOTHING - is pinned in
         // RunReplayParameterTests.

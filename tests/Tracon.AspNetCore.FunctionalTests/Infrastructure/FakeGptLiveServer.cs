@@ -34,7 +34,7 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     private readonly ConcurrentQueue<string> _received = [];
     private readonly TaskCompletionSource _sidebandClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    // F-257: a frame the test sends and the attach handler's teardown must not
+    // A frame the test sends and the attach handler's teardown must not
     // overlap. session.closed makes Tracon hang up; the handler's receive loop
     // then ends and its `using` disposed the socket and completed the response
     // while the test's own SendAsync of that frame was still writing - Kestrel
@@ -313,7 +313,7 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     /// <summary>Drops the sideband socket without a close handshake.</summary>
     /// <returns>The completion task.</returns>
     /// <remarks>
-    /// Phase 184: a fixed 50 ms followed the abort. Nothing depended on it - the
+    /// A fixed 50 ms followed the abort. Nothing depended on it - the
     /// caller waits for the session record the drop produces.
     /// </remarks>
     public async Task KillSidebandAsync()

@@ -1,4 +1,4 @@
-# Capacity measurement (Phase 166)
+# Capacity measurement
 
 What a real package consumer's HTTP and SQL path does under load, on one
 machine, at one configuration.

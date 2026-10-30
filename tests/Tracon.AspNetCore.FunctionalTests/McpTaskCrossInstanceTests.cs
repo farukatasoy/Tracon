@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 117: <see cref="RunBackedMcpTaskStore"/>'s same-instance cache is a fast
+/// <see cref="RunBackedMcpTaskStore"/>'s same-instance cache is a fast
 /// path, not the source of truth — a poll landing on a DIFFERENT instance must
 /// still resolve correctly straight from the shared database. Two real, separate
 /// <see cref="TraconTestHost"/>s sharing one SQLite file (not two in-memory
@@ -17,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <see cref="RunBackedMcpTaskStore"/> was never told anything by A — its
 /// same-instance cache is empty by construction, so every read here is forced
 /// through <see cref="McpTaskStatusMapping"/>'s reconstruction path. This is also
-/// the automated proof for the phase's "a task is visible from a second instance"
+/// the automated proof for the change's "a task is visible from a second instance"
 /// DoD line.
 /// </summary>
 public sealed class McpTaskCrossInstanceTests
@@ -53,7 +53,7 @@ public sealed class McpTaskCrossInstanceTests
     [Fact]
     public async Task Second_instance_reconstructs_an_approval_rejection_generically_not_with_todays_exact_wording()
     {
-        // The counterpart to McpTasksEndpointTests's cache-hit K-103 assertion:
+        // The counterpart to McpTasksEndpointTests's cache-hit that decision assertion:
         // this is the fallback path (§ McpTaskStatusMapping), which cannot
         // recover the exact tool name from IRunStore alone -- a documented,
         // deliberate difference from the same-instance wording, not a bug.

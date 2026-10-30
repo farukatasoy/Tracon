@@ -163,7 +163,6 @@ internal sealed class SqlRunStore : IRunStore
         // deliberately override the ambient tenant (this is how workflows and
         // the job queue work), so filtering by the ambient tenant would drop
         // legitimate writes. NULL means no check.
-        // Rationale: K-355.
         AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(runEvent.TenantId));
 
         int affected;
@@ -241,7 +240,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
-        // phase 199: the run's reported non-token total, a snapshot like the cost above.
+        // The run's reported non-token total, a snapshot like the cost above.
         // `non_token_unsummed` is the PRESENCE marker: NULL means the run reported
         // nothing, and every other column of the group is NULL with it. A run that
         // reported items none of which carried an amount writes unsummed > 0 and a
@@ -252,11 +251,11 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddInt32(command, "non_token_unsummed", completion.NonTokenCost?.UnsummedItemCount);
 
         // NULL leaves the column at the value StartRunAsync already wrote
-        // (phase 62) — the SQL text COALESCEs it, this is not a conditional here.
+        // — the SQL text COALESCEs it, this is not a conditional here.
         AddNullableText(command, "model_id", completion.ModelId);
         AddNullableText(command, "model_provider", completion.ModelProvider);
 
-        // EXPECTED tenant (K-355). NULL means no check.
+        // EXPECTED tenant. NULL means no check.
         AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
 
         var affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -292,7 +291,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "cost_currency", cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
 
-        // EXPECTED tenant (K-355). The maintenance endpoint
+        // EXPECTED tenant. The maintenance endpoint
         // (POST /api/stats/recalculate-costs) gets ids from a query already
         // FILTERED by tenant and carries the same tenant here too, so the
         // two-phase path has no race.
@@ -316,15 +315,15 @@ internal sealed class SqlRunStore : IRunStore
 
         // A single bulk UPDATE (WHERE id IN (array)) would require converting
         // the array parameter to JSON text on SQLite/SQL Server; this carried a
-        // MISMATCH risk between uuid casing (K-191) and array serialization
+        // MISMATCH risk between uuid casing and array serialization
         // (System.Text.Json, lowercase). The number of CONCURRENTLY running
         // runs in this process is small (IRunCancellationRegistry.ActiveRunIds);
         // N single UPDATEs in a loop give the same result without that risk.
         //
-        // F-764: each UPDATE reads the row's tenant and cancellation request back
+        // Each UPDATE reads the row's tenant and cancellation request back
         // (RETURNING / OUTPUT), so a cancel written by another instance reaches this
         // process in the round trip that already exists. The run id is the caller's
-        // own value, not read back: the SQLite uuid casing (K-191) never enters.
+        // own value, not read back: the SQLite uuid casing never enters.
         List<RunCancellationRequest>? requests = null;
 
         foreach (var runId in runIds)
@@ -371,7 +370,7 @@ internal sealed class SqlRunStore : IRunStore
         var command = CreateCommand(_sql.RequestRunCancellation);
         DbHelpers.Add(command, "id", runId);
 
-        // EXPECTED tenant (K-355): the WHERE clause finds no row of another tenant.
+        // EXPECTED tenant: the WHERE clause finds no row of another tenant.
         DbHelpers.AddTenant(command, tenantId);
         Dialect.AddTimestamp(command, "at", at);
         DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
@@ -519,7 +518,7 @@ internal sealed class SqlRunStore : IRunStore
                 var scoredRuns = reader.GetInt64(12);
                 var positiveRate = reader.IsDBNull(13) ? (double?)null : reader.GetDouble(13);
 
-                // 🚨 14-17: appended in phase 68 so the fixed positions above do
+                // 🚨 14-17: appended in so the fixed positions above do
                 // not move. Counted INSIDE inputTokens/outputTokens, reported
                 // beside them.
                 var cachedInputTokens = reader.GetInt64(14);
@@ -527,12 +526,12 @@ internal sealed class SqlRunStore : IRunStore
                 var audioInputTokens = reader.GetInt64(16);
                 var audioOutputTokens = reader.GetInt64(17);
 
-                // 18 (F-419): amounts in two currencies are never added, and a breakdown
+                // 18: amounts in two currencies are never added, and a breakdown
                 // carries no currency of its own, so a mixed window leaves every cost out.
                 var currencies = ToCurrencyCount(reader, 18);
                 var mixed = CurrencyTotals.IsMixed(currencies);
 
-                // 19-20 (F-420): the cache writes, counted INSIDE inputTokens like the cache reads.
+                // 19-20: the cache writes, counted INSIDE inputTokens like the cache reads.
                 var cacheWriteInputTokens = reader.GetInt64(19);
                 var cacheWriteLongInputTokens = reader.GetInt64(20);
 
@@ -594,7 +593,7 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
-                // Fifth result set: the breakdown by error class (Phase 44).
+                // Fifth result set: the breakdown by error class.
                 var errorTotals = new List<(RunErrorClass Class, long TotalRuns)>();
 
                 if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
@@ -632,7 +631,7 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
-                // Seventh result set: the breakdown by user (phase 68). Runs
+                // Seventh result set: the breakdown by user. Runs
                 // that carry no user are excluded by the query but are still
                 // counted in the totals.
                 var byUser = new List<RunUserStatistics>();
@@ -811,7 +810,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "error", invocation.Error);
         Dialect.AddTimestamp(command, "created_at", invocation.CreatedAt);
 
-        // Non-token usage measurement (Phase 28). Most calls carry no
+        // Non-token usage measurement. Most calls carry no
         // measurement and all five columns stay NULL. If the price is
         // undefined, `cost` is written as NULL, not ZERO.
         AddNullableText(command, "usage_unit", invocation.Usage?.Unit);
@@ -822,13 +821,13 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "usage_provider", invocation.Usage?.Provider);
         AddNullableText(command, "usage_model", invocation.Usage?.Model);
 
-        // Authorization decision and timeout marker (Phase 69). Both NOT
+        // Authorization decision and timeout marker. Both NOT
         // NULL: a call that is neither denied nor timed out writes false,
         // not NULL — this is a settled fact about the call, not an unknown.
         Dialect.AddBoolean(command, "authorization_denied", invocation.AuthorizationDenied);
         Dialect.AddBoolean(command, "timed_out", invocation.TimedOut);
 
-        // EXPECTED tenant (K-355). NULL means no check.
+        // EXPECTED tenant. NULL means no check.
         AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(invocation.TenantId));
 
         int affected;
@@ -879,7 +878,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "usage_model", completion.Usage?.Model);
         Dialect.AddTimestamp(command, "late_completed_at", completion.LateCompletedAt);
 
-        // EXPECTED tenant (K-355). NULL means no check.
+        // EXPECTED tenant. NULL means no check.
         AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
 
         // 🚨 No row is NOT an error here, unlike RecordToolInvocationAsync. The
@@ -922,7 +921,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "model", record.Usage.Model);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
 
-        // EXPECTED tenant (K-355). NULL means no check.
+        // EXPECTED tenant. NULL means no check.
         AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(record.TenantId));
 
         int affected;
@@ -1061,11 +1060,11 @@ internal sealed class SqlRunStore : IRunStore
                 Fingerprint = DbHelpers.GetNullableString(reader, 22),
             },
 
-            // 🚨 23: Added at the END in Phase 87. NULL on every row written
+            // 🚨 23: NULL on every row written
             // before the column existed, and on every run that is not a continuation.
             ContinuedFromRunId = reader.IsDBNull(23) ? null : reader.GetGuid(23),
 
-            // 🚨 24: Added at the END in Phase 262 (F-764). Reconciliation reads it to leave a
+            // 🚨 24: Reconciliation reads it to leave a
             // run the operator asked to cancel closed instead of opening a continuation.
             CancelRequestedAt = DbHelpers.GetNullableTimestamp(reader, 24),
         };
@@ -1104,20 +1103,20 @@ internal sealed class SqlRunStore : IRunStore
             Cost = ownCost,
             TreeCost = ReadTreeCost(reader, ownCost),
 
-            // Added at the END in Phase 47. NULL on old rows; that means
+            // NULL on old rows; that means
             // the row is not a replay.
             ReplayOfRunId = reader.IsDBNull(RunOrdinals.ReplayOfRunId) ? null : reader.GetGuid(RunOrdinals.ReplayOfRunId),
 
-            // Appended at the END in Phase 68. NULL on every row
+            // Appended at the END. NULL on every row
             // written before the columns existed, and on every run of an
-            // application that registers no IRunAttributionContext (K-014 -- no
+            // application that registers no IRunAttributionContext (no
             // backfill).
             UserId = DbHelpers.GetNullableString(reader, RunOrdinals.UserId),
             Labels = JsonStringMapCodec.Deserialize(DbHelpers.GetNullableString(reader, RunOrdinals.Labels)),
 
-            // Columns ALWAYS appended at the end (Phase 44). On old
+            // Columns ALWAYS appended at the end. On old
             // rows error_class is NULL -- it falls into the Unknown bucket
-            // (RunStatistics.ByErrorClass, K-014 -- no backfill).
+            // (RunStatistics.ByErrorClass; no backfill).
             Error = errorType is null
                 ? null
                 : new RunError
@@ -1128,17 +1127,17 @@ internal sealed class SqlRunStore : IRunStore
                     Fingerprint = DbHelpers.GetNullableString(reader, RunOrdinals.ErrorFingerprint),
                 },
 
-            // Added at the END in Phase 87 (after tree.cost_cached_input,
-            // the last column Phase 68 appended). NULL on every row written
+            // Added at the END (after tree.cost_cached_input,
+            // the last column appended). NULL on every row written
             // before the column existed, and on every run that is not a continuation.
             ContinuedFromRunId = reader.IsDBNull(RunOrdinals.ContinuedFromRunId) ? null : reader.GetGuid(RunOrdinals.ContinuedFromRunId),
 
-            // Appended at the END in phase 199. NULL on every row written before the
+            // Appended at the END. NULL on every row written before the
             // columns existed and on every run that reported nothing beyond tokens.
             NonTokenCost = ownNonTokenCost,
             TreeNonTokenCost = ReadTreeNonTokenCost(reader, ownNonTokenCost),
 
-            // Appended at the END in Phase 262 (F-764). NULL on every row written before the
+            // Appended at the END. NULL on every row written before the
             // column existed and on every run no operator asked to cancel from another instance.
             CancelRequestedAt = DbHelpers.GetNullableTimestamp(reader, RunOrdinals.CancelRequestedAt),
         };
@@ -1238,12 +1237,12 @@ internal sealed class SqlRunStore : IRunStore
             OutputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.OutputCost),
             OutputPricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.OutputPricePerMillionTokens),
 
-            // Appended in phase 68. NULL when no cache rate was
+            // Appended. NULL when no cache rate was
             // configured -- which is NOT the same as PricingSource.Unknown.
             CachedInputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CachedInputCost),
             CachedInputPricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CachedInputPricePerMillionTokens),
 
-            // Appended in phase 253. NULL on every row written before the columns existed,
+            // Appended. NULL on every row written before the columns existed,
             // and on every run whose write was not priced (no rate, or none reported).
             CacheWriteCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CacheWriteCost),
             CacheWritePricePerMillionTokens = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CacheWritePricePerMillionTokens),
@@ -1290,7 +1289,7 @@ internal sealed class SqlRunStore : IRunStore
             cachedInputCost = (cachedInputCost ?? 0) + ownCached;
         }
 
-        // The descendants' cache write: a FOURTH addend, for the same reason (phase 253).
+        // The descendants' cache write: a FOURTH addend, for the same reason.
         var cacheWriteCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.TreeCostCacheWrite);
 
         if (ownCost?.CacheWriteCost is { } ownWritten)
@@ -1298,7 +1297,7 @@ internal sealed class SqlRunStore : IRunStore
             cacheWriteCost = (cacheWriteCost ?? 0) + ownWritten;
         }
 
-        // F-419: the query counts the descendants' currencies the own row does not carry,
+        // The query counts the descendants' currencies the own row does not carry,
         // so the own one, when it carries an amount, adds exactly one.
         var currencies = ToCurrencyCount(reader, RunOrdinals.TreeCostCurrencies)
             + (ownCost is { Currency.Length: > 0 } && ownCost.Total() is not null ? 1 : 0);
@@ -1421,8 +1420,8 @@ internal sealed class SqlRunStore : IRunStore
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
             Usage = ReadToolCallUsage(reader),
 
-            // Indexes 15-16 (Phase 69). SQLite has no boolean type and
-            // returns long (0/1) instead (K-195), the same reason
+            // Indexes 15-16. SQLite has no boolean type and
+            // returns long (0/1) instead, the same reason
             // ReadToolCallUsage below reads `usage_estimated` through
             // DbHelpers.ToBoolean rather than reader.GetBoolean.
             AuthorizationDenied = DbHelpers.ToBoolean(reader.GetValue(15)),
@@ -1458,7 +1457,7 @@ internal sealed class SqlRunStore : IRunStore
             Cost = DbHelpers.GetNullableDecimal(reader, 13),
             Currency = DbHelpers.GetNullableString(reader, 14),
 
-            // Indexes 18-19, appended in phase 199: who did the work. NULL on every
+            // Indexes 18-19, appended: who did the work. NULL on every
             // measurement written before the columns existed.
             Provider = DbHelpers.GetNullableString(reader, 18),
             Model = DbHelpers.GetNullableString(reader, 19),
@@ -1477,7 +1476,7 @@ internal sealed class SqlRunStore : IRunStore
 
     private static TimeSeriesPoint ReadTimeSeriesPoint(DbDataReader reader)
     {
-        // F-419: the series' currency count is the same on every row (CurrencyTotals).
+        // The series' currency count is the same on every row (CurrencyTotals).
         var currencies = ToCurrencyCount(reader, 7);
 
         return new TimeSeriesPoint
@@ -1495,7 +1494,7 @@ internal sealed class SqlRunStore : IRunStore
 
     private static ExperimentVariantResult ReadExperimentVariantResult(DbDataReader reader)
     {
-        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        // Amounts in two currencies are never added (CurrencyTotals).
         var currencies = ToCurrencyCount(reader, 13);
         var mixed = CurrencyTotals.IsMixed(currencies);
 

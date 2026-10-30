@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 201, failure mode 3: one factory-built criterion serves every tenant, so
+/// Failure mode 3: one factory-built criterion serves every tenant, so
 /// whatever it reads at creation belongs to the first tenant that compiled it. A
 /// criterion that reads the tenant when it EVALUATES sees each run's own tenant —
 /// on a direct agent run and inside a workflow step.
@@ -19,7 +19,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// through MAF's loop into the criterion; a unit test with a fixed tenant context
 /// proves nothing about that flow.
 /// </remarks>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class LoopEvaluatorTenantTests
 {

@@ -28,28 +28,28 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             $"WHERE s.name = '{context.SchemaName}';");
 
         // 0001_initial sets up PostgreSQL's 0001-0013 accumulation: 35 tables +
-        // migration ledger = 36. 0002_retention adds 2 more tables (Phase 25):
+        // migration ledger = 36. 0002_retention adds 2 more tables:
         // retention_policies, retention_runs. The count should match the
         // PostgreSQL side; both providers carry the same data model.
         //
         // The number is DELIBERATELY a constant: adding a new table breaks this
         // test, so whoever adds it notices the table.
-        // Phase 29 added the `voice_sessions` table: 38 -> 39.
-        // Phase 31 added the `run_scores` table: 39 -> 40.
-        // Phase 42 added the `singleton_leases` table: 40 -> 41.
-        // Phase 43 added the `idempotency_keys` table: 41 -> 42.
-        // Phase 47 added the `run_inputs` table: 42 -> 43.
-        // Phase 53 added the `api_keys` table: 43 -> 44.
-        // Phase 55 added the `pending_approvals` table: 44 -> 45.
-        // Phase 65 added `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
-        // Phase 66 added the `inbound_triggers` table: 47 -> 48.
-        // Phase 199 added the `run_non_token_usage` table: 48 -> 49.
-        // Phase 200 added the `workflow_definition_versions` table: 49 -> 50.
-        // Phase 208 added the `workflow_responses` table: 50 -> 51.
-        // Phase 209 added the `workflow_requests` table: 51 -> 52.
-        // Phase 248 added the `agent_definition_version_counters` table: 52 -> 53.
-        // Phase 261 added the `tenant_tool_policies` table: 53 -> 54.
-        // Phase 263 added the `rate_limit_counters` table: 54 -> 55.
+        // An earlier change added the `voice_sessions` table: 38 -> 39.
+        // An earlier change added the `run_scores` table: 39 -> 40.
+        // An earlier change added the `singleton_leases` table: 40 -> 41.
+        // An earlier change added the `idempotency_keys` table: 41 -> 42.
+        // An earlier change added the `run_inputs` table: 42 -> 43.
+        // An earlier change added the `api_keys` table: 43 -> 44.
+        // An earlier change added the `pending_approvals` table: 44 -> 45.
+        // An earlier change added `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
+        // An earlier change added the `inbound_triggers` table: 47 -> 48.
+        // An earlier change added the `run_non_token_usage` table: 48 -> 49.
+        // An earlier change added the `workflow_definition_versions` table: 49 -> 50.
+        // An earlier change added the `workflow_responses` table: 50 -> 51.
+        // An earlier change added the `workflow_requests` table: 51 -> 52.
+        // An earlier change added the `agent_definition_version_counters` table: 52 -> 53.
+        // An earlier change added the `tenant_tool_policies` table: 53 -> 54.
+        // An earlier change added the `rate_limit_counters` table: 54 -> 55.
         tableCount.ShouldBe(55);
     }
 
@@ -129,7 +129,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     /// <summary>
-    /// K-389: the migration lock is scoped to the schema. While schema A's
+    /// The migration lock is scoped to the schema. While schema A's
     /// lock is held, schema B's lock must be acquirable IMMEDIATELY; with a
     /// global lock, B would wait up to <c>LockTimeoutMilliseconds</c> (30 s).
     /// </summary>
@@ -150,7 +150,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
 
             // A lock shared across schemas would keep B waiting until A's release
             // in the finally block below, so B's own lock wait is set far past the
-            // test's bound. Phase 184: the bound was five seconds, a claim about
+            // test's bound. The bound was five seconds, a claim about
             // the machine - under a full run a healthy acquire could miss it.
             var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 300, CancellationToken.None).AsTask();
 
@@ -169,7 +169,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     {
         // Uppercase, quotes, and a period are rejected: the schema name is
         // embedded directly into SQL text, and the injection surface is closed
-        // here (K-029).
+        // here.
         foreach (var invalid in new[] { "Agent", "agent-prism", "agent.prism", "agent prism", "dbo';--" })
         {
             Should.Throw<TraconException>(() => new SqlServerDialect(invalid));
@@ -226,7 +226,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
 
     /// <summary>
     /// A database that already applied the core set under the shape that
-    /// existed before phase 67 (id-only ledger primary key, no
+    /// existed before an earlier change (id-only ledger primary key, no
     /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely.
     /// </summary>
     /// <remarks>
@@ -275,7 +275,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     /// <summary>
-    /// A database populated BEFORE phase 152 upgrades without losing a row: the
+    /// A database populated BEFORE upgrades without losing a row: the
     /// judge rows keep their judge name, the human rows fall back to
     /// <c>overall</c>, the widened <c>value</c> column stops rounding, and the
     /// old FILTERED uniqueness index no longer blocks a second name per author.
@@ -289,7 +289,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         var migrations = MigrationDescriptor
             .Discover(typeof(MigrationRunner).Assembly, "Tracon.SqlServer.Migrations.");
 
-        // 🚨 Found BY NAME, not as migrations[^1]: the next phase that adds a
+        // 🚨 Found BY NAME, not as migrations[^1]: a later change that adds a
         // migration would otherwise turn this test red for an unrelated reason.
         var upgrade = migrations.Single(candidate =>
             string.Equals(candidate.Name, "0035_run_score_name_and_shape", StringComparison.Ordinal));
@@ -316,7 +316,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             """);
 
         // Not hard-coded to 1: ApplyAsync() applies every pending migration,
-        // not just `upgrade`, and a later phase can add one that also lands
+        // not just `upgrade`, and a later change can add one that also lands
         // after it (154 added an index migration right after this one).
         var pendingFromUpgrade = migrations.Count(candidate => candidate.Id >= upgrade.Id);
         (await context.Migrations.ApplyAsync()).ShouldBe(pendingFromUpgrade);

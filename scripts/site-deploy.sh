@@ -226,7 +226,7 @@ if [[ -z "$published_version" ]]; then
   exit 1
 fi
 
-# The release page of the version (F-710) is the entry the release-notes links point to.
+# The release page of the version is the entry the release-notes links point to.
 for page in / /getting-started/ /packages/ /reference/changelog/ "/reference/releases/$published_version/"; do
   page_url="https://$(site_host)$page"
   page_body="$(curl -fsSL --max-time 30 "$page_url")" || {

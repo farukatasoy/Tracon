@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-294 (K-890 reopened): replay refused every agent that declares
+/// Replay refused every agent that declares
 /// parameters, because a run recorded no values and a replay on the defaults
 /// would run different instructions. A run now records the values it was bound
 /// with, so a replay repeats them, with the caller's overrides laid over them.
@@ -106,7 +106,7 @@ public sealed class RunReplayParameterTests
     public async Task A_row_from_before_parameter_recording_is_refused_not_replayed_on_the_defaults()
     {
         // A run_inputs row with messages and NO parameter record: what every
-        // parameterized run left behind before this phase.
+        // parameterized run left behind before this change.
         var provider = Provider();
         await using var host = await StartAsync(provider, recordRunInput: true);
 

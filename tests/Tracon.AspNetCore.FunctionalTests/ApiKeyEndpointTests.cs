@@ -5,11 +5,11 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// CRUD behavior of the <c>/api/api-keys</c> endpoints (Phase 53).
+/// CRUD behavior of the <c>/api/api-keys</c> endpoints.
 /// </summary>
 /// <remarks>
 /// 🚨 The rule these tests guard: the raw key value is returned only in the
-/// creation response; no listing call ever returns it again (section 53.2).
+/// creation response; no listing call ever returns it again.
 /// </remarks>
 public sealed class ApiKeyEndpointTests
 {

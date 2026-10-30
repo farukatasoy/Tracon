@@ -127,7 +127,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                     $"must be greater than zero. Actual value: {health.CacheTtl}.");
             }
 
-            // The background refresher runs on a PeriodicTimer (F-278).
+            // The background refresher runs on a PeriodicTimer.
             if (health.BackgroundInterval is { } interval && !TimerPeriod.IsValid(interval))
             {
                 (failures ??= []).Add(TimerPeriod.Failure(
@@ -173,7 +173,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
         else if (!TimerPeriod.IsValid(validation.McpTimeout))
         {
-            // F-280: every timeout below arms CancelAfter, which refuses more than
+            // Every timeout below arms CancelAfter, which refuses more than
             // about 49.7 days at the moment the timeout is armed, not at startup.
             (failures ??= []).Add(TimerPeriod.Failure(
                 $"{nameof(TraconValidationOptions)}.{nameof(TraconValidationOptions.McpTimeout)}",
@@ -312,7 +312,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
 
         if (!TimerPeriod.IsValid(scripts.Timeout))
         {
-            // F-280: the runner arms this timeout after the interpreter has started;
+            // The runner arms this timeout after the interpreter has started;
             // an out-of-range value threw there and skipped the kill.
             (failures ??= []).Add(TimerPeriod.Failure(
                 $"{nameof(TraconSkillScriptOptions)}.{nameof(TraconSkillScriptOptions.Timeout)}",
@@ -394,7 +394,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                         $"{nameof(TraconPricingOptions)}: price for '{providerName}:{modelName}' cannot be negative.");
                 }
 
-                // 🚨 K-034 (MT-CORE-065): BindPricing now adds a record when both
+                // BindPricing now adds a record when both
                 // values are empty. This explicitly rejects a price written with
                 // a key other than Input or Output, such as the C# property name
                 // InputCostPerMillionTokens, rather than silently discarding it.
@@ -421,7 +421,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                         $"{nameof(TraconPricingOptions)}: price for 'Voice:{providerName}:{modelName}' cannot be negative.");
                 }
 
-                // 🚨 Same rationale: see the Providers validation above (MT-CORE-065).
+                // 🚨 Same rationale: see the Providers validation above.
                 if (price.PerMillionCharacters is null && price.PerMinute is null)
                 {
                     (failures ??= []).Add(
@@ -451,7 +451,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                         $"{nameof(TraconPricingOptions)}: price for 'HostedTools:{providerName}:{kindName}' cannot be negative.");
                 }
 
-                // Same rationale as the model prices (MT-CORE-065): a key other than PerCall must fail the start.
+                // Same rationale as the model prices: a key other than PerCall must fail the start.
                 if (price.PerCall is null)
                 {
                     (failures ??= []).Add(

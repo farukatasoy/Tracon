@@ -7,7 +7,7 @@ using Tracon.Testing;
 namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
-/// <c>tracon eval --baseline</c> against a real, listening host (Phase 153):
+/// <c>tracon eval --baseline</c> against a real, listening host:
 /// the relative gate that catches a slide an absolute threshold cannot see.
 /// </summary>
 [Collection(nameof(CliTestGroup))]

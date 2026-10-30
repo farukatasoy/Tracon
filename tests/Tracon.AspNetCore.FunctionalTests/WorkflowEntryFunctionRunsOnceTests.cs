@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-398: the first function node of a node list runs once per run.
+/// The first function node of a node list runs once per run.
 /// </summary>
 /// <remarks>
 /// <para>

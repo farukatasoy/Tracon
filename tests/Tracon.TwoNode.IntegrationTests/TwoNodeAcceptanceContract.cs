@@ -3,7 +3,7 @@ using Tracon.TwoNode.IntegrationTests.Infrastructure;
 namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>
-/// The two-node acceptance set (Phase 265, F-768): what K-1113 promises for two replicas, proved on a real database
+/// The two-node acceptance set: what K-1113 promises for two replicas, proved on a real database
 /// server.
 /// </summary>
 /// <remarks>

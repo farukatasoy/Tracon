@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Recording;
 /// Verifies the ambient-write/scoped-read channel that carries a denial from
 /// <see cref="AuthorizingAIFunction"/> to <see cref="ToolInvocationTracker"/>,
 /// keyed by call identity — the same pattern <see cref="ToolUsageAccumulator"/>
-/// uses for non-token usage (phase 28), applied to an authorization decision.
+/// uses for non-token usage, applied to an authorization decision.
 /// </summary>
 public sealed class ToolAuthorizationAccumulatorTests
 {

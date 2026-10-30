@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Development-time generation step (Phase 84,
-// section 84.2). `npm run build` and `dotnet build` do NOT call this — it is
+// Development-time generation step (
+// An earlier plan). `npm run build` and `dotnet build` do NOT call this — it is
 // run by hand whenever docs/openapi/tracon.json changes, and its output
 // (src/schema.ts) is committed.
 //
@@ -58,7 +58,7 @@ export function generateSchema(outputPath) {
         strippedPath,
         '-o',
         outputPath,
-        // Section 84.6/Open Question 1: each schema also gets a readable root-level
+        // Each schema also gets a readable root-level
         // type alias (e.g. `export type RunRecord = ...`), matching what the 155
         // migrated call sites already spell today.
         '--root-types',

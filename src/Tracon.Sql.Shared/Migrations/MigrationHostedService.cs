@@ -75,12 +75,12 @@ internal sealed class MigrationHostedService : IHostedService
             // 🚨 If more than one persistence provider is registered,
             // WarnOnMultipleProviders() has already warned BEFORE this point.
             // Sql.Shared is compiled SEPARATELY for every provider (this file
-            // is copied by a link, K-176) — meaning SqlStoreContext/MigrationRunner/
+            // is copied by a link) — meaning SqlStoreContext/MigrationRunner/
             // MigrationHostedService is a DIFFERENT CLR type in EVERY provider.
             // `services.Replace(...)` therefore replaces only the SAME provider's
             // own type; it does NOT REMOVE a competing provider's registration.
             // Without this guard, the losing provider would also SILENTLY write
-            // its own schema/default tenant (measured: MT-PKG-082, both databases
+            // its own schema/default tenant (measured: both databases
             // ended up with a schema). Only the winning (last registered)
             // provider applies migrations; the others leave the gate untouched
             // and exit.
@@ -88,7 +88,7 @@ internal sealed class MigrationHostedService : IHostedService
             // 🚨 The LOSER does not open the gate. The gate is ONE shared signal;
             // if the loser opened it immediately, it would open before the
             // winner's migration finished, and waiting background services
-            // would query an empty schema. Measured: MT-PG-034 (the PostgreSQL
+            // would query an empty schema. Measured (the PostgreSQL
             // schema is already current, SQLite wins; the losing PostgreSQL
             // provider opens the gate instantly and hits "no such table").
             // The winner calls MarkReady on EVERY path - even when
@@ -119,7 +119,7 @@ internal sealed class MigrationHostedService : IHostedService
         // 🚨 The gate opens ONLY HERE, after both the migration and the
         // default tenant write have completed. If the migration fails, the
         // gate stays closed; the host does not start anyway and waiting
-        // services exit through the stoppingToken. Rationale: K-354.
+        // services exit through the stoppingToken.
         _schemaReadyGate.MarkReady();
     }
 

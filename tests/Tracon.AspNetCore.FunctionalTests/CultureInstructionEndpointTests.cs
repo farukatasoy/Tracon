@@ -7,7 +7,7 @@ using Tracon.Testing;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Culture-keyed instructions (F-117, phase 72): the <c>culture</c> field on
+/// Culture-keyed instructions: the <c>culture</c> field on
 /// <see cref="AgentRunRequest"/> selects which of
 /// <see cref="AgentDefinition.InstructionsByCulture"/> reaches the model.
 /// </summary>
@@ -108,7 +108,7 @@ public sealed class CultureInstructionEndpointTests
     }
 
     /// <summary>
-    /// F-351: the queue worker resolved the agent with no culture, so a queued
+    /// The queue worker resolved the agent with no culture, so a queued
     /// run always reached the model with the default instructions.
     /// </summary>
     [Fact]

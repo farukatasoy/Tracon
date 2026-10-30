@@ -42,7 +42,7 @@ public sealed class ContentProtectionTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// F-401: a workflow checkpoint carries the run's messages, like session state
+    /// A workflow checkpoint carries the run's messages, like session state
     /// does. It was never protected; it is now a protected column, read back as
     /// plaintext with its <c>$type</c> discriminator still first.
     /// </summary>
@@ -234,7 +234,7 @@ public sealed class ContentProtectionTests(PostgresFixture fixture)
         await using var baseContext = await PostgresTestContext.CreateAsync(fixture);
 
         // Only the parameters column is in scope: the messages beside it stay
-        // plain, which proves the column is chosen on its own (F-294).
+        // plain, which proves the column is chosen on its own.
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.RunInputParameters });
         var runInputs = new SqlRunInputStore(protectingContext);
         var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);

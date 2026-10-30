@@ -9,7 +9,7 @@ namespace Tracon;
 // The suppression covers the whole file because the file exists to implement
 // that API. If MAF changes it, only this file and its three neighbours
 // (LoopEvaluatorRegistry, RecordingLoopEvaluator, AgentDefinitionCompiler.Agents)
-// need updating. Rationale: docs/KARARLAR.md, decision K-020.
+// need updating.
 #pragma warning disable MAAI001
 
 /// <summary>

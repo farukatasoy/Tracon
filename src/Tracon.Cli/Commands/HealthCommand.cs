@@ -34,7 +34,7 @@ internal static class HealthCommand
             // 🚨 The budget below (timeoutSource.CancelAfter) is the only limit
             // this command promises. HttpClient's own 100 s default would cap
             // every request underneath it and report the cap as a cancellation
-            // nothing asked for (K-737), so a longer budget could never be
+            // nothing asked for, so a longer budget could never be
             // reached and the message named a limit that never elapsed.
             options.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
         });
@@ -42,7 +42,7 @@ internal static class HealthCommand
         // await using var x = ...; puts ConfigureAwait(false) out of reach for
         // the compiler-generated dispose call (MA0004); declaring the variable
         // first and wrapping usage in `await using (x.ConfigureAwait(false))`
-        // keeps the concrete type usable. docs/hafiza/build-ve-analyzer.md.
+        // keeps the concrete type usable..
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
@@ -60,11 +60,11 @@ internal static class HealthCommand
             catch (TraconApiException ex)
             {
                 // ex.Message embeds the response body; print only the status code
-                // to keep the promise that CLI output carries no server secret (K-059).
+                // to keep the promise that CLI output carries no server secret.
                 Console.Error.WriteLine($"Request failed: HTTP {ex.StatusCode}.");
                 return 2;
             }
-            // 🚨 Same distinction as EvalCommand (K-737): only our own budget
+            // 🚨 Same distinction as EvalCommand: only our own budget
             // firing may be reported as our own budget.
             catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {

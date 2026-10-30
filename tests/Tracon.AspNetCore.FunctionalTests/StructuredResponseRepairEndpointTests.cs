@@ -10,7 +10,7 @@ using TraconTestHost = Tracon.AspNetCore.FunctionalTests.Infrastructure.TraconTe
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Bounded structured-response repair (docs/134): the crossings a unit test
+/// Bounded structured-response repair: the crossings a unit test
 /// cannot prove on its own — the token budget, cancellation, the fallback
 /// chain, and the durable conversation history — all through a real
 /// DI-built host. The repair loop's own mechanics (call count, message
@@ -44,7 +44,7 @@ public sealed class StructuredResponseRepairEndpointTests
         // The single (rejected) call's tokens were genuinely spent, and the
         // side channel that folds a discarded attempt's usage into the run
         // (134.1) runs on every rejection, not only when a repair follows -
-        // this is an intentional improvement over Phase 131, where a
+        // this is an intentional improvement over an earlier change, where a
         // rejected run's Usage was silently null even though real tokens
         // were spent.
         run.Usage.ShouldNotBeNull();
@@ -370,7 +370,7 @@ public sealed class StructuredResponseRepairEndpointTests
     /// <summary>
     /// Enters the non-streaming branch. A request carrying the
     /// <c>Idempotency-Key</c> header runs with a single JSON response instead
-    /// of SSE (Phase 43) - repair only ever runs on this branch (docs/134 §134.4).
+    /// of SSE - repair only ever runs on this branch.
     /// </summary>
     private static async Task<HttpResponseMessage> PostBufferedAsync(TraconTestHost host, AgentRunRequest? body = null)
     {

@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-331: the catalog compiled the pinned version but described it with the
+/// The catalog compiled the pinned version but described it with the
 /// current version's descriptor, and the decorators read the response format,
 /// the model and the version off the descriptor. An eval of v1 — plain text —
 /// was validated against v2's JSON schema and failed; its case runs were

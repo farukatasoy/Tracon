@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Memory;
 /// <see cref="TraconRunContext"/>. Each test sets and clears that scope in its own body (it is an
 /// <c>AsyncLocal</c>).
 /// </remarks>
-// MAAI001: the context provider contexts are marked "evaluation purposes only" - see K-020.
+// MAAI001: the context provider contexts are marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class ConversationMemoryScopeProviderTests : IDisposable
 {
@@ -244,7 +244,7 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
     [Fact]
     public async Task The_search_tool_of_the_on_demand_mode_runs_through_the_tool_chain()
     {
-        // F-688: the search tool is made by the framework provider and is not in the tool registry, so it used to reach
+        // The search tool is made by the framework provider and is not in the tool registry, so it used to reach
         // the model with no authorization handler, no budget gate and no timeout.
         var handler = new DenyingToolHandler("Memory is closed for you.");
         var provider = Provider("agent-a", ConversationMemorySearch.OnDemand, governance: BuiltInToolGovernanceTestSupport.Create(handler));
@@ -353,7 +353,7 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
     [Fact]
     public async Task A_store_that_fails_on_search_gives_the_run_no_memory_and_does_not_fail_it()
     {
-        // Open question 4: memory is context, not the answer. A store that is down costs the run its memory.
+        // Memory is context, not the answer. A store that is down costs the run its memory.
         var provider = Provider("agent-a");
         await RememberAsync(provider, Run("tenant-a", "agent-a", "ada", "session-1"), "My favourite colour is teal.");
         _store.FailOn = static operation => string.Equals(operation, "search", StringComparison.Ordinal) ? new InvalidOperationException("store is down") : null;

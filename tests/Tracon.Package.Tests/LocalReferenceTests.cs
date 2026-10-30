@@ -4,7 +4,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The consumer-facing half of Phase 74: the <c>buildTransitive</c> target that
+/// The consumer-facing half of an earlier change: the <c>buildTransitive</c> target that
 /// writes <c>Tracon.LocalReference.md</c> beside each project, and the
 /// OpenAPI document that <c>Tracon.AspNetCore</c> now carries.
 /// </summary>
@@ -79,7 +79,7 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
         await InitialiseRepositoryAsync(directory.Path);
 
         // Only TraconWriteAgentsFile is set: the two files share one switch,
-        // so opting in does not get harder than it was in Phase 73.
+        // so opting in does not get harder than it was.
         var projectDirectory = await CreateConsumerAsync(directory.Path, writeAgentsFile: true);
 
         var build = await BuildAsync(projectDirectory);
@@ -114,7 +114,7 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
     }
 
     /// <summary>
-    /// The reason this phase exists: the map is on disk in the NuGet cache, and
+    /// The reason this change exists: the map is on disk in the NuGet cache, and
     /// before this section nothing generated ever named its path, so an agent in
     /// a repository with its own AGENTS.md could not reach it at all.
     /// </summary>

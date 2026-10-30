@@ -100,7 +100,7 @@ internal sealed class ApprovalResumeJobHandler(
             throw;
         }
 
-        // 🚨 F-369: opened in THIS method's own body, before the session is read
+        // Opened in THIS method's own body, before the session is read
         // and around the run and its session save; an AsyncLocal write made in
         // an async helper does not flow back to its caller. Without it the
         // resumed turn's tools and sub-agents ran under no user and no labels,
@@ -126,7 +126,7 @@ internal sealed class ApprovalResumeJobHandler(
                     "this approval ran a different agent. The decision cannot be applied.");
             }
 
-            // F-352: resolving the CURRENT version here ran the tool call's
+            // Resolving the CURRENT version here ran the tool call's
             // answer on a definition saved while the approval waited, and the
             // run fell out of the experiment arm its first half counted in.
             Microsoft.Agents.AI.AIAgent? resolved;
@@ -165,10 +165,10 @@ internal sealed class ApprovalResumeJobHandler(
             throw;
         }
 
-        // F-370: a resumed turn can ask for another approval, and only the
+        // A resumed turn can ask for another approval, and only the
         // mailbox can answer it. The same bookkeeping as a queued run: session
         // first, approvals second, both before AwaitingApproval is published;
-        // a store error on the save is tried again, never the turn (F-367).
+        // a store error on the save is tried again, never the turn.
         var turn = new QueuedTurn(
             sessions, approvalStore, options, approvalOptionsMonitor, webhookPublisher, _clock, logger,
             context, newRunId, agent, session);

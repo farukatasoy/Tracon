@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Verifies the <c>GET /api/diagnostics</c> endpoint (Phase 33, F-62): off by
+/// Verifies the <c>GET /api/diagnostics</c> endpoint: off by
 /// default, requires the Admin role, leaks no <c>secret</c> value.
 /// </summary>
 public sealed class DiagnosticsEndpointTests

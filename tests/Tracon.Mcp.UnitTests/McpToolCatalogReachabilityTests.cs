@@ -6,7 +6,7 @@ using Microsoft.Extensions.Primitives;
 namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
-/// HATA-006 / MT-CORE-006: an active connection refusal ("connection refused") and
+/// An active connection refusal ("connection refused") and
 /// a real timeout must be handled the same way — both must make
 /// <see cref="McpRefreshOutcome.HadUnreachableServers"/> <see langword="true"/>.
 /// Previously, this defect only fired on timeout; an active refusal was

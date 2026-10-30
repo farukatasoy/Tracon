@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **A database that applied any earlier preview migration refuses to start: the checksum of 177 migration files changed. No SQL statement
+  changed; only comments did.** `MigrationRunner` compares the checksum it recorded for each applied migration with the file's
+  checksum, and the comments inside the files carried references that mean nothing outside the repository, so they were
+  removed. The failure reads "Migration '…' has been applied to the database but the file's content has changed". The
+  preview line has no upgrade path for stored data between previews: recreate the database, or write the new checksum of each
+  changed migration into its migration ledger row. From the first release candidate on an applied migration is never edited
+  again.
+
 - **`RequireProductionProfile()` asks five new decisions, but only of a host that declares more than one instance with
   `Tracon:Deployment:Instances`. At the default of `1` a host that calls it starts exactly as before.** `TraconProductionRisk`
   gains `InstanceLocalState`, `UnreconciledRuns`, `UnelectedBackgroundWork`, `InstanceLocalRateLimit` and
@@ -486,6 +494,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   two-argument call is unchanged.
 - The description of `GET /api/runs/{runId}/tools` and the documentation of `ToolInvocationRecord.Duration` no longer
   say that a run that does not stream has no duration (no schema change).
+- Diagnostic and validation message text no longer names decisions, phases or documents. The `TRC0007` message, the
+  instance-method error of `AddToolsFrom`, the two schema-name validators (`TraconPostgreSqlOptions.SchemaName` and
+  `TraconSqlServerOptions.SchemaName`) and the descriptions of the `tracon.run.cost`, `tracon.judge.cost` and
+  `tracon.judge.score` instruments say the reason in a clause instead. The codes, severities and metric names are unchanged;
+  a test or an alert that matches the old message text needs the new text.
 
 ### Fixed
 

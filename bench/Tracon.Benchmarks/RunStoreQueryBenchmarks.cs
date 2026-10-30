@@ -7,7 +7,7 @@ namespace Tracon.Benchmarks;
 /// <summary>
 /// Measures the allocation of a selected <c>store</c> query -
 /// <see cref="SqlRunStore.QueryRunsAsync"/> is what list endpoints and the
-/// reconciliation scan return (Phase 116, 116.2).
+/// reconciliation scan return (116.2).
 /// </summary>
 /// <remarks>
 /// Measured on SQLite, not PostgreSQL/SQL Server: no Docker dependency, and

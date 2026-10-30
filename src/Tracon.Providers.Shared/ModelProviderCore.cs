@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
-// Record: K-646 (the tenant chat client cache fixed four times), K-531
-// (tenant endpoint vs setup-time endpoint), K-059 (keys never in a diagnostic
-// value), phase 181 (why this body left the four packages).
+// Decisions kept here: the tenant chat client cache was fixed four times; the tenant endpoint
+// differs from the setup-time endpoint; keys never appear in a diagnostic value. This body
+// lives here, not in the four packages, so those fixes are made once.
 
 /// <summary>
 /// The per-instance state every provider's <see cref="IModelProvider"/> shares:
@@ -33,7 +33,7 @@ internal sealed class ModelProviderCore<TFactory>
     private readonly HashSet<string> _knownModels;
     private readonly EgressSocketGuard? _egressGuard;
 
-    // Phase 65 (BYOK). Measured: each SDK client is built once at setup and
+    // Measured: each SDK client is built once at setup and
     // shared, so a tenant credential cannot reuse it - a second client is built
     // and cached per distinct credential (the same pattern
     // OpenAINamedChatClientFactoryCache uses for named OpenAI-compatible

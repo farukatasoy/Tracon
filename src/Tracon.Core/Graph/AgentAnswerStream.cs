@@ -51,7 +51,7 @@ internal static class AgentAnswerStream
     /// consumer decorator that does not delegate hides the loop, and the agent
     /// then streams every iteration.
     /// </remarks>
-#pragma warning disable MAAI001 // The loop API is marked "evaluation purposes only" - see K-020.
+#pragma warning disable MAAI001 // The loop API is marked "evaluation purposes only"
     internal static bool RunsALoop(AIAgent agent) => agent.GetService<LoopAgent>() is not null;
 #pragma warning restore MAAI001
 

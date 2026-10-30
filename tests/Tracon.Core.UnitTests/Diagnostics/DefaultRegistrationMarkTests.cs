@@ -12,7 +12,7 @@ namespace Tracon.Core.UnitTests.Diagnostics;
 /// A storage provider cannot use <c>TryAdd</c> — <c>AddTracon()</c> already
 /// registered the in-memory defaults and the provider exists to override them.
 /// Plain <c>Replace</c> is what it used instead, and that overwrote the
-/// consumer's registration as readily as Tracon's own (HATA-S1-019, the
+/// consumer's registration as readily as Tracon's own (the
 /// 2026-09-16 acceptance round). The mark is what separates the two.
 /// </para>
 /// <para>

@@ -66,11 +66,11 @@ public sealed class EvalCheckRegistryTests
     [Fact]
     public void ContainsExpected_always_fails_with_an_empty_ExpectedOutput()
     {
-        // Phase 45 Open Question 2: a promoted case (Failed/NegativeScore)
+        // An earlier change: a promoted case (Failed/NegativeScore)
         // carries an empty ExpectedOutput. Measured: EvalChecks.ContainsExpected
         // does NOT throw on a null/empty ExpectedOutput, it silently returns
         // PASSED=false — so such a case ALWAYS appears failed in a suite
-        // containing `containsExpected` (Phase 45,
+        // containing `containsExpected` (
         // option B).
         var registry = new EvalCheckRegistry([]);
         var checks = registry.BuildChecks(Parse("""[{"kind":"containsExpected"}]"""));

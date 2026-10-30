@@ -178,7 +178,7 @@ public static class AgentParameterValidator
             {
                 // 🚨 An extra value is never silently dropped: a typo in a
                 // parameter name would otherwise disappear without a trace
-                // in production (docs/86, section 86.3).
+                // in production.
                 if (!declaredNames.Contains(name))
                 {
                     (errors ??= []).Add(new AgentParameterValidationError

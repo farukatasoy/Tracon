@@ -3,7 +3,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// The "views" optional migration set (Phase 111): opt-in via
+/// The "views" optional migration set: opt-in via
 /// <c>EnableReadViews</c>, off by default. Mirrors
 /// <see cref="OptionalMigrationSetTests.Knowledge_disabled_by_default_creates_no_vector_objects"/>
 /// for the "knowledge" set.

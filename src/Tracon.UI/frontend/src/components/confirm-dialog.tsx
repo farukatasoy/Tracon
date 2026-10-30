@@ -6,15 +6,15 @@ import { Button, ErrorNote } from './ui';
 /**
  * The second step in front of an action that cannot be taken back.
  *
- * 🚨 Read Phase 175 §175.3 before reaching
+ * 🚨 Think twice before reaching
  * for this. It does NOT belong on every destructive-looking button: an action
  * earns a confirmation only when it cannot be recreated from the same form, or
- * when the decision itself cannot be given again (K-368). Everything else gets
+ * when the decision itself cannot be given again. Everything else gets
  * the consequence sentence on a `Tooltip` and stays one click. Confirming
  * everything is the same as confirming nothing.
  *
  * It exists as its own component rather than a `Dialog` body per screen for
- * the reason K-483 records: an expression repeated by hand at eleven call
+ * the usual reason: an expression repeated by hand at eleven call
  * sites drifts at one of them, and here the thing that would drift is which
  * button holds focus.
  *

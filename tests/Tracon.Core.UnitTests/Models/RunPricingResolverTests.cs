@@ -44,7 +44,7 @@ public sealed class RunPricingResolverTests
         cost.OutputCost.ShouldBe(2m);
         cost.Currency.ShouldBe("USD");
 
-        // Phase 132, F-175: the applied unit prices are the RATE that produced
+        // The applied unit prices are the RATE that produced
         // the cost above, not the cost itself.
         cost.InputPricePerMillionTokens.ShouldBe(1m);
         cost.OutputPricePerMillionTokens.ShouldBe(2m);

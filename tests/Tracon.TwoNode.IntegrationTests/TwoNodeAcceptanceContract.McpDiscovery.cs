@@ -5,11 +5,11 @@ using Tracon.TwoNode.IntegrationTests.Infrastructure;
 namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>
-/// Behaviour 4: MCP discovery runs on every node, also while single-executor election is on (F-767).
+/// Behaviour 4: MCP discovery runs on every node, also while single-executor election is on.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Until Phase 264 discovery ran under a lease: with <c>Tracon:SingletonExecution:Enabled</c> on, only the node that
+/// Until discovery ran under a lease: with <c>Tracon:SingletonExecution:Enabled</c> on, only the node that
 /// held it refreshed its tool catalog. The catalog is a cache of the process and holds the live connection a tool call
 /// goes through, so the other node had no MCP tool at all.
 /// </para>

@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A workflow batch item carries its own parameter values.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: the workflow handler turned every item into a bare message, so a
+/// The workflow handler turned every item into a bare message, so a
 /// scheduled workflow could only ever run a parameterized workflow on its
 /// defaults, and a workflow with a required parameter could not be scheduled at
 /// all. An item that names a document must fail, not run without it: a workflow

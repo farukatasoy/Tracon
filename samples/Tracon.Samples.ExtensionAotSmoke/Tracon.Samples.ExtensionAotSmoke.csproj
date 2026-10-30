@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <!--
-      The vector store conversation memory writes to and searches (phase 233): the host registers one.
+      The vector store conversation memory writes to and searches: the host registers one.
       The smoke uses the small in-memory double of the tests, not a published connector: the smoke
       answers whether TRACON and the Microsoft Agent Framework provider run under Native AOT, and a
       connector brings its own AOT verdict (the maintained in-memory connector is not AOT compatible:

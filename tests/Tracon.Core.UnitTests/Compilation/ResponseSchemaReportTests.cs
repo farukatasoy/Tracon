@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// Phase 245 — the validation report carries the response schema each provider's client sends, and warns about the
+/// The validation report carries the response schema each provider's client sends, and warns about the
 /// two differences that change what the model is asked for (<see cref="IResponseSchemaSupport"/>).
 /// </summary>
 /// <remarks>

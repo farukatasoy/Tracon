@@ -99,7 +99,7 @@ internal static class ToolApprovalResolver
             // and a failed write throws — the SAME guarantee the out-of-band
             // POST /api/approvals/{id}/decide path gives. An approval decision is an
             // approval decision: which surface carried it does not change whether it may
-            // be applied without a record (K-089, K-370).
+            // be applied without a record.
             //
             // Throwing anywhere in this loop discards every decision, including ones
             // already added to `contents`: the message is only returned at the end, so

@@ -53,7 +53,7 @@ internal sealed class CanaryEvaluationService(
             return;
         }
 
-        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt (K-354).
+        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt.
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -177,7 +177,7 @@ internal sealed class CanaryEvaluationService(
             controlVariant with { Weight = 100 },
         ];
 
-        // 🚨 K-089: the audit entry is written BEFORE the mutation, not after.
+        // The audit entry is written BEFORE the mutation, not after.
         // If the write fails, the rollback is never applied ("a rollback that
         // cannot be written to the audit log is not applied").
         //

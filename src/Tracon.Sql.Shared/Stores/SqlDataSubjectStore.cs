@@ -206,7 +206,7 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                 {
                     await DeleteExternalContentAsync(externalUris, cancellationToken).ConfigureAwait(false);
 
-                    // F-644: on a database that lets one connection write at a time, the audit
+                    // On a database that lets one connection write at a time, the audit
                     // write joins this transaction (see the remarks). The loan is opened in
                     // this body, so it flows down into the callback.
                     using (_dialect.SerializesWriters ? _context.LendTransaction(connection, transaction) : null)
@@ -269,7 +269,7 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                 var (table, predicate, columns) = DataSubjectTargetRegistry.Resolve(_dialect, target);
                 var sql = _dialect.BuildDataSubjectSelectSql(table, columns, predicate);
 
-                // F-401: a protected column is read back as plaintext, as every store
+                // A protected column is read back as plaintext, as every store
                 // read does; the stored envelope is never handed to the subject.
                 var readValue = ProtectedValue.RowReader(_context, DataSubjectTargetRegistry.ProtectedExportColumns(target));
 

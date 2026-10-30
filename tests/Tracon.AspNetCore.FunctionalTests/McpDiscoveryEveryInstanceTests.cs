@@ -4,11 +4,11 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 264 (F-767): MCP discovery runs on every instance, also while single-executor selection is on.
+/// MCP discovery runs on every instance, also while single-executor selection is on.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Until this phase discovery ran under a lease: with <c>Tracon:SingletonExecution:Enabled</c> on, only
+/// Until this change discovery ran under a lease: with <c>Tracon:SingletonExecution:Enabled</c> on, only
 /// the instance that held it refreshed its tool catalog. The catalog is a cache of the process and holds
 /// the live connection a tool call goes through, so the other instance had no MCP tool at all. Measured on
 /// two hosts that shared one database: 1 tool on the leader, 0 on the other instance, with or without

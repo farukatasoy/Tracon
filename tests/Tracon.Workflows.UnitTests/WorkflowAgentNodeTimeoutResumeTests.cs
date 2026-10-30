@@ -5,7 +5,7 @@ using static Tracon.Workflows.UnitTests.Fakes.TimeoutRuns;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// An agent node's timeout (F-405, failure modes 24 and 25): it becomes the step's own
+/// An agent node's timeout (failure modes 24 and 25): it becomes the step's own
 /// deadline with its hard cutoff 30 seconds later, and changing it does not change the
 /// step's executor identity.
 /// </summary>

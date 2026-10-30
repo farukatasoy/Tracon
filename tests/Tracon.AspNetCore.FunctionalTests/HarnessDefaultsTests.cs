@@ -21,14 +21,14 @@ public sealed class WorkingDirectoryGroup;
 /// store it writes model content to <c>./agent-file-memory</c>; and it adds the
 /// provider's paid web search tool. None of the three passed through Tracon's
 /// skill filter, tenant scope, retention or egress review, and an agent saved
-/// from the console got all three (F-339, F-315, 2026-10-12).
+/// from the console got all three (2026-10-12).
 /// </para>
 /// <para>
 /// The working directory is a process boundary, so the two tests that depend on
 /// it change the real working directory and run alone (<see cref="WorkingDirectoryGroup"/>).
 /// </para>
 /// </remarks>
-// MAAI001: the harness API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the harness API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 [Collection(nameof(WorkingDirectoryGroup))]
 public sealed class HarnessDefaultsTests
@@ -66,7 +66,7 @@ public sealed class HarnessDefaultsTests
     }
 
     /// <summary>
-    /// The chain MAF's harness gets is Tracon's own (F-578): naming a skill must
+    /// The chain MAF's harness gets is Tracon's own: naming a skill must
     /// not bring the built-in provider back, which reads the working directory
     /// and would offer a second <c>load_skill</c> next to Tracon's.
     /// </summary>

@@ -1,7 +1,7 @@
 # Fixtures
 
 Real Microsoft Agent Framework Workflows output, captured from a genuine run
-— not hand-written. Read by `PersistedPayloadUpgradeTests.cs` (Phase 126).
+— not hand-written. Read by `PersistedPayloadUpgradeTests.cs`.
 
 ## `workflow-checkpoint-1.18.0.json`
 

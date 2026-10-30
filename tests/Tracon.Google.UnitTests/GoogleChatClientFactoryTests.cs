@@ -11,7 +11,7 @@ public sealed class GoogleChatClientFactoryTests
     [Fact]
     public void Factory_returns_RAW_client_and_does_not_build_the_pipeline()
     {
-        // 🚨 Phase 48: the tool call loop and telemetry moved to
+        // The tool call loop and telemetry moved to
         // ModelProviderRegistry. If the factory built them, two nested
         // FunctionInvokingChatClient instances would form, and the content guard
         // added by the ledger would sit OUTSIDE the loop — tool results would
@@ -103,7 +103,7 @@ public sealed class GoogleChatClientFactoryTests
         exception.Message.ShouldContain("BLOCK_ONLY_HIGH");
         exception.Message.ShouldContain("BLOCK_NONE");
 
-        // Phase 203: the rejected value is never repeated (it can be a credential pasted
+        // The rejected value is never repeated (it can be a credential pasted
         // into the wrong field); the key and the valid values locate the mistake.
         exception.Message.ShouldNotContain("BLOCK_EVERYTHING");
     }

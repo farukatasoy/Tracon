@@ -107,14 +107,14 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
                 return Unauthorized(httpContext);
             }
 
-            // Neither a static token nor a header: today's behavior does not change (K1)
+            // Neither a static token nor a header: today's behavior does not change
             // -- EXCEPT on a surface that declares an API key mandatory.
             if (RejectWhenApiKeyIsMandatory(httpContext) is { } rejectedMissingKey)
             {
                 return rejectedMissingKey;
             }
 
-            // K1 admits the anonymous caller as the local operator. Only on the
+            // The zero-surprise rule admits the anonymous caller as the local operator. Only on the
             // bearer-token groups: the UI shell and the inbound triggers never
             // promised loopback, the OAuth callback is bound by its state value
             // and a provider's form_post carries the provider's Origin, and the
@@ -154,10 +154,10 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             && _staticAuthToken is { Length: > 0 } configured
             && BearerTokenValidator.IsValid(header, configured))
         {
-            // This endpoint group does NOT apply the bearer token layer (K1), but the
+            // This endpoint group does NOT apply the bearer token layer, but the
             // presented value matches the static AuthToken of Tracon itself. That is
             // not an API key, the IApiKeyStore lookup would never find it, and it would
-            // fall through to the general Unauthorized() below (HATA-S1-014): a correct
+            // fall through to the general Unauthorized() below: a correct
             // token would return the same response as no token at all. The header is
             // treated neutrally, as if it were ABSENT — it neither rejects nor grants
             // extra rights; the endpoint's own logic is reached (for example a 404/400,
@@ -226,7 +226,6 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
         // Carries the audit trail actor into the ambient context. AmbientAuditActorResolver
         // in Tracon.Core reads it through an AsyncLocal, so Core can answer the
         // "who did it" question without taking a dependency on ASP.NET Core.
-        // Rationale: Phase 9, section 9.2.
         //
         // 🚨 An API-key request used to leave the actor EMPTY. Nothing assigns
         // HttpContext.User for those requests, so the resolver saw an anonymous
@@ -291,7 +290,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
         var candidate = HttpTenantContext.ReadCandidate(httpContext, tenancyOptions).Value;
 
         // 🚨 The same canonical form HttpTenantContext.Accept produces, through
-        // the same helper (K-382). If the two surfaces folded letter case
+        // the same helper. If the two surfaces folded letter case
         // differently, one of them would refuse a request the other admits.
         if (!HttpTenantContext.IsValidTenantId(candidate)
             || HttpTenantContext.IsAllowed(AmbientTenantScope.Normalize(candidate!), tenancyOptions))

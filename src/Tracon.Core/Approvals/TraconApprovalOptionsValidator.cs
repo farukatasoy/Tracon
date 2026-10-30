@@ -18,7 +18,7 @@ internal sealed class TraconApprovalOptionsValidator : IValidateOptions<TraconAp
 
         // 🚨 Expiration is ON by default and scans on a PeriodicTimer. Without
         // this check `ScanInterval=00:00:00` let the host report "Application
-        // started" and then stopped it (F-278). While expiration is off no
+        // started" and then stopped it. While expiration is off no
         // timer exists, so the value is not checked.
         if (options.ExpirationEnabled && !TimerPeriod.IsValid(options.ScanInterval))
         {

@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// What the check at the start of a node costs the store (F-529): the reads it adds, counted on the real store, and the
+/// What the check at the start of a node costs the store: the reads it adds, counted on the real store, and the
 /// time a chain takes with the quota on and off.
 /// </summary>
 /// <remarks>
@@ -50,7 +50,7 @@ public sealed class QuotaGateRoundTripTests
         using var empty = await ElapsedAsync(quotaEnabled: true, withRule: false);
         using var ruled = await ElapsedAsync(quotaEnabled: true, withRule: true);
 
-        // Medians of five runs of a 21-node chain on a local SQLite file, written for the phase's record.
+        // Medians of five runs of a 21-node chain on a local SQLite file, written for the change's record.
         Console.WriteLine($"QUOTA-GATE-TIME chain={Nodes} nodes: quota off {off.Median:F1} ms, quota on and no rule {empty.Median:F1} ms, quota on and a rule {ruled.Median:F1} ms");
         Console.WriteLine($"QUOTA-GATE-TIME per node: no rule {(empty.Median - off.Median) / Nodes:F2} ms, a rule {(ruled.Median - off.Median) / Nodes:F2} ms");
 

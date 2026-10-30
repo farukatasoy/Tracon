@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
 /// The seam removes an approval request that is already answered by a tool
-/// result, and only that (F-582). The end-to-end proof is
+/// result, and only that. The end-to-end proof is
 /// <c>HarnessApprovalContinuationTests</c>.
 /// </summary>
 public sealed class HarnessLoopBoundaryChatClientTests

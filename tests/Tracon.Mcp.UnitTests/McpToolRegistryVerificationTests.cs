@@ -6,7 +6,7 @@ namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
 /// <c>UseMcp()</c>'s <see cref="McpToolRegistry"/> must pass
-/// <c>ToolRegistrationValidationService</c>'s check (Phase 102.1 / Manual
+/// <c>ToolRegistrationValidationService</c>'s check (an earlier change / Manual
 /// Case 9) rather than being mistaken for an unrecognized <c>IToolRegistry</c>
 /// replacement — the exact failure the check exists to catch.
 /// </summary>

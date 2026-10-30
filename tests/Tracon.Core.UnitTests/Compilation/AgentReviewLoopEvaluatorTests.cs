@@ -5,11 +5,11 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
-/// The <c>agentReview</c> criterion's own rules (Phase 242): how it reads the reviewer's verdict, what it asks
+/// The <c>agentReview</c> criterion's own rules: how it reads the reviewer's verdict, what it asks
 /// the reviewer, and what it hands the audit trail. The gates of the child run (tenant, depth, budget,
 /// approval) belong to <c>ChildAgentInvoker</c> and are pinned by <c>AgentReviewLoopTests</c>.
 /// </summary>
-// MAAI001: the loop API is marked "evaluation purposes only" — see K-020.
+// MAAI001: the loop API is marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class AgentReviewLoopEvaluatorTests
 {

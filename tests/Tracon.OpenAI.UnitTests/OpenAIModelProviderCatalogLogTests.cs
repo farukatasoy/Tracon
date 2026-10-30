@@ -4,10 +4,10 @@ using Tracon.OpenAI.UnitTests.Infrastructure;
 namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
-/// Where the out-of-catalog log entry sends the operator (phase 181).
+/// Where the out-of-catalog log entry sends the operator.
 /// </summary>
 /// <remarks>
-/// Before phase 181 the entry named <c>Tracon:Providers:OpenAI:Models</c> for
+/// Before that change, the entry named <c>Tracon:Providers:OpenAI:Models</c> for
 /// every <see cref="OpenAIModelProvider"/>, including one registered with
 /// <c>UseOpenAICompatible()</c>, whose catalog lives in the options it was given.
 /// </remarks>

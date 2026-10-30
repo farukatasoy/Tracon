@@ -8,7 +8,7 @@ using Tracon.Testing;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// The tools a front end declares never become the tools a model can call (K2, Phase 236).
+/// The tools a front end declares never become the tools a model can call.
 /// </summary>
 /// <remarks>
 /// A tool is defined in code. The request says only which client-side tools this front end can RUN: the schema, the name
@@ -110,7 +110,7 @@ public sealed class AGUIToolBoundaryTests
     [Fact]
     public async Task A_client_tool_of_the_experiment_arm_is_checked_even_when_the_current_version_does_not_carry_it()
     {
-        // F-667: the check read the latest definition while the run took the arm's version. The arm carries the tool,
+        // The check read the latest definition while the run took the arm's version. The arm carries the tool,
         // the front end did not declare it: the run would call it and wait for a result nobody can produce.
         await using var host = await StartExperimentAsync(armCarriesTool: true);
 

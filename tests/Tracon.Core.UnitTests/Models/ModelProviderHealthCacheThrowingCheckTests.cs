@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// A health check that throws is that provider's status, not a failure of the
-/// whole list - and the exception still reaches the operator's log (phase 181).
+/// whole list - and the exception still reaches the operator's log.
 /// </summary>
 /// <remarks>
 /// Built through the real DI registration: the logger is set by the

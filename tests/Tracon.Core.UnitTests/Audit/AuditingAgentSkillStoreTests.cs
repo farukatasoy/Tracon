@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Audit;
 
 /// <summary>
 /// <see cref="AuditingAgentSkillStore"/> produces an audit trail on its write
-/// paths and does not interrupt the operation when the ledger fails (F-170).
+/// paths and does not interrupt the operation when the ledger fails.
 /// </summary>
 /// <remarks>
 /// Before this decorator existed, <c>PUT</c> and <c>DELETE /api/skills/{name}</c>

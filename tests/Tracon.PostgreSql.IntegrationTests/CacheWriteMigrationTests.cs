@@ -3,7 +3,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Phase 253. The five cache-write columns of <c>runs</c> arrive with migration 0066. A row written
+/// The five cache-write columns of <c>runs</c> arrive with migration 0066. A row written
 /// before them has NULL in all five, and every read that carries a run (get, list, statistics, tree)
 /// must still answer for it.
 /// </summary>

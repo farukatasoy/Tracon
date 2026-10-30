@@ -4,7 +4,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
 /// The migration runner refuses a SQL Server database that holds a
-/// non-canonical <c>tenant_id</c> (phase 179).
+/// non-canonical <c>tenant_id</c>.
 /// </summary>
 /// <remarks>
 /// <para>

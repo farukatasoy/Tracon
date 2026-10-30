@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Extensions;
 /// kind of agent offers, in which order they run, what a wrapper wraps, and how every failure
 /// reads.
 /// </summary>
-// MAAI001: the harness option types are marked "evaluation purposes only" — see K-020.
+// MAAI001: the harness option types are marked "evaluation purposes only"
 #pragma warning disable MAAI001
 public sealed class AgentExtensionCompilationTests
 {

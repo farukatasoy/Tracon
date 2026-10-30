@@ -117,7 +117,7 @@ public sealed class AzureOpenAIProviderExtensionsTests
     [Fact]
     public void Relative_address_from_configuration_is_rejected_as_relative_not_as_missing()
     {
-        // Phase 181: the other three providers fixed this in HATA-S3-003; the
+        // The other three providers fixed this; the
         // Azure copy kept UriKind.Absolute, so a relative value was silently
         // dropped and the operator was told the endpoint was MISSING.
         var configuration = new ConfigurationBuilder()
@@ -142,8 +142,8 @@ public sealed class AzureOpenAIProviderExtensionsTests
     [Fact]
     public void Nameless_deployment_from_configuration_is_rejected()
     {
-        // Phase 181: the Azure copy of BindModels skipped an empty Name
-        // (HATA-S3-002/004 fixed the other three), which left the validator's
+        // The Azure copy of BindModels skipped an empty Name
+        // (an earlier defect/004 fixed the other three), which left the validator's
         // Models[i] branch unreachable from configuration.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)

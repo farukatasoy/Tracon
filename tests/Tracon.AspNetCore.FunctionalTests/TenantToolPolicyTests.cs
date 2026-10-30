@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// Each question crosses a boundary a unit test cannot see: the tenant of the run comes from the request, the tool
 /// chain is composed from the container, and the policy is read from a store that a second request writes. The rule
-/// itself (section 261.1 of the plan) is one function and has its own unit tests; what this class proves is that
+/// itself is one function and has its own unit tests; what this class proves is that
 /// the real chain asks it, with the real tenant, on every call.
 /// </para>
 /// <para>

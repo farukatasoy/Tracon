@@ -7,7 +7,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Phase 234: the SQL file store reads, measures and deletes the files of one session's directory, by tenant and
+/// The SQL file store reads, measures and deletes the files of one session's directory, by tenant and
 /// path and with no agent or run in scope, and a data subject erasure over SQLite takes the workspace with the
 /// session.
 /// </summary>

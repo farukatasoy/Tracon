@@ -28,7 +28,7 @@ internal static class WorkerHarnessContract
 
     /// <summary>
     /// The storage provider the harness connects with: <see cref="PostgreSqlProvider"/> (the default when the
-    /// variable is not set) or <see cref="SqlServerProvider"/> (Phase 265).
+    /// variable is not set) or <see cref="SqlServerProvider"/>.
     /// </summary>
     public const string ProviderVariable = "TRACON_HARNESS_PROVIDER";
 

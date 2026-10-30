@@ -48,13 +48,13 @@ public sealed class LiveVoiceLifecycleTests
         // close used to cancel the pump before it had consumed the transcript
         // frames already on the wire, so the history was flushed EMPTY and no
         // wait could succeed (fixed by the close-order and sideband-drain
-        // changes of 2026-09-19 and 2026-09-20; F-257). The wait stays as a
+        // changes of 2026-09-19 and 2026-09-20; an earlier fix). The wait stays as a
         // guard, not as the fix.
         //
         // 🚨 Wait for BOTH strings the assertions below read. Waiting only for
         // the output transcript let the wait return before the INPUT transcript
         // had landed, and the first assertion then failed - measured again in the
-        // Phase 166 closing run. A wait narrower than the assertion it guards
+        // closing run. A wait narrower than the assertion it guards
         // turns a passing test into a scheduled one.
         await WaitForAsync(async () =>
         {
@@ -131,7 +131,7 @@ public sealed class LiveVoiceLifecycleTests
         await provider.SendInputTranscriptAsync(" Look up order 442", 3800, 4200);
         await provider.SendDelegationAsync("item_1", 3800);
 
-        // Phase 184: a fixed 300 ms after the inspection stood here. Three
+        // A fixed 300 ms after the inspection stood here. Three
         // signals replace it, each after the one before: the guard refused an
         // append; the delegation finished, so every append it made was awaited
         // (a turn is counted only once the runner returns); and the sideband
@@ -150,7 +150,7 @@ public sealed class LiveVoiceLifecycleTests
         // 🚨 Every channel, not only commentary. This guard refuses the model
         // input too, so the run fails and the only append it makes is its own
         // error notice on the thinking channel. Checking commentary alone passed
-        // even with the refusal ignored - measured in Phase 184 by removing the
+        // even with the refusal ignored - measured in an earlier change by removing the
         // runner's `return` after the refusal: the notice reached the provider
         // and this test stayed green.
         foreach (var channel in new[] { "session.thinking.append", "session.commentary.append", "session.instructions.append" })
@@ -406,7 +406,7 @@ public sealed class LiveVoiceLifecycleTests
     }
 
     /// <summary>
-    /// Waits until the session has seen media. Phase 184: a fixed 200 ms after
+    /// Waits until the session has seen media. A fixed 200 ms after
     /// the transcript stood here - the end reason depends on whether the host
     /// had already marked the session active when the provider closed it.
     /// </summary>
@@ -453,7 +453,7 @@ public sealed class LiveVoiceLifecycleTests
 
     /// <summary>Wraps the agent so a delegated run stays running until it is cancelled.</summary>
     /// <remarks>
-    /// Phase 184: the run used to sleep two seconds and each test slept 300 ms
+    /// The run used to sleep two seconds and each test slept 300 ms
     /// and hoped the delegation had started by then. <see cref="Entered"/> says
     /// when it has; the run then holds until the session cancels it.
     /// </remarks>

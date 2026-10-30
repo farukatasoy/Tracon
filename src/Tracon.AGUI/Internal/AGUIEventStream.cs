@@ -142,7 +142,7 @@ internal static class AGUIEventStream
     }
 
     // 🚨 A request timeout of the provider's HttpClient is a TaskCanceledException too, and the client is still waiting for
-    // it. Only a cancellation the client asked for is not a failure (Phase 157).
+    // it. Only a cancellation the client asked for is not a failure.
     private static bool IsFailure(Exception exception, CancellationToken cancellationToken)
         => exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested;
 

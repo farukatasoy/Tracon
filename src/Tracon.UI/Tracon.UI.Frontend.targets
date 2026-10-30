@@ -34,9 +34,9 @@
     <TraconShellFile>$(TraconFrontendOutput)/index.html</TraconShellFile>
 
     <!--
-      @tracon/client (Phase 84). The frontend consumes it as a repo-local
-      `file:` dependency (Phase 84, section
-      84.8) — it must be BUILT (tsc -> dist/) before the frontend's own
+      @tracon/client. The frontend consumes it as a repo-local
+      `file:` dependency
+      — it must be BUILT (tsc -> dist/) before the frontend's own
       `npm run build`, because the frontend imports its TYPES, and a `file:`
       dependency's `dist/` is not produced by `npm ci` on its own.
     -->
@@ -170,7 +170,7 @@
     <!--
       Not `npm run generate`: src/schema.ts is committed, and generating it is
       a development step run by hand when docs/openapi/tracon.json
-      changes (section 84.2) — `dotnet build` must not depend on network
+      changes — `dotnet build` must not depend on network
       access to the OpenAPI-typescript generator. Only `tsc` runs here.
     -->
     <Exec Command="npm run build" WorkingDirectory="$(TraconClientPackageRoot)" />

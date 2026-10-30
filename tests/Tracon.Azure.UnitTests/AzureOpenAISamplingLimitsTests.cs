@@ -3,7 +3,7 @@ using Tracon.Azure.UnitTests.Infrastructure;
 namespace Tracon.Azure.UnitTests;
 
 /// <summary>
-/// What the Azure OpenAI provider states through <see cref="ISamplingSupport.SamplingLimits"/> (phase 252): the
+/// What the Azure OpenAI provider states through <see cref="ISamplingSupport.SamplingLimits"/>: the
 /// four stop sequences Azure documents for the Chat Completions request it sends. The seed is a 64-bit integer on
 /// the wire, so no seed range is stated.
 /// </summary>

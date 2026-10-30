@@ -93,7 +93,7 @@ public sealed class JobWorkerBackgroundServiceTests
         await worker.StartAsync(TestContext.Current.CancellationToken);
         await handler.MediaStarted.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
-        // Phase 184: this loop gave up after 100 x 20 ms - a two-second claim
+        // This loop gave up after 100 x 20 ms - a two-second claim
         // about the machine.
         var defaultJob = await WaitUntil.ValueAsync(
             () => jobs.GetAsync("tenant-a", defaultJobId, TestContext.Current.CancellationToken).AsTask(),
@@ -117,7 +117,7 @@ public sealed class JobWorkerBackgroundServiceTests
 
         var defaultJobId = await EnqueueAsync(jobs, "default", now);
 
-        // Phase 184: a fixed 200 ms stood here, and under load the worker might
+        // A fixed 200 ms stood here, and under load the worker might
         // not have leased anything inside it - a green test that proved
         // nothing. A job in the worker's OWN lane, queued after the default
         // one, proves a lease pass ran while the default job was eligible.
@@ -230,7 +230,7 @@ public sealed class JobWorkerBackgroundServiceTests
         record.ErrorMessage.ShouldContain("(ref:");
         record.ErrorMessage.ShouldNotContain(ProviderSecret);
 
-        // Phase 119, 119.3: the persisted safe text and the log entry that carries the
+        // 119.3: the persisted safe text and the log entry that carries the
         // FULL exception detail must be found through the SAME correlation id.
         var correlationId = CorrelationIdIn(record.ErrorMessage);
 

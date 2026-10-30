@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-603 — the hosted tool support table of the shipped providers, as the validation endpoint reports it. A kind the
+/// The hosted tool support table of the shipped providers, as the validation endpoint reports it. A kind the
 /// provider's API surface would drop is an error that names the tool, its kind and the provider; it is never dropped
 /// silently.
 /// </summary>

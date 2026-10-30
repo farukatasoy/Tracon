@@ -57,7 +57,7 @@ internal static class AttachmentIngestion
                     },
                     cancellationToken).ConfigureAwait(false);
 
-                // 🚨 The reference keeps what the part said about itself (F-580 class
+                // 🚨 The reference keeps what the part said about itself (a class-wide
                 // scan): an image's 'detail' and a file's name were dropped here and
                 // never reached the model. AttachmentResolvingChatClient restores both.
                 message.Contents[i] = new UriContent(

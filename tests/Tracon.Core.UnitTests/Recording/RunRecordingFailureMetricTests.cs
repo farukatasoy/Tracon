@@ -60,8 +60,8 @@ public sealed class RunRecordingFailureMetricTests
         // 🚨 The race is forced, not hoped for. Every caller is held inside the store
         // until all eight have arrived, so all eight pass the IsDisabled check before
         // any of them fails. That is the ONE arrangement in which IsDisabled does not
-        // provide the once-ness. Since F-257 the EVENT path writes one event at a
-        // time (K-879), so the race lives on the paths that are still concurrent:
+        // provide the once-ness. Since then the EVENT path writes one event at a
+        // time, so the race lives on the paths that are still concurrent:
         // concurrent tool calls record their invocations at once.
         var store = new GatedFailingRunStore(Writers);
         var writer = NewWriter(store, metrics);
@@ -196,7 +196,7 @@ public sealed class RunRecordingFailureMetricTests
 
         // The published sentence is "counted once per sink per run", and per-run
         // concurrency is real: AllowConcurrentToolCalls fans tool events out at
-        // once, and a child run writes into the root writer. Since F-257 (K-879)
+        // once, and a child run writes into the root writer. Since an earlier fix
         // a writer hands events to its sinks one at a time, so the broken sink is
         // asked ONCE, disabled, and never asked again by the seven others.
         var sink = new ThrowingAfterStartRunEventSink();
@@ -317,7 +317,7 @@ public sealed class RunRecordingFailureMetricTests
 
         // The caller is still there; the store's own HttpClient.Timeout surfaced
         // as an OperationCanceledException. That is a store failure, and a store
-        // failure never interrupts the run (K-840).
+        // failure never interrupts the run.
         await writer.StartAsync(Start(writer, "tenant-a"), "the user's question");
 
         collector.LongValues(Counter).ShouldBe([1]);
@@ -332,7 +332,7 @@ public sealed class RunRecordingFailureMetricTests
         using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         // The ambient tenant and the run's own tenant deliberately disagree — this is
-        // how a workflow or a queued job runs (K-355). The counter must follow the
+        // how a workflow or a queued job runs. The counter must follow the
         // RUN, or an outage would be billed to whichever tenant happened to be
         // ambient on the worker thread.
         var store = new FailingRunStore(FailAt.StartRun);
@@ -375,7 +375,7 @@ public sealed class RunRecordingFailureMetricTests
             NullLogger<RunRecordingAgent>.Instance,
             metrics: metrics);
 
-        // The run answers normally: that is the guarantee this phase does NOT change.
+        // The run answers normally: that is the guarantee this change does NOT change.
         var response = await agent.RunAsync("hello");
         response.ShouldNotBeNull();
 
@@ -619,7 +619,7 @@ public sealed class RunRecordingFailureMetricTests
             });
 
         // Events pass: the event path writes one at a time and cannot be held
-        // concurrently (K-879). The gate holds the concurrent tool-invocation batch.
+        // concurrently. The gate holds the concurrent tool-invocation batch.
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
 

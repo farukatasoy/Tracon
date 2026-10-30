@@ -80,7 +80,7 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
     [Fact]
     public async Task Script_exiting_without_reading_stdin_does_not_throw_a_broken_pipe_exception()
     {
-        // HATA-K-skill-pipe (2026-08-15): when a script exits without ever
+        // When a script exits without ever
         // reading stdin (e.g. a bare 'echo'), the failure did not happen while
         // writing arguments, but inside StandardInput.Close()'s OWN internal
         // flush, which threw "Pipe is broken"; the finally block did not catch

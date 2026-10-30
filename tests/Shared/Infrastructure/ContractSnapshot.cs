@@ -4,7 +4,7 @@ namespace Tracon.Tests.Common;
 
 /// <summary>
 /// A sorted list of names kept in the repository: the contract of one surface that is not .NET API
-/// (SSE event names, telemetry names, configuration keys, error codes, CLI commands). Phase 238.
+/// (SSE event names, telemetry names, configuration keys, error codes, CLI commands).
 /// </summary>
 /// <remarks>
 /// <para>

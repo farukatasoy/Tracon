@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The shared setup of the function-node settings tests (F-295): a host with a
+/// The shared setup of the function-node settings tests: a host with a
 /// text-to-speech-shaped function, the HTTP calls that save and run a chain, and the
 /// two settings types the tests use.
 /// </summary>

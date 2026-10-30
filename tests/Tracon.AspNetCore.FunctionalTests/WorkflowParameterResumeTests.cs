@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A resume from a checkpoint runs the SAME bound steps under the SAME values.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: MAF derives an executor's identity from the agent instance, and a
+/// MAF derives an executor's identity from the agent instance, and a
 /// checkpoint is refused when the identity differs. A bound step compiles a new
 /// agent every call, so the checkpoint only survives because the executor is the
 /// workflow's own wrapper; this proves it in one process, with real compiled

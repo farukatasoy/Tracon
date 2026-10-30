@@ -6,8 +6,8 @@ function client(fetch: (request: Request) => Promise<Response>) {
   return createTraconClient({ baseUrl: 'https://example.test/tracon', fetch });
 }
 
-describe('problem+json -> TraconError (section 84.5)', () => {
-  it('carries title and detail verbatim (K-232 — not translated)', async () => {
+describe('problem+json -> TraconError ', () => {
+  it('carries title and detail verbatim (not translated)', async () => {
     const c = client(
       async () =>
         new Response(JSON.stringify({ title: 'Name already in use', detail: "'echo' is taken." }), {

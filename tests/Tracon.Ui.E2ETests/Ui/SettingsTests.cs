@@ -24,7 +24,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("theme-toggle").ClickAsync();
 
-        // Phase 184: read once the theme has moved, not the instant the click
+        // Read once the theme has moved, not the instant the click
         // returns - the repaint is the page's own work.
         await Expect(session.Page.Locator("html"), "The theme did not change.")
             .Not.ToHaveAttributeAsync("data-theme", before ?? string.Empty);
@@ -74,7 +74,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
 
         await Expect(session.Page.Locator("html")).ToHaveAttributeAsync("data-theme", "light");
 
-        // 🚨 Read through the BINDING, not off a `title` attribute. Phase 165
+        // 🚨 Read through the BINDING, not off a `title` attribute. An earlier change
         // moved this description into `Tooltip`, because `title` never showed
         // the current preference to a touch or keyboard user at all. The
         // assertion got stronger in the move: it now proves the text is

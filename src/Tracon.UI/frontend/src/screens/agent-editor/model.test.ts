@@ -15,7 +15,7 @@ describe('withDefaultProvider', () => {
     expect(next).toBe(emptyForm);
   });
 
-  // HATA-S4-009 / MT-UIAG-014: the effect that loads an existing definition
+  // The effect that loads an existing definition
   // and the effect that defaults the provider can both settle in the same
   // React commit. When that happens this function receives `current` as the
   // *already-loaded* form (the definition's real provider applied first),
@@ -105,7 +105,7 @@ describe('definition round trip', () => {
     expect(request.model.responseCache).toEqual(definition.model.responseCache);
   });
 
-  // F-598: the sampling fields and the tool-call loop are the editor's own controls now,
+  // The sampling fields and the tool-call loop are the editor's own controls now,
   // so a definition that sets them must come back from the form as it went in.
   it('keeps the request fields and the tool-call loop the editor now has controls for', () => {
     expect(request.model.seed).toBe(42);
@@ -162,7 +162,7 @@ describe('definition round trip', () => {
     expect(toRequest({ ...loaded, stopSequences: 'END' }).model.stopSequences).toEqual(['END']);
   });
 
-  // F-626: the read approval is the editor's own control. A definition that turned it off must come back
+  // The read approval is the editor's own control. A definition that turned it off must come back
   // from the form as it went in; one that never set it must not grow the block.
   describe('skill settings', () => {
     it('keeps the setting a stored definition turned on', () => {
@@ -185,7 +185,7 @@ describe('definition round trip', () => {
     });
   });
 
-  // F-628: the workspace is the editor's own control. A definition that turned it on must come back from the form
+  // The workspace is the editor's own control. A definition that turned it on must come back from the form
   // as it went in; one that never set it must not grow the block.
   describe('workspace settings', () => {
     it('keeps the settings a stored definition turned on', () => {
@@ -209,7 +209,7 @@ describe('definition round trip', () => {
     });
   });
 
-  // Phase 228: the call mode is the editor's own control; the wait limits beside it still are not.
+  // The call mode is the editor's own control; the wait limits beside it still are not.
   describe('sub-agent call mode', () => {
     it('reads a definition without sub-agent settings as background tasks and sends none', () => {
       const form = fromDefinition({ ...definition, subAgents: null });
@@ -285,7 +285,7 @@ describe('definition round trip', () => {
   });
 });
 
-// F-607: the server takes a 64-bit seed, a JavaScript number holds 53 bits exactly, and a number that does not fit
+// The server takes a 64-bit seed, a JavaScript number holds 53 bits exactly, and a number that does not fit
 // comes back as another one. The form keeps the seed as text and never rounds it into a request.
 describe('seed', () => {
   const withSeed = (seed: string) => ({ ...emptyForm, seed });

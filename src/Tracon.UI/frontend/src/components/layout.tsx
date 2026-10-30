@@ -60,7 +60,7 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
   useEffect(() => setDrawer(false), [path]);
 
   // A hidden nav item is a UX courtesy, not a security boundary: the server
-  // is still the only real enforcement (Phase 9).
+  // is still the only real enforcement.
   const groups = visibleNavigation(meta.roles.canAdminister);
 
   return (

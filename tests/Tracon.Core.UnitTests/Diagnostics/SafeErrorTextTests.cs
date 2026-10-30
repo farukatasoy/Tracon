@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Phase 119 (BL-027/BL-037): the shared rule every persistence/response sink
+/// The shared rule every persistence/response sink
 /// routes a caught exception through before writing it.
 /// </summary>
 public sealed class SafeErrorTextTests

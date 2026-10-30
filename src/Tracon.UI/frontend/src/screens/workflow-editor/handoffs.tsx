@@ -4,7 +4,7 @@ import { useT } from '../../lib/i18n';
 import type { HandoffEdge } from '../../lib/workflow-steps';
 
 /**
- * Who may hand off to whom in a `Handoff` workflow (phase 270): one row per edge, `from` → `to`, and
+ * Who may hand off to whom in a `Handoff` workflow: one row per edge, `from` → `to`, and
  * the reason the model reads as the description of the handoff.
  *
  * An empty list is not "no handoffs": it is the star the pattern always had (the first agent hands off

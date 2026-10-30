@@ -5,7 +5,7 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-773 (phase 267): the <see cref="RunEventCustomTypes.Context"/> draft built for one model request. It
+/// The <see cref="RunEventCustomTypes.Context"/> draft built for one model request. It
 /// holds counts by source in a fixed order and never a message.
 /// </summary>
 public sealed class ContextEventPayloadTests

@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Workflows;
 
 /// <summary>
 /// <see cref="AgentVersionPin"/> judges a definition's agent version pins against the agents
-/// that exist (phase 200): it refuses a pin to an agent defined in code and to a version a stored
+/// that exist: it refuses a pin to an agent defined in code and to a version a stored
 /// agent does not have, and it leaves everything else to the compiler.
 /// </summary>
 public sealed class AgentVersionPinTests

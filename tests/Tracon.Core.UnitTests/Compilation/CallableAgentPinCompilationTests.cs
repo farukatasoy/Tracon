@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
 /// A callable agent can be pinned to a version of the callee (<see cref="CallableAgentReference.Version"/>,
-/// Phase 250): the compiler describes the callee from that version, keeps the caller's cache entry while the
+/// An earlier change): the compiler describes the callee from that version, keeps the caller's cache entry while the
 /// callee moves on, and fails the caller by name when the pinned version is gone.
 /// </summary>
 public sealed class CallableAgentPinCompilationTests

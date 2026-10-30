@@ -7,7 +7,7 @@ using Tracon.Testing.Contracts.Storage;
 namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 
 /// <summary>
-/// Failure manifest: <strong>the database is unreachable</strong> (Phase 157).
+/// Failure manifest: <strong>the database is unreachable</strong>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -119,7 +119,7 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
 
         var runId = Guid.NewGuid();
         // An explicit tenant, so the tag assertion below proves the counter carries
-        // the RUN's own tenant rather than the ambient one (K-355).
+        // the RUN's own tenant rather than the ambient one.
         var run = TestData.Run(runId) with { TenantId = "tenant-outage" };
 
         using var probe = new MetricProbe();
@@ -183,7 +183,7 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
         await _container.StopAsync();
 
         // Several poll intervals with no database at all. Every tick fails.
-        // Phase 184: a fixed three seconds stood here, and a stalled worker
+        // A fixed three seconds stood here, and a stalled worker
         // could spend them without a single tick - the claim below would then
         // pass untested. The worker logs every failed tick; three of them
         // after the stop are the several intervals the claim is about.

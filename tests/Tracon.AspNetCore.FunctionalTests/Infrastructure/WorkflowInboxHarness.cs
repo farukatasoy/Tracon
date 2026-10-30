@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// The host and graphs of the workflow request inbox tests (phase 209): three graphs that wait for
+/// The host and graphs of the workflow request inbox tests: three graphs that wait for
 /// a yes or no, two of them with a request timeout.
 /// </summary>
 /// <remarks>

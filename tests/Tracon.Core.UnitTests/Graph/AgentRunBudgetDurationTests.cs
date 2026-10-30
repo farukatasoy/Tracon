@@ -3,7 +3,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
-/// The duration dimension <see cref="AgentRunBudget"/> gained in phase 128 —
+/// The duration dimension <see cref="AgentRunBudget"/> gained in an earlier change —
 /// <see cref="AgentRunBudgetTests"/> and <see cref="AgentRunBudgetCostTests"/>
 /// cover the pre-existing token/count/cost dimensions.
 /// </summary>
@@ -143,7 +143,7 @@ public sealed class AgentRunBudgetDurationTests
     [Fact]
     public void DescribeModelCallExhaustion_and_IsExhausted_derive_from_the_SAME_deadline_check()
     {
-        // K-483's class: the message-producing code and the exhaustion check
+        // the class: the message-producing code and the exhaustion check
         // must read the same source, or a third dimension can drift out of
         // sync with the message that describes it.
         var clock = new ManualTimeProvider();

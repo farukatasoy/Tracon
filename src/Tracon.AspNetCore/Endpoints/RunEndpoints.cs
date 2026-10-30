@@ -68,7 +68,7 @@ internal static class RunEndpoints
                 // 🚨 A denied list is REJECTED (403), never silently filtered:
                 // there is no single run identity to hide, and filtering rows
                 // out server-side would break the skip/take paging contract —
-                // the same rule the session list follows (K-671).
+                // the same rule the session list follows.
                 if (await RunAuthorizationGate
                         .CheckRunResourceAsync(
                             runAuthorizationHandler,
@@ -647,7 +647,7 @@ internal static class RunEndpoints
         CancellationToken cancellationToken)
     {
         // 🚨 A replay starts a run in this process: checked BEFORE anything
-        // else, like the agent run endpoint, so no 'runs' row opens (F-431).
+        // else, like the agent run endpoint, so no 'runs' row opens.
         if (DrainGate.Check(drainState) is { } drainProblem)
         {
             return drainProblem;
@@ -664,7 +664,7 @@ internal static class RunEndpoints
 
         var request = bound!;
 
-        // F-337: a replay starts a new run, so its attribution is checked
+        // A replay starts a new run, so its attribution is checked
         // first, like every other run-starting endpoint.
         if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
         {
@@ -719,7 +719,7 @@ internal static class RunEndpoints
             };
         }
 
-        // 🚨 Replay is the SIXTH run-starting surface, and phase 139 missed it:
+        // 🚨 Replay is the SIXTH run-starting surface, and missed it:
         // this endpoint's own summary says "Starts a new run with recorded
         // input". The gate is asked with RunAccess.Start, but through
         // CheckRunResourceAsync rather than CheckRunAsync, because the request
@@ -796,8 +796,7 @@ internal static class RunEndpoints
             // 🚨 422: a mismatched tool call is not an ERROR, it is a FINDING —
             // it means the new version calls a different tool. Silently
             // skipping it would leave the model with a gap it cannot see, and
-            // running it live would produce an unwanted side effect (Phase 47,
-            // Open Question 3).
+            // running it live would produce an unwanted side effect (
             return Results.Problem(
                 title: "Recorded tool result not found",
                 detail: ex.Message,
@@ -812,7 +811,7 @@ internal static class RunEndpoints
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // 🚨 The exception type is deliberately NOT caught with a narrow
-            // list, a direct consequence of K-296: official provider SDKs do
+            // list, a direct consequence of one fact: official provider SDKs do
             // NOT throw `HttpRequestException` (OpenAI throws
             // `System.ClientModel.ClientResultException`, Azure throws
             // `RequestFailedException`), and a narrow list would turn a real
@@ -918,7 +917,6 @@ internal static class RunEndpoints
 
         // "Does not exist" and "belongs to another tenant" return the SAME
         // 404; a separate message would leak existence
-        // (Phase 31, section 31.3).
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFoundFeedback(runId);
@@ -1072,11 +1070,11 @@ internal static class RunEndpoints
                 statusCode: StatusCodes.Status409Conflict);
         }
 
-        // 🚨 The job FIRST, the local source SECOND (F-765). The local cancel drops the handler at
+        // 🚨 The job FIRST, the local source SECOND. The local cancel drops the handler at
         // once; the worker then reads the job status to decide between "cancelled" and "failed,
         // try again". With the job still Running that read says "try again", and the run, closed
         // Canceled, is written Running again by the second attempt. Only a run with a queued job
-        // (K-305: Job.Id == Run.Id) pays the write; for a direct run it is a keyed UPDATE that
+        // (Job.Id == Run.Id) pays the write; for a direct run it is a keyed UPDATE that
         // finds no row.
         //
         // A job store that cannot answer must not stop this process from stopping a run it runs
@@ -1100,7 +1098,7 @@ internal static class RunEndpoints
         }
 
         // Registered here means this process is executing the run, whatever its status shows: a workflow
-        // run that waits for a concurrency slot is Queued and its runner holds the registration (Phase 240).
+        // run that waits for a concurrency slot is Queued and its runner holds the registration.
         var registered = cancellations.TryCancel(runId, tenants.TenantId);
 
         if (jobStoreFailure is not null && !registered && run.Status == RunStatus.Queued)
@@ -1115,7 +1113,7 @@ internal static class RunEndpoints
         {
             await runs.CompleteRunAsync(
                 // `run` came from a read already FILTERED by tenant; the
-                // expected tenant is its own record (K-355).
+                // expected tenant is its own record.
                 new RunCompletion
                 {
                     RunId = runId,
@@ -1144,7 +1142,7 @@ internal static class RunEndpoints
 
         // Neither this process nor a queued job holds the run: it executes on another instance, or it
         // ended a moment ago. The request goes onto the row and the owner reads it on its heartbeat
-        // (F-764). Without reconciliation no heartbeat runs, nobody would read the row, and a 202
+        // Without reconciliation no heartbeat runs, nobody would read the row, and a 202
         // would be a promise the system does not keep: the 409 stays.
         if (!reconciliation.CurrentValue.Enabled)
         {
@@ -1340,12 +1338,12 @@ internal static class RunEndpoints
             var cancellationToken = httpContext.RequestAborted;
             var next = SseWriter.ReadResumeSequence(httpContext.Request);
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
-            // Stops the writer's keep-alive loop before the response ends (F-325).
+            // Stops the writer's keep-alive loop before the response ends.
             await using var writerScope = writer.ConfigureAwait(false);
 
             try
             {
-                // 🚨 Phase 46: 'Queued' is also an EXPECTED intermediate status — the
+                // 'Queued' is also an EXPECTED intermediate status — the
                 // worker may not have picked up the job yet; the tail keeps reading it.
                 // A run whose row is gone ends the stream: the existence check above
                 // already passed.
@@ -1370,7 +1368,7 @@ internal static class RunEndpoints
             {
                 // The client disconnected; there is no one left to write to. Only
                 // then: a store's own timeout must not end the stream as if the
-                // run had finished (K-840).
+                // run had finished.
             }
         }
 

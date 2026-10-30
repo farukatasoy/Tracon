@@ -10,7 +10,6 @@ namespace Tracon;
 /// </summary>
 // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation purposes only". Workspace setup is kept
 // in this file and in Workspace/; only these are updated if MAF changes these APIs. Rationale:
-// docs/KARARLAR.md (same pattern as K-020).
 #pragma warning disable MAAI001
 public sealed partial class AgentDefinitionCompiler
 {

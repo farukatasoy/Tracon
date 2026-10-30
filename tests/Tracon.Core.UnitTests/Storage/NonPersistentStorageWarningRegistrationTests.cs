@@ -13,7 +13,7 @@ namespace Tracon.Core.UnitTests.Storage;
 /// <remarks>
 /// This is a DI-boundary behavior, so it is proven against a real
 /// <see cref="ServiceCollection"/> rather than by constructing the service
-/// directly. Measured in phase 104: registering the warning service by
+/// directly. Measured: registering the warning service by
 /// constructor resolution made <c>GetServices&lt;IHostedService&gt;()</c> throw
 /// for every consumer without a host, and three existing test classes caught it.
 /// </remarks>

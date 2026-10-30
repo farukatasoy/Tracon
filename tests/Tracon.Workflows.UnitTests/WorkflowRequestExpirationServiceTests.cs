@@ -6,7 +6,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// What the expiry does to a run whose human request ran out of time (phase 209): it closes the
+/// What the expiry does to a run whose human request ran out of time: it closes the
 /// run - failed when something went unanswered, completed when everything was answered - and it
 /// leaves the run's recorded values as they were.
 /// </summary>
@@ -75,7 +75,7 @@ public sealed class WorkflowRequestExpirationServiceTests
         var run = await world.WaitAsync();
         var row = (await world.Inbox.ListByRunAsync(run.Id)).Single();
 
-        // The endpoint marks the answer; the answer itself continued on another run (K-130).
+        // The endpoint marks the answer; the answer itself continued on another run.
         await world.Inbox.MarkAnsweredAsync(row.SessionId, row.RequestId, Guid.NewGuid(), DateTimeOffset.UtcNow);
 
         world.Clock.Advance(Limit + TimeSpan.FromMinutes(1));

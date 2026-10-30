@@ -24,7 +24,7 @@ import type { AgentSkillDefinition, AgentSkillResourceDefinition } from '../../l
 /**
  * Create and edit a stored skill.
  *
- * Split out of the skills list in phase 165: the list is the list pattern and
+ * Split out of the skills list: the list is the list pattern and
  * this is the form pattern, and one file carrying both meant neither read like
  * its canonical version (`runs.tsx`, `agent-editor/`).
  */

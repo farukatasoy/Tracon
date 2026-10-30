@@ -5,7 +5,7 @@ using Tracon.Tests.Common;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// The start gate of a workflow function node (F-407): which budget boundary refuses it,
+/// The start gate of a workflow function node: which budget boundary refuses it,
 /// where in the call it reads, and what it leaves untouched.
 /// </summary>
 /// <remarks>
@@ -173,7 +173,7 @@ public sealed class WorkflowNodeBudgetGateTests
         calls.ShouldBe(1);
     }
 
-    // --- The tenant's quota (F-529) ---
+    // --- The tenant's quota ---
 
     [Fact]
     public async Task A_quota_the_tenant_has_spent_refuses_a_node_whose_budget_has_room()

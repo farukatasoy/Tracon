@@ -190,7 +190,7 @@ public sealed class UsageAnalyzerTests
         reported.Id.ShouldBe("TRC0201");
 
         // The report names the header and the field that stores only the key
-        // NAME (phase 190); before, it named the whole record.
+        // NAME; before, it named the whole record.
         var message = reported.GetMessage(CultureInfo.InvariantCulture);
         message.ShouldContain("McpServerDefinition.Headers[\"X-Api-Key\"]");
         message.ShouldContain("HeaderConfigurationKeys");
@@ -456,7 +456,7 @@ public sealed class UsageAnalyzerTests
     }
 
     /// <summary>
-    /// The file this phase exists for: a repository whose own AGENTS.md never
+    /// The file this change exists for: a repository whose own AGENTS.md never
     /// names the generated reference, so the map on disk is unreachable.
     /// </summary>
     [Fact]
@@ -676,7 +676,7 @@ public sealed class UsageAnalyzerTests
     /// A container loop must not be reported as if its own body were the
     /// enumeration boundary, and the leaf loop it contains must still be
     /// evaluated on its own account. Measured against Tracon's own code
-    /// (phase 93): the naive shape - "does the outer loop's body carry the
+    ///The naive shape - "does the outer loop's body carry the
     /// write, anywhere inside it" - read the inner loop's write as covering
     /// the outer loop too, and separately never gave the inner loop its own
     /// verdict. <see cref="TraconUsageAnalyzer"/>'s remarks on
@@ -764,7 +764,7 @@ public sealed class UsageAnalyzerTests
     }
 
     /// <summary>
-    /// Open soru 1 (phase 93): an <c>await foreach</c> is not exempt just
+    /// Open soru 1: an <c>await foreach</c> is not exempt just
     /// because it is a <c>foreach</c> - a further await inside its body is the
     /// same MoveNextAsync boundary as any other loop.
     /// </summary>
@@ -915,7 +915,7 @@ public sealed class UsageAnalyzerTests
         diagnostics.ShouldBeEmpty();
     }
 
-    /// <summary>Open soru 4 (phase 93): a plain variable keeps a handle on the scope, whether or not it disposes it.</summary>
+    /// <summary>Open soru 4: a plain variable keeps a handle on the scope, whether or not it disposes it.</summary>
     [Fact]
     public async Task TRC0502_is_silent_for_a_plain_local_variable()
     {

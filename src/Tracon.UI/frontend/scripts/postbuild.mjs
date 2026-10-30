@@ -41,7 +41,7 @@ const ALLOWED_DEPENDENCIES = [
   'react-dom',
 ];
 
-// The embeddable chat widget (Phase 61) builds into wwwroot/embed/ via a
+// The embeddable chat widget builds into wwwroot/embed/ via a
 // SEPARATE Vite config and has its OWN budget gate (postbuild-embed.mjs,
 // 30 KB). It is excluded here so it neither inflates the console's 250 KB
 // budget nor gets double-compressed.
@@ -138,7 +138,7 @@ function compress(files) {
 /**
  * Fails the build when a source comment was shipped as visible text.
  *
- * 🚨 Phase 175 shipped one. A JSX comment is `{/* … *\/}`; drop the braces in
+ * 🚨 shipped one. A JSX comment is `{/* … *\/}`; drop the braces in
  * CHILD position and the same characters become a text node, so a 300-character
  * note about why a button has no confirmation step rendered inside the button's
  * own table cell. Nothing caught it: `tsc` accepts both forms, the screen had no

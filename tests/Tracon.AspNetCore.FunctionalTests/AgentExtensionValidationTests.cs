@@ -7,7 +7,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 222 (F-588): the extension names of a definition are checked when it is validated and
+/// The extension names of a definition are checked when it is validated and
 /// when it is saved, with the path of the offending list item; the extension list endpoint
 /// shows what the host registered and runs none of it.
 /// </summary>

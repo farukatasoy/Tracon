@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Tenancy;
 
-/// <summary>Verifies <see cref="TenantProviderCredentialResolver"/> (section 65.2, 65.4).</summary>
+/// <summary>Verifies <see cref="TenantProviderCredentialResolver"/>.</summary>
 public sealed class TenantProviderCredentialResolverTests
 {
     [Fact]
@@ -72,7 +72,7 @@ public sealed class TenantProviderCredentialResolverTests
     [Fact]
     public void Resolve_rejects_an_out_of_prefix_binding_even_if_it_was_saved_before_the_prefix_changed()
     {
-        // Defense in two layers (section 65.2): the resolver re-checks the
+        // Defense in two layers: the resolver re-checks the
         // prefix, it does not trust that the write path already validated it.
         var resolver = CreateResolver(BuildConfiguration(("Legacy:Key", "sk-test")));
 

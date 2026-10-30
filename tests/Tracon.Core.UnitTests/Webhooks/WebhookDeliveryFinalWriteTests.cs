@@ -10,11 +10,11 @@ namespace Tracon.Core.UnitTests.Webhooks;
 /// not record that it was delivered.
 /// </summary>
 /// <remarks>
-/// F-366: the writes that record a delivery's result sat in the same handler
+/// The writes that record a delivery's result sat in the same handler
 /// body as the successful send, with nothing between them and the worker. One
 /// store error after the recipient answered <c>2xx</c> failed the attempt, the
 /// worker put the job back, and the next attempt sent the same delivery again.
-/// F-348's rule: a store error after the work belongs to the store; the result
+/// the rule: a store error after the work belongs to the store; the result
 /// write is tried again, and the work is never repeated for it.
 /// </remarks>
 public sealed class WebhookDeliveryFinalWriteTests
@@ -121,7 +121,7 @@ public sealed class WebhookDeliveryFinalWriteTests
     }
 
     /// <summary>
-    /// F-393: a store error while recording a FAILED send is the store's too. It
+    /// A store error while recording a FAILED send is the store's too. It
     /// used to escape the handler as a raw error: the worker put the job back with no
     /// pause, so the recipient was called again at once instead of after the ladder's
     /// delay.
@@ -146,7 +146,7 @@ public sealed class WebhookDeliveryFinalWriteTests
     }
 
     /// <summary>
-    /// F-393: on the last attempt the failed result is recorded through the same
+    /// On the last attempt the failed result is recorded through the same
     /// retry, so the delivery ends <see cref="WebhookDeliveryStatus.Failed"/>. One
     /// store error used to leave it <see cref="WebhookDeliveryStatus.Pending"/> for
     /// good, with no attempt left to finish it.

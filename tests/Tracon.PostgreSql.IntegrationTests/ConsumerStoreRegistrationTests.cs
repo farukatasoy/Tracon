@@ -8,7 +8,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// HATA-S1-019, the 2026-09-16 acceptance round: <c>UsePostgreSql()</c> used
+/// The 2026-09-16 acceptance round: <c>UsePostgreSql()</c> used
 /// <c>Replace</c> for 39 contracts, and <c>Replace</c> cannot tell Tracon's
 /// in-memory default from a registration the application made on purpose. A
 /// consumer's <c>ITenantStore</c> disappeared with no log, no warning and no

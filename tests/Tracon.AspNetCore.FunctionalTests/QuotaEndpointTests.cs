@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the quota endpoints and <c>429</c> behavior (Phase 21).</summary>
+/// <summary>Tests for the quota endpoints and <c>429</c> behavior.</summary>
 public sealed class QuotaEndpointTests
 {
     private static readonly Uri Quotas = new("/tracon/api/quotas", UriKind.Relative);

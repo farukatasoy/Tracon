@@ -4,7 +4,7 @@ using Tracon.ProviderCore.Tests;
 namespace Tracon.Anthropic.UnitTests;
 
 /// <summary>
-/// What the Anthropic health check actually puts on the wire (phase 181). The
+/// What the Anthropic health check actually puts on the wire. The
 /// shared body calls a per-provider <c>authorize</c> delegate; this proves the
 /// Anthropic shell hands it the Anthropic headers and no other provider's.
 /// </summary>

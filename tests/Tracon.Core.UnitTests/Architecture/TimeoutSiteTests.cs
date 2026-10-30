@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// Every file in <c>src/</c> that arms a timeout with <c>CancelAfter(</c>,
 /// <c>new CancellationTokenSource(&lt;value&gt;</c> or the <c>Task.Delay</c> overload
 /// that takes a <see cref="TimeProvider"/> must be a known site whose value is either a
-/// constant or checked against the timer range before it is armed (F-280, F-449).
+/// constant or checked against the timer range before it is armed.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// where the timeout is armed: in a run, a request, a delivery attempt, a shutdown.
 /// The class scan found eighteen inputs that reached them with only a lower bound -
 /// the same defect <c>PeriodicTimerSiteTests</c> closed for background intervals
-/// (F-278), one call further along.
+///One call further along.
 /// </para>
 /// <para>
 /// The gate does not read the code: it makes a NEW site fail until someone names
@@ -85,7 +85,7 @@ public sealed partial class TimeoutSiteTests
     // parameterless one arms nothing), or `Task.Delay(` whose arguments name a time source.
     // The last one is a heuristic on the argument's name: Tracon passes its TimeProvider as
     // timeProvider, _timeProvider or _clock. A delay with no time source argument is not
-    // matched (F-449).
+    // matched.
     [GeneratedRegex(
         @"\.CancelAfter\(|new\s+CancellationTokenSource\(\s*[^)\s]|Task\.Delay\([^;]*(?:[Tt]imeProvider|[Cc]lock)\b",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,

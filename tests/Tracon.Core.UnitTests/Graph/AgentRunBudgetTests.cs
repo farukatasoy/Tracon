@@ -111,7 +111,7 @@ public sealed class AgentRunBudgetTests
         budget.Deadline.ShouldBeNull();
     }
 
-    // --- F-407: where a function node may start ---
+    // --- an earlier fix: where a function node may start ---
 
     [Fact]
     public void A_spent_token_budget_does_not_refuse_a_node_start()

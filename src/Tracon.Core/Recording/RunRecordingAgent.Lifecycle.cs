@@ -148,7 +148,7 @@ public sealed partial class RunRecordingAgent
 
         var budget = runOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null);
 
-        // F-418: the root names the counter its whole tree adds to, once, on the budget every
+        // The root names the counter its whole tree adds to, once, on the budget every
         // run in the tree shares. A child that ends after the root, in a task that carries
         // neither the root's tenant nor its user, reads the identity from here when it closes.
         // Assigned afresh by every root, so a reused budget never keeps an earlier root's tenant.
@@ -186,7 +186,7 @@ public sealed partial class RunRecordingAgent
             ContextRecord = new ContextRecordClaim(),
 
             // What the tools of this run measure beyond tokens adds up here and
-            // reaches the tree's budget the moment it does (phase 199).
+            // reaches the tree's budget the moment it does.
             NonTokenCost = new NonTokenCostAccumulator(_pricingCurrency, budget),
             ToolAuthorization = new ToolAuthorizationAccumulator(),
             ToolExplainedFailures = new ToolExplainedFailureAccumulator(),

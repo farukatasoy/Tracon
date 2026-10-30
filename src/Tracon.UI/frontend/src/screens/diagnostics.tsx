@@ -25,7 +25,7 @@ import type {
 import type { TraconDiagnosticsReport } from '../lib/server-types';
 
 /**
- * Self-check of this installation (Phase 33).
+ * Self-check of this installation.
  *
  * The endpoint is off by default (`TraconEndpointOptions.EnableDiagnosticsEndpoint`)
  * and requires the Admin role when a role policy is registered — a 404 here almost
@@ -237,7 +237,7 @@ function ConfigurationRow({
           <Badge tone="warn">{t('diagnostics.unresolved')}</Badge>
         )}
       </Td>
-      {/* Server text, never translated (decision K-232): it names a setup step, not UI copy. */}
+      {/* Server text, never translated: it names a setup step, not UI copy. */}
       <Td>{entry.hint ? <span className="text-xs text-subtle">{entry.hint}</span> : <span>—</span>}</Td>
     </tr>
   );

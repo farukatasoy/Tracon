@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The test project <strong>does NOT</strong> reference <c>Tracon.Voice</c>:
 /// the endpoints know only the <see cref="ISpeechSynthesizer"/> abstraction.
 /// This is proof that the abstraction lives in the right package
-/// (Abstractions) — the K-174 pattern.
+/// (Abstractions) — the pattern.
 /// </remarks>
 public sealed class VoiceEndpointTests
 {
@@ -126,7 +126,7 @@ public sealed class VoiceEndpointTests
         alignment[0].GetProperty("character").GetString().ShouldBe("h");
         alignment[1].GetProperty("character").GetString().ShouldBe("i");
 
-        // Alignment is not a separate billing unit (docs/72, section 72.2, rule 3).
+        // Alignment is not a separate billing unit.
         timestampedBody.GetProperty("characters").GetInt32().ShouldBe(plainBody.GetProperty("characters").GetInt32());
         timestampedBody.GetProperty("isEstimated").GetBoolean().ShouldBe(plainBody.GetProperty("isEstimated").GetBoolean());
     }
@@ -182,7 +182,7 @@ public sealed class VoiceEndpointTests
     }
 
     /// <summary>
-    /// F-443: a provider that fails while listing its voices is a bad gateway, as it
+    /// A provider that fails while listing its voices is a bad gateway, as it
     /// is for speak. The failure escaped the endpoint and the caller got a 500.
     /// </summary>
     [Fact]
@@ -217,7 +217,7 @@ public sealed class VoiceEndpointTests
     [Fact]
     public async Task Speak_names_the_attachment_after_the_DETECTED_format()
     {
-        // F-336: the endpoint wrote '.mp3' whatever the audio was. A synthesizer
+        // The endpoint wrote '.mp3' whatever the audio was. A synthesizer
         // that returns OGG produced an 'audio/ogg' attachment named '*.mp3'.
         await using var host = await TraconTestHost.StartAsync(
             configureServices: static services =>

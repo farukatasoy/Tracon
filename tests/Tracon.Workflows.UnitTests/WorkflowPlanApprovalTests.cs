@@ -6,9 +6,9 @@ namespace Tracon.Workflows.UnitTests;
 /// Plan approval for the <c>Magentic</c> pattern.
 /// </summary>
 /// <remarks>
-/// In Phase 15 this path was <em>disabled</em>: MAF published a plan approval
+/// In this path was <em>disabled</em>: MAF published a plan approval
 /// request at the end of the first super-step and execution stayed waiting
-/// forever, with no way to respond. When Phase 16 introduced the
+/// forever, with no way to respond. When introduced the
 /// human-in-the-loop flow, approval became possible again; the tests below
 /// prove it actually works.
 /// </remarks>

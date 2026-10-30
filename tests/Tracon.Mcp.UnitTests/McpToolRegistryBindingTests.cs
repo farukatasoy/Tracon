@@ -5,7 +5,7 @@ namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
 /// The binding fingerprint <c>UseMcp()</c>'s registry gives the compiled-agent
-/// cache key (F-305). The registry is resolved through real DI, so the compiler
+/// cache key. The registry is resolved through real DI, so the compiler
 /// sees exactly this instance.
 /// </summary>
 public sealed class McpToolRegistryBindingTests

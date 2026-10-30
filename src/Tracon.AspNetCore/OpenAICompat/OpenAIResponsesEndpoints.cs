@@ -15,7 +15,7 @@ namespace Tracon;
 
 // MAAI001: since Microsoft Agent Framework 1.22, AgentSessionStore and
 // AgentSessionStoreKey are marked "evaluation purposes only" (same rationale
-// as TraconAgentSessionStore and K-020).
+// as TraconAgentSessionStore).
 #pragma warning disable MAAI001
 
 /// <summary>
@@ -89,7 +89,7 @@ internal static class OpenAIResponsesEndpoints
             .WithName("TraconOpenAIResponses")
             .WithTags("Tracon", "OpenAI")
             .WithSummary("Run endpoint compatible with the OpenAI Responses API.")
-            // 🚨 JsonElement, not object (Phase 159, MEASURED): an `object` body
+            // 🚨 JsonElement, not object (MEASURED): an `object` body
             // generates `object body` on the typed client, and the client
             // serializes through a source-generated JsonSerializerContext - so
             // any natural caller input (an anonymous type, a POCO) throws
@@ -149,7 +149,7 @@ internal static class OpenAIResponsesEndpoints
         string prefix,
         CancellationToken cancellationToken)
     {
-        // 🚨 Checked BEFORE anything else, like the agent run endpoint (F-431).
+        // 🚨 Checked BEFORE anything else, like the agent run endpoint.
         if (OpenAICompatSupport.DrainRefusal(drainState) is { } drainRefusal)
         {
             return drainRefusal;
@@ -198,7 +198,7 @@ internal static class OpenAIResponsesEndpoints
                 type: TraconErrorTypes.ModelNotFound);
         }
 
-        // F-330: this protocol carries no parameter values; an agent whose
+        // This protocol carries no parameter values; an agent whose
         // required parameter has no default would fail on its first step.
         if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
         {
@@ -225,7 +225,7 @@ internal static class OpenAIResponsesEndpoints
         var saveId = runRequest.ConversationId ?? responseId;
         var loadId = OpenAIResponses.GetSessionStoreId(runRequest) ?? saveId;
 
-        // F-337: the attribution is checked before the run starts, as on the
+        // The attribution is checked before the run starts, as on the
         // agent run endpoint; this protocol's own error shape carries it.
         if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
         {
@@ -233,7 +233,7 @@ internal static class OpenAIResponsesEndpoints
         }
 
         // 🚨 Checked BEFORE the tenant-ownership check below, same ordering
-        // as every other run-starting endpoint (phase 139, F-185): an
+        // as every other run-starting endpoint: an
         // unauthorized call must not learn whether 'loadId' exists.
         if (await RunAuthorizationGate
                 .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, loadId, attributionContext, httpContext, cancellationToken)
@@ -245,7 +245,7 @@ internal static class OpenAIResponsesEndpoints
                 type: TraconErrorTypes.RunNotAuthorized);
         }
 
-        // 🚨 Ownership guards this run surface too (phase 148): a Responses
+        // 🚨 Ownership guards this run surface too: a Responses
         // call that names another user's conversation would otherwise replay
         // its whole history into the model. Inert while ownership is off.
         if (await SessionOwnershipGate
@@ -273,7 +273,7 @@ internal static class OpenAIResponsesEndpoints
         // 'data:' URIs embedded in the body (image_url, input_file) have
         // already been converted to DataContent by MAF; before being sent to
         // the agent they are each converted into an attachment so the chat
-        // history stays small (Phase 14, 14.1).
+        // history stays small (14.1).
         if (await AttachmentIngestion.ReplaceEmbeddedDataAsync(
                 runRequest.Messages,
                 prefix,
@@ -312,7 +312,7 @@ internal static class OpenAIResponsesEndpoints
         // 🚨 A provider timeout arrives as an OperationCanceledException while
         // nobody cancelled anything (HttpClient's own deadline). Without this
         // filter it skipped the 502 mapping below and the caller got a bare,
-        // empty success. Same class as AgentEndpoints; Phase 157.
+        // empty success. Same class as AgentEndpoints.
         catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             throw;
@@ -332,7 +332,7 @@ internal static class OpenAIResponsesEndpoints
             // 🚨 The sibling of AgentEndpoints' own 409 branch. Two concurrent
             // turns on the same conversation are a CLIENT-side race; a 502
             // would say "upstream is broken" and send the caller looking at
-            // the model provider. The same reasoning HATA-004 wrote down for
+            // the model provider. The same reasoning written down for
             // the /api/agents path applies here unchanged, and this path had
             // been missed — exactly the sibling-path class the comment below
             // records for a different fix.
@@ -343,7 +343,7 @@ internal static class OpenAIResponsesEndpoints
         }
         catch (Exception ex)
         {
-            // 🚨 HATA-S2-003/HATA-S3-005: K-296's fix covered only the streaming
+            // the fix covered only the streaming
             // variant (ResponsesStream below); it MISSED this non-streaming
             // sibling path. A narrow 'when' filter (only TraconException/
             // InvalidOperationException/HttpRequestException) would let real
@@ -523,12 +523,12 @@ internal static class OpenAIResponsesEndpoints
 
             var cancellationToken = httpContext.RequestAborted;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
-            // Stops the writer's keep-alive loop before the response ends (F-325).
+            // Stops the writer's keep-alive loop before the response ends.
             await using var writerScope = writer.ConfigureAwait(false);
 
             try
             {
-                // A harness loop hands over its final iteration only (K-889): the
+                // A harness loop hands over its final iteration only: the
                 // client reads this stream as the answer, not as a draft forming.
                 var updates = AgentAnswerStream.RunAsync(
                     agent,
@@ -538,7 +538,7 @@ internal static class OpenAIResponsesEndpoints
                     cancellationToken);
 
                 // MAF never reads the finish reason; the rewriter marks the closing frames of an incomplete
-                // answer (F-503) and passes every other frame through as the same string.
+                // answer and passes every other frame through as the same string.
                 var rewriter = new ResponsesStreamRewriter();
 
                 var frames = OpenAIResponses.WriteResponseStreamAsync(
@@ -569,14 +569,14 @@ internal static class OpenAIResponsesEndpoints
             // TaskCanceledException, so a provider that never answers raises one
             // while the client is still connected and waiting; a bare catch
             // ended the response as if the CLIENT had gone away, and the caller
-            // saw a clean, empty success. Measured in Phase 157.
+            // saw a clean, empty success.
             catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected.
             }
             catch (Exception ex)
             {
-                // 🚨 K-296 (see AgentEndpoints.ExecuteStreamingAsync): a narrow
+                // A narrow
                 // exception filter would let real provider SDK exceptions slip
                 // through and close the connection WITHOUT producing an 'error'
                 // frame. Here EVERY exception turns into a frame.

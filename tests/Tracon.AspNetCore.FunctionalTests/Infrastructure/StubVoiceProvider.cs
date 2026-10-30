@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// A fake voice provider that makes no network calls: transcription and synthesis.
 /// </summary>
 /// <remarks>
-/// No test calls a real voice provider (a decision in force since Phase 3).
+/// No test calls a real voice provider (a decision in force).
 /// The voice layer only knows about the abstractions; this class proves that
 /// the server uses those abstractions correctly.
 /// </remarks>

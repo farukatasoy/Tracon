@@ -5,7 +5,7 @@ namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
 /// Guards against a silent drift in the SQL text produced by the three
-/// providers while phase 94 moves identical queries into a shared base class.
+/// providers while moves identical queries into a shared base class.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,7 +21,7 @@ namespace Tracon.SqlProviders.Tests;
 /// one that never opens a connection. Building a <c>PostgresQueries</c>/
 /// <c>SqlServerQueries</c>/<c>SqliteQueries</c> instance needs no connection at
 /// all -- only <see cref="InternalsVisibleToAttribute"/> from the three
-/// provider projects to this one (phase 94 open question 3, resolved in
+/// provider projects to this one (an earlier change, resolved in
 /// favour of this option once the Docker cost of the alternative was
 /// measured).
 /// </para>
@@ -37,7 +37,7 @@ public sealed class SqlTextSnapshotTests
     /// <summary>The schema name every provider ships as its own default.</summary>
     private const string PostgresAndSqlServerSchema = "tracon";
 
-    /// <summary>The table prefix SQLite ships as its own default (K-193: no dot).</summary>
+    /// <summary>The table prefix SQLite ships as its own default (no dot).</summary>
     private const string SqliteTablePrefix = "tracon_";
 
     [Fact]

@@ -4,7 +4,7 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// Conversation branching (Phase 47) against a real SQL Server database.
+/// Conversation branching against a real SQL Server database.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -117,7 +117,7 @@ public sealed class ConversationBranchTests(SqlServerFixture fixture)
         var now = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
         // Mimics a polymorphic ChatMessage: the `$type` discriminator is the
-        // FIRST property and must survive the copy as-is (K-027).
+        // FIRST property and must survive the copy as-is.
         await context.ExecuteAsync(
             $$"""
             INSERT INTO {{context.SchemaName}}.conversation_items (id, conversation_id, seq, item, created_at)

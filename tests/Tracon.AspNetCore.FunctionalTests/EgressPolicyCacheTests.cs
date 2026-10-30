@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A tenant egress policy saved while an agent sits in the compiled-agent
-/// cache reaches the very next run (F-304).
+/// cache reaches the very next run.
 /// </summary>
 /// <remarks>
 /// 🚨 Regression (2026-10-11): the policy is checked only when a model client

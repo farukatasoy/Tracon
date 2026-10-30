@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// that carries parameter values and documents.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: an item is stored as text with no type, so a plain-text item can
+/// An item is stored as text with no type, so a plain-text item can
 /// look exactly like a structured one. These cases pin which texts count as
 /// structured, so that nothing that was plain text before is silently
 /// reinterpreted, and the one documented ambiguity stays the only one.
@@ -110,7 +110,7 @@ public sealed class BatchItemInputTests
     [InlineData("")]
     public void An_enveloped_text_always_comes_back_as_the_message_alone(string text)
     {
-        // 🚨 F-294: a webhook body is the sender's text. Wrapped, it can name no
+        // A webhook body is the sender's text. Wrapped, it can name no
         // parameter value and cannot fail the item as malformed, whatever it holds.
         var input = BatchItemInput.Parse(BatchItemInput.Envelope(text));
 

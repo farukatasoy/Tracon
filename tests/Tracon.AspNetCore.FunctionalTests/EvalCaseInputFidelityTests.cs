@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// An eval case must put in front of the agent the input the production run
-/// had (F-343).
+/// had.
 /// </summary>
 /// <remarks>
 /// <para>

@@ -11,7 +11,7 @@
 
   <!--
     Azure OpenAI's v1 API is the OpenAI wire protocol under {endpoint}/openai/v1/
-    (Phase 217): POST {endpoint}/openai/v1/chat/completions with the deployment
+: POST {endpoint}/openai/v1/chat/completions with the deployment
     name in the body's `model` field. The plain OpenAI SDK therefore talks to it
     directly; `Azure.AI.OpenAI` (stable line frozen at 2.1.0, December 2024)
     is not used. Message mapping, streaming, tool calls, and usage counters all
@@ -28,11 +28,11 @@
   </ItemGroup>
 
   <!--
-    Shared source (Phase 181). Tracon.Providers.Shared is NOT a package; the same
+    Shared source. Tracon.Providers.Shared is NOT a package; the same
     files also compile into the other three provider adapters. Rationale and
     rules: src/Tracon.Providers.Shared/README.md.
   -->
-  <ItemGroup Label="Shared provider source (Phase 181)">
+  <ItemGroup Label="Shared provider source">
     <Compile Include="../Tracon.Providers.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 

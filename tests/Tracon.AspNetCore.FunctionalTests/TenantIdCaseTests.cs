@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Letter case never distinguishes two tenants (phase 179).
+/// Letter case never distinguishes two tenants.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,7 +23,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// These run at the HTTP boundary on purpose. The fold happens in
 /// <c>HttpTenantContext</c> and is read again by
 /// <c>TraconEndpointFilter</c>; a unit test on either one alone cannot show
-/// that the two surfaces agree (K-382).
+/// that the two surfaces agree.
 /// </para>
 /// </remarks>
 public sealed class TenantIdCaseTests

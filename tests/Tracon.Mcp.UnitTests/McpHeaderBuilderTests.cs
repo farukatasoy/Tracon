@@ -6,7 +6,7 @@ namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
 /// The one builder of an MCP server's request headers: stored plain headers
-/// plus credential headers resolved from configuration (phase 190).
+/// plus credential headers resolved from configuration.
 /// </summary>
 /// <remarks>
 /// Every log line is checked for the value: a warning that names a header
@@ -56,7 +56,7 @@ public sealed class McpHeaderBuilderTests
     }
 
     /// <summary>
-    /// A row written before phase 190 keeps working (decision 7), and the
+    /// A row written before keeps working (decision 7), and the
     /// operator is told to move the credential — by name.
     /// </summary>
     [Fact]
@@ -83,7 +83,7 @@ public sealed class McpHeaderBuilderTests
         logger.Text.ShouldContain("OAuth");
 
         // Decision 7: the plain header is still sent; the SDK then skips its
-        // own bearer token while the header is present (measured in phase 190).
+        // own bearer token while the header is present.
         var plain = Build(Server(oauth: true, headers: new(StringComparer.Ordinal) { ["Authorization"] = "Bearer plain-190" }), logger);
 
         plain["Authorization"].ShouldBe("Bearer plain-190");
@@ -150,7 +150,7 @@ public sealed class McpHeaderBuilderTests
 
     /// <summary>
     /// The <c>Authorization</c> header travels in the map like any other
-    /// credential header: the field that carried it alone is gone (phase 218).
+    /// credential header: the field that carried it alone is gone.
     /// </summary>
     [Fact]
     public void A_keyed_authorization_is_resolved_like_any_other_credential_header()

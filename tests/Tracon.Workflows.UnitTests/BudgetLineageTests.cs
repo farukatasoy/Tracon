@@ -5,7 +5,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// The reader of what the earlier runs of one logical workflow run spent (F-531): which rows it
+/// The reader of what the earlier runs of one logical workflow run spent: which rows it
 /// follows, what it adds, and what it does when it cannot read.
 /// </summary>
 public sealed class BudgetLineageTests

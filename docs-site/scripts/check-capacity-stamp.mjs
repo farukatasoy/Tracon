@@ -5,9 +5,9 @@ import { join } from 'node:path';
  * Every capacity number this site publishes must be recomputable from a stored
  * measurement artifact.
  *
- * Phase 166 measured the numbers on `guides/production.md` and its audit found
+ * measured the numbers on `guides/production.md` and its audit found
  * five defects. All five were the same class: a number that was correct in the
- * measurement file and wrong by the time it reached the page. K-775 turned that
+ * measurement file and wrong by the time it reached the page. That decision turned that
  * into a contract - a published capacity number carries its version and its
  * commit - and this gate is the contract's enforcement.
  *
@@ -15,7 +15,7 @@ import { join } from 'node:path';
  * because a number that drifted is a question for a person: either the page was
  * mistyped, or the measurement was never re-run.
  *
- * 🚨 K-766 says a process-measurement gate checks that a section EXISTS, not
+ * 🚨 A process-measurement gate checks that a section EXISTS, not
  * that it is CORRECT, and reasons that no gate can check correctness. This gate
  * checks correctness and that is not a contradiction. A process measurement is
  * a judgement with no external source. A capacity number has a machine-readable
@@ -36,13 +36,13 @@ const PAGE = 'guides/production.md';
  * ends the table at that line and destroys every row below it, and a comment
  * after the closing pipe parses as an extra cell the header does not have.
  * In-cell is also what this repository already does for behaviour claims
- * (`<!-- claim:option … -->`, phase 158).
+ * (`<!-- claim:option … -->`).
  */
 const MARKER = /<!--\s*capacity:\s*([^>]*?)\s*-->/;
 
 /**
  * Names the profiles that were measured on another machine than the page's main sentence describes; the paragraph
- * under it states their environment (Phase 265).
+ * under it states their environment.
  */
 const ENVIRONMENT_MARKER = /<!--\s*capacity-environment:\s*profiles=([A-Za-z0-9,_-]+)\s*-->/g;
 
@@ -57,7 +57,7 @@ const SCHEMAS = {
   latency: ['Path', 'Concurrency', 'n', 'p50', 'p95', 'Completed/s'],
   arrival: ['Planned/s', 'Sent', 'Never sent', 'Completed', 'Queue wait p95'],
   storage: ['Path', 'Rows per run (3 repeats)', 'Bytes per run', 'Largest contributor'],
-  // Phase 265: the host axis. One row is one scenario at one host count; the queue wait is the spread of the
+  // The host axis. One row is one scenario at one host count; the queue wait is the spread of the
   // windows, as in the arrival table, and a path that never queues publishes a dash.
   hosts: ['Path', 'Hosts', 'n', 'p50', 'p95', 'Completed/s', 'Queue wait p95'],
 };
@@ -260,7 +260,7 @@ function checkLatencyRow(errors, where, cells, attributes, summary) {
   compare(errors, where, 'p95', cells[4], formatMilliseconds(latency.p95));
   compare(errors, where, 'Completed/s', cells[5], formatRate(cell.throughputPerSecond));
 
-  // 🚨 Phase 166's third finding: a p95 whose merged count clears the floor
+  // 🚨 the third finding: a p95 whose merged count clears the floor
   // while no single repeat did was published as though it were solid. The flag
   // is checked in BOTH directions - an unflagged thin row and a flagged solid
   // one are each a finding - so the marker cannot drift away from the data.
@@ -280,7 +280,7 @@ function checkLatencyRow(errors, where, cells, attributes, summary) {
 }
 
 /**
- * One row of the host axis (Phase 265): a scenario measured at one and at two HTTP hosts, at one fixed load.
+ * One row of the host axis: a scenario measured at one and at two HTTP hosts, at one fixed load.
  *
  * The queue wait is the spread of the windows, rounded at both ends by the page's one rule (as the arrival table
  * does), because a single number would hide that the three windows differed. Only the queued path has one.
@@ -351,7 +351,7 @@ function checkStorageRow(errors, where, cells, attributes, summary) {
   checkPathLabel(errors, where, cells[0], attributes.scenario);
   compare(errors, where, 'Rows per run', cells[1], formatRows(cell.rowsPerRun));
 
-  // 🚨 Phase 166's fourth finding: one clean window published as though it were
+  // 🚨 the fourth finding: one clean window published as though it were
   // an average of three. The repeat count is part of the published cell, so a
   // page that stops saying it cannot pass.
   const repeats = cell.storageRepeats;
@@ -376,7 +376,7 @@ function checkArrivalRow(errors, where, cells, attributes, summary) {
 
   // An `invalid` window is one the driver says cannot be trusted
   // (CellStatus.Invalid). The totals summed every window whatever its status,
-  // so such a window reached the page unnoticed (phase 174 audit, finding 4).
+  // so such a window reached the page unnoticed.
   const windows = measured.filter((entry) => entry.status !== 'invalid');
 
   if (windows.length === 0) {
@@ -428,7 +428,7 @@ function readArtifact(errors, measurementsRoot, profile, name, seen) {
   let value = null;
 
   if (!existsSync(path)) {
-    // 🚨 Phase 166's fifth finding was evidence left in an untracked
+    // 🚨 the fifth finding was evidence left in an untracked
     // directory. A missing artifact is the finding, never a silent pass.
     errors.push(`${PAGE}: cites profile '${profile}' but ${profile}/${name} is not stored`);
   } else {
@@ -617,7 +617,7 @@ export function checkCapacityStamp(docsRoot, measurementsRoot, expectedRows = EX
  * Numbers the page states in prose, each marked with the field it quotes.
  *
  * 🚨 This exists because the audit found the page calling two p95 values "a
- * p99" - phase 166's own defect class, still open, in a sentence no table gate
+ * p99" - the own defect class, still open, in a sentence no table gate
  * could ever see. A number outside a table is still a published number.
  *
  *     a p99 of 1721 ms<!-- capacity: kind=value … field=latency.p99 -->
@@ -773,7 +773,7 @@ function checkStamps(text, measurementsRoot, seen, collected) {
   const commits = new Set(manifests.map(([, manifest]) => manifest.commit));
 
   // Seven characters, not eight: packageVersion carries a seven-character
-  // SHA, and a stamp in that form went unchecked (phase 174 audit, finding 3).
+  // SHA, and a stamp in that form went unchecked.
   for (const [stamp] of body.matchAll(/(?<![0-9a-zA-Z])[0-9a-f]{7,40}(?![0-9a-zA-Z])/g)) {
     if (![...commits].some((commit) => commit.startsWith(stamp))) {
       errors.push(`${PAGE}: commit stamp '${stamp}' matches no stored manifest`);
@@ -791,7 +791,7 @@ function checkStamps(text, measurementsRoot, seen, collected) {
   // 2 - the environment sentence. Direction is one way on purpose (§174.3):
   // every measured value must appear, and the page may say more besides.
   //
-  // Phase 265: a run measured on ANOTHER machine gets its own sentence, named by a marker in front of it:
+  // A run measured on ANOTHER machine gets its own sentence, named by a marker in front of it:
   //
   //     <!-- capacity-environment: profiles=nodes -->
   //     Measured on 2026-10-29 at commit `647aa02e` on Darwin 27.0.0 ...

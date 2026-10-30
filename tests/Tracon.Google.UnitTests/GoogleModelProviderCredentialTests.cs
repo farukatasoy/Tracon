@@ -5,7 +5,7 @@ namespace Tracon.Google.UnitTests;
 
 /// <summary>
 /// Verifies <see cref="GoogleModelProvider"/>'s per-tenant credential handling
-/// (phase 65, BYOK). See <c>OpenAIModelProviderCredentialTests</c> for the
+/// (BYOK). See <c>OpenAIModelProviderCredentialTests</c> for the
 /// shared rationale.
 /// </summary>
 /// <remarks>

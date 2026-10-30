@@ -45,7 +45,7 @@ internal static class SessionEndpoints
                 }
 
                 // 🚨 Ownership narrowing is a DIFFERENT thing and it DOES
-                // filter - phase 148. Until then Tracon knew of no owner
+                // filter. Until then Tracon knew of no owner
                 // narrower than the tenant, so the only honest answer to "show
                 // this user their own sessions" was to reject the whole list;
                 // filtering after the fact would also have broken the
@@ -202,7 +202,7 @@ internal static class SessionEndpoints
         // 🚨 Checked BEFORE branching: a denial produces the SAME 404 title
         // and detail ConversationBranchService's own SessionNotFound outcome
         // does a few lines below, so a caller cannot tell "denied" from
-        // "does not exist" - phase 139, F-185.
+        // "does not exist".
         if (await RunAuthorizationGate
                 .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId, attributionContext, SessionAccess.Branch, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
@@ -292,7 +292,7 @@ internal static class SessionEndpoints
 
         // 🚨 The SAME body a missing session gets, written a few lines below
         // from the same two strings: a denial that read differently would
-        // confirm the session exists through a side channel (K-671).
+        // confirm the session exists through a side channel.
         if (await SessionOwnershipGate
                 .DeniesAsync(ownershipOptions, attributionContext, store, sessionId, httpContext, cancellationToken)
                 .ConfigureAwait(false))

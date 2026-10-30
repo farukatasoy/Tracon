@@ -84,7 +84,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     [Fact]
     public void Key_less_local_provider_passes_validation_and_produces_a_client()
     {
-        // F-05: local servers (Ollama, LM Studio) do not ask for an API key.
+        // Local servers (Ollama, LM Studio) do not ask for an API key.
         using var provider = BuildProvider(o => o.Endpoint = LocalEndpoint, name: "ollama");
 
         using var chatClient = provider.GetRequiredService<IModelProviderRegistry>()

@@ -15,7 +15,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class KnowledgeNotSupportedTests
 {
-    private static readonly Uri UploadUri = new("/tracon/api/knowledge/docs/documents", UriKind.Relative);
+    private static readonly Uri UploadUri = new("/tracon/api/knowledge/kb/documents", UriKind.Relative);
 
     [Fact]
     public async Task Upload_without_a_vector_store_answers_501_and_names_the_package()

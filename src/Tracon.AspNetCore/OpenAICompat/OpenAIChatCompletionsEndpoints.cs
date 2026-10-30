@@ -89,7 +89,7 @@ internal static class OpenAIChatCompletionsEndpoints
             .WithName("TraconOpenAIChatCompletions")
             .WithTags("Tracon", "OpenAI")
             .WithSummary("Run endpoint compatible with the OpenAI Chat Completions API.")
-            // 🚨 JsonElement, not object (Phase 159, MEASURED): an `object` body
+            // 🚨 JsonElement, not object (MEASURED): an `object` body
             // generates `object body` on the typed client, and the client
             // serializes through a source-generated JsonSerializerContext - so
             // any natural caller input (an anonymous type, a POCO) throws
@@ -139,7 +139,7 @@ internal static class OpenAIChatCompletionsEndpoints
         string prefix,
         CancellationToken cancellationToken)
     {
-        // 🚨 Checked BEFORE anything else, like the agent run endpoint (F-431).
+        // 🚨 Checked BEFORE anything else, like the agent run endpoint.
         if (OpenAICompatSupport.DrainRefusal(drainState) is { } drainRefusal)
         {
             return drainRefusal;
@@ -157,7 +157,7 @@ internal static class OpenAIChatCompletionsEndpoints
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Body could not be parsed: {ex.Message}");
         }
 
-        // F-581: a setting the agent definition owns is refused, never ignored;
+        // A setting the agent definition owns is refused, never ignored;
         // /v1/responses refuses the same kind through MAF's request mapping.
         if (ChatCompletionsRequestSettings.FindRefused(body) is { Count: > 0 } refused)
         {
@@ -193,26 +193,26 @@ internal static class OpenAIChatCompletionsEndpoints
                 type: TraconErrorTypes.ModelNotFound);
         }
 
-        // F-330: this protocol carries no parameter values; an agent whose
+        // This protocol carries no parameter values; an agent whose
         // required parameter has no default would fail on its first step.
         if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
         {
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, unbound.Failure().Message);
         }
 
-        // F-337: the attribution is checked before the run starts, as on the
+        // The attribution is checked before the run starts, as on the
         // agent run endpoint; this protocol's own error shape carries it.
         if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
         {
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, attributionError, type: TraconErrorTypes.InvalidRunAttribution);
         }
 
-        // 🚨 This is the SIXTH run-starting surface and phase 139 missed it:
+        // 🚨 This is the SIXTH run-starting surface and missed it:
         // the endpoint resolves an agent from the catalog and calls RunAsync /
         // RunStreamingAsync a few lines below. The gate is asked BEFORE the
         // streaming branch, so both the streaming and the non-streaming path
         // are covered by this one call - a check inside either branch would
-        // leave the other one open (phase 147, F-195).
+        // leave the other one open.
         //
         // Chat Completions is stateless, so there is no session to name.
         if (await RunAuthorizationGate
@@ -225,13 +225,13 @@ internal static class OpenAIChatCompletionsEndpoints
                 type: TraconErrorTypes.RunNotAuthorized);
         }
 
-        // F-580: a part is handed to the model or refused by name, never dropped.
+        // A part is handed to the model or refused by name, never dropped.
         if (!ChatCompletionsMessageReader.TryRead(body, out var messages, out var error))
         {
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, error);
         }
 
-        // 🚨 The same gate as /v1/responses (F-580 class scan): an embedded image,
+        // 🚨 The same gate as /v1/responses: an embedded image,
         // audio clip or file passes the attachment type guard (size limit, type
         // sniffed from the bytes, allow list) and becomes an attachment reference
         // before the agent sees it. Without it this surface would hand the model
@@ -252,7 +252,7 @@ internal static class OpenAIChatCompletionsEndpoints
 
         var completionId = OpenAICompatSupport.CreateId("chatcmpl-");
 
-        // Fixed here so a run that stops at an approval can be closed by its id (F-448).
+        // Fixed here so a run that stops at an approval can be closed by its id.
         var runId = TraconId.NewId();
 
         if (OpenAICompatSupport.ReadStreamFlag(body))
@@ -294,14 +294,14 @@ internal static class OpenAIChatCompletionsEndpoints
         // 🚨 A provider timeout arrives as an OperationCanceledException while
         // nobody cancelled anything (HttpClient's own deadline). Without this
         // filter it skipped the 502 mapping below and the caller got a bare,
-        // empty success. Same class as AgentEndpoints; Phase 157.
+        // empty success. Same class as AgentEndpoints.
         catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             throw;
         }
         catch (Exception ex)
         {
-            // 🚨 HATA-S2-003/HATA-S3-005: K-296's fix covered only the streaming
+            // the fix covered only the streaming
             // variant (ChatCompletionsStream below); it MISSED this non-streaming
             // sibling path. A narrow 'when' filter (only TraconException/
             // InvalidOperationException/HttpRequestException) would let real
@@ -372,7 +372,7 @@ internal static class OpenAIChatCompletionsEndpoints
 
             var cancellationToken = httpContext.RequestAborted;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
-            // Stops the writer's keep-alive loop before the response ends (F-325).
+            // Stops the writer's keep-alive loop before the response ends.
             await using var writerScope = writer.ConfigureAwait(false);
             var created = OpenAICompatSupport.UnixNow();
 
@@ -381,7 +381,7 @@ internal static class OpenAIChatCompletionsEndpoints
                 await WriteChunkAsync(writer, new ChatDelta("assistant", null), finishReason: null, created, cancellationToken)
                     .ConfigureAwait(false);
 
-                // A harness loop hands over its final iteration only (K-889): the
+                // A harness loop hands over its final iteration only: the
                 // client reads this stream as the answer, not as a draft forming.
                 var updates = AgentAnswerStream.RunAsync(
                     agent,
@@ -393,7 +393,7 @@ internal static class OpenAIChatCompletionsEndpoints
 
                 // The LAST reported reason is the answer's: the tool loop streams a tool
                 // turn's update with that turn's own reason before the next turn
-                // (phase 207.4; the same rule the run's detector applies).
+                // (the same rule the run's detector applies).
                 ChatFinishReason? finishReason = null;
 
                 await foreach (var update in updates.ConfigureAwait(false))
@@ -415,7 +415,7 @@ internal static class OpenAIChatCompletionsEndpoints
                     }
                 }
 
-                // F-448: the stream already said 200, so the refusal is an error frame,
+                // The stream already said 200, so the refusal is an error frame,
                 // the same shape as a failure's, and the stream does not say it finished.
                 if (pending is not null)
                 {
@@ -447,7 +447,7 @@ internal static class OpenAIChatCompletionsEndpoints
             }
             catch (Exception ex)
             {
-                // 🚨 K-296 (see AgentEndpoints.ExecuteStreamingAsync): a narrow
+                // A narrow
                 // exception filter would let real provider SDK exceptions slip
                 // through and close the connection WITHOUT producing an 'error'
                 // frame. Here EVERY exception turns into a frame.

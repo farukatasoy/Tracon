@@ -3,10 +3,10 @@ using System.Net;
 namespace Tracon.Core.UnitTests.Egress;
 
 /// <summary>
-/// The address rules every outbound surface shares (Phase 77).
+/// The address rules every outbound surface shares.
 /// </summary>
 /// <remarks>
-/// Before this phase the rules lived inside the webhook package and the
+/// Before this change the rules lived inside the webhook package and the
 /// enforcement point (the connection callback) had no test at all. These cases
 /// pin the rules themselves; <c>EgressGuardTests</c> pins the HTTP boundary.
 /// </remarks>
@@ -56,7 +56,7 @@ public sealed class EgressAddressValidatorTests
     /// 🚨 B05-7. Each of these forms embeds <c>169.254.169.254</c> — the cloud
     /// metadata endpoint — in an IPv6 address. A host with the matching
     /// translation or relay configured routes them straight to it. Only the
-    /// first form was handled before this phase.
+    /// first form was handled before this change.
     /// </summary>
     [Theory]
     [InlineData("::ffff:169.254.169.254")]      // IPv4-mapped (was already handled)

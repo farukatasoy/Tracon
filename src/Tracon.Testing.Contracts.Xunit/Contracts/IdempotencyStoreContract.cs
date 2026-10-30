@@ -163,7 +163,7 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
         await Store.ReleaseAsync(Tenant, key);
 
         // 🚨 Retrying with the same key after a failed run MUST work — the
-        // record must have been deleted (Phase 43, 43.2).
+        // record must have been deleted (43.2).
         var retried = await Store.ReserveAsync(Request(Tenant, key));
 
         retried.State.ShouldBe(IdempotencyState.Reserved);

@@ -8,7 +8,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Pins the telemetry names Tracon publishes to <c>docs/sozlesme/telemetri.txt</c> (Phase 238, section 238.2).
+/// Pins the telemetry names Tracon publishes to <c>docs/sozlesme/telemetri.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,7 +16,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// carries. Renaming any of them, or flipping an attribute's default, empties the dashboard without a build
 /// error. Two kinds of line therefore carry more than a name: an instrument line has its kind, its unit and the
 /// attributes it publishes in the default configuration, so that an attribute turned off by default
-/// (<c>tracon.tenant.id</c>, Phase 238) is a visible change of the line.
+/// (<c>tracon.tenant.id</c>) is a visible change of the line.
 /// </para>
 /// <para>
 /// Two sources check each other. The constants of <see cref="TraconDiagnostics"/> are the names; the instruments
@@ -52,7 +52,7 @@ public sealed class TelemetryNameSnapshotTests
         var constants = InstrumentConstants();
         var published = PublishInstruments().Select(static instrument => instrument.Name).ToList();
 
-        // 2026-10-29: 15 counters and histograms of TraconMetrics (Phase 263 added the rate-limit store
+        // 2026-10-29: 15 counters and histograms of TraconMetrics (an earlier change added the rate-limit store
         // failure counter), 3 observable gauges.
         published.Count.ShouldBe(18);
 
@@ -74,7 +74,7 @@ public sealed class TelemetryNameSnapshotTests
             instrument.Tags.ShouldNotBeEmpty($"'{instrument.Name}' was not measured, so its attributes are unknown.");
         }
 
-        // The tenant attribute is off by default (A-68); the agent version stays on (K-146).
+        // The tenant attribute is off by default (A-68); the agent version stays on.
         instruments[TraconDiagnostics.RunCounterName].Tags.Contains(TraconDiagnostics.Tags.AgentVersion).ShouldBeTrue();
         instruments[TraconDiagnostics.RunCounterName].Tags.Contains(TraconDiagnostics.Tags.TenantId).ShouldBeFalse();
         instruments[TraconDiagnostics.JobCounterName].Tags.Contains(TraconDiagnostics.Tags.TenantId).ShouldBeFalse();

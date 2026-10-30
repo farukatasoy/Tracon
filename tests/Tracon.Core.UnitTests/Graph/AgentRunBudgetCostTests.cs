@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
-/// The cost dimension <see cref="AgentRunBudget"/> gained in phase 114 —
+/// The cost dimension <see cref="AgentRunBudget"/> gained in an earlier change —
 /// <see cref="AgentRunBudgetTests"/> covers the pre-existing token/count
 /// dimensions.
 /// </summary>

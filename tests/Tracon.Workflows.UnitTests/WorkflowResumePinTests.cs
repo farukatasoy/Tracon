@@ -6,7 +6,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A run that waits to be resumed keeps the definition it was started with (phase 200, failure
+/// A run that waits to be resumed keeps the definition it was started with (failure
 /// modes 9, 11 and 12).
 /// </summary>
 /// <remarks>

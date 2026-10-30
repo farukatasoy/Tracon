@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An agent node's own timeout (F-405, failure modes 24 and 27): it replaces the
+/// An agent node's own timeout (failure modes 24 and 27): it replaces the
 /// installation's <c>ChildDeadline</c> for that step, through the real host - DI, the
 /// compiler, the wrapper cache and a model that does not answer.
 /// </summary>
@@ -16,7 +16,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The podcast pilot measured a writer step of 1.2 to 5.8 minutes against the two-minute
 /// <c>ChildDeadline</c>: before this the only remedy was to raise the installation's
 /// value for every workflow. The wrapper cache is keyed by tenant, workflow, agent AND
-/// timeout; a key without the tenant leaked one tenant's wrapper to the other (K-380),
+/// timeout; a key without the tenant leaked one tenant's wrapper to the other,
 /// and a key without the timeout would leak one definition's timeout to another.
 /// </para>
 /// <para>

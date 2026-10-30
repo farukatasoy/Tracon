@@ -20,16 +20,16 @@ using FakeModelRequest = Tracon.Testing.FakeModelRequest;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 // MAAI001: the session store types are marked "evaluation purposes only"; the
-// stores below stand in for a consumer's own (Phase 229).
+// stores below stand in for a consumer's own.
 #pragma warning disable MAAI001
 
 /// <summary>
-/// Phase 229: an A2A caller that sends a second message with the same
+/// An A2A caller that sends a second message with the same
 /// <c>contextId</c> continues its conversation, and no other caller can reach it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before this phase the reply carried the <c>contextId</c> back but the agent
+/// Before this change the reply carried the <c>contextId</c> back but the agent
 /// kept no history: a caller believed it was in a conversation and the model saw
 /// one message. The cases run a real <c>SendMessage</c> through the real A2A
 /// handler and read what the model was actually sent, because the tenant and

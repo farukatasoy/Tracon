@@ -4,14 +4,14 @@ using Tracon.Testing.Contracts.Storage;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Failure mode 17 of Phase 197: a worker process killed with <c>SIGKILL</c> in the
+/// Failure mode 17 of an earlier change: a worker process killed with <c>SIGKILL</c> in the
 /// middle of a workflow's second step leaves its run to the job, and the next worker
 /// continues it from the first step's checkpoint.
 /// </summary>
 /// <remarks>
 /// <para>
 /// In-process tests play the crash (a hung step whose lease nobody renews); this one
-/// does it for real, the way Phase 157's lease proof does: two separate harness
+/// does it for real, the way the earlier change's lease proof does: two separate harness
 /// processes on one PostgreSQL schema, the one that entered the second step killed,
 /// the other waiting out the dead worker's lease. A killed process gets no chance to
 /// close its run, release its lease or report its item, which is exactly the state

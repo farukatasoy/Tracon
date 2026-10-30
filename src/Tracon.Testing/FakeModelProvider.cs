@@ -356,7 +356,7 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
         var script = _scripts.TryGetValue(binding.Model, out var forModel) ? forModel : _default;
 
         // 🚨 Returns the RAW client. The tool-call loop (UseFunctionInvocation)
-        // and telemetry moved to ModelProviderRegistry in Phase 48; every
+        // and telemetry moved to ModelProviderRegistry; every
         // IModelProvider now returns a raw client and the pipeline wraps it.
         // Wrapping here too would nest the pipeline inside itself.
         return new FakeChatClient(script, Record);

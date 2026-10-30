@@ -45,7 +45,7 @@ describe('RunDetailScreen', () => {
   });
 
   it('says so when the event stream goes quiet instead of waiting forever', async () => {
-    // 🚨 HATA-S3-005: the reader sat on "Waiting for events…" indefinitely and
+    // The reader sat on "Waiting for events…" indefinitely and
     // nothing ever threw, so a dead connection and a run still working looked
     // exactly alike. The only way out was a manual reload.
     restoreFetch = installApiMock([
@@ -74,7 +74,7 @@ describe('RunDetailScreen', () => {
   });
 
   it('marks a tool call that finished after its timeout was already reported', async () => {
-    // 🚨 HATA-S1-025: without the badge this row reads as a plain failure while
+    // Without the badge this row reads as a plain failure while
     // showing the call's REAL duration — 34s on a tool bounded at 30s — which
     // is the one combination an operator cannot explain.
     restoreFetch = installApiMock([
@@ -113,7 +113,7 @@ describe('RunDetailScreen', () => {
   });
 
   it('shows the cache write prices a run applied, and only those', async () => {
-    // Phase 253: a run that wrote to the prompt cache applied a write price per time-to-live
+    // A run that wrote to the prompt cache applied a write price per time-to-live
     // class. The cell appears only for a class that was priced; a run that never wrote shows
     // the three prices it always showed.
     const withWrite = {
@@ -173,7 +173,7 @@ describe('RunDetailScreen', () => {
   });
 
   it('sends a waiting workflow run to the workflow screen opened on that run', async () => {
-    // 🚨 F-335: both links carried only the workflow name, and the workflow
+    // Both links carried only the workflow name, and the workflow
     // screen showed a card only for a run it had started itself. A run started
     // over HTTP, by a job or in another tab could not be answered at all.
     restoreFetch = installApiMock([
@@ -205,7 +205,7 @@ describe('RunDetailScreen', () => {
   });
 });
 
-describe('RunDetailScreen answered workflow request (phase 208)', () => {
+describe('RunDetailScreen answered workflow request', () => {
   let restoreFetch: () => void;
 
   afterEach(() => restoreFetch());
@@ -369,7 +369,7 @@ describe('RunDetailScreen non-token usage', () => {
   });
 
   it('says the tree is in mixed currencies instead of showing a sum across them', async () => {
-    // F-419: the server leaves a tree in two currencies without an amount; "unpriced"
+    // The server leaves a tree in two currencies without an amount; "unpriced"
     // would say nothing could be priced, which is not what happened.
     restoreFetch = installApiMock([
       fixture('GET', 'api/runs/:runId', {

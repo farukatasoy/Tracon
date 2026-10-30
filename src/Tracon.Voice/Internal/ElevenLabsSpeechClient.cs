@@ -195,7 +195,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
 
         // 🚨 This method returns raw audio chunks only; there is no channel to
         // carry alignment data back to the caller. Silently dropping the
-        // alignment would be a surprise (K1) - the combination is rejected
+        // alignment would be a surprise - the combination is rejected
         // explicitly instead. SynthesizeAsync supports timestamps.
         if (request.IncludeTimestamps)
         {
@@ -265,7 +265,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         RefuseTenantCredential(request.Credential);
 
         // Every refusal comes before the semaphore and the network: a dialogue over a
-        // limit is the caller's to split, never this client's to cut (K1).
+        // limit is the caller's to split, never this client's to cut.
         var characters = DialogueCapabilities.Check(
             request,
             ProviderName,

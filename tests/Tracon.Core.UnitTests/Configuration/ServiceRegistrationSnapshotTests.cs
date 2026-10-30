@@ -4,7 +4,7 @@ using Tracon;
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// Phase 105 split — <c>TraconServiceCollectionExtensions</c> was one
+/// An earlier change split — <c>TraconServiceCollectionExtensions</c> was one
 /// 2,662-line file; the registration body now runs through four private
 /// helpers spread across <c>Registration.*.cs</c> partial files, called in
 /// their original order from <c>AddTracon()</c>.
@@ -34,7 +34,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// <see cref="Microsoft.Extensions.Hosting.IHostedService"/> registrations
 /// specifically (where shutdown order matters) is exercised at the
 /// integration level instead, per
-/// <c>.agents/ortak/test-seviyeleri.md</c>: a behavior that crosses a DI
+/// <c>.md</c>: a behavior that crosses a DI
 /// boundary is not proven by a unit-level snapshot.
 /// </para>
 /// </remarks>

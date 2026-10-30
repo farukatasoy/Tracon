@@ -346,7 +346,7 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
         CancellationToken cancellationToken)
     {
         // The tree's budget comes first, before any store is read: a spent run starts no
-        // script, and a sandbox can be paid (F-530). The same sentence as any tool call.
+        // script, and a sandbox can be paid. The same sentence as any tool call.
         //
         // A script that is refused is audited, whatever refused it: this is script.denied like every
         // other gate below, and the reason is the budget sentence. What differs is the exception, which

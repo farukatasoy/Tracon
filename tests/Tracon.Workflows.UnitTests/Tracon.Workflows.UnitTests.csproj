@@ -4,13 +4,13 @@
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
   </ItemGroup>
 
-  <!-- The due-time clock of the timeout tests (phase 196), shared with the job worker's tests: linked, not copied (K-411). -->
+  <!-- The due-time clock of the timeout tests, shared with the job worker's tests: linked, not copied. -->
   <ItemGroup>
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Real Microsoft Agent Framework Workflows output, captured from a genuine run (Phase 126). See Fixtures/README.md. -->
+    <!-- Real Microsoft Agent Framework Workflows output, captured from a genuine run. See Fixtures/README.md. -->
     <None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

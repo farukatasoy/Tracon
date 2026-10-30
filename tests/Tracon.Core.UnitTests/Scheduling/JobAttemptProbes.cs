@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// The shared setup of the worker's cancel and time-limit tests (phase 196, F-323): a
+/// The shared setup of the worker's cancel and time-limit tests: a
 /// job store that can fail or forget its reads, a handler that records what its token
 /// did, and a worker that polls fast.
 /// </summary>

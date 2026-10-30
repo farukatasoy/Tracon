@@ -5,7 +5,7 @@ namespace Tracon.Package.Tests;
 /// <summary>
 /// Pins the dependency closure of three consumer shapes to a checked-in
 /// baseline (<c>Baselines/transitive-dependencies.txt</c>) so a new
-/// transitive package cannot enter silently (Phase 95, item 22).
+/// transitive package cannot enter silently (item 22).
 /// </summary>
 /// <remarks>
 /// Only package IDENTITIES are compared, never versions - a

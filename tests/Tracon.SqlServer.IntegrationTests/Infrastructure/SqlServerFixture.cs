@@ -15,8 +15,8 @@ namespace Tracon.SqlServer.IntegrationTests.Infrastructure;
 /// The container starts once for the whole assembly; the schema is shared per
 /// contract test CLASS (see <see cref="SqlServerSchemaFixture"/>,
 /// <see cref="SqlServerTestContext"/>), and isolation between tests is
-/// achieved by resetting data (K-390). The migration lock is also now scoped
-/// to the schema rather than the whole database (K-389); together these two
+/// achieved by resetting data. The migration lock is also now scoped
+/// to the schema rather than the whole database; together these two
 /// let the 29 class fixtures run their migrations in PARALLEL.
 /// </para>
 /// <para>

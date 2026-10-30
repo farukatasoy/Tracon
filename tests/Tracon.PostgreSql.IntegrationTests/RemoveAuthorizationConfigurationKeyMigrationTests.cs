@@ -3,7 +3,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Phase 218. The <c>authorization_configuration_key</c> column moves into the
+/// The <c>authorization_configuration_key</c> column moves into the
 /// <c>header_configuration_keys</c> map and is dropped, with the rule the
 /// connection code applied before: OAuth rows and rows whose map already names
 /// <c>Authorization</c> keep their map, an empty key moves nothing.

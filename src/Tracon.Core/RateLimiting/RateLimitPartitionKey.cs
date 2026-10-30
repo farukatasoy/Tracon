@@ -21,7 +21,7 @@ namespace Tracon;
 /// context accepts letters, digits and <c>_.-</c> only).
 /// </para>
 /// </remarks>
-// K-525: a key that carries a tenant is typed; no caller joins the segments by hand.
+// A key that carries a tenant is typed; no caller joins the segments by hand.
 internal readonly record struct RateLimitPartitionKey
 {
     private RateLimitPartitionKey(string value)

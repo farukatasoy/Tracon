@@ -10,7 +10,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Proves the evaluator bridge across the store boundary (Phase 155): what a
+/// Proves the evaluator bridge across the store boundary: what a
 /// judge returns, what reaches <c>run_scores</c>, and what a caller reads back.
 /// A unit test cannot answer these — the uniqueness key, the write and the read
 /// all live on the other side of the store.

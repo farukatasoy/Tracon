@@ -3,7 +3,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// The <c>workflow_requests</c> retention target (phase 209) against a real SQLite database: only a
+/// The <c>workflow_requests</c> retention target against a real SQLite database: only a
 /// CLOSED row (the request expired) goes by age; an open row is the request's entry in the inbox
 /// and is neither deleted nor counted toward the row limit.
 /// </summary>

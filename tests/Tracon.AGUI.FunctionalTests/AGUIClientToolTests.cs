@@ -5,7 +5,7 @@ using Tracon.AGUI.FunctionalTests.Infrastructure;
 namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
-/// A tool that runs on the front end: the model calls it, the front end runs it and sends the result back (Phase 236).
+/// A tool that runs on the front end: the model calls it, the front end runs it and sends the result back.
 /// </summary>
 public sealed class AGUIClientToolTests
 {

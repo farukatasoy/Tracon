@@ -7,7 +7,7 @@ namespace Tracon.Workflows.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 F-294: a response opens a NEW run row (K-130) and resumes from the source
+/// A response opens a NEW run row and resumes from the source
 /// run's checkpoints. The values live only in the source run's
 /// <c>run_inputs</c> row; if the continuation did not read them it would either
 /// run on the defaults or lose them for the NEXT answer in the chain.
@@ -71,7 +71,7 @@ public sealed class WorkflowParameterRespondTests
     [Fact]
     public async Task A_run_that_recorded_nothing_cannot_be_answered_when_the_workflow_declares_parameters()
     {
-        // 🚨 Fail closed (K-890's spirit): answering it on the defaults would
+        // 🚨 Fail closed (the spirit): answering it on the defaults would
         // change the instructions the agents were given halfway through the work.
         var host = new WorkflowTestHost("manager", "worker") { RecordsRunInput = false };
 
@@ -152,7 +152,7 @@ public sealed class WorkflowParameterRespondTests
     [Fact]
     public async Task A_schema_that_gained_a_required_name_does_not_strand_a_run_that_started_before_it()
     {
-        // Phase 200: the answer reads the schema of the version the run recorded, so the edit
+        // The answer reads the schema of the version the run recorded, so the edit
         // the run never knew about cannot refuse it.
         var host = new WorkflowTestHost("manager", "worker");
 

@@ -14,7 +14,7 @@ namespace Tracon.CapacityDriver;
 /// </para>
 /// <para>
 /// 🚨 An extra attempt is legitimate: <c>IJobHandler</c> is at-least-once
-/// (K-641). An <em>overlapping</em> attempt is not, and it makes the cell
+///An <em>overlapping</em> attempt is not, and it makes the cell
 /// invalid.
 /// </para>
 /// </remarks>

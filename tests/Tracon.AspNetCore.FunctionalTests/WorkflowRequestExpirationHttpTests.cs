@@ -8,7 +8,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHa
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A human request that runs out of time (phase 209): the run that waits on it is closed, an
+/// A human request that runs out of time: the run that waits on it is closed, an
 /// answer to it is refused like an answer to any run that no longer waits, and what the run kept
 /// for the answer is released to retention.
 /// </summary>
@@ -256,7 +256,7 @@ public sealed class WorkflowRequestExpirationHttpTests
         (await checkpoints.ListByRunAsync(Tenant, runId)).ShouldNotBeEmpty();
 
         // Waiting: a retention round that finds everything old still leaves the request and the
-        // checkpoints, because answering needs them (K-888).
+        // checkpoints, because answering needs them.
         await retention.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, everythingIsOld, batchSize: 1000);
         await retention.DeleteBatchAsync(RetentionTargets.WorkflowCheckpoints, tenantId: null, everythingIsOld, batchSize: 1000);
 

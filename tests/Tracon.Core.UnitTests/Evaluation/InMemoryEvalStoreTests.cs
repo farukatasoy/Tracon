@@ -140,7 +140,7 @@ public sealed class InMemoryEvalStoreTests
     [Fact]
     public async Task An_expected_argument_without_a_value_is_kept_as_null_like_the_sql_stores_keep_it()
     {
-        // F-613: the SQL codec writes a default JsonElement as null; the expected call turns it into
+        // The SQL codec writes a default JsonElement as null; the expected call turns it into
         // null on the way in, so the list ReplaceCasesAsync returns and the list a read returns agree
         // with the stores that persist it, and serializing either never meets an Undefined value.
         var store = new InMemoryEvalStore();

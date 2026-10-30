@@ -22,7 +22,7 @@ namespace Tracon;
 /// the decision: the conversation socket resolves once per connection.
 /// </para>
 /// </remarks>
-// One gate for every speech path (F-298, the K-878 rule for text-to-speech and
+// One gate for every speech path (the rule for text-to-speech and
 // speech-to-text). The tenant comes from the run scope first: a queued workflow
 // runs on a worker whose ITenantContext is the default tenant.
 internal sealed class SpeechProviderResolver : ISpeechProviderResolver
@@ -153,7 +153,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
 
         // The capability is read from the registered instance, before any tenant
         // wrapper exists: a wrapper implements only what it wraps, so a type test on
-        // it would answer differently for a tenant with its own key (the phase 198 handover).
+        // it would answer differently for a tenant with its own key (the handover).
         if (synthesizer is not ISpeechDialogueSynthesizer dialogue)
         {
             throw new SpeechCapabilityNotSupportedException(

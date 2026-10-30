@@ -107,7 +107,7 @@ internal sealed class OpenAIChatClientFactory
         // Every key that is not in the supported list is rejected here and the
         // error is wrapped by AgentDefinitionCompiler into
         // TraconCompilationException. Silently ignoring it would leave the
-        // user without the behavior they expected (K-208).
+        // user without the behavior they expected.
         ModelProviderSettings.Validate(
             binding,
             OpenAIProviderNames.SettingsPrefix,
@@ -250,7 +250,6 @@ internal sealed class OpenAIChatClientFactory
         // mark this path as "evaluation purposes only", which breaks the build under
         // TreatWarningsAsErrors. The suppression is a deliberate decision: the Responses
         // usage lives on these two lines only, so a single place changes if the API moves.
-        // Reason: docs/KARARLAR.md, decisions K-030 and K-031.
 #pragma warning disable OPENAI001, MAAI001
         return _client.GetResponsesClient().AsIChatClientWithStoredOutputDisabled(model);
 #pragma warning restore OPENAI001, MAAI001

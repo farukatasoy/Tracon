@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
-/// <summary>Tests for the data retention endpoints (Phase 25).</summary>
+/// <summary>Tests for the data retention endpoints.</summary>
 public sealed class RetentionEndpointTests
 {
     private static readonly Uri Policies = new("/tracon/api/retention", UriKind.Relative);
@@ -90,7 +90,7 @@ public sealed class RetentionEndpointTests
     }
 
     /// <summary>
-    /// 🚨 The gap Phase 36 closed: a policy with MaxAgeDays EMPTY and only
+    /// 🚨 The gap closed: a policy with MaxAgeDays EMPTY and only
     /// MaxRows filled used to show as "disabled" in the preview.
     /// </summary>
     [Fact]

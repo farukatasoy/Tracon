@@ -4,18 +4,18 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269).
+// Same rationale as AgentExtensionRunTests.cs.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 232: a ring keeps the tenant boundary. A tenant that holds its own provider key gets an
+/// A ring keeps the tenant boundary. A tenant that holds its own provider key gets an
 /// agent compiled for each run, and that agent keeps the ring and the tenant's key; another
 /// tenant's run never goes through a ring built for the first.
 /// </summary>
 /// <remarks>
-/// The tenant's key moves the agent off the compiled-agent cache (K-471), so the rings are built
+/// The tenant's key moves the agent off the compiled-agent cache, so the rings are built
 /// again on that path. A test that runs one tenant only would not see a ring built for the wrong
 /// tenant, and a test without a tenant key would not see the uncached path.
 /// </remarks>

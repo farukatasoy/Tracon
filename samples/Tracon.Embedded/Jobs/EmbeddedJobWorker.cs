@@ -15,7 +15,6 @@ namespace Tracon.Embedded;
 /// <c>AsyncLocal&lt;T&gt;</c> mutation does not flow back out of the method
 /// that set it; it only flows DOWN into what that method itself awaits. This
 /// exact trap has recurred five times in this repository
-/// (docs/hafiza/cekirdek-calistirma.md).
 /// </remarks>
 internal sealed class EmbeddedJobWorker(
     EmbeddedJobQueue queue,

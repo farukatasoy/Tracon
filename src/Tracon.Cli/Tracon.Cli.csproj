@@ -4,7 +4,7 @@
     <!--
       TargetFrameworks (PLURAL) is left EMPTY: src/Directory.Build.props
       assigns it "net8.0;net9.0;net10.0", but PackAsTool needs exactly ONE
-      TFM and cannot cross-target (K-263 pattern; Tracon.Templates.csproj
+      TFM and cannot cross-target (Tracon.Templates.csproj
       and Tracon.Generators.csproj do the same).
     -->
     <TargetFramework>net10.0</TargetFramework>

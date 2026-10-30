@@ -316,7 +316,7 @@ public static class ModelProviderSettings
         return items;
     }
 
-    // One rule for both Validate overloads (K-483): a model binding and a speech request
+    // One rule for both Validate overloads: a model binding and a speech request
     // differ only in what the message calls the dictionary.
     private static void ValidateCore(
         IReadOnlyDictionary<string, JsonElement> settings,

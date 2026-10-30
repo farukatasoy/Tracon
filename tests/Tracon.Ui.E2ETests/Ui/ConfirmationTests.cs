@@ -223,7 +223,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
     {
         // A dialog that closes on a refusal hands the operator a screen that
         // looks exactly like success. It stays open, and the server's own
-        // words are inside it. (That those words stay untranslated is K-232,
+        // words are inside it. (That those words stay untranslated is that decision,
         // proven in `A_failed_list_shows_the_servers_own_words...`; this case
         // is about WHERE they appear, so it runs in the default locale the
         // shared helper above navigates by.)
@@ -368,10 +368,10 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
     {
         // 🚨 The other half of §175.3, and the half a gate cannot check.
         // Removing an MCP server is irreversible and NOT destructive: the row
-        // holds an endpoint, headers and a configuration key NAME (K-059), all
+        // holds an endpoint, headers and a configuration key NAME, all
         // typed back from the same form. So it gets the consequence sentence
         // and keeps its single click. Confirming everything is the same as
-        // confirming nothing, and this case is what stops the next phase from
+        // confirming nothing, and this case is what stops a later change from
         // quietly adding a seventh dialog.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);

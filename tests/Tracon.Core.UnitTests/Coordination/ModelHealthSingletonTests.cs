@@ -5,10 +5,10 @@ namespace Tracon.Core.UnitTests.Coordination;
 
 /// <summary>
 /// End-to-end scenario where two real <see cref="ModelProviderHealthBackgroundService"/>
-/// instances share the SAME lease store (Phase 42, DoD: "With two instances ...
+/// instances share the SAME lease store (DoD: "With two instances...
 /// the model health check runs on only one"). Uses real time: the services run
 /// on their own <c>PeriodicTimer</c>s, no fake timer is injected (this project
-/// does not test BackgroundServices that way, see <c>MEMORY.md</c> — "A unit
+/// does not test BackgroundServices that way, see <c>the development notes</c> — "A unit
 /// test is not enough").
 /// </summary>
 public sealed class ModelHealthSingletonTests

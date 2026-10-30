@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Phase 157. NOT a test project: it is the SUBJECT of the two-process
+    NOT a test project: it is the SUBJECT of the two-process
     failure proof, the worker that gets killed. `IsTestHarnessProject` opts it
     out of the xunit/MTP wiring in tests/Directory.Build.props; it still lives
     under tests/ because nothing outside the test suite ever runs it and it

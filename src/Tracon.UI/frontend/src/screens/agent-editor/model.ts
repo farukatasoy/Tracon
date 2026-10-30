@@ -471,7 +471,7 @@ function memoryIsOn(memory: MemorySettings): boolean {
  * has none. Takes `current` (the live state at apply time) rather than a
  * value captured earlier, so a concurrent update that already set a provider
  * (e.g. loading an existing definition) is never stomped — see
- * `model.test.ts` for the race this guards against (HATA-S4-009).
+ * `model.test.ts` for the race this guards against.
  */
 export function withDefaultProvider(current: FormState, providerNames: readonly string[]): FormState {
   if (current.provider.length > 0 || providerNames.length === 0) {

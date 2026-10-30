@@ -11,7 +11,7 @@ namespace Tracon.Workflows.UnitTests.Fakes;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The shape of every workflow with a human approval loop that the tree's ceiling has to hold for (F-531): the
+/// The shape of every workflow with a human approval loop that the tree's ceiling has to hold for: the
 /// run that waits closes <see cref="RunStatus.AwaitingInput"/>, and each answer is a new run with a new budget.
 /// </para>
 /// <para>

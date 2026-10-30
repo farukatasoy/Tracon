@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The test project <strong>does NOT</strong> reference <c>Tracon.Voice</c>:
 /// the conversation layer knows only the <see cref="ISpeechTranscriber"/> and
 /// <see cref="ISpeechSynthesizer"/> abstractions. ElevenLabs is an
-/// implementation (K-215).
+/// implementation.
 /// </remarks>
 public sealed class VoiceConversationTests
 {
@@ -23,7 +23,7 @@ public sealed class VoiceConversationTests
     [Fact]
     public async Task NO_endpoint_opens_when_UseVoiceConversation_was_not_called()
     {
-        // 🚨 The most important test in this phase: a capability that changes
+        // 🚨 The most important test in this change: a capability that changes
         // the hosting model must not open silently. The endpoint returns 404
         // ("no such address"), NOT 501 ("exists but disabled") — because it
         // genuinely does not exist.
@@ -105,7 +105,7 @@ public sealed class VoiceConversationTests
     [Fact]
     public async Task No_spoken_segment_is_longer_than_the_synthesizers_character_limit()
     {
-        // F-358: the segmenter cut at 240 characters whatever the synthesizer
+        // The segmenter cut at 240 characters whatever the synthesizer
         // accepted. A synthesizer limited to 50 characters received a segment
         // five times as long and refused it after the captions had streamed.
         var transcript = string.Join(' ', Enumerable.Repeat("word", 60));
@@ -244,7 +244,7 @@ public sealed class VoiceConversationTests
         download.Content.Headers.ContentType?.MediaType.ShouldBe("audio/mpeg");
 
         // The attachment must be LINKED to the session; an orphaned
-        // attachment is deleted by the retention policy (Phase 28/G1).
+        // attachment is deleted by the retention policy.
         using var listing = await host.Client.GetAsync(
             new Uri("/tracon/api/attachments?sessionId=session-1", UriKind.Relative));
 
@@ -253,7 +253,7 @@ public sealed class VoiceConversationTests
         var body = await TraconTestHost.ReadJsonAsync(listing);
         body.GetArrayLength().ShouldBe(1);
 
-        // F-336 class scan: the driver named every saved voice '*.bin'.
+        // The driver named every saved voice '*.bin'.
         body[0].GetProperty("fileName").GetString().ShouldNotBeNull().ShouldEndWith(".mp3");
     }
 
@@ -321,12 +321,12 @@ public sealed class VoiceConversationTests
     {
         // sessionId is untrusted input.
         //
-        // 🚨 The behavior CHANGED in Phase 41. Previously the store was
+        // 🚨 The behavior CHANGED. Previously the store was
         // tenant-blind: the endpoint could read another tenant's session,
         // see it, and REJECT it as "belonging to someone else". This was an
         // existence oracle — a tenant could probe, via the error code, which
         // session ids existed for ANOTHER tenant. The store is now scoped to
-        // the tenant (K-277): an invisible session is treated as NOT
+        // the tenant: an invisible session is treated as NOT
         // EXISTING, the connection opens a fresh session in its own tenant,
         // and the other tenant's record is NEVER touched. Isolation is
         // stronger, and leaked information is reduced.

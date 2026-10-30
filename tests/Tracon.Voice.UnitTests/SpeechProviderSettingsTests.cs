@@ -10,7 +10,7 @@ namespace Tracon.Voice.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// K-208 and F-340 fix the rule for model bindings; this is the same rule for a speech
+/// That decision and an earlier fix fix the rule for model bindings; this is the same rule for a speech
 /// request, through the same code (<see cref="ModelProviderSettings"/>). The dialogue
 /// service accepts an unknown <c>settings</c> field without an error (measured
 /// 2026-10-13), so a dropped setting would never show.

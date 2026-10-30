@@ -1,6 +1,6 @@
 namespace Tracon.Core.UnitTests.Audit;
 
-/// <summary>Behavior tests for <see cref="AuditChainWalker"/> (phase 64).</summary>
+/// <summary>Behavior tests for <see cref="AuditChainWalker"/>.</summary>
 public sealed class AuditChainWalkerTests
 {
     [Fact]

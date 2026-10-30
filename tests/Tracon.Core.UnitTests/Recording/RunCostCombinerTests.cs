@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// F-349: a run whose tokens were spent on more than one model prices each
+/// A run whose tokens were spent on more than one model prices each
 /// share at the model that spent it. One model alone keeps the resolver's
 /// answer as it is, rate fields included.
 /// </summary>
@@ -152,7 +152,7 @@ public sealed class RunCostCombinerTests
     [Fact]
     public void Two_models_cache_write_charges_are_summed_into_the_total()
     {
-        // Phase 253: a judge or summarizer on a caching model writes its own cache. Its charge is a
+        // A judge or summarizer on a caching model writes its own cache. Its charge is a
         // term of the combined cost, or the run under-reports it.
         var resolver = new FakeRunPricingResolver((provider, _, usage) => new RunCost
         {
@@ -177,7 +177,7 @@ public sealed class RunCostCombinerTests
     }
 
     /// <summary>
-    /// K-483's class guard: every cost term of <see cref="RunCost"/> — each
+    /// the class guard: every cost term of <see cref="RunCost"/> — each
     /// <c>decimal?</c> property whose name ends in <c>Cost</c> — is summed. A
     /// fourth term that <see cref="RunCost.Total"/> learns but the combiner does
     /// not would make every run priced at two models under-report.

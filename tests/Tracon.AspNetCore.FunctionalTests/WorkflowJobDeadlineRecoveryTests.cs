@@ -6,12 +6,12 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// With recovery on, a job's time limit ends the workflow's work; it is not an
-/// interruption that the next attempt continues (F-323, open question 13-A, failure
+/// interruption that the next attempt continues (failure
 /// mode 29).
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Phase 197 measured why this needs saying: recovery does not tell a time limit from
+/// 🚨 measured why this needs saying: recovery does not tell a time limit from
 /// a crash. Treated as an interruption, the next attempt continued the run from its
 /// last checkpoint, the limit applied per attempt, and the work ran on for
 /// <c>MaxResumeAttempts</c> more attempts - the limit stopped nothing. The run the
@@ -20,7 +20,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// The lease that decides each case is a real worker's - the deadline lives in the
-/// worker, and a handler driven by hand would skip it (the phase 197 test trap). The
+/// worker, and a handler driven by hand would skip it (the test trap). The
 /// <c>Stopped</c> cases play the dying lease before it by hand and finish with
 /// <see cref="QueuedWorkflowHarness.FinishWithWorkerAsync"/>.
 /// </para>
@@ -93,7 +93,7 @@ public sealed class WorkflowJobDeadlineRecoveryTests
     {
         // MaxAttempts 3 with one continuation allowed: recovery is on and could
         // continue an interrupted item. The item the limit stopped is reported failed
-        // instead; the attempt fails (open question 7-A) and the next one, under a
+        // instead; the attempt fails and the next one, under a
         // fresh limit, runs the item it never reached.
         var probe = new RecoveryProbe();
         await using var host = await StartAsync(probe, maxResumeAttempts: 1);

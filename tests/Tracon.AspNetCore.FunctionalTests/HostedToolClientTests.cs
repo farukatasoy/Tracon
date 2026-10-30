@@ -5,7 +5,7 @@ using Tracon.Client.Generated;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-603 — the generated .NET client reads the tool list of a host that has a hosted tool.
+/// The generated .NET client reads the tool list of a host that has a hosted tool.
 /// </summary>
 /// <remarks>
 /// 🚨 Found by the phase audit, not by a test: the document wraps a nullable enum property in

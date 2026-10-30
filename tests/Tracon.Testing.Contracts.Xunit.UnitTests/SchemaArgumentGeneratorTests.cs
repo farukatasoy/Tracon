@@ -141,7 +141,7 @@ public sealed class SchemaArgumentGeneratorTests
     [Fact]
     public void Required_nested_object_property_skips_the_baseline_with_a_reason()
     {
-        // K-615: the generator does not model nested objects. A required
+        // The generator does not model nested objects. A required
         // property shaped like one must make the baseline - and everything
         // built from it - skip explicitly, not produce a hollow argument set.
         var mutation = new SchemaArgumentGenerator(1).Baseline(RequiredNestedObjectTool.JsonSchema);

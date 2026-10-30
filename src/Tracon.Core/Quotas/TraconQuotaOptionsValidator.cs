@@ -51,7 +51,7 @@ internal sealed class TraconQuotaOptionsValidator : IValidateOptions<TraconQuota
                 continue;
             }
 
-            // The binder leaves out an entry it cannot read and names it itself (F-572).
+            // The binder leaves out an entry it cannot read and names it itself.
             (failures ??= []).Add(
                 $"{nameof(TraconQuotaOptions)}.{nameof(TraconQuotaOptions.ThresholdPercents)} " +
                 $"values must be between 1 and 100. Actual value: {percent}.");

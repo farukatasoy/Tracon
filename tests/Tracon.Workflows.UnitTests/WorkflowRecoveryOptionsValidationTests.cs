@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// F-321: <see cref="TraconWorkflowOptions.ResumeInterruptedRuns"/> is off by default,
+/// <see cref="TraconWorkflowOptions.ResumeInterruptedRuns"/> is off by default,
 /// needs checkpoints, and reaches the job handlers through the seam <c>UseWorkflows</c>
 /// registers.
 /// </summary>

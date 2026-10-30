@@ -5,7 +5,7 @@ namespace Tracon.Sqlite.IntegrationTests;
 /// <summary>
 /// Verifies the hand-written SQL (FILTER/CASE, scalar subquery) behind the
 /// <see cref="RunStatistics.ScoredRuns"/>/<see cref="RunStatistics.PositiveRate"/>
-/// computation on SQLite, against a real database (Phase 31).
+/// computation on SQLite, against a real database.
 /// </summary>
 public sealed class RunScoreStatisticsTests(SqliteFixture fixture) : IAsyncLifetime
 {

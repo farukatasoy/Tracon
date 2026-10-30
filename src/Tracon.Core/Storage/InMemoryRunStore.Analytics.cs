@@ -18,7 +18,7 @@ internal sealed partial class InMemoryRunStore
         var tenantId = query.TenantId ?? _tenantContext.TenantId;
         var perVariant = new Dictionary<string, VariantTally>(StringComparer.Ordinal);
 
-        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        // Amounts in two currencies are never added (CurrencyTotals).
         var perVariantCurrencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
         foreach (var record in _runs.Values)
@@ -92,10 +92,10 @@ internal sealed partial class InMemoryRunStore
         var step = RunTimeSeriesBucketing.StepFor(query.Bucket);
         var buckets = new SortedDictionary<DateTimeOffset, BucketTally>();
 
-        // F-419: a point carries no currency, so the WHOLE series is judged as one.
+        // A point carries no currency, so the WHOLE series is judged as one.
         var currencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Empty buckets must be returned too (K-152 — a gap in the time
+        // Empty buckets must be returned too (a gap in the time
         // series chart should look like "zero", not "no data"). PostgreSql's
         // generate_series is matched here by pre-seeding.
         for (var cursor = RunTimeSeriesBucketing.Truncate(query.From, query.Bucket);
@@ -128,7 +128,7 @@ internal sealed partial class InMemoryRunStore
             }
 
             // Deliberately does NOT exclude Eval/Workflow runs — unlike
-            // GetStatisticsAsync (see docs/KARARLAR.md K-152).
+            // GetStatisticsAsync.
             if (query.Kind is { } kind && record.Kind != kind)
             {
                 continue;

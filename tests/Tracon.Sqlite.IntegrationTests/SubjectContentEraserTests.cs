@@ -5,7 +5,7 @@ using Tracon.Sqlite.IntegrationTests.Infrastructure;
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Phase 233: the copy of a session's content that lives outside SQL (conversation memory in the
+/// The copy of a session's content that lives outside SQL (conversation memory in the
 /// host's vector store) goes when its session goes, whichever way the session goes through these two
 /// stores: an erasure of its data subject, or its retention period.
 /// </summary>

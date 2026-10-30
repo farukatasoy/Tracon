@@ -68,7 +68,7 @@ test-results/
 src/Tracon.UI/wwwroot/
 
 ## ---------------------------------------------------------------------------
-## packages/ (npm paketleri, Faz 84)
+## packages/ (npm packages)
 ## `tsc` ciktisi - npm'e o yayinlanir, kaynak agacinda tutulmaz. `src/schema.ts`
 ## URETILIR ama commit'lidir (surukleme kapisi); dist/ commit'siz kalir.
 ## ---------------------------------------------------------------------------

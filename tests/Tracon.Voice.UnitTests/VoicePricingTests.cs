@@ -9,7 +9,7 @@ namespace Tracon.Voice.UnitTests;
 /// A speech call is priced by the provider AND the model that did the work.
 /// </summary>
 /// <remarks>
-/// F-298 (§198.5): the price came from the default instance's configured model and
+/// The price came from the default instance's configured model and
 /// a type check for the built-in client. A named synthesizer then had either no price
 /// or the default's price under its own provider name; behind the tenant wrapper the
 /// type check failed and the price went silently to <see langword="null"/>. The model

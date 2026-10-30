@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same alias reason as ApprovalEndpointTests (K-269): a blanket
+// Same alias reason as ApprovalEndpointTests: a blanket
 // `using Tracon.Testing;` collides with this project's TraconTestHost.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
@@ -10,7 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The continuation a tool-approval decision queues runs on the agent version
-/// and experiment arm of the run that asked for approval (F-352).
+/// and experiment arm of the run that asked for approval.
 /// </summary>
 /// <remarks>
 /// 🚨 The approval-resume job resolved the agent's CURRENT version and passed
@@ -92,7 +92,7 @@ public sealed class ApprovalResumeVersionTests
     }
 
     /// <summary>
-    /// Phase 248: the agent was deleted and created again while the approval waited. The numbering used to
+    /// The agent was deleted and created again while the approval waited. The numbering used to
     /// restart at 1, so the recorded version 1 named the NEW agent and the continuation ran its text in the
     /// place of the instructions that asked for the approval.
     /// </summary>

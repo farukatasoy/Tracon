@@ -5,7 +5,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// F-341: the type chain of a node list - what the validator assumes, and what the
+/// The type chain of a node list - what the validator assumes, and what the
 /// compiler does with a chain that does not fit.
 /// </summary>
 /// <remarks>
@@ -48,7 +48,7 @@ public sealed class WorkflowNodeTypeRuleTests
     [Fact]
     public void Only_object_takes_the_turn_token_so_the_first_node_rule_names_object_alone()
     {
-        // F-398: the validator lives in Tracon.Core, which cannot see TurnToken, and refuses
+        // The validator lives in Tracon.Core, which cannot see TurnToken, and refuses
         // a first node that takes object because the token reaches the first node too. That
         // holds only while object is the one input type the token can be assigned to. A
         // Microsoft Agent Framework upgrade that gives the token a base class or an

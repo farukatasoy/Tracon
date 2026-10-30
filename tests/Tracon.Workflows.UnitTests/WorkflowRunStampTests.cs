@@ -4,7 +4,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// The root row of a stored workflow's run carries the version of the definition it was compiled
-/// from (phase 200, failure mode 13).
+/// from (failure mode 13).
 /// </summary>
 /// <remarks>
 /// <para>

@@ -10,7 +10,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHa
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>GET /api/workflows/requests</c> (phase 209): the tenant-wide list of the human requests the
+/// <c>GET /api/workflows/requests</c>: the tenant-wide list of the human requests the
 /// tenant's workflow runs wait on.
 /// </summary>
 /// <remarks>
@@ -21,7 +21,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// The graphs are registered in code and keep the default response mode, so an answered run stays
-/// <see cref="RunStatus.AwaitingInput"/> and its request stays in the list, marked answered (K-130).
+/// <see cref="RunStatus.AwaitingInput"/> and its request stays in the list, marked answered.
 /// </para>
 /// </remarks>
 public sealed class WorkflowRequestInboxHttpTests
@@ -83,7 +83,7 @@ public sealed class WorkflowRequestInboxHttpTests
 
         var responseRun = await AnswerAsync(host, answeredRun, answeredRequest);
 
-        // An answered run stays AwaitingInput (K-130), so its request is still in the list.
+        // An answered run stays AwaitingInput, so its request is still in the list.
         (await ListAsync(host, "state=all")).Count.ShouldBe(2);
 
         var pending = await ListAsync(host);

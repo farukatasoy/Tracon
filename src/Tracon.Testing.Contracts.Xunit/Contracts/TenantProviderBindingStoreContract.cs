@@ -82,9 +82,9 @@ public abstract class TenantProviderBindingStoreContract : TenantIsolationContra
     [InlineData("ACME", "acme")]
     public async Task A_tenant_is_matched_case_insensitively(string savedAs, string requestedAs)
     {
-        // 🚨 The other half of the key. K-639 made the PROVIDER name canonical
+        // 🚨 The other half of the key. The PROVIDER name is made canonical
         // after a case-sensitive store silently billed the wrong tenant; the
-        // TENANT half of the same key stayed raw until phase 179. A miss falls
+        // TENANT half of the same key stayed raw. A miss falls
         // through to the global setup credential exactly the same way, with no
         // error raised.
         await Store.UpsertAsync(Binding(savedAs, "openai"));

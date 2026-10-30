@@ -15,7 +15,7 @@ public sealed class ContentGuardPipelineTests
     [Fact]
     public async Task Blocked_input_never_reaches_the_provider()
     {
-        // 🚨 The phase's most important claim: pre-flight inspection spends no money.
+        // 🚨 The change's most important claim: pre-flight inspection spends no money.
         var inner = new FakeChatClient();
         using var chatClient = Guarded(inner, StubContentGuard.Blocking("secret-project"));
 
@@ -220,7 +220,7 @@ public sealed class ContentGuardPipelineTests
     [Fact]
     public async Task Content_in_a_tool_result_is_caught_on_the_second_model_call()
     {
-        // 🚨 The rationale for this phase's layering decision. A tool result
+        // 🚨 The rationale for this change's layering decision. A tool result
         // enters the model on the SECOND call; the guard sees it because it sits
         // INSIDE the tool-call loop. An IAgentDecorator would miss this case.
         var inner = new FakeChatClient(messages => messages

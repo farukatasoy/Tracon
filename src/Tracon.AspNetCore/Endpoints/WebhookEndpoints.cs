@@ -180,7 +180,7 @@ internal static class WebhookEndpoints
         }
 
         // 🚨 The subscription carries no secret, only the NAME of the key its
-        // value is read from (K-059). Without a prefix restriction that name
+        // value is read from. Without a prefix restriction that name
         // could point at any configuration key in the application, and
         // Tracon would sign deliveries with a value that was never meant
         // to leave the process; without the tenant segment it could name
@@ -230,7 +230,7 @@ internal static class WebhookEndpoints
 
         // A save that leaves a header map out keeps the stored one: the admin
         // panel sends neither map, and a read masks the plain values, so it
-        // could not send them back (phase 190).
+        // could not send them back.
         var headers = CredentialHeaderSaveRules.Effective(request.Headers, previous?.Headers, StringComparer.OrdinalIgnoreCase);
         var headerKeys = CredentialHeaderSaveRules.Effective(
             request.HeaderConfigurationKeys,
@@ -532,9 +532,9 @@ internal static class WebhookEndpoints
             writer.WriteNull("secretConfigurationKey");
         }
 
-        // Header NAMES only (phase 190): which headers a subscription sends is
+        // Header NAMES only: which headers a subscription sends is
         // part of what changed; a plain value may be a credential the name
-        // rule misses, and the trail is plain text (K-779).
+        // rule misses, and the trail is plain text.
         writer.WriteStartArray("headers");
 
         foreach (var header in subscription.Headers.Keys.Order(StringComparer.OrdinalIgnoreCase))
@@ -544,7 +544,7 @@ internal static class WebhookEndpoints
 
         writer.WriteEndArray();
 
-        // Key NAMES only, never a value (K-059); the audit filter leaves a
+        // Key NAMES only, never a value; the audit filter leaves a
         // '...ConfigurationKeys' map as it is.
         writer.WriteStartObject("headerConfigurationKeys");
 

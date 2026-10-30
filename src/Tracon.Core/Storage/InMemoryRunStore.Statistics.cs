@@ -33,7 +33,7 @@ internal sealed partial class InMemoryRunStore
         string? pricedCurrency = null;
         long runsWithUnknownPricing = 0;
 
-        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        // Amounts in two currencies are never added (CurrencyTotals).
         var currencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var record in _runs.Values)
@@ -65,7 +65,6 @@ internal sealed partial class InMemoryRunStore
 
             // Eval case runs are synthetic test calls, not real traffic; they
             // are excluded to avoid polluting the summary
-            // (Phase 18, open question 4).
             if (record.Kind == RunKind.Eval)
             {
                 continue;
@@ -75,7 +74,7 @@ internal sealed partial class InMemoryRunStore
 
             // Fetching a run's scores one by one (N+1) is acceptable in the
             // in-memory store; the production path is the single-query JOIN
-            // in the SQL providers. See Phase 31.
+            // in the SQL providers.
             // TenantId can rarely be empty (RunRecord.TenantId is nullable);
             // if empty, no score could have been written for this run.
             var runScores = record.TenantId is { Length: > 0 } scoreTenantId
@@ -117,8 +116,8 @@ internal sealed partial class InMemoryRunStore
             }
 
             // Error breakdown: rows written before the error class field was
-            // added (Class == null) fall into the Unknown bucket (K-014 --
-            // no retroactive backfill is done).
+            // added (Class == null) fall into the Unknown bucket:
+            // no retroactive backfill is done.
             if (record.Status == RunStatus.Failed && record.Error is { } runError)
             {
                 var errorClass = runError.Class ?? RunErrorClass.Unknown;

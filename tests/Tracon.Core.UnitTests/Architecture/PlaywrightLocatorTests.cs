@@ -15,14 +15,14 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The defect this guards repeated three times (phase 16 twice, phase 19):
+/// The defect this guards repeated three times (twice):
 /// <c>GetByPlaceholder("github")</c>, <c>GetByText("Awaiting input")</c>, and
 /// <c>GetByRole(Heading, Name: "Experiments")</c> all matched more broadly
 /// than the author intended.
 /// </para>
 /// <para>
 /// This is a ratchet, not a gate that must reach zero: 125 of today's 181
-/// calls are risky, and fixing every one is out of this phase's scope - some
+/// calls are risky, and fixing every one is out of this change's scope - some
 /// of them are legitimately safe (the matched text really is unique on the
 /// page). The baseline is <strong>per file, a count, not a line list</strong>
 /// - the same contract as <see cref="SourceLanguageTests"/> - because the E2E
@@ -188,7 +188,7 @@ public sealed class PlaywrightLocatorTests
     }
 
     /// <summary>
-    /// Phase 184: a <c>//</c> inside a string literal was read as a comment,
+    /// A <c>//</c> inside a string literal was read as a comment,
     /// and the scan then stopped counting that locator kind for the rest of
     /// the file.
     /// </summary>
@@ -319,10 +319,10 @@ public sealed class PlaywrightLocatorTests
     /// A comment that MENTIONS a locator is not a locator call. Counting one
     /// inflates the file's debt by a number nobody can find in the code, and —
     /// worse — it lets a real risky call be added for free whenever a comment
-    /// explaining a locator is deleted in the same change. Measured in phase
-    /// 164: <c>UiTests.cs</c> carried two such comments.
+    /// explaining a locator is deleted in the same change. Measured once:
+    /// <c>UiTests.cs</c> carried two such comments.
     /// <para>
-    /// 🚨 Phase 184: the first version cut every line at its first <c>//</c>,
+    /// The first version cut every line at its first <c>//</c>,
     /// inside a string literal too. <c>GetByPlaceholder("https://mcp.example.com/mcp")</c>
     /// lost its closing parenthesis, the parenthesis walk below ran off the end
     /// of the file, and the scan stopped counting <c>GetByPlaceholder</c> for
@@ -541,7 +541,7 @@ public sealed class PlaywrightLocatorTests
                 {
                     // Never true for compiling source. Counted rather than
                     // skipped: stopping here would hide every later call of
-                    // this kind in the file (Phase 184).
+                    // this kind in the file.
                     risky++;
                     index = argumentsStart;
                     continue;

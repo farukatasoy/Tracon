@@ -2,7 +2,6 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// A name that ends in a line feed is not a valid name, for every whole-value validator in Abstractions and Core
-/// (phase 260, F-756).
 /// </summary>
 /// <remarks>
 /// <para>

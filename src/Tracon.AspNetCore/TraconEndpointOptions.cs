@@ -89,7 +89,7 @@ public sealed class TraconEndpointOptions
 
         set
         {
-            // F-280: the delay runs inside the SSE loop after the headers are sent;
+            // The delay runs inside the SSE loop after the headers are sent;
             // an out-of-range value threw there.
             if (!TimerPeriod.IsValid(value))
             {

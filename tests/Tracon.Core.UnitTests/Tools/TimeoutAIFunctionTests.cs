@@ -8,7 +8,7 @@ namespace Tracon.Core.UnitTests.Tools;
 /// Verifies <see cref="TimeoutAIFunction"/>: a call that settles in time
 /// passes through unchanged, a call that outlives its timeout is cut short
 /// even when its body never reads the cancellation token (Manual Case 8,
-/// Phase 69), and a real caller
+/// An earlier change), and a real caller
 /// cancellation is never mislabeled as a timeout.
 /// </summary>
 public sealed class TimeoutAIFunctionTests
@@ -160,7 +160,7 @@ public sealed class TimeoutAIFunctionTests
     }
 
     /// <summary>
-    /// F-280: the delay behind the timeout refuses more than about 49.7 days at call
+    /// The delay behind the timeout refuses more than about 49.7 days at call
     /// time, after the tool body has started. Every per-tool timeout (code registration,
     /// <c>[TraconTool(TimeoutSeconds)]</c>, the tools default) passes through here, so
     /// the range is checked when the wrapper is built.

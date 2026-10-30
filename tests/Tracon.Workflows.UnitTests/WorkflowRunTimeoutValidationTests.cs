@@ -6,7 +6,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// <see cref="TraconWorkflowOptions.RunTimeout"/> must fail at startup when the run's
-/// deadline cannot take it (F-280).
+/// deadline cannot take it.
 /// </summary>
 /// <remarks>
 /// Every run arms the value with a <see cref="CancellationTokenSource"/>, which refuses

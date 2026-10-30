@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Two tenants with a workflow of the same name never see each other's values.
 /// </summary>
 /// <remarks>
-/// 🚨 F-294: the bound step is compiled per call and skips the compiled-agent
+/// The bound step is compiled per call and skips the compiled-agent
 /// cache, whose key once lacked the tenant (a workflow name and an agent name are
 /// unique only WITHIN a tenant). The schema comes from the tenant's own
 /// definition, the values from the tenant's own request, and the record under the
@@ -59,7 +59,7 @@ public sealed class WorkflowParameterTenantIsolationTests
     [Fact]
     public async Task Two_tenants_with_a_STORED_agent_of_the_same_name_keep_their_own_instructions()
     {
-        // 🚨 F-294: the bound step reads the agent's definition itself (the compiled
+        // The bound step reads the agent's definition itself (the compiled
         // agent cache is skipped), and a stored definition is unique only WITHIN a
         // tenant. The test above uses code-registered agents, which every tenant
         // shares; here each tenant owns a different definition under one name.
@@ -103,7 +103,7 @@ public sealed class WorkflowParameterTenantIsolationTests
 
         using var response = await host.Client.SendAsync(request);
 
-        // F-396: the source run is read before the stream opens. Another tenant's
+        // The source run is read before the stream opens. Another tenant's
         // run is answered exactly like a run that does not exist: 404, so its
         // existence is not leaked and no run row is opened.
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);

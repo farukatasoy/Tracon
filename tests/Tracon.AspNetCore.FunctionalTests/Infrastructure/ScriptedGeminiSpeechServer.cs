@@ -15,7 +15,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// </summary>
 /// <remarks>
 /// <para>
-/// F-297: the adapter is only as honest as the wire. A test that asserts a fake synthesizer received a credential
+/// The adapter is only as honest as the wire. A test that asserts a fake synthesizer received a credential
 /// proves nothing about the request the Google client sends, so these tests drive the real <c>Google.GenAI</c> client
 /// against this server and read the JSON body and the <c>x-goog-api-key</c> header it received.
 /// </para>

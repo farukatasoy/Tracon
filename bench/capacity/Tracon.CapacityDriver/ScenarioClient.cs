@@ -147,7 +147,7 @@ public sealed class ScenarioClient
     {
         using var request = CreateRunRequest(tenant, correlation);
 
-        // The idempotency header is what makes this scenario buffered (Phase 43):
+        // The idempotency header is what makes this scenario buffered:
         // its write cost belongs to this scenario's numbers, not to a footnote.
         request.Headers.TryAddWithoutValidation("Idempotency-Key", correlation);
 

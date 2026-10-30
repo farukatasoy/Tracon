@@ -9,10 +9,10 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An agent step of a graph built in code (phase 211, <c>GetWorkflowAgentStep</c>): its own timeout replaces
+/// An agent step of a graph built in code (<c>GetWorkflowAgentStep</c>): its own timeout replaces
 /// <c>ChildDeadline</c>, its version pin runs the pinned text of a stored agent, and a pin that cannot hold
 /// fails the step by name before a model is called. A run parameter can choose the version instead of the
-/// graph (phase 249, <c>AgentVersionParameter</c>): the value is read each time the step runs, so one graph
+/// graph (<c>AgentVersionParameter</c>): the value is read each time the step runs, so one graph
 /// serves every version.
 /// </summary>
 /// <remarks>

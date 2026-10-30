@@ -139,7 +139,7 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
             // carries no model and is excluded from the model breakdown.
             descriptor?.Model?.Model,
             // The provider is used only for cost resolution and is not
-            // persisted (see docs/KARARLAR.md K-154).
+            // persisted.
             descriptor?.Model?.Provider,
             _timeProvider,
             _options.Value.AgentGraph,

@@ -34,7 +34,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         var nodes = session.Page.GetByTestId("workflow-node");
 
         // A retrying check, not a one-shot count: the nodes render after the
-        // graph container does (Phase 184).
+        // graph container does.
         await Expect(nodes.Nth(2), "The compiled graph shows fewer than three nodes.").ToBeVisibleAsync();
     }
 
@@ -53,7 +53,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         var copied = await session.Page.EvaluateAsync<string>("() => navigator.clipboard.readText()");
 
         // The copied text is produced by Microsoft Agent Framework; the UI
-        // does not render it, it only passes it through (bundle budget, K-002).
+        // does not render it, it only passes it through (bundle budget).
         copied.ShouldContain("flowchart", Case.Sensitive);
     }
 
@@ -63,8 +63,8 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     /// <remarks>
     /// The editor used to open this workflow with an EMPTY participant list and a
     /// disabled Save. Adding an agent enabled Save, and the full-replace PUT
-    /// (K-725) replaced the chain with that agent: the function node was gone,
-    /// with no warning. Measured on the sample app on 2026-10-10. Since phase 195 the
+    /// replaced the chain with that agent: the function node was gone,
+    /// with no warning. Measured on the sample app on 2026-10-10. Since then the
     /// editor edits the chain; this case still pins that a change to something else
     /// (the description) sends the chain back whole.
     /// </remarks>
@@ -122,7 +122,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     /// Builds a chain with a function that takes settings, saves it and runs it - all in the console.
     /// </summary>
     /// <remarks>
-    /// F-292 + F-295. The whole path crosses every layer the unit tests stand apart from: the
+    /// The whole path crosses every layer the unit tests stand apart from: the
     /// function list from <c>GET /api/workflows/functions</c>, the node list the editor sends, the
     /// strict read of the settings on save, and the settings the function receives when the run
     /// compiles the graph.
@@ -213,9 +213,9 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     /// A step timeout typed in the console is saved on its node and stops the run there.
     /// </summary>
     /// <remarks>
-    /// Phase 196 (F-303, F-405). The field is offered only where the chain is saved as a node
+    /// The field is offered only where the chain is saved as a node
     /// list - a chain with a function step - since a step timeout never changes the form
-    /// (K-901). The value crosses the editor's seconds-to-<c>hh:mm:ss</c> conversion, the save,
+    ///The value crosses the editor's seconds-to-<c>hh:mm:ss</c> conversion, the save,
     /// the stored node, and the wrapper that cancels the function when the run compiles.
     /// </remarks>
     [Fact]
@@ -301,7 +301,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     }
 
     /// <summary>
-    /// A tool that waits for approval inside a workflow is answered from the same card (phase 230).
+    /// A tool that waits for approval inside a workflow is answered from the same card.
     /// </summary>
     /// <remarks>
     /// The card names the tool and what the approval presenter says about the call, takes a reason the
@@ -348,7 +348,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     /// A run started outside the console is answered from its own run page.
     /// </summary>
     /// <remarks>
-    /// F-335: the run page sent the operator to "the workflow screen", but that
+    /// The run page sent the operator to "the workflow screen", but that
     /// screen only showed a request for a run it had started itself. A run
     /// started over HTTP, by a job or in another tab had no card anywhere, so
     /// the console could not answer it at all.
@@ -376,7 +376,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
 
         await Expect(output).ToContainTextAsync("approved", new() { UseInnerText = true });
 
-        // The answer opened a NEW run (K-130), and the address follows it, so a
+        // The answer opened a NEW run, and the address follows it, so a
         // reload shows the run the screen is now about — not the answered one.
         await Expect(session.Page).ToHaveURLAsync(new Regex(
             $@"/workflows/approval-flow\?runId=(?!{runId})[0-9a-f-]{{36}}$",
@@ -483,7 +483,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
 
     /// <summary>Approves the run's request over HTTP and returns the run that continues it.</summary>
     /// <summary>
-    /// A workflow rolled back in the console runs the old content (phase 200).
+    /// A workflow rolled back in the console runs the old content.
     /// </summary>
     /// <remarks>
     /// The whole path crosses every layer the unit tests stand apart from: the history list, the
@@ -542,7 +542,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     }
 
     /// <summary>
-    /// A step pinned in the editor is saved in the node form and runs the pinned version of its agent (phase 200).
+    /// A step pinned in the editor is saved in the node form and runs the pinned version of its agent.
     /// </summary>
     [Fact]
     public async Task A_step_pinned_in_the_console_is_saved_as_a_node_and_runs_the_pinned_version()

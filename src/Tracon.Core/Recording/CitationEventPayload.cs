@@ -117,7 +117,7 @@ internal static class CitationEventPayload
             return null;
         }
 
-        // 🚨 `GetLeftPart(Authority)` would keep the user information, which is a secret (K-059); the
+        // 🚨 `GetLeftPart(Authority)` would keep the user information, which is a secret; the
         // components below never hold it.
         var origin = url.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped);
 

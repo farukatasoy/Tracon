@@ -2,7 +2,7 @@ namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
 /// Tests for <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'s
-/// SQLite SQL generation (Phase 36, <c>MaxRows</c>). Requires no live database
+/// SQLite SQL generation (<c>MaxRows</c>). Requires no live database
 /// — <see cref="SqliteDialect"/> only builds SQL text.
 /// </summary>
 public sealed class RetentionMaxRowsDialectTests : IDisposable

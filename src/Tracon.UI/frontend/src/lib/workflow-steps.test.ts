@@ -206,7 +206,7 @@ describe('describeSchema', () => {
   });
 });
 
-// Phase 196 (F-303, F-405, failure mode 13): a step's timeout and the run timeout.
+// A step's timeout and the run timeout.
 describe('step timeouts', () => {
   it('reads a stored timeout as seconds and keeps the stored spelling beside it', () => {
     const [writer, render] = stepsOf({
@@ -247,7 +247,7 @@ describe('step timeouts', () => {
   });
 
   it('keeps an agent-only chain an agent list, and builds no request that would drop its step timeouts', () => {
-    // Phase 196 decision (K-901 unchanged): a step timeout does not turn an agent list into a
+    // A step timeout does not turn an agent list into a
     // node list - that change would make a waiting run unresumable. A timeout the agent list
     // cannot keep holds the save back instead of being dropped by the full replace.
     expect(hasStepTimeouts([agent('a'), agent('b')])).toBe(false);
@@ -285,7 +285,7 @@ describe('step timeouts', () => {
   });
 });
 
-// Phase 200: a step can pin its stored agent to one version of it.
+// A step can pin its stored agent to one version of it.
 describe('agent version pins', () => {
   const pinned = (name: string, agentVersion: number | null, timeout = ''): Step => ({ ...agent(name, timeout), agentVersion });
 
@@ -376,7 +376,7 @@ describe('agent version pins', () => {
   });
 });
 
-describe('handoff edges (phase 270)', () => {
+describe('handoff edges', () => {
   const trio = [agent('front'), agent('billing'), agent('tech')];
   const edge = (from: string, to: string, reason = '') => ({ from, to, reason });
 

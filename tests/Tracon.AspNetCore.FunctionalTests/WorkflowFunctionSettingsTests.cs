@@ -8,7 +8,7 @@ using static Tracon.AspNetCore.FunctionalTests.WorkflowSettingsFixtures;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A function node's settings over HTTP (F-295): saved with the workflow, read back with
+/// A function node's settings over HTTP: saved with the workflow, read back with
 /// it, and handed to the function when the workflow runs.
 /// </summary>
 /// <remarks>
@@ -75,7 +75,7 @@ public sealed class WorkflowFunctionSettingsTests
     {
         // 5: a node whose settings element stayed unset (not null) is the one value System.Text.Json
         // cannot write. One such node would fail this whole list - every workflow, not just its own.
-        // The function takes the chat message list the agent node before it passes on (F-341).
+        // The function takes the chat message list the agent node before it passes on.
         await using var host = await StartAsync(static builder => builder
             .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>("plain", static _ => static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages)));
 
@@ -128,7 +128,7 @@ public sealed class WorkflowFunctionSettingsTests
     [Fact]
     public async Task Saving_again_without_settings_clears_them_because_a_save_replaces_the_definition()
     {
-        // K-725: PUT is a full replace. A client that does not send the settings back erases them.
+        // PUT is a full replace. A client that does not send the settings back erases them.
         await using var host = await StartAsync(static builder => builder
             .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, MixSettings>(
                 "mix",
@@ -145,7 +145,7 @@ public sealed class WorkflowFunctionSettingsTests
     [Fact]
     public async Task A_settings_value_never_reaches_the_log_the_stream_or_the_run_events()
     {
-        // 18: a setting is a value the operator typed, and K-059 says it may be one they should not have typed.
+        // 18: a setting is a value the operator typed, and the earlier decision says it may be one they should not have typed.
         // The function below does NOT echo it, so any trace of it is Tracon writing it down.
         const string Marker = "marker-7f3a91c2d4";
 

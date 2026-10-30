@@ -6,7 +6,7 @@ namespace Tracon.Client.UnitTests;
 
 /// <summary>
 /// The framing rules and content-type guard behind the generated
-/// <c>&lt;operation&gt;StreamAsync</c> methods (Phase 159).
+/// <c>&lt;operation&gt;StreamAsync</c> methods.
 /// </summary>
 /// <remarks>
 /// These live in the hand-written half of the partial class
@@ -128,7 +128,7 @@ public sealed class TraconApiClientSseTests
 
         // Without this the SSE reader would find no frames in a JSON document
         // and the call would succeed with an empty stream — the silent failure
-        // this phase exists to close.
+        // this change exists to close.
         exception.Message.ShouldContain("application/json");
         exception.Message.ShouldContain("text/event-stream");
         exception.Message.ShouldContain("Send \"stream\": true.");

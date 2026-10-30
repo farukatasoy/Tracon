@@ -8,7 +8,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as ApprovalEndpointTests.cs (K-269): the package's
+// Same rationale as ApprovalEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -16,10 +16,10 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 147 (F-195) over HTTP: the installation's own
+/// over HTTP: the installation's own
 /// <see cref="IRunAuthorizationHandler"/> now gates a run's RESOURCES — its
 /// summary, tree, events, input, trace, tool calls, scores, cancellation, its
-/// attachments and its approvals — and the two run-starting surfaces phase 139
+/// attachments and its approvals — and the two run-starting surfaces an earlier change
 /// missed (<c>POST /api/runs/{id}/replay</c> and <c>/v1/chat/completions</c>).
 /// </summary>
 /// <remarks>
@@ -34,7 +34,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The central claim is not "a denial is refused" but "a denial is
 /// INDISTINGUISHABLE from absence": a denied single resource returns the same
 /// 404 body a genuinely missing one does, because a 403 there would confirm
-/// the resource exists (K-671). Lists are the exception — a list has no single
+/// the resource exists. Lists are the exception — a list has no single
 /// identity to hide, so a denial is a plain 403.
 /// </para>
 /// </remarks>
@@ -55,7 +55,7 @@ public sealed class RunResourceAuthorizationTests
         var attachmentId = await SeedAttachmentAsync(host);
         var approvalId = await SeedApprovalAsync(host, runId);
 
-        // Exactly the statuses this API answered before phase 147 existed.
+        // Exactly the statuses this API answered before existed.
         await AssertStatusAsync(host, HttpMethod.Get, "/tracon/api/runs", HttpStatusCode.OK);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}", HttpStatusCode.OK);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/tree", HttpStatusCode.OK);
@@ -82,7 +82,7 @@ public sealed class RunResourceAuthorizationTests
 
         await AssertStatusAsync(host, HttpMethod.Delete, $"/tracon/api/attachments/{attachmentId}", HttpStatusCode.NoContent);
 
-        // 🚨 The two run-STARTING endpoints phase 147 added a gate to, and the
+        // 🚨 The two run-STARTING endpoints an earlier change added a gate to, and the
         // two writes with a second identity in the route. A gate that goes into
         // a path which never had one before is exactly where a null-handler
         // regression would land, so each is exercised here as well.
@@ -441,7 +441,7 @@ public sealed class RunResourceAuthorizationTests
         (await approvals.GetAsync(approvalId))!.Status.ShouldBe(ApprovalStatus.Pending);
     }
 
-    // --- The two run-starting surfaces phase 139 missed ---
+    // --- The two run-starting surfaces missed ---
 
     [Fact]
     public async Task Denied_replay_returns_403_and_opens_no_run_row()
@@ -529,7 +529,7 @@ public sealed class RunResourceAuthorizationTests
         response.Content.Headers.ContentType?.MediaType.ShouldNotBe("text/event-stream", StringComparer.Ordinal);
     }
 
-    // --- The surfaces the phase's own audit found still ungated ---
+    // --- The surfaces the change's own audit found still ungated ---
 
     [Fact]
     public async Task Feedback_delete_refuses_a_score_that_belongs_to_a_different_run()
@@ -612,7 +612,7 @@ public sealed class RunResourceAuthorizationTests
         var before = (await runs.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Count;
 
         // 🚨 Resume opens a NEW run row from an existing run's checkpoint, so
-        // it is a run-STARTING surface — phase 139 counted four and phase 147's
+        // it is a run-STARTING surface — counted four and the earlier change's
         // own audit found this one still outside the gate.
         handler.OnRun = Deny(RunAccess.Start);
 
@@ -853,7 +853,7 @@ public sealed class RunResourceAuthorizationTests
         var (host, handler, runId) = await StartWithRunAsync();
         await using var _ = host;
 
-        // 🚨 K-840. A handler that calls its policy store over HTTP surfaces
+        // A handler that calls its policy store over HTTP surfaces
         // HttpClient.Timeout as TaskCanceledException while the REQUEST is
         // still alive. Letting that travel answered 500 for a run that exists
         // and 404 for one that does not - an existence oracle on exactly the
@@ -1146,7 +1146,7 @@ public sealed class RunResourceAuthorizationTests
                 if (handler is not null)
                 {
                     // Registered BEFORE Tracon's own TryAdd, the way a consumer
-                    // binding its own policy would (K4: the consumer's registration wins).
+                    // binding its own policy would (the consumer's registration wins).
                     services.Replace(ServiceDescriptor.Singleton<IRunAuthorizationHandler>(handler));
                 }
             });

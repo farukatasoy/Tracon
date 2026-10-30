@@ -42,7 +42,7 @@ const SCOPES: ApiKeyScope[] = [
 
 /**
  * Tenant-scoped API keys — a second identity source next to the single
- * static bearer token (Phase 53).
+ * static bearer token.
  *
  * No field on this screen carries a raw key value after creation: the store
  * keeps only a SHA-256 hash, and the record type has no field for it at all.

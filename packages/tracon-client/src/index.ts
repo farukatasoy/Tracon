@@ -7,14 +7,14 @@ import type { components } from './schema.js';
 /** Wire contracts, by schema name. Example: `Schemas['RunRecord']`. */
 export type Schemas = components['schemas'];
 
-// Hand-written — the thin layer described in Phase 84, section 84.5.
+// Hand-written — the thin layer described.
 export { TraconError } from './error.js';
 export { createTraconClient, type TraconClient, type TraconClientOptions } from './client.js';
 
 // Streaming. A `text/event-stream` endpoint needs no special client method —
 // pass `parseAs: 'stream'`, or read the `response` every call returns — but it
 // does need a decoder, and writing one per consumer is how framing bugs get
-// duplicated (Phase 159).
+// duplicated.
 export {
   readSse,
   SseDecoder,

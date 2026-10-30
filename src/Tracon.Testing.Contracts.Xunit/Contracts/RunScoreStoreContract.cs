@@ -95,7 +95,7 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     [Fact]
     public async Task Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row()
     {
-        // The whole point of phase 152: one reviewer scores the same run for
+        // The whole point: one reviewer scores the same run for
         // helpfulness AND accuracy, and neither write erases the other.
         var runId = TraconId.NewId();
 
@@ -386,7 +386,7 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     public async Task Empty_author_makes_EVERY_call_open_a_new_row()
     {
         // With an anonymous setup (author null), the uniqueness rule does not
-        // apply -- open question 4 (Phase 31).
+        // apply --.
         var runId = TraconId.NewId();
 
         await Store.UpsertAsync(Score(runId) with { Author = null });
@@ -435,7 +435,7 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     public async Task Deleting_a_nonexistent_score_returns_false()
         => (await Store.DeleteAsync(Tenant, TraconId.NewId())).ShouldBeFalse();
 
-    // --- SummarizeAsync (phase 154) ---
+    // --- SummarizeAsync ---
     //
     // 🚨 SummarizeAsync aggregates across a WHOLE TENANT, not one run --
     // unlike every method above, it is not scoped by a run id. Each test

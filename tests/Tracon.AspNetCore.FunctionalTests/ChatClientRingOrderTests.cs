@@ -5,13 +5,13 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// Same rationale as AgentExtensionRunTests.cs (K-269).
+// Same rationale as AgentExtensionRunTests.cs.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 232: where Tracon's own rings sit relative to an extension's ring, read from what each of
+/// Where Tracon's own rings sit relative to an extension's ring, read from what each of
 /// them does in a real host — the content guard inspects what a ring adds, the budget counts what
 /// a ring sends, the response cache keys on the request a ring changed, and a ring that answers by
 /// itself spends nothing.

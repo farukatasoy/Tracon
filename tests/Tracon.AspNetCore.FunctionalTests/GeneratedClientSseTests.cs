@@ -6,19 +6,18 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Proves that the NSwag-generated client's SSE-returning methods actually
-/// work against a real server (Phase 145, independent-audit finding; extended
-/// by Phase 159).
+/// work against a real server (independent-audit finding; extended
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before Phase 145's fix (<c>nswag-postprocess-client.py</c>'s fourth rewrite
+/// Before the fix (<c>nswag-postprocess-client.py</c>'s fourth rewrite
 /// pass), every generated method for a pure <c>text/event-stream</c> 200
 /// response read its body through the SAME JSON-deserializing helper every
 /// other operation uses — which threw <see cref="TraconApiException"/>
 /// unconditionally, because a raw SSE frame is not a JSON string literal.
 /// </para>
 /// <para>
-/// Phase 159 added the sixth pass: every operation declaring an SSE 200 now
+/// An earlier change added the sixth pass: every operation declaring an SSE 200 now
 /// also has a <c>&lt;operation&gt;StreamAsync</c> sibling returning
 /// <c>IAsyncEnumerable&lt;string&gt;</c>. That closed the last two endpoints
 /// that were not callable in their streaming shape at all —
@@ -37,7 +36,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class GeneratedClientSseTests
 {
-    // --- Phase 145: the pure-SSE methods read their body as text ---
+    // --- an earlier change: the pure-SSE methods read their body as text ---
 
     [Fact]
     public async Task TraconRunAgentAsync_reads_the_SSE_body_as_plain_text()
@@ -73,7 +72,7 @@ public sealed class GeneratedClientSseTests
         body.ShouldNotContain("event: unknown");
     }
 
-    // --- Phase 159: the dual JSON/SSE endpoints, in both shapes ---
+    // --- an earlier change: the dual JSON/SSE endpoints, in both shapes ---
 
     [Fact]
     public async Task OpenAI_responses_streams_frames_when_the_body_asks_for_a_stream()
@@ -145,7 +144,7 @@ public sealed class GeneratedClientSseTests
             .ShouldBe("Echo: hello");
     }
 
-    // --- Phase 159: method and body disagreeing, in both directions ---
+    // --- an earlier change: method and body disagreeing, in both directions ---
 
     [Fact]
     public async Task The_JSON_method_names_the_streaming_sibling_when_the_body_asked_for_a_stream()
@@ -215,7 +214,7 @@ public sealed class GeneratedClientSseTests
         exception.Message.ShouldContain("uninitialized JsonElement");
     }
 
-    // --- Phase 159: the pure-SSE endpoints gained the same streaming shape ---
+    // --- an earlier change: the pure-SSE endpoints gained the same streaming shape ---
 
     [Fact]
     public async Task A_pure_SSE_endpoint_streams_frames_through_its_sibling()
@@ -295,7 +294,7 @@ public sealed class GeneratedClientSseTests
     private static TraconApiClient CreateClient(TraconTestHost host)
     {
         // The generated client's paths are relative to the MapTracon prefix
-        // (docs/hafiza/nswag-istemci-uretimi.md), which TraconClientOptions.BaseAddress
+        // Which TraconClientOptions.BaseAddress
         // normally carries; host.Client's own BaseAddress is bare, so it is set here instead.
         host.Client.BaseAddress = new Uri(host.Client.BaseAddress!, "tracon/");
 
@@ -303,7 +302,7 @@ public sealed class GeneratedClientSseTests
     }
 
     // The collections are no longer filled to work around a null default —
-    // F-197 fixed that in nswag-postprocess-client.py's fifth pass, and
+    // The earlier decision fixed that in nswag-postprocess-client.py's fifth pass, and
     // GeneratedClientCollectionDefaultTests is the test that proves a minimal
     // request works. Only Message is set here, which is also what a real
     // caller writes.

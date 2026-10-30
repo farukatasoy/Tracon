@@ -96,7 +96,7 @@ public sealed class SecurityTests
     [Fact]
     public async Task Shell_still_loads_on_a_non_loopback_request_HATA_S4_003()
     {
-        // MT-UI-008: the shell must also be exempt from the loopback
+        // The shell must also be exempt from the loopback
         // restriction — otherwise a non-loopback client can never download
         // the JS bundle, AccessGate never runs, and the user is left with
         // raw ProblemDetails JSON instead of the "Access denied" card. The

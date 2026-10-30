@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Guards;
 /// </summary>
 /// <remarks>
 /// 🚨 The most important test comes first: <c>AddTracon()</c> alone
-/// registers no guard. K1's (zero surprise) gate is not a flag, it is
+/// registers no guard. the zero-surprise rule's (zero surprise) gate is not a flag, it is
 /// <em>the registration itself</em>; this test measures that the gate is
 /// born closed.
 /// </remarks>

@@ -8,7 +8,7 @@ using Tracon.TwoNode.IntegrationTests.Infrastructure;
 namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>
-/// Behaviour 3: an MCP server that uses OAuth works on two nodes (F-766). The token is kept in the deployment's
+/// Behaviour 3: an MCP server that uses OAuth works on two nodes. The token is kept in the deployment's
 /// distributed cache, the provider's redirect may reach either node, and one node at a time refreshes a token.
 /// </summary>
 /// <remarks>

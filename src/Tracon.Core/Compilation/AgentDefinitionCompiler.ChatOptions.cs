@@ -9,11 +9,11 @@ namespace Tracon;
 /// </summary>
 public sealed partial class AgentDefinitionCompiler
 {
-    // Phase 232: the agent's own model client is resolved here and built only after
+    // The agent's own model client is resolved here and built only after
     // the extensions ran (BuildChatClient), because an extension can add a ring to
     // it. The provider, the egress check and the tenant's credential are resolved
     // first, so a refused provider is refused before any extension code runs and
-    // BuildAgent stays synchronous (K-874).
+    // BuildAgent stays synchronous.
     private PendingChatClient PrepareChatClient(AgentDefinition definition)
     {
         var binding = AgentLoopBinding(definition);
@@ -42,7 +42,7 @@ public sealed partial class AgentDefinitionCompiler
             return PendingChatClient.Built(await CreateChatClientAsync(definition, binding, cancellationToken).ConfigureAwait(false));
         }
 
-        // F-442: a tenant's refusal keeps its type, here and in BuildChatClient.
+        // A tenant's refusal keeps its type, here and in BuildChatClient.
         try
         {
             return await registry.PrepareChatClientAsync(binding, cancellationToken).ConfigureAwait(false);
@@ -94,7 +94,7 @@ public sealed partial class AgentDefinitionCompiler
         }
     }
 
-    // F-315 (K-892): a harness agent's MaximumIterationsPerRequest goes to MAF's
+    // A harness agent's MaximumIterationsPerRequest goes to MAF's
     // own loop, which sits ABOVE the model pipeline and never sees a tool call
     // - the pipeline's loop runs them all. Measured: a limit of 2 still made 7
     // model calls. The limit therefore travels on the binding to the loop that
@@ -126,7 +126,7 @@ public sealed partial class AgentDefinitionCompiler
             return await _models.CreateChatClientAsync(binding, cancellationToken).ConfigureAwait(false);
         }
 
-        // F-442: a tenant's refusal keeps its type, so every path that refuses a
+        // A tenant's refusal keeps its type, so every path that refuses a
         // provider records the same class; it gains the agent's name, which the
         // compilation failure it used to become carried.
         catch (TraconTenantProviderRefusedException ex)
@@ -145,7 +145,7 @@ public sealed partial class AgentDefinitionCompiler
     // inside BuildAgent with the synchronous CreateChatClient: the tenant's
     // egress policy and its own key never reached them, and a definition
     // summarized on a provider the tenant had forbidden (2026-10-11). The
-    // synchronous path stays tenant-blind by design (K-466).
+    // synchronous path stays tenant-blind by design.
     private SecondaryChatClients CreateSecondaryChatClients(AgentDefinition definition)
         => new(
             ResolveSummarizationBinding(definition) is { } binding ? CreateChatClient(definition, binding) : null,
@@ -157,7 +157,7 @@ public sealed partial class AgentDefinitionCompiler
     {
         // The summarizer reads the tenant's conversation on the tenant's
         // account: egress policy AND the tenant's own key. The judge is the
-        // host's one judge model (K-613, K-706): egress policy only.
+        // host's one judge model: egress policy only.
         var summarization = ResolveSummarizationBinding(definition) is { } binding
             ? await CreateChatClientAsync(definition, binding, cancellationToken).ConfigureAwait(false)
             : null;

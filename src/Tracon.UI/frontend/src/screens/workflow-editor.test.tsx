@@ -117,7 +117,7 @@ function steps(): string[] {
 describe('WorkflowEditorScreen - the chain', () => {
   // The editor used to open this workflow with an EMPTY participant list and a disabled Save.
   // Adding an agent enabled Save and replaced the chain - the function node was erased without
-  // a word (full replace, K-725). It then showed the chain read-only; now it edits it.
+  // a word (full replace). It then showed the chain read-only; now it edits it.
   it('opens a function-node chain with its settings and keeps the pattern the chain needs', async () => {
     open(mixed);
 
@@ -163,7 +163,7 @@ describe('WorkflowEditorScreen - the chain', () => {
       managerAgentName: null,
       maxIterations: null,
       handoffInstructions: null,
-      // Phase 270: a pattern that does not use them sends null, never an empty value.
+      // A pattern that does not use them sends null, never an empty value.
       handoffs: null,
       maxHandoffs: null,
       maxStalls: null,
@@ -488,7 +488,7 @@ describe('WorkflowEditorScreen - what a save changes', () => {
 
     await user.selectOptions(await screen.findByTestId('workflow-add-agent'), 'reviewer');
 
-    // Phase 200: a waiting run keeps resuming the version it recorded; only resuming it with the
+    // A waiting run keeps resuming the version it recorded; only resuming it with the
     // new version fails. The notice says that, not that the run is lost.
     const notice = screen.getByTestId('workflow-structure-notice').textContent ?? '';
 
@@ -510,7 +510,7 @@ describe('WorkflowEditorScreen - what a save changes', () => {
 });
 
 describe('WorkflowEditorScreen - timeouts', () => {
-  // Phase 196 (F-303, F-405): a step's timeout and the run timeout are typed in seconds and
+  // A step's timeout and the run timeout are typed in seconds and
   // saved as hh:mm:ss; an untouched one goes back as stored (the full-replace round trip is
   // full-replace-editors.test.tsx).
   it('saves a step timeout and the run timeout typed in seconds', async () => {
@@ -536,7 +536,7 @@ describe('WorkflowEditorScreen - timeouts', () => {
     });
   });
 
-  // Phase 209: how long a human request may wait is typed in seconds or d.hh:mm:ss and saved the
+  // How long a human request may wait is typed in seconds or d.hh:mm:ss and saved the
   // way the server writes it; empty is "no limit".
   it.each([
     ['7200', '02:00:00'],
@@ -562,7 +562,7 @@ describe('WorkflowEditorScreen - timeouts', () => {
     expect(screen.getByText('Enter seconds (for example 3600) or d.hh:mm:ss (for example 2.00:00:00).')).toBeTruthy();
   });
 
-  // Phase 196 decision (K-901 unchanged): a step timeout never turns an agent list into a node
+  // A step timeout never turns an agent list into a node
   // list. That change of form made a waiting run unresumable and stopped the agents' live
   // token stream; the field is offered only where a node list is saved anyway.
   it('offers no step timeout on an agent-only chain, which stays an agent list', async () => {
@@ -648,7 +648,7 @@ describe('WorkflowEditorScreen - timeouts', () => {
 });
 
 describe('WorkflowEditorScreen - agent versions', () => {
-  // Phase 200 (200.3): an agent step of a Sequential chain can run one version of a stored agent.
+  // An agent step of a Sequential chain can run one version of a stored agent.
   // The versions are the agent's own, newest first; an agent defined in code keeps none.
   const askedFor: string[] = [];
   const versions: FixtureRoute = {
@@ -847,7 +847,7 @@ describe('WorkflowEditorScreen - agent versions', () => {
 });
 
 describe('WorkflowEditorScreen - who hands off to whom', () => {
-  // Phase 270. The edge list is a full replace like every other field (K-725): a save that did not
+  // The edge list is a full replace like every other field: a save that did not
   // carry it would turn the workflow back into the star, so each case reads the body.
   const handoff = stored({
     kind: 'Handoff',

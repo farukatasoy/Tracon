@@ -3,7 +3,7 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// What actually happens when one of two worker processes dies mid-job, on SQL Server (Phase 265).
+/// What actually happens when one of two worker processes dies mid-job, on SQL Server.
 /// </summary>
 /// <remarks>
 /// <para>

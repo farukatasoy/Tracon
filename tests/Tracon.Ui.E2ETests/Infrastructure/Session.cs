@@ -18,7 +18,7 @@ internal sealed class Session : IAsyncDisposable
     /// <param name="locale">
     /// The browser's language.
     /// <para>
-    /// 🚨 Since Phase 30 the UI picks its own language from
+    /// 🚨 Since then the UI picks its own language from
     /// <c>navigator.language</c>. A test that asserts on text MUST pin the
     /// language; otherwise the test's outcome depends on the running
     /// machine's system language. The default is therefore <c>en-US</c>,

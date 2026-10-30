@@ -125,7 +125,7 @@ public sealed class SummaryRow
     /// <remarks>
     /// 🚨 Fewer than <see cref="Repeats"/> means autovacuum disturbed the rest.
     /// One is not an average, and publishing it as though it were is exactly
-    /// what the phase's own rule forbids.
+    /// what the change's own rule forbids.
     /// </remarks>
     public int StorageRepeats { get; set; }
 
@@ -996,7 +996,7 @@ public static class ReportBuilder
             return row.VacuumInterference ? "— (vacuum)" : formatted;
         }
 
-        // 🚨 One clean repeat is not an average, and the phase's own rule
+        // 🚨 One clean repeat is not an average, and the change's own rule
         // forbids publishing it as though it were.
         return row.StorageRepeats < row.Repeats
             ? string.Create(CultureInfo.InvariantCulture, $"{formatted} ({row.StorageRepeats} rpt)")

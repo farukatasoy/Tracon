@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
 /// The compiler refuses a <see cref="SubAgentCallMode.Tool"/> mode definition whose tool names
-/// collide, the same refusal the validator reports (Phase 228). A definition written in code
+/// collide, the same refusal the validator reports. A definition written in code
 /// never meets the validator.
 /// </summary>
 public sealed class SubAgentToolModeCompilationTests
@@ -43,7 +43,7 @@ public sealed class SubAgentToolModeCompilationTests
     [Fact]
     public void The_agent_tool_is_in_the_options_an_extension_sees()
     {
-        // F-609: the agent tool joins the tool list before the extensions run, so the guard's baseline
+        // The agent tool joins the tool list before the extensions run, so the guard's baseline
         // holds it. Moving the AddRange behind the extension call would break no other test.
         var seen = new List<string>();
         var compiler = BuildCompiler(

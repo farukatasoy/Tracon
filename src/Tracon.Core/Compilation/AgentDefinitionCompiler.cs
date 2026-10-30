@@ -69,7 +69,7 @@ public sealed partial class AgentDefinitionCompiler
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
-    // continuing the K-020 pattern); only this file is updated if MAF changes this API.
+    // continuing the pattern); only this file is updated if MAF changes this API.
 #pragma warning disable MAAI001
     private readonly AgentFileStore? _fileStore;
 #pragma warning restore MAAI001
@@ -644,7 +644,7 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
-        // 🚨 F-330: only CompileParameterizedAsync binds values, and it clears
+        // Only CompileParameterizedAsync binds values, and it clears
         // Parameters on the copy it compiles. A definition that still carries a
         // schema here was reached by a path with no values — the catalog, and so
         // a queued run, a batch, replay, the OpenAI-compatible endpoints, MCP,
@@ -681,7 +681,7 @@ public sealed partial class AgentDefinitionCompiler
         {
             for (var index = 0; index < tools.Count; index++)
             {
-                // IToolRegistry.TryGet returns AIFunctionDeclaration (Phase 61):
+                // IToolRegistry.TryGet returns AIFunctionDeclaration:
                 // a client-side tool (AddClientTool) is a declaration only, not
                 // an AIFunction, and this filter deliberately skips it — there is
                 // no server-side body to transform.
@@ -692,7 +692,7 @@ public sealed partial class AgentDefinitionCompiler
             }
         }
 
-        // Phase 228: the sub-agent wrappers are built once. In Tool mode each one is a tool of
+        // The sub-agent wrappers are built once. In Tool mode each one is a tool of
         // the options the extensions then see (so the guard's baseline holds it); otherwise the
         // framework's background task provider takes them.
         var childAgents = CreateChildAgents(definition, callableAgents);

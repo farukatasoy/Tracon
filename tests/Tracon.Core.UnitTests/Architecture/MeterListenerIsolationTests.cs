@@ -17,7 +17,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// happens to be running.
 /// </para>
 /// <para>
-/// This is not hypothetical. The defect fired for real in phase 134:
+/// This is not hypothetical. The defect fired for real:
 /// <c>JobMetricEndToEndTests</c> caught a <c>tracon.job.executions</c>
 /// measurement published by a concurrently running test and failed. A class
 /// scan (2026-09-02) found the same shape in three more places, while

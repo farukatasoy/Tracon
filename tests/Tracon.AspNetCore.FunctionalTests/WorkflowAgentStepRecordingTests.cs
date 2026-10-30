@@ -4,7 +4,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.AgentStepHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The agent step of a workflow asks the agent for its whole answer instead of a stream (phase 211): the child run keeps
+/// The agent step of a workflow asks the agent for its whole answer instead of a stream: the child run keeps
 /// the messages, the usage and the cost it kept before, and a refusal still fails the workflow.
 /// </summary>
 /// <remarks>

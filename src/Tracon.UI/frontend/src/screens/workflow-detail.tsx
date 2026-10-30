@@ -46,7 +46,7 @@ import type {
  *
  * The address names the run the screen is about (`?runId=`). A run page, a
  * bookmark or a reload can therefore open a run this screen did not start —
- * F-335: the request card used to show only for a run started right here, so
+ * The request card used to show only for a run started right here, so
  * a run started over HTTP, by a job or in another tab could not be answered
  * from the console at all.
  */
@@ -74,7 +74,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
   const linkedRunId = useSearchParams().get('runId');
   const [message, setMessage] = useState('');
-  // The values for the workflow's own parameters (F-294); empty for a workflow
+  // The values for the workflow's own parameters; empty for a workflow
   // that declares none, in which case no `parameters` member is sent at all.
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [runId, setRunId] = useState<string | null>(linkedRunId);
@@ -139,7 +139,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
     enabled: finished,
   });
 
-  // Phase 208: the answers already given to this run's requests. A request with one carries a
+  // The answers already given to this run's requests. A request with one carries a
   // badge and a link to the run that answer started; it can still be answered - a Branch
   // workflow opens another run, a one-answer workflow follows the same answer or refuses a
   // different one.
@@ -244,7 +244,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
    * Answers a pending request and follows the run that continues from it.
    *
    * The answer opens a *new* run: history is append-only, so the original row
-   * keeps its `AwaitingInput` status — and its request (K-130) — and this
+   * keeps its `AwaitingInput` status — and its request — and this
    * screen, address included, switches to the new one.
    */
   const respond = useCallback(

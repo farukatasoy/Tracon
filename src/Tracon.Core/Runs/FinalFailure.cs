@@ -1,11 +1,11 @@
 namespace Tracon;
 
-// 🚨 F-429: the job worker repeated every failure up to the job's attempt limit.
+// The job worker repeated every failure up to the job's attempt limit.
 // An eval whose judge was cut off at its output limit, or a queued run whose model
 // rejected the request with a permanent 4xx, gets the same answer every time, and
 // each attempt paid for the case's agent run and its judge again. The node retry
 // and the online eval had their own answers to the same question, and the node
-// retry read a refusal's TEXT (F-442). The question is answered here, once.
+// retry read a refusal's TEXT. The question is answered here, once.
 
 /// <summary>
 /// Decides whether a failure gets the same answer when the same work is done again.

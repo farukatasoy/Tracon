@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// F-773 (phase 267): when the message source ring writes the run's context event and when it leaves a call
+/// When the message source ring writes the run's context event and when it leaves a call
 /// alone. The position of the ring in the real pipeline is measured by <c>ContextSourceRecordingTests</c>
 /// (functional); here are the guards that decide whose call it is.
 /// </summary>

@@ -12,7 +12,7 @@ public sealed class AzureOpenAIChatClientFactoryTests
     [Fact]
     public void Factory_returns_a_RAW_client_and_does_not_build_a_pipeline()
     {
-        // 🚨 Phase 48: the tool-call loop and telemetry moved to
+        // The tool-call loop and telemetry moved to
         // ModelProviderRegistry. If the factory built them too, two nested
         // FunctionInvokingChatClient instances would form, and the content
         // guard the registry adds would stay OUTSIDE the loop — tool
@@ -53,7 +53,7 @@ public sealed class AzureOpenAIChatClientFactoryTests
         var exception = Should.Throw<TraconException>(() => Factory()
             .CreateChatClient(new ModelBinding { Provider = AzureOpenAIProviderNames.AzureOpenAI, Model = " " }));
 
-        // This is the one big source of confusion this phase carries; if
+        // This is the one big source of confusion this change carries; if
         // the message doesn't say so explicitly, the user assumes "model
         // not found" and looks in the wrong place.
         exception.Message.ShouldContain("DEPLOYMENT");

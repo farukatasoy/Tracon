@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Providers;
 
 /// <summary>
 /// Verifies the <see cref="IProviderRetryClassifier"/> seam added to
-/// <see cref="FallbackChatClient"/> in Phase 113 (F-149): a consumer's
+/// <see cref="FallbackChatClient"/>: a consumer's
 /// decision wins, <see cref="ProviderRetryDecision.Unknown"/> defers to the
 /// built-in rules, a buried cancellation can never be turned into a retry,
 /// and a classifier that throws does not break the model-call path.
@@ -86,7 +86,7 @@ public sealed class ProviderRetryClassifierSeamTests
     {
         // Even a classifier that ALWAYS says Retry must not be able to leak
         // a cancellation into a fallback attempt: the check runs BEFORE the
-        // seam and cannot be overridden (F-149's "the seam cannot leak a
+        // seam and cannot be overridden (the "the seam cannot leak a
         // cancellation into a retry").
         var wrapped = new AggregateException("wrapped", new OperationCanceledException());
         var spy = new StubProviderRetryClassifier(ProviderRetryDecision.Retry);

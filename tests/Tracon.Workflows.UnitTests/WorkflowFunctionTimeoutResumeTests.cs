@@ -6,9 +6,9 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// A function node's timeout is not part of its identity (F-303, failure mode 10):
+/// A function node's timeout is not part of its identity (failure mode 10):
 /// changing it leaves an old checkpoint usable. The resumed run takes the value of the
-/// version it recorded (phase 200), or of the version a resume names on purpose.
+/// version it recorded, or of the version a resume names on purpose.
 /// </summary>
 /// <remarks>
 /// The node's NAME is its executor id; the timeout is applied by the wrapper built for
@@ -73,7 +73,7 @@ public sealed class WorkflowFunctionTimeoutResumeTests
     [Fact]
     public async Task A_resume_keeps_the_timeout_of_the_version_the_run_recorded()
     {
-        // Phase 200: the operator shortened the timeout while the run waited. Nothing named the new
+        // The operator shortened the timeout while the run waited. Nothing named the new
         // version, so the node still has the 30 seconds the run was started with.
         var clock = new ManualClock();
         var host = Host(clock, logs: null, "one");

@@ -5,7 +5,6 @@ namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 
 /// <summary>
 /// Failure manifest: <strong>two versions are up at the same time</strong>
-/// (Phase 157).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -33,7 +32,7 @@ namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 ///   </item>
 ///   <item>
 ///     <description>
-///       <strong>The verification is read-only.</strong> Phase 156's state
+/// <strong>The verification is read-only.</strong> the earlier change's state
 ///       preflight is what answers "can the new version read what is already
 ///       stored"; running it against the mixed schema is the check an operator
 ///       makes before starting the window, and it writes nothing.

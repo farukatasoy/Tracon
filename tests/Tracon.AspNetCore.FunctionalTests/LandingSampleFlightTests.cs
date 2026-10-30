@@ -15,7 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-// K-269: Tracon.Testing.TraconTestHost and this project's own host
+// Tracon.Testing.TraconTestHost and this project's own host
 // share a name, so the package is imported one type at a time.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 

@@ -13,8 +13,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// default, but <c>Directory.Build.targets</c> only adds the tracking files
 /// as <c>AdditionalFiles</c> when they already <em>exist</em> - if a new
 /// packable package is added without either declaration, the analyzer stays
-/// wired up yet has nothing to check, and it silently tracks nothing (Phase
-/// 96, item 96.4). This test reads project files from disk, the same
+/// wired up yet has nothing to check, and it silently tracks nothing.
+/// This test reads project files from disk, the same
 /// pattern as <see cref="DependencyDirectionTests"/> and
 /// <see cref="SourceLanguageTests"/>, so it holds even before the project
 /// has ever been built.
@@ -22,7 +22,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 public sealed class PublicApiTrackingDeclarationTests
 {
     /// <summary>
-    /// Four packages are knowingly excluded (K-424): <c>Generators</c> and
+    /// Four packages are knowingly excluded: <c>Generators</c> and
     /// <c>Templates</c> ship no consumer-facing API surface, and
     /// <c>Client</c> and <c>Cli</c> have their surface generated from the
     /// OpenAPI document, which already carries its own drift gate
@@ -42,7 +42,7 @@ public sealed class PublicApiTrackingDeclarationTests
 
             if (!File.Exists(csproj))
             {
-                // Tracon.Sql.Shared is a linked-source tree (K-176), not
+                // Tracon.Sql.Shared is a linked-source tree, not
                 // its own project - it carries no .csproj and is compiled
                 // into each SQL provider package instead.
                 continue;

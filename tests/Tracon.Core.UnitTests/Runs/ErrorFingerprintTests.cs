@@ -45,7 +45,7 @@ public sealed class ErrorFingerprintTests
     }
 
     /// <summary>
-    /// Open Question 3 -> C: quoted text is DELIBERATELY not stripped. The
+    /// -> C: quoted text is DELIBERATELY not stripped. The
     /// tool name is a distinguishing factor; two different tools' errors
     /// must NOT be grouped into the same cluster.
     /// </summary>

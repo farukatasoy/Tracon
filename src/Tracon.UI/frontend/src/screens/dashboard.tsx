@@ -221,7 +221,7 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
 }
 
 /**
- * Rolling-window average judge score and sample count (Phase 49). The window
+ * Rolling-window average judge score and sample count. The window
  * is in-memory on the server (`OnlineEvalSummaryService`) and resets on
  * restart — this panel is a live indicator, not a historical record.
  */
@@ -315,7 +315,7 @@ function PersistentScoreTrendPanel(): ReactNode {
 
 /**
  * Scored-run count and positive rate, straight off `/api/stats` (decision
- * K-152: unlike `/api/stats/timeseries`, this endpoint does not exclude
+ * Unlike `/api/stats/timeseries`, this endpoint does not exclude
  * anything the eval-run rule already excludes).
  */
 function FeedbackSummary({
@@ -352,7 +352,7 @@ function FeedbackSummary({
 }
 
 /**
- * Failed-run breakdown by class (Phase 44). `Unknown` covers rows written
+ * Failed-run breakdown by class. `Unknown` covers rows written
  * before error classification existed — a high share there means the
  * taxonomy is missing a rule, not that runs are actually unclassifiable.
  */

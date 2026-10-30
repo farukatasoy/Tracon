@@ -7,7 +7,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The version history of a stored workflow over HTTP (phase 200): the list, the diff, the
+/// The version history of a stored workflow over HTTP: the list, the diff, the
 /// rollback, the tenant boundary, the roles and the audit trail.
 /// </summary>
 public sealed class WorkflowVersionEndpointTests

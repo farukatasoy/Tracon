@@ -5,7 +5,7 @@ using Tracon.Tests.Common;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The MSBuild side of the release rehearsal's breaking-change gate (Phase 187):
+/// The MSBuild side of the release rehearsal's breaking-change gate:
 /// strict mode on every library package, and the three properties
 /// <c>scripts/kapi.py yayin</c> passes (<c>TraconPackageBaselineRoot</c>,
 /// <c>TraconPackageBaselineVersion</c>, <c>TraconApiCompatReportDir</c>) turned
