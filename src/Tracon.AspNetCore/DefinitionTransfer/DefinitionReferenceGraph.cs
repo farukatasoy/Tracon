@@ -25,7 +25,7 @@ internal readonly record struct DefinitionReference(DefinitionReferenceKind Kind
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This is the only place that knows which members of a definition name another definition.
+/// This is the only place that knows which members of a definition name another definition.
 /// <c>DefinitionReferenceCoverageTests</c> walks the definition types and refuses a member whose name suggests a
 /// reference unless it is listed here or excluded there with a reason. A reference this type does not know
 /// is dropped from the closure without an error: the export is then missing a skill, and the import of the

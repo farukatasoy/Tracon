@@ -37,11 +37,15 @@ public sealed class DefinitionTransferCommandTests
         bundle["agents"]![0]!["definition"]!["name"]!.GetValue<string>().ShouldBe("triage");
     }
 
+    // Six letters a console code page other than UTF-8 corrupts first (c-cedilla, g-breve, dotless i, o-umlaut,
+    // s-cedilla, u-umlaut). They are written as escapes so the source stays ASCII.
+    private const string NonAsciiInstructions = "Non-ASCII instructions: \u00e7 \u011f \u0131 \u00f6 \u015f \u00fc";
+
     [Fact]
     public async Task Export_to_standard_output_writes_the_bytes_of_the_file_and_nothing_else()
     {
         await using var source = await StartAsync();
-        await SeedAsync(source, "triage", "Türkçe yönerge: ç ğ ı ö ş ü");
+        await SeedAsync(source, "triage", NonAsciiInstructions);
 
         // Console.SetOut cannot see raw bytes written to the process's standard output, and a console code page that is
         // not UTF-8 is exactly what would corrupt this text: so this one case runs the tool as its own process.
@@ -51,7 +55,7 @@ public sealed class DefinitionTransferCommandTests
 
         var text = new UTF8Encoding(false, throwOnInvalidBytes: true).GetString(bytes);
 
-        JsonNode.Parse(text)!["agents"]![0]!["definition"]!["instructions"]!.GetValue<string>().ShouldBe("Türkçe yönerge: ç ğ ı ö ş ü");
+        JsonNode.Parse(text)!["agents"]![0]!["definition"]!["instructions"]!.GetValue<string>().ShouldBe(NonAsciiInstructions);
         text.ShouldNotContain("Wrote");
         error.ShouldContain("1 agent(s)");
     }

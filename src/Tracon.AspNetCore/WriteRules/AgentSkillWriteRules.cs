@@ -10,7 +10,7 @@ namespace Tracon;
 /// ones an import applies to each skill of a package.
 /// </summary>
 /// <remarks>
-/// One set of rules for both writers (K-455). The script permission a skill's scripts need to RUN is not
+/// One set of rules for both writers. The script permission a skill's scripts need to RUN is not
 /// part of writing the skill, and an import never carries it.
 /// </remarks>
 internal static class AgentSkillWriteRules

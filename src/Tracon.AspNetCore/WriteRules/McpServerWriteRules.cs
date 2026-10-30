@@ -8,9 +8,9 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// One set of rules for both writers (K-455). The definition carries no secret, only the NAME of the key its
-/// value is read from (K-059); a plain header value is never returned, so an import carries header names only
-/// (K-856) and the values stay where the target already has them.
+/// One set of rules for both writers. The definition carries no secret, only the NAME of the key its
+/// value is read from; a plain header value is never returned, so an import carries header names only
+/// and the values stay where the target already has them.
 /// </para>
 /// </remarks>
 internal static class McpServerWriteRules
@@ -23,7 +23,7 @@ internal static class McpServerWriteRules
     /// <returns>The plain header map and the credential header key map the saved record carries.</returns>
     /// <remarks>
     /// A save that leaves a header map out keeps the stored one: the admin form sends neither map, and a read
-    /// masks the plain values, so it could not send them back (phase 190).
+    /// masks the plain values, so it could not send them back.
     /// </remarks>
     public static (IReadOnlyDictionary<string, string> Headers, IReadOnlyDictionary<string, string> HeaderKeys) EffectiveHeaders(
         McpServerRequest request,

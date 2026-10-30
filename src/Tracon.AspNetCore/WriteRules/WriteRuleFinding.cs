@@ -11,7 +11,7 @@ namespace Tracon;
 /// The write rules of agents, workflows, skills and MCP servers used to live inside their save endpoints and
 /// answer with a <see cref="ProblemHttpResult"/> directly. An import is a second writer of the same four
 /// definitions, so the rules answer with this neutral shape and each caller turns it into its own answer: a
-/// rule that only one of them knew would let an import write what the save refuses (K-455).
+/// rule that only one of them knew would let an import write what the save refuses.
 /// </remarks>
 internal sealed record WriteRuleFinding
 {

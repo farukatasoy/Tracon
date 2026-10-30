@@ -5,7 +5,7 @@ namespace Tracon;
 /// rollback apply, and the ones an import applies to each workflow of a package.
 /// </summary>
 /// <remarks>
-/// One set of rules for every writer (K-455). The agent catalog and the agent store come in as arguments, so an
+/// One set of rules for every writer. The agent catalog and the agent store come in as arguments, so an
 /// import can hand the rule the package laid over the target (<see cref="DefinitionOverlay"/>).
 /// </remarks>
 internal static class WorkflowDefinitionWriteRules

@@ -7,7 +7,7 @@ namespace Tracon;
 /// <para>
 /// A save takes a request, an export gives a stored definition back, and the two shapes differ (the stored one
 /// carries the tenant, the version and the time). The projection is the way back from the stored shape to the
-/// request. 🚨 A field a projection forgets is dropped from every export without an error, so
+/// request. A field a projection forgets is dropped from every export without an error, so
 /// <c>DefinitionBundleFieldCoverageTests</c> makes every member of the four stored types either appear here or
 /// be excluded by name.
 /// </para>

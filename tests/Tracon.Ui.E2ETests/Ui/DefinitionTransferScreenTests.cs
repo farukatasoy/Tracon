@@ -71,10 +71,10 @@ public sealed class DefinitionTransferScreenTests(BrowserFixture browsers)
 
             await Expect(row.GetByText("New version", new() { Exact = true })).ToBeVisibleAsync();
 
-            await row.GetByRole(AriaRole.Button, new() { Name = "moved-agent" }).ClickAsync();
+            await row.GetByRole(AriaRole.Button, new() { Name = "moved-agent", Exact = true }).ClickAsync();
 
-            await Expect(session.Page.GetByText("\"instructions\": \"First wording.\"")).ToBeVisibleAsync();
-            await Expect(session.Page.GetByText("\"instructions\": \"Second wording.\"")).ToBeVisibleAsync();
+            await Expect(DiffLine(session.Page, "\"instructions\": \"First wording.\"")).ToBeVisibleAsync();
+            await Expect(DiffLine(session.Page, "\"instructions\": \"Second wording.\"")).ToBeVisibleAsync();
         }
         finally
         {
@@ -98,8 +98,13 @@ public sealed class DefinitionTransferScreenTests(BrowserFixture browsers)
 
         await Expect(session.Page.GetByTestId("transfer-check")).ToBeVisibleAsync();
         await Expect(session.Page.GetByTestId("transfer-apply")).ToHaveCountAsync(0);
-        await Expect(session.Page.GetByText("Applying a file needs the administrator role.")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("Applying a file needs the administrator role.", new() { Exact = true })).ToBeVisibleAsync();
     }
+
+    // A diff line is one line of the pretty-printed JSON: the text sits inside it with indentation and, when
+    // another field follows, a comma, so the match is on part of the line. The locator stays strict, so two
+    // lines that both carry the text fail the test instead of one being picked.
+    private static ILocator DiffLine(IPage page, string text) => page.Locator("pre span", new() { HasText = text });
 
     private static async Task SaveAgentAsync(HttpClient client, string name, string instructions, bool update = false)
     {

@@ -12,7 +12,7 @@ internal readonly record struct AgentEntityCheck(WriteRuleFinding? Finding, Agen
 /// apply, and the ones an import applies to each agent of a package.
 /// </summary>
 /// <remarks>
-/// One set of rules for both writers (K-455). The rules that read other agents take the catalog and the
+/// One set of rules for both writers. The rules that read other agents take the catalog and the
 /// validator as arguments, so an import can hand them the package laid over the target
 /// (<see cref="DefinitionOverlay"/>) and still apply the same code.
 /// </remarks>

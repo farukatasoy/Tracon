@@ -14,7 +14,7 @@ namespace Tracon;
 /// so validating against the target alone would report every one of those references as missing.
 /// </para>
 /// <para>
-/// 🚨 The overlay is never saved, cached or listed. It reaches the validator only through the adapters
+/// The overlay is never saved, cached or listed. It reaches the validator only through the adapters
 /// below, each of which refuses a write, and the compilation the validator runs is the uncached one
 /// (<c>CompiledAgentCache</c> is read by the catalog, not by <c>CompileAsync</c>). A definition that
 /// leaked into a catalog result would make a dry run change what a run in the target does.

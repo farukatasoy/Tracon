@@ -7,7 +7,7 @@ namespace Tracon;
 /// <remarks>
 /// <c>formatVersion</c> is a long-lived contract: a file written today must still be read by a later Tracon.
 /// A change that adds a field a v1 reader would ignore is not allowed to stay <c>1</c>, because the reader
-/// refuses unknown fields rather than drop them (phase 269).
+/// refuses unknown fields rather than drop them.
 /// </remarks>
 internal static class DefinitionBundleFormat
 {

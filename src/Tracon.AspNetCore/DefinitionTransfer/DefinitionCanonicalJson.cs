@@ -10,7 +10,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Both sides of a comparison go through the same writer (K-455). A comparison that read one side from a
+/// Both sides of a comparison go through the same writer. A comparison that read one side from a
 /// request and the other from a database payload would call equal content different whenever their number
 /// formats differ (<c>100</c> and <c>100.0</c>, <c>0.7</c> and <c>0.70</c>), and an import run twice would
 /// write a new version the second time. Properties are sorted and numbers are written the one way, so neither

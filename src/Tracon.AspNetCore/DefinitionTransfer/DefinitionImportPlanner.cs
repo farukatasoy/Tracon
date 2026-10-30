@@ -114,7 +114,7 @@ internal sealed class DefinitionImportPlan
 /// <remarks>
 /// <para>
 /// The planner writes nothing. It applies the same write rules the save endpoints apply
-/// (<see cref="AgentDefinitionWriteRules"/> and its siblings, K-455) to every item, with the agents and skills
+/// (<see cref="AgentDefinitionWriteRules"/> and its siblings) to every item, with the agents and skills
 /// of the bundle laid over the target (<see cref="DefinitionOverlay"/>) so a reference between two items of the
 /// bundle is judged as it will be once both are saved.
 /// </para>
