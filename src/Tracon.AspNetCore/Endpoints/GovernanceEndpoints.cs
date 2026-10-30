@@ -251,7 +251,7 @@ internal static class GovernanceEndpoints
 
                 var request = bound!;
 
-                if (Validate(
+                if (McpServerWriteRules.Validate(
                         name,
                         request,
                         tenants.TenantId,
@@ -259,20 +259,13 @@ internal static class GovernanceEndpoints
                         egressOptions.CurrentValue,
                         mcpSecurityOptions.CurrentValue) is { } invalid)
                 {
-                    return invalid;
+                    return invalid.ToProblem();
                 }
 
-                // A save that leaves a header map out keeps the stored one: the
-                // admin form sends neither map, and a read masks the plain
-                // values, so it could not send them back (phase 190).
                 var previous = await servers.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
-                var headers = CredentialHeaderSaveRules.Effective(request.Headers, previous?.Headers, StringComparer.Ordinal);
-                var headerKeys = CredentialHeaderSaveRules.Effective(
-                    request.HeaderConfigurationKeys,
-                    previous?.HeaderConfigurationKeys,
-                    StringComparer.OrdinalIgnoreCase);
+                var (headers, headerKeys) = McpServerWriteRules.EffectiveHeaders(request, previous);
 
-                if (ValidateHeaders(
+                if (McpServerWriteRules.ValidateHeaders(
                         request,
                         headers,
                         headerKeys,
@@ -280,14 +273,14 @@ internal static class GovernanceEndpoints
                         coreOptions.Value.DefaultTenantId,
                         mcpSecurityOptions.CurrentValue) is { } invalidHeaders)
                 {
-                    return invalidHeaders;
+                    return invalidHeaders.ToProblem();
                 }
 
                 var endpoint = new Uri(request.Endpoint, UriKind.Absolute);
 
-                if (RejectApprovalWaiverWithoutSecurityAdmin(httpContext, name, previous, endpoint, request) is { } waiverDenied)
+                if (McpServerWriteRules.RejectApprovalWaiverWithoutSecurityAdmin(httpContext, name, previous, endpoint, request) is { } waiverDenied)
                 {
-                    return waiverDenied;
+                    return waiverDenied.ToProblem();
                 }
 
                 WarnWhenPreservedHeadersMove(
@@ -885,128 +878,14 @@ internal static class GovernanceEndpoints
     private static McpServerDefinition MaskHeaders(McpServerDefinition server)
         => server with { Headers = HeaderValueMask.Apply(server.Headers) };
 
-    /// <summary>Applies the shared header rules and the Authorization conflict rule to an MCP save.</summary>
-    /// <remarks>
-    /// The conflict is judged on the EFFECTIVE map: a save that turns OAuth on
-    /// while the stored record names <c>Authorization</c> in
-    /// <c>headerConfigurationKeys</c> would otherwise store both.
-    /// </remarks>
-    private static ProblemHttpResult? ValidateHeaders(
-        McpServerRequest request,
-        IReadOnlyDictionary<string, string> headers,
-        IReadOnlyDictionary<string, string> headerKeys,
-        string tenantId,
-        string defaultTenantId,
-        TraconMcpSecurityOptions mcpSecurity)
-    {
-        if (CredentialHeaderSaveRules.Validate(
-                request.Headers,
-                request.HeaderConfigurationKeys,
-                headers,
-                headerKeys,
-                mcpSecurity.AllowedConfigurationPrefix,
-                tenantId,
-                defaultTenantId,
-                isReserved: null) is { } rejection)
-        {
-            return TypedResults.Problem(
-                title: rejection.Title,
-                detail: rejection.Detail,
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        // A stored row may still carry a plain Authorization header (it was
-        // saveable before the credential rule, and a save that leaves 'headers'
-        // out keeps it). With OAuth on, the MCP client writes its bearer token
-        // only when the request has no Authorization header yet, so the kept
-        // header would silently replace OAuth on every request.
-        if (request.OAuthEnabled &&
-            headers.Keys.Any(static header => string.Equals(header, "Authorization", StringComparison.OrdinalIgnoreCase)))
-        {
-            return TypedResults.Problem(
-                title: "Conflicting authentication",
-                detail: "The stored 'headers' carry 'Authorization' while OAuth is enabled; OAuth manages that " +
-                        "header and would never send its token. Send 'headers' in the same save without " +
-                        "'Authorization' (or '{}').",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (!headerKeys.Keys.Any(static header => string.Equals(header, "Authorization", StringComparison.OrdinalIgnoreCase)))
-        {
-            return null;
-        }
-
-        if (request.OAuthEnabled)
-        {
-            return TypedResults.Problem(
-                title: "Conflicting authentication",
-                detail: "'headerConfigurationKeys' names 'Authorization' while OAuth is enabled; OAuth " +
-                        "manages the Authorization header itself.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Refuses a save that switches approval off for a server's tools when the API
-    /// key does not also carry the <see cref="ApiKeyScope.SecurityAdmin"/> scope.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The endpoint requires <see cref="ApiKeyScope.AgentsAdmin"/>, but approval
-    /// policy belongs to <see cref="ApiKeyScope.SecurityAdmin"/>: a standing
-    /// approval rule can only be written with it. <c>requiresApproval: false</c>
-    /// waives approval for every tool of the server at once, so it is the same
-    /// decision and needs the same scope.
-    /// </para>
-    /// <para>
-    /// The waiver is a decision about ONE endpoint, exactly like a rule: it needs
-    /// the scope when the server is new, when it was requiring approval, and when
-    /// it already waived approval but the save points it at another endpoint.
-    /// Saving an unchanged waiver (another field edited) does not. A caller that
-    /// presented no API key is governed by the role policy alone, as for every
-    /// other scope.
-    /// </para>
-    /// </remarks>
-    private static ProblemHttpResult? RejectApprovalWaiverWithoutSecurityAdmin(
-        HttpContext httpContext,
-        string name,
-        McpServerDefinition? previous,
-        Uri endpoint,
-        McpServerRequest request)
-    {
-        if (request.RequiresApproval)
-        {
-            return null;
-        }
-
-        var unchangedWaiver = previous is { RequiresApproval: false }
-            && string.Equals(previous.Endpoint.AbsoluteUri, endpoint.AbsoluteUri, StringComparison.Ordinal);
-
-        if (unchangedWaiver
-            || ApiKeyRequestContext.Get(httpContext) is not { } key
-            || key.Scopes.Contains(ApiKeyScope.SecurityAdmin))
-        {
-            return null;
-        }
-
-        return TypedResults.Problem(
-            title: "Insufficient scope",
-            detail: $"Saving server '{name}' with 'requiresApproval: false' waives approval for every " +
-                    $"tool of its endpoint and requires the '{ApiKeyScope.SecurityAdmin}' scope as well. " +
-                    "Keep 'requiresApproval: true' or use a key that also carries that scope.",
-            statusCode: StatusCodes.Status403Forbidden);
-    }
-
     /// <summary>
     /// Logs when a save moves a server to another host while keeping its stored
     /// header maps without the request sending them.
     /// </summary>
     /// <remarks>
     /// The admin form edits the address but never shows the maps, so the
-    /// operator cannot see that the headers and the credential values they
-    /// resolve now go to the new host. The tenant key space rule keeps the key names inside the
+    /// operator cannot see that the headers and the resolved credential values
+    /// go to the new host. The tenant key space rule keeps the key names inside the
     /// tenant, so this is not an escalation; the log makes it visible. Names
     /// only — a value is never logged.
     /// </remarks>
@@ -1017,25 +896,9 @@ internal static class GovernanceEndpoints
         Uri endpoint,
         McpServerRequest request)
     {
-        if (previous is null
-            || string.Equals(previous.Endpoint.Host, endpoint.Host, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
+        var kept = McpServerWriteRules.HeaderNamesKeptAcrossHosts(previous, endpoint, request);
 
-        var kept = new List<string>();
-
-        if (request.Headers is null)
-        {
-            kept.AddRange(previous.Headers.Keys);
-        }
-
-        if (request.HeaderConfigurationKeys is null)
-        {
-            kept.AddRange(previous.HeaderConfigurationKeys.Keys);
-        }
-
-        if (kept.Count > 0 && logger.IsEnabled(LogLevel.Warning))
+        if (previous is not null && kept.Count > 0 && logger.IsEnabled(LogLevel.Warning))
         {
             logger.LogWarning(
                 "MCP server '{ServerName}' moved from host '{PreviousHost}' to '{Host}' and kept its stored headers " +
@@ -1044,133 +907,6 @@ internal static class GovernanceEndpoints
                 previous.Endpoint.Host,
                 endpoint.Host,
                 string.Join(", ", kept));
-        }
-    }
-
-    private static ProblemHttpResult? Validate(
-        string name,
-        McpServerRequest request,
-        string tenantId,
-        string defaultTenantId,
-        TraconEgressOptions egress,
-        TraconMcpSecurityOptions mcpSecurity)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return TypedResults.Problem(
-                title: "Server name empty",
-                detail: "The path name is required.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (!Uri.TryCreate(request.Endpoint, UriKind.Absolute, out var endpoint))
-        {
-            return TypedResults.Problem(
-                title: "Address invalid",
-                detail: "'endpoint' must be an absolute address.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        // Local process (stdio) transport is deliberately unsupported: starting a
-        // process on the server would mean anyone with UI access could run programs on the server.
-        if (!string.Equals(endpoint.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(endpoint.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
-        {
-            return TypedResults.Problem(
-                title: "Address scheme not supported",
-                detail: "Only http and https are accepted. Local process (stdio) transport is " +
-                        "deliberately unsupported; starting a process on the server would break " +
-                        "the rule that tools are defined in code only.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        // 🚨 A read masks every header value, so a client doing read-modify-
-        // write would otherwise store the mask over the real value and break
-        // the server's authentication without a single error.
-        if (HeaderValueMask.FindMaskedHeader(request.Headers) is { } maskedHeader)
-        {
-            return TypedResults.Problem(
-                title: "Header value masked",
-                detail: HeaderValueMask.DescribeRejection(maskedHeader),
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        // 🚨 SSRF: an IP literal is judged here, at save time. A host NAME is
-        // not resolved (it would slow the save down and a name that does not
-        // resolve yet is not an error); that check happens on every
-        // connection, inside EgressSocketGuard.
-        if (EgressAddressValidator.ValidateLiteral(
-                endpoint,
-                new EgressAddressPolicy(egress.AllowPrivateNetworkTargets, AllowLoopback: false)) is { } addressReason)
-        {
-            return TypedResults.Problem(
-                title: "Address not allowed",
-                detail: addressReason,
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        // 🚨 The definition carries no secret, only the NAME of the key its
-        // value is read from (K-059). Without a prefix restriction that name
-        // could point at any configuration key in the application; without
-        // the tenant segment it could point at another tenant's key.
-        if (RequireTenantKey(
-                request.OAuthClientSecretConfigurationKey,
-                mcpSecurity.AllowedConfigurationPrefix,
-                tenantId,
-                defaultTenantId,
-                "oauthClientSecretConfigurationKey") is { } secretKeyProblem)
-        {
-            return secretKeyProblem;
-        }
-
-        if (request.OAuthEnabled)
-        {
-            if (string.IsNullOrWhiteSpace(request.OAuthClientId))
-            {
-                return TypedResults.Problem(
-                    title: "OAuth client id missing",
-                    detail: "'oauthClientId' is required when OAuth is enabled.",
-                    statusCode: StatusCodes.Status400BadRequest);
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Rejects a configuration key name that sits outside the allowed prefix
-    /// or outside the caller's tenant. An empty name is allowed: the field
-    /// itself is optional.
-    /// </summary>
-    private static ProblemHttpResult? RequireTenantKey(
-        string? configurationKeyName,
-        string allowedPrefix,
-        string tenantId,
-        string defaultTenantId,
-        string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(configurationKeyName))
-        {
-            return null;
-        }
-
-        try
-        {
-            ConfigurationKeyGuard.RequireTenantKey(
-                configurationKeyName,
-                allowedPrefix,
-                tenantId,
-                defaultTenantId,
-                fieldName);
-
-            return null;
-        }
-        catch (TraconException exception)
-        {
-            return TypedResults.Problem(
-                title: "Configuration key not allowed",
-                detail: exception.Message,
-                statusCode: StatusCodes.Status400BadRequest);
         }
     }
 }

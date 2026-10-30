@@ -510,35 +510,28 @@ internal static class AgentEndpoints
 
         var request = bound!;
 
-        if (Validate(request) is { } invalid)
+        if (AgentDefinitionWriteRules.Validate(request) is { } invalid)
         {
-            return invalid;
+            return invalid.ToProblem();
         }
 
-        if (await ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
+        if (await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
         {
-            return cycle;
+            return cycle.ToProblem();
         }
 
-        if (await ValidateEntitiesAsync(validator, request, cancellationToken).ConfigureAwait(false) is { } entities)
+        var entityCheck = await AgentDefinitionWriteRules
+            .ValidateEntitiesAsync(validator, request, overlay: null, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entityCheck.Finding is { } entities)
         {
-            return entities;
+            return entities.ToProblem();
         }
 
         if (await FindDescriptorAsync(catalog, request.Name, cancellationToken).ConfigureAwait(false) is { } existing)
         {
-            return TypedResults.Problem(
-                title: "Agent name in use",
-                detail: existing.Origin switch
-                {
-                    AgentDefinitionOrigin.Code => $"'{request.Name}' is an agent defined in code and cannot be changed from the " +
-                                                  "management API. Code wins name conflicts, so a definition written with the same " +
-                                                  "name would never resolve.",
-                    AgentDefinitionOrigin.Custom => $"'{request.Name}' belongs to the '{existing.SourceName}' agent source and cannot " +
-                                                    "be changed from the management API.",
-                    _ => $"A definition named '{request.Name}' already exists. Use PUT to update it.",
-                },
-                statusCode: StatusCodes.Status409Conflict);
+            return AgentDefinitionWriteRules.NameInUse(existing, request.Name).ToProblem();
         }
 
         var saved = await definitions
@@ -572,9 +565,9 @@ internal static class AgentEndpoints
 
         var request = bound!;
 
-        if (Validate(request) is { } invalid)
+        if (AgentDefinitionWriteRules.Validate(request) is { } invalid)
         {
-            return invalid;
+            return invalid.ToProblem();
         }
 
         var report = await validator
@@ -610,24 +603,28 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (Validate(request) is { } invalid)
+        if (AgentDefinitionWriteRules.Validate(request) is { } invalid)
         {
-            return invalid;
+            return invalid.ToProblem();
         }
 
-        if (await GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
+        if (await AgentDefinitionWriteRules.GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
         {
-            return conflict;
+            return conflict.ToProblem();
         }
 
-        if (await ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
+        if (await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
         {
-            return cycle;
+            return cycle.ToProblem();
         }
 
-        if (await ValidateEntitiesAsync(validator, request, cancellationToken).ConfigureAwait(false) is { } entities)
+        var entityCheck = await AgentDefinitionWriteRules
+            .ValidateEntitiesAsync(validator, request, overlay: null, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entityCheck.Finding is { } entities)
         {
-            return entities;
+            return entities.ToProblem();
         }
 
         if (await definitions.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
@@ -647,9 +644,9 @@ internal static class AgentEndpoints
         IAgentDefinitionStore definitions,
         CancellationToken cancellationToken)
     {
-        if (await GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
+        if (await AgentDefinitionWriteRules.GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
         {
-            return conflict;
+            return conflict.ToProblem();
         }
 
         return await definitions.DeleteAsync(name, cancellationToken).ConfigureAwait(false)
@@ -690,9 +687,9 @@ internal static class AgentEndpoints
 
         var request = bound!;
 
-        if (await GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
+        if (await AgentDefinitionWriteRules.GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
         {
-            return conflict;
+            return conflict.ToProblem();
         }
 
         try
@@ -1306,111 +1303,6 @@ internal static class AgentEndpoints
             {
                 return descriptor;
             }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Validates the definition's call graph and produces <c>400</c> if it has a problem.
-    /// </summary>
-    /// <remarks>
-    /// The check happens <strong>at save time</strong>. If it were left to run
-    /// time, the user would only see the error after running the agent and
-    /// after the depth counter filled up - that is, after spending tokens.
-    /// </remarks>
-    private static async ValueTask<ProblemHttpResult?> ValidateCallGraphAsync(
-        IAgentCatalog catalog,
-        AgentDefinitionRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (request.CallableAgents.Count == 0)
-        {
-            return null;
-        }
-
-        var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
-        var names = request.CallableAgents.Select(static agent => agent.Name).ToList();
-
-        return AgentCallGraph.Validate(request.Name, names, descriptors) is { } problem
-            ? TypedResults.Problem(
-                title: "Call graph invalid",
-                detail: problem,
-                statusCode: StatusCodes.Status400BadRequest)
-            : null;
-    }
-
-    /// <summary>
-    /// Fully validates the definition before saving — including model,
-    /// tool, skill, and callable-agent EXISTENCE checks. Before this check
-    /// existed, only the separate <c>POST /api/agents/validate</c> endpoint was
-    /// called; the SAVE path itself would save an unknown skill/tool name
-    /// without any error.
-    /// </summary>
-    private static async ValueTask<ProblemHttpResult?> ValidateEntitiesAsync(
-        AgentDefinitionValidator validator,
-        AgentDefinitionRequest request,
-        CancellationToken cancellationToken)
-    {
-        var report = await validator
-            .ValidateAsync(request.ToDefinition(), cancellationToken)
-            .ConfigureAwait(false);
-
-        if (report.Valid)
-        {
-            return null;
-        }
-
-        var detail = string.Join(
-            " ",
-            report.Messages
-                .Where(static message => message.Severity == ValidationSeverity.Error)
-                .Select(static message => message.Message));
-
-        return TypedResults.Problem(
-            title: "Definition invalid",
-            detail: detail,
-            statusCode: StatusCodes.Status400BadRequest);
-    }
-
-    private static async ValueTask<ProblemHttpResult?> GuardCodeAgentAsync(
-        IAgentCatalog catalog,
-        string name,
-        CancellationToken cancellationToken)
-    {
-        var descriptor = await FindDescriptorAsync(catalog, name, cancellationToken).ConfigureAwait(false);
-
-        return descriptor?.Origin switch
-        {
-            AgentDefinitionOrigin.Code => TypedResults.Problem(
-                title: "Code-defined agent cannot be modified",
-                detail: $"'{name}' is defined in code. Code definitions are validated at compile time " +
-                        "and cannot be changed from the management API; update the application code to change it.",
-                statusCode: StatusCodes.Status409Conflict),
-            AgentDefinitionOrigin.Custom => TypedResults.Problem(
-                title: "Custom-source agent cannot be modified",
-                detail: $"'{name}' belongs to the '{descriptor.SourceName}' agent source and cannot be changed from the management API.",
-                statusCode: StatusCodes.Status409Conflict),
-            _ => null,
-        };
-    }
-
-    private static ProblemHttpResult? Validate(AgentDefinitionRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return TypedResults.Problem(
-                title: "Agent name empty",
-                detail: "'name' is required.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Model?.Provider) || string.IsNullOrWhiteSpace(request.Model.Model))
-        {
-            return TypedResults.Problem(
-                title: "Model binding missing",
-                detail: "'model.provider' and 'model.model' are required.",
-                statusCode: StatusCodes.Status400BadRequest);
         }
 
         return null;

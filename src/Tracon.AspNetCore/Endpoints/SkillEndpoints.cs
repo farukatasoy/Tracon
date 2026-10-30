@@ -130,24 +130,19 @@ internal static class SkillEndpoints
         // The same rule as a code-defined agent: code wins the name, so a stored
         // copy would never run, and the console editor - which reads the resolved
         // skill - would otherwise write the code content over it.
-        if (catalog.IsDefinedInCode(name))
+        if (AgentSkillWriteRules.CodeDefinedName(catalog, name) is { } codeDefined)
         {
-            return TypedResults.Problem(
-                title: "Code-defined skill cannot be modified",
-                detail: $"'{name}' is a skill defined in code. A skill defined in code wins name conflicts, " +
-                        "so a stored skill with the same name would never run; update the application code " +
-                        "to change it.",
-                statusCode: StatusCodes.Status409Conflict);
+            return codeDefined.ToProblem();
         }
 
-        if (Validate(request, options.Value.Skills) is { } invalid)
+        if (AgentSkillWriteRules.Validate(request, options.Value.Skills) is { } invalid)
         {
-            return invalid;
+            return invalid.ToProblem();
         }
 
-        if (ValidateScripts(request, options.Value.Skills.Scripts) is { } invalidScript)
+        if (AgentSkillWriteRules.ValidateScripts(request, options.Value.Skills.Scripts) is { } invalidScript)
         {
-            return invalidScript;
+            return invalidScript.ToProblem();
         }
 
         var exists = await store.GetAsync(tenantContext.TenantId, name, cancellationToken).ConfigureAwait(false) is not null;
@@ -177,138 +172,6 @@ internal static class SkillEndpoints
                 statusCode: StatusCodes.Status409Conflict)
             : NotFound(name);
     }
-
-    private static ProblemHttpResult? Validate(AgentSkillRequest request, TraconSkillOptions options)
-    {
-        if (!AgentSkillFrontmatter.ValidateName(request.Name, out var nameReason))
-        {
-            return Invalid("Skill name invalid", nameReason);
-        }
-
-        if (!AgentSkillFrontmatter.ValidateDescription(request.Description, out var descriptionReason))
-        {
-            return Invalid("Skill description invalid", descriptionReason);
-        }
-
-        if (request.Compatibility is { Length: > 0 }
-            && !AgentSkillFrontmatter.ValidateCompatibility(request.Compatibility, out var compatibilityReason))
-        {
-            return Invalid("Skill compatibility invalid", compatibilityReason);
-        }
-
-        if (Encoding.UTF8.GetByteCount(request.Instructions) > options.MaxInstructionsLength)
-        {
-            return Invalid("Skill instructions too large", $"instructions may be at most {options.MaxInstructionsLength} bytes.");
-        }
-
-        if (request.Resources.Count > options.MaxResourcesPerSkill)
-        {
-            return Invalid("Too many resources", $"A skill may carry at most {options.MaxResourcesPerSkill} resources.");
-        }
-
-        var resourceNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var resource in request.Resources)
-        {
-            if (string.IsNullOrWhiteSpace(resource.Name) || !resourceNames.Add(resource.Name))
-            {
-                return Invalid("Resource name invalid", "Every resource name must be non-empty and unique within the skill.");
-            }
-
-            if (Encoding.UTF8.GetByteCount(resource.Content) > options.MaxResourceContentLength)
-            {
-                return Invalid("Skill resource too large", $"Each resource may be at most {options.MaxResourceContentLength} bytes.");
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Validates the script definitions.
-    /// </summary>
-    /// <remarks>
-    /// Scripts can be saved <strong>even when execution is disabled</strong>; saving and
-    /// executing are separate permissions. However, an extension that is not on the
-    /// interpreter allowlist is rejected: such a saved script could never be run
-    /// and would silently leave dead data behind.
-    /// </remarks>
-    private static ProblemHttpResult? ValidateScripts(
-        AgentSkillRequest request,
-        TraconSkillScriptOptions options)
-    {
-        if (request.Scripts.Count == 0)
-        {
-            return null;
-        }
-
-        if (request.Scripts.Count > options.MaxScriptsPerSkill)
-        {
-            return Invalid(
-                "Too many scripts",
-                $"A skill may carry at most {options.MaxScriptsPerSkill} scripts.");
-        }
-
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var script in request.Scripts)
-        {
-            if (string.IsNullOrWhiteSpace(script.Name) || !names.Add(script.Name))
-            {
-                return Invalid(
-                    "Script name invalid",
-                    "Every script name must be non-empty and unique within the skill.");
-            }
-
-            // The name becomes a file name under the run's scratch directory, so
-            // it may not carry a path. Rejected here so the caller sees 400 at
-            // save time rather than a failed run later.
-            if (!SkillScriptNaming.IsSafeFileName(script.Name))
-            {
-                return Invalid(
-                    "Script name invalid",
-                    "A script name must be a plain file name: no directory separator, no path root, no '..'.");
-            }
-
-            var extension = script.Extension.TrimStart('.');
-            if (extension.Length == 0 || !options.Interpreters.ContainsKey(extension))
-            {
-                return Invalid(
-                    "Script extension not allowed",
-                    $"There is no registered interpreter for the '{script.Extension}' extension.");
-            }
-
-            if (Encoding.UTF8.GetByteCount(script.Content) > options.MaxScriptContentLength)
-            {
-                return Invalid(
-                    "Script too large",
-                    $"Each script may be at most {options.MaxScriptContentLength} bytes.");
-            }
-
-            if (script.ParametersSchema is { Length: > 0 } schema && !IsJsonObject(schema))
-            {
-                return Invalid(
-                    "Parameter schema invalid",
-                    "parametersSchema must be a valid JSON object.");
-            }
-        }
-
-        return null;
-    }
-
-    private static bool IsJsonObject(string text)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(text);
-            return document.RootElement.ValueKind == JsonValueKind.Object;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private static ProblemHttpResult Invalid(string title, string detail)
-        => TypedResults.Problem(title: title, detail: detail, statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult NotFound(string name)
         => TypedResults.Problem(
