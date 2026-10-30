@@ -19,7 +19,7 @@ statuses and these pages. Open the source before you decide anything on the stre
 
 | Product | What Microsoft says it does | Status on Learn | Source |
 |---|---|---|---|
-| Foundry Control Plane | One interface for visibility, governance, and control of agents, models, and tools across a Foundry enterprise. It also lists agents that run on other platforms. Fleet, observability, compliance, and security views sit under **Operate** | **Preview** for the Operate panes (Overview, Assets, Compliance) and for Monitoring. Tracing is GA for prompt and hosted agents and Preview for external agents. Page updated 2026-09-23 | [Overview](https://learn.microsoft.com/azure/foundry/control-plane/overview) · [Feature readiness](https://learn.microsoft.com/azure/foundry/concepts/general-availability) |
+| Foundry Control Plane | One interface for visibility, governance, and control of agents, models, and tools across a Foundry enterprise. It also lists agents that run on other platforms. Fleet, observability, compliance, and security views sit under **Operate** | **Preview** for the Operate panes (Overview, Assets, Compliance) and for Monitoring. Tracing is GA for prompt and hosted agents and Preview for external agents. Feature-readiness page dated 2026-08-14 | [Overview](https://learn.microsoft.com/azure/foundry/control-plane/overview) · [Feature readiness](https://learn.microsoft.com/azure/foundry/concepts/general-availability) |
 | Microsoft Entra Agent ID | An identity and security framework for agents: agent identities, blueprints, and OAuth 2.0, MCP, and A2A flows. It works with agents from Microsoft and other platforms. It is available to all Entra customers. Extending Entra security features to agents, such as Conditional Access for agents, needs a Microsoft Agent 365 license | **GA.** The What's new page announces general availability and carries the date 2026-05-01 | [What is Agent ID](https://learn.microsoft.com/entra/agent-id/what-is-microsoft-entra-agent-id) · [What's new](https://learn.microsoft.com/entra/agent-id/whats-new-agent-id) · [Conditional Access for agents](https://learn.microsoft.com/entra/identity/conditional-access/agent-id) |
 | Microsoft Agent 365 | A central registry of an organization's agents, with observe, govern, and secure functions through Microsoft 365 admin center, Entra, Purview, and Defender | **GA** since 2026-05-01 for the Commercial segment, licensed per user | [Overview](https://learn.microsoft.com/microsoft-agent-365/overview) |
 | Foundry Hosted Agents | Containerized agent applications that run on Microsoft-managed infrastructure. Each deployed agent gets its own Entra identity. An agent built with Microsoft Agent Framework is exposed through the Foundry Responses or Invocations protocol | **GA.** The page that says so is dated 2026-10-22 and gives no GA date. The hosting package for .NET, `Microsoft.Agents.AI.Foundry.Hosting`, is installed with `--prerelease` | [Agent Framework hosting page](https://learn.microsoft.com/agent-framework/hosting/foundry-hosted-agent) |
@@ -39,9 +39,10 @@ Tracon is a control plane for one host. It does not claim to be the control plan
 
 ## How telemetry can reach Foundry
 
-Microsoft documents one route for an agent that is not built in Foundry and emits OpenTelemetry through OTLP. The agent
-sends OTLP to an OpenTelemetry Collector. The collector forwards it with the Azure Monitor exporter to the
-Application Insights resource of the Foundry project. Foundry Control Plane reads it from there.
+Microsoft documents one route for an agent that is not built in Foundry and emits OpenTelemetry through OTLP
+([Register and manage custom agents](https://learn.microsoft.com/azure/foundry/control-plane/register-custom-agent),
+page dated 2026-05-06). The agent sends OTLP to an OpenTelemetry Collector. The collector forwards it with the Azure
+Monitor exporter to the Application Insights resource of the Foundry project. Foundry Control Plane reads it from there.
 
 ```mermaid
 flowchart LR
@@ -53,11 +54,12 @@ flowchart LR
     HOST -.->|"run records"| STORE[("Your SQL store")]
 ```
 
-Registering a host as a custom agent in Foundry adds conditions. Foundry puts an Azure API Management gateway in front
-of the agent, and clients must call the new address. The agent must expose an endpoint that Foundry can reach, and use
-HTTP or A2A. Foundry also looks for a span with the operation `create_agent` that carries the attribute
-`gen_ai.agent.id`. Tracon's own code emits no `create_agent` span, and the trace in the Aspire guide shows none. Without
-more instrumentation, Microsoft's page says the Foundry trace view shows only the HTTP call to the agent.
+Registering a host as a custom agent in Foundry adds conditions, all from the same page. Foundry puts an Azure API
+Management gateway in front of the agent, and clients must call the new address. The agent must expose an endpoint that
+Foundry can reach, and use HTTP or A2A. Foundry finds the traces of an agent by an identifier: a span with the operation
+`create_agent` that carries `gen_ai.agent.id` or `gen_ai.agent.name`. The identifier is the agent name unless you
+register another one. Tracon's own code emits no `create_agent` span, and the trace in the Aspire guide shows none. In
+Microsoft's LangGraph example, an agent without extra instrumentation shows only the HTTP call in the Foundry trace view.
 
 ## What this page does not claim
 

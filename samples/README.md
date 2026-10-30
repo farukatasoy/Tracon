@@ -28,5 +28,7 @@ consumer on the .NET 8 runtime. See
 
 - [`Tracon.Api`](Tracon.Api/) is the main ASP.NET Core sample.
 - [`Tracon.Embedded`](Tracon.Embedded/) shows the embedded deployment shape.
+- [`Tracon.AppHost`](Tracon.AppHost/) is an Aspire AppHost that starts `Tracon.Api` on a pgvector PostgreSQL and opens the
+  Aspire dashboard. Run it with `dotnet run --project samples/Tracon.AppHost`; Docker must be running.
 - [`Tracon.Samples.Net8Consumer`](Tracon.Samples.Net8Consumer/) is a `net8.0` console
   application that takes `Tracon.Core` from the packed feed and runs one agent.

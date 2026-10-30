@@ -10,9 +10,11 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// 🚨 The image MUST carry the `vector` extension. Aspire's default PostgreSQL image does not, and Tracon's PostgreSQL
-// migration set runs `CREATE EXTENSION IF NOT EXISTS vector;`, so the sample API would never start (K-346). `pg18` is the
-// tag the integration tests and the capacity runs use.
+// 🚨 The image MUST carry the `vector` extension, because the sample API turns Knowledge on
+// (`Tracon:PostgreSql:EnableKnowledge` in its appsettings.json) and the Knowledge migration runs
+// `CREATE EXTENSION IF NOT EXISTS vector;`. Aspire's default PostgreSQL image does not ship it, and the API then stops at
+// start with `extension "vector" is not available`. A host that leaves Knowledge off runs on the default image.
+// `pg18` is the tag the integration tests and the capacity runs use.
 var postgres = builder.AddPostgres("postgres")
     .WithImage("pgvector/pgvector")
     .WithImageTag("pg18");

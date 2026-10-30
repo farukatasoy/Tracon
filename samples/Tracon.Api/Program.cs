@@ -99,7 +99,7 @@ builder.Services.AddProblemDetails();
 // so can any collector setup. Without it nothing below runs and the sample behaves exactly as before.
 //
 // `UseOtlpExporter()` reads the standard `OTEL_*` variables (endpoint, protocol, headers, service name), so no address
-// is written here. If the endpoint is unreachable the SDK drops the data and logs; it does not stop the application.
+// is written here. If the endpoint is unreachable the SDK drops what it cannot send; it does not stop the application.
 if (builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] is { Length: > 0 })
 {
     builder.Services.AddOpenTelemetry()

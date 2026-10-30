@@ -4,8 +4,8 @@ description: Start a Tracon host and a pgvector PostgreSQL from an Aspire AppHos
 ---
 
 How do you add a Tracon host to an Aspire solution, and what do you see in the dashboard? Three decisions are
-specific to Tracon: the database image, the name of the connection string setting, and the telemetry
-registration. The rest is a normal AppHost.
+specific to Tracon: whether the database image carries the `vector` extension, the name of the connection string
+setting, and the telemetry registration. The rest is a normal AppHost.
 
 The repository shows all three in `samples/Tracon.AppHost`. Start it with one command. Docker, or another
 container runtime that Aspire supports, must be running:
@@ -52,6 +52,7 @@ package.
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Needed because this host turns Knowledge on (EnableKnowledge = true). Leave both lines out when it stays off.
 var postgres = builder.AddPostgres("postgres")
     .WithImage("pgvector/pgvector")
     .WithImageTag("pg18");
@@ -67,7 +68,7 @@ builder.Build().Run();
 
 | Decision | What goes wrong if you skip it |
 |---|---|
-| Use the `pgvector/pgvector` image, not the default | The Tracon PostgreSQL migrations run `CREATE EXTENSION IF NOT EXISTS vector`. The database must provide that extension, and the official `postgres` image that `AddPostgres` starts by default does not ship it |
+| Use the `pgvector/pgvector` image when `EnableKnowledge` is `true` | [Knowledge](/guides/knowledge/) needs the `vector` extension, and the Tracon PostgreSQL migrations create it only when `Tracon:PostgreSql:EnableKnowledge` is `true`. The sample turns it on. With the official `postgres` image, which `AddPostgres` starts by default, the host then stops at start: `Migration '0001_vector' could not be applied: extension "vector" is not available`. Measured with `postgres:18-alpine`. With `EnableKnowledge` off, the same image starts and migrates |
 | Set `Tracon__PostgreSql__ConnectionString` with `WithEnvironment` | `WithReference(database)` writes `ConnectionStrings__tracon`. Tracon reads `Tracon:PostgreSql:ConnectionString` and never that key, so the host starts without persistence. The environment variable also wins over a connection string that your user-secrets hold for another database |
 | Keep model keys out of the AppHost | The AppHost needs no secret. Put provider keys in the host project's own user-secrets, as you do without Aspire |
 
@@ -134,7 +135,7 @@ The Metrics page lists the `Tracon` meter next to the ASP.NET Core meters. It sh
 | Symptom | Check |
 |---|---|
 | The dashboard lists the host but no `tracon.run` span | No run has happened yet, or the host process has no `OTEL_EXPORTER_OTLP_ENDPOINT`. Open the resource in the dashboard and read its environment variables |
-| The host stops at start with an error about the `vector` extension | The database image does not provide `vector`. Use `pgvector/pgvector` |
+| The host stops at start with `extension "vector" is not available` | `EnableKnowledge` is `true` and the database image does not provide `vector`. Use `pgvector/pgvector`, or leave `EnableKnowledge` off |
 | The host runs but reports a different database than the container | The `Tracon__PostgreSql__ConnectionString` variable is missing, so a user-secrets value is in use. `GET /api/diagnostics` shows the active provider when you turn it on |
 | The collector or dashboard is down | Runs still complete. The OpenTelemetry SDK drops what it cannot send. Measured: a run finished normally with the endpoint pointing at a closed port |
 
