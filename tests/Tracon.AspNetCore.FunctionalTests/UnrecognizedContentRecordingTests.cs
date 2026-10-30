@@ -82,7 +82,10 @@ public sealed class UnrecognizedContentRecordingTests
         var events = await OutputTruncationTests.EventsAsync(host, run.Id);
 
         run.Status.ShouldBe(RunStatus.Completed);
-        events.ShouldNotContain(static e => e.Type == RunEventType.Custom);
+
+        // Every run records its context (F-773); nothing else is a Custom event here.
+        events.Where(static e => e.Type == RunEventType.Custom)
+            .ShouldAllBe(static e => string.Equals(e.CustomType, RunEventCustomTypes.Context, StringComparison.Ordinal));
     }
 
     [Fact]

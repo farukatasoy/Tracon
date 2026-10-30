@@ -183,6 +183,7 @@ public sealed partial class RunRecordingAgent
             ExtraUsage = new SideChannelUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),
             HostedCalls = new HostedCallLedger(),
+            ContextRecord = new ContextRecordClaim(),
 
             // What the tools of this run measure beyond tokens adds up here and
             // reaches the tree's budget the moment it does (phase 199).

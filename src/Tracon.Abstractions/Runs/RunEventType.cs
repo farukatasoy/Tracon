@@ -28,12 +28,13 @@ namespace Tracon;
 /// human request can be read from, <see cref="WorkflowResponseApplied"/>, which
 /// is the only link from an answer's run back to the run it answered, and
 /// <see cref="Custom"/> of the reserved notice types <c>RunEventCustomTypes.QuotaThreshold</c>,
-/// <c>RunEventCustomTypes.OutputTruncated</c>, <c>RunEventCustomTypes.OutputFiltered</c>
-/// and <c>RunEventCustomTypes.ToolInputDeclined</c>, whose payload names what happened
-/// (the dedup key a client acts on, the provider, a reason code) and never carries a
-/// tool's input or output or the answer text. A consumer's OWN <see cref="Custom"/>
-/// event is not exempt, and neither are the other reserved types
-/// (<c>RunEventCustomTypes.Content</c>, <c>RunEventCustomTypes.WorkflowEvent</c>).
+/// <c>RunEventCustomTypes.OutputTruncated</c>, <c>RunEventCustomTypes.OutputFiltered</c>,
+/// <c>RunEventCustomTypes.ToolInputDeclined</c> and <c>RunEventCustomTypes.Context</c>, whose payload names
+/// what happened (the dedup key a client acts on, the provider, a reason code, a count of
+/// messages by source) and never carries a tool's input or output or the answer text. A
+/// consumer's OWN <see cref="Custom"/> event is not exempt, and neither are the other
+/// reserved types (<c>RunEventCustomTypes.Content</c>, <c>RunEventCustomTypes.Citation</c>,
+/// <c>RunEventCustomTypes.WorkflowEvent</c>).
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunEventType>))]

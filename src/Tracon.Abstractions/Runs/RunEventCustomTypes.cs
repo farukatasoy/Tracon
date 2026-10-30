@@ -134,6 +134,68 @@ public static partial class RunEventCustomTypes
     public const string Content = ReservedPrefix + "content";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the event a run writes for each citation the
+    /// model attached to its response: a web search or file search source, or a source a retrieval
+    /// tool returned.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The payload is a JSON object with <c>type</c> (<c>citation</c>) and the keys the provider
+    /// gave: <c>title</c>, <c>url</c>, <c>fileId</c>, <c>toolName</c>, <c>snippet</c> and the character
+    /// span of the cited text (<c>start</c> and <c>end</c>). A key the provider left out is not in
+    /// the payload. <c>title</c> and <c>snippet</c> are cut at 2 048 characters (and shorter when
+    /// <c>MaxPayloadLength</c> needs it) so the JSON stays whole. <c>Text</c> is <c>citation</c> or
+    /// <c>citation: &lt;toolName&gt;</c> and carries no title.
+    /// </para>
+    /// <para>
+    /// <c>url</c> is the scheme and host (and a non-default port) of the source, never its path or
+    /// query: a retrieval tool's citation can carry a signed address, the same reason a
+    /// <c>uri</c> content event writes no address. <c>TraconRunRecordingOptions.RecordCitationUrls</c>
+    /// turns the full address on. User information (<c>user:password@</c>) is never written. An
+    /// address that is not an absolute <c>http</c> or <c>https</c> address is not written; the event
+    /// still is.
+    /// </para>
+    /// <para>
+    /// One event for each citation, however many updates of a stream show it. It does not depend on
+    /// <c>RecordMessageDeltas</c>: a citation is not message text. Like <see cref="Content"/>, the
+    /// payload follows <c>TraconRunRecordingOptions.RecordToolPayloads</c>: with it off the event stays
+    /// and <c>Text</c> stays, but <c>Payload</c> is <see langword="null"/> (a title or a snippet can
+    /// carry personal data). The live stream of an agent run does not carry it; read it from
+    /// <c>GET /api/runs/{id}/events</c>.
+    /// </para>
+    /// </remarks>
+    public const string Citation = ReservedPrefix + "citation";
+
+    /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the event a run writes for the first model
+    /// request of the run: how many of the messages it sent came from each source.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The payload is a JSON object: <c>type</c> (<c>context</c>) and <c>sources</c>, a list of
+    /// <c>{ "type", "id", "count" }</c> in a fixed order (by type, then by id). <c>type</c> is
+    /// the source of the message as the framework names it: <c>External</c> (the caller's own
+    /// messages), <c>ChatHistory</c> (the stored conversation) or <c>AIContextProvider</c> (a context
+    /// provider such as conversation memory or a retrieval provider); <c>id</c> is the provider's
+    /// identifier and is left out for a source that has none. A message with no source counts as
+    /// <c>External</c>.
+    /// </para>
+    /// <para>
+    /// It carries counts only, never a message or its length. It answers one question: how many
+    /// messages did memory or retrieval add to what the model saw. One event for each run: the
+    /// later model calls of the tool loop and the side-channel calls (a loop judge, the context
+    /// summarizer) write none, and a child run writes its own. <c>Text</c> is
+    /// <c>context: &lt;total&gt; messages</c>.
+    /// </para>
+    /// <para>
+    /// The payload carries no user data, so like <see cref="OutputTruncated"/> it is written with
+    /// <c>RecordToolPayloads</c> off. The live stream of an agent run does not carry it; read it from
+    /// <c>GET /api/runs/{id}/events</c>.
+    /// </para>
+    /// </remarks>
+    public const string Context = ReservedPrefix + "context";
+
+    /// <summary>
     /// The <see cref="RunEventType.Custom"/> type of the event a workflow run writes for a
     /// <c>WorkflowEvent</c> that Tracon has no event type for, such as a custom event type
     /// an executor of a code workflow raises.

@@ -84,6 +84,39 @@ public sealed class AgentDelegationTests
     }
 
     [Fact]
+    public async Task Each_run_of_the_tree_writes_its_own_context_event()
+    {
+        // F-773: the one-per-run claim belongs to the run's own scope. A child run that shared the
+        // root's claim would write nothing, and a root that took the child's would write the child's
+        // request; the tool loop of the root asks the model four times and must still write one.
+        await using var host = await StartAsync();
+
+        var agent = await ResolveRouterAsync(host);
+        await agent.RunAsync("start");
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var all = await runs.QueryRunsAsync(new RunQuery { OnlyRootRuns = false });
+
+        all.Count.ShouldBe(2);
+
+        foreach (var run in all)
+        {
+            var context = new List<RunEvent>();
+
+            await foreach (var runEvent in runs.ReadEventsAsync(run.Id))
+            {
+                if (string.Equals(runEvent.CustomType, RunEventCustomTypes.Context, StringComparison.Ordinal))
+                {
+                    context.Add(runEvent);
+                }
+            }
+
+            context.ShouldHaveSingleItem($"run '{run.AgentName}' must write exactly one context event");
+            context[0].Text.ShouldBe("context: 1 messages");
+        }
+    }
+
+    [Fact]
     public async Task No_child_call_can_be_made_when_the_depth_limit_is_zero()
     {
         await using var host = await StartAsync(maxDepth: 0);

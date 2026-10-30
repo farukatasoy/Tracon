@@ -332,6 +332,11 @@ public static partial class TraconServiceCollectionExtensions
             static (o, v) => o.RecordToolPayloads = v);
 
         recordingRead.Boolean(
+            nameof(TraconRunRecordingOptions.RecordCitationUrls),
+            static o => o.RecordCitationUrls,
+            static (o, v) => o.RecordCitationUrls = v);
+
+        recordingRead.Boolean(
             nameof(TraconRunRecordingOptions.RecordReasoningDeltas),
             static o => o.RecordReasoningDeltas,
             static (o, v) => o.RecordReasoningDeltas = v);

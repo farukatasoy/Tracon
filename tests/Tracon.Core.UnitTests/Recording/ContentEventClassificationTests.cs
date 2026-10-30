@@ -121,7 +121,8 @@ public sealed class ContentEventClassificationTests
             new TraconRunRecordingOptions());
 
         var interesting = events
-            .Where(static e => e.Type is RunEventType.MessageDelta or RunEventType.Custom)
+            .Where(static e => e.Type is RunEventType.MessageDelta or RunEventType.Custom
+                && !string.Equals(e.CustomType, RunEventCustomTypes.Context, StringComparison.Ordinal))
             .Select(static e => e.Text)
             .ToList();
 

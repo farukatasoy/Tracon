@@ -239,6 +239,23 @@ public sealed record AgentRunScope
     internal HostedCallLedger? HostedCalls { get; init; }
 
     /// <summary>
+    /// Gets the claim on the run's one <see cref="RunEventCustomTypes.Context"/> event.
+    /// <see langword="null"/> where no code records: a scope a workflow opens for itself.
+    /// </summary>
+    /// <remarks>
+    /// A reference holder because the scope is a record (see <see cref="ContextRecordClaim"/>). Read it
+    /// through <see cref="TryClaimContextRecord"/>.
+    /// </remarks>
+    internal ContextRecordClaim? ContextRecord { get; init; }
+
+    /// <summary>Claims the right to write the run's context event, once for the run.</summary>
+    /// <returns>
+    /// <see langword="true"/> for the first claim; <see langword="false"/> after it, and in a scope that
+    /// records no context.
+    /// </returns>
+    internal bool TryClaimContextRecord() => ContextRecord?.TryClaim() ?? false;
+
+    /// <summary>
     /// Gets the accumulator that adds up the non-token amounts the run reported: what its
     /// workflow function nodes reported and what its tools measured.
     /// </summary>

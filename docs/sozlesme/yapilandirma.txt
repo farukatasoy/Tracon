@@ -256,6 +256,7 @@ Tracon:RunReconciliation:OrphanThreshold
 Tracon:RunReconciliation:ScanInterval
 Tracon:RunRecording:Enabled
 Tracon:RunRecording:MaxPayloadLength
+Tracon:RunRecording:RecordCitationUrls
 Tracon:RunRecording:RecordMessageDeltas
 Tracon:RunRecording:RecordReasoningDeltas
 Tracon:RunRecording:RecordRunInput

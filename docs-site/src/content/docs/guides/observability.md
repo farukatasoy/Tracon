@@ -499,6 +499,7 @@ run inspection:
       "Enabled": true,
       "RecordMessageDeltas": true,
       "RecordToolPayloads": true,
+      "RecordCitationUrls": false,
       "RecordReasoningDeltas": false,
       "MaxPayloadLength": 8192,
       "RecordRunInput": true
@@ -512,6 +513,7 @@ run inspection:
 | `RunRecording.Enabled` | `true` | When false, no run event is written |
 | `RecordMessageDeltas` | `true` | Turning it off reduces write volume for streaming runs |
 | `RecordToolPayloads` | `true` | Tool arguments and results can contain personal or secret data |
+| `RecordCitationUrls` | `false` | A citation event writes the scheme and host of its source; `true` writes the whole address, which can hold a signed credential. User information is never written |
 | `RecordReasoningDeltas` | `false` | Off unlike the other flags: reasoning output can run far longer than the answer and can restate input the answer never shows |
 | `MaxPayloadLength` | 8,192 characters | Valid range is 0 through 1,048,576; `0` means no truncation |
 | `RecordRunInput` | `true` | Required for run replay; input is not truncated by `MaxPayloadLength` |
@@ -522,6 +524,11 @@ cannot be replayed. This failure isolation prevents an observability outage from
 becoming an agent outage. A registered [`IRunEventSink`](/concepts/runs/#observing-events-beyond-the-store)
 is held to the same rule: a sink failure never stops the store write, and a store
 failure never stops a sink from seeing the rest of the run.
+
+Two events answer what an answer rested on. `tracon.citation` is written for each citation the model attached
+to its answer, and `tracon.context` once for each run: it counts the messages of the first model request by the
+source that added them (`External`, `ChatHistory`, `AIContextProvider`), so you can see that memory or a retrieval
+provider added three messages the caller never sent. See [Citations and message sources](/concepts/runs/#citations-and-message-sources).
 
 `RecordSensitiveData=false` does not redact run events, tool payloads, or saved run
 input. It applies to the span store. Configure both sections and retention according to

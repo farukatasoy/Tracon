@@ -268,10 +268,11 @@ their own before the rest are folded into a single `other` series — see
 | `RunRecording:Enabled` | `true` |
 | `RunRecording:RecordMessageDeltas` | `true` |
 | `RunRecording:RecordToolPayloads` | `true` |
+| `RunRecording:RecordCitationUrls` | `false` |
 | `RunRecording:MaxPayloadLength` | `8192` characters |
 | `RunRecording:RecordRunInput` | `true` |
 
-Disable tool payloads when they can contain personal or regulated data. Replay needs
+Disable tool payloads when they can contain personal or regulated data. A citation event records only the scheme and host of the source by default; `RecordCitationUrls` records the whole address, which can hold a signed credential when a retrieval tool produced it. Replay needs
 recorded run input, and so does continuing a parameterized run: the parameter values a
 run was bound with are recorded beside its input, and a replay, an automatic continuation,
 a resume after a tool approval or a resume of a workflow that declares parameters is

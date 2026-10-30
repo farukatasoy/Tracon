@@ -126,6 +126,17 @@ search is one such call. Both kinds of call are priced.
 
 A provider can show one call in several pieces while it streams. Tracon writes the call once.
 
+## Citations
+
+A web search or a file search ties the model's answer to the sources it used. The provider sends each tie as a
+citation on the answer, and the run record keeps it as a `tracon.citation` event: the source's title, its address, the
+file identifier of a file search, the tool that made it, the cited passage and the span of the answer it supports.
+Read them from `GET /api/runs/{runId}/events`; see [Citations and message sources](/concepts/runs/#citations-and-message-sources).
+
+By default the event writes only the scheme and host of the address (`https://example.com`), never its path or query.
+A retrieval tool's citation can point at a signed address, and a signature in a query string is a credential.
+Set `Tracon:RunRecording:RecordCitationUrls` to `true` to record the whole address when your sources do not sign theirs.
+
 ## Cost
 
 Set a price for each provider and kind:

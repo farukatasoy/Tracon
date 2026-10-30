@@ -162,7 +162,8 @@ public sealed class StreamingTests
 
         var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
         var custom = frames
-            .Where(static frame => frame.Data.Contains("\"type\":\"Custom\"", StringComparison.Ordinal))
+            .Where(static frame => frame.Data.Contains("\"type\":\"Custom\"", StringComparison.Ordinal)
+                && !OutputTruncationStreamingTests.IsContextNotice(frame))
             .ShouldHaveSingleItem();
 
         // Phase 145: the frame's OWN SSE "event:" name is the closed, Tracon-owned

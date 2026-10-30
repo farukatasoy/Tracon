@@ -208,6 +208,9 @@ public sealed partial class RunRecordingAgent
     private async ValueTask WriteContentsAsync(
         RunScope scope,
         IEnumerable<AIContent> contents,
+        CitationTally citations,
+        string? messageId,
+        ChatRole? role,
         CancellationToken cancellationToken)
     {
         foreach (var content in contents)
@@ -261,6 +264,58 @@ public sealed partial class RunRecordingAgent
                     await WriteHostedOrUnrecognizedContentAsync(scope, content, cancellationToken).ConfigureAwait(false);
                     break;
             }
+
+            // After the switch, for every content: an annotation sits on the base type, so the content
+            // that carries a citation is not always the text.
+            await WriteCitationsAsync(scope, content, citations, messageId, role, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Writes each citation a content carries as a <see cref="RunEventCustomTypes.Citation"/> event.
+    /// </summary>
+    /// <remarks>
+    /// Independent of <c>RecordMessageDeltas</c>: a citation is not message text. A failure to describe
+    /// one is observability's failure: it is logged and the run goes on. A cancellation is not swallowed.
+    /// </remarks>
+    private async ValueTask WriteCitationsAsync(
+        RunScope scope,
+        AIContent content,
+        CitationTally citations,
+        string? messageId,
+        ChatRole? role,
+        CancellationToken cancellationToken)
+    {
+        if (content.Annotations is not { Count: > 0 } annotations)
+        {
+            return;
+        }
+
+        foreach (var annotation in annotations)
+        {
+            if (annotation is not CitationAnnotation citation || !citations.TryClaim(messageId, role, citation))
+            {
+                continue;
+            }
+
+            RunEventDraft draft;
+
+            try
+            {
+                draft = CitationEventPayload.Describe(citation, _options.RecordCitationUrls, _options.MaxPayloadLength);
+            }
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to describe a citation for the Tracon run record. Run {RunId} continues normally " +
+                    "but the record has no event for it.",
+                    scope.Writer.RunId);
+
+                continue;
+            }
+
+            await scope.Writer.AppendReservedAsync(draft, cancellationToken).ConfigureAwait(false);
         }
     }
 

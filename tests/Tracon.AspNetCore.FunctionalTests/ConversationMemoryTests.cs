@@ -48,6 +48,42 @@ public sealed class ConversationMemoryTests
     }
 
     [Fact]
+    public async Task The_run_record_counts_what_memory_added_apart_from_what_the_caller_sent()
+    {
+        // F-773: the context event's AIContextProvider count is the answer to "did memory add anything".
+        // The real memory provider overrides a different method than a hand-made one (it hands the stamp
+        // to the provider inside it), so only this provider shows that its message is counted as a
+        // context provider's and not as the caller's own.
+        var (host, provider, _) = await StartAsync();
+
+        await using (host)
+        {
+            await RunAsync(host, "ada", "session-1", Colour);
+            await RunAsync(host, "ada", "session-2", ColourQuestion);
+
+            ModelSaw(provider).ShouldContain("teal");
+
+            var runs = await host.Client.GetFromJsonAsync<List<RunRecord>>(
+                new Uri("/tracon/api/runs", UriKind.Relative), TestContext.Current.CancellationToken);
+            var second = runs!.OrderBy(static run => run.StartedAt).Last();
+            await host.WaitForTerminalRunAsync(second.Id);
+
+            var notice = (await OutputTruncationTests.EventsAsync(host, second.Id))
+                .Where(static e => string.Equals(e.CustomType, RunEventCustomTypes.Context, StringComparison.Ordinal))
+                .ShouldHaveSingleItem();
+
+            using var payload = System.Text.Json.JsonDocument.Parse(notice.Payload!);
+            var counts = payload.RootElement.GetProperty("sources").EnumerateArray()
+                .GroupBy(static source => source.GetProperty("type").GetString()!, StringComparer.Ordinal)
+                .ToDictionary(static group => group.Key, static group => group.Sum(source => source.GetProperty("count").GetInt32()), StringComparer.Ordinal);
+
+            counts.GetValueOrDefault("AIContextProvider").ShouldBeGreaterThan(0, "the memory message must not count as the caller's own");
+            counts["External"].ShouldBe(1, "only the question the caller sent");
+            notice.Payload!.ShouldNotContain("teal", Case.Sensitive);
+        }
+    }
+
+    [Fact]
     public async Task Another_user_does_not_get_it()
     {
         var (host, provider, _) = await StartAsync();

@@ -129,7 +129,7 @@ claim to provide an operating-system sandbox.
 |---|---|---|
 | Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events; a plain-text answer cut off at the output limit or the context window, or one a provider's content filter stopped after it wrote text, ends with a `custom` frame (`tracon.output.truncated` or `tracon.output.filtered`) before `done`; `/v1/responses` reports both as `incomplete` |
 | Non-streaming runs | .NET or an idempotent HTTP request | A completed response can be stored and replayed safely |
-| Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; content and workflow events Tracon has no type for are recorded as `tracon.content` and `tracon.workflow.event` (metadata only); it can be disabled and store failure never breaks the run |
+| Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; content and workflow events Tracon has no type for are recorded as `tracon.content` and `tracon.workflow.event` (metadata only); the citations of a model answer are recorded as `tracon.citation` (host only unless you opt in) and the message sources of its request as `tracon.context` (counts only); it can be disabled and store failure never breaks the run |
 | Custom run events | `RunEventType.Custom` and `AgentRunScope.Writer` | A tool writes its own named event into the stream a consumer already carries; the console draws it with a generic card, no code change required |
 | Custom agent decorator | `AddAgentDecorator<T>()`, instance, or factory | Joins the built-in decorators; `Order` decides where |
 | Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |
@@ -3064,6 +3064,7 @@ custom type can never collide with your own. Tracon writes these:
 `tracon.output.filtered` (see [Filtered output](#filtered-output)),
 `tracon.content` and `tracon.workflow.event` (see
 [Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
+`tracon.citation` and `tracon.context` (see [Citations and message sources](#citations-and-message-sources)),
 `tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
 that Tracon answered with `decline`) and `tracon.agui.tools.ignored` (tools an
 [AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry).
@@ -3108,6 +3109,30 @@ payload is `null`. Unlike the [quota and truncation notices](/http-api/#streamin
 `GET /api/runs/{runId}/events`. A workflow run only ever writes `tracon.workflow.event`, and
 its stream (`POST /api/workflows/{name}/run`) sends it as an `event` frame like every
 other recorded event.
+
+### Citations and message sources
+
+Two more reserved events say what an answer rested on.
+
+| `customType` | Written for | `Text` | Payload keys |
+|---|---|---|---|
+| `tracon.citation` | Each citation the model attached to its answer (a web search, a file search, a retrieval tool) | `citation`, or `citation: <tool>` — never the title | `type` (`citation`), then each of `title`, `url`, `fileId`, `toolName`, `snippet` and the cited span `start`, `end` — `title` and `snippet` are cut at 2 048 characters, and a key the provider left out is not there |
+| `tracon.context` | The first model request of the run | `context: <total> messages` | `type` (`context`), `sources`: a list of `type` (`External`, `ChatHistory`, `AIContextProvider`), `id` (the provider's, when it has one) and `count` |
+
+A citation's `url` is the scheme and host of the source (`https://example.com`), because a retrieval tool's citation can
+point at a signed address whose path or query is a credential. `RunRecording:RecordCitationUrls` writes the whole address.
+Either way the user information of an address (`user:password@`) is never written, and an address that is not an
+absolute `http` or `https` address is left out while the event stays. One event for each citation, however many
+updates of a stream show it. A citation is not message text: it is recorded with `RecordMessageDeltas` off. It follows
+`RecordToolPayloads`: with it off the event and its `Text` stay and the payload is `null`.
+
+`tracon.context` counts messages and carries none of them. It answers one question: how many of the messages the model
+saw did conversation memory or a retrieval provider add. Every run that calls a model carries it, so a client that counts events or reads the first `Custom` event as its own selects by `customType`. It is written once for each run, on the agent's own first model
+call; the later calls of the tool loop, the context summarizer and a loop judge write none, and a child run writes its
+own. A message with no source counts as `External`. Because it holds counts only it is written with `RecordToolPayloads`
+off.
+
+Neither event reaches the live `POST /api/agents/{name}/run` stream; read them from `GET /api/runs/{runId}/events`.
 
 ## Observing events beyond the store
 
@@ -12245,6 +12270,17 @@ search is one such call. Both kinds of call are priced.
 
 A provider can show one call in several pieces while it streams. Tracon writes the call once.
 
+## Citations
+
+A web search or a file search ties the model's answer to the sources it used. The provider sends each tie as a
+citation on the answer, and the run record keeps it as a `tracon.citation` event: the source's title, its address, the
+file identifier of a file search, the tool that made it, the cited passage and the span of the answer it supports.
+Read them from `GET /api/runs/{runId}/events`; see [Citations and message sources](/concepts/runs/#citations-and-message-sources).
+
+By default the event writes only the scheme and host of the address (`https://example.com`), never its path or query.
+A retrieval tool's citation can point at a signed address, and a signature in a query string is a credential.
+Set `Tracon:RunRecording:RecordCitationUrls` to `true` to record the whole address when your sources do not sign theirs.
+
 ## Cost
 
 Set a price for each provider and kind:
@@ -15176,6 +15212,7 @@ run inspection:
       "Enabled": true,
       "RecordMessageDeltas": true,
       "RecordToolPayloads": true,
+      "RecordCitationUrls": false,
       "RecordReasoningDeltas": false,
       "MaxPayloadLength": 8192,
       "RecordRunInput": true
@@ -15189,6 +15226,7 @@ run inspection:
 | `RunRecording.Enabled` | `true` | When false, no run event is written |
 | `RecordMessageDeltas` | `true` | Turning it off reduces write volume for streaming runs |
 | `RecordToolPayloads` | `true` | Tool arguments and results can contain personal or secret data |
+| `RecordCitationUrls` | `false` | A citation event writes the scheme and host of its source; `true` writes the whole address, which can hold a signed credential. User information is never written |
 | `RecordReasoningDeltas` | `false` | Off unlike the other flags: reasoning output can run far longer than the answer and can restate input the answer never shows |
 | `MaxPayloadLength` | 8,192 characters | Valid range is 0 through 1,048,576; `0` means no truncation |
 | `RecordRunInput` | `true` | Required for run replay; input is not truncated by `MaxPayloadLength` |
@@ -15199,6 +15237,11 @@ cannot be replayed. This failure isolation prevents an observability outage from
 becoming an agent outage. A registered [`IRunEventSink`](/concepts/runs/#observing-events-beyond-the-store)
 is held to the same rule: a sink failure never stops the store write, and a store
 failure never stops a sink from seeing the rest of the run.
+
+Two events answer what an answer rested on. `tracon.citation` is written for each citation the model attached
+to its answer, and `tracon.context` once for each run: it counts the messages of the first model request by the
+source that added them (`External`, `ChatHistory`, `AIContextProvider`), so you can see that memory or a retrieval
+provider added three messages the caller never sent. See [Citations and message sources](/concepts/runs/#citations-and-message-sources).
 
 `RecordSensitiveData=false` does not redact run events, tool payloads, or saved run
 input. It applies to the span store. Configure both sections and retention according to
@@ -22233,10 +22276,11 @@ their own before the rest are folded into a single `other` series — see
 | `RunRecording:Enabled` | `true` |
 | `RunRecording:RecordMessageDeltas` | `true` |
 | `RunRecording:RecordToolPayloads` | `true` |
+| `RunRecording:RecordCitationUrls` | `false` |
 | `RunRecording:MaxPayloadLength` | `8192` characters |
 | `RunRecording:RecordRunInput` | `true` |
 
-Disable tool payloads when they can contain personal or regulated data. Replay needs
+Disable tool payloads when they can contain personal or regulated data. A citation event records only the scheme and host of the source by default; `RecordCitationUrls` records the whole address, which can hold a signed credential when a retrieval tool produced it. Replay needs
 recorded run input, and so does continuing a parameterized run: the parameter values a
 run was bound with are recorded beside its input, and a replay, an automatic continuation,
 a resume after a tool approval or a resume of a workflow that declares parameters is

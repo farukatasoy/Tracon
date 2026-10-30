@@ -172,7 +172,7 @@ internal static class ContentEventPayload
     /// Keeps the first <paramref name="length"/> characters of <paramref name="value"/> and ends a
     /// shortened text with the truncation marker, never between the halves of a surrogate pair.
     /// </summary>
-    private static string? Cut(string? value, int length)
+    internal static string? Cut(string? value, int length)
     {
         if (value is null || length >= value.Length)
         {

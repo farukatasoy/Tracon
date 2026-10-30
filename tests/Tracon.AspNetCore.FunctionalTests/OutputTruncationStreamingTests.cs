@@ -431,7 +431,15 @@ public sealed class OutputTruncationStreamingTests
     }
 
     internal static List<SseFrame> CustomFrames(IEnumerable<SseFrame> frames)
-        => [.. frames.Where(static frame => string.Equals(frame.Event, "custom", StringComparison.Ordinal))];
+        => [.. frames.Where(static frame => string.Equals(frame.Event, "custom", StringComparison.Ordinal)
+            && !IsContextNotice(frame))];
+
+    /// <summary>
+    /// Whether a frame is the <c>tracon.context</c> event every run records (F-773). It is not the notice these
+    /// tests look for, and it is on the recorded stream only: the live stream never carries it.
+    /// </summary>
+    internal static bool IsContextNotice(SseFrame frame)
+        => frame.Data.Contains(RunEventCustomTypes.Context, StringComparison.Ordinal);
 
     /// <summary>The raw frames of <c>GET /api/runs/{id}/events</c>.</summary>
     internal static async Task<List<SseFrame>> EventFramesAsync(TraconTestHost host, Guid runId)

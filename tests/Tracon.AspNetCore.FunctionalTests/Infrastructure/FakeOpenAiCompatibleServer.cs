@@ -52,6 +52,22 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     /// </remarks>
     public JsonArray? ResponsesOutputBeforeMessage { get; set; }
 
+    /// <summary>
+    /// The annotations (<c>url_citation</c>, <c>file_citation</c>) of the answer's text, or <see langword="null"/>
+    /// for none.
+    /// </summary>
+    /// <remarks>
+    /// F-773: what a citation becomes in the run record depends on the annotation types the real adapter builds
+    /// from the provider's items, and on how many times a stream shows them.
+    /// </remarks>
+    public JsonArray? ResponsesAnnotations { get; set; }
+
+    /// <summary>
+    /// Whether a <c>/v1/responses</c> request that asks for a stream gets one, as the events the API sends,
+    /// instead of the buffered answer. Off by default: the buffered answer is what the earlier tests expect.
+    /// </summary>
+    public bool StreamResponses { get; set; }
+
     /// <summary>How many times <c>/v1/chat/completions</c> was called.</summary>
     public int ChatCompletionCallCount { get; private set; }
 
@@ -139,6 +155,7 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
         {
             server!.ResponsesBodies.Add(await ReadBodyAsync(context).ConfigureAwait(false));
 
+            var annotations = server.ResponsesAnnotations ?? [];
             var output = new JsonArray();
 
             foreach (var item in server.ResponsesOutputBeforeMessage ?? [])
@@ -146,11 +163,24 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
                 output.Add(item!.DeepClone());
             }
 
-            output.Add(JsonNode.Parse(
-                """
-                {"type":"message","id":"msg_fake","status":"completed","role":"assistant",
-                 "content":[{"type":"output_text","text":"hello from local","annotations":[]}]}
-                """));
+            output.Add(new JsonObject
+            {
+                ["type"] = "message",
+                ["id"] = "msg_fake",
+                ["status"] = "completed",
+                ["role"] = "assistant",
+                ["content"] = new JsonArray(new JsonObject
+                {
+                    ["type"] = "output_text",
+                    ["text"] = "hello from local",
+                    ["annotations"] = annotations.DeepClone(),
+                }),
+            });
+
+            if (server.StreamResponses && server.ResponsesBodies[^1]["stream"]?.GetValue<bool>() == true)
+            {
+                return Results.Text(StreamedResponse(output, annotations), "text/event-stream");
+            }
 
             return Results.Json(new
             {
@@ -177,6 +207,118 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
         server = new FakeOpenAiCompatibleServer(app, new Uri($"{address}/v1"));
 
         return server;
+    }
+
+    /// <summary>
+    /// The events the Responses API sends for an answer with annotations: each annotation as it is added, and
+    /// again whole in the events that close the content part and the item.
+    /// </summary>
+    private static string StreamedResponse(JsonArray output, JsonArray annotations)
+    {
+        const string Text = "hello from local";
+        var sequence = 0;
+        var frames = new System.Text.StringBuilder();
+
+        void Send(string type, JsonObject data)
+        {
+            data["type"] = type;
+            data["sequence_number"] = sequence++;
+            frames.Append("event: ").Append(type).Append("\ndata: ").Append(data.ToJsonString()).Append("\n\n");
+        }
+
+        JsonObject Response(string status, JsonArray items) => new()
+        {
+            ["id"] = "resp_fake",
+            ["object"] = "response",
+            ["created_at"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            ["status"] = status,
+            ["model"] = "fake-local-model",
+            ["output"] = items,
+            ["usage"] = string.Equals(status, "completed", StringComparison.Ordinal)
+                ? new JsonObject
+                {
+                    ["input_tokens"] = 5,
+                    ["output_tokens"] = 3,
+                    ["total_tokens"] = 8,
+                    ["input_tokens_details"] = new JsonObject { ["cached_tokens"] = 0 },
+                    ["output_tokens_details"] = new JsonObject { ["reasoning_tokens"] = 0 },
+                }
+                : null,
+        };
+
+        var messageIndex = output.Count - 1;
+        var part = new JsonObject { ["type"] = "output_text", ["text"] = Text, ["annotations"] = annotations.DeepClone() };
+
+        Send("response.created", new JsonObject { ["response"] = Response("in_progress", []) });
+
+        // Output items before the message (a hosted tool call) are shown whole.
+        for (var i = 0; i < messageIndex; i++)
+        {
+            Send("response.output_item.added", new JsonObject { ["output_index"] = i, ["item"] = output[i]!.DeepClone() });
+            Send("response.output_item.done", new JsonObject { ["output_index"] = i, ["item"] = output[i]!.DeepClone() });
+        }
+
+        Send("response.output_item.added", new JsonObject
+        {
+            ["output_index"] = messageIndex,
+            ["item"] = new JsonObject
+            {
+                ["type"] = "message",
+                ["id"] = "msg_fake",
+                ["status"] = "in_progress",
+                ["role"] = "assistant",
+                ["content"] = new JsonArray(),
+            },
+        });
+        Send("response.content_part.added", new JsonObject
+        {
+            ["item_id"] = "msg_fake",
+            ["output_index"] = messageIndex,
+            ["content_index"] = 0,
+            ["part"] = new JsonObject { ["type"] = "output_text", ["text"] = string.Empty, ["annotations"] = new JsonArray() },
+        });
+        Send("response.output_text.delta", new JsonObject
+        {
+            ["item_id"] = "msg_fake",
+            ["output_index"] = messageIndex,
+            ["content_index"] = 0,
+            ["delta"] = Text,
+        });
+
+        for (var i = 0; i < annotations.Count; i++)
+        {
+            Send("response.output_text.annotation.added", new JsonObject
+            {
+                ["item_id"] = "msg_fake",
+                ["output_index"] = messageIndex,
+                ["content_index"] = 0,
+                ["annotation_index"] = i,
+                ["annotation"] = annotations[i]!.DeepClone(),
+            });
+        }
+
+        Send("response.output_text.done", new JsonObject
+        {
+            ["item_id"] = "msg_fake",
+            ["output_index"] = messageIndex,
+            ["content_index"] = 0,
+            ["text"] = Text,
+        });
+        Send("response.content_part.done", new JsonObject
+        {
+            ["item_id"] = "msg_fake",
+            ["output_index"] = messageIndex,
+            ["content_index"] = 0,
+            ["part"] = part.DeepClone(),
+        });
+        Send("response.output_item.done", new JsonObject
+        {
+            ["output_index"] = messageIndex,
+            ["item"] = output[messageIndex]!.DeepClone(),
+        });
+        Send("response.completed", new JsonObject { ["response"] = Response("completed", (JsonArray)output.DeepClone()) });
+
+        return frames.ToString();
     }
 
     private static async Task<JsonObject> ReadBodyAsync(HttpContext context)

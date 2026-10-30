@@ -522,6 +522,8 @@ Tracon.TraconRunRecordingOptions.Enabled.get -> bool
 Tracon.TraconRunRecordingOptions.Enabled.set -> void
 Tracon.TraconRunRecordingOptions.MaxPayloadLength.get -> int
 Tracon.TraconRunRecordingOptions.MaxPayloadLength.set -> void
+Tracon.TraconRunRecordingOptions.RecordCitationUrls.get -> bool
+Tracon.TraconRunRecordingOptions.RecordCitationUrls.set -> void
 Tracon.TraconRunRecordingOptions.RecordMessageDeltas.get -> bool
 Tracon.TraconRunRecordingOptions.RecordMessageDeltas.set -> void
 Tracon.TraconRunRecordingOptions.RecordReasoningDeltas.get -> bool

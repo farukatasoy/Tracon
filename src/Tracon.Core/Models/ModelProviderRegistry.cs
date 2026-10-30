@@ -558,6 +558,14 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // 'chat' span.
         chatClient = rings.Wrap(ChatClientSlot.ModelCall, chatClient);
 
+        // 🚨 The message source ring sits right under the loop and ABOVE the extension's ModelCall
+        // ring (F-773): it counts the request as the agent built it, with what a context provider
+        // added, even when an extension ring answers by itself and never calls inward. It writes
+        // once for the run, on the agent's own first call (MessageSourceRecordingChatClient).
+        chatClient = new MessageSourceRecordingChatClient(
+            chatClient,
+            _loggerFactory?.CreateLogger<MessageSourceRecordingChatClient>());
+
         // binding.ToolLoop configures THIS SAME FunctionInvokingChatClient
         // instance - the one that actually drives the tool-call loop.
         // AllowConcurrentToolCalls is false by default (K1): the loop runs one

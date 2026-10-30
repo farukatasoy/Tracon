@@ -888,6 +888,28 @@ public sealed class TraconRunRecordingOptions
     public bool RecordToolPayloads { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets whether the full address of a citation is recorded in its
+    /// <see cref="RunEventCustomTypes.Citation"/> event. When <see langword="false"/> (the
+    /// default), only the scheme and host are recorded.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is a separate choice from <see cref="RecordToolPayloads"/> because of what an
+    /// address can hold: a retrieval tool's citation can point at a signed address (a storage
+    /// shared-access address, say) whose path or query is a credential. The host alone says which
+    /// source was cited and cannot leak one. Turn this on when the page the model cited is what an
+    /// audit needs and no source of yours signs its addresses.
+    /// </para>
+    /// <para>
+    /// User information in an address (<c>user:password@host</c>) is never recorded, whatever this
+    /// is. An address that is not an absolute <c>http</c> or <c>https</c> address, or is longer than
+    /// 2 048 characters, is recorded as its scheme and host (or not at all when it has none).
+    /// With <see cref="RecordToolPayloads"/> off no citation payload is recorded, so no address either.
+    /// </para>
+    /// </remarks>
+    public bool RecordCitationUrls { get; set; }
+
+    /// <summary>
     /// Gets or sets the upper character limit for one event payload. Excess
     /// payloads are truncated and receive a trailing marker.
     /// </summary>

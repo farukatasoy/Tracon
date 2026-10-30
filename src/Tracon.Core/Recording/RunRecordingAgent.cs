@@ -263,7 +263,9 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
             foreach (var message in response.Messages)
             {
-                await WriteContentsAsync(scope, message.Contents, cancellationToken).ConfigureAwait(false);
+                // A fresh tally for each message: the message is the unit a citation is written once in.
+                await WriteContentsAsync(scope, message.Contents, new CitationTally(), message.MessageId, message.Role, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             await scope.Writer.AppendAsync(
@@ -429,6 +431,9 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // The calls of this run that get no result: see SkippedCallTracker.
         var skippedCalls = new SkippedCallTracker();
 
+        // One tally for the whole stream: it starts a new message itself when an update names another.
+        var citations = new CitationTally();
+
         var enumerator = base.RunCoreStreamingAsync(
                 WithClosedSkippedCalls(messages, session),
                 session,
@@ -560,7 +565,8 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                     (approvalContents ??= []).AddRange(update.Contents);
                 }
 
-                await WriteContentsAsync(scope, update.Contents, cancellationToken).ConfigureAwait(false);
+                await WriteContentsAsync(scope, update.Contents, citations, update.MessageId, update.Role, cancellationToken)
+                    .ConfigureAwait(false);
 
                 yield return update;
             }

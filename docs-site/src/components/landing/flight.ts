@@ -36,6 +36,8 @@ const at = {
   request: T0,
   resolved: '2026-09-24T09:12:03.421Z',
   started: '2026-09-24T09:12:03.466Z',
+  // The first model call of the run: the recorder counts the request's messages by source.
+  context: '2026-09-24T09:12:03.471Z',
   // A queued run is not streamed: the recorder writes the turn's tool events
   // and message after the model returns, just before the run is held.
   statusCall: '2026-09-24T09:12:04.818Z',
@@ -112,6 +114,8 @@ export interface TapeRow {
 // with no text, and the held call is named only in the closing event's payload.
 const rowFor: Record<string, (tool: string | null) => Omit<TapeRow, 'seq' | 'type' | 'held'>> = {
   'run.started': () => ({ t: tPlus(at.started), detail: `"${sample.message}"` }),
+  // The reserved `tracon.context` event every run records on its first model call (its text, not a payload).
+  custom: () => ({ t: tPlus(at.context), detail: '"context: 1 messages"' }),
   'tool.invoking': (tool) => ({ t: tPlus(at.statusCall), detail: `${tool} orderId=${sample.order}` }),
   'tool.invoked': () => ({ t: tPlus(at.statusResult), detail: `"Order ${sample.order} has shipped."` }),
   'message.completed': () => ({ t: tPlus(at.cancelCall), detail: '"" · a tool call, no text' }),

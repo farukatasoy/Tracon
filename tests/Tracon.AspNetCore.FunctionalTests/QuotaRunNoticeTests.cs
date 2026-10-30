@@ -74,7 +74,8 @@ public sealed class QuotaRunNoticeTests
             new Uri($"/tracon/api/runs/{runId}/events", UriKind.Relative),
             HttpCompletionOption.ResponseHeadersRead);
         var eventFrames = await SseReader.ReadAllAsync(await events.Content.ReadAsStreamAsync());
-        var replayed = eventFrames.Single(static frame => string.Equals(frame.Event, "custom", StringComparison.Ordinal));
+        var replayed = eventFrames.Single(static frame => string.Equals(frame.Event, "custom", StringComparison.Ordinal)
+            && !OutputTruncationStreamingTests.IsContextNotice(frame));
 
         // Byte-for-byte: both paths read the SAME persisted RunEvent, serialized
         // the same way -- not two independently built copies (146, "HTTP endpoint'leri").

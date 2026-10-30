@@ -1,6 +1,6 @@
 {
-  "r1": ["run.started", "tool.invoking", "tool.invoked", "message.completed", "run.awaiting-input"],
-  "r1Tools": [null, "get_order_status", "get_order_status", null, null],
+  "r1": ["run.started", "custom", "tool.invoking", "tool.invoked", "message.completed", "run.awaiting-input"],
+  "r1Tools": [null, null, "get_order_status", "get_order_status", null, null],
   "r1Status": "AwaitingApproval",
   "r2Status": "Completed",
   "sameSession": true,

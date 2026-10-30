@@ -417,15 +417,18 @@ public sealed class RunEventWriter
     /// <c>RecordToolPayloads</c> off: the quota threshold notice (its
     /// <c>NoticeId</c> is the dedup key a client acts on), the output
     /// truncation notice (provider, cause and limit, never the answer), the
-    /// output filter notice (the provider, never the answer) and the
-    /// tool input decline notice (server, tool and a reason code, never a field). A new
-    /// reserved type is NOT exempt until it is named here.
+    /// output filter notice (the provider, never the answer), the
+    /// tool input decline notice (server, tool and a reason code, never a field) and the
+    /// context notice (counts of messages by source, never a message). A new
+    /// reserved type is NOT exempt until it is named here. The citation event is not: its
+    /// title and snippet come from a source and can carry personal data.
     /// </summary>
     private static bool KeepsPayloadWithPayloadsOff(string? customType)
         => customType is RunEventCustomTypes.QuotaThreshold
             or RunEventCustomTypes.OutputTruncated
             or RunEventCustomTypes.OutputFiltered
-            or RunEventCustomTypes.ToolInputDeclined;
+            or RunEventCustomTypes.ToolInputDeclined
+            or RunEventCustomTypes.Context;
 
     /// <summary>Fans the event out to every registered, not-yet-failed sink.</summary>
     private async ValueTask DispatchToSinksAsync(RunEvent runEvent, CancellationToken cancellationToken)

@@ -215,6 +215,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A run records the citations the model attached to its answer, and how many of its request's messages each source
+  added.** Before, a hosted web search, a file search or a retrieval tool gave the model a source for its claim, and the
+  run record kept the claim without the source: an auditor read the record and could not see what an answer rested on.
+  Likewise a context provider (conversation memory, a retrieval provider) added messages to the model's request and
+  the record held no trace of it. Two reserved `Custom` event types are new in `GET /api/runs/{id}/events`:
+  `tracon.citation`, one for each citation, with `title`, `url`, `fileId`, `toolName`, `snippet` and the cited span;
+  and `tracon.context`, one for each run, the messages of the first model request counted by source (`External`,
+  `ChatHistory`, `AIContextProvider`, with the provider's id). The citation event does not depend on
+  `RecordMessageDeltas`, follows `RecordToolPayloads` (a title or a snippet can be personal data), and writes only the
+  scheme and host of the address by default: a retrieval tool's citation can point at a signed address whose path or
+  query is a credential. New key `Tracon:RunRecording:RecordCitationUrls` (default `false`) turns the whole address
+  on; user information (`user:password@`) is never written. The context event carries counts only and is written with
+  `RecordToolPayloads` off. A citation shown again by a stream is written once; the OpenAI Responses and Anthropic adapters
+  were measured and do not repeat one. Neither event reaches the live run stream. **Every run that calls a model now carries one extra `Custom` event** (`tracon.context`, right after `RunStarted` for a streamed run): a client that counts a run's events, or reads the first `Custom` event as its own, should select by `customType`. New public members:
+  `RunEventCustomTypes.Citation`, `RunEventCustomTypes.Context`, `TraconRunRecordingOptions.RecordCitationUrls`.
+
 - **Embedding, image and speech calls and the steps of a workflow are spans of the run trace.** Before, the trace of a
   run held the agent, chat and tool spans and nothing else, so a slow query embedding, a 30-second image or a slow
   workflow step read as one opaque tool span or as a gap. The consumer's `IEmbeddingGenerator` (the `search_knowledge`

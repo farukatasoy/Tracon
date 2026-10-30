@@ -288,6 +288,7 @@ custom type can never collide with your own. Tracon writes these:
 `tracon.output.filtered` (see [Filtered output](#filtered-output)),
 `tracon.content` and `tracon.workflow.event` (see
 [Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
+`tracon.citation` and `tracon.context` (see [Citations and message sources](#citations-and-message-sources)),
 `tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
 that Tracon answered with `decline`) and `tracon.agui.tools.ignored` (tools an
 [AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry).
@@ -332,6 +333,30 @@ payload is `null`. Unlike the [quota and truncation notices](/http-api/#streamin
 `GET /api/runs/{runId}/events`. A workflow run only ever writes `tracon.workflow.event`, and
 its stream (`POST /api/workflows/{name}/run`) sends it as an `event` frame like every
 other recorded event.
+
+### Citations and message sources
+
+Two more reserved events say what an answer rested on.
+
+| `customType` | Written for | `Text` | Payload keys |
+|---|---|---|---|
+| `tracon.citation` | Each citation the model attached to its answer (a web search, a file search, a retrieval tool) | `citation`, or `citation: <tool>` — never the title | `type` (`citation`), then each of `title`, `url`, `fileId`, `toolName`, `snippet` and the cited span `start`, `end` — `title` and `snippet` are cut at 2 048 characters, and a key the provider left out is not there |
+| `tracon.context` | The first model request of the run | `context: <total> messages` | `type` (`context`), `sources`: a list of `type` (`External`, `ChatHistory`, `AIContextProvider`), `id` (the provider's, when it has one) and `count` |
+
+A citation's `url` is the scheme and host of the source (`https://example.com`), because a retrieval tool's citation can
+point at a signed address whose path or query is a credential. `RunRecording:RecordCitationUrls` writes the whole address.
+Either way the user information of an address (`user:password@`) is never written, and an address that is not an
+absolute `http` or `https` address is left out while the event stays. One event for each citation, however many
+updates of a stream show it. A citation is not message text: it is recorded with `RecordMessageDeltas` off. It follows
+`RecordToolPayloads`: with it off the event and its `Text` stay and the payload is `null`.
+
+`tracon.context` counts messages and carries none of them. It answers one question: how many of the messages the model
+saw did conversation memory or a retrieval provider add. Every run that calls a model carries it, so a client that counts events or reads the first `Custom` event as its own selects by `customType`. It is written once for each run, on the agent's own first model
+call; the later calls of the tool loop, the context summarizer and a loop judge write none, and a child run writes its
+own. A message with no source counts as `External`. Because it holds counts only it is written with `RecordToolPayloads`
+off.
+
+Neither event reaches the live `POST /api/agents/{name}/run` stream; read them from `GET /api/runs/{runId}/events`.
 
 ## Observing events beyond the store
 

@@ -16,6 +16,7 @@ public sealed class ReservedPayloadPolicyTests
     [InlineData(RunEventCustomTypes.QuotaThreshold)]
     [InlineData(RunEventCustomTypes.OutputTruncated)]
     [InlineData(RunEventCustomTypes.OutputFiltered)]
+    [InlineData(RunEventCustomTypes.Context)]
     public async Task A_notice_whose_payload_is_the_function_keeps_it_with_payloads_off(string customType)
     {
         var writer = await CreateStartedWriterAsync(recordToolPayloads: false);
@@ -27,6 +28,7 @@ public sealed class ReservedPayloadPolicyTests
 
     [Theory]
     [InlineData(RunEventCustomTypes.Content)]
+    [InlineData(RunEventCustomTypes.Citation)]
     [InlineData(RunEventCustomTypes.WorkflowEvent)]
     [InlineData("tracon.a-reserved-type-added-later")]
     public async Task Any_other_reserved_type_loses_its_payload_with_payloads_off_but_keeps_its_text(string customType)
@@ -42,6 +44,7 @@ public sealed class ReservedPayloadPolicyTests
 
     [Theory]
     [InlineData(RunEventCustomTypes.Content)]
+    [InlineData(RunEventCustomTypes.Citation)]
     [InlineData(RunEventCustomTypes.WorkflowEvent)]
     public async Task The_content_notices_keep_their_payload_with_payloads_on(string customType)
     {
@@ -54,6 +57,8 @@ public sealed class ReservedPayloadPolicyTests
 
     [Theory]
     [InlineData(RunEventCustomTypes.Content)]
+    [InlineData(RunEventCustomTypes.Citation)]
+    [InlineData(RunEventCustomTypes.Context)]
     [InlineData(RunEventCustomTypes.WorkflowEvent)]
     public async Task A_consumer_cannot_write_a_content_notice_through_the_public_path(string customType)
     {
