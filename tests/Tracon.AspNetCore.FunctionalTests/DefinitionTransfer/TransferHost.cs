@@ -9,7 +9,80 @@ namespace Tracon.AspNetCore.FunctionalTests.DefinitionTransfer;
 /// <summary>What a definition transfer test does to a host, in the calls a person would make.</summary>
 internal static class TransferHost
 {
+    private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
+
     public static Uri Api(string path) => new($"/tracon/api/{path}", UriKind.Relative);
+
+    /// <summary>An empty file of the current format, for a test that writes the file by hand.</summary>
+    public static JsonObject NewBundle()
+        => new()
+        {
+            ["format"] = "tracon.definitions",
+            ["formatVersion"] = 1,
+            ["exportedAt"] = "2026-10-29T12:00:00Z",
+            ["agents"] = new JsonArray(),
+            ["workflows"] = new JsonArray(),
+            ["skills"] = new JsonArray(),
+            ["mcpServers"] = new JsonArray(),
+        };
+
+    public static JsonObject WithAgent(this JsonObject bundle, AgentDefinitionRequest request, int sourceVersion = 1)
+    {
+        bundle["agents"]!.AsArray().Add(new JsonObject
+        {
+            ["sourceVersion"] = sourceVersion,
+            ["definition"] = JsonSerializer.SerializeToNode(request, Web),
+        });
+
+        return bundle;
+    }
+
+    public static JsonObject WithSkill(this JsonObject bundle, string name, string instructions = "Read the policy.", int sourceVersion = 1)
+    {
+        bundle["skills"]!.AsArray().Add(new JsonObject
+        {
+            ["sourceVersion"] = sourceVersion,
+            ["definition"] = JsonSerializer.SerializeToNode(
+                new AgentSkillRequest { Name = name, Description = "A skill.", Instructions = instructions },
+                Web),
+        });
+
+        return bundle;
+    }
+
+    public static JsonObject WithWorkflow(this JsonObject bundle, string name, JsonObject definition, int sourceVersion = 1)
+    {
+        bundle["workflows"]!.AsArray().Add(new JsonObject
+        {
+            ["name"] = name,
+            ["sourceVersion"] = sourceVersion,
+            ["definition"] = definition,
+        });
+
+        return bundle;
+    }
+
+    public static JsonObject WithMcpServer(this JsonObject bundle, string name, JsonObject definition, params string[] headerNames)
+    {
+        bundle["mcpServers"]!.AsArray().Add(new JsonObject
+        {
+            ["name"] = name,
+            ["definition"] = definition,
+            ["headerNames"] = new JsonArray([.. headerNames.Select(static header => (JsonNode?)JsonValue.Create(header))]),
+        });
+
+        return bundle;
+    }
+
+    public static JsonObject McpDefinition(string endpoint = "https://mcp.example.test/mcp", bool requiresApproval = true)
+        => new() { ["endpoint"] = endpoint, ["requiresApproval"] = requiresApproval };
+
+    public static JsonObject SequentialWorkflow(params string[] agents)
+        => new()
+        {
+            ["kind"] = "Sequential",
+            ["agentNames"] = new JsonArray([.. agents.Select(static agent => (JsonNode?)JsonValue.Create(agent))]),
+        };
 
     public static async Task<JsonElement> CreateSkillAsync(this TraconTestHost host, string name, string instructions = "Read the policy.")
     {
@@ -38,6 +111,15 @@ internal static class TransferHost
         response.EnsureSuccessStatusCode();
 
         return await TraconTestHost.ReadJsonAsync(response);
+    }
+
+    public static async Task CreateWorkflowAsync(this TraconTestHost host, string name, JsonObject definition)
+    {
+        using var response = await host.Client.PutAsync(
+            Api($"workflows/{name}"),
+            new StringContent(definition.ToJsonString(), Encoding.UTF8, "application/json"));
+
+        response.EnsureSuccessStatusCode();
     }
 
     public static async Task CreateMcpServerAsync(this TraconTestHost host, string name, object? extra = null)
