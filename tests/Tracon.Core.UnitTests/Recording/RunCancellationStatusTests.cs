@@ -23,8 +23,8 @@ public sealed class RunCancellationStatusTests
 
         // The registry entry is written BEFORE the run row - RunRecordingAgent
         // registers first so a cancel can land during the start write. Waiting
-        // for the entry alone raced the read below (measured: net10.0 leg,
-        // An earlier change). Wait for what the next line reads.
+        // for the entry alone raced the read below (measured: net10.0 leg).
+        // Wait for what the next line reads.
         await WaitUntil.TrueAsync(async () =>
             registry.ActiveCount == 1 && (await store.QueryRunsAsync(new RunQuery())).Count == 1);
 
@@ -57,8 +57,8 @@ public sealed class RunCancellationStatusTests
 
         // The registry entry is written BEFORE the run row - RunRecordingAgent
         // registers first so a cancel can land during the start write. Waiting
-        // for the entry alone raced the read below (measured: net10.0 leg,
-        // An earlier change). Wait for what the next line reads.
+        // for the entry alone raced the read below (measured: net10.0 leg).
+        // Wait for what the next line reads.
         await WaitUntil.TrueAsync(async () =>
             registry.ActiveCount == 1 && (await store.QueryRunsAsync(new RunQuery())).Count == 1);
 

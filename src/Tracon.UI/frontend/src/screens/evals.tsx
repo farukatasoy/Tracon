@@ -125,7 +125,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   /*
-    🚨 §175.3 criterion (a): `eval_cases` and `eval_runs` both cascade off
+    🚨 the confirm-dialog criterion (a): `eval_cases` and `eval_runs` both cascade off
     `eval_suites`, so a delete here takes the cases AND every score ever
     recorded against them. Nothing in this console can type those back.
   */

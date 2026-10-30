@@ -290,7 +290,7 @@ internal static class SourceWriter
 
             // A length constraint on an array targets the array itself (minItems/maxItems),
             // never its element leaf - "at least two tags", not "each tag at least two
-            // characters" (130.3). It is appended to the array node, after "items" closes,
+            // characters". It is appended to the array node, after "items" closes,
             // never inside it.
             node = parameter.Shape == ParameterShape.Array
                 ? AppendConstraintSuffix($"{{\"type\":\"array\",\"items\":{leafNode}}}", "minItems", parameter.Constraints?.MinItems, "maxItems", parameter.Constraints?.MaxItems)
@@ -299,7 +299,7 @@ internal static class SourceWriter
 
         // The description belongs on the PARAMETER node, not the array element leaf -
         // writing it into the leaf would nest it under "items", where the model does not
-        // read it as the parameter's own description (125.1).
+        // read it as the parameter's own description.
         return parameter.Description is { Length: > 0 } description
             ? $"{{\"description\":\"{JsonEscape(description)}\",{node.Substring(1)}"
             : node;
@@ -308,7 +308,7 @@ internal static class SourceWriter
     /// <summary>
     /// Builds a nested object's schema node - <c>{"type":"object","properties":{...},
     /// "required":[...],"additionalProperties":false}</c> - the SAME shape the root schema
-    /// uses (135.2): one writer function for both, so the root and a nested object can never
+    /// uses: one writer function for both, so the root and a nested object can never
     /// silently drift into two different contracts.
     /// </summary>
     private static string BuildObjectSchema(ObjectType objectType)
@@ -361,7 +361,7 @@ internal static class SourceWriter
     /// <summary>
     /// Builds a leaf (or array element) schema node: its type keyword, then - in the
     /// fixed order <c>minimum</c>, <c>maximum</c>, <c>minLength</c>, <c>maxLength</c>,
-    /// <c>pattern</c> (130.3) - whichever JSON Schema constraints <paramref name="constraints"/>
+    /// <c>pattern</c> - whichever JSON Schema constraints <paramref name="constraints"/>
     /// carries. <c>minItems</c>/<c>maxItems</c> are not leaf constraints; see
     /// <see cref="BuildSchemaNode"/>.
     /// </summary>
@@ -443,7 +443,7 @@ internal static class SourceWriter
     /// <summary>
     /// Escapes a value for embedding inside the JSON text this class builds by hand.
     /// Tool/parameter/enum names never carry control characters, but a free-text
-    /// <c>[Description]</c> can (125.1) - an unescaped literal newline inside a JSON
+    /// <c>[Description]</c> can - an unescaped literal newline inside a JSON
     /// string is invalid per RFC 8259 and <c>JsonDocument.Parse</c> throws on it.
     /// </summary>
     private static string JsonEscape(string value)

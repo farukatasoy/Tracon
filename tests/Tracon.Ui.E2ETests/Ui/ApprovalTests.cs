@@ -111,7 +111,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
 
         // The answer is no longer one click. Approving is the one
         // action in the console that earns a confirmation under criterion (b)
-        // rather than (a) — nothing is destroyed, but that decision means the decision
+        // rather than (a) — nothing is destroyed, but the criterion means the decision
         // cannot be given twice, so the step is deliberate and this case walks
         // it rather than being loosened around it.
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
@@ -120,7 +120,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
         await Expect(confirm).ToBeVisibleAsync();
 
         // The consequence comes from the SAME message key the trigger's own
-        // tooltip uses (§175.4 rule 2), so the sentence read before the click
+        // tooltip uses (the modal-layer rule), so the sentence read before the click
         // and the sentence read inside the dialog cannot drift apart.
         await Expect(confirm.GetByText("queue a new run with the same session to continue.", new() { Exact = false })).ToBeVisibleAsync();
 

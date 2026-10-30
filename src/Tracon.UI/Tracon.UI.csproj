@@ -57,7 +57,7 @@
   </ItemGroup>
 
   <!--
-    BL-058: the embedded bundle carries third-party code (React, TanStack Query,
+    the embedded bundle carries third-party code (React, TanStack Query,
     openapi-fetch, Tailwind CSS), so the package carries their notices. The
     frontend build checks this file against the modules it emitted and embeds
     the same bytes in the assembly; ReleaseArtifactTests locks all three copies.

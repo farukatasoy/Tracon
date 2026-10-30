@@ -12,8 +12,7 @@
 // BEFORE AddTracon() so the host's own registration wins over the
 // built-in default (every contract uses TryAdd). The seventh,
 // IToolApprovalPresenter, is left on its built-in default on purpose:
-// samples/Tracon.Api shows that one. Count claims here are gated by
-// dokuman-bakim.py -> sevk_edilen_genisleme_noktasi().
+// samples/Tracon.Api shows that one. Count claims here are gated by a documentation check.
 //   1. ITenantContext / ITenantStore -> Tenancy/
 //   2. IRunAttributionContext        -> Attribution/
 //   3. IToolAuthorizationHandler     -> Authorization/

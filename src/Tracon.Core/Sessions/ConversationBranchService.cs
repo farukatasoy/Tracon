@@ -152,7 +152,7 @@ internal sealed class ConversationBranchService
         {
             // 🚨 ex.Message describes Tracon's OWN previously-stored session state
             // failing to deserialize, not a provider secret - but it is still foreign text
-            // (BL-027/BL-037) and this outcome's Detail reaches the HTTP response
+            // and this outcome's Detail reaches the HTTP response
             // verbatim (SessionEndpoints), so only the type name and a correlation id go out.
             var correlationId = SafeErrorText.NewCorrelationId();
 

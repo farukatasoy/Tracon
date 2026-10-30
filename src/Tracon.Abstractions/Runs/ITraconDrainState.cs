@@ -32,7 +32,7 @@ namespace Tracon;
 /// worker's own <c>WaitForRunningJobsAsync</c> drain loop. A setup that
 /// relies on this flag ALONE, without one of those two layers in its own
 /// request path, has no closed guarantee against a run starting in that
-/// narrow window (BL-026; see <c>TraconDrainOptions.Enabled</c> too).
+/// narrow window (see <c>TraconDrainOptions.Enabled</c> too).
 /// </para>
 /// </remarks>
 internal interface ITraconDrainState

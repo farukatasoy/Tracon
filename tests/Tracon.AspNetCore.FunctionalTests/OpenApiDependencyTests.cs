@@ -3,7 +3,7 @@ using System.Xml.Linq;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 🚨 Protects the that decision/L35 rationale: <c>Tracon.AspNetCore</c> does not
+/// 🚨 Protects the rationale: <c>Tracon.AspNetCore</c> does not
 /// force OpenAPI generation on the consumer, it only carries endpoint
 /// metadata coming from the shared framework.
 /// </summary>

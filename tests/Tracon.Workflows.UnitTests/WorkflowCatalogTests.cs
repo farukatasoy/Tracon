@@ -4,7 +4,7 @@ using Tracon.Workflows.UnitTests.Fakes;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// BL-039: a duplicate code-defined workflow name used to throw a raw
+/// a duplicate code-defined workflow name used to throw a raw
 /// <see cref="ArgumentException"/> from <see cref="Dictionary{TKey,TValue}.ToDictionary"/> - the
 /// same defect <see cref="WorkflowFunctionRegistry"/> already avoided by rejecting a duplicate
 /// with a normalized <see cref="TraconException"/>.

@@ -160,8 +160,8 @@ public static class TraconPostgreSqlBuilderExtensions
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
-        // Same reasoning, for the `tracon migrate` CLI command (
-        // An earlier plan): MigrationRunner is linked-source, so a consumer that
+        // Same reasoning, for the `tracon migrate` CLI command:
+        // MigrationRunner is linked-source, so a consumer that
         // references more than one provider sees ambiguous types with the
         // same name (CS0433). IMigrationApplier is the resolvable seam.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IMigrationApplier>(

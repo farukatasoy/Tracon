@@ -225,7 +225,7 @@ internal sealed class RetentionExecutor(
     /// <summary>
     /// Resolves age and volume cutoffs together. When both are present, the
     /// newer cutoff, which deletes more, wins. This is the only option that
-    /// guarantees both rules are met (36.2).
+    /// guarantees both rules are met.
     /// </summary>
     private async ValueTask<DateTimeOffset?> ComputeCutoffAsync(
         string tenantId,

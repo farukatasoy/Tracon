@@ -34,7 +34,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// vocabulary; it is inherently interface-specific prose, the same shape
 /// <c>OrderingContractDocumentationTests</c> already gates for numeric-ordering direction.
 /// It is therefore covered by <see cref="A_guarantee_limit_contract_states_what_is_NOT_guaranteed"/>
-/// below, one exact-phrase row per interface this change touches (BL-026, BL-028, BL-042) —
+/// below, one exact-phrase row per interface this change touches —
 /// NOT by the generic baseline scan. A future change adding a new guarantee-limit interface
 /// adds its own row there, the same way <c>OrderingContractDocumentationTests</c> grows.
 /// </para>
@@ -455,7 +455,7 @@ public sealed class SeamContractDocumentationTests
                 $"Repository root not found. Searched upwards from '{AppContext.BaseDirectory}' for Tracon.slnx.");
     }
 
-    // --- Dimension 4: guarantee limits (BL-026, BL-028, BL-042) ---
+    // --- Dimension 4: guarantee limits ---
     // Open-ended prose, not a fixed vocabulary - the same shape
     // OrderingContractDocumentationTests already gates for numeric-ordering direction.
     // Each row is verified to fail red under an isolated, dedicated break (DoD).
@@ -463,14 +463,14 @@ public sealed class SeamContractDocumentationTests
     public static TheoryData<string, string, string[]> GuaranteeLimitContracts() => new()
     {
         {
-            // BL-028: cancellation is cooperative-only - TryCancel signals the token,
+            // cancellation is cooperative-only - TryCancel signals the token,
             // it does not force the run's body to stop reading it.
             Path.Combine("Tracon.Abstractions", "Runs", "IRunCancellationRegistry.cs"),
             "bool TryCancel(Guid runId, string? tenantId);",
             ["cooperative", "does not force"]
         },
         {
-            // BL-042: the lease is eventually-correct, not strictly-exclusive - a
+            // the lease is eventually-correct, not strictly-exclusive - a
             // frozen owner (GC pause, thread starvation, network partition) can leave
             // a narrow split-brain window before the lease expires.
             Path.Combine("Tracon.Abstractions", "Coordination", "ISingletonLeaseStore.cs"),
@@ -486,7 +486,7 @@ public sealed class SeamContractDocumentationTests
             ["does not isolate the script process", "cancellation is cooperative", "does not force"]
         },
         {
-            // BL-026: draining relies on the HTTP host's own request draining and the
+            // draining relies on the HTTP host's own request draining and the
             // job worker's own WaitForRunningJobsAsync to actually stop accepting work
             // in time - the flag does not itself guarantee that a run in the
             // register/accept window is never started after it flips. The interface that

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Development-time generation step (
-// An earlier plan). `npm run build` and `dotnet build` do NOT call this — it is
+// Development-time generation step.
+// `npm run build` and `dotnet build` do NOT call this — it is
 // run by hand whenever docs/openapi/tracon.json changes, and its output
 // (src/schema.ts) is committed.
 //

@@ -160,7 +160,7 @@ function buildConditionValue(operator: ToolArgumentOperator, raw: string): ToolA
         const value = parseScalar(token);
 
         // The server's In/NotIn only accepts text or numbers, never booleans
-        // (63.2) — a "true"/"false"
+        // — a "true"/"false"
         // token inside a list stays text rather than becoming an invalid element.
         return typeof value === 'boolean' ? token : value;
       });
@@ -613,7 +613,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                             </Tooltip>
                           )}
                           {meta.roles.canAdminister && (
-                            /* No confirmation step: §175.3 fails on both
+                            /* No confirmation step: the confirm-dialog rule fails on both
                                 counts. The row carries an endpoint and
                                 configuration KEY NAMES, typed back
                                 from this form or the API; its header maps are

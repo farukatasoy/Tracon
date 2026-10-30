@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Quotas;
 /// <see cref="RunEventWriter.CompleteAsync"/> gets a lower sequence number
 /// than the terminal event, and a reader that starts from the beginning of
 /// the stream sees it in that same order. <c>RunRecordingAgent.CompleteAsync</c>
-/// writes the quota threshold notice this way (146.1) precisely so the notice
+/// writes the quota threshold notice this way precisely so the notice
 /// lands inside the run's own append-only stream instead of after it closes.
 /// </summary>
 public sealed class QuotaNoticeOrderingTests

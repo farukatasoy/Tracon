@@ -24,7 +24,7 @@ public sealed class VoiceConversationStateMachineTests
     public void Second_start_is_rejected()
     {
         // The agent, session and tenant are fixed for the whole connection
-        // (29.3): a second `start` would move authorization to after the
+        //: a second `start` would move authorization to after the
         // handshake.
         var machine = new VoiceConversationStateMachine();
 

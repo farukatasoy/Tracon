@@ -48,7 +48,7 @@ public sealed class ToolWrapperChainTests
 
         // ToolRegistry passes the registration's own effect straight through;
         // McpTenantTools promotes Read -> External before building the
-        // descriptor. That promotion is the ONE allowed difference (127.1) -
+        // descriptor. That promotion is the ONE allowed difference -
         // everything else about the composed chain must be identical.
         var codeFunction = Compose(codeRegistration, Descriptor("code_tool", ToolEffect.Read));
         var mcpFunction = Compose(mcpRegistration, Descriptor("mcp_tool", ToolEffect.External));

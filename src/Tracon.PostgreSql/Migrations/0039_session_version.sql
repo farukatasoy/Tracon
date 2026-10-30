@@ -1,7 +1,7 @@
 -- ---------------------------------------------------------------------------
 -- 0039 — Optimistic concurrency for sessions
 --
--- 🚨 The earlier decision was closed for the FIRST write of a session only: TryCreateAsync
+-- 🚨 The earlier concurrency fix covered the FIRST write of a session only: TryCreateAsync
 -- made two concurrent first turns safe, and every write after it kept going
 -- through the unconditional upsert. Two concurrent LATER turns on the same
 -- existing session therefore both reported success and the loser's turn was

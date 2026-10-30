@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// An earlier change §137.3 — the worker resolves its handler from a FRESH scope for
+/// The worker resolves its handler from a FRESH scope for
 /// every execution.
 /// </summary>
 /// <remarks>

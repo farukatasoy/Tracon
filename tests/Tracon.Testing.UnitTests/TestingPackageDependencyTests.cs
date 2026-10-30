@@ -3,7 +3,7 @@ using System.Xml.Linq;
 namespace Tracon.Testing.UnitTests;
 
 /// <summary>
-/// 🚨 Guards <c>Tracon.Testing</c>'s that decision.1 rationale: it pulls in no
+/// 🚨 Guards <c>Tracon.Testing</c>'s rationale: it pulls in no
 /// test framework, and the meta package does not depend on it.
 /// </summary>
 public sealed class TestingPackageDependencyTests

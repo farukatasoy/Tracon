@@ -5,7 +5,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The template side of that decision/that decision: no generated file should contain a
+/// The template side of the secrets rule: no generated file should contain a
 /// realistic-looking key, and appsettings.json should carry only empty placeholders.
 /// </summary>
 public sealed class TemplateSecretTests(TemplateFixture fixture)

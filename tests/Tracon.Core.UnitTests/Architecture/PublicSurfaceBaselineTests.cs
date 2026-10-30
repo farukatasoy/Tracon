@@ -20,7 +20,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// Counts TYPES, not entries: <c>PublicAPI.Unshipped.txt</c> lists one line
 /// per member too (a property getter, a constructor), and most of the earlier change's
 /// 8,063 entries were <c>Options</c> accessors that a type-count gate must
-/// not react to (96.5). A line is a type declaration when it names neither a
+/// not react to. A line is a type declaration when it names neither a
 /// member signature (<c>(</c>) nor a member's type (<c> -&gt; </c>) - the
 /// same filter as the change's own measurement command.
 /// </para>

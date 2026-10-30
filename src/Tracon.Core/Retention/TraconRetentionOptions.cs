@@ -77,7 +77,7 @@ public sealed class TraconRetentionOptions
     /// <summary>
     /// Gets the default for <see cref="RetentionTargets.IdempotencyKeys"/>.
     /// The stored response was already sent to the client, so it does not expose
-    /// new data, but its lifetime is still bounded (43.5).
+    /// new data, but its lifetime is still bounded.
     /// </summary>
     public RetentionTargetOptions IdempotencyKeys { get; } = new() { MaxAgeDays = 1 };
 

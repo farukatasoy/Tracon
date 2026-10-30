@@ -453,7 +453,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
                         break;
                     }
 
-                    // Durability layer (146.4): claims the SAME threshold across a
+                    // Durability layer: claims the SAME threshold across a
                     // process restart or a concurrent worker. Only the caller that
                     // wins this atomic claim publishes; a loss is not an error, it
                     // means another run already reported this crossing.

@@ -10,7 +10,7 @@ namespace Tracon.Package.Tests;
 /// for how it stays isolated from every other pack/build in this project.
 /// </summary>
 /// <remarks>
-/// <c>scripts/kapi.py yayin</c>'s own early-reject step (136.3) and the
+/// <c>scripts/kapi.py yayin</c>'s own early-reject step and the
 /// staging/promote/manifest behavior it adds are pure-Python logic, covered
 /// by <c>scripts/kapi_test.py</c>'s <c>YayinTestleri</c> - not here.
 /// </remarks>

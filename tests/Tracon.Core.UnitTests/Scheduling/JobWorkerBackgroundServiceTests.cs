@@ -230,7 +230,7 @@ public sealed class JobWorkerBackgroundServiceTests
         record.ErrorMessage.ShouldContain("(ref:");
         record.ErrorMessage.ShouldNotContain(ProviderSecret);
 
-        // 119.3: the persisted safe text and the log entry that carries the
+        // The persisted safe text and the log entry that carries the
         // FULL exception detail must be found through the SAME correlation id.
         var correlationId = CorrelationIdIn(record.ErrorMessage);
 

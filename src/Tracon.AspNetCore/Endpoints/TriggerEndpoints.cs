@@ -326,8 +326,8 @@ internal static class TriggerEndpoints
             return attributionProblem;
         }
 
-        // Same 403 shape as every other run-starting endpoint (
-        // An earlier fix): a trigger cannot bypass the installation's run
+        // Same 403 shape as every other run-starting endpoint:
+        // a trigger cannot bypass the installation's run
         // authorization policy just because it has no bearer token.
         if (await RunAuthorizationGate
                 .CheckRunAsync(runAuthorizationHandler, triggerTenant, validated.Trigger.TargetName, sessionId: null, attributionContext, httpContext, cancellationToken)

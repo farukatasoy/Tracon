@@ -365,7 +365,7 @@ internal static class RetentionTargetRegistry
             // Knowledge base chunks. 🚨 The table exists ONLY in the
             // PostgreSQL migration set; binding this target to a policy on SQL
             // Server/SQLite gives a "table does not exist" error at run time — that
-            // is deliberate (51.3).
+            // is deliberate.
             RetentionTargets.DocumentEmbeddings => new RetentionTargetDefinition(
                 Table("document_embeddings"),
                 "created_at < @cutoff",

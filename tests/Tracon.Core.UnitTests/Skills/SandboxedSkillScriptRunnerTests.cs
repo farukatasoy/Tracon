@@ -449,8 +449,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests : IDisposable
     /// a single-item assertion here fails for a reason that has nothing to do
     /// with the behavior under test. The same reason makes the collection a
     /// concurrent one: another test's span stops on ITS thread while this one
-    /// reads, and a plain list threw "Collection was modified" (measured,
-    /// An earlier change).
+    /// reads, and a plain list threw "Collection was modified" (measured).
     /// </remarks>
     private static Activity SpanFor(IEnumerable<Activity> stopped, string scriptName)
         => stopped.Single(activity =>

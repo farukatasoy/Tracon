@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Diagnostics;
 /// </summary>
 /// <remarks>
 /// 🚨 The reason these tests exist is a measured defect (2026-08-08
-/// report an earlier plan): <c>MigrationHostedService.StartAsync</c> waits fully
+/// investigation): <c>MigrationHostedService.StartAsync</c> waits fully
 /// for migrations, but <c>BackgroundService.StartAsync</c> returns without
 /// waiting for <c>ExecuteAsync</c>. If the registration order is
 /// <c>.UseMcp()</c> → <c>.UseSqlite()</c>, the first SQL attempt runs before

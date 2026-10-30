@@ -195,7 +195,7 @@ internal sealed class EvalJobHandler(
             .ConfigureAwait(false);
 
         // Eval is independent of the concept of an experiment: it runs against
-        // a fixed version, not a variant.,
+        // a fixed version, not a variant.
         var agent = agentVersion is { } version
             ? await catalog.ResolveAsync(suite.AgentName, version, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"Version {version} of agent '{suite.AgentName}' was not found.")

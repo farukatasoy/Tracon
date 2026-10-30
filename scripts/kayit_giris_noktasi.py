@@ -10,7 +10,7 @@ Tüketicinin bir yeteneği açtığı public üye bir "kayıt giriş noktası"d�
 
 C# kopyası `tests/Tracon.Core.UnitTests/Architecture/CapabilityEntryPoints.cs`
 içindedir ve bu modülü import edemez; eşliği iki taraftaki "üç ad" testleri
-tutar. Kullanan betikler: `manuel-test-tazelik.py`, `public-yuzey-envanteri.py`.
+tutar. Kullanan betik: `public-yuzey-envanteri.py`.
 """
 from __future__ import annotations
 

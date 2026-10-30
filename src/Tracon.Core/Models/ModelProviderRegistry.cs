@@ -629,8 +629,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             chatClient = _circuitBreaker.Wrap(binding.Provider, chatClient, credentialScope);
         }
 
-        // 🚨 The fallback chain sits OUTSIDE the circuit breaker (
-        // An earlier fix): trying a fallback link requires first seeing that the
+        // 🚨 The fallback chain sits OUTSIDE the circuit breaker:
+        // trying a fallback link requires first seeing that the
         // primary's circuit is open, which only the ring outside it can see.
         // It sits INSIDE content-filter detection: a provider-filtered
         // response is not an exception at this layer, only a ChatResponse

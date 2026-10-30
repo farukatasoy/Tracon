@@ -355,7 +355,7 @@ public sealed class McpTasksEndpointTests
 
         var final = await Poll(() => client.GetTaskAsync(taskId), r => r is CompletedTaskResult or FailedTaskResult);
 
-        // 🚨 Never InputRequired — the actual that decision safety property.
+        // 🚨 Never InputRequired — the actual safety property.
         final.ShouldNotBeOfType<InputRequiredTaskResult>();
 
         var completed = final.ShouldBeOfType<CompletedTaskResult>();

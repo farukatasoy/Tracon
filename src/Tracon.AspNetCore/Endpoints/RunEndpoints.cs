@@ -796,7 +796,7 @@ internal static class RunEndpoints
             // 🚨 422: a mismatched tool call is not an ERROR, it is a FINDING —
             // it means the new version calls a different tool. Silently
             // skipping it would leave the model with a gap it cannot see, and
-            // running it live would produce an unwanted side effect (
+            // running it live would produce an unwanted side effect.
             return Results.Problem(
                 title: "Recorded tool result not found",
                 detail: ex.Message,

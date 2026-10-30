@@ -76,7 +76,7 @@ internal sealed class RunBackedMcpTaskStore : IMcpTaskStore
 
     private IServiceProvider? _services;
 
-#pragma warning disable CS0067 // Never raised: elicitation/MRTR is out of scope (§117.7).
+#pragma warning disable CS0067 // Never raised: elicitation/MRTR is out of scope.
     public event Action<InputResponseReceivedEventArgs>? InputResponseReceived;
 #pragma warning restore CS0067
 
@@ -99,7 +99,7 @@ internal sealed class RunBackedMcpTaskStore : IMcpTaskStore
 
         SweepExpired(now, options.TaskTimeToLive);
 
-        // Per SEP-2663 §306 (IMcpTaskStore.CreateTaskAsync's own contract), the
+        // Per SEP-2663 (IMcpTaskStore.CreateTaskAsync's own contract), the
         // task must be durably created before this method returns: a
         // tasks/get for this id must resolve even from a different instance.
         await runStore.StartRunAsync(

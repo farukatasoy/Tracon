@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// Verifies <see cref="ModelProviderRegistry.CreateChatClientAsync"/>'s tenant
-/// credential and egress policy resolution (BYOK/an earlier fix).
+/// credential and egress policy resolution (BYOK).
 /// </summary>
 public sealed class ModelProviderRegistryTenantCredentialTests
 {

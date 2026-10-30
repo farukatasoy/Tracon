@@ -81,7 +81,7 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
     [Fact]
     public async Task Erase_removes_a_conversation_and_its_items_together()
     {
-        // the exception (64.5): summarized/compacted messages are
+        // the exception: summarized/compacted messages are
         // normally kept forever, but a data subject erasure removes them too.
         var conversationId = await SeedConversationAsync("tenant-a");
         await SeedConversationItemAsync(conversationId, seq: 1);

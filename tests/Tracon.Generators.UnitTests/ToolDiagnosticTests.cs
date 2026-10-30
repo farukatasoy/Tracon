@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies TRC0010 (130.2): a constraint attribute that does not apply to its
+/// Verifies TRC0010: a constraint attribute that does not apply to its
 /// parameter's type or shape is reported as a warning, never blocks generation, and
 /// never reaches the schema.
 /// </summary>
@@ -89,7 +89,7 @@ public sealed class ToolDiagnosticTests
 
     /// <summary>
     /// <c>RangeAttribute</c>'s <c>Range(Type, string, string)</c> overload does not give
-    /// the generator a compile-time numeric constant (130.2) - it is silently unsupported,
+    /// the generator a compile-time numeric constant - it is silently unsupported,
     /// reported instead of producing a wrong or crashing schema.
     /// </summary>
     [Fact]

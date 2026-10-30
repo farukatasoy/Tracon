@@ -157,7 +157,7 @@ public sealed class RunEventDraftValidationTests
     [Fact]
     public async Task A_non_Custom_event_carrying_a_type_is_rejected()
     {
-        // 🚨 The other half of the two-way rule (141.1): a caller who sets
+        // 🚨 The other half of the two-way rule: a caller who sets
         // CustomType on a built-in event type must be told, not silently
         // dropped -- every store discards it, since only Custom gives it
         // any meaning.

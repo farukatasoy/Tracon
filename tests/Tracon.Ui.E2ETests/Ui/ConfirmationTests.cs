@@ -366,7 +366,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
     [Fact]
     public async Task An_action_that_fails_the_criterion_stays_one_click_and_still_says_what_it_does()
     {
-        // 🚨 The other half of §175.3, and the half a gate cannot check.
+        // 🚨 The other half of the confirm-dialog rule, and the half a gate cannot check.
         // Removing an MCP server is irreversible and NOT destructive: the row
         // holds an endpoint, headers and a configuration key NAME, all
         // typed back from the same form. So it gets the consequence sentence
@@ -398,7 +398,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await remove.ClickAsync();
 
         // No second step: the row is gone on the one click.
-        await Expect(session.Page.GetByTestId("confirm-accept"), "An action that fails the §175.3 criterion opened a confirmation.").ToHaveCountAsync(0);
+        await Expect(session.Page.GetByTestId("confirm-accept"), "An action that fails the the confirm-dialog criterion opened a confirmation.").ToHaveCountAsync(0);
 
         await Expect(session.Page
             .GetByText("knowledge-base", new() { Exact = true })).ToHaveCountAsync(0);

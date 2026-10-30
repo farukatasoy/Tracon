@@ -665,7 +665,7 @@ class KapiCagrisiTestleri(unittest.TestCase):
 
 
 class HatTestleri(unittest.TestCase):
-    """§237.2: one function decides the line; the non-.NET gate reuses it."""
+    """One function decides the line; the non-.NET gate reuses it."""
 
     def test_surum_sirasi_preview_rc_ga(self):
         ordered = ["1.0.0-preview.5", "1.0.0-preview.12", "1.0.0-rc.1", "1.0.0-rc.2", "1.0.0", "1.0.1", "1.1.0", "2.0.0"]
@@ -726,7 +726,7 @@ class HatTestleri(unittest.TestCase):
 
 
 class DonmusHatKapiTestleri(unittest.TestCase):
-    """§237.2: the same ApiCompat report is red in a frozen line and green in a preview or a major."""
+    """The same ApiCompat report is red in a frozen line and green in a preview or a major."""
 
     BREAK = _baseline_record("CP0006", "M:Tracon.IThing.Added")
 
@@ -863,7 +863,7 @@ def _baseline_repo(
 
 
 class YuzeyOkumaTestleri(unittest.TestCase):
-    """§237.3 / §237.4: the readers that stand where ApiCompat is blind."""
+    """The readers that stand where ApiCompat is blind."""
 
     def test_etkin_yuzey_shipped_ile_unshipped_birlesimidir(self):
         surface = bc.effective_api("#nullable enable\nA\nB\n", "#nullable enable\nC\n*REMOVED*B\n")

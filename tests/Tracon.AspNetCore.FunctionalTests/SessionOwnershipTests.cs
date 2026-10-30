@@ -1425,7 +1425,7 @@ public sealed class SessionOwnershipTests
         // 🚨 The section is bound BY HAND (AOT). A property added to
         // the type but not to BindSessionOwnership is silently inert for
         // every deployment that configures Tracon through appsettings —
-        // the exact defect class that decision and that decision both were.
+        // the exact defect class both earlier gaps were.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {

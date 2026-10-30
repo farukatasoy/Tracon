@@ -5,7 +5,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
 /// A model provider whose chat client never returns on its own — used to
-/// exercise <see cref="ChildAgentInvoker"/>'s two-layer wait limit (144.1)
+/// exercise <see cref="ChildAgentInvoker"/>'s two-layer wait limit
 /// through a REAL <c>BackgroundAgentsProvider</c> tool-call flow, not a
 /// hand-built invoker.
 /// </summary>

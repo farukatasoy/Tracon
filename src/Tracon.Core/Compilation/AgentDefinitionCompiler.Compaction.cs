@@ -176,7 +176,7 @@ public sealed partial class AgentDefinitionCompiler
             ?? DefaultContextWindowMaxOutputTokens;
 
         // toolEvictionThreshold/truncationThreshold are not exposed in
-        // CompactionSettings in this change (the doc's §13.1 shape does not
+        // CompactionSettings in this change (the planned shape does not
         // include them) - reasonable constant values are used. If needed, add
         // them as a separate field later.
         return new ContextWindowCompactionStrategy(

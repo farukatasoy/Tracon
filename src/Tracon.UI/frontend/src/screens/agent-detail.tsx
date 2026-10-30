@@ -94,7 +94,7 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
                 <LinkButton to={`agents/${encodeURIComponent(name)}/edit`} tone="primary">
                   {t('common.edit')}
                 </LinkButton>
-                {/* 🚨 Deleting an agent passes §175.3 criterion (a): the
+                {/* 🚨 Deleting an agent passes the confirm-dialog criterion (a): the
                     definition rows and EVERY version row go with it
                     (`agent_definition_versions` cascades), and no form in this
                     console can put the history back. So it is the one delete

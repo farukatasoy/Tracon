@@ -46,7 +46,7 @@ public abstract class ToolArgumentValidationContract : IAsyncLifetime
     /// <summary>Creates the validator under test.</summary>
     protected abstract ValueTask<IToolArgumentsValidator> CreateValidatorAsync();
 
-    /// <summary>The seed the argument generator uses. Fixed by default for reproducibility (143.2).</summary>
+    /// <summary>The seed the argument generator uses. Fixed by default for reproducibility.</summary>
     protected virtual int Seed => 20260903;
 
     /// <summary>

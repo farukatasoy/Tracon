@@ -17,7 +17,7 @@ public sealed class TraconDrainOptions
     /// </summary>
     /// <remarks>
     /// Turning this on does not, by itself, close the register/accept race
-    /// window a new run can land in right as shutdown begins (BL-026). Two
+    /// window a new run can land in right as shutdown begins. Two
     /// backup mechanisms actually carry that guarantee: the HTTP host's own
     /// Kestrel request draining, and the job worker's own
     /// <c>WaitForRunningJobsAsync</c> drain loop. A setup that relies on this

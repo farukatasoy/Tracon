@@ -690,7 +690,7 @@ public sealed class HarnessLoopTests
         agentRun.Error.ShouldNotBeNull().Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
         workflow.Status.ShouldBe(RunStatus.Failed);
 
-        // Measured (plan 192.5): MAF does not wrap the exception. The
+        // Measured: MAF does not wrap the exception. The
         // workflow row carries the same stable identity and class as the participant's
         // own row; before, it wrote the CLR type name and no class.
         workflow.Error.ShouldNotBeNull().Type.ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);

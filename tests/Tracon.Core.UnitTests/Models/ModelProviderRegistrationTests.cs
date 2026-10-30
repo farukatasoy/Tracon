@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// <c>AddModelProvider&lt;T&gt;()</c> (🟢 BL-016) fills the last gap in the
+/// <c>AddModelProvider&lt;T&gt;()</c> fills the last gap in the
 /// generic/instance/factory triple every other multi-registration seam already had
 /// (<c>AddAgentSource</c>, <c>AddRunJudge</c>). The instance and factory overloads
 /// predate this change and are exercised by dozens of functional tests already; this

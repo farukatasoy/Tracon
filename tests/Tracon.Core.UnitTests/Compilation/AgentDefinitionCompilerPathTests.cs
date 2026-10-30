@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// Reads the four public compile paths (sync <c>Compile</c>, <c>CompileAsync</c>,
 /// <c>CompileCachedAsync</c>, <c>CompileParameterizedAsync</c>) against a matrix of
 /// culture resolution, callable-agent resolution, shared instructions, and BYOK/cache
-/// bypass (106.3). The matrix cells with dedicated coverage elsewhere
+/// bypass. The matrix cells with dedicated coverage elsewhere
 /// (culture resolution itself: <see cref="InstructionCultureResolutionTests"/>;
 /// shared instructions: <see cref="SharedInstructionsTests"/>; cache-key fingerprints and
 /// BYOK cache bypass: <see cref="CompileCachedAsyncTests"/> and

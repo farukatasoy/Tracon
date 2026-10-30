@@ -10,7 +10,7 @@ import { tr } from './tr';
 
 /**
  * Object spread silently lets a later fragment override an earlier one on a
- * duplicate key (K-doc §109.3) — `tsc` cannot catch this, since the spread's
+ * duplicate key — `tsc` cannot catch this, since the spread's
  * inferred type just takes the last writer. This test is the only thing that
  * does.
  */

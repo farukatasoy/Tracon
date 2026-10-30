@@ -28,7 +28,7 @@ namespace Tracon.SqlProviders.Tests;
 /// every persistence contract resolves to the provider's own implementation (a
 /// store added to Core and forgotten in all three); every contract keeps the
 /// decorator state <c>AddTracon()</c> gives it; a later provider in the chain
-/// takes over every contract, as that decision promises (a <c>TryAdd</c> where
+/// takes over every contract, as documented (a <c>TryAdd</c> where
 /// <c>ReplaceTraconDefault</c> belongs); and every contract type a provider
 /// registers is classified, so a persistence contract not named <c>*Store</c>
 /// cannot stay outside the other checks.
@@ -167,7 +167,7 @@ public sealed class SqlProviderRegistrationParityTests
     /// register with <c>TryAddSingleton</c>; every other one goes through
     /// <c>ReplaceTraconDefault</c>. With one provider the two verbs end
     /// the same, because <c>AddTracon()</c> registers no default for it. With two
-    /// providers in one chain — a configuration error that decision warns about — the
+    /// providers in one chain — a configuration error the documentation warns about — the
     /// FIRST provider keeps the branch store while every other contract follows
     /// the second, so branching writes to one database and sessions live in the
     /// other. Changing the verb is an open decision, not this gate's. The entry
@@ -303,7 +303,7 @@ public sealed class SqlProviderRegistrationParityTests
 
     /// <summary>
     /// With two providers in one chain, the later one takes over every
-    /// contract — the "last registration wins" rule that decision documents.
+    /// contract — the "last registration wins" rule the documentation states.
     /// </summary>
     /// <remarks>
     /// This is the only check that sees the registration VERB of a contract

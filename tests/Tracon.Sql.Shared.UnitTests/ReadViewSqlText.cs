@@ -12,7 +12,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <c>MigrationDescriptor</c>/<c>SqlDialect</c>: those are shared linked
 /// source compiled separately into all three provider assemblies, so
 /// naming either type here would hit the same cross-assembly ambiguity
-/// (CS0433) that decision already warns about for this test project.
+/// (CS0433) the repository already warns about for this test project.
 /// </remarks>
 internal static class ReadViewSqlText
 {

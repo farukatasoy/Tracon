@@ -13,7 +13,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <para>
 /// The defect this guards was closed once before in exactly one place
 /// (<c>an earlier defect</c>, the <c>IRunInputStore</c> path) and reopened in 21
-/// others (BL-027/BL-037): a foreign exception's message can carry
+/// others: a foreign exception's message can carry
 /// a request detail, an internal URL, a <c>host:port</c>, or a partial
 /// credential the exception's own producer put there, and nothing short of a
 /// human reviewing every new write site catches the next one.

@@ -85,7 +85,7 @@ public sealed class ImageEndpointTests
     public async Task Endpoint_translates_a_provider_failure_to_bad_gateway()
     {
         // The raw provider message ("provider rejected the request") is a foreign
-        // exception's own text and must never reach the client (BL-037):
+        // exception's own text and must never reach the client:
         // the response carries only the exception's type name and a correlation id.
         var generator = new StubImageGenerator { Exception = new InvalidOperationException("provider rejected the request") };
         await using var host = await StartWithImagesAsync(generator);

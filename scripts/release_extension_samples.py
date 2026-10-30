@@ -25,8 +25,8 @@ SAMPLE_TEST_PROJECTS = (
 # project directory that exists but is not run by this gate, with the reason
 # WHY. Empty by default - a project that lands here without a reason string
 # fails validate_sample_inventory just as loudly as one that is missing
-# entirely (BL-052: a bare tuple update let a real sample - added in
-# Go unrun for three phases because nothing compared the tuple
+# entirely (a bare tuple update once let a real sample
+# go unrun for three phases because nothing compared the tuple
 # against the samples/ directory it claims to enumerate).
 SAMPLE_TEST_EXCLUSIONS: dict[str, str] = {}
 
@@ -42,7 +42,7 @@ AOT_PROJECTS = (AOT_PROJECT, PROVIDER_AOT_PROJECT)
 
 # The provider and voice packages whose "Yes" must be backed by the smoke.
 # Abstractions and Core are exercised by ExtensionAotSmoke's meta-package graph;
-# PostgreSql needs a live database and is a known gap (YAYIN-HAZIRLIK § 3.6).
+# PostgreSql needs a live database and is a known gap (a release note records it).
 PROVIDER_AOT_PACKAGES = (
     "Tracon.OpenAI",
     "Tracon.Anthropic",
@@ -57,7 +57,7 @@ PROVIDER_AOT_PACKAGES = (
 AOT_PROOF_ELSEWHERE = {
     "Tracon.Abstractions": "ExtensionAotSmoke publishes the contracts and runs against them",
     "Tracon.Core": "ExtensionAotSmoke publishes AddTracon() and runs a host",
-    "Tracon.PostgreSql": "known gap: a smoke needs a live database (YAYIN-HAZIRLIK § 3.6)",
+    "Tracon.PostgreSql": "known gap: a smoke needs a live database (a release note records it)",
 }
 
 COMPATIBILITY_PAGE = "docs-site/src/content/docs/reference/compatibility.md"

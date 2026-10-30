@@ -91,7 +91,7 @@ public sealed class RequiredBindingStartupTests
     [Fact]
     public async Task An_Add_registration_made_after_AddTracon_wins_and_the_host_starts()
     {
-        // Measured, and the opposite of what the phase plan assumed: the
+        // Measured, and the opposite of what was first assumed: the
         // container resolves the LAST descriptor, so a plain Add after
         // AddTracon does bind the consumer's type. The gate reports what
         // actually resolved, so this host is correctly allowed to start.

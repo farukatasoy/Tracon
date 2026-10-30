@@ -944,7 +944,7 @@ public sealed class ChildAgentInvoker : AIAgent
             TaskScheduler.Default);
     }
 
-    /// <summary>One step of the streaming race: the next update, or a timeout outcome (144.1).</summary>
+    /// <summary>One step of the streaming race: the next update, or a timeout outcome.</summary>
     private readonly record struct ChildStep(
         ChildStepOutcome Outcome,
         bool HasNext,

@@ -110,7 +110,7 @@ public sealed class QuotaRunNoticeTests
         // maxRuns=2, a single 50% threshold: the FIRST run crosses it (50/50 ->
         // wait, 1/2 = 50%) and claims it; the SECOND run reaches 100%, which is
         // still >= 50, but the threshold was already claimed THIS period -- the
-        // durable dedup (146.4) means no second notice, and it also proves the
+        // durable dedup means no second notice, and it also proves the
         // notice one run's completion writes never leaks onto a DIFFERENT run's
         // own stream.
         await using var host = await StartAsync(publishToRunStream: true, thresholdPercents: [50]);

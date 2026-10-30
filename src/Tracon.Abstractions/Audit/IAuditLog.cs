@@ -48,7 +48,7 @@ namespace Tracon;
 /// <strong>contract, not a convenience</strong>: it MUST resolve to the single ambient
 /// tenant, never to "every tenant". An implementation that treats a missing filter as "no
 /// filter" returns every tenant's records to whoever leaves the field unset — this is
-/// exactly the shape <c>AuditLogContract</c>'s ambient-fallback scenarios (BL-046) guard
+/// exactly the shape <c>AuditLogContract</c>'s ambient-fallback scenarios guard
 /// against; the built-in <c>InMemoryAuditLog</c> and <c>SqlAuditLog</c> both resolve the
 /// fallback through an injected <see cref="ITenantContext"/>, the same pattern
 /// <c>IRunStore</c>'s AMBIENT methods use.

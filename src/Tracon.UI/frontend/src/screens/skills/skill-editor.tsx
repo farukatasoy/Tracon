@@ -85,7 +85,7 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
   });
 
   /*
-    🚨 §175.3 criterion (a): `skill_scripts` and the agent bindings both cascade
+    🚨 the confirm-dialog criterion (a): `skill_scripts` and the agent bindings both cascade
     off `agent_skills`. The script bodies live nowhere else in this console, so
     re-creating the skill by name gives back an empty shell.
   */

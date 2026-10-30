@@ -142,8 +142,7 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         // Job A: `LoadAllAsync` was removed. This test proves that
         // the single match in the target directory is found correctly while
         // many UNRELATED files exist (the row-count measurement is done
-        // separately with a Postgres-specific EXPLAIN, see
-        // An earlier change).
+        // separately with a Postgres-specific EXPLAIN).
         Enter(TenantA);
 
         const int UnrelatedFileCount = 500;

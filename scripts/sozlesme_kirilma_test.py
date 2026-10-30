@@ -3,7 +3,7 @@
 
 Pure logic: OpenAPI documents as dictionaries, and a temp git repository for the
 name sets and the exit code. One red fixture and one green fixture per rule of
-the HTTP row (§238.1); the rule table in `sozlesme_kirilma.py` and the table in
+the HTTP row; the rule table in `sozlesme_kirilma.py` and the table in
 `reference/versioning.md` are compared by hand in the phase audit.
 """
 from __future__ import annotations

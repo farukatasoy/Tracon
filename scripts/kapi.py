@@ -54,7 +54,7 @@ SHIPPED_DEPENDENCY_FLOORS = {
     "Tracon.Testing.Contracts.Xunit": {"xunit.v3.extensibility.core": "3.2.2", "xunit.v3.assert": "3.2.2"},
 }
 NUSPEC_DEPENDENCY_PATTERN = re.compile(r'<dependency id="(?P<id>[^"]+)" version="(?P<range>[^"]*)"')
-# BL-058: üçüncü taraf kodunu PAKETİN İÇİNDE taşıyan paket, o kodun lisans
+# üçüncü taraf kodunu PAKETİN İÇİNDE taşıyan paket, o kodun lisans
 # bildirimini de taşır. Değer repo'daki kaynak dosyadır; paketteki kopya ona
 # bayt bayt eşit olmalı (paketleme kontrol edilen dosyayı mı aldı?).
 THIRD_PARTY_NOTICE_NAME = "THIRD-PARTY-NOTICES.txt"
@@ -393,7 +393,7 @@ def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
     A public type must be seen by a consumer (site page, sample, template, README),
     be a seam, or carry a written reason in
     `scripts/public-yuzey-gerekceleri.tsv`. Without this scan the audit ran only when
-    someone remembered it, and two unproven exception types slipped in twice (A-80).
+    someone remembered it, and two unproven exception types slipped in twice.
     """
     script = root / PUBLIC_SURFACE_AUDIT
     if not script.is_file():
@@ -595,7 +595,7 @@ def frontend_changed(paths: Iterable[str]) -> bool:
 #
 # The gate compares ALLOCATED BYTES, never wall-clock duration: on a shared CI
 # runner, allocation is deterministic (same code -> same byte count) while
-# duration moves with neighboring jobs (116.1). Duration is still recorded in
+# duration moves with neighboring jobs. Duration is still recorded in
 # bench/baseline.json, as information only - it never fails the gate.
 # -----------------------------------------------------------------------------
 
@@ -1359,7 +1359,7 @@ def generation_commands(extension: Extension = PUBLIC) -> list[Command]:
     `build-agent-map.mjs --check` - the map was edited around but never
     regenerated. That is a forgetting class: a check can only report it, a
     generator removes it. CI keeps checking the same files (`ci.yml` runs
-    `build-agent-map.mjs --check` and `dokuman-bakim.py --denetle`), so a
+    `build-agent-map.mjs --check`), so a
     regenerated file that was never committed is still caught there.
     """
     return [
@@ -1413,7 +1413,7 @@ def closing_commands(
     # seconds when nothing changed ("all projects are up-to-date") and
     # reliably avoids the false failure.
     commands.append(Command(("dotnet", "format", "Tracon.slnx", "--verify-no-changes")))
-    # Path-triggered (116.4): a fifth ALWAYS-ON gate would run BenchmarkDotNet
+    # Path-triggered: a fifth ALWAYS-ON gate would run BenchmarkDotNet
     # on every phase closing, even when nothing near the three hot paths
     # changed. `kapi.py performans` stays a normal subcommand; `main()` decides
     # whether THIS closing run needs it, the same way `affected_test_projects`
@@ -1440,7 +1440,7 @@ def test_commands(
 
 
 # -----------------------------------------------------------------------------
-# `yayin` - release rehearsal (97.2)
+# `yayin` - release rehearsal
 #
 # Writes nothing to a network. It packs the solution (forcing a version via the
 # MinVerVersionOverride environment variable when --surum is given - no git tag
@@ -1698,13 +1698,13 @@ def dependency_floor_errors(project_id: str, nuspec: str) -> list[str]:
 
 
 def _third_party_notice_error(root: pathlib.Path, nupkg: pathlib.Path, source: pathlib.PurePath) -> str | None:
-    """BL-058: None when the package root carries the checked-in notice byte for byte."""
+    """None when the package root carries the checked-in notice byte for byte."""
     expected_path = root / source
     if not expected_path.is_file():
         return f"{source} yok - lisans bildirimi kaynağı eksik"
     with zipfile.ZipFile(nupkg) as archive:
         if THIRD_PARTY_NOTICE_NAME not in archive.namelist():
-            return f"{THIRD_PARTY_NOTICE_NAME} paket kökünde yok (BL-058)"
+            return f"{THIRD_PARTY_NOTICE_NAME} paket kökünde yok"
         packed = archive.read(THIRD_PARTY_NOTICE_NAME)
     if packed != expected_path.read_bytes():
         return f"paketteki {THIRD_PARTY_NOTICE_NAME} {source} ile aynı değil"
@@ -1807,7 +1807,7 @@ def _is_plain_relative(name: object) -> bool:
 
 
 def _manifest_files(manifest: object) -> tuple[dict[str, str], list[str]]:
-    """Every file a manifest names -> its SHA-256, and the schema problems."""
+    """Every file a manifest names -> its SH, and the schema problems."""
     problems: list[str] = []
     files: dict[str, str] = {}
     if not isinstance(manifest, dict):
@@ -1863,7 +1863,7 @@ def package_directory_problems(directory: pathlib.Path) -> list[str]:
     """Why `directory` does NOT hold exactly the files its manifest names.
 
     Every named file (package, symbols package, api-compat report) must
-    exist with the recorded raw SHA-256, and no `.nupkg`/`.snupkg` or report
+    exist with the recorded raw SH, and no `.nupkg`/`.snupkg` or report
     outside the manifest may sit in the directory. Raw SHA-256 is the right
     measure here - unlike `_content_fingerprint` - because the chain never
     packs twice: the bytes that were hashed are the bytes that are pushed."""
@@ -1998,7 +1998,7 @@ def _pack_release(
 
     library_ids = _library_ids(root, packable_project_ids(root))
     baseline_ids = breaking_changes.baseline_package_ids(root, library_ids)
-    # Taban cache'i depo DIŞINDA: geliştirici cache'i asla okunmaz (187.3).
+    # Taban cache'i depo DIŞINDA: geliştirici cache'i asla okunmaz.
     baseline_work = pathlib.Path(tempfile.mkdtemp(prefix="tracon-baseline-"))
     try:
         try:
@@ -2063,12 +2063,12 @@ def release_rehearsal(
 ) -> int:
     project_ids = packable_project_ids(root)
 
-    # Erken ret (136.3): çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
+    # Erken ret: çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
     # `dotnet pack`e girilir. MSBuild kapısı (TraconValidateCleanWorkingTree)
     # zaten aynı sonucu verirdi; bu adım yalnız geri bildirimi öne çeker.
     # Koşulsuzdur - bir yayın provasının kanıt değeri kirli bir ağaçta yoktur,
-    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR (
-    # Açık Soru 3). git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
+    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR.
+    # git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
     # ATLANIR - `dotnet pack` kendi MSBuild kapısı üzerinden aynı denetimi
     # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
     if _dirty_tree_rejected(require_git=False):
@@ -2127,7 +2127,7 @@ def pack_for_ci(output_dir: pathlib.Path, *, root: pathlib.Path = ROOT) -> int:
     `output_dir` must be missing or empty: an interrupted run leaves a
     manifest-less directory that the next run REFUSES instead of deleting
     (a partial set must never be mistaken for a verified one). The manifest
-    is written last and records, besides every package's raw SHA-256, the
+    is written last and records, besides every package's raw SH, the
     baseline and one api-compat record per library package with a baseline -
     the pack-time proof `yayin --paket-dizini` cannot recompute."""
     if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
@@ -2394,7 +2394,7 @@ def _finish_release_rehearsal_unchecked(
                 f"ℹ️ Sürüm notları '## [Unreleased]' bölümünden okundu; "
                 f"'v{resolved_version}' etiketlenirken bu başlık "
                 f"'## [{resolved_version}] - <tarih>' olarak yeniden adlandırılır "
-                "(YAYIN-HAZIRLIK Adım 5)"
+                "(sürüm notu kuralı)"
             )
 
     errors: list[str] = []
@@ -2456,7 +2456,7 @@ def _finish_release_rehearsal_unchecked(
         # sembolu olacak bir .pdb yoktur; ikisi de IncludeSymbols=false yazar.
         # `content`'te bos sembol paketi NU5017 ile build'i kirar; `meta`'da KIRMADI
         # (nuspec bagimliliklari listeler) ve 0 PDB'li bir .snupkg sessizce
-        # sevk ediliyordu - BL-005, olculdu 2026-09-15.
+        # sevk ediliyordu -, olculdu 2026-09-15.
         snupkg_exists = nupkg.with_suffix(".snupkg").exists()
         if profile in ("content", "meta"):
             if snupkg_exists:
@@ -2479,7 +2479,7 @@ def _finish_release_rehearsal_unchecked(
             offenders = sorted({dependency for dependency, _ in prerelease})
             if offenders:
                 errors.append(f"{project_id}: ön sürüm sınırı ihlal edildi - ön sürüm bağımlılık: {', '.join(offenders)}")
-        # A-59: ön sürüm upstream kendi önizlemeleri arasında kırar. Açık alt
+        # ön sürüm upstream kendi önizlemeleri arasında kırar. Açık alt
         # sınır (`version="x"` = `>= x`) tüketicinin yükseltmesini uyarısız
         # restore edip çalışma anında düşürüyordu; tam aralıkta NuGet onu
         # restore'da söyler (NU1608 / NU1107).
@@ -2489,7 +2489,7 @@ def _finish_release_rehearsal_unchecked(
             if not EXACT_RANGE_PATTERN.fullmatch(version_range)
         })
         if open_ranges:
-            errors.append(f"{project_id}: ön sürüm bağımlılık tam aralık değil (A-59): {', '.join(open_ranges)}")
+            errors.append(f"{project_id}: ön sürüm bağımlılık tam aralık değil: {', '.join(open_ranges)}")
 
         errors.extend(f"{project_id}: {error}" for error in dependency_floor_errors(project_id, nuspec))
 
@@ -2690,7 +2690,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
         # The performance gate is path-triggered against the WHOLE change set's
         # changes (--taban..working tree), not just what is uncommitted right
         # now - a phase that touched a hot path in an earlier commit and only
-        # has unrelated uncommitted changes left must still measure it (116.4).
+        # has unrelated uncommitted changes left must still measure it.
         # A failed git call runs it anyway rather than silently skipping.
         paths = changed_paths(args.taban)
         performance = paths is None or performance_gate_triggered(paths)

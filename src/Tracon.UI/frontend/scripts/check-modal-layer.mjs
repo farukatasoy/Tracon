@@ -12,7 +12,7 @@ import { join, relative, resolve } from 'node:path';
  * browser's language, ignoring the console's own locale (the language rule is about the
  *    SERVER's language; this was the operating system's);
  *  - its default button is the ACCEPT one in every major browser, which is the
- *    exact mis-click §175.4 rule 1 exists to prevent;
+ *    exact mis-click the modal-layer rule exists to prevent;
  *  - it blocks the event loop, and Playwright auto-dismisses it, so no E2E case
  *    could click a delete button at all — which is why no E2E case did.
  *

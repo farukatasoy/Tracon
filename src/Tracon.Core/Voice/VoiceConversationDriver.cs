@@ -11,7 +11,7 @@ namespace Tracon;
 /// <summary>The immutable facts of a conversation connection.</summary>
 /// <remarks>
 /// The tenant and the session resolve while the connection is established and
-/// stay <strong>constant</strong> for the whole connection (29.3). A tenant or
+/// stay <strong>constant</strong> for the whole connection. A tenant or
 /// session value that arrives inside a frame is not accepted: to change the tenant
 /// on a long-lived connection is to move authorization after the handshake.
 /// </remarks>

@@ -320,7 +320,7 @@ for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
 // compatibility.md's own package table must track packageCount independently of
 // the landing page - dropped 98 types from the surface but left this
 // table's heading and row count at a stale "17", two packages short, until this
-// check existed (97.5).
+// check existed.
 const compatibility = readFileSync(join(docsRoot, 'reference/compatibility.md'), 'utf8');
 const packagesHeading = compatibility.match(/^## The (\d+) packages$/m);
 const packagesSection = compatibility.split(/^## /m).find((section) => /^The \d+ packages\b/.test(section)) ?? '';
@@ -1040,7 +1040,7 @@ for (const file of manualContent) {
 // real allow/deny behavior - is proved by DocumentedPolicyTests.cs, which runs
 // after the build, inside `dotnet test`. Two mechanisms, not one gate, because
 // an option default and an endpoint policy are measured by two different means
-// (158.1): a reflected object versus a real request.
+//: a reflected object versus a real request.
 const optionsMembers = new Map();
 
 for (const file of collect(sourceRoot).filter((entry) => entry.endsWith('Options.cs'))) {
@@ -1076,7 +1076,7 @@ if (validApiKeyScopes.size === 0) {
 // invisible on the rendered page, readable from the source both by a human
 // editing the sentence and by this scan. The value after
 // the property is a fixed string today because every claim in this first
-// round is a bool (158.3); DocumentedPolicyTests.cs is the one that actually
+// round is a bool; DocumentedPolicyTests.cs is the one that actually
 // evaluates it against the real code.
 //
 // 🚨 That alone is not enough (denetim, 158, finding 1): DocumentedPolicyTests
@@ -1150,9 +1150,9 @@ for (const file of manualContent) {
   }
 }
 
-// Reported, not enforced (158.2): forcing every "by default" sentence under a
+// Reported, not enforced: forcing every "by default" sentence under a
 // marker on day one would turn 147 lines red at once instead of the nine this
-// round measured (158.3), and a gate nobody can make green gets silenced. The
+// round measured, and a gate nobody can make green gets silenced. The
 // two counts are printed at the bottom of this file on every run, so the gap
 // stays visible without blocking on it.
 let defaultPhraseMentions = 0;

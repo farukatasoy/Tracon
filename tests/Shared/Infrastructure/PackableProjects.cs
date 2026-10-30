@@ -116,7 +116,7 @@ internal enum PackageProfile
     /// <c>IncludeBuildOutput=false</c> with dependencies only (the meta package):
     /// no <c>lib/</c>, no XML doc, and no <c>.snupkg</c>.
     /// <para>
-    /// 🚨 Measured 2026-09-15 (BL-005): a symbol package WAS produced and it carried
+    /// 🚨 Measured 2026-09-15: a symbol package WAS produced and it carried
     /// 4 metadata entries and 0 PDB - there is no assembly to have symbols for. It
     /// did not fail like <see cref="Content"/> does (the nuspec still lists
     /// dependencies, so NU5017 never fired), so an empty symbol package shipped

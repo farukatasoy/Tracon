@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// place either kind is actually evaluated: <c>check-content.mjs</c> can only
 /// check that a marker's shape is well-formed, because that gate runs BEFORE
 /// the solution is built and has no compiled assembly to reflect on and no
-/// running host to send a request to (158.1).
+/// running host to send a request to.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,7 +21,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <c>&lt;!-- claim:option TypeName.PropertyName=value --&gt;</c> for an
 /// option default, or <c>&lt;!-- claim:policy METHOD /path scope=ScopeName
 /// --&gt;</c> for an endpoint's required scope. Every marked
-/// claim in this first round is a <see langword="bool"/> (158.3); a future
+/// claim in this first round is a <see langword="bool"/>; a future
 /// non-bool claim needs a small change to the value comparison below, not a
 /// new mechanism.
 /// </para>

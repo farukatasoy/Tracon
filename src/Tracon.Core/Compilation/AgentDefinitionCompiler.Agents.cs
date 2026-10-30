@@ -168,7 +168,7 @@ public sealed partial class AgentDefinitionCompiler
     /// <exception cref="TraconCompilationException">
     /// The sub-agent resolver is not registered, or the resolved
     /// <see cref="SubAgentSettings.ChildDeadline"/>/<see cref="SubAgentSettings.WaitTimeout"/>
-    /// combination is invalid (144.2).
+    /// combination is invalid.
     /// </exception>
     private ChildAgentsBuild? CreateChildAgents(AgentDefinition definition, ResolvedCallableAgents callableAgents)
     {

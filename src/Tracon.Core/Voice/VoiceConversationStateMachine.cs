@@ -76,7 +76,7 @@ internal sealed class VoiceConversationStateMachine
     /// <remarks>
     /// A second <c>start</c> would mean changing the agent; the agent,
     /// session, and tenant are <strong>fixed</strong> for the life of the
-    /// connection (29.3).
+    /// connection.
     /// </remarks>
     public VoiceTransitionOutcome Start() => State == VoiceConversationState.New
         ? Move(VoiceConversationState.Listening)

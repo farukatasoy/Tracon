@@ -40,7 +40,7 @@ import { WorkflowRequestsPanel } from './approvals/workflow-requests';
  * replaced — naming what the answer sets in motion.
  *
  * 🚨 It is also the one action in the console that earns its confirmation under
- * §175.3 criterion (b) rather than (a): nothing is destroyed, but the decision
+ * the confirm-dialog criterion (b) rather than (a): nothing is destroyed, but the decision
  * cannot be given a second time. The run that asked stays `AwaitingApproval`
  * forever and the answer opens a different run, so a mis-click is not
  * something an operator can walk back — there is no second request to answer.
@@ -106,7 +106,7 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
             : 'approvals.confirmRejectTitle',
           { tool: confirming?.toolName ?? '' },
         )}
-        /* The same key the trigger's own tooltip uses (§175.4 rule 2). */
+        /* The same key the trigger's own tooltip uses (the modal-layer rule). */
         consequence={t(
           confirming?.approved === true ? 'approvals.approveTitle' : 'approvals.rejectTitle',
         )}

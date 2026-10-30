@@ -111,7 +111,7 @@ public sealed class ToolObjectGraphTests
     }
 
     /// <summary>
-    /// TRC0011 (135.4): every distinct object type in the graph is reported once, in the
+    /// TRC0011: every distinct object type in the graph is reported once, in the
     /// same compilation, when the tool declares no context at all (report
     /// every missing type, not just the first).
     /// </summary>

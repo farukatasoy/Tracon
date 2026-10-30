@@ -64,8 +64,7 @@
     <!--
       bench/capacity/* is DELIBERATELY absent: the capacity host needs a packed
       feed no ordinary build has, and the acceptance suite needs a database.
-      Only tests/Tracon.Capacity.Tests is discovered by the normal suite
-; it reaches the driver by ProjectReference.
+      Only tests/Tracon.Capacity.Tests is discovered by the normal suite; it reaches the driver by ProjectReference.
     -->
   </Folder>
 

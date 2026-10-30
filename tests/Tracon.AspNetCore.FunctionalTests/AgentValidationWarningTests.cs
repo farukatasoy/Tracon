@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An earlier fix / an earlier fix through the real host and the real Anthropic provider:
+/// End to end, through the real host and the real Anthropic provider:
 /// <c>POST /api/agents/validate</c> warns about the Anthropic default output
 /// limit, a catalog model that rejects sampling cannot be saved with
 /// <c>temperature</c>, and <c>GET /api/models</c> carries the new flag.

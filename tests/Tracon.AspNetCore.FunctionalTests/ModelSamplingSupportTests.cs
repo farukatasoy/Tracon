@@ -12,8 +12,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The table below is the one in the phase plan (MEAI.OpenAI 10.11.0, Google.GenAI 1.26.1, decompiled
-/// 2026-10-20) with the Anthropic row measured again on 2026-10-28 (SDK 13.3.0, an earlier change: no temperature, top-p
+/// The table below is the one measured for this feature (MEAI.OpenAI 10.11.0, Google.GenAI 1.26.1, decompiled
+/// 2026-10-20) with the Anthropic row measured again on 2026-10-28 (SDK 13.3.0: no temperature, top-p
 /// or top-k) and the Google row on SDK 1.27.0. A row changes when an SDK upgrade changes what its adapter sends;
 /// the <c>maf-api-kesfi</c> skill's fourth step measures it again.
 /// </para>

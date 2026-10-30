@@ -100,7 +100,7 @@ public sealed class ApiKeyScopeEnforcementTests
     [Fact]
     public async Task RunsRead_cannot_read_the_audit_log()
     {
-        // Reuse regression (§7.3.3): AuditRead is a separate scope; it must
+        // Reuse regression: AuditRead is a separate scope; it must
         // not silently fall back to RunsRead.
         await using var host = await TraconTestHost.StartAsync();
 
@@ -117,7 +117,7 @@ public sealed class ApiKeyScopeEnforcementTests
     [Fact]
     public async Task RunsRead_reads_stats_but_cannot_recalculate_costs()
     {
-        // §7.3.3: /api/stats requires RunsRead, /api/stats/recalculate-costs
+        // /api/stats requires RunsRead, /api/stats/recalculate-costs
         // requires RunsWrite — two neighboring endpoints in the same file
         // requiring different scopes.
         await using var host = await TraconTestHost.StartAsync();
@@ -138,7 +138,7 @@ public sealed class ApiKeyScopeEnforcementTests
     [Fact]
     public async Task PlatformAdmin_scoped_key_cannot_access_the_key_creation_endpoint()
     {
-        // §7.3.2: escalation gate — /api/api-keys requires SecurityAdmin,
+        // Escalation gate — /api/api-keys requires SecurityAdmin,
         // which PlatformAdmin does not cover.
         await using var host = await TraconTestHost.StartAsync();
 
@@ -199,7 +199,7 @@ public sealed class ApiKeyScopeEnforcementTests
     {
         // A request arriving with a static AuthToken/user identity does NOT
         // carry an ApiKeyRecord (ApiKeyRequestContext.Get() returns null);
-        // attenuation applies only when an API key validated the request (53.3).
+        // attenuation applies only when an API key validated the request.
         await using var host = await TraconTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(

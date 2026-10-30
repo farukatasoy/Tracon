@@ -81,7 +81,7 @@ public sealed class PricingResolverCacheWriteTests
     [Fact]
     public void Without_a_write_rate_the_cost_is_exactly_what_it_was_before_the_write_counters_existed()
     {
-        // 🚨 The regression this guards (253.3): a model with no write rate must produce
+        // 🚨 The regression this guards: a model with no write rate must produce
         // byte-for-byte the value it produced before write pricing existed, even when the
         // provider DOES report written tokens.
         var resolver = CreateResolver(CachePricedModelWithoutWriteRates());

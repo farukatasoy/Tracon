@@ -8,7 +8,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The defect class this guards (BL-034): a numeric ordering knob is easy to document
+/// The defect class this guards: a numeric ordering knob is easy to document
 /// backwards, and no behavior test can see it. Three vakas were measured on 2026-08-27
 /// and all three sat on the extension surface a third party reads.
 /// </para>
@@ -78,7 +78,7 @@ public sealed class OrderingContractDocumentationTests
             ["lower value wins"]
         },
         {
-            // BL-008: the example used to register AFTER
+            // the example used to register AFTER
             // AddTracon(), contradicting the "registered before wins"
             // prose right above it - the exact defect shape, on a
             // different contract. The phrase is bonded to the example's OWN

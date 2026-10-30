@@ -92,7 +92,7 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
         // overwrote the first, and the loser's messages became unreachable
         // — both calls appeared to "succeed".
         //
-        // Accepted behavior (KAPANIS-PLANI.md §6, Family C): either NO
+        // Accepted behavior: either NO
         // message is lost, or, if a conflict check exists, one of the
         // requests returns an EXPLICIT conflict error. This second branch is
         // acceptable — silent loss is NOT. After the fix: of two concurrent

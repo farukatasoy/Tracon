@@ -39,7 +39,7 @@ public sealed class PersistedPayloadUpgradeTests
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(fixturePath));
         var capturedState = document.RootElement;
 
-        // The $type discriminator invariant that decision/that decision depend on: wherever
+        // The $type discriminator invariant depend on: wherever
         // it appears (here, inside the first edge of the graph), it must
         // still be the first property of ITS OWN object, or Microsoft Agent
         // Framework's own deserializer rejects the payload outright.

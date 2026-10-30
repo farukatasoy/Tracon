@@ -11,7 +11,7 @@ namespace Tracon.AGUI.FunctionalTests;
 
 /// <summary>
 /// An MCP server asks the user for input in the middle of a tool call: an AG-UI <c>input_required</c> interrupt, answered by
-/// the next request's <c>resume</c> (an earlier change on an earlier change).
+/// the next request's <c>resume</c>.
 /// </summary>
 /// <remarks>
 /// 🚨 Everything here runs against a REAL MCP server speaking the 2026-07-28 protocol to the SDK's own client. The suspension,

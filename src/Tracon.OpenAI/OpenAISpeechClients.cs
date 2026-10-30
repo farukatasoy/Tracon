@@ -1,6 +1,6 @@
 // MEAI001: Microsoft.Extensions.AI marks its speech clients "experimental" (10.11.0).
 // This file and OpenAIChatClientFactory are the only places in Tracon.OpenAI that name
-// them for speech; no public member does (YAYIN-HAZIRLIK criterion 5).
+// them for speech; no public member does (a release criterion).
 #pragma warning disable MEAI001
 
 using System.Buffers;

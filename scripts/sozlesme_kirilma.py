@@ -12,7 +12,7 @@ Two readers, both against the files of the baseline tag (`git show v<tag>:<file>
 - name sets (`docs/sozlesme/*.txt`): a line that is gone or changed is a break,
   a new line is an addition;
 - the OpenAPI document (`docs/openapi/tracon.json`): the rules of the HTTP row
-  in `reference/versioning.md` (§238.1). The rule table sits in one place below.
+  in `reference/versioning.md`. The rule table sits in one place below.
   A change the rules do not name is a break too (`tanınmayan değişiklik`): a
   gate that cannot classify a change must not pass it.
 
@@ -171,7 +171,7 @@ def name_set_delta(root: pathlib.Path, tag: str, surface: NameSurface, *, snapsh
 # 238.4 - HTTP: the OpenAPI document
 # -----------------------------------------------------------------------------
 #
-# The rule table (§238.1, HTTP row). Everything here is one of three things:
+# The rule table (HTTP row). Everything here is one of three things:
 #
 #   BREAK     only a major may do it
 #   ADDITION  a minor may do it, a patch may not

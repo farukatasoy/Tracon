@@ -65,27 +65,27 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         //
         // The number is DELIBERATELY a constant: adding a new table breaks this
         // test, so whoever adds it notices the table.
-        // An earlier change added the `voice_sessions` table: 38 -> 39.
-        // An earlier change added the `run_scores` table: 39 -> 40.
-        // An earlier change added the `singleton_leases` table: 40 -> 41.
-        // An earlier change added the `idempotency_keys` table: 41 -> 42.
-        // An earlier change added the `run_inputs` table: 42 -> 43.
-        // An earlier change added the `document_embeddings` table: 43 -> 44.
-        // An earlier change added the `api_keys` table: 44 -> 45.
-        // An earlier change added the `pending_approvals` table: 45 -> 46.
-        // An earlier change added `tenant_provider_bindings` and `tenant_egress_policies`: 46 -> 48.
-        // An earlier change added the `inbound_triggers` table: 48 -> 49.
+        // The `voice_sessions` table: 38 -> 39.
+        // The `run_scores` table: 39 -> 40.
+        // The `singleton_leases` table: 40 -> 41.
+        // The `idempotency_keys` table: 41 -> 42.
+        // The `run_inputs` table: 42 -> 43.
+        // The `document_embeddings` table: 43 -> 44.
+        // The `api_keys` table: 44 -> 45.
+        // The `pending_approvals` table: 45 -> 46.
+        // `tenant_provider_bindings` and `tenant_egress_policies`: 46 -> 48.
+        // The `inbound_triggers` table: 48 -> 49.
         // relocated `document_embeddings` out of the core set into the
         // optional "knowledge" set; PostgresTestContext enables it by default
         // (applyMigrations: false + Migrations.ApplyAsync() below applies BOTH
         // sets), so the table still gets created here and the total is unchanged.
-        // An earlier change added the `run_non_token_usage` table: 49 -> 50.
-        // An earlier change added the `workflow_definition_versions` table: 50 -> 51.
-        // An earlier change added the `workflow_responses` table: 51 -> 52.
-        // An earlier change added the `workflow_requests` table: 52 -> 53.
-        // An earlier change added the `agent_definition_version_counters` table: 53 -> 54.
-        // An earlier change added the `tenant_tool_policies` table: 54 -> 55.
-        // An earlier change added the `rate_limit_counters` table: 55 -> 56.
+        // The `run_non_token_usage` table: 49 -> 50.
+        // The `workflow_definition_versions` table: 50 -> 51.
+        // The `workflow_responses` table: 51 -> 52.
+        // The `workflow_requests` table: 52 -> 53.
+        // The `agent_definition_version_counters` table: 53 -> 54.
+        // The `tenant_tool_policies` table: 54 -> 55.
+        // The `rate_limit_counters` table: 55 -> 56.
         tableCount.ShouldBe(56);
     }
 

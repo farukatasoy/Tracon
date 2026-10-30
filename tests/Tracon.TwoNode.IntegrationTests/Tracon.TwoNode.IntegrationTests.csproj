@@ -17,7 +17,7 @@
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
-    <!-- Fake model provider (FakeModelProvider): an earlier change, rationale in that decision an earlier plan. -->
+    <!-- Fake model provider (FakeModelProvider). -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
   </ItemGroup>
 

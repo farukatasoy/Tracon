@@ -635,7 +635,7 @@ tracon
         // run pauses and an approval card appears in the UI. read_shopping_cart
         // is a client-side tool: the server never runs it, and the
         // model's call comes back to the caller as a pending FunctionCallContent.
-        // estimate_shipping_cost (135.1) takes an OBJECT parameter -
+        // estimate_shipping_cost takes an OBJECT parameter -
         // the model sends a nested JSON argument, not a scalar.
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order", "read_shopping_cart", "estimate_shipping_cost", "mark_preview_ready"],
     })

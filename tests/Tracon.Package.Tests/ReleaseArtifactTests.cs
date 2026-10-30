@@ -9,7 +9,7 @@ namespace Tracon.Package.Tests;
 
 /// <summary>
 /// The content contract a <c>v*</c> tag push commits to before it is pushed
-/// (97.2). Reads the <see cref="ReleaseArtifactFixture"/> packages
+///. Reads the <see cref="ReleaseArtifactFixture"/> packages
 /// (not the shared <see cref="TemplateFixture"/> ones) because that pack forces
 /// a specific version - a second, separate <c>dotnet pack</c>, owned by the
 /// <see cref="RepositoryTreeGate"/> collection so it still runs only once.
@@ -160,7 +160,7 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
     }
 
     /// <summary>
-    /// Every pre-release third-party dependency is an EXACT range (A-59, UR-006).
+    /// Every pre-release third-party dependency is an EXACT range.
     /// </summary>
     /// <remarks>
     /// A pre-release upstream breaks between its own previews. Measured
@@ -210,7 +210,7 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
 
     /// <summary>
     /// Tracon.UI ships third-party JavaScript, so the package and every assembly
-    /// that embeds it carry the notices those licences require (BL-058).
+    /// that embeds it carry the notices those licences require.
     /// </summary>
     /// <remarks>
     /// The bundle embeds React, React DOM, <c>scheduler</c>, TanStack Query and
@@ -424,7 +424,7 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
             // (IncludeBuildOutput=false), so neither has a .pdb to ship; both set
             // IncludeSymbols=false. For Content an empty symbol package also fails
             // NU5017; for Meta it did NOT fail - the nuspec still lists dependencies -
-            // so a 0-PDB symbol package shipped silently until BL-005 measured it.
+            // so a 0-PDB symbol package shipped silently until it was measured.
             // Library and Tool carry an assembly, so their symbol package is real.
             if (profile is PackageProfile.Content or PackageProfile.Meta)
             {

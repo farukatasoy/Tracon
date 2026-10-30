@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS {schema}.quotas (
 
 -- 🚨 In PostgreSQL NULLs are not equal to each other: a plain UNIQUE would let
 -- the same rule with a NULL agent_name be added endlessly. The skill_scripts
--- lesson of an earlier change.
+-- lesson applies here too.
 CREATE UNIQUE INDEX IF NOT EXISTS quotas_scope_uq
     ON {schema}.quotas (tenant_id, COALESCE(agent_name, ''), period);
 

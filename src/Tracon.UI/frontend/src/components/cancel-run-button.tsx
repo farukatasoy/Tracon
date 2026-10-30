@@ -32,7 +32,7 @@ export function CancelRunButton({ runId }: { runId: string }): ReactNode {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      {/* No confirmation step: §175.3 fails on both counts. Cancelling cannot
+      {/* No confirmation step: the confirm-dialog rule fails on both counts. Cancelling cannot
           be undone, but it destroys nothing — the recorded work stays and the
           agent runs again. Layer 1 states that at the moment of deciding. */}
       <Tooltip text={t('runDetail.cancel.effect')}>

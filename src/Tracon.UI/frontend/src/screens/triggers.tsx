@@ -138,8 +138,8 @@ export function TriggersScreen({ meta }: { meta: Meta }): ReactNode {
                     <Mono>{trigger.targetKind}</Mono> {trigger.targetName}
                   </Td>
                   <Td>
-                    {/* 🚨 Only the CONFIGURATION KEY NAME is ever shown or stored
-                        ; "resolved" says the key was found at run time,
+                    {/* 🚨 Only the CONFIGURATION KEY NAME is ever shown or stored;
+                        "resolved" says the key was found at run time,
                         never what it contains. */}
                     {trigger.resolved ? (
                       <Badge tone="success">{t('triggers.resolved')}</Badge>
@@ -285,9 +285,8 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
           <>
             <Button onClick={() => navigate('triggers')}>{t('common.cancel')}</Button>
             {editing && (
-              /* No confirmation step: §175.3 fails on both counts. The row
-                  holds only the signing secret's configuration KEY NAME
-                  , never the secret, so re-creating the trigger from
+              /* No confirmation step: the confirm-dialog rule fails on both counts. The row
+                  holds only the signing secret's configuration KEY NAME, never the secret, so re-creating the trigger from
                   this same form restores it exactly. */
               <Tooltip text={t('triggers.deleteEffect')}>
                 <Button tone="danger" busy={remove.isPending} onClick={() => remove.mutate()}>

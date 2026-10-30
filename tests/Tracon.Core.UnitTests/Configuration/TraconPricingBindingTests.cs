@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
 /// <c>Tracon:Pricing:{provider}:{model}</c> reads only the
-/// short <c>Input</c>/<c>Output</c> keys (manual binding). Per that decision, a
+/// short <c>Input</c>/<c>Output</c> keys (manual binding). A
 /// price entry written with the C# property name (<c>InputCostPerMillionTokens</c>)
 /// or another spelling must not drop COMPLETELY SILENTLY.
 /// </summary>
@@ -336,7 +336,7 @@ public sealed class TraconPricingBindingTests
 
     /// <summary>
     /// Calls <c>TraconServiceCollectionExtensions.Bind</c> (the private,
-    /// manually written that decision binder) directly, without DI or the validator
+    /// manually written binder) directly, without DI or the validator
     /// kicking in. Purpose: these tests measure only BINDING behavior — the
     /// validation tests further down verify the same scenario as a startup
     /// failure.

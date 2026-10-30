@@ -9,7 +9,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An earlier change §137.4 — which handler keys the HTTP schedule endpoint accepts.
+/// Which handler keys the HTTP schedule endpoint accepts.
 /// </summary>
 /// <remarks>
 /// 🚨 A SECURITY boundary, not a validation nicety. A handler key is a dispatch

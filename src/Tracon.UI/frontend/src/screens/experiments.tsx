@@ -142,7 +142,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   /*
-    🚨 §175.3 criterion (a). `runs.experiment_id` carries no foreign key, so
+    🚨 the confirm-dialog criterion (a). `runs.experiment_id` carries no foreign key, so
     the run rows survive — and that is exactly the problem: the experiment row
     is the only thing that says which variant name each recorded id meant.
     Creating the experiment again gives it a NEW id, so the old runs never

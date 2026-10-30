@@ -42,7 +42,7 @@ internal readonly struct GeneratedArguments
 /// each mutation starts from.
 /// </summary>
 /// <remarks>
-/// Seeded (143.2): every choice this generator makes — which property to
+/// Seeded: every choice this generator makes — which property to
 /// mutate when several qualify, the exact string or number it produces —
 /// comes from a <see cref="Random"/> built from the given seed, so the same
 /// seed reproduces the exact same argument set on every run. Supports flat

@@ -93,10 +93,10 @@ internal static class OrderTools
     /// <returns>The shipping estimate text.</returns>
     /// <remarks>
     /// Demo tool: its one
-    /// parameter is a supported OBJECT type (135.1), not a scalar — the
+    /// parameter is a supported OBJECT type, not a scalar — the
     /// generator produces a nested JSON Schema node for <see cref="ShippingAddress"/>
     /// and binds it through <see cref="ShippingAddressJsonContext"/>
-    /// (135.5), never through reflection.
+    ///, never through reflection.
     /// </remarks>
     [TraconTool(
         "estimate_shipping_cost",
@@ -152,7 +152,7 @@ internal static class OrderTools
 }
 
 /// <summary>
-/// A supported object parameter (135.1): a public record with a single public
+/// A supported object parameter: a public record with a single public
 /// constructor. Every attribute below is applied directly to the positional
 /// parameter — never with an explicit <c>[property: ...]</c> target, which the
 /// generator does not read.

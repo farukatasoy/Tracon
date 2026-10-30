@@ -835,8 +835,10 @@ class KapiTestleri(unittest.TestCase):
         ):
             for command in rendered:
                 self.assertNotIn(".agents", command)
-                self.assertNotIn("dokuman-bakim", command)
-                self.assertNotIn("denetim-paketi", command)
+            # Every script the public lists run exists in the public `scripts/` directory.
+            for command in [*kapi.closing_commands("abc123", site=True, performance=True), *kapi.generation_commands()]:
+                if command.args[0] == "python3" and command.args[1].endswith(".py"):
+                    self.assertTrue((ROOT / command.args[1]).is_file(), command.args[1])
 
     def test_genisletme_adimlari_public_listeye_eklenir(self):
         ek = kapi.Extension(
@@ -1309,7 +1311,7 @@ class YayinTestleri(unittest.TestCase):
             archive.writestr("_rels/.rels", f"<Relationships><Relationship Target=\"/package/services/metadata/core-properties/{psmdcp_guid}.psmdcp\" /></Relationships>")
             archive.writestr(f"package/services/metadata/core-properties/{psmdcp_guid}.psmdcp", "<coreProperties />")
 
-    # 136.3: "bayat paket temizlenir" iddiası (eski `_clean_stale_packages`,
+    # "bayat paket temizlenir" iddiası (eski `_clean_stale_packages`,
     # koşumdan ÖNCE aynı kimlikteki her şeyi sessizce siliyordu) yerini "farklı
     # içerikli aynı kimlik promote edilmez" iddiasına bırakır - staging'den
     # release_dir'e taşıma artık içerik parmak izi karşılaştırmasından
@@ -1675,14 +1677,14 @@ class YayinTestleri(unittest.TestCase):
     HOSTING = '<dependency id="Microsoft.Agents.AI.Hosting" version="{0}" exclude="Build,Analyzers" />'
 
     def test_on_surum_ucuncu_taraf_bagimlilik_acik_alt_sinirsa_kirmizi(self):
-        """A-59: `version="x"` = `>= x`; yayınlanmış preview.2 Hosting 1.22 ile
+        """`version="x"` = `>= x`; yayınlanmış preview.2 Hosting 1.22 ile
         uyarısız restore olup çalışma anında düştü."""
         with tempfile.TemporaryDirectory() as directory:
             result, output = self._finish_packages(pathlib.Path(directory), {
                 "Tracon.AspNetCore": (self.HOSTING.format("1.20.0-preview.260831.1"), {})})
 
         self.assertEqual(result, 1, output)
-        self.assertIn("tam aralık değil (A-59): Microsoft.Agents.AI.Hosting 1.20.0-preview.260831.1", output)
+        self.assertIn("tam aralık değil: Microsoft.Agents.AI.Hosting 1.20.0-preview.260831.1", output)
 
     def test_on_surum_ucuncu_taraf_bagimlilik_tam_araliksa_gecer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1705,14 +1707,14 @@ class YayinTestleri(unittest.TestCase):
         source.write_bytes(text)
 
     def test_ui_paketi_lisans_bildirimi_tasimiyorsa_kirmizi(self):
-        """BL-058: gömülü React/TanStack paketlenir, MIT bildirimi kopyayla gider."""
+        """gömülü React/TanStack paketlenir, MIT bildirimi kopyayla gider."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._ui_notice(root, b"react\n")
             result, output = self._finish_packages(root, {"Tracon.UI": ("", {})})
 
         self.assertEqual(result, 1, output)
-        self.assertIn("THIRD-PARTY-NOTICES.txt paket kökünde yok (BL-058)", output)
+        self.assertIn("THIRD-PARTY-NOTICES.txt paket kökünde yok", output)
 
     def test_ui_bildirimi_kaynaktan_farkliysa_kirmizi(self):
         with tempfile.TemporaryDirectory() as directory:

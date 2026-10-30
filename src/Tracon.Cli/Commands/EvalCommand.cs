@@ -127,7 +127,7 @@ internal static class EvalCommand
             }
             catch (TraconApiException ex) when (ex.StatusCode == 403)
             {
-                // The trigger call is the ONLY step that needs RunsWrite (115.3): a
+                // The trigger call is the ONLY step that needs RunsWrite: a
                 // caller whose key carries only EvalsRead lands here, and the
                 // response body is never echoed so the scope name is stated
                 // from the endpoint's own contract instead.

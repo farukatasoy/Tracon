@@ -14,7 +14,7 @@ import { thirdPartyModules } from './scripts/third-party-notices.mjs';
 export default defineConfig({
   base: './',
   // `tailwindcss` reaches the CSS without a module in the graph (preflight and
-  // theme are inlined by the plugin), so it is named for the notice (BL-058).
+  // theme are inlined by the plugin), so it is named for the notice.
   plugins: [react(), tailwindcss(), thirdPartyModules('console', { css: ['tailwindcss'] })],
   build: {
     outDir: '../wwwroot',

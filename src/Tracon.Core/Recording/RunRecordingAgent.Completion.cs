@@ -235,8 +235,8 @@ public sealed partial class RunRecordingAgent
             ? null
             : RunCostCombiner.Resolve(_pricingResolver, modelProvider, modelId, agentUsage, otherModels);
 
-        // 🚨 Quota accounting runs BEFORE the terminal write (
-        // 146.1). Consumption is real the moment it is spent — the tokens
+        // 🚨 Quota accounting runs BEFORE the terminal write:
+        // consumption is real the moment it is spent — the tokens
         // are already billed by the provider regardless of how this run's
         // row closes — and a threshold notice appended AFTER the terminal
         // event would never land inside this run's own append-only stream:

@@ -17,7 +17,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         // not wrapping when a tool is used by more than one agent) cannot be
         // triggered with this fixed data set (each tool belongs to a single
         // agent); that branch is verified separately against a live server
-        // (KAPANIS-PLANI.md §6).
+        // (a manual check).
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 

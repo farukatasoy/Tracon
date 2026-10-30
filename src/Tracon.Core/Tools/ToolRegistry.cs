@@ -206,7 +206,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     /// wrapper, so a tool the consumer or the framework wrapped asks for approval whatever the registration says.
     /// Microsoft Agent Framework wraps by default (<c>DockerShellExecutor.AsAIFunction()</c>,
     /// <c>FileAccessProvider</c>). The descriptor said "no approval" for such a tool, and the external-surface
-    /// guard and replay, which read the descriptor, let it through (MAF-KAPSAMA §0 #45).
+    /// guard and replay, which read the descriptor, let it through.
     /// </remarks>
     private static bool RequiresApproval(TraconToolRegistration registration)
         => registration.RequiresApproval

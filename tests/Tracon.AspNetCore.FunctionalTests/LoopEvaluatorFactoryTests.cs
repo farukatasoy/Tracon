@@ -89,13 +89,13 @@ public sealed class LoopEvaluatorFactoryTests
         reviews.Count.ShouldBe(2);
         reviews.ShouldAllBe(review => review.ParentRunId == root.Id && review.RootRunId == root.Id && review.Depth == 1);
 
-        // Measured, plan 201.1: the reviewer's tokens are its own run's usage; the
-        // evaluated run keeps only the writer's two turns (the aiJudge side channel,
-        // Is not involved).
+        // Measured: the reviewer's tokens are its own run's usage; the
+        // evaluated run keeps only the writer's two turns (the aiJudge side channel
+        // is not involved).
         root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(20);
         reviews.ShouldAllBe(static review => review.Usage!.TotalTokens == 5);
 
-        // Measured, plan 201.1: the tree budget is the root's own instance. The
+        // Measured: the tree budget is the root's own instance. The
         // reviewer's reservations count as started runs because the criterion takes
         // them itself, and its tokens reach the same budget through its child run.
         var budget = scopes.Select(static scope => scope.Budget).Distinct().ShouldHaveSingleItem().ShouldNotBeNull();

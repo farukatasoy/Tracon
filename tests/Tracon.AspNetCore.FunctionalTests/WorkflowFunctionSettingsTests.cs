@@ -145,7 +145,7 @@ public sealed class WorkflowFunctionSettingsTests
     [Fact]
     public async Task A_settings_value_never_reaches_the_log_the_stream_or_the_run_events()
     {
-        // 18: a setting is a value the operator typed, and the earlier decision says it may be one they should not have typed.
+        // A setting is a value the operator typed; it may be one they should not have typed.
         // The function below does NOT echo it, so any trace of it is Tracon writing it down.
         const string Marker = "marker-7f3a91c2d4";
 

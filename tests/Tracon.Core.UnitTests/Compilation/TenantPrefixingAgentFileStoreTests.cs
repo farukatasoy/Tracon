@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// The rule these tests guard: a file written through <c>EnableFileMemory</c>
 /// must NEVER APPEAR in the <c>EnableTextSearch</c> search of another tenant
 /// (the "CRITICAL SUSPICION" note in 00-INDEKS.md, 2026-08-10) or of another
-/// agent of the same tenant (defect an earlier fix). The sessions of one agent DO share
+/// agent of the same tenant. The sessions of one agent DO share
 /// the subtree; file memory is an agent-level memory.
 /// </remarks>
 public sealed class TenantPrefixingAgentFileStoreTests
@@ -35,7 +35,7 @@ public sealed class TenantPrefixingAgentFileStoreTests
     [Fact]
     public async Task A_file_written_by_one_agent_is_not_visible_to_another_agent_of_the_same_tenant()
     {
-        // Defect an earlier fix: the tenant boundary was closed but the boundary
+        // The tenant boundary was closed but the boundary
         // INSIDE a tenant was not. Two agents of the same tenant shared one
         // subtree, so a file written by an EnableFileMemory agent was found by
         // ANOTHER agent's EnableTextSearch.

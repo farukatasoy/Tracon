@@ -13,7 +13,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// doc comment says it is "kept in sync by hand". A member added on the C#
 /// side and forgotten on the TypeScript side compiles clean on both ends:
 /// the backend happily emits the new type name over the wire, and the console
-/// falls back to a generic, unstyled row for it (that decision class drift).
+/// falls back to a generic, unstyled row for it (the same class of drift).
 /// </para>
 /// <para>
 /// This gate is a plain set-equality check, not a ratchet: unlike

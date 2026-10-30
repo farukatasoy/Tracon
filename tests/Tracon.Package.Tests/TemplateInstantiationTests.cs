@@ -8,8 +8,8 @@ namespace Tracon.Package.Tests;
 /// Verifies that the template actually compiles at at least two endpoints: the
 /// most minimal (in-memory, no UI) and the most fully loaded (SQL Server +
 /// Azure OpenAI + UI) combination, plus the PostgreSQL combination, whose store
-/// reference comes from the template alone (the meta package carries no store,
-/// An earlier change). The template can break silently when the library changes (37.3);
+/// reference comes from the template alone (the meta package carries no store).
+/// The template can break silently when the library changes;
 /// these tests are the only real gate that catches that breakage.
 /// </summary>
 public sealed class TemplateInstantiationTests(TemplateFixture fixture)

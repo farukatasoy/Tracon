@@ -229,7 +229,7 @@ public sealed class ApiKeyAuthenticationTests
     public async Task No_enforcement_on_a_scopeless_endpoint()
     {
         // /api/tenants/current is the ONLY scopeless endpoint BEHIND the protected
-        // group (§7.2, Family F) — it must be reachable with any scoped key.
+        // group — it must be reachable with any scoped key.
         await using var host = await TraconTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "reader", "AgentsRead");

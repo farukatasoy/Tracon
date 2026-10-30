@@ -110,7 +110,7 @@ public sealed class WorkflowRecoveryTests
     /// <summary>
     /// The batch path: the run id is on the item before the run starts, and the item
     /// is reported with the run that finished it. The item's session id is the
-    /// session of every run in the chain (197.3).
+    /// session of every run in the chain.
     /// </summary>
     [Fact]
     public async Task A_batch_item_carries_its_run_while_pending_and_reports_the_continuation_that_finished_it()

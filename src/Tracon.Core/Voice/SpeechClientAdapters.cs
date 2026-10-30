@@ -1,6 +1,6 @@
 // MEAI001: Microsoft.Extensions.AI marks its speech clients "experimental" (10.11.0).
 // This file is the ONLY place in Tracon.Core that names them, and no public member does
-// (YAYIN-HAZIRLIK criterion 5): when MEAI changes the surface, the change lands here.
+// (a release criterion): when MEAI changes the surface, the change lands here.
 #pragma warning disable MEAI001
 
 using System.Buffers;

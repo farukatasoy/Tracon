@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS {schema}agent_definition_versions (
 -- Sessions
 -- ---------------------------------------------------------------------------
 -- `state` is the SerializeSessionAsync output of Microsoft Agent Framework and
--- it is OPAQUE. The earlier decision does not hold here (see the same note in the SQL Server
+-- it is OPAQUE. The PostgreSQL jsonb key-reordering problem does not hold here (see the same note in the SQL Server
 -- DDL): SQLite stores JSON as text and the order is already kept.
 
 CREATE TABLE IF NOT EXISTS {schema}sessions (

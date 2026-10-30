@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 
 namespace Tracon.Generators;
 
-/// <summary>The kind of failure found while walking a parameter's object graph (135.1).</summary>
+/// <summary>The kind of failure found while walking a parameter's object graph.</summary>
 internal enum ObjectGraphErrorKind
 {
     /// <summary>The graph is more than 3 nested object levels deep.</summary>
@@ -53,14 +53,14 @@ internal static class ParameterTypeValidator
     /// <see cref="ParameterShape.CancellationToken"/> and excludes it from the JSON schema.
     /// </summary>
     /// <param name="unsupportedConstraintAttributes">
-    /// Constraint attributes (130.2) present on <paramref name="parameter"/>, or anywhere in
-    /// its object graph (135.2), that do not apply to their resolved type or shape - reported
+    /// Constraint attributes present on <paramref name="parameter"/>, or anywhere in
+    /// its object graph, that do not apply to their resolved type or shape - reported
     /// as TRC0010 by the caller. A constraint attribute never blocks generation, so this is
     /// populated independently of the return value, including when the return value is
     /// <see langword="null"/>.
     /// </param>
     /// <param name="referencedObjectTypes">
-    /// Every distinct object type (135.1) found in this parameter's graph, including the
+    /// Every distinct object type found in this parameter's graph, including the
     /// parameter's own type when it is itself an object. The caller cross-checks each one
     /// against the tool's <c>JsonSerializerContext</c> and reports TRC0011 for any that is
     /// not declared with <c>[JsonSerializable]</c> - empty for a parameter with no object
@@ -181,7 +181,7 @@ internal static class ParameterTypeValidator
     }
 
     /// <summary>
-    /// Walks <paramref name="type"/> as a supported object type (135.1), recording every
+    /// Walks <paramref name="type"/> as a supported object type, recording every
     /// nested object it reaches into <paramref name="state"/>. Returns <see langword="null"/>
     /// both when <paramref name="type"/> is not a supported object shape (the caller reports
     /// TRC0003) and when <see cref="ObjectGraphState.Error"/> is set (the caller reports
@@ -315,7 +315,7 @@ internal static class ParameterTypeValidator
     }
 
     /// <summary>
-    /// A supported object type (135.1): public, non-generic, a reference type (<c>record</c>
+    /// A supported object type: public, non-generic, a reference type (<c>record</c>
     /// or <c>class</c> - never a <c>struct</c>/<c>record struct</c>), with EXACTLY ONE public
     /// constructor and at least one parameter. A positional record's compiler-generated copy
     /// constructor is <see langword="protected"/>, so it never competes with the primary
@@ -386,7 +386,7 @@ internal static class ParameterTypeValidator
 
     /// <summary>
     /// Every <see cref="System.ComponentModel.DataAnnotations"/> constraint attribute this
-    /// validator knows applies only to a scalar or scalar array (130.2) - none of them has a
+    /// validator knows applies only to a scalar or scalar array - none of them has a
     /// meaning for an object or object array. Reports each one found as unsupported (TRC0010)
     /// instead of silently ignoring it, matching 130's "never silently produce a wrong schema"
     /// rule for every other unrenderable case.
@@ -442,7 +442,7 @@ internal static class ParameterTypeValidator
     }
 
     /// <summary>
-    /// Reads JSON Schema constraints (130.1) from standard
+    /// Reads JSON Schema constraints from standard
     /// <c>System.ComponentModel.DataAnnotations</c> attributes. An attribute that does not
     /// apply to <paramref name="shape"/>/<paramref name="leafKind"/> contributes nothing to
     /// the returned <see cref="ParameterConstraints"/> and is instead named in
@@ -453,7 +453,7 @@ internal static class ParameterTypeValidator
     /// A length constraint on an array parameter (<see cref="MinLengthAttribute"/>/
     /// <see cref="MaxLengthAttribute"/>) targets the array itself
     /// (<c>minItems</c>/<c>maxItems</c>), never its element - "at least two tags", not
-    /// "each tag at least two characters" (130.3). A range constraint targets the leaf
+    /// "each tag at least two characters". A range constraint targets the leaf
     /// value regardless of shape, because its meaning does not change between a scalar and
     /// an array element the way a length constraint's does.
     /// </remarks>
@@ -614,7 +614,7 @@ internal static class ParameterTypeValidator
     /// Reads <see cref="System.ComponentModel.DataAnnotations.RangeAttribute"/>'s numeric
     /// bounds. Returns <see langword="false"/> for its <c>Range(Type, string, string)</c>
     /// overload: that form's bounds are not a compile-time numeric constant, so the
-    /// generator cannot render them (130.2).
+    /// generator cannot render them.
     /// </summary>
     private static bool TryReadRange(AttributeData attribute, out string? minimum, out string? maximum)
     {
@@ -660,7 +660,7 @@ internal static class ParameterTypeValidator
     /// <summary>
     /// Resolves two candidate values for the same "minimum" key (example: <c>[MinLength(2)]</c>
     /// and <c>[StringLength(10, MinimumLength = 3)]</c> on the same parameter) - the NARROWER
-    /// bound wins, which for a minimum is the larger value (130.1). This is the single place
+    /// bound wins, which for a minimum is the larger value. This is the single place
     /// that rule is applied.
     /// </summary>
     private static int MergeNarrowerMinimum(int? existing, int candidate) => existing is null ? candidate : Math.Max(existing.Value, candidate);
@@ -670,7 +670,7 @@ internal static class ParameterTypeValidator
 
     /// <summary>
     /// Reads <see cref="System.ComponentModel.DescriptionAttribute"/> from the parameter.
-    /// Tracon ships no attribute of its own for this (125.1): the BCL attribute is
+    /// Tracon ships no attribute of its own for this: the BCL attribute is
     /// also read by <c>Microsoft.Extensions.AI.AIFunctionFactory.Create</c>, so both
     /// tool-writing paths teach a consumer the same rule.
     /// </summary>

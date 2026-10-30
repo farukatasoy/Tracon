@@ -15,7 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon.UI/Tracon.UI.csproj" />
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
-    <!-- Fake model provider (FakeModelProvider): an earlier change, that decision. -->
+    <!-- Fake model provider (FakeModelProvider). -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
     <!-- The playground form for a tool's request for input needs a real MCP server to ask it. -->
     <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />

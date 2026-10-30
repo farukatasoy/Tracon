@@ -391,7 +391,7 @@ class BreakingChanges:
     dropped_frameworks: dict[str, set[str]] = dataclasses.field(default_factory=dict)
     errors: list[str] = dataclasses.field(default_factory=list)
     # Types that gained a `required` member. Also in `types`: the report never
-    # lists them, the snapshot comparison does (§237.3), and from there on
+    # lists them, the snapshot comparison does, and from there on
     # they are broken types like any other.
     required: dict[str, set[str]] = dataclasses.field(default_factory=dict)
 
@@ -708,7 +708,7 @@ def contract_test_name(line: str) -> str | None:
     A test is an instance method returning `Task` or `void` that is neither a
     constructor nor a lifecycle hook. Hooks the consumer implements return
     other types (`ValueTask`, `bool`) or are abstract, so the shape is enough;
-    the measured count is written in the phase document."""
+    the measured count is written in the release notes."""
     match = _API_MEMBER.match(line)
     if match is None:
         return None
@@ -885,7 +885,7 @@ def check(
 ) -> int:
     """Reads the reports, matches them against the notes, prints the outcome.
 
-    The release line (§237.2) decides the rule. In a preview or a major
+    The release line decides the rule. In a preview or a major
     release a broken type or dropped framework passes when the notes name it
     (the gate rejects the unannounced break, not the break). In a
     frozen release it is red whatever the notes say, and a frozen patch also

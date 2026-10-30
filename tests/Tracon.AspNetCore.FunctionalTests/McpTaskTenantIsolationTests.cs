@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Tracon's <c>IMcpTaskStore</c> implementation carries no tenant
-/// parameter of its own (the SDK's contract has none — § 117.1); the isolation
+/// parameter of its own (the SDK's contract has none); the isolation
 /// guarantee rests entirely on <see cref="IRunStore.GetRunAsync"/>'s own
 /// ambient-tenant filtering. This is the functional proof that the composition
 /// actually holds, not just that the pieces are wired.

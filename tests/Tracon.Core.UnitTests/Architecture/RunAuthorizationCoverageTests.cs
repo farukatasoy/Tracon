@@ -4,8 +4,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Enforces that every HTTP surface that starts a run, or reaches a run's
-/// resources, still calls <c>RunAuthorizationGate</c> (phases 139 and 147,
-/// An earlier fix and an earlier fix).
+/// resources, still calls <c>RunAuthorizationGate</c> (the first two audits of the run-starting surfaces).
 /// </summary>
 /// <remarks>
 /// <para>

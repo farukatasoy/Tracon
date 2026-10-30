@@ -104,7 +104,7 @@
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
 
-    <!-- An earlier fix: explicit reference for pre-flight token counting. -->
+    <!-- Explicit reference for pre-flight token counting. -->
     <PackageReference Include="Microsoft.ML.Tokenizers" />
     <PackageReference Include="Microsoft.ML.Tokenizers.Data.O200kBase" />
   </ItemGroup>

@@ -66,7 +66,7 @@ public sealed class EvalCheckRegistryTests
     [Fact]
     public void ContainsExpected_always_fails_with_an_empty_ExpectedOutput()
     {
-        // An earlier change: a promoted case (Failed/NegativeScore)
+        // A promoted case (Failed/NegativeScore)
         // carries an empty ExpectedOutput. Measured: EvalChecks.ContainsExpected
         // does NOT throw on a null/empty ExpectedOutput, it silently returns
         // PASSED=false — so such a case ALWAYS appears failed in a suite

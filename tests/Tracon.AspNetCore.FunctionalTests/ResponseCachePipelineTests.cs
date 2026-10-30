@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>
 /// Response caching: a real IChatClient pipeline built
 /// through <c>ModelProviderRegistry</c>, not <see cref="TraconResponseCachingChatClient"/>
-/// constructed directly - this also proves the ring's POSITION (81.1): a hit
+/// constructed directly - this also proves the ring's POSITION: a hit
 /// skips the real model call but a cached <c>FunctionCallContent</c> still runs.
 /// </summary>
 public sealed class ResponseCachePipelineTests

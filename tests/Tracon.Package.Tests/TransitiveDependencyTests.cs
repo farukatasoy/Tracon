@@ -10,7 +10,7 @@ namespace Tracon.Package.Tests;
 /// <remarks>
 /// Only package IDENTITIES are compared, never versions - a
 /// <c>Directory.Packages.props</c> bump would otherwise make this test
-/// flaky noise instead of a real signal (95.3). Growing the baseline on
+/// flaky noise instead of a real signal. Growing the baseline on
 /// purpose is a deliberate edit to the checked-in file, the same pattern as
 /// <c>SourceLanguageTests</c>.
 /// </remarks>

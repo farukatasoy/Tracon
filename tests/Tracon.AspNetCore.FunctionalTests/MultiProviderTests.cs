@@ -18,9 +18,9 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// together; each package's own unit tests cannot see this.
 /// </para>
 /// <para>
-/// <strong>No test calls a real model</strong> (a decision in force since
-/// An earlier change). Verification that requires the network is done manually; the
-/// evidence is in an earlier change and
+/// <strong>No test calls a real model</strong> (a standing rule).
+/// Verification that requires the network is done manually; the
+/// evidence is in the manual acceptance set.
 /// </para>
 /// </remarks>
 public sealed class MultiProviderTests

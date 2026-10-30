@@ -196,7 +196,7 @@ internal sealed class RunPricingResolver : IRunPricingResolver
         var pricedCachedTokens = cachedRate is null ? 0 : cachedTokens;
 
         // A write is priced only when its class has a rate AND the provider reported a count:
-        // a class without a rate keeps its tokens in the full-priced input (253.3).
+        // a class without a rate keeps its tokens in the full-priced input.
         var shortWriteTokens = rates.CacheWrite is null ? null : usage.CacheWriteInputTokens;
         var longWriteTokens = rates.CacheWriteLong is null ? null : usage.CacheWriteLongInputTokens;
         var pricedWriteTokens = (shortWriteTokens ?? 0) + (longWriteTokens ?? 0);

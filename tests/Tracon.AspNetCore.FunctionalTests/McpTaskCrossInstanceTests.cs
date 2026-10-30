@@ -53,7 +53,7 @@ public sealed class McpTaskCrossInstanceTests
     [Fact]
     public async Task Second_instance_reconstructs_an_approval_rejection_generically_not_with_todays_exact_wording()
     {
-        // The counterpart to McpTasksEndpointTests's cache-hit that decision assertion:
+        // The counterpart to McpTasksEndpointTests's cache-hit assertion:
         // this is the fallback path (§ McpTaskStatusMapping), which cannot
         // recover the exact tool name from IRunStore alone -- a documented,
         // deliberate difference from the same-instance wording, not a bug.

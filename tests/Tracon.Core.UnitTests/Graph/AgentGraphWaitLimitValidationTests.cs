@@ -3,7 +3,7 @@ namespace Tracon.Core.UnitTests.Graph;
 /// <summary>
 /// Fail-fast validation for <see cref="TraconAgentGraphOptions.ChildDeadline"/>/
 /// <see cref="TraconAgentGraphOptions.WaitTimeout"/> — the tree-wide
-/// defaults for a sub-agent's two-layer wait limit (144.1).
+/// defaults for a sub-agent's two-layer wait limit.
 /// </summary>
 public sealed class AgentGraphWaitLimitValidationTests
 {

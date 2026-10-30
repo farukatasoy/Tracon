@@ -6,7 +6,7 @@ namespace Tracon;
 // AgentSessionStoreKey live in Microsoft.Agents.AI.Abstractions and are marked
 // "evaluation purposes only". This bridge cannot hide the type it derives from.
 // It is internal, so the experimental type never reaches Tracon's public API
-// (a 1.x surface cannot freeze a type its owner may still change, UR-005);
+// (a 1.x surface cannot freeze a type its owner may still change);
 // the suppression covers this file only and the endpoint that consumes the
 // store (OpenAIResponsesEndpoints). Same rationale.
 #pragma warning disable MAAI001

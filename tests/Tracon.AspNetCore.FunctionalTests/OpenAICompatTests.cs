@@ -548,7 +548,7 @@ public sealed class OpenAICompatTests
     [InlineData(true)]
     public async Task ChatCompletions_reports_length_with_run_recording_off(bool stream)
     {
-        // The mapping reads MAF's own finish reason, not the run record (207.5).
+        // The mapping reads MAF's own finish reason, not the run record.
         var provider = new FinishReasonModelProvider()
             .Text("Part of an answer", ChatFinishReason.Length, inputTokens: 30, outputTokens: 50);
 

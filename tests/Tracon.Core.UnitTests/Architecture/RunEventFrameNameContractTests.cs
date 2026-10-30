@@ -48,7 +48,7 @@ public sealed class RunEventFrameNameContractTests
         TimeSpan.FromSeconds(5));
 
     // Matches "RunEventType.<Name> => "<frame-name>"," in RunEndpoints.EventName,
-    // and the catch-all "_ => "unknown",". A that decision-class scan: this does NOT
+    // and the catch-all "_ => "unknown",". A split-pattern scan: this does NOT
     // assume the arm is on one line beyond what the source actually is today,
     // but each arm here IS single-line by construction (a plain switch
     // expression), so a regex that requires the whole arm on one line is safe.

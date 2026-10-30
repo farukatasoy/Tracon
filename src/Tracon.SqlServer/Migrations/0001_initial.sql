@@ -532,7 +532,7 @@ CREATE TABLE {schema}.workflows (
     CONSTRAINT workflows_tenant_name_uq UNIQUE (tenant_id, name)
 );
 
--- The earlier decision does not hold here (see the sessions.state note): SQL Server stores JSON
+-- The PostgreSQL jsonb key-reordering problem does not hold here (see the sessions.state note): SQL Server stores JSON
 -- as text and the `$type` discriminator stays the first property.
 IF OBJECT_ID(N'{schema}.workflow_checkpoints', N'U') IS NULL
 CREATE TABLE {schema}.workflow_checkpoints (

@@ -15,7 +15,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// Each pattern hosts its agents with a different executor, so a case that passes for Sequential does not prove
-/// the others (MAF-KAPSAMA, row 38: the behaviour was read from decompiled code and never measured).
+/// the others (the behaviour was read from decompiled code and never measured).
 /// </remarks>
 public sealed class WorkflowToolApprovalPatternTests
 {
@@ -521,8 +521,8 @@ public sealed class WorkflowToolApprovalPatternTests
     [Fact]
     public async Task A_magentic_participant_waits_for_an_approval_and_the_task_goes_on_after_the_answer()
     {
-        // An earlier change left Magentic refusing because it was not measured. The orchestrator hosts its participants with
-        // the framework's host executor like the other patterns (MAF-KAPSAMA #49); this case is that measurement.
+        // Magentic was left refusing because it was not measured. The orchestrator hosts its participants with
+        // the framework's host executor like the other patterns; this case is that measurement.
         var cancels = new int[1];
 
         await using var host = await StartMagenticAsync(cancels, ManagerScript());

@@ -17,7 +17,7 @@ public sealed class ProviderOutageErrorHandlingTests
     private const string AgentName = "broken-agent";
     private const string IdempotencyHeader = "Idempotency-Key";
 
-    // An earlier plan.3 secret-like fake message: proves the raw provider exception
+    // A secret-like fake message: proves the raw provider exception
     // text never reaches a public response surface, whatever it happens to contain.
     private const string SecretLikeMessage =
         "https://tenant-private.example; Authorization=Bearer sk-secret-preview1; account=acct-42";

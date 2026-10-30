@@ -1,4 +1,4 @@
-// Third-party notices for the code the UI bundle actually ships (BL-058).
+// Third-party notices for the code the UI bundle actually ships.
 //
 // Tracon.UI embeds the Vite output in its assembly, so every consumer who
 // deploys Tracon.UI.dll redistributes React, React DOM, TanStack Query and the

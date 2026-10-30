@@ -173,7 +173,7 @@ public static class TraconMcpBuilderExtensions
         // definition using McpResourceUris fails to compile.
         services.TryAddSingleton<IMcpResourceContextProviderFactory, McpResourceContextProviderFactory>();
 
-        // Prompts/Resources (22.1/22.2) and OAuth Mode 1 (22.3): GovernanceEndpoints
+        // Prompts/Resources and OAuth Mode 1: GovernanceEndpoints
         // (Tracon.AspNetCore) resolves these abstractions as optional
         // services; if not registered, the corresponding endpoints return 501.
         services.TryAddSingleton<IMcpPromptClient, McpPromptClient>();

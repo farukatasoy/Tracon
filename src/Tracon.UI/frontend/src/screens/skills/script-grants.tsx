@@ -279,7 +279,7 @@ export function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
                   </Td>
                   <Td className="text-right">
                     {meta.roles.canAdminister && (
-                      /* No confirmation step: §175.3 fails on both counts — an
+                      /* No confirmation step: the confirm-dialog rule fails on both counts — an
                           administrator grants the script again. It had no
                           consequence sentence at all before, which is the gap
                           this change closes here. */

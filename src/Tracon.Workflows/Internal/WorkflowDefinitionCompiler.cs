@@ -81,7 +81,7 @@ internal sealed class WorkflowDefinitionCompiler
 
         // Every pattern hosts its participants with the framework's host executor, which turns a tool approval into a
         // workflow request; each was measured to do so (Sequential, Concurrent, Handoff, GroupChat,
-        // Magentic on 2026-10-21, MAF-KAPSAMA #49). A wrapper must pass a request on only where a host raises it:
+        // Magentic on 2026-10-21). A wrapper must pass a request on only where a host raises it:
         // otherwise the step waits for an answer nobody can give. The Magentic manager is not a participant and
         // keeps refusing (BuildMagenticAsync).
         var participants = await BindAsync(

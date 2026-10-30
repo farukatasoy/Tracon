@@ -522,7 +522,7 @@ public sealed class RunRecordingAgentTests
     /// Verifies that the pricing resolver is actually called and its result is
     /// written to the store. Unlike the other tests, this one constructs
     /// <see cref="RunRecordingAgent"/> WITH modelId/modelProvider/pricingResolver — this
-    /// path is what caught a bug recorded in KARARLAR.md (RunEventWriter.CompleteAsync
+    /// path is what caught a bug (RunEventWriter.CompleteAsync
     /// accepted the new `cost` parameter but never wrote it to RunCompletion).
     /// </summary>
     [Fact]

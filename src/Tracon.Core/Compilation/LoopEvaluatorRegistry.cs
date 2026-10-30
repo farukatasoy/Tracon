@@ -7,7 +7,7 @@ namespace Tracon;
 
 // MAAI001: Microsoft.Agents.AI's loop API is marked "evaluation purposes only".
 // The suppression covers the whole file because the file exists to translate
-// Tracon's declarative settings into that API.,
+// Tracon's declarative settings into that API.
 #pragma warning disable MAAI001
 
 /// <summary>
@@ -415,7 +415,7 @@ internal sealed class LoopEvaluatorRegistry
             // Set explicitly rather than left to the framework default (measured
             // false on MAF 1.20.0). The caller gets the FINAL iteration's answer;
             // the usage stays the sum of every iteration (user decision
-            // 2026-10-12). An earlier change set this to false so the run record would
+            // 2026-10-12). A first version set this to false so the run record would
             // carry every iteration, but a defect hid that the transcript then
             // also became the answer every text surface returns: the OpenAI-
             // compatible endpoints, MCP and a calling agent would have read the

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """`nswag-postprocess-client.py` testleri — stdlib `unittest`, yeni bağımlılık yok.
 
-Dosya adı alt çizgi taşır (`nswag-postprocess-client_test.py` DEĞİL): bkz.
-`dokuman_bakim_test.py`'nin üst yorumu — `unittest discover` tire taşıyan
+Dosya adı alt çizgi taşır (`nswag-postprocess-client_test.py` DEĞİL):
+`unittest discover` tire taşıyan
 dosyaları sessizce atlar. Kaynak dosya yine de tire taşır (CLI script
 konvansiyonu); bu yüzden aşağıda `importlib` ile yüklenir.
 

@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Catalog;
 
 /// <summary>
-/// Proves the catalog boundary's defensive copy (101.6): even when a source hands back a
+/// Proves the catalog boundary's defensive copy: even when a source hands back a
 /// descriptor backed by mutable collections — a contract violation on the source's part,
 /// see the <c>AgentDescriptor</c> remark — a caller that already holds a descriptor from
 /// <see cref="CompositeAgentCatalog"/> is unaffected by the source mutating its own

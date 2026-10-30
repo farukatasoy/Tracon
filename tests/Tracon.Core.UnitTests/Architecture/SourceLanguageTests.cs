@@ -129,9 +129,9 @@ public sealed class SourceLanguageTests
 
     /// <summary>
     /// Turkish-named identifiers that are not prose and must survive translation:
-    /// defect ids (<c>an earlier defect</c>), manual test case ids (<c>an earlier defect</c>),
+    /// defect ids and manual test case ids (a prefix, letters and a number),
     /// and paths into the development tooling, which stays Turkish by design
-    /// (<c>.md</c>, <c>scripts/dokuman-bakim.py</c>, and the contract
+    /// (markdown and script file names, and the contract
     /// snapshots under <c>docs/sozlesme/</c>, whose file names the release gate reads).
     /// They are removed from a line before it is inspected — otherwise
     /// <c>HATA-</c> would forever match the word <c>hata</c> and the baseline

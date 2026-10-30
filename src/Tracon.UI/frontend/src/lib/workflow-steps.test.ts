@@ -164,7 +164,7 @@ describe('hasFunction', () => {
 });
 
 describe('describeSchema', () => {
-  // The schema the server exports for the settings record of the phase document's example.
+  // The schema the server exports for the settings record of the documented example.
   const tts = {
     type: 'object',
     properties: {

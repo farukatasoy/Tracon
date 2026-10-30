@@ -181,8 +181,7 @@ public sealed class AgentSessionManager
         // produced once the agent ACTUALLY runs — not here. A concurrent
         // "first request" also starts the same way, with an empty
         // session; the atomic claim happens in SaveSessionAsync, at the
-        // moment of the first save (see that method's description,
-        // An earlier defect).
+        // moment of the first save (see that method's description).
         // 🚨 Ownership is resolved HERE, before the agent has run, and not
         // only at the save that follows: a rejection after the turn has
         // already reached the model has cost real money and produced an

@@ -136,7 +136,7 @@ public sealed class ToolRegistrationGenerator : IIncrementalGenerator
     /// <summary>Constant names for <see cref="IncrementalValueProvider{TValue}.WithTrackingName"/>.</summary>
     /// <remarks>
     /// Tests query step cache reasons (<c>Cached</c>/<c>Modified</c>) by these names -
-    /// incrementality (52.5) is only measurable through these markers.
+    /// incrementality is only measurable through these markers.
     /// </remarks>
     internal static class TrackingNames
     {

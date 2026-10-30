@@ -247,7 +247,7 @@ public sealed class IdempotencyTests
             first.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        // The rate limit runs BEFORE IdempotencyFilter (43.1): even a repeat
+        // The rate limit runs BEFORE IdempotencyFilter: even a repeat
         // with the same key gets 429 once the window is exhausted.
         using var limited = await PostWithKeyAsync(host, Run, body, key);
 

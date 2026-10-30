@@ -6,7 +6,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// What a structural edit of a stored workflow does to a run that is waiting to be resumed
-/// (an earlier plan of the phase document; an earlier change).
+/// (a documented rule).
 /// </summary>
 /// <remarks>
 /// <para>

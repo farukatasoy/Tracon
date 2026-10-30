@@ -485,7 +485,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                             >
                               {t('common.edit')}
                             </Button>
-                            {/* No confirmation step: §175.3 fails on both
+                            {/* No confirmation step: the confirm-dialog rule fails on both
                                 counts. `jobs.schedule_id` is ON DELETE SET
                                 NULL, so the jobs it already started stay in
                                 the list, and the schedule itself is typed back

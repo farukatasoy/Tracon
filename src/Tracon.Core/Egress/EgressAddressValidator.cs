@@ -295,7 +295,7 @@ internal static class EgressAddressValidator
                 // an unhandled exception inside a connection callback.
                 //
                 // 🚨 The OS-level SocketException/ArgumentException message is foreign
-                // text (BL-027/BL-037): this reason reaches webhook_deliveries.error
+                // text: this reason reaches webhook_deliveries.error
                 // (via WebhookDeliveryJobHandler) as well as admin-facing validation responses,
                 // and this shared validator has no logger to pair a correlation id with. Only
                 // the exception's type name is kept.

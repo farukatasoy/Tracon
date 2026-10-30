@@ -15,7 +15,7 @@ CREATE SCHEMA IF NOT EXISTS {schema};
 -- ---------------------------------------------------------------------------
 -- `tenant_id` in other tables is the same text as this table `slug` value but
 -- it is NOT linked with a FOREIGN KEY. Reason: tenant records are managed in
--- An earlier change; adding the constraint now would give an unexpected run time error
+-- a later change; adding the constraint now would give an unexpected run time error
 -- for a tenant that has no record. It is added when tenant management arrives.
 
 CREATE TABLE IF NOT EXISTS {schema}.tenants (

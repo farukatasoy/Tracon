@@ -66,7 +66,7 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   /*
-    🚨 §175.3 criterion (a): `conversation_items` cascades off `conversations`,
+    🚨 the confirm-dialog criterion (a): `conversation_items` cascades off `conversations`,
     so this destroys the whole message history and no form here can type it
     back. Holds the session id being confirmed, not a boolean — the list
     renders one dialog for whichever row asked.
@@ -131,7 +131,7 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
           <ErrorNote
             error={remove.error}
             /* The retry REOPENS the confirmation, it does not fire the delete:
-               a one-click "try again" beside a failed §175.3 action would be a
+               a one-click "try again" beside a failed destructive action would be a
                second door into the very thing the second step guards. */
             onRetry={remove.variables === undefined ? undefined : () => setConfirming(remove.variables)}
           />

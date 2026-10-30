@@ -214,8 +214,8 @@ internal sealed class InboundTriggerDispatcher
             return new InboundTriggerValidationResult { Outcome = InboundTriggerOutcome.RateLimited };
         }
 
-        // 🚨 Replay protection is keyed by the signature ITSELF (
-        // 5, option A): external systems do not reliably send their own event
+        // 🚨 Replay protection is keyed by the signature ITSELF:
+        // external systems do not reliably send their own event
         // id, but the signature is always present and unique per (body,
         // timestamp, secret) triple.
         var reservation = await _idempotencyStore.ReserveAsync(

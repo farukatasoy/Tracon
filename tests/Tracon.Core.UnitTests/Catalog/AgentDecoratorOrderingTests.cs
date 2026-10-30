@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Catalog;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Nothing measured this before (BL-034). The pipeline sorts with
+/// Nothing measured this before. The pipeline sorts with
 /// <c>OrderByDescending(d =&gt; d.Order)</c> and each turn wraps the agent the
 /// previous turn produced, so the HIGHEST order is applied FIRST and ends up
 /// INNERMOST, and the lowest order ends up outermost. The XML documentation on

@@ -7,7 +7,7 @@ namespace Tracon.Benchmarks;
 /// Measures the allocation of a cache HIT - the steady state once an agent
 /// definition is compiled once; every subsequent run of the same
 /// (tenant, name, definition fingerprint, dependency fingerprint, culture) reuses the
-/// compiled agent (116.2).
+/// compiled agent.
 /// </summary>
 [MemoryDiagnoser]
 public class CompiledAgentCacheBenchmarks

@@ -15,7 +15,7 @@ namespace Tracon.PostgreSql.IntegrationTests.Load;
 /// <para>
 /// 🚨 <strong>This is a report, not a gate.</strong> It asserts nothing about
 /// duration. measured that wall-clock time on a shared machine is
-/// noise and made ALLOCATION the only performance gate; that decision stands,
+/// noise and made ALLOCATION the only performance gate; that choice stands,
 /// and turning any number here into a red/green threshold is a separate
 /// decision this change did not take. What the run produces is a file an
 /// operator can read, with the environment written next to the numbers - a

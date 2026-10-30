@@ -7,7 +7,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A Production installation that leaves content moderation or data retention
-/// disabled says so on the server side (BL-018, BL-051) - the same
+/// disabled says so on the server side - the same
 /// silent-gap rationale as <see cref="NonPersistentStorageWarningTests"/>.
 /// </summary>
 /// <remarks>

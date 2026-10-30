@@ -8,7 +8,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// 🚨 SQL Server compiles a batch UP FRONT, so every statement that names the
-/// column the same file just added has to go through <c>EXEC</c> (the that decision
+/// column the same file just added has to go through <c>EXEC</c> (the same
 /// class). A mistake there fails at run time only, against a real server —
 /// which is what this test provides.
 /// </remarks>

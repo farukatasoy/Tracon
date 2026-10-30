@@ -82,8 +82,8 @@ public enum RunErrorClass
     // instead of throwing, so the run ends successfully. The member still
     // reached consumers through the OpenAPI document, the TypeScript schema and
     // both UI dictionaries, advertising a state that never occurred. (A
-    // workflow step that hits the budget throws TraconRunBudgetExceededException
-    // Which is QuotaExceeded, not this.) It was
+    // workflow step that hits the budget throws TraconRunBudgetExceededException,
+    // which is QuotaExceeded, not this.) It was
     // removed while PublicAPI.Shipped.txt was still empty. Reusing 9
     // would give stored records and older clients a second, conflicting
     // meaning. RunErrorClassContractTests pins this.

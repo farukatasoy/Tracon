@@ -131,7 +131,7 @@ public sealed class AgentSourceFaultIsolationTests
         return source;
     }
 
-    // --- Decorator failure normalization (BL-033) ---
+    // --- Decorator failure normalization ---
 
     [Fact]
     public async Task A_throwing_decorator_is_normalized_the_same_way_as_a_source_failure()
@@ -179,7 +179,7 @@ public sealed class AgentSourceFaultIsolationTests
         public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor) => throw exception;
     }
 
-    // --- Decorator failure normalization on the VERSIONED resolve overload (BL-033 class scan) ---
+    // --- Decorator failure normalization on the VERSIONED resolve overload (class scan) ---
 
     [Fact]
     public async Task A_throwing_decorator_is_normalized_on_the_versioned_resolve_overload_too()

@@ -190,7 +190,7 @@ Tracon'i disa acan A2A sunucusu. Ayni surum hatti
       SQLite surucusu. SQLitePCLRaw yerel kutuphane tasir; AOT/publish
       etkisi olculur.
       SQLitePCLRaw surumu Microsoft.Data.Sqlite'in bagimliligidir (10.0.14 ->
-      2.1.13, acik yok); Eski CVE sabitleri kalkti.
+      2.1.13, acik yok); eski CVE sabitleri kalkti.
     -->
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
@@ -250,7 +250,7 @@ Tracon'i disa acan MCP sunucusu. Kosul degisti:
       10.0.10 + Hosting.Abstractions 10.0.10 ceker. Yabanci bagimlilik yok.
       2.3.0 (2026-10-21): ayni paket listesi, yalniz taban surumler yukseldi; Tracon.Mcp
       grafigi net10.0/net9.0/net8.0'da 32/38/38 paket, degismedi. API farki: +1 uye
-      (`McpClientOptions.TimeProvider`), 0 kaldirma (maf-kapsama.py fark).
+      (`McpClientOptions.TimeProvider`), 0 kaldirma (API farki).
     -->
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
     <!--
@@ -393,7 +393,6 @@ bench/ - a repository discipline, not a shipped capability. The
     22 transitive packages (Roslyn, Iced, Capstone, TraceEvent - BenchmarkDotNet's
     own disassembly/diagnostics stack) never reach a consumer's dependency
     graph. Line never reached 1.0; 0.15.8 is the latest published version.
-, 116.5.
   -->
   <ItemGroup Label="Performans olcumu (bench/, IsPackable=false)">
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />

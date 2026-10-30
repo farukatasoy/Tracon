@@ -32,8 +32,7 @@ env:
 # Zaman sinirlari (2026-09-23, kusur-giderme). Her is `timeout-minutes`
 # tasir. Sinir yoksa GitHub'in 360 dk varsayilani gecerlidir: asilan bir test
 # uygulamasi iki runner'i alti saat yakar ve log hangi uygulamanin asildigini
-# soylemez. Kapi: `dokuman-bakim.py --denetle` ("Workflow is zaman siniri")
-# siniri olmayan her isi kirmizi sayar.
+# soylemez. Bir kapi, siniri olmayan her isi kirmizi sayar.
 #
 # Kural: sinir = olculen en uzun surenin ~2 kati, 5 dk'ya yukari yuvarlanir.
 # Bir dakikanin altindaki islerde taban 10 dk'dir: kurulum adimlarinin ag
@@ -201,8 +200,7 @@ jobs:
       # fiksturleri src'yi yeniden derler (ReleaseArtifactFixture baska bir
       # surumle; olculdu 2026-09-24: Tracon.Core.dll SHA-256'si degisti).
       # Testten sonra kosan bir `--no-build` pack yanlis damgali DLL'i
-      # paketlerdi. Kapi: `dokuman-bakim.py --denetle` ("CI tek derleme
-      # zinciri"). Yalniz ubuntu bacagi paketler; Windows platform farkini olcer.
+      # paketlerdi. Yalniz ubuntu bacagi paketler; Windows platform farkini olcer.
       #
       # Taban dogrulamasi pack aninin isidir: son `v*` etiketinin
       # paketleri izole bir cache'e nuget.org'dan restore edilir. Ag gerekir.
@@ -242,7 +240,7 @@ jobs:
             echo "triggered=$TRIGGERED" >> "$GITHUB_OUTPUT"
           fi
 
-      # Yalnız TEK isletim sisteminde kosar: tahsis deterministiktir (116.1),
+      # Yalnız TEK isletim sisteminde kosar: tahsis deterministiktir,
       # ucunu de kosmak ayni uc sayiyi uc kez dogrulayip suresini uctler.
       - name: Performans kapisi (tahsis)
         if: matrix.os == 'ubuntu-latest' && steps.perf-trigger.outputs.triggered == 'true'
@@ -356,7 +354,7 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Yayın provası (97.2)
+  # Yayın provası
   #
   # Kendi `dotnet pack`'ini KOSMAZ. `build` isinin ubuntu bacaginin
   # paketledigi `nuget-packages` artifact'ini indirir ve `kapi.py yayin --kuru
@@ -638,7 +636,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ---------------------------------------------------------------------------
-  # GitHub release (123.3)
+  # GitHub release
   #
   # `publish` VE `npm-publish`'ten SONRA kosar: paket yayini bu ise bagli
   # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse (OP-007

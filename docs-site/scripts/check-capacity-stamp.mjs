@@ -788,7 +788,7 @@ function checkStamps(text, measurementsRoot, seen, collected) {
     }
   }
 
-  // 2 - the environment sentence. Direction is one way on purpose (§174.3):
+  // 2 - the environment sentence. Direction is one way on purpose:
   // every measured value must appear, and the page may say more besides.
   //
   // A run measured on ANOTHER machine gets its own sentence, named by a marker in front of it:

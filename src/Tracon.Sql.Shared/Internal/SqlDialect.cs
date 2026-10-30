@@ -520,7 +520,7 @@ internal abstract class SqlDialect
     /// <remarks>
     /// The caller feeds the single returned value straight into the other three
     /// templates (count/read/delete) as <c>@cutoff</c> — volume-based trimming uses
-    /// THE SAME batch mechanism as age-based deletion (36.1).
+    /// THE SAME batch mechanism as age-based deletion.
     /// </remarks>
     public abstract string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression, string? extraPredicate);
 

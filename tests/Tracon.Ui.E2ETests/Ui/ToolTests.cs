@@ -60,7 +60,7 @@ public sealed class ToolTests(BrowserFixture browsers)
         // fallback resolves 'data-server' without the page needing to know
         // the host's dynamically assigned port. The API key is read from a
         // query parameter and interpolated at REQUEST time (not baked into a
-        // constant): that decision validates an `Authorization` header even when no
+        // constant): the endpoint validates an `Authorization` header even when no
         // `AuthToken` is configured on the host, so the widget's fetch call
         // needs a REAL RunsWrite-scoped key, not a placeholder string.
         await using var host = await UiHost.StartAsync(

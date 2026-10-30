@@ -34,22 +34,22 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         //
         // The number is DELIBERATELY a constant: adding a new table breaks this
         // test, so whoever adds it notices the table.
-        // An earlier change added the `voice_sessions` table: 38 -> 39.
-        // An earlier change added the `run_scores` table: 39 -> 40.
-        // An earlier change added the `singleton_leases` table: 40 -> 41.
-        // An earlier change added the `idempotency_keys` table: 41 -> 42.
-        // An earlier change added the `run_inputs` table: 42 -> 43.
-        // An earlier change added the `api_keys` table: 43 -> 44.
-        // An earlier change added the `pending_approvals` table: 44 -> 45.
-        // An earlier change added `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
-        // An earlier change added the `inbound_triggers` table: 47 -> 48.
-        // An earlier change added the `run_non_token_usage` table: 48 -> 49.
-        // An earlier change added the `workflow_definition_versions` table: 49 -> 50.
-        // An earlier change added the `workflow_responses` table: 50 -> 51.
-        // An earlier change added the `workflow_requests` table: 51 -> 52.
-        // An earlier change added the `agent_definition_version_counters` table: 52 -> 53.
-        // An earlier change added the `tenant_tool_policies` table: 53 -> 54.
-        // An earlier change added the `rate_limit_counters` table: 54 -> 55.
+        // The `voice_sessions` table: 38 -> 39.
+        // The `run_scores` table: 39 -> 40.
+        // The `singleton_leases` table: 40 -> 41.
+        // The `idempotency_keys` table: 41 -> 42.
+        // The `run_inputs` table: 42 -> 43.
+        // The `api_keys` table: 43 -> 44.
+        // The `pending_approvals` table: 44 -> 45.
+        // `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
+        // The `inbound_triggers` table: 47 -> 48.
+        // The `run_non_token_usage` table: 48 -> 49.
+        // The `workflow_definition_versions` table: 49 -> 50.
+        // The `workflow_responses` table: 50 -> 51.
+        // The `workflow_requests` table: 51 -> 52.
+        // The `agent_definition_version_counters` table: 52 -> 53.
+        // The `tenant_tool_policies` table: 53 -> 54.
+        // The `rate_limit_counters` table: 54 -> 55.
         tableCount.ShouldBe(55);
     }
 

@@ -235,7 +235,7 @@ public sealed partial class RunRecordingAgent
             cancellationToken).ConfigureAwait(false);
 
         // Empty unless TraconQuotaOptions.PublishThresholdToRunStream is
-        // on (146.5) — QuotaEnforcer itself decides that, this loop does
+        // on — QuotaEnforcer itself decides that, this loop does
         // not re-check the option.
         foreach (var crossing in crossings)
         {

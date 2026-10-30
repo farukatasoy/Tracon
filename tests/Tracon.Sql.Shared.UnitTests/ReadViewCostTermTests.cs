@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The <c>runs_v1</c> read contract view's <c>total_cost</c> column (
-/// 111.5 "cost addend gate"): the class -- a cost term added to
+/// The <c>runs_v1</c> read contract view's <c>total_cost</c> column,
+/// the "cost addend gate": the class -- a cost term added to
 /// <c>SqlQueriesBase.CostAddends</c> without reaching every hand-written SQL
 /// total -- must not repeat here.
 /// </summary>

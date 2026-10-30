@@ -58,8 +58,7 @@ public sealed class RunScoreStatisticsTests
     public async Task Star_score_is_counted_in_ScoredRuns_but_does_NOT_enter_the_rate()
     {
         // Averaging a star score with a binary score is meaningless; the rate
-        // is computed only from Binary scores (see
-        // Risks).
+        // is computed only from Binary scores.
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
 

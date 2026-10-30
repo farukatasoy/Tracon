@@ -9,7 +9,7 @@ internal enum ParameterShape
     /// <summary>An array or list whose elements convert to the same leaf type.</summary>
     Array,
 
-    /// <summary>A supported object type (135.1), deserialized through a tool-owned <c>JsonSerializerContext</c>.</summary>
+    /// <summary>A supported object type, deserialized through a tool-owned <c>JsonSerializerContext</c>.</summary>
     Object,
 
     /// <summary>An array or list whose elements are a supported object type.</summary>
@@ -49,9 +49,9 @@ internal enum LeafTypeKind
 
 /// <summary>
 /// A JSON Schema constraint set read from standard <c>System.ComponentModel.DataAnnotations</c>
-/// attributes (130.1). Every field is a primitive value: this record participates in the
-/// incremental generator's value equality (52.5), and a non-primitive field would fall back
-/// to reference equality and defeat the pipeline's cache (130.4).
+/// attributes. Every field is a primitive value: this record participates in the
+/// incremental generator's value equality, and a non-primitive field would fall back
+/// to reference equality and defeat the pipeline's cache.
 /// </summary>
 /// <param name="Minimum">
 /// From <see cref="System.ComponentModel.DataAnnotations.RangeAttribute"/>, rendered with
@@ -79,12 +79,12 @@ internal sealed record ParameterConstraints(
 }
 
 /// <summary>
-/// One member of a supported object type's single public constructor (135.1). Mirrors
+/// One member of a supported object type's single public constructor. Mirrors
 /// <see cref="ParameterModel"/>'s shape fields, minus the pieces that only make sense for a
 /// tool's own top-level parameter (binding hints such as <c>IsConcreteArray</c> and
 /// <c>DefaultValueLiteral</c>): a member is never bound on its own, only as part of the
 /// object it belongs to - <c>System.Text.Json</c> deserializes the whole object in one call
-/// through the tool owner's <c>JsonSerializerContext</c> (135.5).
+/// through the tool owner's <c>JsonSerializerContext</c>.
 /// </summary>
 /// <param name="JsonName">
 /// The JSON key this member is read from. Equal to <paramref name="Name"/> today - the
@@ -103,10 +103,10 @@ internal sealed record ObjectMember(
     ParameterConstraints? Constraints);
 
 /// <summary>
-/// A supported object-shaped parameter or member type (135.1): a public, non-generic
+/// A supported object-shaped parameter or member type: a public, non-generic
 /// record or class with a single public, parameterized constructor. Carries no Roslyn
 /// symbol - only <see langword="string"/> and value-equality fields, so it participates
-/// correctly in the incremental generator's cache (135.3).
+/// correctly in the incremental generator's cache.
 /// </summary>
 internal sealed record ObjectType(
     string ClrTypeDisplay,
@@ -123,7 +123,7 @@ internal sealed record ObjectType(
 /// uses this field to add <c>.ToArray()</c>; otherwise, compilation fails with CS1503.
 /// </param>
 /// <param name="Constraints">
-/// JSON Schema constraints (130.1). <see cref="ParameterConstraints.MinItems"/>/
+/// JSON Schema constraints. <see cref="ParameterConstraints.MinItems"/>/
 /// <see cref="ParameterConstraints.MaxItems"/> belong on the array node; every other
 /// field belongs on the leaf node, which is also the array's <c>items</c> node when
 /// <paramref name="Shape"/> is <see cref="ParameterShape.Array"/>.

@@ -85,7 +85,7 @@ public sealed class EmbeddedSampleTests
     }
 
     /// <summary>
-    /// The mandatory scenario (85.3): a job with no HTTP request behind it
+    /// The mandatory scenario: a job with no HTTP request behind it
     /// still records the right tenant and user, which only works if
     /// <c>AmbientTenantScope</c>/<c>AmbientRunAttributionScope</c> survive
     /// every <c>await</c> between the worker's own method body and the model

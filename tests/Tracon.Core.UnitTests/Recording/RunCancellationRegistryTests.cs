@@ -120,7 +120,7 @@ public sealed class RunCancellationRegistryTests
     }
 
     /// <summary>
-    /// BL-028 / an earlier change: measures that <see cref="IRunCancellationRegistry.TryCancel"/>'s
+    /// Measures that <see cref="IRunCancellationRegistry.TryCancel"/>'s
     /// guarantee is cooperative, not forced. The interface's own XML doc now states this;
     /// this test proves the DOCUMENTED limit, not just the documented behavior — a "run
     /// body" that never reads its token must keep running (and keep "spending", the same

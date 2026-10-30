@@ -6,7 +6,7 @@ söylemez. Bu betik her public TİPİ (üye değil) dört sınıftan birine koya
 
   tüketici   — tüketici onu görür: site sayfası, sample, şablon çıktısı, paket
                README'si, XML `<example>`/`<code>` bloğu veya kayıt giriş noktası
-  seam       — genişleme noktası: public arayüz (§15 seam envanteri, bugün
+  seam       — genişleme noktası: public arayüz (bugün
                `SeamContractDocumentationTests`'in taradığı küme), abstract sınıf
                veya `Tracon.Testing.Contracts.Xunit` sözleşme paketi
   gerekçeli  — kanıtı yok ama bilinçli olarak public; gerekçesi
@@ -19,7 +19,7 @@ durmaz: kök tiplerden imza kapanışı (`imza:`) hesaplanır ve kapanışa gire
 kökünün sınıfını alır. Kalan bir tipin XML dokümanı `<exception cref>` ile bir
 istisna adlandırıyorsa o istisna da sözleşmenin parçasıdır (`istisna:`) —
 tüketici onu yakalar, seam'i uygulayan onu fırlatır; derleyici bunu zorlamaz.
-GA freeze turu (UR-003) aynı betiği koşar: `kanıtsız` sütunu o turun iş
+GA freeze turu aynı betiği koşar: `kanıtsız` sütunu o turun iş
 listesidir.
 
 Kullanım:
@@ -58,7 +58,7 @@ GEREKCE_YOLU = pathlib.Path("scripts") / "public-yuzey-gerekceleri.tsv"
 SOZLESME_PAKETLERI = frozenset({"Tracon.Testing.Contracts.Xunit"})
 
 # Kayıt giriş noktası kuralı `kayit_giris_noktasi.py`'dedir;
-# `manuel-test-tazelik.py` aynı modülü kullanır, C# kopyası
+# bir geliştirme kontrolü aynı modülü kullanır, C# kopyası
 # `CapabilityEntryPoints.cs`'tir. Kayıt giriş noktası tüketicinin bir yeteneği
 # açtığı üyedir; kapsama kapısı her birinin site haritasında ve örnekte
 # göründüğünü zaten zorlar.

@@ -128,7 +128,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         found.Actor.ShouldBeNull();
     }
 
-    // --- Ambient-tenant fallback (BL-046) ---
+    // --- Ambient-tenant fallback ---
     // AuditQuery.TenantId == null / AuditChainQuery.TenantId == null is a CONTRACT,
     // not a convenience: it MUST resolve to the caller's own ambient tenant, never to
     // "every tenant". IAuditLog's own remarks make this explicit; these three scenarios

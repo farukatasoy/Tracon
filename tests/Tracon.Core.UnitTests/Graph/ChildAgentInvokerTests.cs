@@ -261,7 +261,7 @@ public sealed class ChildAgentInvokerTests
         text.ShouldContain("did not answer", Case.Sensitive);
         text.ShouldNotContain("did not respond in time", Case.Sensitive);
 
-        // The sub-run itself already recorded the truth (that decision applies in
+        // The sub-run itself already recorded the truth (the same rule applies in
         // RunRecordingAgent): a provider fault is Failed, never Canceled.
         var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
         child.Status.ShouldBe(RunStatus.Failed);
@@ -336,7 +336,7 @@ public sealed class ChildAgentInvokerTests
     public async Task A_wrapper_in_tool_result_mode_still_refuses_an_approval_and_its_row_fails()
     {
         // The wrapper of a sub-agent is in tool-result mode and builds its own options; it never gets the
-        // hosted step's flag, so below the step the refusal of that decision holds. The tree below a real step is
+        // hosted step's flag, so below the step the refusal still holds. The tree below a real step is
         // measured by WorkflowToolApprovalPatternTests.A_sub_agent_the_step_calls_is_still_refused_and_the_workflow_does_not_wait.
         var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
         var client = new FakeChatClient(_ => new ChatResponse(

@@ -109,7 +109,7 @@ public sealed class ReviewerLoopEvaluatorTests
 
                 // The factory takes the agent catalog: the registry builds inside the
                 // catalog's own construction chain, so calling it at setup would close
-                // the catalog -> compiler -> catalog cycle (plan 201.1).
+                // the catalog -> compiler -> catalog cycle.
                 builder.AddLoopEvaluator(
                     Kind,
                     services => new ReviewerCriterion(services.GetRequiredService<IAgentCatalog>(), ReviewerName, scopes),
