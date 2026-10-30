@@ -115,10 +115,10 @@ jobs:
             src/Tracon.UI/frontend/package-lock.json
             packages/tracon-client/package-lock.json
 
-      # `scripts/dokuman-bakim.py` icin. Windows runner'inda `python3` komutu
-      # garanti degildir (yalniz `python`); acikca kurmak iki isletim sisteminde
-      # de ayni ikiliyi verir. Script `pathlib`/`re`/`os` disinda bir sey
-      # istemez, `X | None` tip birlesimi 3.10+ ister.
+      # For the gate scripts under `scripts/`. `python3` is not guaranteed on a
+      # Windows runner (only `python`); installing it explicitly gives the same
+      # binary on both systems. The scripts need nothing beyond the standard
+      # library, and the `X | None` union type needs Python 3.10 or later.
       - name: Python kur
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -170,13 +170,9 @@ jobs:
         working-directory: docs-site
         run: node scripts/check-content.mjs
 
-      # Sicak yol dokuman butcesi, karar defteri yapisi ve site-mutlak baglanti
-      # cozumu. `pages` isine KONMAZ -- o is yalniz main push'ta kosar ve
-      # oraya konan bir kapi hicbir PR'i durdurmaz (Faz 80).
-      - name: Dokuman kapilari
-        run: python3 scripts/dokuman-bakim.py --denetle
-
-      - name: Dokuman kapilari testleri
+      # Not on the `site` job: that job runs on pushes to main only, so a gate
+      # placed there would stop no pull request.
+      - name: Script tests
         run: python3 -m unittest discover -s scripts -p "*_test.py" -v
 
       # @tracon/client'in kendi kapisi (Phase 84,

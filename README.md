@@ -275,7 +275,7 @@ dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey"     "sk-..."
 
 ## Design rules
 
-Four rules that do not change. Detail: [docs/MIMARI.md](docs/MIMARI.md) (Turkish).
+Four rules that do not change. Detail: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 **1. No surprises.** `AddTracon()` works alone; without PostgreSQL configured, storage
 falls back to memory. A database is never required.
@@ -293,12 +293,10 @@ plumbing, not extension points.
 
 ---
 
-## Roadmap
+## Status
 
-Development runs in numbered phases. The first preview shipped on 2026-09-20, and
-later work now targets the next preview and GA. The list is generated
-into [docs/YOL-HARITASI.md](docs/YOL-HARITASI.md); unselected candidates are in
-[docs/ADAYLAR.md](docs/ADAYLAR.md).
+The first preview shipped on 2026-09-20, and later work now targets the next preview
+and GA. What changed in each release is in [CHANGELOG.md](CHANGELOG.md).
 
 ### Skill script execution and content guards
 
@@ -307,7 +305,6 @@ Both are **off by default**, turned on explicitly in code (`.UseSkillScripts(...
 Skill scripts run on the server with no OS-level isolation from Tracon itself — that
 boundary is the hosting environment's job. A stored or code-defined script runs only
 under a grant pinned to its exact content. Full behavior and the guard decision model:
-[docs/MIMARI-GUVENLIK.md](docs/MIMARI-GUVENLIK.md) (Turkish) ·
 [product docs](https://tracon.dev).
 
 ### Version policy
@@ -360,21 +357,10 @@ is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh
 builds it, runs the four site gates, and publishes it behind the nginx stack in
 [`docs-site/deploy/`](docs-site/deploy/).
 
-The table below is the **development documentation**: Turkish, and never mixed with
-the site — `docs/` is the journal, `docs-site/` is the product documentation.
-
 | Source | Contents |
 |--------|----------|
-| [docs/MIMARI.md](docs/MIMARI.md) · [MIMARI-GUVENLIK.md](docs/MIMARI-GUVENLIK.md) · [MIMARI-TEHDIT-MODELI.md](docs/MIMARI-TEHDIT-MODELI.md) | Architecture · the security model · the threat model |
-| [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | The MAF extension points we use, and the ones we deliberately do not |
-| [docs/KARARLAR.md](docs/KARARLAR.md) · [index](docs/KARARLAR-INDEKS.md) · [rejected](docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md) | The decision ledger — lasting choices and rejected approaches, with reasons |
-| [docs/](docs/) `NN-*.md` · [FAZ-DEFTERI.md](docs/FAZ-DEFTERI.md) · [YOL-HARITASI.md](docs/YOL-HARITASI.md) · [ADAYLAR.md](docs/ADAYLAR.md) | Phase documents — open ones in `docs/`; a closed phase leaves one ledger row with a `git show` pointer · phase status (generated) · unselected candidates |
-| [docs/manuel-test/](docs/manuel-test/) | The manual acceptance-test specification; `manuel-test-kosumu` drives a run |
-| [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Area-specific traps · closed record |
-| [CONTRIBUTING.md](CONTRIBUTING.md) · [ARCHITECTURE.md](ARCHITECTURE.md) | **English** — how to build, which gate to run, which test level a change needs · an architecture map for people changing the code |
-| [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent instructions, memory routing, workflow skills (`CLAUDE.md` symlinks `AGENTS.md`) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) · [ARCHITECTURE.md](ARCHITECTURE.md) | How to build, which gate to run, which test level a change needs · an architecture map for people changing the code |
 | [docs-site/](docs-site/) · [docfx/](docfx/) | **The product site** (English, Astro Starlight) and the API reference generator. A separate pipeline, not attached to `dotnet build`. Needs Node 22.22+ |
-| [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Generates the decision index; checks the documentation budgets |
 
 ---
 

@@ -82,7 +82,9 @@ TEST_MAX_CPU_COUNT = 2
 # (`kapi_test.py` ikisini birlikte denetler).
 TEST_RESULTS_DIRECTORY = "artifacts/test-results"
 
-SYNC_ROOTS = ("src", "tests", "samples", "docs", ".agents")
+# A root that does not exist is skipped, so the public tree (where `docs` holds two
+# contract directories) and the development repository run the same list.
+SYNC_ROOTS = ("src", "tests", "samples", "docs")
 SCAN_EXCLUDED_DIRS = {
     ".git", "artifacts", "node_modules", "dist", ".astro", ".vite", "wwwroot",
     "obj", "bin", "TestResults", "manuel-test", "arsiv", "manuel-test-kosumu",
@@ -94,7 +96,7 @@ SYNC_NAME = re.compile(r".+ 2(?:\..+)?$")
 # the `docs/` tree, and without the guard this gate produces dozens of false
 # positives and gets switched off.
 DOC_REFERENCE = re.compile(r"(?<![\w/-])docs/[A-Za-z0-9._/\-]+\.md")
-DOC_REFERENCE_ROOTS = ("src", "tests", "samples", "bench", "scripts", "docs-site", ".agents", ".github")
+DOC_REFERENCE_ROOTS = ("src", "tests", "samples", "bench", "scripts", "docs-site", ".github")
 # Metavariable filenames: an illustrative path in a template or in the archiving
 # script's own comments. These never resolve and are not a defect.
 DOC_REFERENCE_PLACEHOLDER = re.compile(r"(^|[-/])(NN|X|Y)([-.]|$)")
@@ -162,6 +164,32 @@ class Command:
 
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
+
+
+def _no_commands(base: str) -> tuple[Command, ...]:
+    return ()
+
+
+@dataclasses.dataclass(frozen=True)
+class Extension:
+    """Steps a wrapper adds around the public gates.
+
+    The public tree runs every gate in this file with none. A repository that holds
+    more than the public tree (extra scan roots, extra checks) passes its own
+    extension to `main`, so this file never has to name those steps.
+    """
+
+    program: str = "scripts/kapi.py"
+    """The entry point the closing run calls for `tarama`, so the wrapper scans its own roots."""
+    generation: tuple[Command, ...] = ()
+    """Generators that run before the public ones."""
+    after_scan: Callable[[str], Sequence[Command]] = _no_commands
+    """Checks that run right after `tarama`; the argument is the `kapanis --taban` commit."""
+    sync_roots: tuple[str, ...] = ()
+    doc_reference_roots: tuple[str, ...] = ()
+
+
+PUBLIC = Extension()
 
 
 def _record_measurement(
@@ -266,10 +294,12 @@ def _walk_files(root: pathlib.Path, *, excluded_dirs: set[str] | None = None) ->
             yield directory_path / name
 
 
-def find_sync_copies(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
+def find_sync_copies(
+    root: pathlib.Path = ROOT, roots: Sequence[str] = SYNC_ROOTS,
+) -> list[pathlib.Path]:
     """Return file and directory names produced by cloud sync copy suffixes."""
     found: list[pathlib.Path] = []
-    for relative_root in SYNC_ROOTS:
+    for relative_root in roots:
         base = root / relative_root
         if not base.exists():
             continue
@@ -319,7 +349,9 @@ def find_secrets(root: pathlib.Path = ROOT) -> tuple[list[str], int]:
     return found, skipped
 
 
-def find_stale_doc_references(root: pathlib.Path = ROOT) -> list[str]:
+def find_stale_doc_references(
+    root: pathlib.Path = ROOT, roots: Sequence[str] = DOC_REFERENCE_ROOTS,
+) -> list[str]:
     """Return `path:line:reference` records for `docs/` targets that do not exist.
 
     Closing a phase deletes `docs/NN-AD.md` (`dokuman-bakim.py faz-kapat`, which
@@ -329,7 +361,7 @@ def find_stale_doc_references(root: pathlib.Path = ROOT) -> list[str]:
     that no longer exists.
     """
     found: list[str] = []
-    for relative_root in DOC_REFERENCE_ROOTS:
+    for relative_root in roots:
         base = root / relative_root
         if not base.exists():
             continue
@@ -382,12 +414,12 @@ def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
     return found
 
 
-def scan(root: pathlib.Path = ROOT) -> int:
+def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     """Run the synchronization-copy, secret, migration-integrity, doc-reference and public-surface scans."""
-    copies = find_sync_copies(root)
+    copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
     secrets, synthetic = find_secrets(root)
     migrations = migration_integrity_violations(root)
-    stale_docs = find_stale_doc_references(root)
+    stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
     public_surface = public_surface_violations(root)
     if not copies and not secrets and not migrations and not stale_docs and not public_surface:
         print("Tarama: ✅ temiz"
@@ -1289,7 +1321,7 @@ def inner_loop_commands(paths: list[str]) -> list[Command]:
     return commands + [_dotnet_test_project(project) for project in projects]
 
 
-def generation_commands() -> list[Command]:
+def generation_commands(extension: Extension = PUBLIC) -> list[Command]:
     """Regenerate the committed generated files whose freshness CI checks.
 
     Measured (October 2026): 11 of 42 red closing runs stopped at
@@ -1300,23 +1332,24 @@ def generation_commands() -> list[Command]:
     regenerated file that was never committed is still caught there.
     """
     return [
+        *extension.generation,
         Command(("node", "docs-site/scripts/build-agent-map.mjs")),
-        Command(("python3", "scripts/dokuman-bakim.py", "--yalniz-uret")),
     ]
 
 
-def closing_commands(base: str, *, site: bool = True, performance: bool = True) -> list[Command]:
+def closing_commands(
+    base: str, *, site: bool = True, performance: bool = True, extension: Extension = PUBLIC,
+) -> list[Command]:
     # Cheapest first; the full test run (~9-12 min) is the most expensive step
     # and runs LAST. Measured (October 2026): 11 of 42 red closing runs failed
     # in a step that used to run AFTER the tests - docs-site check 6,
     # `performans` 4, format 1 - about 144 minutes of test time thrown away.
     # Generation runs first so every later check sees the regenerated files.
     commands = [
-        *generation_commands(),
-        Command(("python3", "scripts/kapi.py", "tarama")),
-        Command(("python3", "scripts/dokuman-bakim.py", "--denetle")),
+        *generation_commands(extension),
+        Command(("python3", extension.program, "tarama")),
+        *extension.after_scan(base),
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
-        Command(("python3", "scripts/denetim-paketi.py", "--taban", base)),
         # F-525: a cached restore is a no-op and never re-runs the NuGet audit, so
         # an advisory published after the last restore stayed invisible here while
         # CI's cold checkout turned it into NU1902/NU1903 (a warning-as-error).
@@ -2543,7 +2576,7 @@ def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> in
         return 1
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--komutlari-bas", action="store_true", help="komutları çalıştırmadan listele")
     subparsers = parser.add_subparsers(dest="stage")
@@ -2602,9 +2635,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.stage == "tarama":
-        return scan()
+        return scan(extension=extension)
     if args.stage == "uret":
-        return run_commands("uret", generation_commands(), dry_run=args.komutlari_bas)
+        return run_commands("uret", generation_commands(extension), dry_run=args.komutlari_bas)
     if args.stage == "kapasite":
         return capacity_measurement(args.profil, args.surum, pathlib.Path(args.cikti))
     if args.stage == "ic-dongu":
@@ -2630,7 +2663,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         # A failed git call runs it anyway rather than silently skipping.
         paths = changed_paths(args.taban)
         performance = paths is None or performance_gate_triggered(paths)
-        commands = closing_commands(args.taban, site=not args.site_atla, performance=performance)
+        commands = closing_commands(
+            args.taban, site=not args.site_atla, performance=performance, extension=extension)
         if not args.komutlari_bas and runs_multi_target_tests(commands) \
                 and not require_test_runtimes(test_target_frameworks()):
             return 1
@@ -2684,7 +2718,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return release_rehearsal(args.surum)
 
     if args.komutlari_bas:
-        return run_commands("kapanis", closing_commands("<taban>"), dry_run=True)
+        return run_commands("kapanis", closing_commands("<taban>", extension=extension), dry_run=True)
     parser.error("bir aşama belirtin: tarama, uret, ic-dongu, kapanis, performans, test, yayin, paketle veya paket-dogrula")
     return 2
 

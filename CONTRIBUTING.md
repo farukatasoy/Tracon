@@ -48,7 +48,7 @@ and the public API files.
 
 `TreatWarningsAsErrors` is on. There are no warnings, only errors. Before you
 suppress an analyzer rule, understand why it fired; if a suppression really is
-right, the reason belongs both in the code and in the decision ledger.
+right, the reason belongs in the code.
 
 Two environment details that will otherwise cost you an hour:
 
@@ -112,9 +112,9 @@ Two rules, and they do not overlap:
 - **Everything that ships or runs is English** — code, comments, XML
   documentation, commit messages, package READMEs, and the `docs-site/`
   product documentation.
-- **The development journal in `docs/` is Turkish**, along with the agent
-  skills in `.agents/` and the scripts. It is the maintainer's record. You are
-  not expected to write it, and a pull request does not need to touch it.
+- **The maintainer tooling is Turkish.** The gate scripts under `scripts/` print
+  and document themselves in Turkish. You are not expected to write Turkish, and a
+  pull request that changes behavior does not need to translate them.
 
 If your change alters something a consumer sees — a public type, an HTTP
 endpoint, a screen, a package — the `docs-site/` page for it changes in the same

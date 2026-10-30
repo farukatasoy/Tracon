@@ -56,8 +56,7 @@ rule you cannot break by accident.
 generated from the published OpenAPI document, so it talks to a running
 Tracon over HTTP rather than compiling against it.
 
-The full picture, including the data model and every extension point, is in
-`docs/MIMARI.md` (Turkish).
+Every extension point is documented on <https://tracon.dev>.
 
 ## Four rules that do not change
 
@@ -120,7 +119,7 @@ databases.
 Tenant isolation lives in the application layer, enforced by those contract tests
 in both directions, with a coverage gate that makes an untested public store
 method a build failure. Tracon does not create database row level security
-policies; the reasoning is recorded in the decision ledger.
+policies.
 
 ## Where things live
 
@@ -129,20 +128,10 @@ policies; the reasoning is recorded in the decision ledger.
 | `src/` | The 20 packable projects, plus `Tracon.Generators` (analyzers, `IsPackable=false`) and `Tracon.Sql.Shared`, which is shared source with no project file of its own |
 | `tests/` | Unit, contract, functional, integration, and Playwright end-to-end suites |
 | `samples/` | Runnable applications, including the ones the release gate builds against packed NuGet packages |
-| `docs/` | The development journal — **Turkish**, and never the product documentation |
 | `docs-site/` | The product documentation site — **English**, Astro Starlight |
-| `scripts/` | The gate runner (`kapi.py`), documentation maintenance, and the site deploy pipeline |
-| `.agents/` | Instructions and workflow skills for AI coding agents |
+| `scripts/` | The gate runner (`kapi.py`), the contract and package checks, and the site deploy pipeline |
 
 ## Reading further
 
-- `docs/MIMARI.md` — layers, data model, and the execution path in full
-- `docs/MIMARI-GUVENLIK.md` — the security model: tenancy, roles, audit chain,
-  script sandbox
-- `docs/MAF-GENISLEME-NOKTALARI.md` — which MAF extension points are used, and
-  which are deliberately not
-- `docs/KARARLAR.md` — the decision ledger: what was chosen, why, and what would
-  reopen it
-
-Those four are written in Turkish. They are the record of *why* the code looks
-the way it does, and machine translation carries them well enough to follow.
+The product documentation at <https://tracon.dev> covers installation, the concepts,
+the HTTP API and the API reference.

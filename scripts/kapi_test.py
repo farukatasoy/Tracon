@@ -8,6 +8,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import sys
 import tempfile
 import time
@@ -22,6 +23,33 @@ kapi = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = kapi
 spec.loader.exec_module(kapi)
 
+
+def _ci_isleri(metin: str) -> dict[str, dict]:
+    """`ci.yml` işleri: {ad: {"if": değer | None, "needs": [işler]}}. YAML kütüphanesi gerekmez."""
+    isler: dict[str, dict] = {}
+    simdiki = None
+    icinde = False
+    for satir in metin.splitlines():
+        if re.match(r"^jobs:\s*$", satir):
+            icinde = True
+            continue
+        if not icinde:
+            continue
+        is_satiri = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", satir)
+        if is_satiri:
+            simdiki = is_satiri.group(1)
+            isler[simdiki] = {"if": None, "needs": []}
+            continue
+        if simdiki is None:
+            continue
+        ozellik = re.match(r"^    (if|needs):\s*(.*?)\s*$", satir)
+        if not ozellik:
+            continue
+        if ozellik.group(1) == "if":
+            isler[simdiki]["if"] = ozellik.group(2)
+        else:
+            isler[simdiki]["needs"] = [ad for ad in re.findall(r"[A-Za-z0-9_-]+", ozellik.group(2))]
+    return isler
 
 class KapiTestleri(unittest.TestCase):
     def test_git_tum_metin_dosyalarini_lf_olarak_checkout_eder(self):
@@ -796,9 +824,62 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertIn("node docs-site/scripts/build-agent-map.mjs", rendered)
         self.assertNotIn("node docs-site/scripts/build-agent-map.mjs --check", rendered)
-        self.assertIn("python3 scripts/dokuman-bakim.py --yalniz-uret", rendered)
-        self.assertLess(rendered.index("python3 scripts/dokuman-bakim.py --yalniz-uret"),
-                        rendered.index("python3 scripts/dokuman-bakim.py --denetle"))
+
+    def test_public_komut_listeleri_ozel_betik_cagirmaz(self):
+        # Public ağaç yalnız kendi dosyalarıyla koşar: sevk edilen kapı özel bir
+        # betiği çağırırsa süzülmüş ağaçta ilk adımda düşer.
+        for rendered in (
+            [c.display for c in kapi.closing_commands("abc123", site=True, performance=True)],
+            [c.display for c in kapi.generation_commands()],
+        ):
+            for command in rendered:
+                self.assertNotIn(".agents", command)
+                self.assertNotIn("dokuman-bakim", command)
+                self.assertNotIn("denetim-paketi", command)
+
+    def test_genisletme_adimlari_public_listeye_eklenir(self):
+        ek = kapi.Extension(
+            program="ozel/giris.py",
+            generation=(kapi.Command(("echo", "uret")),),
+            after_scan=lambda taban: (kapi.Command(("echo", taban)),),
+        )
+
+        rendered = [c.display for c in kapi.closing_commands("abc123", site=False, extension=ek)]
+
+        self.assertEqual(rendered[0], "echo uret")
+        self.assertEqual(rendered[rendered.index("python3 ozel/giris.py tarama") + 1], "echo abc123")
+        self.assertNotIn("python3 scripts/kapi.py tarama", rendered)
+
+    def test_tarama_kokleri_ozel_dizin_olmadan_calisir(self):
+        # Süzülmüş ağaçta `docs/` yalnız iki sözleşme dizini taşır ve başka kök yoktur.
+        with tempfile.TemporaryDirectory() as gecici:
+            kok = pathlib.Path(gecici)
+            (kok / "src").mkdir()
+            (kok / "docs" / "sozlesme").mkdir(parents=True)
+            (kok / "docs" / "sozlesme" / "hata-kodlari.txt").write_text("x", encoding="utf-8")
+
+            self.assertEqual(kapi.find_sync_copies(kok), [])
+            self.assertEqual(kapi.find_stale_doc_references(kok), [])
+            self.assertEqual(kapi.find_secrets(kok), ([], 0))
+
+    def test_ci_her_is_kanonik_repo_korumasina_baglidir(self):
+        # Özel depoda ve fork'larda hiçbir iş dakika harcamamalı. Koşul YALNIZ
+        # `build`'de durur; diğer her iş ona (doğrudan ya da zincirle) `needs` ile
+        # bağlıdır ve atlanan bir bağımlılık onları da atlatır.
+        isler = _ci_isleri((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+
+        self.assertEqual(isler["build"]["if"], "github.repository == 'farukatasoy/Tracon'")
+        for ad in isler:
+            if ad == "build":
+                continue
+            bekleyenler, ziyaret = [ad], set()
+            while bekleyenler:
+                simdiki = bekleyenler.pop()
+                if simdiki in ziyaret:
+                    continue
+                ziyaret.add(simdiki)
+                bekleyenler.extend(isler[simdiki]["needs"])
+            self.assertIn("build", ziyaret, f"`{ad}` işi `build`'e bağlı değil; koşulsuz koşar")
 
     def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
