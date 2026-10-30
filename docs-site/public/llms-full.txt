@@ -6366,7 +6366,7 @@ statuses and these pages. Open the source before you decide anything on the stre
 
 | Product | What Microsoft says it does | Status on Learn | Source |
 |---|---|---|---|
-| Foundry Control Plane | One interface for visibility, governance, and control of agents, models, and tools across a Foundry enterprise. It also lists agents that run on other platforms. Fleet, observability, compliance, and security views sit under **Operate** | **Preview** for the Operate panes (Overview, Assets, Compliance) and for Monitoring. Tracing is GA for prompt and hosted agents and Preview for external agents. Page updated 2026-09-23 | [Overview](https://learn.microsoft.com/azure/foundry/control-plane/overview) · [Feature readiness](https://learn.microsoft.com/azure/foundry/concepts/general-availability) |
+| Foundry Control Plane | One interface for visibility, governance, and control of agents, models, and tools across a Foundry enterprise. It also lists agents that run on other platforms. Fleet, observability, compliance, and security views sit under **Operate** | **Preview** for the Operate panes (Overview, Assets, Compliance) and for Monitoring. Tracing is GA for prompt and hosted agents and Preview for external agents. Feature-readiness page dated 2026-08-14 | [Overview](https://learn.microsoft.com/azure/foundry/control-plane/overview) · [Feature readiness](https://learn.microsoft.com/azure/foundry/concepts/general-availability) |
 | Microsoft Entra Agent ID | An identity and security framework for agents: agent identities, blueprints, and OAuth 2.0, MCP, and A2A flows. It works with agents from Microsoft and other platforms. It is available to all Entra customers. Extending Entra security features to agents, such as Conditional Access for agents, needs a Microsoft Agent 365 license | **GA.** The What's new page announces general availability and carries the date 2026-05-01 | [What is Agent ID](https://learn.microsoft.com/entra/agent-id/what-is-microsoft-entra-agent-id) · [What's new](https://learn.microsoft.com/entra/agent-id/whats-new-agent-id) · [Conditional Access for agents](https://learn.microsoft.com/entra/identity/conditional-access/agent-id) |
 | Microsoft Agent 365 | A central registry of an organization's agents, with observe, govern, and secure functions through Microsoft 365 admin center, Entra, Purview, and Defender | **GA** since 2026-05-01 for the Commercial segment, licensed per user | [Overview](https://learn.microsoft.com/microsoft-agent-365/overview) |
 | Foundry Hosted Agents | Containerized agent applications that run on Microsoft-managed infrastructure. Each deployed agent gets its own Entra identity. An agent built with Microsoft Agent Framework is exposed through the Foundry Responses or Invocations protocol | **GA.** The page that says so is dated 2026-10-22 and gives no GA date. The hosting package for .NET, `Microsoft.Agents.AI.Foundry.Hosting`, is installed with `--prerelease` | [Agent Framework hosting page](https://learn.microsoft.com/agent-framework/hosting/foundry-hosted-agent) |
@@ -6386,9 +6386,10 @@ Tracon is a control plane for one host. It does not claim to be the control plan
 
 ## How telemetry can reach Foundry
 
-Microsoft documents one route for an agent that is not built in Foundry and emits OpenTelemetry through OTLP. The agent
-sends OTLP to an OpenTelemetry Collector. The collector forwards it with the Azure Monitor exporter to the
-Application Insights resource of the Foundry project. Foundry Control Plane reads it from there.
+Microsoft documents one route for an agent that is not built in Foundry and emits OpenTelemetry through OTLP
+([Register and manage custom agents](https://learn.microsoft.com/azure/foundry/control-plane/register-custom-agent),
+page dated 2026-05-06). The agent sends OTLP to an OpenTelemetry Collector. The collector forwards it with the Azure
+Monitor exporter to the Application Insights resource of the Foundry project. Foundry Control Plane reads it from there.
 
 ```mermaid
 flowchart LR
@@ -6400,11 +6401,12 @@ flowchart LR
     HOST -.->|"run records"| STORE[("Your SQL store")]
 ```
 
-Registering a host as a custom agent in Foundry adds conditions. Foundry puts an Azure API Management gateway in front
-of the agent, and clients must call the new address. The agent must expose an endpoint that Foundry can reach, and use
-HTTP or A2A. Foundry also looks for a span with the operation `create_agent` that carries the attribute
-`gen_ai.agent.id`. Tracon's own code emits no `create_agent` span, and the trace in the Aspire guide shows none. Without
-more instrumentation, Microsoft's page says the Foundry trace view shows only the HTTP call to the agent.
+Registering a host as a custom agent in Foundry adds conditions, all from the same page. Foundry puts an Azure API
+Management gateway in front of the agent, and clients must call the new address. The agent must expose an endpoint that
+Foundry can reach, and use HTTP or A2A. Foundry finds the traces of an agent by an identifier: a span with the operation
+`create_agent` that carries `gen_ai.agent.id` or `gen_ai.agent.name`. The identifier is the agent name unless you
+register another one. Tracon's own code emits no `create_agent` span, and the trace in the Aspire guide shows none. In
+Microsoft's LangGraph example, an agent without extra instrumentation shows only the HTTP call in the Foundry trace view.
 
 ## What this page does not claim
 
@@ -8225,8 +8227,8 @@ Answer these five questions before you write a factory agent:
 Source: https://tracon.dev/guides/aspire/
 
 How do you add a Tracon host to an Aspire solution, and what do you see in the dashboard? Three decisions are
-specific to Tracon: the database image, the name of the connection string setting, and the telemetry
-registration. The rest is a normal AppHost.
+specific to Tracon: whether the database image carries the `vector` extension, the name of the connection string
+setting, and the telemetry registration. The rest is a normal AppHost.
 
 The repository shows all three in `samples/Tracon.AppHost`. Start it with one command. Docker, or another
 container runtime that Aspire supports, must be running:
@@ -8273,6 +8275,7 @@ package.
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Needed because this host turns Knowledge on (EnableKnowledge = true). Leave both lines out when it stays off.
 var postgres = builder.AddPostgres("postgres")
     .WithImage("pgvector/pgvector")
     .WithImageTag("pg18");
@@ -8288,7 +8291,7 @@ builder.Build().Run();
 
 | Decision | What goes wrong if you skip it |
 |---|---|
-| Use the `pgvector/pgvector` image, not the default | The Tracon PostgreSQL migrations run `CREATE EXTENSION IF NOT EXISTS vector`. The database must provide that extension, and the official `postgres` image that `AddPostgres` starts by default does not ship it |
+| Use the `pgvector/pgvector` image when `EnableKnowledge` is `true` | [Knowledge](/guides/knowledge/) needs the `vector` extension, and the Tracon PostgreSQL migrations create it only when `Tracon:PostgreSql:EnableKnowledge` is `true`. The sample turns it on. With the official `postgres` image, which `AddPostgres` starts by default, the host then stops at start: `Migration '0001_vector' could not be applied: extension "vector" is not available`. Measured with `postgres:18-alpine`. With `EnableKnowledge` off, the same image starts and migrates |
 | Set `Tracon__PostgreSql__ConnectionString` with `WithEnvironment` | `WithReference(database)` writes `ConnectionStrings__tracon`. Tracon reads `Tracon:PostgreSql:ConnectionString` and never that key, so the host starts without persistence. The environment variable also wins over a connection string that your user-secrets hold for another database |
 | Keep model keys out of the AppHost | The AppHost needs no secret. Put provider keys in the host project's own user-secrets, as you do without Aspire |
 
@@ -8355,7 +8358,7 @@ The Metrics page lists the `Tracon` meter next to the ASP.NET Core meters. It sh
 | Symptom | Check |
 |---|---|
 | The dashboard lists the host but no `tracon.run` span | No run has happened yet, or the host process has no `OTEL_EXPORTER_OTLP_ENDPOINT`. Open the resource in the dashboard and read its environment variables |
-| The host stops at start with an error about the `vector` extension | The database image does not provide `vector`. Use `pgvector/pgvector` |
+| The host stops at start with `extension "vector" is not available` | `EnableKnowledge` is `true` and the database image does not provide `vector`. Use `pgvector/pgvector`, or leave `EnableKnowledge` off |
 | The host runs but reports a different database than the container | The `Tracon__PostgreSql__ConnectionString` variable is missing, so a user-secrets value is in use. `GET /api/diagnostics` shows the active provider when you turn it on |
 | The collector or dashboard is down | Runs still complete. The OpenTelemetry SDK drops what it cannot send. Measured: a run finished normally with the endpoint pointing at a closed port |
 
