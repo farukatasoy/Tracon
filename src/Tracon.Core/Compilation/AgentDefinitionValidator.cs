@@ -29,6 +29,7 @@ internal sealed partial class AgentDefinitionValidator
     private readonly IOptions<TraconOptions> _options;
     private readonly IMcpToolRefresher? _mcpRefresher;
     private readonly IAgentDefinitionStore? _definitions;
+    private readonly DefinitionOverlay? _overlay;
 
     /// <summary>Initializes an agent-definition validator.</summary>
     /// <param name="models">The model provider registry.</param>
@@ -74,6 +75,47 @@ internal sealed partial class AgentDefinitionValidator
         _options = options;
         _mcpRefresher = mcpRefresher;
         _definitions = definitions;
+    }
+
+    // The same validator with the package's agents and skills laid over what the target holds. Every check
+    // below reads the catalog, the store and the skill catalog through these fields, so the overlay needs no
+    // second copy of any rule.
+    private AgentDefinitionValidator(AgentDefinitionValidator source, DefinitionOverlay overlay)
+    {
+        _models = source._models;
+        _tools = source._tools;
+        _skills = source._skills;
+        _catalog = new OverlayAgentCatalog(overlay, source._catalog);
+        _compiler = source._compiler;
+        _options = source._options;
+        _mcpRefresher = source._mcpRefresher;
+        _definitions = source._definitions is null ? null : new OverlayAgentDefinitionStore(overlay, source._definitions);
+        _overlay = overlay;
+    }
+
+    /// <summary>
+    /// Validates a definition against what the target holds together with the agents and skills of an import
+    /// package, as if the package were already saved. Saves nothing and calls no model.
+    /// </summary>
+    /// <param name="definition">The definition to validate.</param>
+    /// <param name="overlay">The package's agents and skills.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The report containing all findings.</returns>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// The rules are the ones <see cref="ValidateAsync(AgentDefinition, CancellationToken)"/> applies; only the
+    /// state they read changes. A tool of an MCP server the package would create is not in the target's tool
+    /// list, so the caller judges those before it asks this method.
+    /// </remarks>
+    internal ValueTask<AgentValidationReport> ValidateAsync(
+        AgentDefinition definition,
+        DefinitionOverlay overlay,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(overlay);
+
+        return new AgentDefinitionValidator(this, overlay).ValidateAsync(definition, cancellationToken);
     }
 
     /// <summary>Validates a definition without saving it or calling a model.</summary>
@@ -298,7 +340,8 @@ internal sealed partial class AgentDefinitionValidator
         {
             var name = definition.SkillNames[index];
 
-            if (!await _skills.ExistsAsync(name, cancellationToken).ConfigureAwait(false))
+            if (!await _skills.ExistsAsync(name, cancellationToken).ConfigureAwait(false) &&
+                _overlay?.HasSkill(name) != true)
             {
                 messages.Add(new ValidationMessage
                 {
@@ -357,9 +400,22 @@ internal sealed partial class AgentDefinitionValidator
     {
         try
         {
-            var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
+            if (_overlay is null)
+            {
+                var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-            _ = await _compiler.CompileAsync(definition, callable, culture: null, cancellationToken).ConfigureAwait(false);
+                _ = await _compiler.CompileAsync(definition, callable, culture: null, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                // _catalog and _definitions are the overlay adapters here: the callable agents and the shared
+                // instructions block of a package agent resolve from the package.
+                var callable = await _compiler
+                    .ResolveCallableAgentsAgainstAsync(definition, _catalog, _definitions, cancellationToken)
+                    .ConfigureAwait(false);
+
+                _ = await _compiler.CompileForOverlayAsync(definition, callable, _definitions, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (TraconException ex) when (ex is TraconCompilationException or TraconTenantProviderRefusedException)
         {

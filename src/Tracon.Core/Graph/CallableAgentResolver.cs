@@ -135,10 +135,31 @@ internal sealed class CallableAgentResolver
     /// twice. The definition was checked when it was saved; the agent can change after that, and a pin that no
     /// longer holds fails the caller by name instead of running another version.
     /// </exception>
-    public async ValueTask<IReadOnlyList<CallableAgentInfo>> DescribeAsync(
+    public ValueTask<IReadOnlyList<CallableAgentInfo>> DescribeAsync(
         string callerName,
         IReadOnlyList<CallableAgentReference> callableAgents,
         CancellationToken cancellationToken = default)
+        => DescribeAsync(callerName, callableAgents, catalog: null, agentDefinitions: null, cancellationToken);
+
+    /// <summary>
+    /// <see cref="DescribeAsync(string, IReadOnlyList{CallableAgentReference}, CancellationToken)"/> against a given
+    /// catalog and store, for a validation that reads the agents of an import package as if they were saved.
+    /// </summary>
+    /// <param name="callerName">The calling agent, for the refusal.</param>
+    /// <param name="callableAgents">The references to resolve.</param>
+    /// <param name="catalog">The catalog to read; <see langword="null"/> reads the registered one.</param>
+    /// <param name="agentDefinitions">The store that keeps stored agents' versions; <see langword="null"/> reads the registered one.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>One entry for each reference, in the same order.</returns>
+    /// <exception cref="TraconCompilationException">
+    /// See <see cref="DescribeAsync(string, IReadOnlyList{CallableAgentReference}, CancellationToken)"/>.
+    /// </exception>
+    internal async ValueTask<IReadOnlyList<CallableAgentInfo>> DescribeAsync(
+        string callerName,
+        IReadOnlyList<CallableAgentReference> callableAgents,
+        IAgentCatalog? catalog,
+        IAgentDefinitionStore? agentDefinitions,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(callableAgents);
 
@@ -147,7 +168,7 @@ internal sealed class CallableAgentResolver
             return [];
         }
 
-        var byName = await DescribeCatalogAsync(cancellationToken).ConfigureAwait(false);
+        var byName = await DescribeCatalogAsync(catalog ?? ResolveCatalog(), cancellationToken).ConfigureAwait(false);
         var result = new List<CallableAgentInfo>(callableAgents.Count);
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -166,7 +187,7 @@ internal sealed class CallableAgentResolver
             byName.TryGetValue(reference.Name, out var descriptor);
 
             result.Add(reference.Version is { } version && descriptor is not null
-                ? await DescribePinnedAsync(callerName, reference.Name, version, descriptor, cancellationToken).ConfigureAwait(false)
+                ? await DescribePinnedAsync(callerName, reference.Name, version, descriptor, agentDefinitions, cancellationToken).ConfigureAwait(false)
                 : new CallableAgentInfo(reference.Name, descriptor?.Description, reference.Version ?? descriptor?.Version ?? 0));
         }
 
@@ -178,6 +199,7 @@ internal sealed class CallableAgentResolver
         string calleeName,
         int version,
         AgentDescriptor descriptor,
+        IAgentDefinitionStore? agentDefinitions,
         CancellationToken cancellationToken)
     {
         if (descriptor.Origin == AgentDefinitionOrigin.Code)
@@ -192,7 +214,7 @@ internal sealed class CallableAgentResolver
         // A custom source cannot be read this way; its description stays the current one, and the catalog
         // refuses the call when the source has no such version.
         if (descriptor.Origin == AgentDefinitionOrigin.Database &&
-            _services.GetService<IAgentDefinitionStore>() is { } store)
+            (agentDefinitions ?? _services.GetService<IAgentDefinitionStore>()) is { } store)
         {
             var pinned = await store.GetVersionAsync(calleeName, version, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconCompilationException(CallableAgentPins.VersionNotFoundMessage(callerName, calleeName, version))
@@ -206,9 +228,14 @@ internal sealed class CallableAgentResolver
         return new CallableAgentInfo(calleeName, descriptor.Description, version);
     }
 
-    private async ValueTask<Dictionary<string, AgentDescriptor>> DescribeCatalogAsync(CancellationToken cancellationToken)
+    private ValueTask<Dictionary<string, AgentDescriptor>> DescribeCatalogAsync(CancellationToken cancellationToken)
+        => DescribeCatalogAsync(ResolveCatalog(), cancellationToken);
+
+    private static async ValueTask<Dictionary<string, AgentDescriptor>> DescribeCatalogAsync(
+        IAgentCatalog catalog,
+        CancellationToken cancellationToken)
     {
-        var descriptors = await ListAsync(cancellationToken).ConfigureAwait(false);
+        var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
         var byName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
 
         foreach (var descriptor in descriptors)

@@ -179,8 +179,25 @@ public sealed partial class AgentDefinitionCompiler
     /// registered, the named block does not exist, or the named block itself
     /// references another block (a shared instructions block cannot chain).
     /// </exception>
+    internal ValueTask<ResolvedSharedInstructions> ResolveSharedInstructionsAsync(
+        AgentDefinition definition,
+        CancellationToken cancellationToken)
+        => ResolveSharedInstructionsAsync(definition, store: null, cancellationToken);
+
+    /// <summary>
+    /// <see cref="ResolveSharedInstructionsAsync(AgentDefinition, CancellationToken)"/> against a given store, for a
+    /// validation that reads the agents of an import package as if they were saved.
+    /// </summary>
+    /// <param name="definition">The definition that names the block.</param>
+    /// <param name="store">The store to read the block from; <see langword="null"/> reads the registered one.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The block's text and its fingerprint.</returns>
+    /// <exception cref="TraconCompilationException">
+    /// See <see cref="ResolveSharedInstructionsAsync(AgentDefinition, CancellationToken)"/>.
+    /// </exception>
     internal async ValueTask<ResolvedSharedInstructions> ResolveSharedInstructionsAsync(
         AgentDefinition definition,
+        IAgentDefinitionStore? store,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -190,17 +207,15 @@ public sealed partial class AgentDefinitionCompiler
             return ResolvedSharedInstructions.Empty;
         }
 
-        if (_definitionStore is null)
-        {
-            throw new TraconCompilationException(
+        var definitions = store ?? _definitionStore
+            ?? throw new TraconCompilationException(
                 $"Agent '{definition.Name}' references shared instructions '{blockName}', but no " +
                 "IAgentDefinitionStore is registered.")
             {
                 AgentName = definition.Name,
             };
-        }
 
-        var block = await _definitionStore.GetAsync(blockName, cancellationToken).ConfigureAwait(false)
+        var block = await definitions.GetAsync(blockName, cancellationToken).ConfigureAwait(false)
             ?? throw new TraconCompilationException(
                 $"Agent '{definition.Name}' references shared instructions '{blockName}', but no such " +
                 "definition exists.")
@@ -245,8 +260,27 @@ public sealed partial class AgentDefinitionCompiler
     /// The definition wants to call a sub-agent but the feature is not registered, or it pins a sub-agent to a
     /// version the sub-agent no longer has (or one defined in code, which has none).
     /// </exception>
-    public async ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAsync(
+    public ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAsync(
         AgentDefinition definition,
+        CancellationToken cancellationToken)
+        => ResolveCallableAgentsAgainstAsync(definition, catalog: null, agentDefinitions: null, cancellationToken);
+
+    /// <summary>
+    /// <see cref="ResolveCallableAgentsAsync"/> against a given catalog and store,
+    /// for a validation that reads the agents of an import package as if they were saved.
+    /// </summary>
+    /// <param name="definition">The agent definition being resolved.</param>
+    /// <param name="catalog">The catalog to read; <see langword="null"/> reads the registered one.</param>
+    /// <param name="agentDefinitions">The store that keeps stored agents' versions; <see langword="null"/> reads the registered one.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Sub-agent summaries and the fingerprint.</returns>
+    /// <exception cref="TraconCompilationException">
+    /// See <see cref="ResolveCallableAgentsAsync"/>.
+    /// </exception>
+    internal async ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAgainstAsync(
+        AgentDefinition definition,
+        IAgentCatalog? catalog,
+        IAgentDefinitionStore? agentDefinitions,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -267,7 +301,7 @@ public sealed partial class AgentDefinitionCompiler
         }
 
         var infos = await _callableAgents
-            .DescribeAsync(definition.Name, definition.CallableAgents, cancellationToken)
+            .DescribeAsync(definition.Name, definition.CallableAgents, catalog, agentDefinitions, cancellationToken)
             .ConfigureAwait(false);
 
         return new ResolvedCallableAgents(infos, CreateCallableFingerprint(infos));

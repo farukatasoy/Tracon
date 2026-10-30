@@ -433,11 +433,46 @@ public sealed partial class AgentDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
 
+        return await CompileCoreAsync(definition, callableAgents, toolTransform, culture, sharedInstructionsStore: null, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async ValueTask<AIAgent> CompileCoreAsync(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents,
+        Func<AIFunction, AIFunction>? toolTransform,
+        string? culture,
+        IAgentDefinitionStore? sharedInstructionsStore,
+        CancellationToken cancellationToken)
+    {
         var pendingClient = await PrepareChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
         var secondaryClients = await CreateSecondaryChatClientsAsync(definition, cancellationToken).ConfigureAwait(false);
-        var sharedInstructions = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var sharedInstructions = await ResolveSharedInstructionsAsync(definition, sharedInstructionsStore, cancellationToken).ConfigureAwait(false);
 
         return BuildAgent(definition, callableAgents, toolTransform, culture, pendingClient, secondaryClients, sharedInstructions.Text);
+    }
+
+    /// <summary>
+    /// Compiles a definition the way <see cref="CompileAsync(AgentDefinition, ResolvedCallableAgents, string, CancellationToken)"/>
+    /// does, reading the shared instructions block from a given store: the validation of an import package, which
+    /// reads the package's agents as if they were saved.
+    /// </summary>
+    /// <param name="definition">The definition to compile.</param>
+    /// <param name="callableAgents">Sub-agent summaries resolved beforehand.</param>
+    /// <param name="sharedInstructionsStore">The store to read the shared instructions block from; <see langword="null"/> reads the registered one.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The executable agent, to be discarded.</returns>
+    /// <exception cref="TraconCompilationException">See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.</exception>
+    /// <remarks>Never cached: nothing here reaches <see cref="CompiledAgentCache"/>.</remarks>
+    internal ValueTask<AIAgent> CompileForOverlayAsync(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents,
+        IAgentDefinitionStore? sharedInstructionsStore,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        return CompileCoreAsync(definition, callableAgents, toolTransform: null, culture: null, sharedInstructionsStore, cancellationToken);
     }
 
     /// <summary>
