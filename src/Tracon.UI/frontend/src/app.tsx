@@ -29,6 +29,7 @@ import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
 import { McpScreen } from './screens/mcp';
 import { TriggerEditorScreen, TriggersScreen } from './screens/triggers';
+import { TransferScreen } from './screens/transfer';
 import { ApprovalsScreen } from './screens/approvals';
 import { SettingsScreen } from './screens/settings';
 import { AuditScreen } from './screens/audit';
@@ -92,6 +93,7 @@ export const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: 'tools', render: () => <ToolsScreen /> },
   { pattern: 'models', render: () => <ModelsScreen /> },
   { pattern: 'mcp', render: () => <McpScreen meta={meta} /> },
+  { pattern: 'transfer', render: () => <TransferScreen meta={meta} /> },
   { pattern: 'triggers', render: () => <TriggersScreen meta={meta} /> },
   { pattern: 'triggers/new', render: () => <TriggerEditorScreen meta={meta} /> },
   {

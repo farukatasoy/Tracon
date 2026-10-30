@@ -63,6 +63,7 @@ export const enCommon = {
   "nav.audit": 'Audit',
   "nav.diagnostics": 'Diagnostics',
   "nav.settings": 'Settings',
+  "nav.transfer": 'Transfer',
   "nav.primary": 'Primary navigation',
   "nav.group.operate": 'Operate',
   "nav.group.configure": 'Configure',

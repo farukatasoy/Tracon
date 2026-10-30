@@ -68,6 +68,7 @@ export const trCommon: Pick<Messages, keyof typeof enCommon> = {
   "nav.audit": 'Denetim',
   "nav.diagnostics": 'Teşhis',
   "nav.settings": 'Ayarlar',
+  "nav.transfer": 'Aktarım',
   "nav.primary": 'Ana gezinme',
   "nav.group.operate": 'Operasyon',
   "nav.group.configure": 'Yapılandırma',

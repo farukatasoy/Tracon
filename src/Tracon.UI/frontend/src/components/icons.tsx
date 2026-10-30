@@ -305,3 +305,9 @@ export const TriggersIcon = ({ className }: IconProps): ReactNode => (
     <path d="M13 3 5 13.5h5.5L11 21l8-10.5h-5.5z" />
   </Icon>
 );
+
+export const TransferIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />
+  </Icon>
+);

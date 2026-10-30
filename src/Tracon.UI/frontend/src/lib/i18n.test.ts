@@ -155,6 +155,10 @@ describe('catalogues', () => {
       'triggers.secret',
       'triggers.targetKind.agent',
       'triggers.targetKind.workflow',
+      // `agent`, `workflow` and `skill` are terms that stay English by the project's language rule; the label is nothing else.
+      'transfer.kind.agent',
+      'transfer.kind.workflow',
+      'transfer.kind.skill',
       // `reviewer` and `agent` both stay English by the project's language rule; the label is nothing else.
       'agentEditor.loop.reviewerAgent',
     ]);

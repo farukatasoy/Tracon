@@ -34,7 +34,7 @@ table row is about 32 px tall.
 Navigation is split by the job you are doing. **Operate** holds what the airspace
 is doing right now — dashboard, playground, runs, sessions, approvals, jobs,
 evaluations, audit, diagnostics. **Configure** holds what is allowed to fly —
-agents, workflows, tools, skills, models, MCP servers, triggers, settings.
+agents, workflows, tools, skills, models, MCP servers, triggers, transfer, settings.
 
 There is one accent colour. Everything else that is coloured is a status, and the
 same status is the same colour on every screen:
@@ -483,6 +483,24 @@ Inbound triggers let an external system start a queued run with one signed reque
 no API key. A trigger's editor shows the exact URL to configure in that system, the
 target agent or workflow, and the name of the configuration key holding its signing
 secret — see [Inbound triggers](/guides/inbound-triggers/).
+
+### Transfer
+
+<a class="ui-shot" href="/screenshots/transfer.png"><img src="/screenshots/transfer.png" alt="The Transfer screen: an export panel with the agents and workflows to choose from, and an import panel with a file picker" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Moves agents, workflows, stored skills and MCP servers between installations as one
+`tracon.definitions` file. The **Export** panel lists your agents and workflows; leave
+both lists empty to export everything, or tick some to start from them. *Prepare the
+file* asks the server for the file and shows what it will hold, including the skills,
+agents and MCP servers the chosen definitions need, and any warning, before *Download*
+saves it. The **Import** panel takes a file and checks it first: the report lists every
+item with what the import would do (*Create*, *New version*, *Update*, *Unchanged*,
+*Refused*, *Blocked*, *Skipped*), the version an agent had in the source and the version
+it will have here (`v4 → v7`), and the findings. Opening a row puts the definition the
+target holds beside the one the file would write. *Apply* is lit only while a valid report
+is on the screen and only for the administrator role; an operator can check a file and
+cannot write it. The server enforces both. Nothing is written for a file with any refused
+item. See [Move definitions between installations](/guides/move-definitions/).
 
 ### Diagnostics
 

@@ -108,6 +108,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         ("models", "/models", "scripted"),
         ("mcp", "/mcp", SeededMcpServerName),
         ("triggers", "/triggers", SeededTriggerName),
+        ("transfer", "/transfer", "Prepare the file"),
         ("audit", "/audit", "Audit"),
         ("diagnostics", "/diagnostics", "Diagnostics"),
         ("settings", "/settings", "Settings"),

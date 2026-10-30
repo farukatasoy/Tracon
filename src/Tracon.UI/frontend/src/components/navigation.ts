@@ -16,6 +16,7 @@ import {
   SessionsIcon,
   SettingsIcon,
   ToolsIcon,
+  TransferIcon,
   TriggersIcon,
   WorkflowIcon,
 } from './icons';
@@ -85,6 +86,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { path: 'models', label: 'nav.models', english: 'Models', icon: ModelsIcon },
       { path: 'mcp', label: 'nav.mcp', english: 'MCP', icon: McpIcon },
       { path: 'triggers', label: 'nav.triggers', english: 'Triggers', icon: TriggersIcon, adminOnly: true },
+      { path: 'transfer', label: 'nav.transfer', english: 'Transfer', icon: TransferIcon },
       { path: 'settings', label: 'nav.settings', english: 'Settings', icon: SettingsIcon },
     ],
   },
