@@ -6,6 +6,7 @@
 using System.Buffers;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -77,8 +78,16 @@ internal sealed class TextToSpeechClientSynthesizer : ISpeechSynthesizer
             binding.ProviderName,
             metadata?.ProviderName);
 
+        // Phase 266: the call is a span of the run that made it. The adapter is a singleton per registered name, so
+        // the ring is built once; it is not disposed with the adapter because that would dispose the consumer's
+        // client. EnableSensitiveData stays the library's default (the consumer's switch): the trace store filter
+        // decides what is kept.
+        var ring = new TextToSpeechClientBuilder(client)
+            .UseOpenTelemetry(services.GetService<ILoggerFactory>(), TraconDiagnostics.ActivitySourceName)
+            .Build();
+
         return new TextToSpeechClientSynthesizer(
-            client,
+            ring,
             providerName,
             binding.MaxCharactersPerRequest,
             [.. binding.Voices],
@@ -311,7 +320,12 @@ internal sealed class SpeechToTextClientTranscriber : ISpeechTranscriber
             binding.ProviderName,
             metadata?.ProviderName);
 
-        return new SpeechToTextClientTranscriber(client, providerName, metadata?.DefaultModelId);
+        // Phase 266: see TextToSpeechClientSynthesizer.Create.
+        var ring = new SpeechToTextClientBuilder(client)
+            .UseOpenTelemetry(services.GetService<ILoggerFactory>(), TraconDiagnostics.ActivitySourceName)
+            .Build();
+
+        return new SpeechToTextClientTranscriber(ring, providerName, metadata?.DefaultModelId);
     }
 
     /// <inheritdoc />

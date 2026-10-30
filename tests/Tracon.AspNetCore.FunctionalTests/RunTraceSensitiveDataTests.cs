@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -102,23 +100,6 @@ public sealed class RunTraceSensitiveDataTests
                 options.Observability.MaxSpansPerRun = 1000;
             }));
 
-        using var response = await host.Client.PostAsJsonAsync(
-            new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative),
-            new AgentRunRequest { Message = "go" },
-            TestContext.Current.CancellationToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken));
-        var runId = JsonDocument.Parse(frames.Single(static frame => string.Equals(frame.Event, "run", StringComparison.Ordinal)).Data)
-            .RootElement.GetProperty("runId").GetGuid();
-
-        using var traceResponse = await host.Client.GetAsync(
-            new Uri($"/tracon/api/runs/{runId}/trace", UriKind.Relative),
-            TestContext.Current.CancellationToken);
-
-        traceResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        return (await traceResponse.Content.ReadFromJsonAsync<RunTrace>(TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        return (await RunTraceReader.RunAsync(host, AgentName)).Trace;
     }
 }

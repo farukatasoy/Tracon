@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -18,6 +20,14 @@ namespace Tracon;
 /// <see cref="Resolve"/> stays for the startup checks that only ask whether a
 /// generator is registered.
 /// </para>
+/// <para>
+/// Both paths return the generator inside Microsoft.Extensions.AI's OpenTelemetry ring (Phase 266), so a generation is
+/// a span of the run that asked for it. The ring is built once per registered generator and kept: the resolver is asked
+/// on every generation, and a ring owns an <see cref="System.Diagnostics.ActivitySource"/> and a
+/// <see cref="System.Diagnostics.Metrics.Meter"/>. It is not disposed here, because disposing it would dispose the
+/// consumer's generator. The ring never sets <c>EnableSensitiveData</c>: that switch stays the consumer's, and the
+/// trace store filter decides what is kept.
+/// </para>
 /// </remarks>
 #pragma warning disable MEAI001
 internal sealed class ImageGeneratorResolver
@@ -28,6 +38,7 @@ internal sealed class ImageGeneratorResolver
     private readonly ITenantProviderBindingStore? _providerBindings;
     private readonly TenantProviderCredentialResolver? _credentialResolver;
     private readonly IOptions<TraconTenantProviderOptions>? _tenantProviderOptions;
+    private readonly ConditionalWeakTable<IImageGenerator, IImageGenerator> _rings = new();
 
     public ImageGeneratorResolver(
         IServiceProvider services,
@@ -58,10 +69,12 @@ internal sealed class ImageGeneratorResolver
         var generator = _services.GetKeyedService<IImageGenerator>(providerName)
             ?? _services.GetService<IImageGenerator>();
 
-        return generator ?? throw new TraconException(
-            $"{nameof(TraconImageOptions)} is enabled but no image generator is registered for provider " +
-            $"'{providerName}'. Install a supported provider package and call UseOpenAIImages(), " +
-            "UseAzureOpenAIImages(), or UseGoogleImages().");
+        return generator is null
+            ? throw new TraconException(
+                $"{nameof(TraconImageOptions)} is enabled but no image generator is registered for provider " +
+                $"'{providerName}'. Install a supported provider package and call UseOpenAIImages(), " +
+                "UseAzureOpenAIImages(), or UseGoogleImages().")
+            : _rings.GetValue(generator, WrapInRing);
     }
 
     /// <summary>
@@ -121,5 +134,10 @@ internal sealed class ImageGeneratorResolver
 
         return Resolve();
     }
+
+    private IImageGenerator WrapInRing(IImageGenerator generator)
+        => new ImageGeneratorBuilder(generator)
+            .UseOpenTelemetry(_services.GetService<ILoggerFactory>(), TraconDiagnostics.ActivitySourceName)
+            .Build();
 }
 #pragma warning restore MEAI001

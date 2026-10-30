@@ -360,8 +360,9 @@ public static partial class TraconServiceCollectionExtensions
             // EnableVectorSearch gets a compilation error.
             // Tracon.PostgreSql's UsePostgreSql() call registers this.
             provider.GetService<IVectorSearchStore>(),
-            // The consumer registers their own IEmbeddingGenerator (the K-032 pattern).
-            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
+            // The consumer registers their own IEmbeddingGenerator (the K-032 pattern); the compiler takes it
+            // inside the OpenTelemetry ring (Phase 266).
+            provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
             provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>().Value.MaxResults,
             // Resolves SharedInstructionsName. Registered unconditionally a few
             // lines below (the in-memory store by default), so this is never null
@@ -396,9 +397,14 @@ public static partial class TraconServiceCollectionExtensions
         // throws an overt TraconException.
         // F-416: every embedding call passes the tenant's provider checks; the
         // explicit factory makes the stores reach the check by construction.
+        // Phase 266: the registered generator is wrapped once, and the three callers below take that one.
+        services.TryAddSingleton(static provider => new InstrumentedEmbeddings(
+            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()));
+
         services.TryAddSingleton(static provider => new EmbeddingProviderAccess(
             provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>(),
-            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
+            provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
             provider.GetService<ITenantEgressPolicyStore>(),
             provider.GetService<ITenantProviderBindingStore>(),
             provider.GetService<TenantProviderCredentialResolver>(),
@@ -408,7 +414,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>(),
             provider.GetService<IVectorSearchStore>(),
-            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
+            provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
             provider.GetRequiredService<EmbeddingProviderAccess>()));
 
         // Definition validation endpoint (Phase 34, F-60). Repeats the real
