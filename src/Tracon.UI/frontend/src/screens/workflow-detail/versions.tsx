@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { client, unwrap } from '../../lib/api';
 import { useT } from '../../lib/i18n';
-import { stepsOf } from '../../lib/workflow-steps';
+import { handoffsOf, stepsOf } from '../../lib/workflow-steps';
 import { DiffView, FieldDiffTable } from '../../components/diff-view';
 import { ComparePanel, CompareSection, VersionHistory } from '../../components/version-history';
 import { ErrorNote } from '../../components/ui';
@@ -91,6 +91,8 @@ function WorkflowVersionCompare({ name, a, b }: { name: string; a: number; b: nu
       {(data) => {
         const leftParameters = parametersText(data.left);
         const rightParameters = parametersText(data.right);
+        const leftHandoffs = handoffsText(data.left);
+        const rightHandoffs = handoffsText(data.right);
 
         return (
           <div className="space-y-5">
@@ -106,6 +108,9 @@ function WorkflowVersionCompare({ name, a, b }: { name: string; a: number; b: nu
                     managerAgentName: { label: t('workflowEditor.managerAgent') },
                     maxIterations: { label: t('workflowEditor.maxIterations') },
                     handoffInstructions: { label: t('workflowEditor.handoffInstructions') },
+                    maxHandoffs: { label: t('workflowDetail.compare.maxHandoffs') },
+                    maxStalls: { label: t('workflowDetail.compare.maxStalls') },
+                    maxResets: { label: t('workflowDetail.compare.maxResets') },
                     requirePlanApproval: { label: t('workflowDetail.compare.planApproval') },
                     runTimeout: { label: t('workflowDetail.compare.runTimeout') },
                     requestTimeout: { label: t('workflowDetail.compare.requestTimeout') },
@@ -120,6 +125,14 @@ function WorkflowVersionCompare({ name, a, b }: { name: string; a: number; b: nu
                 <DiffView left={stepsText(data.left, t)} right={stepsText(data.right, t)} />
               </div>
             </CompareSection>
+
+            {(leftHandoffs.length > 0 || rightHandoffs.length > 0) && (
+              <CompareSection title={t('workflowDetail.compare.handoffs')}>
+                <div data-testid="workflow-handoffs-diff">
+                  <DiffView left={leftHandoffs} right={rightHandoffs} />
+                </div>
+              </CompareSection>
+            )}
 
             {(leftParameters.length > 0 || rightParameters.length > 0) && (
               <CompareSection title={t('workflowDetail.parameters')}>
@@ -167,4 +180,11 @@ function parametersText(definition: WorkflowDefinition): string {
   const parameters = definition.parameters ?? [];
 
   return parameters.length === 0 ? '' : JSON.stringify(parameters, null, 2);
+}
+
+/** The handoff edges, one `from → to` line each (with the reason after it), or nothing for the star. */
+function handoffsText(definition: WorkflowDefinition): string {
+  return handoffsOf(definition)
+    .map((edge) => (edge.reason.length === 0 ? `${edge.from} → ${edge.to}` : `${edge.from} → ${edge.to}: ${edge.reason}`))
+    .join('\n');
 }

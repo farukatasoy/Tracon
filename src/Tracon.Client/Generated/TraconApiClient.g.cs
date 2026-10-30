@@ -4168,7 +4168,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a workflow definition.
         /// </summary>
         /// <remarks>
-        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node's 'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run's timeout. An agent node's 'agentVersion' pins the step to that version of the agent; it must be 1 or more, only an agent node may carry one, and the agent must have that version (an agent defined in code keeps no versions): anything else is refused with 400. 'runTimeout' bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it. Every save appends a version rather than overwriting; the previous content stays readable through GET /api/workflows/{name}/versions.
+        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node's 'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run's timeout. An agent node's 'agentVersion' pins the step to that version of the agent; it must be 1 or more, only an agent node may carry one, and the agent must have that version (an agent defined in code keeps no versions): anything else is refused with 400. 'runTimeout' bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. A Handoff workflow's 'handoffs' say who may hand off to whom: each edge names a 'from' and a 'to' agent from 'agentNames' and may carry a 'reason' the model reads. An empty list keeps the star (the first agent hands off to every other agent and none hands off back); a list replaces it, so only the listed edges exist. A pair may appear once, an agent may not hand off to itself, the first agent needs an edge out of it, and every agent must be reachable from the first one by the edges: anything else is refused with 400. Edges that let two agents hand off to one another can loop, so 'maxHandoffs' bounds the handoffs of one run (10 when left out): the handoff that would exceed it ends the run as failed with the error type 'handoff_limit_exceeded'. A Magentic workflow's 'maxStalls' and 'maxResets' bound how long its manager keeps trying: rounds without progress before a replan (the framework's 3 when left out), and the replans before the task ends as completed with a final message that says it stopped at the reset limit (no limit when left out). The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it. Every save appends a version rather than overwriting; the previous content stays readable through GET /api/workflows/{name}/versions.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -29403,10 +29403,10 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<WorkflowNodeReference> Nodes { get; set; } = new System.Collections.Generic.List<WorkflowNodeReference>();
 
         /// <summary>
-        /// Gets the maximum number of turns. The only guard against an infinite
-        /// <br/>loop in the WorkflowKind.GroupChat,
-        /// <br/>WorkflowKind.Handoff, and WorkflowKind.Magentic
-        /// <br/>patterns.
+        /// Gets the maximum number of turns. The guard against an infinite loop in
+        /// <br/>the WorkflowKind.GroupChat and WorkflowKind.Magentic
+        /// <br/>patterns, and the number of turns a WorkflowKind.Handoff agent
+        /// <br/>continues on its own. A handoff loop is bounded by `MaxHandoffs`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("maxIterations")]
         public int? MaxIterations { get; set; } = default!;
@@ -29417,6 +29417,33 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("handoffInstructions")]
         public string? HandoffInstructions { get; set; } = default!;
+
+        /// <summary>
+        /// Gets who may hand off to whom. Used only for WorkflowKind.Handoff.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("handoffs")]
+        public System.Collections.Generic.ICollection<WorkflowHandoff> Handoffs { get; set; } = new System.Collections.Generic.List<WorkflowHandoff>();
+
+        /// <summary>
+        /// Gets the most handoffs one run may make. Used only for WorkflowKind.Handoff.
+        /// <br/>`null` uses 10.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxHandoffs")]
+        public int? MaxHandoffs { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how many rounds without progress the WorkflowKind.Magentic manager tolerates before
+        /// <br/>it replans. `null` uses Microsoft Agent Framework's own value (3). Must be positive.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxStalls")]
+        public int? MaxStalls { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how many times the WorkflowKind.Magentic manager may replan before the
+        /// <br/>orchestration stops. `null` uses Microsoft Agent Framework's own value (no limit).
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxResets")]
+        public int? MaxResets { get; set; } = default!;
 
         /// <summary>
         /// Gets whether the plan the manager agent builds must be approved by a
@@ -29738,6 +29765,37 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("executorType")]
         public string? ExecutorType { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// One edge of a WorkflowKind.Handoff workflow: the agent `From` may hand the
+    /// <br/>conversation off to the agent `To`.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class WorkflowHandoff
+    {
+
+        /// <summary>
+        /// Gets the name of the agent that may hand off. One of `AgentNames`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("from")]
+        public string From { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the name of the agent that receives the conversation. One of
+        /// <br/>`AgentNames`, and not the same as `From`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("to")]
+        public string To { get; set; } = default!;
+
+        /// <summary>
+        /// Gets why the `From` agent would hand off to `To`, in words the model reads
+        /// <br/>as the description of the handoff tool. `null` uses the description of the target
+        /// <br/>agent, or its name when it has none.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("reason")]
+        public string? Reason { get; set; } = default!;
 
     }
 
@@ -30243,6 +30301,39 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("handoffInstructions")]
         public string? HandoffInstructions { get; set; } = default!;
+
+        /// <summary>
+        /// Who may hand off to whom. Only for WorkflowKind.Handoff. Each entry is an edge: the `from` agent
+        /// <br/>may hand off to the `to` agent, with an optional `reason` the model reads. Leave it empty and the
+        /// <br/>first agent hands off to every other agent and none of them hands off. A list replaces the star:
+        /// <br/>only the listed edges exist. Both names must be in `agentNames`, a pair may appear once, the first
+        /// <br/>agent needs an edge out of it, and every agent must be reachable from the first one.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("handoffs")]
+        public System.Collections.Generic.ICollection<WorkflowHandoff>? Handoffs { get; set; } = default!;
+
+        /// <summary>
+        /// The most handoffs one run may make. Only for WorkflowKind.Handoff. Leave it out for 10. The
+        /// <br/>handoff that would go past the limit ends the run as failed with the error type
+        /// <br/>`handoff_limit_exceeded`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxHandoffs")]
+        public int? MaxHandoffs { get; set; } = default!;
+
+        /// <summary>
+        /// How many rounds without progress the manager tolerates before it replans, from 1. Only for
+        /// <br/>WorkflowKind.Magentic. Leave it out for the framework's own value (3).
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxStalls")]
+        public int? MaxStalls { get; set; } = default!;
+
+        /// <summary>
+        /// How many times the manager may replan before the orchestration stops, from 1. Only for
+        /// <br/>WorkflowKind.Magentic. Leave it out for no limit. The task ends as completed, with a final message
+        /// <br/>that says it stopped at the reset limit, at the first round after the last replan.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maxResets")]
+        public int? MaxResets { get; set; } = default!;
 
         /// <summary>
         /// Whether the manager agent's plan must be approved by a human. Only for

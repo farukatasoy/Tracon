@@ -277,6 +277,43 @@ describe('WorkflowDetailScreen version history', () => {
     );
   });
 
+  it('compares the handoff edges and the limits of two versions of a Handoff workflow (phase 270)', async () => {
+    const user = userEvent.setup();
+    const star = definition(1, { kind: 'Handoff', agentNames: ['front', 'billing'], handoffs: [], maxHandoffs: null });
+    const edges = definition(2, {
+      kind: 'Handoff',
+      agentNames: ['front', 'billing'],
+      handoffs: [
+        { from: 'front', to: 'billing', reason: 'Invoices.' },
+        { from: 'billing', to: 'front', reason: null },
+      ],
+      maxHandoffs: 6,
+    });
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/workflows', [{ ...stored, version: 2 }]),
+      fixture('GET', 'api/workflows/:name/graph', graph),
+      fixture('GET', 'api/workflows/:name/versions', [edges, star]),
+      fixture('GET', 'api/workflows/:name/versions/:a/diff/:b', { left: star, right: edges }),
+    ]);
+
+    renderScreen(<WorkflowDetailScreen name="podcast" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('version-checkbox-1'));
+    await user.click(screen.getByTestId('version-checkbox-2'));
+
+    // The star has no edges, so the section shows what the second version added, one line for each edge.
+    const handoffs = await screen.findByTestId('workflow-handoffs-diff');
+
+    expect(changedLines(handoffs)).toEqual(['+ front → billing: Invoices.', '+ billing → front']);
+
+    const fields = screen.getByTestId('workflow-fields-diff');
+    const limit = [...fields.querySelectorAll('tbody tr')].find((row) => row.textContent?.startsWith('Max handoffs'));
+
+    expect(limit?.className ?? '').toContain('bg-warn-soft');
+    expect(limit?.textContent).toBe('Max handoffs—6');
+  });
+
   it('rolls back for an administrator, sends the version, and shows the new current version', async () => {
     const user = userEvent.setup();
     const sent: unknown[] = [];

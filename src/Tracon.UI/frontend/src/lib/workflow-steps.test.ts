@@ -3,12 +3,15 @@ import {
   canonicalForm,
   chainBody,
   describeSchema,
+  handoffsBody,
+  handoffsOf,
   hasFunction,
   hasInvalidSettings,
   hasInvalidTimeouts,
   hasPins,
   hasStepTimeouts,
   hasStrandedTimeouts,
+  hasUnfinishedHandoff,
   parseSettings,
   parseTimeout,
   settingsText,
@@ -370,5 +373,51 @@ describe('agent version pins', () => {
   it('does not count a pin as a change of shape: a waiting run keeps its graph', () => {
     expect(shapeOf('Sequential', [pinned('a', 2), agent('b')])).toBe(shapeOf('Sequential', [agent('a'), agent('b')]));
     expect(shapeOf('Sequential', [pinned('a', 2), agent('b')])).toBe(shapeOf('Sequential', [pinned('a', 7), agent('b')]));
+  });
+});
+
+describe('handoff edges (phase 270)', () => {
+  const trio = [agent('front'), agent('billing'), agent('tech')];
+  const edge = (from: string, to: string, reason = '') => ({ from, to, reason });
+
+  it('reads the stored edges, an absent reason as empty and an absent list as none', () => {
+    expect(handoffsOf({ handoffs: [{ from: 'a', to: 'b', reason: null }, { from: 'b', to: 'a', reason: 'Back.' }] })).toEqual([
+      edge('a', 'b'),
+      edge('b', 'a', 'Back.'),
+    ]);
+    expect(handoffsOf({ handoffs: undefined as never })).toEqual([]);
+  });
+
+  it('writes the edges for a Handoff workflow only, and a blank reason as null', () => {
+    expect(handoffsBody('Handoff', [edge('a', 'b', '  '), edge('b', 'a', ' Back. ')])).toEqual([
+      { from: 'a', to: 'b', reason: null },
+      { from: 'b', to: 'a', reason: 'Back.' },
+    ]);
+    expect(handoffsBody('Handoff', [])).toEqual([]);
+    expect(handoffsBody('Concurrent', [edge('a', 'b')])).toBeNull();
+  });
+
+  it('knows a row with an end left to choose, in a Handoff workflow only', () => {
+    expect(hasUnfinishedHandoff('Handoff', [edge('a', '')])).toBe(true);
+    expect(hasUnfinishedHandoff('Handoff', [edge('', 'b')])).toBe(true);
+    expect(hasUnfinishedHandoff('Handoff', [edge('a', 'b')])).toBe(false);
+    expect(hasUnfinishedHandoff('Concurrent', [edge('a', '')])).toBe(false);
+  });
+
+  it('changes the shape with an edge, not with the reason', () => {
+    const base = shapeOf('Handoff', trio, [edge('front', 'billing'), edge('billing', 'front')]);
+
+    expect(shapeOf('Handoff', trio, [edge('front', 'billing'), edge('billing', 'front'), edge('front', 'tech')])).not.toBe(base);
+    expect(shapeOf('Handoff', trio, [edge('front', 'billing'), edge('tech', 'front')])).not.toBe(base);
+    expect(shapeOf('Handoff', trio, [edge('billing', 'front', 'Why.'), edge('front', 'billing', 'Because.')])).toBe(base);
+  });
+
+  it('reads an empty list as the star: the first step to every other one', () => {
+    expect(shapeOf('Handoff', trio, [])).toBe(shapeOf('Handoff', trio, [edge('front', 'tech'), edge('front', 'billing')]));
+    expect(shapeOf('Handoff', trio, [])).not.toBe(shapeOf('Handoff', trio, [edge('front', 'billing')]));
+  });
+
+  it('ignores the edges of a pattern that has none', () => {
+    expect(shapeOf('Concurrent', trio, [edge('front', 'billing')])).toBe(shapeOf('Concurrent', trio));
   });
 });

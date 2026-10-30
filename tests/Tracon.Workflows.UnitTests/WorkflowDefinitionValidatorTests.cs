@@ -234,6 +234,165 @@ public sealed class WorkflowDefinitionValidatorTests
         message.ShouldContain(kind, Case.Sensitive);
     }
 
+    // --- Phase 270: handoff topology and the limits ----------------------------------------------------------
+
+    [Fact]
+    public void A_handoff_definition_with_an_edge_list_that_reaches_every_agent_is_accepted()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing", "technical"], Edge("frontline", "billing"), Edge("frontline", "technical"), Edge("billing", "frontline")))
+            .ShouldBeNull();
+
+    [Fact]
+    public void An_empty_edge_list_is_the_star_and_is_accepted()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"]))
+            .ShouldBeNull();
+
+    [Fact]
+    public void An_edge_to_an_agent_the_workflow_does_not_list_names_the_edge_and_the_field()
+    {
+        var message = WorkflowDefinitionValidator.Validate(
+            Handoff(["frontline", "billing"], Edge("frontline", "billing"), Edge("billing", "support")));
+
+        message.ShouldNotBeNull();
+        message.ShouldContain("handoffs[1] to 'support' is not in agentNames", Case.Sensitive);
+    }
+
+    [Fact]
+    public void An_edge_from_an_agent_the_workflow_does_not_list_is_rejected()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"], Edge("ghost", "billing"), Edge("frontline", "billing")))!
+            .ShouldContain("handoffs[0] from 'ghost' is not in agentNames", Case.Sensitive);
+
+    [Fact]
+    public void An_edge_from_an_agent_to_itself_is_rejected()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"], Edge("frontline", "billing"), Edge("billing", "billing")))!
+            .ShouldContain("handoffs[1] hands 'billing' off to itself", Case.Sensitive);
+
+    [Fact]
+    public void The_same_pair_twice_is_rejected_because_the_framework_would_throw_for_it_in_a_run()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"], Edge("frontline", "billing"), Edge("frontline", "billing")))!
+            .ShouldContain("handoffs[1] repeats the edge from 'frontline' to 'billing'", Case.Sensitive);
+
+    [Fact]
+    public void The_reverse_pair_is_a_different_edge()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"], Edge("frontline", "billing"), Edge("billing", "frontline")))
+            .ShouldBeNull();
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void A_blank_reason_is_rejected_and_a_missing_one_is_not(string reason)
+    {
+        WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"], new WorkflowHandoff { From = "frontline", To = "billing", Reason = reason }))!
+            .ShouldContain("handoffs[0] has a blank 'reason'", Case.Sensitive);
+
+        WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"], new WorkflowHandoff { From = "frontline", To = "billing", Reason = null }))
+            .ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_list_the_first_agent_has_no_part_in_is_rejected()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing", "technical"], Edge("billing", "technical"), Edge("technical", "billing")))!
+            .ShouldContain("the first agent 'frontline'", Case.Sensitive);
+
+    [Fact]
+    public void An_agent_the_first_agent_cannot_reach_is_rejected_by_name()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing", "technical"], Edge("frontline", "billing"), Edge("technical", "billing")))!
+            .ShouldContain("agent 'technical' cannot be reached from the first agent 'frontline'", Case.Sensitive);
+
+    [Fact]
+    public void An_agent_reached_through_another_agent_counts_as_reachable()
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing", "technical"], Edge("frontline", "billing"), Edge("billing", "technical")))
+            .ShouldBeNull();
+
+    [Theory]
+    [InlineData(WorkflowKind.Sequential)]
+    [InlineData(WorkflowKind.Concurrent)]
+    [InlineData(WorkflowKind.GroupChat)]
+    public void Handoff_fields_outside_the_Handoff_pattern_are_rejected(WorkflowKind kind)
+    {
+        var edges = Definition(kind, ["a", "b"]) with { Handoffs = [Edge("a", "b")] };
+        var limit = Definition(kind, ["a", "b"]) with { MaxHandoffs = 3 };
+
+        WorkflowDefinitionValidator.Validate(edges)!.ShouldContain("'handoffs'", Case.Sensitive);
+        WorkflowDefinitionValidator.Validate(limit)!.ShouldContain("'maxHandoffs'", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData(WorkflowKind.Sequential)]
+    [InlineData(WorkflowKind.Concurrent)]
+    [InlineData(WorkflowKind.GroupChat)]
+    [InlineData(WorkflowKind.Handoff)]
+    public void Magentic_fields_outside_the_Magentic_pattern_are_rejected(WorkflowKind kind)
+    {
+        var stalls = Definition(kind, ["a", "b"]) with { MaxStalls = 2 };
+        var resets = Definition(kind, ["a", "b"]) with { MaxResets = 1 };
+
+        WorkflowDefinitionValidator.Validate(stalls)!.ShouldContain("'maxStalls'", Case.Sensitive);
+        WorkflowDefinitionValidator.Validate(resets)!.ShouldContain("'maxResets'", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void A_handoff_limit_that_is_not_positive_is_rejected(int value)
+        => WorkflowDefinitionValidator
+            .Validate(Handoff(["a", "b"]) with { MaxHandoffs = value })!
+            .ShouldContain("'maxHandoffs' value must be positive", Case.Sensitive);
+
+    [Fact]
+    public void A_handoff_limit_of_one_is_accepted()
+        => WorkflowDefinitionValidator.Validate(Handoff(["a", "b"]) with { MaxHandoffs = 1 }).ShouldBeNull();
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public void A_stall_limit_that_is_not_positive_is_rejected(int value)
+        => WorkflowDefinitionValidator
+            .Validate(Magentic() with { MaxStalls = value })!
+            .ShouldContain("'maxStalls' value must be positive", Case.Sensitive);
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void A_reset_limit_that_is_not_positive_is_rejected_because_zero_stops_the_task_before_its_first_round(int value)
+        => WorkflowDefinitionValidator
+            .Validate(Magentic() with { MaxResets = value })!
+            .ShouldContain("'maxResets' value must be positive", Case.Sensitive);
+
+    [Fact]
+    public void Both_magentic_limits_are_accepted_when_positive()
+        => WorkflowDefinitionValidator.Validate(Magentic() with { MaxResets = 1, MaxStalls = 1 }).ShouldBeNull();
+
+    private static WorkflowHandoff Edge(string from, string to) => new() { From = from, To = to };
+
+    private static WorkflowDefinition Handoff(IReadOnlyList<string> agentNames, params WorkflowHandoff[] edges)
+        => new()
+        {
+            Name = "triage",
+            Kind = WorkflowKind.Handoff,
+            AgentNames = agentNames,
+            Handoffs = edges,
+        };
+
+    private static WorkflowDefinition Magentic()
+        => new()
+        {
+            Name = "plan",
+            Kind = WorkflowKind.Magentic,
+            AgentNames = ["writer"],
+            ManagerAgentName = "manager",
+        };
+
     private static WorkflowNodeReference Function(string name, string? settings)
         => new() { Name = name, Kind = WorkflowNodeKind.Function, Settings = settings is null ? null : Parse(settings) };
 

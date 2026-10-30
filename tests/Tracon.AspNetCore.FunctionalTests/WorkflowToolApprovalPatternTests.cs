@@ -127,6 +127,114 @@ public sealed class WorkflowToolApprovalPatternTests
     }
 
     [Fact]
+    public async Task A_handoff_run_that_waits_for_an_approval_is_not_counted_twice_when_the_answer_resumes_it()
+    {
+        // Phase 270. The run hands off once and then waits for the approval of the expert's tool; the answer opens a new
+        // run that carries it on. With a limit of ONE handoff the resumed run completes only if it does not count the
+        // handoff the first run already made - a resume that replays the handoff call and counts it would stop here.
+        // It does not say whether a count is carried over: the next test does.
+        var cancels = new int[1];
+
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .WithModel(new ModelDescriptor { Name = EditorModel })
+            .ForModel(Model, static cfg => cfg.CallsTool("handoff_to_1").RespondsWith("triage answered"))
+            .ForModel(EditorModel, static cfg => cfg.CallsTool(Tool, new { orderId = "ORD-7" }).EchoesLastToolResult());
+
+        await using var host = await StartTriageExpertAsync(provider, cancels);
+
+        await SaveTriageAsync(host, [new WorkflowHandoff { From = "triage", To = "expert" }]);
+
+        var waiting = await RunToApprovalAsync(host, "help-desk");
+
+        waiting.Run.Status.ShouldBe(RunStatus.AwaitingInput, waiting.Run.Error?.Message);
+
+        using var answer = await RespondAsync(host, waiting, new { approved = true });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+
+        var resumed = (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run;
+
+        resumed.Status.ShouldBe(RunStatus.Completed, resumed.Error?.Message);
+        cancels[0].ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_run_that_resumes_after_an_approval_counts_its_own_handoffs_from_zero()
+    {
+        // Phase 270, K-1149. One handoff before the pause and one after it, with a limit of ONE: the resumed run is a new
+        // run with a counter of its own, so the handoff back to the triage agent is its first. A count carried over the
+        // pause would make it the second and fail the run. The cost of the choice: a loop that stops for an approval at
+        // every hop starts again at each answer, and only the run budget (F-531) bounds it.
+        var cancels = new int[1];
+
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .WithModel(new ModelDescriptor { Name = EditorModel })
+            .ForModel(Model, static cfg => cfg.CallsTool("handoff_to_1").RespondsWith("triage closes the case"))
+            .ForModel(EditorModel, static cfg => cfg.CallsTool(Tool, new { orderId = "ORD-7" }).CallsTool("handoff_to_1"));
+
+        await using var host = await StartTriageExpertAsync(provider, cancels);
+
+        await SaveTriageAsync(
+            host,
+            [new WorkflowHandoff { From = "triage", To = "expert" }, new WorkflowHandoff { From = "expert", To = "triage" }]);
+
+        var waiting = await RunToApprovalAsync(host, "help-desk");
+
+        waiting.Run.Status.ShouldBe(RunStatus.AwaitingInput, waiting.Run.Error?.Message);
+
+        using var answer = await RespondAsync(host, waiting, new { approved = true });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+
+        var resumed = (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run;
+
+        resumed.Status.ShouldBe(RunStatus.Completed, resumed.Error?.Message);
+        cancels[0].ShouldBe(1);
+    }
+
+    private static Task<TraconTestHost> StartTriageExpertAsync(FakeModelProvider provider, int[] cancels)
+        => TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = "triage",
+                Description = "Routes the question.",
+                Instructions = "You are the triage.",
+                Model = new ModelBinding { Provider = Provider, Model = Model },
+                Origin = AgentDefinitionOrigin.Code,
+            });
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = "expert",
+                Description = "Cancels orders.",
+                Instructions = "You are the expert.",
+                Model = new ModelBinding { Provider = Provider, Model = EditorModel },
+                ToolNames = [Tool],
+                Origin = AgentDefinitionOrigin.Code,
+            });
+            AddApprovalTool(builder, Tool, cancels);
+            builder.UseWorkflows();
+        });
+
+    private static async Task SaveTriageAsync(TraconTestHost host, IReadOnlyList<WorkflowHandoff> edges)
+    {
+        using var saved = await host.Client.PutAsJsonAsync(
+            "/tracon/api/workflows/help-desk",
+            new WorkflowSaveRequest
+            {
+                Kind = WorkflowKind.Handoff,
+                AgentNames = ["triage", "expert"],
+                Handoffs = edges,
+                MaxHandoffs = 1,
+            });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task A_sub_agent_the_step_calls_is_still_refused_and_the_workflow_does_not_wait()
     {
         var cancels = new int[1];

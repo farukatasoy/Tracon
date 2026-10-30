@@ -1925,7 +1925,7 @@
           "Workflows"
         ],
         "summary": "Creates or updates a workflow definition.",
-        "description": "The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind \u2014 a manager driven workflow needs its manager agent, for example. A function node\u0027s \u0027settings\u0027 must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node\u0027s \u0027timeout\u0027 (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run\u0027s timeout. An agent node\u0027s \u0027agentVersion\u0027 pins the step to that version of the agent; it must be 1 or more, only an agent node may carry one, and the agent must have that version (an agent defined in code keeps no versions): anything else is refused with 400. \u0027runTimeout\u0027 bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name \u0027functions\u0027 is reserved (400): GET /api/workflows/functions uses it. Every save appends a version rather than overwriting; the previous content stays readable through GET /api/workflows/{name}/versions.",
+        "description": "The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind \u2014 a manager driven workflow needs its manager agent, for example. A function node\u0027s \u0027settings\u0027 must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node\u0027s \u0027timeout\u0027 (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run\u0027s timeout. An agent node\u0027s \u0027agentVersion\u0027 pins the step to that version of the agent; it must be 1 or more, only an agent node may carry one, and the agent must have that version (an agent defined in code keeps no versions): anything else is refused with 400. \u0027runTimeout\u0027 bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. A Handoff workflow\u0027s \u0027handoffs\u0027 say who may hand off to whom: each edge names a \u0027from\u0027 and a \u0027to\u0027 agent from \u0027agentNames\u0027 and may carry a \u0027reason\u0027 the model reads. An empty list keeps the star (the first agent hands off to every other agent and none hands off back); a list replaces it, so only the listed edges exist. A pair may appear once, an agent may not hand off to itself, the first agent needs an edge out of it, and every agent must be reachable from the first one by the edges: anything else is refused with 400. Edges that let two agents hand off to one another can loop, so \u0027maxHandoffs\u0027 bounds the handoffs of one run (10 when left out): the handoff that would exceed it ends the run as failed with the error type \u0027handoff_limit_exceeded\u0027. A Magentic workflow\u0027s \u0027maxStalls\u0027 and \u0027maxResets\u0027 bound how long its manager keeps trying: rounds without progress before a replan (the framework\u0027s 3 when left out), and the replans before the task ends as completed with a final message that says it stopped at the reset limit (no limit when left out). The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name \u0027functions\u0027 is reserved (400): GET /api/workflows/functions uses it. Every save appends a version rather than overwriting; the previous content stays readable through GET /api/workflows/{name}/versions.",
         "operationId": "TraconSaveWorkflow",
         "parameters": [
           {
@@ -20324,7 +20324,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the maximum number of turns. The only guard against an infinite\nloop in the WorkflowKind.GroupChat,\nWorkflowKind.Handoff, and WorkflowKind.Magentic\npatterns.",
+            "description": "Gets the maximum number of turns. The guard against an infinite loop in\nthe WorkflowKind.GroupChat and WorkflowKind.Magentic\npatterns, and the number of turns a WorkflowKind.Handoff agent\ncontinues on its own. A handoff loop is bounded by \u0060MaxHandoffs\u0060.",
             "format": "int32"
           },
           "handoffInstructions": {
@@ -20333,6 +20333,43 @@
               "string"
             ],
             "description": "Gets the extra instruction that tells the model how to decide on a\nhandoff. Used only for WorkflowKind.Handoff."
+          },
+          "handoffs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowHandoff"
+            },
+            "description": "Gets who may hand off to whom. Used only for WorkflowKind.Handoff."
+          },
+          "maxHandoffs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the most handoffs one run may make. Used only for WorkflowKind.Handoff.\n\u0060null\u0060 uses 10.",
+            "format": "int32"
+          },
+          "maxStalls": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets how many rounds without progress the WorkflowKind.Magentic manager tolerates before\nit replans. \u0060null\u0060 uses Microsoft Agent Framework\u0027s own value (3). Must be positive.",
+            "format": "int32"
+          },
+          "maxResets": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets how many times the WorkflowKind.Magentic manager may replan before the\norchestration stops. \u0060null\u0060 uses Microsoft Agent Framework\u0027s own value (no limit).",
+            "format": "int32"
           },
           "requirePlanApproval": {
             "type": "boolean",
@@ -20638,6 +20675,31 @@
           }
         },
         "description": "Represents a node in the graph."
+      },
+      "WorkflowHandoff": {
+        "required": [
+          "from",
+          "to"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Gets the name of the agent that may hand off. One of \u0060AgentNames\u0060."
+          },
+          "to": {
+            "type": "string",
+            "description": "Gets the name of the agent that receives the conversation. One of\n\u0060AgentNames\u0060, and not the same as \u0060From\u0060."
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets why the \u0060From\u0060 agent would hand off to \u0060To\u0060, in words the model reads\nas the description of the handoff tool. \u0060null\u0060 uses the description of the target\nagent, or its name when it has none."
+          }
+        },
+        "description": "One edge of a WorkflowKind.Handoff workflow: the agent \u0060From\u0060 may hand the\nconversation off to the agent \u0060To\u0060."
       },
       "WorkflowKind": {
         "enum": [
@@ -21077,6 +21139,46 @@
               "string"
             ],
             "description": "Handoff instructions. Only for WorkflowKind.Handoff."
+          },
+          "handoffs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WorkflowHandoff"
+            },
+            "description": "Who may hand off to whom. Only for WorkflowKind.Handoff. Each entry is an edge: the \u0060from\u0060 agent\nmay hand off to the \u0060to\u0060 agent, with an optional \u0060reason\u0060 the model reads. Leave it empty and the\nfirst agent hands off to every other agent and none of them hands off. A list replaces the star:\nonly the listed edges exist. Both names must be in \u0060agentNames\u0060, a pair may appear once, the first\nagent needs an edge out of it, and every agent must be reachable from the first one."
+          },
+          "maxHandoffs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The most handoffs one run may make. Only for WorkflowKind.Handoff. Leave it out for 10. The\nhandoff that would go past the limit ends the run as failed with the error type\n\u0060handoff_limit_exceeded\u0060.",
+            "format": "int32"
+          },
+          "maxStalls": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "How many rounds without progress the manager tolerates before it replans, from 1. Only for\nWorkflowKind.Magentic. Leave it out for the framework\u0027s own value (3).",
+            "format": "int32"
+          },
+          "maxResets": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "How many times the manager may replan before the orchestration stops, from 1. Only for\nWorkflowKind.Magentic. Leave it out for no limit. The task ends as completed, with a final message\nthat says it stopped at the reset limit, at the first round after the last replan.",
+            "format": "int32"
           },
           "requirePlanApproval": {
             "type": "boolean",

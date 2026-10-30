@@ -272,11 +272,25 @@ internal sealed class WorkflowDefinitionCompiler
             .AddParticipants(participants.Skip(1))
             .WithName(definition.Name);
 
-        // The first agent may hand off to ALL of the others. If a narrower
-        // graph (who may hand off to whom) were definable, the definition
-        // model would also have to carry an edge list; phase 15 deliberately
-        // does not do this and leaves the free-form graph to code.
-        builder = builder.WithHandoffs(participants[0], participants.Skip(1));
+        if (definition.Handoffs.Count == 0)
+        {
+            // No edge list: the star every Handoff definition had before phase 270. The first agent may hand
+            // off to ALL of the others and none of them hands off. Not the framework's own default, which
+            // connects every agent to every other one when it is given no edge at all.
+            builder = builder.WithHandoffs(participants[0], participants.Skip(1));
+        }
+        else
+        {
+            // Phase 270: the edges are the definition's. The validator already refused a name that is not a
+            // participant, a pair twice (the framework throws for it, here, in a run) and an agent that
+            // cannot be reached; a participant is looked up by name, the key the edges use.
+            var byName = participants.ToDictionary(static participant => participant.Name!, StringComparer.Ordinal);
+
+            foreach (var edge in definition.Handoffs)
+            {
+                builder = builder.WithHandoff(byName[edge.From], byName[edge.To], edge.Reason);
+            }
+        }
 
         if (definition.Description is { Length: > 0 } description)
         {
@@ -342,6 +356,18 @@ internal sealed class WorkflowDefinitionCompiler
         if (definition.MaxIterations is { } rounds)
         {
             builder = builder.WithMaxRounds(rounds);
+        }
+
+        // Phase 270. Left alone when the definition sets nothing, so the framework's own values (3 stalls, no
+        // reset limit) hold for every definition saved before the fields existed.
+        if (definition.MaxStalls is { } stalls)
+        {
+            builder = builder.WithMaxStalls(stalls);
+        }
+
+        if (definition.MaxResets is { } resets)
+        {
+            builder = builder.WithMaxResets(resets);
         }
 
         if (definition.Description is { Length: > 0 } description)

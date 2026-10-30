@@ -771,6 +771,7 @@ Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.StateSchemaVers
 Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.WorkflowCheckpointStoreContract() -> void
 Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Written_checkpoint_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.A_handoff_definition_without_edges_or_a_limit_reads_back_as_the_star_with_no_limit() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.A_rollback_of_a_deleted_definition_creates_it_again_and_continues_the_numbering() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.A_rollback_to_a_version_that_does_not_exist_throws_and_writes_nothing() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.A_rollback_writes_the_old_content_as_a_new_version_and_moves_nothing() -> System.Threading.Tasks.Task!
@@ -789,8 +790,10 @@ Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Every_field_of_
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Every_save_increments_the_version() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Every_save_keeps_its_version_and_the_history_lists_them_newest_first() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Function_node_settings_survive_the_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Handoff_topology_and_the_handoff_limit_survive_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Incoming_version_value_is_ignored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Listing_is_sorted_by_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Magentic_limits_survive_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Magentic_manager_name_is_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_list_survives_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_timeouts_and_the_run_timeout_survive_the_round_trip() -> System.Threading.Tasks.Task!
@@ -799,6 +802,7 @@ Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Same_name_is_in
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saved_definition_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saving_again_without_node_settings_clears_them() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saving_again_without_timeouts_clears_them() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.The_handoff_topology_and_the_limits_are_kept_by_the_version_they_were_saved_as() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.The_new_members_refuse_a_cancelled_token_and_a_cancelled_rollback_leaves_no_trace() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.WorkflowDefinitionStoreContract() -> void
 Tracon.Testing.Contracts.Tools.CustomToolContract

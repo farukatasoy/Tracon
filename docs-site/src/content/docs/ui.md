@@ -298,6 +298,20 @@ the field says not to put a secret there. The server also refuses a chain whose 
 cannot take what the step before it passes on (see
 [Function nodes](/concepts/workflow-function-nodes/)); that answer names both steps.
 
+<a class="ui-shot" href="/screenshots/workflow-handoff-editor.png"><img src="/screenshots/workflow-handoff-editor.png" alt="The workflow editor of a Handoff workflow with three agents, the table of who hands off to whom, and the handoff limit" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+For a `Handoff` workflow the editor adds **Who hands off to whom**: one row for each edge,
+with the agent that hands off, the agent that receives the conversation, and a reason the
+model reads. An empty table is the star the pattern always had, and the screen says so;
+the first row you add replaces it, so only the rows in the table exist. Removing an agent
+from the chain removes its rows. **Max handoffs** bounds the handoffs of one run (10 when
+empty; see [Who hands off to whom](/concepts/workflows/#who-hands-off-to-whom)). A
+`Magentic` workflow has **Max stalled rounds** and **Max replans** in the same place. Save
+waits while a row has an end left to choose; every other rule is the server's answer and
+names the row. Adding or removing a row is a different graph, so the screen shows the same
+notice it shows for a changed step, and a new reason or limit does not. The version
+compare lists the edges of two versions line by line.
+
 An agent step of a stored agent has an **Agent version** field. *Current version* runs the
 agent's latest version each time the step runs; picking a version pins the step to it, so
 the agent can be edited while the workflow keeps running the text that was tested (see

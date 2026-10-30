@@ -1,4 +1,4 @@
-import type { WorkflowNodeReference } from '@tracon/client';
+import type { WorkflowHandoff, WorkflowNodeReference } from '@tracon/client';
 import type { WorkflowDefinition, WorkflowKind } from './server-types';
 
 /**
@@ -302,8 +302,62 @@ function formatTimeSpan(totalMilliseconds: number): string {
  * not part of it (measured, phases 195, 196 and 200). A run that is waiting keeps resuming the
  * definition version it recorded, so a save does not take the old graph away from it.
  */
-export function shapeOf(kind: WorkflowKind, steps: readonly Step[]): string {
-  return JSON.stringify([kind, steps.map((step) => [step.kind, step.name])]);
+export function shapeOf(kind: WorkflowKind, steps: readonly Step[], handoffs: readonly HandoffEdge[] = []): string {
+  const shape: unknown[] = [kind, steps.map((step) => [step.kind, step.name])];
+
+  if (kind === 'Handoff') {
+    shape.push(graphEdges(steps, handoffs));
+  }
+
+  return JSON.stringify(shape);
+}
+
+/**
+ * One edge of a `Handoff` workflow as the draft holds it: who may hand off to whom, and the reason
+ * the model reads (empty when there is none).
+ */
+export interface HandoffEdge {
+  from: string;
+  to: string;
+  reason: string;
+}
+
+/** The edges a definition stores. A definition saved before the field existed has none. */
+export function handoffsOf(definition: Pick<WorkflowDefinition, 'handoffs'>): HandoffEdge[] {
+  return (definition.handoffs ?? []).map((edge) => ({ from: edge.from, to: edge.to, reason: edge.reason ?? '' }));
+}
+
+/**
+ * The edges of a save request. Only a `Handoff` workflow has any, so the other patterns send `null`
+ * (decision K-125: the server refuses a field the pattern does not use). An edge with no reason sends
+ * `null`, so the target agent's own description is what the model reads.
+ */
+export function handoffsBody(kind: WorkflowKind, edges: readonly HandoffEdge[]): WorkflowHandoff[] | null {
+  return kind === 'Handoff'
+    ? edges.map((edge) => ({ from: edge.from, to: edge.to, reason: edge.reason.trim().length === 0 ? null : edge.reason.trim() }))
+    : null;
+}
+
+/**
+ * Whether an edge still has an end to choose. The one rule the screen keeps for itself: a row with a
+ * blank end would be sent as an empty name, which the server answers with a message about a name nobody typed.
+ */
+export function hasUnfinishedHandoff(kind: WorkflowKind, edges: readonly HandoffEdge[]): boolean {
+  return kind === 'Handoff' && edges.some((edge) => edge.from.length === 0 || edge.to.length === 0);
+}
+
+/**
+ * The edges a `Handoff` graph has, as sorted `from>to` pairs. An empty list is the star the server
+ * compiles for it: the first step hands off to every other one, so writing the star out is no change
+ * of graph (measured, phase 270) and adding an edge to it is.
+ */
+function graphEdges(steps: readonly Step[], edges: readonly HandoffEdge[]): string[] {
+  const pairs =
+    edges.length === 0
+      ? steps.slice(1).map((step) => `${steps[0]?.name ?? ''}>${step.name}`)
+      : edges.map((edge) => `${edge.from}>${edge.to}`);
+
+  return [...new Set(pairs)].sort();
 }
 
 /** One member of a function's settings object, as the console lists it. */

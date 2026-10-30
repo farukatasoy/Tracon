@@ -55,6 +55,9 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
     private const string SeededTriggerName = "helpdesk-webhook";
 
+    /// <summary>The stored Handoff workflow the topology screenshot opens: three agents and the edges between them.</summary>
+    private const string SeededHandoffWorkflowName = "triage-desk";
+
     /// <summary>The stored workflow the editor screenshot opens: an agent, then a function with settings.</summary>
     private const string SeededWorkflowName = "narrated";
 
@@ -69,6 +72,12 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
     /// landmark into view first. Every other screen is captured from its top, as before.
     /// </summary>
     private static readonly HashSet<string> ScrolledToLandmark = new(StringComparer.Ordinal) { "agent-editor-loop" };
+
+    /// <summary>
+    /// Screens whose subject starts at the foot of the first viewport, where "scroll if needed" does nothing: the
+    /// landmark is put in the middle of the page instead, so the subject is on the picture and not under its edge.
+    /// </summary>
+    private static readonly HashSet<string> CenteredOnLandmark = new(StringComparer.Ordinal) { "workflow-handoff-editor" };
 
     /// <summary>
     /// The failure text the run-detail capture is recognised by.
@@ -100,6 +109,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         ("jobs", "/jobs", SeededScheduleName),
         ("workflows", "/workflows", "summarize-and-translate"),
         ("workflow-editor", $"/workflows/{SeededWorkflowName}/edit", "Settings of speak"),
+        ("workflow-handoff-editor", $"/workflows/{SeededHandoffWorkflowName}/edit", "Who hands off to whom"),
         ("evals", "/evals", "Evals"),
         ("experiments", "/experiments", "Experiments"),
         ("approvals", "/approvals", "Order ORD-7"),
@@ -142,6 +152,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         await SeedRunsAsync(host);
         await SeedCatalogAsync(host);
         await SeedNarratedWorkflowAsync(host);
+        await SeedHandoffWorkflowAsync(host);
         await SeedLoopAgentAsync(host);
         await SeedPendingApprovalAsync(host);
         await SeedWaitingWorkflowRequestAsync(host);
@@ -228,6 +239,11 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
                     await page.GetByText(landmark).First.ScrollIntoViewIfNeededAsync();
                 }
 
+                if (CenteredOnLandmark.Contains(name))
+                {
+                    await page.GetByText(landmark).First.EvaluateAsync("element => element.scrollIntoView({ block: 'center' })");
+                }
+
                 var bytes = await page.ScreenshotAsync(new PageScreenshotOptions
                 {
                     Path = write ? Path.Combine(directory, $"{name}{suffix}.png") : null,
@@ -261,6 +277,31 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
                     new { name = "support", kind = "Agent" },
                     new { name = "speak", kind = "Function", settings = new { voice = "alloy", loudnessLufs = -14 } },
                 },
+            }));
+    }
+
+    /// <summary>
+    /// Stores the Handoff workflow the topology screenshot opens: the router and the fulfilment agent behind the
+    /// support agent, and the way back from the router.
+    /// </summary>
+    private static async Task SeedHandoffWorkflowAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        await EnsureSuccessAsync(client.PutAsJsonAsync(
+            $"{host.Prefix}/api/workflows/{SeededHandoffWorkflowName}",
+            new
+            {
+                description = "Routes a request to the agent that can finish it.",
+                kind = "Handoff",
+                agentNames = new[] { "support", "router", "fulfilment" },
+                handoffs = new object[]
+                {
+                    new { from = "support", to = "router", reason = "The request needs routing." },
+                    new { from = "support", to = "fulfilment", reason = "The request is an order to fulfil." },
+                    new { from = "router", to = "support", reason = "The routing is done." },
+                },
+                maxHandoffs = 6,
             }));
     }
 

@@ -96,6 +96,35 @@ internal sealed record WorkflowSaveRequest
     [Description("Handoff instructions. Only for WorkflowKind.Handoff.")]
     public string? HandoffInstructions { get; init; }
 
+    /// <remarks>
+    /// Replaced as a whole on every save, like every other field: a client that does not send the list
+    /// resets the workflow to the star.
+    /// </remarks>
+    [Description(
+        "Who may hand off to whom. Only for WorkflowKind.Handoff. Each entry is an edge: the `from` agent\n" +
+        "may hand off to the `to` agent, with an optional `reason` the model reads. Leave it empty and the\n" +
+        "first agent hands off to every other agent and none of them hands off. A list replaces the star:\n" +
+        "only the listed edges exist. Both names must be in `agentNames`, a pair may appear once, the first\n" +
+        "agent needs an edge out of it, and every agent must be reachable from the first one.")]
+    public IReadOnlyList<WorkflowHandoff>? Handoffs { get; init; }
+
+    [Description(
+        "The most handoffs one run may make. Only for WorkflowKind.Handoff. Leave it out for 10. The\n" +
+        "handoff that would go past the limit ends the run as failed with the error type\n" +
+        "`handoff_limit_exceeded`.")]
+    public int? MaxHandoffs { get; init; }
+
+    [Description(
+        "How many rounds without progress the manager tolerates before it replans, from 1. Only for\n" +
+        "WorkflowKind.Magentic. Leave it out for the framework's own value (3).")]
+    public int? MaxStalls { get; init; }
+
+    [Description(
+        "How many times the manager may replan before the orchestration stops, from 1. Only for\n" +
+        "WorkflowKind.Magentic. Leave it out for no limit. The task ends as completed, with a final message\n" +
+        "that says it stopped at the reset limit, at the first round after the last replan.")]
+    public int? MaxResets { get; init; }
+
     [Description(
         "Whether the manager agent's plan must be approved by a human. Only for\n" +
         "WorkflowKind.Magentic.")]
@@ -153,6 +182,10 @@ internal sealed record WorkflowSaveRequest
             ManagerAgentName = ManagerAgentName,
             MaxIterations = MaxIterations,
             HandoffInstructions = HandoffInstructions,
+            Handoffs = Handoffs ?? [],
+            MaxHandoffs = MaxHandoffs,
+            MaxStalls = MaxStalls,
+            MaxResets = MaxResets,
             RequirePlanApproval = RequirePlanApproval,
             Parameters = Parameters ?? [],
             RunTimeout = RunTimeout,

@@ -16,22 +16,27 @@ import {
   TextInput,
 } from '../components/ui';
 import { KIND_HINT } from './workflows';
+import { HandoffEdges } from './workflow-editor/handoffs';
 import { StepList } from './workflow-editor/steps';
 import {
   canonicalForm,
   chainBody,
+  handoffsBody,
+  handoffsOf,
   hasFunction,
   hasInvalidSettings,
   hasInvalidTimeouts,
   hasPins,
   hasStepTimeouts,
   hasStrandedTimeouts,
+  hasUnfinishedHandoff,
   parseTimeout,
   shapeOf,
   stepsOf,
   storedFormOf,
   timeoutText,
   timeoutValue,
+  type HandoffEdge,
   type Step,
 } from '../lib/workflow-steps';
 import type { AgentParameter, WorkflowFunctionResponse, WorkflowSaveRequest } from '@tracon/client';
@@ -70,6 +75,17 @@ interface Draft {
   managerAgentName: string;
   maxIterations: string;
   handoffInstructions: string;
+  /**
+   * Who may hand off to whom in a `Handoff` workflow (phase 270). Empty is the star the pattern always
+   * had. Sent back on every save: the save is a full replace (K-725), and a list the draft did not
+   * carry would turn the workflow back into the star.
+   */
+  handoffs: HandoffEdge[];
+  /** The most handoffs one run may make, as typed. Empty means the server's default (10). */
+  maxHandoffs: string;
+  /** The Magentic manager's limits, as typed: rounds without progress before a replan, and replans. */
+  maxStalls: string;
+  maxResets: string;
   requirePlanApproval: boolean;
   /**
    * The run timeout this workflow sets for itself, as typed: seconds or `hh:mm:ss`. Empty
@@ -105,6 +121,10 @@ const EMPTY: Draft = {
   managerAgentName: '',
   maxIterations: '',
   handoffInstructions: '',
+  handoffs: [],
+  maxHandoffs: '',
+  maxStalls: '',
+  maxResets: '',
   requirePlanApproval: false,
   runTimeout: '',
   storedRunTimeout: null,
@@ -169,7 +189,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       existing.data === undefined
         ? undefined
         : {
-            shape: shapeOf(existing.data.kind, stepsOf(existing.data)),
+            shape: shapeOf(existing.data.kind, stepsOf(existing.data), handoffsOf(existing.data)),
             form: storedFormOf(existing.data),
           },
     [existing.data],
@@ -192,6 +212,10 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       managerAgentName: loaded.managerAgentName ?? '',
       maxIterations: loaded.maxIterations == null ? '' : String(loaded.maxIterations),
       handoffInstructions: loaded.handoffInstructions ?? '',
+      handoffs: handoffsOf(loaded),
+      maxHandoffs: loaded.maxHandoffs == null ? '' : String(loaded.maxHandoffs),
+      maxStalls: loaded.maxStalls == null ? '' : String(loaded.maxStalls),
+      maxResets: loaded.maxResets == null ? '' : String(loaded.maxResets),
       requirePlanApproval: loaded.requirePlanApproval,
       runTimeout: timeoutText(loaded.runTimeout),
       storedRunTimeout: loaded.runTimeout ?? null,
@@ -214,8 +238,12 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         // empty string: the server rejects a value that the chosen pattern does
         // not use (decision K-125), and "" is a value.
         managerAgentName: draft.kind === 'Magentic' ? blank(draft.managerAgentName) : null,
-        maxIterations: draft.maxIterations.length === 0 ? null : Number(draft.maxIterations),
+        maxIterations: numberOrNull(draft.maxIterations),
         handoffInstructions: draft.kind === 'Handoff' ? blank(draft.handoffInstructions) : null,
+        handoffs: handoffsBody(draft.kind, draft.handoffs),
+        maxHandoffs: draft.kind === 'Handoff' ? numberOrNull(draft.maxHandoffs) : null,
+        maxStalls: draft.kind === 'Magentic' ? numberOrNull(draft.maxStalls) : null,
+        maxResets: draft.kind === 'Magentic' ? numberOrNull(draft.maxResets) : null,
         requirePlanApproval: draft.kind === 'Magentic' && draft.requirePlanApproval,
         runTimeout: timeoutValue(draft.runTimeout, draft.storedRunTimeout),
         requestTimeout: timeoutValue(draft.requestTimeout, draft.storedRequestTimeout),
@@ -289,6 +317,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
     hasInvalidSettings(draft.steps) ||
     hasInvalidTimeouts(draft.steps) ||
     stranded ||
+    hasUnfinishedHandoff(draft.kind, draft.handoffs) ||
     !parseTimeout(draft.runTimeout).ok ||
     !parseTimeout(draft.requestTimeout).ok ||
     (draft.kind === 'Magentic' && draft.managerAgentName.trim().length === 0);
@@ -361,6 +390,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               hint={mixed ? t('workflowEditor.kindLocked') : t(KIND_HINT[draft.kind])}
             >
               <Select
+                testId="workflow-kind"
                 value={draft.kind}
                 disabled={mixed}
                 onChange={(value) => setDraft({ ...draft, kind: value as WorkflowKind })}
@@ -392,7 +422,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
                   agents={available.map((agent) => agent.name)}
                   storedAgents={sequential ? storedAgents : undefined}
                   steps={draft.steps}
-                  onChange={(steps) => setDraft({ ...draft, steps })}
+                  onChange={(steps) => setDraft({ ...draft, steps, handoffs: keepEdgesBetween(draft.handoffs, steps) })}
                   functions={
                     sequential
                       ? {
@@ -410,6 +440,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               <ChainNotices
                 kind={draft.kind}
                 steps={draft.steps}
+                handoffs={draft.handoffs}
                 loaded={loaded}
               />
             )}
@@ -461,6 +492,26 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               </Field>
             )}
 
+            {draft.kind === 'Handoff' && (
+              <>
+                <HandoffEdges
+                  agents={participantNames}
+                  edges={draft.handoffs}
+                  onChange={(handoffs) => setDraft({ ...draft, handoffs })}
+                />
+
+                <Field label={t('workflowEditor.maxHandoffs')} hint={t('workflowEditor.maxHandoffsHint')}>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    data-testid="workflow-max-handoffs"
+                    value={draft.maxHandoffs}
+                    onChange={(event) => setDraft({ ...draft, maxHandoffs: event.target.value })}
+                  />
+                </Field>
+              </>
+            )}
+
             {draft.kind !== 'Sequential' && draft.kind !== 'Concurrent' && (
               <Field
                 label={t('workflowEditor.maxIterations')}
@@ -475,7 +526,31 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               </Field>
             )}
 
-            {draft.kind === 'Magentic' && <PlanApproval draft={draft} onChange={setDraft} />}
+            {draft.kind === 'Magentic' && (
+              <>
+                <Field label={t('workflowEditor.maxStalls')} hint={t('workflowEditor.maxStallsHint')}>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    data-testid="workflow-max-stalls"
+                    value={draft.maxStalls}
+                    onChange={(event) => setDraft({ ...draft, maxStalls: event.target.value })}
+                  />
+                </Field>
+
+                <Field label={t('workflowEditor.maxResets')} hint={t('workflowEditor.maxResetsHint')}>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    data-testid="workflow-max-resets"
+                    value={draft.maxResets}
+                    onChange={(event) => setDraft({ ...draft, maxResets: event.target.value })}
+                  />
+                </Field>
+
+                <PlanApproval draft={draft} onChange={setDraft} />
+              </>
+            )}
 
             <SingleAnswer draft={draft} onChange={setDraft} />
 
@@ -615,16 +690,18 @@ function PlanApproval({
 function ChainNotices({
   kind,
   steps,
+  handoffs,
   loaded,
 }: {
   kind: WorkflowKind;
   steps: readonly Step[];
+  handoffs: readonly HandoffEdge[];
   loaded: { shape: string; form: 'agentNames' | 'nodes' };
 }): ReactNode {
   const t = useT();
   const form = canonicalForm(kind, steps);
   const formChanged = form !== loaded.form;
-  const shapeChanged = shapeOf(kind, steps) !== loaded.shape;
+  const shapeChanged = shapeOf(kind, steps, handoffs) !== loaded.shape;
 
   if (!formChanged && !shapeChanged) {
     return null;
@@ -655,4 +732,15 @@ function ChainNotices({
 
 function blank(value: string): string | null {
   return value.trim().length === 0 ? null : value.trim();
+}
+
+function numberOrNull(value: string): number | null {
+  return value.length === 0 ? null : Number(value);
+}
+
+/** The edges whose two ends are still in the chain: removing an agent takes its handoffs with it. */
+function keepEdgesBetween(edges: HandoffEdge[], steps: readonly Step[]): HandoffEdge[] {
+  const names = new Set(steps.map((step) => step.name));
+
+  return edges.filter((edge) => names.has(edge.from) && names.has(edge.to));
 }

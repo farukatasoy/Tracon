@@ -84,6 +84,74 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task Handoff_topology_and_the_handoff_limit_survive_the_round_trip()
+    {
+        // Added in phase 270: the same hand-written DTO trap. The edge list is a nested list inside the jsonb
+        // payload and the limit is nullable, so a payload that forgot either one reads back as the star and as
+        // "no limit" - and only a run against a SQL store shows it.
+        var definition = new WorkflowDefinition
+        {
+            Name = "triage",
+            Kind = WorkflowKind.Handoff,
+            AgentNames = ["frontline", "billing", "technical"],
+            Handoffs =
+            [
+                new WorkflowHandoff { From = "frontline", To = "billing", Reason = "Invoices and payments." },
+                new WorkflowHandoff { From = "frontline", To = "technical" },
+                new WorkflowHandoff { From = "billing", To = "frontline" },
+            ],
+            MaxHandoffs = 6,
+        };
+
+        await Store.SaveAsync("tenant-a", definition);
+
+        var loaded = await Store.GetAsync("tenant-a", "triage");
+
+        loaded.ShouldNotBeNull();
+        loaded.Handoffs.Count.ShouldBe(3);
+        loaded.Handoffs[0].ShouldBe(new WorkflowHandoff { From = "frontline", To = "billing", Reason = "Invoices and payments." });
+        loaded.Handoffs[1].ShouldBe(new WorkflowHandoff { From = "frontline", To = "technical" });
+        loaded.Handoffs[2].ShouldBe(new WorkflowHandoff { From = "billing", To = "frontline" });
+        loaded.MaxHandoffs.ShouldBe(6);
+    }
+
+    [Fact]
+    public async Task A_handoff_definition_without_edges_or_a_limit_reads_back_as_the_star_with_no_limit()
+    {
+        await Store.SaveAsync(
+            "tenant-a",
+            new WorkflowDefinition { Name = "star", Kind = WorkflowKind.Handoff, AgentNames = ["frontline", "billing"] });
+
+        var loaded = await Store.GetAsync("tenant-a", "star");
+
+        loaded.ShouldNotBeNull();
+        loaded.Handoffs.ShouldBeEmpty();
+        loaded.MaxHandoffs.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Magentic_limits_survive_the_round_trip()
+    {
+        await Store.SaveAsync(
+            "tenant-a",
+            new WorkflowDefinition
+            {
+                Name = "plan",
+                Kind = WorkflowKind.Magentic,
+                AgentNames = ["writer"],
+                ManagerAgentName = "manager",
+                MaxStalls = 2,
+                MaxResets = 1,
+            });
+
+        var loaded = await Store.GetAsync("tenant-a", "plan");
+
+        loaded.ShouldNotBeNull();
+        loaded.MaxStalls.ShouldBe(2);
+        loaded.MaxResets.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Node_list_survives_the_round_trip()
     {
         // Added in phase 71. The same hand-written DTO trap the remark above
@@ -679,6 +747,55 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
             restored.Nodes[2].AgentVersion.ShouldBeNull();
             restored.AgentNames.ShouldBeEmpty();
         }
+    }
+
+    [Fact]
+    public async Task The_handoff_topology_and_the_limits_are_kept_by_the_version_they_were_saved_as()
+    {
+        // Phase 270. The history is the second copy of the hand-written payload: a field the current row keeps and
+        // the history drops would roll back to the star, or to a Magentic task with its limits gone.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "triage",
+            Kind = WorkflowKind.Handoff,
+            AgentNames = ["frontline", "billing"],
+            Handoffs =
+            [
+                new WorkflowHandoff { From = "frontline", To = "billing", Reason = "Invoices." },
+                new WorkflowHandoff { From = "billing", To = "frontline" },
+            ],
+            MaxHandoffs = 4,
+        });
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition { Name = "triage", Kind = WorkflowKind.Handoff, AgentNames = ["frontline", "billing"] });
+
+        foreach (var restored in new[]
+        {
+            (await Store.GetVersionAsync("tenant-a", "triage", 1))!,
+            (await Store.ListVersionsAsync("tenant-a", "triage")).Single(static definition => definition.Version == 1),
+            await Store.RollbackAsync("tenant-a", "triage", 1),
+        })
+        {
+            restored.Handoffs.Count.ShouldBe(2);
+            restored.Handoffs[0].ShouldBe(new WorkflowHandoff { From = "frontline", To = "billing", Reason = "Invoices." });
+            restored.Handoffs[1].ShouldBe(new WorkflowHandoff { From = "billing", To = "frontline" });
+            restored.MaxHandoffs.ShouldBe(4);
+        }
+
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "plan",
+            Kind = WorkflowKind.Magentic,
+            AgentNames = ["writer"],
+            ManagerAgentName = "manager",
+            MaxStalls = 2,
+            MaxResets = 1,
+        });
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition { Name = "plan", Kind = WorkflowKind.Magentic, AgentNames = ["writer"], ManagerAgentName = "manager" });
+
+        var first = (await Store.GetVersionAsync("tenant-a", "plan", 1))!;
+
+        first.MaxStalls.ShouldBe(2);
+        first.MaxResets.ShouldBe(1);
     }
 
     [Fact]

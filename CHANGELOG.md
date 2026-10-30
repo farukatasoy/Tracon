@@ -215,6 +215,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A stored `Handoff` workflow names who may hand off to whom: `WorkflowDefinition.Handoffs`, with a per-run limit,
+  `MaxHandoffs`, that stops a loop of handoffs.** Before, a stored `Handoff` workflow was a star: the first agent could
+  hand off to every other agent and none of them could hand off, so a specialist could not return to the coordinator
+  and two specialists could not pass a case to each other. The only way out was to leave the stored definition and
+  build the graph in code, which loses the console, the versions and the file transfer. `Handoffs` is a list of
+  `WorkflowHandoff` (`From`, `To`, an optional `Reason` the model reads as the description of the handoff tool). An empty
+  list is the star, so a definition saved before the field existed runs as it did. A save refuses an edge that names an
+  agent outside `AgentNames`, an edge from an agent to itself, a pair twice, a blank reason, a first agent with no edge
+  out of it and an agent the first agent cannot reach, each with a `400` that names the edge. Edges that let two agents
+  hand off to one another can loop and the framework does not count handoffs, so Tracon counts them for each run: the
+  handoff past `MaxHandoffs` (10 when left out) is stopped before the framework acts on it and the run ends `Failed`
+  with the new error type `handoff_limit_exceeded` (`TraconErrorTypes.HandoffLimitExceeded`, class `QuotaExceeded`).
+  A resumed or answered run is a new run and counts from zero. The limit applies to a workflow stored as a definition.
+  A `Magentic` definition also takes `MaxStalls` (rounds without progress before a replan, the framework's 3 when left
+  out) and `MaxResets` (replans before the task stops, no limit when left out); at the reset limit the run ends
+  `Completed` with a message that says it stopped at the limit, in place of the manager's answer. Both are 1 or more:
+  a reset limit of 0 stops the task before its first round. The framework's `EnableReturnToPrevious` is not offered:
+  a Tracon run starts with no earlier state. The console edits the edges, the three limits and shows the edges in the
+  version compare; adding or removing an edge is a different graph for a run that waits, and the editor says so. The
+  file of `tracon export` and `tracon import` carries the four fields. New public types: `WorkflowHandoff`, and
+  `WorkflowDefinition.Handoffs`, `MaxHandoffs`, `MaxStalls`, `MaxResets`. `MaxIterations` no longer claims to be the only
+  guard against a handoff loop.
+
+
 - **A definition moves between installations as a file: `GET /api/definitions/export`, `POST /api/definitions/import`,
   `tracon export`, `tracon import`, and a Transfer screen in the console.** Before, an agent built and versioned in a
   development installation could only reach production by retyping it: `GET` returns the detail shape and `PUT` takes

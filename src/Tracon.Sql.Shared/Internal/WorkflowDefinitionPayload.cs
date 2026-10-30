@@ -49,6 +49,19 @@ internal sealed record WorkflowDefinitionPayload
     /// <summary>Gets the handoff instruction.</summary>
     public string? HandoffInstructions { get; init; }
 
+    /// <summary>Gets who may hand off to whom (Handoff only).</summary>
+    /// <remarks>A row written before the field existed reads as an empty list: the star.</remarks>
+    public IReadOnlyList<WorkflowHandoff> Handoffs { get; init; } = [];
+
+    /// <summary>Gets the most handoffs one run may make (Handoff only).</summary>
+    public int? MaxHandoffs { get; init; }
+
+    /// <summary>Gets how many rounds in a row a Magentic manager may make no progress.</summary>
+    public int? MaxStalls { get; init; }
+
+    /// <summary>Gets how many times a Magentic manager may replan.</summary>
+    public int? MaxResets { get; init; }
+
     /// <summary>Gets a value indicating whether the plan of the manager agent needs human approval.</summary>
     public bool RequirePlanApproval { get; init; }
 
@@ -80,6 +93,10 @@ internal sealed record WorkflowDefinitionPayload
             ManagerAgentName = definition.ManagerAgentName,
             MaxIterations = definition.MaxIterations,
             HandoffInstructions = definition.HandoffInstructions,
+            Handoffs = definition.Handoffs,
+            MaxHandoffs = definition.MaxHandoffs,
+            MaxStalls = definition.MaxStalls,
+            MaxResets = definition.MaxResets,
             RequirePlanApproval = definition.RequirePlanApproval,
             Parameters = definition.Parameters,
             RunTimeout = definition.RunTimeout,
@@ -105,6 +122,10 @@ internal sealed record WorkflowDefinitionPayload
             ManagerAgentName = ManagerAgentName,
             MaxIterations = MaxIterations,
             HandoffInstructions = HandoffInstructions,
+            Handoffs = Handoffs,
+            MaxHandoffs = MaxHandoffs,
+            MaxStalls = MaxStalls,
+            MaxResets = MaxResets,
             RequirePlanApproval = RequirePlanApproval,
             Parameters = Parameters,
             RunTimeout = RunTimeout,

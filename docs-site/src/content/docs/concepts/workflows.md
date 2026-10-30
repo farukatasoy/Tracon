@@ -29,8 +29,9 @@ stays optional on purpose.
 | `GroupChat` | A manager distributes turns among participants |
 | `Magentic` | A manager plans, tracks progress, and replans; a manager agent is required |
 
-`MaxIterations` bounds the turn count for `Handoff`, `GroupChat`, and `Magentic` — the
-only structural guard against two agents handing off to each other forever. Each
+`MaxIterations` bounds the turn count for `GroupChat` and `Magentic`, and the turns a
+`Handoff` agent goes on with by itself. A loop of handoffs has its own limit,
+`MaxHandoffs` (see [Who hands off to whom](#who-hands-off-to-whom)). Each
 participant call also carries the same two-layer wait limit a callable agent's
 sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agents)):
 a cooperative deadline, then a hard cutoff for a participant that ignores it. The
@@ -68,6 +69,123 @@ new WorkflowDefinition
 Which fields are required depends on the kind, and the definition is validated when it
 is **saved** using the same rules the compiler applies. A shape that could not run is
 rejected at write time rather than on the first execution.
+
+## Who hands off to whom
+
+A `Handoff` definition with no `Handoffs` is a **star**: the first agent in `AgentNames`
+(the coordinator) may hand off to every other agent, and none of them hands off. A
+specialist cannot return to the coordinator, and two specialists cannot pass a case to
+each other.
+
+`Handoffs` replaces the star with the edges you list. An edge is data — two agent names
+and an optional reason — so it can be saved, versioned, exported and edited in the
+console:
+
+```csharp
+new WorkflowDefinition
+{
+    Name = "triage",
+    Kind = WorkflowKind.Handoff,
+    AgentNames = ["frontline", "billing", "technical"],
+    Handoffs =
+    [
+        new WorkflowHandoff { From = "frontline", To = "billing", Reason = "Invoices and payments." },
+        new WorkflowHandoff { From = "frontline", To = "technical" },
+        new WorkflowHandoff { From = "billing", To = "frontline", Reason = "The billing question is answered." },
+    ],
+    MaxHandoffs = 6,
+}
+```
+
+```mermaid
+flowchart LR
+    accTitle: Handoff edges of the triage example
+    accDescr: The frontline agent may hand off to billing and to technical. Billing may hand the conversation back to frontline. Technical has no edge out of it, so it never hands off.
+    F["frontline<br/>(first agent)"] -->|"Invoices and payments."| B["billing"]
+    F --> T["technical"]
+    B -->|"The billing question is answered."| F
+```
+
+- **An edge goes one way.** `billing → frontline` does not let `frontline` hand off to
+  `billing`; that is a second edge.
+- **Only the listed edges exist.** An agent with no edge out of it never hands off: the
+  model of `technical` above is offered no handoff tool.
+- **`Reason` is a hint the model reads**, as the description of the handoff tool. Left
+  out, the framework uses the description of the target agent, or its name. A model can
+  hand off without a reason that fits, or not hand off when one does.
+- **The model decides when.** An edge says who *may* hand off. A condition you write is
+  code, and code does not go in a definition: build the graph in code
+  ([Graphs built in code](#graphs-built-in-code)).
+
+A save is refused with `400`, and the message names the field and the edge
+(`handoffs[2] to 'support' is not in agentNames`), when:
+
+- `Handoffs` or `MaxHandoffs` is set on another pattern, or `MaxStalls` or `MaxResets` is
+  set on a pattern that is not `Magentic`;
+- an edge names an agent that is not in `AgentNames`, or hands an agent off to itself;
+- the same pair appears twice;
+- a `Reason` is only white space;
+- the first agent has no edge out of it, or an agent cannot be reached from the first
+  agent by following the edges.
+
+`PUT /api/workflows/{name}` replaces the whole definition, so a save without `Handoffs`
+brings the star back.
+
+### Stop a loop with MaxHandoffs
+
+Edges that let two agents hand off to one another can loop, and the framework does not
+count handoffs. Tracon counts them for each run. When a run makes more than `MaxHandoffs`
+(10 when left out), the handoff that goes past the limit is stopped before the framework
+acts on it, and the run ends `Failed` with the error type `handoff_limit_exceeded` (class
+`QuotaExceeded`, the class of a spent budget). The message names the limit and the agent
+that asked for the handoff.
+
+```bash
+curl -sS -X PUT http://localhost:5081/tracon/api/workflows/triage \
+     -H 'Content-Type: application/json' -d '{
+       "kind": "Handoff",
+       "agentNames": ["frontline", "billing", "technical"],
+       "handoffs": [
+         { "from": "frontline", "to": "billing" },
+         { "from": "frontline", "to": "technical" },
+         { "from": "billing", "to": "frontline", "reason": "The billing question is answered." }
+       ],
+       "maxHandoffs": 6
+     }'
+```
+
+- The count is of one run. A run that continues after a person answers, or an operator
+  resumes it, is a new run and counts from zero.
+- The limit applies to a workflow stored as a definition. A workflow built in code is
+  yours to bound.
+- `MaxIterations` is a different limit: after an agent answers without a handoff, the
+  framework asks it to go on by itself that many times (8 when left out). Each turn is a
+  model call, and the closing answer can repeat.
+- Match the type with `TraconErrorTypes.HandoffLimitExceeded` when you read a run's `error`.
+
+### Change an edge on a workflow that waits
+
+The edges are the graph of the workflow. Adding or removing an edge is a different graph:
+a run that waits for input keeps resuming the version it recorded, and resuming it with the
+new version fails because its saved state belongs to the old graph (the same rule as a step
+added to a chain). A new `Reason`, a new `MaxHandoffs`, and writing the star out as the
+same edges are not a different graph. The console says so before it saves.
+
+### Magentic: stalls and resets
+
+A `Magentic` manager replans when the agents make no progress. `MaxStalls` is how many
+rounds without progress it tolerates before it replans (the framework's 3 when left out).
+`MaxResets` is how many times it may replan (no limit when left out). Both are 1 or more.
+
+When the manager has replanned `MaxResets` times, the next round does not run. The run
+ends **`Completed`**, not `Failed`: its output is a message that says the task stopped at
+the maximum reset count, in place of the manager's answer. The same is true of
+`MaxIterations`, the number of rounds. A consumer that must tell a finished task from a
+stopped one reads that message.
+
+The framework's `EnableReturnToPrevious` is not offered. It makes the next message go to
+the specialist that answered last, and it keeps that choice between runs; a Tracon run
+starts with no earlier state, so there is nothing to return to.
 
 ## Function nodes
 
@@ -170,8 +288,8 @@ To carry a waiting run over a fix, send the edited version in the optional
   version of a workflow defined in code answers `400` ("Definition version invalid"). The
   check runs before a stream opens or a job is queued.
 - The checkpoint belongs to the graph that wrote it. A version whose graph differs from it
-  — a step added, removed or reordered, another pattern, another stored form — fails the
-  run, and the error says the graph's structure differs. A version that differs only in
+  — a step added, removed or reordered, a handoff edge added or removed, another pattern,
+  another stored form — fails the run, and the error says the graph's structure differs. A version that differs only in
   settings, timeouts or an agent pin resumes: those are not part of a step's identity.
 
 ### Pin an agent step to a version

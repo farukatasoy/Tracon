@@ -144,6 +144,17 @@ public sealed record AgentRunScope
     internal IReadOnlySet<string>? ParameterNames { get; init; }
 
     /// <summary>
+    /// Gets the handoff counter of a Handoff WORKFLOW run. <see langword="null"/> outside a workflow, for a
+    /// workflow of another pattern and for a workflow defined in code.
+    /// </summary>
+    /// <remarks>
+    /// The workflow runner builds it from <see cref="WorkflowDefinition.MaxHandoffs"/> and every step wrapper
+    /// reads it here, so one counter serves the whole run (<see cref="HandoffLimit"/>). It is set on the root
+    /// scope only and is never copied to a step's own scope: the sub-agent a step's agent calls makes no handoff.
+    /// </remarks>
+    internal HandoffLimit? Handoffs { get; init; }
+
+    /// <summary>
     /// Gets whether a tool approval this run asks for suspends the workflow that called it
     /// (<see cref="TraconRunOptions.SuspendsWorkflowOnApproval"/>), so the run closes
     /// <see cref="RunStatus.AwaitingApproval"/> and not <see cref="RunStatus.Failed"/>.

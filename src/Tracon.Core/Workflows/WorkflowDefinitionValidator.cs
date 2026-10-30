@@ -258,6 +258,62 @@ internal static class WorkflowDefinitionValidator
                    $"'{definition.Kind}' pattern. This field belongs only to the 'Handoff' pattern.";
         }
 
+        // Phase 270. The topology and its limit belong to the Handoff pattern, the two Magentic limits to Magentic. A
+        // field that reached another pattern would look like a setting that works while nothing reads it, the same
+        // rule as handoffInstructions above.
+        if (definition.Kind != WorkflowKind.Handoff)
+        {
+            if (definition.Handoffs.Count > 0)
+            {
+                return $"Workflow '{definition.Name}' does not use 'handoffs' in the '{definition.Kind}' pattern. " +
+                       "This field belongs only to the 'Handoff' pattern.";
+            }
+
+            if (definition.MaxHandoffs is not null)
+            {
+                return $"Workflow '{definition.Name}' does not use 'maxHandoffs' in the '{definition.Kind}' pattern. " +
+                       "This field belongs only to the 'Handoff' pattern.";
+            }
+        }
+
+        if (definition.Kind != WorkflowKind.Magentic)
+        {
+            if (definition.MaxStalls is not null)
+            {
+                return $"Workflow '{definition.Name}' does not use 'maxStalls' in the '{definition.Kind}' pattern. " +
+                       "This field belongs only to the 'Magentic' pattern.";
+            }
+
+            if (definition.MaxResets is not null)
+            {
+                return $"Workflow '{definition.Name}' does not use 'maxResets' in the '{definition.Kind}' pattern. " +
+                       "This field belongs only to the 'Magentic' pattern.";
+            }
+        }
+
+        if (definition.MaxHandoffs is <= 0)
+        {
+            return $"Workflow '{definition.Name}''s 'maxHandoffs' value must be positive.";
+        }
+
+        if (definition.MaxStalls is <= 0)
+        {
+            return $"Workflow '{definition.Name}''s 'maxStalls' value must be positive.";
+        }
+
+        // Measured (MAF 1.26.0): the orchestrator compares the limit with the count of replans at the START of every
+        // round, so a limit of 0 stops the task before its first round with a message instead of a result. A limit of 1
+        // lets the manager replan once and stops at the round after.
+        if (definition.MaxResets is <= 0)
+        {
+            return $"Workflow '{definition.Name}''s 'maxResets' value must be positive.";
+        }
+
+        if (definition.Kind == WorkflowKind.Handoff && HandoffProblem(definition, seen) is { } handoffProblem)
+        {
+            return handoffProblem;
+        }
+
         // Plan approval is a Magentic-only concept: it shows the human the
         // plan built by the manager agent. Other patterns have no such thing
         // as a plan, and silently ignoring the field would hide the fact
@@ -305,6 +361,111 @@ internal static class WorkflowDefinitionValidator
         if (AgentParameterValidator.ValidateNames(definition.Parameters) is { Count: > 0 } parameterErrors)
         {
             return $"Workflow '{definition.Name}' has an invalid parameter schema: {string.Join(" ", parameterErrors)}";
+        }
+
+        return null;
+    }
+
+    /// <summary>Checks the handoff edge list of a Handoff definition.</summary>
+    /// <param name="definition">The definition. Its <see cref="WorkflowDefinition.AgentNames"/> were already checked.</param>
+    /// <param name="agentNames">The agent names of the definition.</param>
+    /// <returns>User-facing error text; <see langword="null"/> when the list is empty or valid.</returns>
+    /// <remarks>
+    /// A message names the field and the edge by its place in the list, <c>handoffs[2]</c>, so a client
+    /// that sent a long list sees which entry to change. A pair twice is refused here because Microsoft
+    /// Agent Framework throws for it when the graph is built, in a run, long after the save.
+    /// </remarks>
+    private static string? HandoffProblem(WorkflowDefinition definition, HashSet<string> agentNames)
+    {
+        if (definition.Handoffs.Count == 0)
+        {
+            return null;
+        }
+
+        var pairs = new HashSet<(string From, string To)>();
+        var targets = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+        for (var index = 0; index < definition.Handoffs.Count; index++)
+        {
+            var edge = definition.Handoffs[index];
+
+            if (edge is null)
+            {
+                return $"Workflow '{definition.Name}': handoffs[{index}] is empty. Remove it or give it a 'from' and a 'to'.";
+            }
+
+            foreach (var (field, name) in new[] { ("from", edge.From), ("to", edge.To) })
+            {
+                if (name is null || !agentNames.Contains(name))
+                {
+                    return $"Workflow '{definition.Name}': handoffs[{index}] {field} '{name}' is not in agentNames. " +
+                           "An edge may only connect agents the workflow lists.";
+                }
+            }
+
+            if (string.Equals(edge.From, edge.To, StringComparison.Ordinal))
+            {
+                return $"Workflow '{definition.Name}': handoffs[{index}] hands '{edge.From}' off to itself. " +
+                       "An edge must connect two different agents.";
+            }
+
+            if (!pairs.Add((edge.From, edge.To)))
+            {
+                return $"Workflow '{definition.Name}': handoffs[{index}] repeats the edge from '{edge.From}' to '{edge.To}'. " +
+                       "Each pair may appear once.";
+            }
+
+            if (edge.Reason is not null && string.IsNullOrWhiteSpace(edge.Reason))
+            {
+                return $"Workflow '{definition.Name}': handoffs[{index}] has a blank 'reason'. " +
+                       "Leave it out to use the description of the target agent.";
+            }
+
+            if (!targets.TryGetValue(edge.From, out var list))
+            {
+                targets[edge.From] = list = [];
+            }
+
+            list.Add(edge.To);
+        }
+
+        // The first agent receives the user's message. An edge list it has no part in would leave the
+        // coordinator a dead end for every other agent.
+        var first = definition.AgentNames[0];
+
+        if (!targets.ContainsKey(first))
+        {
+            return $"Workflow '{definition.Name}': the first agent '{first}' (the one that receives the user's message) " +
+                   "has no handoff out of it, so the conversation could never leave it. Add an edge from it.";
+        }
+
+        var reached = new HashSet<string>(StringComparer.Ordinal) { first };
+        var pending = new Queue<string>();
+        pending.Enqueue(first);
+
+        while (pending.TryDequeue(out var current))
+        {
+            if (!targets.TryGetValue(current, out var next))
+            {
+                continue;
+            }
+
+            foreach (var target in next)
+            {
+                if (reached.Add(target))
+                {
+                    pending.Enqueue(target);
+                }
+            }
+        }
+
+        foreach (var name in definition.AgentNames)
+        {
+            if (!reached.Contains(name))
+            {
+                return $"Workflow '{definition.Name}': agent '{name}' cannot be reached from the first agent '{first}' " +
+                       "by following the handoffs, so it would never run. Add an edge that leads to it, or remove it from agentNames.";
+            }
         }
 
         return null;

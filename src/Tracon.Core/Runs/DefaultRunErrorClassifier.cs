@@ -59,6 +59,10 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [WorkflowRequestExpiry.ErrorType] = RunErrorClass.Timeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
 
+        // A Handoff workflow run that went past MaxHandoffs (Phase 270): a limit the definition sets on the run,
+        // so a dashboard that watches the run limits sees it with the budget and the quota.
+        [TraconErrorTypes.HandoffLimitExceeded] = RunErrorClass.QuotaExceeded,
+
         // A tenant's quota refused work inside a tree that was already running (F-529): the
         // class an operator filters on is the same as the door's 429, the remedy is the tenant's.
         [TraconTenantQuotaExceededException.TenantQuotaExceededErrorType] = RunErrorClass.QuotaExceeded,

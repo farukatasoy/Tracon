@@ -48,7 +48,8 @@ public enum RunErrorClass
     /// A Tracon quota was exhausted, a tenant's quota refused new work inside a run
     /// tree that was already running (<see cref="TraconTenantQuotaExceededException"/>),
     /// or a run tree's token, cost, or time budget ran out mid-run
-    /// (<see cref="TraconRunBudgetExceededException"/>).
+    /// (<see cref="TraconRunBudgetExceededException"/>), or a Handoff workflow run made more handoffs than
+    /// <see cref="WorkflowDefinition.MaxHandoffs"/> allows (error type <c>handoff_limit_exceeded</c>).
     /// </summary>
     QuotaExceeded = 4,
 

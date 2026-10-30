@@ -4248,10 +4248,18 @@ Tracon.WorkflowDefinition.DisplayName.init -> void
 Tracon.WorkflowDefinition.Equals(Tracon.WorkflowDefinition? other) -> bool
 Tracon.WorkflowDefinition.HandoffInstructions.get -> string?
 Tracon.WorkflowDefinition.HandoffInstructions.init -> void
+Tracon.WorkflowDefinition.Handoffs.get -> System.Collections.Generic.IReadOnlyList<Tracon.WorkflowHandoff!>!
+Tracon.WorkflowDefinition.Handoffs.init -> void
 Tracon.WorkflowDefinition.Kind.get -> Tracon.WorkflowKind
 Tracon.WorkflowDefinition.Kind.init -> void
 Tracon.WorkflowDefinition.ManagerAgentName.get -> string?
 Tracon.WorkflowDefinition.ManagerAgentName.init -> void
+Tracon.WorkflowDefinition.MaxHandoffs.get -> int?
+Tracon.WorkflowDefinition.MaxHandoffs.init -> void
+Tracon.WorkflowDefinition.MaxResets.get -> int?
+Tracon.WorkflowDefinition.MaxResets.init -> void
+Tracon.WorkflowDefinition.MaxStalls.get -> int?
+Tracon.WorkflowDefinition.MaxStalls.init -> void
 Tracon.WorkflowDefinition.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>!
 Tracon.WorkflowDefinition.Parameters.init -> void
 Tracon.WorkflowDefinition.MaxIterations.get -> int?
@@ -4337,6 +4345,16 @@ Tracon.WorkflowGraphNode.Kind.init -> void
 Tracon.WorkflowGraphNode.Label.get -> string!
 Tracon.WorkflowGraphNode.Label.init -> void
 Tracon.WorkflowGraphNode.WorkflowGraphNode() -> void
+Tracon.WorkflowHandoff
+Tracon.WorkflowHandoff.<Clone>$() -> Tracon.WorkflowHandoff!
+Tracon.WorkflowHandoff.Equals(Tracon.WorkflowHandoff? other) -> bool
+Tracon.WorkflowHandoff.From.get -> string!
+Tracon.WorkflowHandoff.From.init -> void
+Tracon.WorkflowHandoff.Reason.get -> string?
+Tracon.WorkflowHandoff.Reason.init -> void
+Tracon.WorkflowHandoff.To.get -> string!
+Tracon.WorkflowHandoff.To.init -> void
+Tracon.WorkflowHandoff.WorkflowHandoff() -> void
 Tracon.WorkflowKind
 Tracon.WorkflowKind.Concurrent = 1 -> Tracon.WorkflowKind
 Tracon.WorkflowKind.GroupChat = 3 -> Tracon.WorkflowKind
@@ -4515,6 +4533,7 @@ const Tracon.TraconErrorTypes.ContentBlocked = "content_blocked" -> string!
 const Tracon.TraconErrorTypes.ContentFiltered = "content_filtered" -> string!
 const Tracon.TraconErrorTypes.EvalRunDiffUnavailable = "eval_run_diff_unavailable" -> string!
 const Tracon.TraconErrorTypes.ExternalCallRejected = "external_call_rejected" -> string!
+const Tracon.TraconErrorTypes.HandoffLimitExceeded = "handoff_limit_exceeded" -> string!
 const Tracon.TraconErrorTypes.Interrupted = "interrupted" -> string!
 const Tracon.TraconErrorTypes.InvalidRequestError = "invalid_request_error" -> string!
 const Tracon.TraconErrorTypes.InvalidRunAttribution = "invalid_run_attribution" -> string!
@@ -5130,6 +5149,9 @@ override Tracon.WorkflowGraphEdge.ToString() -> string!
 override Tracon.WorkflowGraphNode.Equals(object? obj) -> bool
 override Tracon.WorkflowGraphNode.GetHashCode() -> int
 override Tracon.WorkflowGraphNode.ToString() -> string!
+override Tracon.WorkflowHandoff.Equals(object? obj) -> bool
+override Tracon.WorkflowHandoff.GetHashCode() -> int
+override Tracon.WorkflowHandoff.ToString() -> string!
 override Tracon.WorkflowNodeReference.Equals(object? obj) -> bool
 override Tracon.WorkflowNodeReference.GetHashCode() -> int
 override Tracon.WorkflowNodeReference.ToString() -> string!
@@ -5567,6 +5589,8 @@ static Tracon.WorkflowGraphEdge.operator !=(Tracon.WorkflowGraphEdge? left, Trac
 static Tracon.WorkflowGraphEdge.operator ==(Tracon.WorkflowGraphEdge? left, Tracon.WorkflowGraphEdge? right) -> bool
 static Tracon.WorkflowGraphNode.operator !=(Tracon.WorkflowGraphNode? left, Tracon.WorkflowGraphNode? right) -> bool
 static Tracon.WorkflowGraphNode.operator ==(Tracon.WorkflowGraphNode? left, Tracon.WorkflowGraphNode? right) -> bool
+static Tracon.WorkflowHandoff.operator !=(Tracon.WorkflowHandoff? left, Tracon.WorkflowHandoff? right) -> bool
+static Tracon.WorkflowHandoff.operator ==(Tracon.WorkflowHandoff? left, Tracon.WorkflowHandoff? right) -> bool
 static Tracon.WorkflowNodeReference.operator !=(Tracon.WorkflowNodeReference? left, Tracon.WorkflowNodeReference? right) -> bool
 static Tracon.WorkflowNodeReference.operator ==(Tracon.WorkflowNodeReference? left, Tracon.WorkflowNodeReference? right) -> bool
 static Tracon.WorkflowPendingRequest.operator !=(Tracon.WorkflowPendingRequest? left, Tracon.WorkflowPendingRequest? right) -> bool

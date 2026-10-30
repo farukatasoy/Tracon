@@ -287,6 +287,8 @@ public sealed class ChildAgentInvoker : AIAgent
                 return Refused(ApprovalRefusal(pending));
             }
 
+            CountHandoffs(scope!, response.Messages.SelectMany(static message => message.Contents), cancellationToken);
+
             response.AgentId = Id;
             return response;
         }
@@ -399,6 +401,10 @@ public sealed class ChildAgentInvoker : AIAgent
                     yield break;
                 }
 
+                // The count is made BEFORE the update goes up: the framework acts on a handoff call when it
+                // reads it, so the call that goes past the limit must not reach it.
+                CountHandoffs(scope!, step.Update!.Contents, cancellationToken);
+
                 yield return !_hostsApproval &&
                              ChildRunApproval.Describe(step.Update!.Contents) is { } pending
                     ? RefusedUpdate(ApprovalRefusal(pending))
@@ -414,6 +420,36 @@ public sealed class ChildAgentInvoker : AIAgent
                 await WriteCompletedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    /// Adds the handoff calls in a child's answer to the run's count and fails the run when the count passes
+    /// the limit (<see cref="WorkflowDefinition.MaxHandoffs"/>).
+    /// </summary>
+    /// <param name="scope">The scope of the run the step belongs to.</param>
+    /// <param name="contents">The content of the update, or of the messages, the child produced.</param>
+    /// <param name="cancellationToken">The caller's token: a caller that has cancelled wins over a limit the same update crosses.</param>
+    /// <exception cref="TraconHandoffLimitExceededException">The run made more handoffs than it may.</exception>
+    /// <remarks>
+    /// Nothing happens for a run with no counter: the counter exists only on the scope of a Handoff
+    /// workflow stored as a definition. It is read from the scope, never from an ambient value: the
+    /// scope is the run's own object, and every step of the run adds to the same counter.
+    /// </remarks>
+    private void CountHandoffs(AgentRunScope scope, IEnumerable<AIContent> contents, CancellationToken cancellationToken)
+    {
+        // The update that crosses the limit can arrive in the same instant the caller cancels. The run is then
+        // Canceled, as for any other step, not Failed with a limit nobody reached on purpose.
+        if (cancellationToken.IsCancellationRequested ||
+            scope.Handoffs is not { } limit ||
+            !limit.RecordAndExceeds(contents))
+        {
+            return;
+        }
+
+        throw new TraconHandoffLimitExceededException(
+            $"Agent '{_childName}' asked for handoff number {limit.Made}, but the workflow allows {limit.Max} " +
+            "('maxHandoffs'), so the run stopped before it. Two agents may be handing the conversation back and forth: " +
+            "change the workflow's handoffs so the loop ends, or raise 'maxHandoffs'.");
     }
 
     /// <summary>Marks a child's update as this wrapper's own.</summary>

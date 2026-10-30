@@ -76,6 +76,23 @@ public sealed partial class DefinitionReadFromJsonTests
     }
 
     [Fact]
+    public void A_workflow_definition_that_omits_the_handoff_edges_reads_them_as_empty()
+    {
+        // Phase 270. A row written before the field existed has no "handoffs", and the source generator runs no
+        // property initializer for a member the JSON never mentions: the star must come from the type itself.
+        var omitted = JsonSerializer.Deserialize(
+            """{ "name": "triage", "kind": "Handoff", "agentNames": ["a", "b"] }""",
+            ConsumerJsonContext.Default.WorkflowDefinition)!;
+        var written = JsonSerializer.Deserialize(
+            """{ "name": "triage", "kind": "Handoff", "agentNames": ["a", "b"], "handoffs": null }""",
+            ConsumerJsonContext.Default.WorkflowDefinition)!;
+
+        omitted.Handoffs.ShouldBeEmpty();
+        written.Handoffs.ShouldBeEmpty();
+        RuntimeHelpers.GetUninitializedObject(typeof(WorkflowDefinition)).ShouldBeOfType<WorkflowDefinition>().Handoffs.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Every_collection_member_a_definition_reaches_reads_as_empty_on_an_instance_no_constructor_ran_for()
     {
         // The JSON tests above hold the behavior for the members a minimal file reaches. A
@@ -182,5 +199,6 @@ public sealed partial class DefinitionReadFromJsonTests
 
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
     [JsonSerializable(typeof(AgentDefinition))]
+    [JsonSerializable(typeof(WorkflowDefinition))]
     private sealed partial class ConsumerJsonContext : JsonSerializerContext;
 }

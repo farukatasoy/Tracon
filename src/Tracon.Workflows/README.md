@@ -24,7 +24,7 @@ catalog agents and a pattern.
 |-------|----------|
 | `Sequential` | Agents run in order; each output feeds the next input |
 | `Concurrent` | Agents run at the same time; the results are merged |
-| `Handoff` | The first agent starts the work, handing off to others as needed |
+| `Handoff` | The first agent starts the work, handing off to others as needed. `Handoffs` says who may hand off to whom (empty: the first agent hands off to every other agent) and `MaxHandoffs` stops a loop of handoffs |
 | `GroupChat` | A round-robin manager distributes the turn |
 | `Magentic` | A manager agent builds a plan, tracks progress, and replans |
 

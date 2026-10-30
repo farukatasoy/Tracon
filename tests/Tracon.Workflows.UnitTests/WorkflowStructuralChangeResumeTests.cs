@@ -174,6 +174,54 @@ public sealed class WorkflowStructuralChangeResumeTests
     }
 
     [Fact]
+    public async Task Adding_a_handoff_edge_makes_the_old_checkpoint_unusable_for_the_edited_version()
+    {
+        // Phase 270. The edge list is the graph of a Handoff workflow: the console warns before it saves a change of
+        // an edge the same way it does for an agent added to a chain.
+        var host = new WorkflowTestHost("one", "two");
+
+        await host.SaveAsync(Handoff("chain", [Edge("one", "two")]));
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host, last: true);
+
+        await host.SaveAsync(Handoff("chain", [Edge("one", "two"), Edge("two", "one")]));
+
+        await AssertTheRecordedVersionResumesAndTheEditedOneDoesNotAsync(host, checkpoint);
+    }
+
+    [Fact]
+    public async Task Replacing_the_star_with_the_same_edges_written_out_leaves_the_old_checkpoint_usable()
+    {
+        // An empty list is the star: the first agent hands off to every other agent. Writing those edges out is the
+        // same graph, so a client that moves from "no list" to the explicit list does not strand a waiting run.
+        var host = new WorkflowTestHost("one", "two");
+
+        await host.SaveAsync(Handoff("chain", []));
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host, last: true);
+
+        var written = await host.SaveAsync(Handoff("chain", [Edge("one", "two")]));
+
+        (await ResumeFailureAsync(host, checkpoint)).ShouldBeNull();
+        (await ResumeFailureAsync(host, checkpoint, written.Version)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Changing_the_handoff_limit_or_the_reason_of_an_edge_leaves_the_old_checkpoint_usable()
+    {
+        var host = new WorkflowTestHost("one", "two");
+
+        await host.SaveAsync(Handoff("chain", [Edge("one", "two")]));
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host, last: true);
+
+        var edited = await host.SaveAsync(Handoff("chain", [new WorkflowHandoff { From = "one", To = "two", Reason = "A new reason." }]) with { MaxHandoffs = 3 });
+
+        (await ResumeFailureAsync(host, checkpoint)).ShouldBeNull();
+        (await ResumeFailureAsync(host, checkpoint, edited.Version)).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task A_description_change_leaves_the_old_checkpoint_usable()
     {
         var host = new WorkflowTestHost("one", "two");
@@ -252,7 +300,14 @@ public sealed class WorkflowStructuralChangeResumeTests
             .ShouldNotContain("three", StringComparer.Ordinal);
     }
 
-    private static async Task<string> RunAndPickFirstCheckpointAsync(WorkflowTestHost host)
+    /// <param name="host">The host.</param>
+    /// <param name="last">
+    /// Pick the last checkpoint of the run instead of the first. A Handoff run's earlier checkpoints cannot be resumed at
+    /// all - the framework throws "Expected exactly one update for key 'SharedState'" for a star as well, which is not a
+    /// structural edit - and a run that waits for input resumes from its last one, so that is the checkpoint a Handoff
+    /// case uses.
+    /// </param>
+    private static async Task<string> RunAndPickFirstCheckpointAsync(WorkflowTestHost host, bool last = false)
     {
         await foreach (var _ in host.CreateRunner().RunStreamingAsync(new WorkflowRunRequest { WorkflowName = "chain", Message = "hello" }))
         {
@@ -267,7 +322,7 @@ public sealed class WorkflowStructuralChangeResumeTests
 
         checkpoints.ShouldNotBeEmpty();
 
-        return $"{root.Id}|{checkpoints[0].CheckpointId}";
+        return $"{root.Id}|{(last ? checkpoints[^1] : checkpoints[0]).CheckpointId}";
     }
 
     /// <summary>
@@ -310,6 +365,11 @@ public sealed class WorkflowStructuralChangeResumeTests
         return events.FirstOrDefault(static runEvent => runEvent.Type == RunEventType.RunFailed)?.Text
                ?? (events.Any(static runEvent => runEvent.Type == RunEventType.RunFailed) ? "failed" : null);
     }
+
+    private static WorkflowHandoff Edge(string from, string to) => new() { From = from, To = to };
+
+    private static WorkflowDefinition Handoff(string name, IReadOnlyList<WorkflowHandoff> edges)
+        => new() { Name = name, Kind = WorkflowKind.Handoff, AgentNames = ["one", "two"], Handoffs = edges };
 
     private static WorkflowDefinition AgentOnly(string name, params string[] agents)
         => new() { Name = name, Kind = WorkflowKind.Sequential, AgentNames = agents };

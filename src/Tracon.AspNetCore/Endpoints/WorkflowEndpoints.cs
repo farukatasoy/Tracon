@@ -131,7 +131,20 @@ internal static class WorkflowEndpoints
                 "agent defined in code keeps no versions): anything else is refused with 400. " +
                 "'runTimeout' bounds one run of this workflow: it may only shorten " +
                 "Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, " +
-                "and a value above that ceiling is refused with 400. The call " +
+                "and a value above that ceiling is refused with 400. A Handoff workflow's 'handoffs' " +
+                "say who may hand off to whom: each edge names a 'from' and a 'to' agent from " +
+                "'agentNames' and may carry a 'reason' the model reads. An empty list keeps the star " +
+                "(the first agent hands off to every other agent and none hands off back); a list " +
+                "replaces it, so only the listed edges exist. A pair may appear once, an agent may " +
+                "not hand off to itself, the first agent needs an edge out of it, and every agent must " +
+                "be reachable from the first one by the edges: anything else is refused with 400. " +
+                "Edges that let two agents hand off to one another can loop, so 'maxHandoffs' bounds " +
+                "the handoffs of one run (10 when left out): the handoff that would exceed it ends " +
+                "the run as failed with the error type 'handoff_limit_exceeded'. A Magentic " +
+                "workflow's 'maxStalls' and 'maxResets' bound how long its manager keeps trying: " +
+                "rounds without progress before a replan (the framework's 3 when left out), and the " +
+                "replans before the task ends as completed with a final message that says it stopped " +
+                "at the reset limit (no limit when left out). The call " +
                 "replaces the whole definition: omitted fields are cleared, not merged. The name " +
                 "comes from the path and is not taken from the body. The name 'functions' is " +
                 "reserved (400): GET /api/workflows/functions uses it. Every save appends a " +

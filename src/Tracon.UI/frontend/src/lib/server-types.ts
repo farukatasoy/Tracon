@@ -194,7 +194,7 @@ export type WorkflowKind = Exclude<Generated.WorkflowKind, null>;
 // `agentVersion` is an int32 like every other number here: the generator widens it to `number | string`,
 // the wire always carries a native number. A node that does not pin its agent carries `null`.
 export type WorkflowNodeReference = Omit<Generated.WorkflowNodeReference, 'agentVersion'> & { agentVersion?: number | null };
-export type WorkflowDefinition = Omit<Fix<Generated.WorkflowDefinition, 'agentNames' | 'maxIterations' | 'requirePlanApproval' | 'version'>, 'kind' | 'nodes'> & { kind: WorkflowKind; nodes: WorkflowNodeReference[] };
+export type WorkflowDefinition = Omit<Fix<Generated.WorkflowDefinition, 'agentNames' | 'handoffs' | 'maxHandoffs' | 'maxIterations' | 'maxResets' | 'maxStalls' | 'requirePlanApproval' | 'version'>, 'kind' | 'nodes'> & { kind: WorkflowKind; nodes: WorkflowNodeReference[] };
 export type WorkflowDescriptor = Omit<Fix<Generated.WorkflowDescriptor, 'agentNames' | 'version'>, 'nodes'> & { nodes: WorkflowNodeReference[] };
 export type WorkflowGraph = Fix<Generated.WorkflowGraph, 'edges' | 'nodes'>;
 export type WorkflowPendingRequest = Fix<Generated.WorkflowPendingRequest, 'requestedAt'>;

@@ -85,10 +85,10 @@ public sealed record WorkflowDefinition
     public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
 
     /// <summary>
-    /// Gets the maximum number of turns. The only guard against an infinite
-    /// loop in the <see cref="WorkflowKind.GroupChat"/>,
-    /// <see cref="WorkflowKind.Handoff"/>, and <see cref="WorkflowKind.Magentic"/>
-    /// patterns.
+    /// Gets the maximum number of turns. The guard against an infinite loop in
+    /// the <see cref="WorkflowKind.GroupChat"/> and <see cref="WorkflowKind.Magentic"/>
+    /// patterns, and the number of turns a <see cref="WorkflowKind.Handoff"/> agent
+    /// continues on its own. A handoff loop is bounded by <c>MaxHandoffs</c>.
     /// </summary>
     public int? MaxIterations { get; init; }
 
@@ -97,6 +97,76 @@ public sealed record WorkflowDefinition
     /// handoff. Used only for <see cref="WorkflowKind.Handoff"/>.
     /// </summary>
     public string? HandoffInstructions { get; init; }
+
+    /// <summary>
+    /// Gets who may hand off to whom. Used only for <see cref="WorkflowKind.Handoff"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Empty (the default) keeps the star the pattern always had: the first agent in
+    /// <c>AgentNames</c> (the coordinator) may hand off to every other agent, and no other agent
+    /// hands off. A non-empty list replaces the star: only the listed edges exist, so a specialist can hand
+    /// back to the coordinator, two specialists can hand off to one another, and an agent with no edge
+    /// out of it never hands off.
+    /// </para>
+    /// <para>
+    /// The save is refused when an edge names an agent that is not in <c>AgentNames</c>, when
+    /// <c>From</c> equals <c>To</c>, when a pair appears
+    /// twice, when the first agent has no edge out of it, or when an agent cannot be reached from the
+    /// first agent by following the edges.
+    /// </para>
+    /// <para>
+    /// <strong>A list that lets two agents hand off to one another can loop.</strong>
+    /// <c>MaxHandoffs</c> stops the run when it does. Changing an edge is a structural change:
+    /// a run that waits for input resumes with the version it recorded.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<WorkflowHandoff> Handoffs { get => field ?? []; init; }
+
+    /// <summary>
+    /// Gets the most handoffs one run may make. Used only for <see cref="WorkflowKind.Handoff"/>.
+    /// <see langword="null"/> uses 10.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A run counts every handoff, whatever the agents it passes between. The handoff that would exceed
+    /// the limit ends the run <see cref="RunStatus.Failed"/> with the error type
+    /// <c>handoff_limit_exceeded</c>; the answer the run had so far is not returned as a result. A run that
+    /// is answered after it waited for input, or resumed, is a new run and counts from zero.
+    /// </para>
+    /// <para>
+    /// The limit holds for the star as well, where it cannot be reached: the star has no way back.
+    /// </para>
+    /// </remarks>
+    public int? MaxHandoffs { get; init; }
+
+    /// <summary>
+    /// Gets how many rounds without progress the <see cref="WorkflowKind.Magentic"/> manager tolerates before
+    /// it replans. <see langword="null"/> uses Microsoft Agent Framework's own value (3). Must be positive.
+    /// </summary>
+    /// <remarks>
+    /// A round in which the manager sees no progress, or sees the agents in a loop, adds one to the count and a
+    /// round with progress takes one off; the manager replans when the count is above this value.
+    /// </remarks>
+    public int? MaxStalls { get; init; }
+
+    /// <summary>
+    /// Gets how many times the <see cref="WorkflowKind.Magentic"/> manager may replan before the
+    /// orchestration stops. <see langword="null"/> uses Microsoft Agent Framework's own value (no limit).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The count is checked at the start of every round: after the manager has replanned this many times,
+    /// the next round does not run and the orchestration ends. It ends <see cref="RunStatus.Completed"/>,
+    /// with a final message that says it stopped at the reset limit, in place of the manager's answer. A
+    /// value of 1 lets the manager replan once. Must be positive: 0 would stop the task before its first round.
+    /// </para>
+    /// <para>
+    /// The other bound on a Magentic run is <c>MaxIterations</c>, the number of rounds, which ends it
+    /// the same way.
+    /// </para>
+    /// </remarks>
+    public int? MaxResets { get; init; }
 
     /// <summary>
     /// Gets whether the plan the manager agent builds must be approved by a

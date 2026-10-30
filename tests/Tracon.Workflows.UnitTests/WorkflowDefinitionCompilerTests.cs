@@ -1,3 +1,4 @@
+using Microsoft.Agents.AI.Workflows;
 using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
@@ -59,6 +60,63 @@ public sealed class WorkflowDefinitionCompilerTests
         });
 
         workflow.Name.ShouldBe("handoff");
+    }
+
+    [Fact]
+    public async Task Handoff_without_an_edge_list_keeps_the_star_the_first_agent_hands_off_to_every_other()
+    {
+        var host = new WorkflowTestHost("frontline", "billing", "technical");
+
+        var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
+        {
+            Name = "star",
+            Kind = WorkflowKind.Handoff,
+            AgentNames = ["frontline", "billing", "technical"],
+        });
+
+        AgentEdges(workflow, "star").ShouldBe(["frontline->billing", "frontline->technical"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task Handoff_edges_are_the_ones_the_definition_names_and_a_specialist_can_hand_back()
+    {
+        var host = new WorkflowTestHost("frontline", "billing", "technical");
+
+        var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
+        {
+            Name = "triage",
+            Kind = WorkflowKind.Handoff,
+            AgentNames = ["frontline", "billing", "technical"],
+            Handoffs =
+            [
+                new WorkflowHandoff { From = "frontline", To = "billing" },
+                new WorkflowHandoff { From = "frontline", To = "technical", Reason = "Technical questions." },
+                new WorkflowHandoff { From = "billing", To = "frontline" },
+                new WorkflowHandoff { From = "billing", To = "technical" },
+            ],
+        });
+
+        AgentEdges(workflow, "triage").ShouldBe(
+            ["frontline->billing", "frontline->technical", "billing->frontline", "billing->technical"],
+            ignoreOrder: true);
+    }
+
+    [Fact]
+    public void The_handoff_tool_prefix_the_limit_counts_is_the_frameworks_own()
+        => HandoffLimit.ToolPrefix.ShouldBe(HandoffWorkflowBuilder.FunctionPrefix);
+
+    private static List<string> AgentEdges(Workflow workflow, string name)
+    {
+        var graph = WorkflowGraphReader.Read(name, workflow);
+        var agents = graph.Nodes
+            .Where(static node => node.AgentName is not null)
+            .ToDictionary(static node => node.Id, static node => node.AgentName!, StringComparer.Ordinal);
+
+        return graph.Edges
+            .Where(edge => agents.ContainsKey(edge.From) && agents.ContainsKey(edge.To))
+            .Select(edge => $"{agents[edge.From]}->{agents[edge.To]}")
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 
     [Fact]

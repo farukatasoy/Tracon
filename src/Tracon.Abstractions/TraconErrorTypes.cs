@@ -85,6 +85,9 @@ public static class TraconErrorTypes
     /// <summary>A run used up its budget (<see cref="TraconRunBudgetExceededException"/>).</summary>
     public const string RunBudgetExceeded = "run_budget_exceeded";
 
+    /// <summary>A Handoff workflow run made more handoffs than its limit allows (<see cref="WorkflowDefinition.MaxHandoffs"/>).</summary>
+    public const string HandoffLimitExceeded = "handoff_limit_exceeded";
+
     /// <summary>A replay met a tool call the recording does not have.</summary>
     public const string ReplayToolMismatch = "replay_tool_mismatch";
 

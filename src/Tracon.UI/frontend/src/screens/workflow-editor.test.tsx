@@ -163,6 +163,11 @@ describe('WorkflowEditorScreen - the chain', () => {
       managerAgentName: null,
       maxIterations: null,
       handoffInstructions: null,
+      // Phase 270: a pattern that does not use them sends null, never an empty value.
+      handoffs: null,
+      maxHandoffs: null,
+      maxStalls: null,
+      maxResets: null,
       requirePlanApproval: false,
       runTimeout: null,
       // A new workflow has no answer time limit: a request waits without limit.
@@ -838,5 +843,196 @@ describe('WorkflowEditorScreen - agent versions', () => {
     expect((await screen.findAllByText('The list of versions could not be loaded.')).length).toBeGreaterThan(0);
     expect(selector).toHaveProperty('value', '2');
     expect(steps()).toEqual(['Agent:drafter', 'Agent:reviewer']);
+  });
+});
+
+describe('WorkflowEditorScreen - who hands off to whom', () => {
+  // Phase 270. The edge list is a full replace like every other field (K-725): a save that did not
+  // carry it would turn the workflow back into the star, so each case reads the body.
+  const handoff = stored({
+    kind: 'Handoff',
+    agentNames: ['summarizer', 'drafter', 'reviewer'],
+    handoffs: [
+      { from: 'summarizer', to: 'drafter', reason: 'Drafting is the next step.' },
+      { from: 'drafter', to: 'summarizer', reason: null },
+      { from: 'summarizer', to: 'reviewer', reason: null },
+    ],
+    maxHandoffs: 4,
+  });
+
+  const star = stored({ kind: 'Handoff', agentNames: ['summarizer', 'drafter', 'reviewer'] });
+
+  /** The rows of the table as `from>to`, in order. */
+  function edges(): string[] {
+    return screen.getAllByTestId('workflow-handoff').map((row) => {
+      const [from, to] = within(row).getAllByRole('combobox') as HTMLSelectElement[];
+
+      return `${from?.value}>${to?.value}`;
+    });
+  }
+
+  it('shows the edges of a stored workflow and sends them back with the limit, untouched', async () => {
+    const user = userEvent.setup();
+
+    open(handoff);
+    await loaded();
+
+    expect(edges()).toEqual(['summarizer>drafter', 'drafter>summarizer', 'summarizer>reviewer']);
+    expect((screen.getByTestId('workflow-max-handoffs') as HTMLInputElement).value).toBe('4');
+    expect(screen.queryByTestId('workflow-handoffs-star')).toBeNull();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      kind: 'Handoff',
+      handoffs: [
+        { from: 'summarizer', to: 'drafter', reason: 'Drafting is the next step.' },
+        { from: 'drafter', to: 'summarizer', reason: null },
+        { from: 'summarizer', to: 'reviewer', reason: null },
+      ],
+      maxHandoffs: 4,
+      maxStalls: null,
+      maxResets: null,
+    });
+  });
+
+  it('says what an empty list means, and sends an empty list for it', async () => {
+    const user = userEvent.setup();
+
+    open(star);
+    await loaded();
+
+    expect(screen.getByTestId('workflow-handoffs-star').textContent).toContain('summarizer');
+    expect(screen.getByTestId('workflow-handoffs-star').textContent).toContain('hands off to every other participant');
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ kind: 'Handoff', handoffs: [], maxHandoffs: null });
+  });
+
+  it('adds an edge between two chosen agents with a reason, and sends it', async () => {
+    const user = userEvent.setup();
+
+    open(star);
+    await loaded();
+
+    await user.click(screen.getByTestId('workflow-add-handoff'));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Handoff 1: from' }), 'drafter');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Handoff 1: to' }), 'reviewer');
+    await user.type(screen.getByRole('textbox', { name: 'Reason of handoff 1' }), '  Review it.  ');
+    fireEvent.change(screen.getByTestId('workflow-max-handoffs'), { target: { value: '7' } });
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      handoffs: [{ from: 'drafter', to: 'reviewer', reason: 'Review it.' }],
+      maxHandoffs: 7,
+    });
+  });
+
+  it('holds Save back while an edge has an end left to choose', async () => {
+    const user = userEvent.setup();
+
+    open(star);
+    await loaded();
+
+    await user.click(screen.getByTestId('workflow-add-handoff'));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Handoff 1: to' }), '');
+
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
+
+    await user.click(screen.getByRole('button', { name: 'Remove handoff 1' }));
+
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', false);
+  });
+
+  it('takes the edges of an agent with it when the agent leaves the chain', async () => {
+    const user = userEvent.setup();
+
+    open(handoff);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: 'Remove drafter' }));
+
+    expect(edges()).toEqual(['summarizer>reviewer']);
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ handoffs: [{ from: 'summarizer', to: 'reviewer', reason: null }] });
+  });
+
+  it('sends no edges and no handoff limit for a pattern that does not use them', async () => {
+    const user = userEvent.setup();
+
+    open(handoff);
+    await loaded();
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Kind/ }), 'Concurrent');
+
+    expect(screen.queryByTestId('workflow-handoffs')).toBeNull();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ kind: 'Concurrent', handoffs: null, maxHandoffs: null });
+  });
+
+  it('warns before a save that changes who hands off to whom, and stays quiet about the reason and the limit', async () => {
+    const user = userEvent.setup();
+
+    open(handoff);
+    await loaded();
+
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+
+    await user.type(screen.getByRole('textbox', { name: 'Reason of handoff 2' }), 'Back to the start.');
+    fireEvent.change(screen.getByTestId('workflow-max-handoffs'), { target: { value: '9' } });
+
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Remove handoff 2' }));
+
+    expect(screen.getByTestId('workflow-structure-notice').textContent).toContain('who hands off to whom');
+  });
+
+  it('treats the star written out as no change of graph, and one more edge as a change', async () => {
+    const user = userEvent.setup();
+
+    open(star);
+    await loaded();
+
+    await user.click(screen.getByTestId('workflow-add-handoff'));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Handoff 1: to' }), 'drafter');
+
+    // summarizer>drafter is one of the two edges of the star, but the list now holds only that one.
+    expect(screen.getByTestId('workflow-structure-notice')).toBeTruthy();
+
+    await user.click(screen.getByTestId('workflow-add-handoff'));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Handoff 2: to' }), 'reviewer');
+
+    // Both edges of the star: the same graph as the empty list.
+    expect(edges()).toEqual(['summarizer>drafter', 'summarizer>reviewer']);
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+
+    await user.click(screen.getByTestId('workflow-add-handoff'));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Handoff 3: from' }), 'reviewer');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Handoff 3: to' }), 'summarizer');
+
+    expect(screen.getByTestId('workflow-structure-notice')).toBeTruthy();
+  });
+
+  it('saves the Magentic limits and sends them as null for any other pattern', async () => {
+    const user = userEvent.setup();
+
+    open(stored({ kind: 'Magentic', agentNames: ['summarizer'], managerAgentName: 'reviewer', maxStalls: 2, maxResets: 1 }));
+    await loaded();
+
+    expect((screen.getByTestId('workflow-max-stalls') as HTMLInputElement).value).toBe('2');
+    expect((screen.getByTestId('workflow-max-resets') as HTMLInputElement).value).toBe('1');
+    expect(screen.queryByTestId('workflow-max-handoffs')).toBeNull();
+
+    fireEvent.change(screen.getByTestId('workflow-max-resets'), { target: { value: '3' } });
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ kind: 'Magentic', maxStalls: 2, maxResets: 3, handoffs: null, maxHandoffs: null });
   });
 });

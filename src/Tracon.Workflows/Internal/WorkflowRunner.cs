@@ -930,6 +930,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Budget = budget,
             Writer = writer,
 
+            // Phase 270: the handoff count of this run, from the SAME read of the definition the graph is
+            // compiled from. The scope is the run's own object, so every step adds to one counter; a resume
+            // or an answer is a new run and builds its own.
+            Handoffs = found?.Definition is { Kind: WorkflowKind.Handoff } handoffDefinition
+                ? HandoffLimit.For(handoffDefinition)
+                : null,
+
             // What the function nodes of this workflow report beyond tokens adds up
             // here; the agent steps below keep their own (a tool's measurement) and
             // reach the same budget (phase 199).

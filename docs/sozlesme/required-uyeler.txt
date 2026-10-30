@@ -535,6 +535,8 @@ Tracon.WorkflowGraphEdge.To
 Tracon.WorkflowGraphNode.Id
 Tracon.WorkflowGraphNode.Kind
 Tracon.WorkflowGraphNode.Label
+Tracon.WorkflowHandoff.From
+Tracon.WorkflowHandoff.To
 Tracon.WorkflowNodeReference.Kind
 Tracon.WorkflowNodeReference.Name
 Tracon.WorkflowPendingRequest.Form
