@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -131,6 +132,18 @@ internal static class RequestBodyBinding
         return options;
     }
 
+    /// <summary>Per-consumer options of <see cref="ReadStrictAsync{T}"/>, keyed the way <see cref="BodyOptions"/> is.</summary>
+    private static readonly ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> StrictBodyOptions = new();
+
+    private static JsonSerializerOptions CreateStrictBodyOptions(JsonSerializerOptions source)
+    {
+        var options = CreateBodyOptions(source);
+
+        options.UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow;
+
+        return options;
+    }
+
     /// <summary>
     /// Reads the body as <typeparamref name="T"/>.
     /// </summary>
@@ -171,6 +184,111 @@ internal static class RequestBodyBinding
                 statusCode: StatusCodes.Status400BadRequest));
         }
     }
+
+    /// <summary>
+    /// Reads a body that is a long-lived file format: at most <paramref name="maxBytes"/> long, and refused when it
+    /// carries a member the type does not have.
+    /// </summary>
+    /// <typeparam name="T">The expected body type.</typeparam>
+    /// <param name="httpContext">The request context.</param>
+    /// <param name="maxBytes">The longest body accepted.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The value and the bytes it was read from (a caller that audits the body hashes these), or a problem:
+    /// <c>413</c> over the limit, <c>415</c> for a body that is not JSON, <c>400</c> for an empty body or one that
+    /// does not parse, whose detail names the path of the member that failed.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The unmapped-member rule is the point. A file written by a later version may carry a field this version
+    /// does not know, and dropping it silently would import a definition that is not the one in the file. The
+    /// other readers here keep the framework's default, which ignores such a member: a save endpoint's body is
+    /// not a file that outlives the request.
+    /// </para>
+    /// <para>
+    /// The body is read in chunks and stops at the limit, so a body that lies about its length, or has none,
+    /// cannot make the server buffer more than <paramref name="maxBytes"/>.
+    /// </para>
+    /// </remarks>
+    public static async Task<(T? Value, byte[]? Bytes, ProblemHttpResult? Error)> ReadStrictAsync<T>(
+        HttpContext httpContext,
+        long maxBytes,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+
+        if (!httpContext.Request.HasJsonContentType())
+        {
+            return (default, null, TypedResults.Problem(
+                title: "Unsupported media type",
+                detail: "The body must be JSON ('Content-Type: application/json').",
+                statusCode: StatusCodes.Status415UnsupportedMediaType));
+        }
+
+        if (httpContext.Request.ContentLength is { } declared && declared > maxBytes)
+        {
+            return (default, null, TooLarge(maxBytes));
+        }
+
+        using var collected = new MemoryStream();
+        var chunk = ArrayPool<byte>.Shared.Rent(81920);
+
+        try
+        {
+            int read;
+
+            while ((read = await httpContext.Request.Body.ReadAsync(chunk.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                if (collected.Length + read > maxBytes)
+                {
+                    return (default, null, TooLarge(maxBytes));
+                }
+
+                collected.Write(chunk, 0, read);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(chunk);
+        }
+
+        var bytes = collected.ToArray();
+
+        if (bytes.Length == 0)
+        {
+            return (default, null, EmptyBody());
+        }
+
+        var applicationOptions = httpContext.RequestServices
+            .GetRequiredService<IOptions<JsonOptions>>()
+            .Value.SerializerOptions;
+
+        try
+        {
+            var value = JsonSerializer.Deserialize<T>(bytes, StrictBodyOptions.GetValue(applicationOptions, CreateStrictBodyOptions));
+
+            return value is null ? (default, null, EmptyBody()) : (value, bytes, null);
+        }
+        catch (JsonException ex)
+        {
+            return (default, null, TypedResults.Problem(
+                title: ProblemTitle,
+                detail: Describe(ex),
+                statusCode: StatusCodes.Status400BadRequest));
+        }
+    }
+
+    private static ProblemHttpResult TooLarge(long maxBytes)
+        => TypedResults.Problem(
+            title: "Request body too large",
+            detail: $"The body may be at most {maxBytes} bytes.",
+            statusCode: StatusCodes.Status413PayloadTooLarge);
+
+    private static ProblemHttpResult EmptyBody()
+        => TypedResults.Problem(
+            title: ProblemTitle,
+            detail: "The body cannot be empty.",
+            statusCode: StatusCodes.Status400BadRequest);
 
     /// <summary>
     /// Reads the body as <typeparamref name="T"/>; if the body is ABSENT, this does

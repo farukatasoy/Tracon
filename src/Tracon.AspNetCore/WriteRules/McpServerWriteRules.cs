@@ -39,6 +39,45 @@ internal static class McpServerWriteRules
                 StringComparer.OrdinalIgnoreCase));
     }
 
+    /// <summary>Builds the definition a save writes.</summary>
+    /// <param name="name">The server name, taken from the path.</param>
+    /// <param name="request">The server to write.</param>
+    /// <param name="endpoint">The parsed <see cref="McpServerRequest.Endpoint"/>.</param>
+    /// <param name="tenantId">The tenant the server belongs to.</param>
+    /// <param name="headers">The plain header map the save ends up with.</param>
+    /// <param name="headerKeys">The credential header key map the save ends up with.</param>
+    /// <returns>The definition, ready to be saved.</returns>
+    public static McpServerDefinition ToDefinition(
+        string name,
+        McpServerRequest request,
+        Uri endpoint,
+        string tenantId,
+        IReadOnlyDictionary<string, string> headers,
+        IReadOnlyDictionary<string, string> headerKeys)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(endpoint);
+
+        return new McpServerDefinition
+        {
+            Id = Guid.Empty,
+            TenantId = tenantId,
+            Name = name,
+            Description = request.Description,
+            Endpoint = endpoint,
+            Transport = request.Transport,
+            Headers = headers,
+            HeaderConfigurationKeys = CredentialHeaderSaveRules.Copy(headerKeys, StringComparer.OrdinalIgnoreCase),
+            Enabled = request.Enabled,
+            RequiresApproval = request.RequiresApproval,
+            OAuthEnabled = request.OAuthEnabled,
+            OAuthClientId = request.OAuthClientId,
+            OAuthClientSecretConfigurationKey = request.OAuthClientSecretConfigurationKey,
+            OAuthScopes = request.OAuthScopes,
+            OAuthAuthorizationMode = request.OAuthAuthorizationMode,
+        };
+    }
+
     /// <summary>Lists the stored header names a save sends to a new host without the request sending them.</summary>
     /// <param name="previous">The stored server; <see langword="null"/> for a new one.</param>
     /// <param name="endpoint">The address the save points at.</param>

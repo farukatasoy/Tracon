@@ -548,23 +548,7 @@ internal static class WorkflowEndpoints
 
         var request = bound!;
 
-        var definition = new WorkflowDefinition
-        {
-            Name = name,
-            DisplayName = request.DisplayName,
-            Description = request.Description,
-            Kind = request.Kind,
-            AgentNames = request.AgentNames ?? [],
-            Nodes = request.Nodes ?? [],
-            ManagerAgentName = request.ManagerAgentName,
-            MaxIterations = request.MaxIterations,
-            HandoffInstructions = request.HandoffInstructions,
-            RequirePlanApproval = request.RequirePlanApproval,
-            Parameters = request.Parameters ?? [],
-            RunTimeout = request.RunTimeout,
-            ResponseMode = request.ResponseMode,
-            RequestTimeout = request.RequestTimeout,
-        };
+        var definition = request.ToDefinition(name);
 
         if (await WorkflowDefinitionWriteRules.ValidateDefinitionAsync(
                 definition, functions, runTimeoutPolicy, agents, agentDefinitions, because: null, cancellationToken)

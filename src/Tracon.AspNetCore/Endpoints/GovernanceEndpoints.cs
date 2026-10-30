@@ -291,24 +291,7 @@ internal static class GovernanceEndpoints
                     request);
 
                 var saved = await servers.SaveAsync(
-                    new McpServerDefinition
-                    {
-                        Id = Guid.Empty,
-                        TenantId = tenants.TenantId,
-                        Name = name,
-                        Description = request.Description,
-                        Endpoint = endpoint,
-                        Transport = request.Transport,
-                        Headers = headers,
-                        HeaderConfigurationKeys = CredentialHeaderSaveRules.Copy(headerKeys, StringComparer.OrdinalIgnoreCase),
-                        Enabled = request.Enabled,
-                        RequiresApproval = request.RequiresApproval,
-                        OAuthEnabled = request.OAuthEnabled,
-                        OAuthClientId = request.OAuthClientId,
-                        OAuthClientSecretConfigurationKey = request.OAuthClientSecretConfigurationKey,
-                        OAuthScopes = request.OAuthScopes,
-                        OAuthAuthorizationMode = request.OAuthAuthorizationMode,
-                    },
+                    McpServerWriteRules.ToDefinition(name, request, endpoint, tenants.TenantId, headers, headerKeys),
                     cancellationToken).ConfigureAwait(false);
 
                 return TypedResults.Ok(MaskHeaders(saved));

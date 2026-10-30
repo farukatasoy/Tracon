@@ -137,6 +137,28 @@ internal sealed record WorkflowSaveRequest
         "How long a human request of this workflow may wait for an answer, as `d.hh:mm:ss`,\n" +
         "from one minute to 365 days. Leave it out and a request waits without limit.")]
     public TimeSpan? RequestTimeout { get; init; }
+
+    /// <summary>Converts the request into a persistable definition.</summary>
+    /// <param name="name">The workflow name, taken from the path.</param>
+    /// <returns>A definition ready to be validated and saved.</returns>
+    public WorkflowDefinition ToDefinition(string name)
+        => new()
+        {
+            Name = name,
+            DisplayName = DisplayName,
+            Description = Description,
+            Kind = Kind,
+            AgentNames = AgentNames ?? [],
+            Nodes = Nodes ?? [],
+            ManagerAgentName = ManagerAgentName,
+            MaxIterations = MaxIterations,
+            HandoffInstructions = HandoffInstructions,
+            RequirePlanApproval = RequirePlanApproval,
+            Parameters = Parameters ?? [],
+            RunTimeout = RunTimeout,
+            ResponseMode = ResponseMode,
+            RequestTimeout = RequestTimeout,
+        };
 }
 
 [Description("Request to run a workflow.")]

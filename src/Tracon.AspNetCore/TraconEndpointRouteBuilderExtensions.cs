@@ -208,6 +208,7 @@ public static class TraconEndpointRouteBuilderExtensions
         GovernanceEndpoints.Map(group, roles);
         AuditEndpoints.Map(group, roles);
         DataSubjectEndpoints.Map(group, roles);
+        DefinitionTransferEndpoints.Map(group, roles);
 
         if (options.EnableDiagnosticsEndpoint)
         {
