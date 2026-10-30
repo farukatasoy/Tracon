@@ -126,12 +126,15 @@ public sealed class ShippedDocumentationSelfContainmentTests
     ];
 
     /// <summary>
-    /// Files that name every forbidden pattern in order to define or test it.
+    /// Files that name every forbidden pattern in order to define or test it, and files the mirror
+    /// withholds: the mirror workflow has to name the private script it runs, and no public reader
+    /// ever receives it.
     /// </summary>
     private static readonly string[] SkippedFiles =
     [
         "tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs",
         "docs-site/scripts/internal-history.pattern",
+        ".github/workflows/ayna.yml",
     ];
 
     /// <summary>
