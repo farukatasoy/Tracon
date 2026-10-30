@@ -1,4 +1,4 @@
--- Phase 209 -- the inbox of workflow requests (F-319, K-128 reopened).
+-- The inbox of workflow requests.
 --
 -- For the rationale and the column meanings see PostgreSQL 0061_workflow_requests.sql.
 -- Index key sizes: the logical index is 3 x nvarchar(200) + datetimeoffset = 1210 bytes,

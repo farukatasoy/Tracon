@@ -1,8 +1,8 @@
--- Credential headers declared by the NAME of their configuration key (phase 190).
+-- Credential headers declared by the NAME of their configuration key.
 --
 -- An MCP server or webhook target that wants `X-API-Key`, `Cookie` or
 -- `Ocp-Apim-Subscription-Key` could only get it through the plain `headers`
--- column, which stores the value in the clear (a K-059 violation). The new
+-- column, which stores the value in the clear (a violation). The new
 -- column maps a header name to the configuration key its value is read from;
 -- the value is resolved at connection or delivery time and never stored.
 --

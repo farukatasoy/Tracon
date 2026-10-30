@@ -1,4 +1,4 @@
--- Phase 29 -- summary record of real time speech connections.
+-- Summary record of real time speech connections.
 --
 -- 🚨 THE AUDIO CONTENT DOES NOT STAY IN THIS TABLE. The table is only for usage
 -- and observability: who, when, how many turns, how much audio. If the audio of
@@ -9,7 +9,6 @@
 -- the spans and the tool approvals are in the same place and they are NOT
 -- REPEATED here.
 --
--- Rationale: docs/29-KONUSMA-KATMANI.md, section 29.4.
 
 CREATE TABLE IF NOT EXISTS {schema}.voice_sessions (
     id            uuid        NOT NULL PRIMARY KEY,
@@ -28,7 +27,7 @@ CREATE TABLE IF NOT EXISTS {schema}.voice_sessions (
     turns         integer     NOT NULL DEFAULT 0,
 
     -- Total decoded audio duration. If the provider reports no duration it stays
-    -- NULL -- not ZERO. Tracon does not invent a measurement (K-032).
+    -- NULL -- not ZERO. Tracon does not invent a measurement.
     input_seconds numeric(12,3),
     output_chars  bigint,
 

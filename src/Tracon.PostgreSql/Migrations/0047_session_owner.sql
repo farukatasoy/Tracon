@@ -11,13 +11,13 @@
 -- that objection disappears.
 --
 -- 🚨 owner_id is an OPAQUE string carrying the SAME meaning as runs.user_id
--- (phase 68): Tracon neither resolves nor validates it, stores no personal
+--Tracon neither resolves nor validates it, stores no personal
 -- detail of its own, and the consumer decides what it identifies. It is never
 -- read from a request body -- that would let any client open a session under
 -- another user's name, the same forgery the attribution column already
 -- refuses.
 --
--- NO foreign key, for the same reason tenant_id carries none (K-030):
+-- NO foreign key, for the same reason tenant_id carries none:
 -- Tracon owns no user catalogue and must not require one.
 --
 -- NULLABLE, and null means UNOWNED. Every row written before this migration

@@ -1,9 +1,9 @@
--- Phase 208 -- the answers to workflow requests (F-319).
+-- The answers to workflow requests.
 --
 -- For the rationale and the column meanings see PostgreSQL 0060_workflow_responses.sql.
--- The claim index is a partial unique index (measured on SQLite 3.54, phase 208).
+-- The claim index is a partial unique index (measured on SQLite 3.54).
 --
--- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- 🚨 Table and index names carry the PREFIX: SQLite has no schema and
 -- index names share a single database wide namespace.
 
 CREATE TABLE IF NOT EXISTS {schema}workflow_responses (

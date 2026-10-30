@@ -1,18 +1,17 @@
--- Tracon SQLite schema (phase 24).
+-- Tracon SQLite schema.
 --
 -- This file is the ACCUMULATED result of the PostgreSQL 0001-0013 migrations (the
--- same pattern as the SQL Server 0001_initial.sql, K-178). SQLite support opens
--- in phase 24; there is no installation to upgrade. Later changes are added as
+-- same pattern as the SQL Server 0001_initial.sql). SQLite support opens
+-- with the first release; there is no installation to upgrade. Later changes are added as
 -- 0002, 0003 ...
 --
 -- 🚨 The numbering DOES NOT MATCH the other providers and it does not need to.
--- Rationale: docs/KARARLAR.md, decision K-178.
 --
 -- Rules:
 --   * SQLite has no schema concept. The `{schema}` placeholder is replaced at
 --     run time with TraconSqliteOptions.TablePrefix (the default is
 --     `tracon_`); the consumer own tables are not touched (the SQLite
---     counterpart of K-013).
+-- counterpart of the PostgreSQL rule).
 --   * Time fields are TEXT, ISO-8601 UTC (`yyyy-MM-ddTHH:mm:ss.fffffffZ`),
 --     written by SqliteDialect.AddTimestamp.
 --   * Primary keys are TEXT (uuid v7, upper case — see the "uuid is written in
@@ -20,7 +19,7 @@
 --   * Enum values are stored as INTEGER and are the SAME numbers as on the
 --     other providers.
 --   * `numeric`/`decimal` columns are TEXT; REAL IS NOT USED (floating point is
---     banned in money arithmetic, docs/24-SQLITE.md section 24.2).
+-- banned in money arithmetic).
 --
 -- Type mapping (PostgreSQL -> SQLite):
 --   uuid           -> TEXT
@@ -81,7 +80,7 @@ CREATE TABLE IF NOT EXISTS {schema}agent_definition_versions (
 -- Sessions
 -- ---------------------------------------------------------------------------
 -- `state` is the SerializeSessionAsync output of Microsoft Agent Framework and
--- it is OPAQUE. K-027 does not hold here (see the same note in the SQL Server
+-- it is OPAQUE. The earlier decision does not hold here (see the same note in the SQL Server
 -- DDL): SQLite stores JSON as text and the order is already kept.
 
 CREATE TABLE IF NOT EXISTS {schema}sessions (
@@ -179,7 +178,7 @@ CREATE INDEX IF NOT EXISTS {schema}runs_agent_version_idx ON {schema}runs (tenan
 CREATE INDEX IF NOT EXISTS {schema}runs_experiment_idx ON {schema}runs (experiment_id, variant) WHERE experiment_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS {schema}runs_tenant_cost_idx ON {schema}runs (tenant_id, started_at DESC) WHERE input_cost IS NOT NULL;
 
--- Append-only event stream (decision K-014). Events are NOT UPDATED, only appended.
+-- Append-only event stream. Events are NOT UPDATED, only appended.
 -- `payload` is deliberately free text and CARRIES NO json_valid constraint:
 -- RunEventWriter formats tool arguments by hand and the output can be invalid JSON.
 CREATE TABLE IF NOT EXISTS {schema}run_events (
@@ -260,7 +259,7 @@ CREATE INDEX IF NOT EXISTS {schema}audit_log_tenant_created_idx ON {schema}audit
 -- ---------------------------------------------------------------------------
 -- Tool approval rules
 -- ---------------------------------------------------------------------------
--- Like PostgreSQL, SQLite TELLS NULLs APART in a unique constraint (K-184 is
+-- Like PostgreSQL, SQLite TELLS NULLs APART in a unique constraint (the SQL Server rule is
 -- specific to SQL Server and DOES NOT HOLD here); a plain UNIQUE would let the
 -- same rule (while agent_name is NULL) be added endlessly. The constraint is
 -- therefore built ON a COALESCE expression.
@@ -283,7 +282,7 @@ CREATE INDEX IF NOT EXISTS {schema}tool_approval_rules_tenant_created_idx ON {sc
 -- MCP servers
 -- ---------------------------------------------------------------------------
 -- 🚨 CARRIES NO SECRET. Only the NAME of the configuration key that the value is
--- read from is stored (K-059). `transport` INTEGER: 0 = StreamableHttp, 1 = SSE.
+-- read from is stored. `transport` INTEGER: 0 = StreamableHttp, 1 = SSE.
 
 CREATE TABLE IF NOT EXISTS {schema}mcp_servers (
     id                                    TEXT    NOT NULL PRIMARY KEY,
@@ -375,7 +374,7 @@ CREATE INDEX IF NOT EXISTS {schema}skill_script_grants_lookup_idx ON {schema}ski
 -- Attachments and persistent agent file memory
 -- ---------------------------------------------------------------------------
 -- `session_id` is DELIBERATELY NOT a foreign key: an attachment can be uploaded
--- before its own session is ever opened (K-112).
+-- before its own session is ever opened.
 
 CREATE TABLE IF NOT EXISTS {schema}attachments (
     id           TEXT    NOT NULL PRIMARY KEY,

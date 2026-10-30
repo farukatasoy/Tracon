@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0023 — Replay and conversation branching (phase 47)
+-- 0023 — Replay and conversation branching
 --
 -- Three changes:
 --   1. run_inputs        — the INPUT of a run. Until now it was not stored
@@ -7,7 +7,6 @@
 --   2. runs.replay_of_run_id — lineage. It shows the source of a replay.
 --   3. conversations.parent_conversation_id / branch_from_seq — branch pointer.
 --
--- Rationale: docs/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md
 -- ---------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------------
@@ -18,7 +17,7 @@
 -- property of the object; `jsonb` REORDERS keys first by length then by byte
 -- order and the read fails with JsonException. The same reason holds for
 -- sessions.state, conversation_items.item and workflow_checkpoints.state.
--- Decision K-027 — this is the FOURTH application of that decision.
+-- This is the FOURTH application of the same rule.
 --
 -- The input is in a separate table, it IS NOT ADDED to `runs` as a column: `runs`
 -- is the hottest table and every list/statistics query reads it. For the same
@@ -42,7 +41,7 @@ CREATE INDEX IF NOT EXISTS run_inputs_tenant_created_idx
 -- Replay lineage
 -- ---------------------------------------------------------------------------
 -- The column is added AT THE END: PostgresRunStore.ReadRun reads with fixed column
--- indexes and a column inserted in between would shift them all (docs/hafiza/postgresql.md).
+-- indexes and a column inserted in between would shift them all.
 --
 -- There is NO foreign key: the source run can be deleted by the retention policy
 -- and the replay itself must not be affected by that. The same reason holds for
@@ -70,7 +69,7 @@ CREATE INDEX IF NOT EXISTS runs_replay_of_idx
 -- REFERENCING foreign key (error 1785, "may cause cycles or multiple cascade
 -- paths"). If the constraint were added only to PostgreSQL and SQLite the same
 -- delete would give THREE DIFFERENT results on three providers -- the only thing
--- this repo never accepts (K-184: a schema difference must not become a behaviour difference).
+-- this repo never accepts (a schema difference must not become a behaviour difference).
 --
 -- The result is the same on every provider: if the main conversation is deleted
 -- THE BRANCH KEEPS LIVING; the pointer only shows an origin that can no longer be

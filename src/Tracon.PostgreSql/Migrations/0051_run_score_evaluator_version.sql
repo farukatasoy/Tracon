@@ -1,9 +1,9 @@
 -- ---------------------------------------------------------------------------
--- 0051 — The version that produced a score (phase 176)
+-- 0051 — The version that produced a score
 --
 -- A judge that grades through a package scores against THAT PACKAGE'S PROMPT.
 -- Upgrading the package therefore moves the scores while the model stays the
--- same, and a regression baseline (phase 153) drifts with no visible cause.
+-- same, and a regression baseline drifts with no visible cause.
 -- The column is what separates "the model got worse" from "the judge changed".
 --
 -- 🚨 The column is added at the END of the table on purpose: SqlRunScoreStore
@@ -11,7 +11,7 @@
 -- reader silently. 0050_voice_session_cost.sql records the same trap.
 --
 -- NULL means NO VERSION WAS RESOLVED — a human or API score, or a judge that
--- reports none. It never means "version zero" (the rule K-711 set for `value`).
+-- reports none. It never means "version zero" (the same rule as for `value`).
 -- Every row written before this migration is therefore correct as it stands and
 -- there is no backfill.
 --

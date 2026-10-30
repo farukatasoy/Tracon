@@ -1,4 +1,4 @@
--- Phase 208 -- the answers to workflow requests (F-319).
+-- The answers to workflow requests.
 --
 -- Every POST /api/workflows/runs/{runId}/respond writes one row: which run answered
 -- which request of which run, who answered, and a SHA-256 of the answer (never the
@@ -8,9 +8,9 @@
 -- execution session, and the partial unique index below lets one active row hold a
 -- (tenant, scope, request) at a time. An Abandoned row (status 2) frees the claim for
 -- the row that replaced it; a Branch workflow writes claim_scope NULL and claims
--- nothing. Measured on PostgreSQL 18 (phase 208, measurement 3).
+-- nothing. Measured on PostgreSQL 18 (measurement 3).
 --
--- source_run_id cascades from runs, as pending_approvals.run_id does (K-369): a data
+-- source_run_id cascades from runs, as pending_approvals.run_id does: a data
 -- subject erasure of the source run removes its answers. No retention target deletes
 -- runs, so this table grows with the run history.
 

@@ -1,4 +1,4 @@
--- Phase 263 (F-92) -- shared rate-limit counter.
+-- Shared rate-limit counter.
 --
 -- One row per rate-limit partition: the current fixed window and the number of requests counted in
 -- it. It backs Tracon:RateLimit:Scope = Deployment, where every instance of a deployment counts

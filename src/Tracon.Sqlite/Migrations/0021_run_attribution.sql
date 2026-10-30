@@ -1,10 +1,10 @@
--- Phase 68 -- run attribution and the token breakdown.
+-- Run attribution and the token breakdown.
 --
 -- For the rationale and the column meanings see PostgreSQL
 -- 0034_run_attribution.sql. SQLite has no `IF NOT EXISTS` for `ALTER TABLE ...
 -- ADD COLUMN`; safety comes from the migration runner (the same file runs once).
 --
--- 🚨 The index name carries the TABLE PREFIX (K-193): SQLite index names share
+-- 🚨 The index name carries the TABLE PREFIX: SQLite index names share
 -- one database-wide namespace.
 
 ALTER TABLE {schema}runs ADD COLUMN user_id             TEXT    NULL;

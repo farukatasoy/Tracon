@@ -1,8 +1,8 @@
--- Phase 55 -- asynchronous approval inbox.
+-- Asynchronous approval inbox.
 --
 -- For the rationale and the column meanings see PostgreSQL 0027_pending_approvals.sql.
 --
--- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- 🚨 Table and index names carry the PREFIX: SQLite has no schema and
 -- index names share a single database wide namespace.
 
 CREATE TABLE IF NOT EXISTS {schema}pending_approvals (

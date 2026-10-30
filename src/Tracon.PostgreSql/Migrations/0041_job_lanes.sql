@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0041 — Job queue lanes (Phase 129)
+-- 0041 — Job queue lanes
 --
 -- Nine JobKind values share one pool and one MaxConcurrentJobs budget today;
 -- a long AgentBatch run holds a slot a fast ApprovalResume is waiting for
@@ -9,7 +9,7 @@
 --
 -- DEFAULT 'default' covers every row written before this column existed, and
 -- is also JobLanes.Default: an upgraded database's jobs read back exactly as
--- they did before lanes existed (no worker configuration, K1).
+-- they did before lanes existed (no worker configuration).
 --
 -- jobs_claim_idx is REBUILT with `lane` leading: LeaseJob's WHERE narrows by
 -- lane first, then by the status/scheduled_for pair the old index covered.

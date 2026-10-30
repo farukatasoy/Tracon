@@ -1,7 +1,7 @@
--- Phase 53 -- per tenant API keys and scopes.
+-- Per tenant API keys and scopes.
 --
 -- For the rationale and the column meanings see PostgreSQL 0025_api_keys.sql.
--- scopes is a JSON array (K-182): it is opened with OPENJSON.
+-- scopes is a JSON array: it is opened with OPENJSON.
 
 IF OBJECT_ID(N'{schema}.api_keys', N'U') IS NULL
 CREATE TABLE {schema}.api_keys (

@@ -1,4 +1,4 @@
--- Phase 54 -- orphaned run reconciliation.
+-- Orphaned run reconciliation.
 --
 -- heartbeat_at can stay NULL: old rows (opened before this migration) and new
 -- rows where the heartbeat writer has not run its first turn yet have no value
@@ -8,7 +8,7 @@ ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS heartbeat_at timestamptz;
 
 -- Partial index: only Running rows (a small minority) pay the scan cost;
 -- Completed/Failed/Canceled/AwaitingInput/Queued rows take no space in the
--- index. Reconciliation is OFF by default (K1); the index is still always
+-- index. Reconciliation is OFF by default; the index is still always
 -- created -- once switched on it works at once and waits for no migration.
 CREATE INDEX IF NOT EXISTS runs_running_heartbeat_idx
     ON {schema}.runs (heartbeat_at)

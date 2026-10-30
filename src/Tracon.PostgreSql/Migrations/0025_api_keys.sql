@@ -1,7 +1,7 @@
--- Phase 53 -- per tenant API keys and scopes.
+-- Per tenant API keys and scopes.
 --
 -- 🚨 key_hash IS NOT THE RAW VALUE -- it is an irreversible SHA-256 digest
--- (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2). The raw value is returned
+--The raw value is returned
 -- once in the creation response only and is written nowhere.
 
 CREATE TABLE IF NOT EXISTS {schema}.api_keys (

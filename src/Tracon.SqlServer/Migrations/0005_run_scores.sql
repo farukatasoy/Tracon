@@ -1,8 +1,8 @@
--- Phase 31 -- human (or judge) score per run and per message.
+-- Human (or judge) score per run and per message.
 --
 -- For the rationale and the column meanings see PostgreSQL 0017_run_scores.sql.
 --
--- 🚨 NULL uniqueness works the OTHER WAY on SQL Server (K-184): a UNIQUE index
+-- 🚨 NULL uniqueness works the OTHER WAY on SQL Server: a UNIQUE index
 -- treats NULLs as EQUAL TO EACH OTHER (unlike PostgreSQL). That is EXACTLY the
 -- behaviour we want for message_id (no COALESCE needed) but it is the OPPOSITE
 -- for author: when author is NULL (an installation without identity) every call

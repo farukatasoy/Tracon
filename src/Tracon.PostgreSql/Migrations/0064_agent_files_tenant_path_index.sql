@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0064 -- an index for the files under a path prefix, by tenant (phase 234)
+-- 0064 -- an index for the files under a path prefix, by tenant
 --
 -- The session workspace keeps the files of one session under one directory,
 -- `/{tenant}/~workspace/{key}/...` (see SessionWorkspacePaths). Three queries

@@ -1,4 +1,4 @@
--- Phase 209 -- the inbox of workflow requests (F-319, K-128 reopened).
+-- The inbox of workflow requests.
 --
 -- One row per request a workflow run waits on, written when the run closes as
 -- AwaitingInput. The row is a PROJECTION: the prompt and the form stay in the run's
@@ -11,7 +11,7 @@
 -- was closed for it). answered_at / last_response_run_id are set by the respond endpoint;
 -- last_response_run_id carries no foreign key, so erasing an answering run keeps the row.
 --
--- run_id cascades from runs, as pending_approvals.run_id does (K-369): a data subject erasure
+-- run_id cascades from runs, as pending_approvals.run_id does: a data subject erasure
 -- of the run removes its rows. No retention target deletes runs, so open rows live with the run
 -- history; the workflow_requests retention target deletes CLOSED rows by age.
 

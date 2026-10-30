@@ -1,4 +1,4 @@
--- Phase 262 (F-764) -- cross-instance run cancellation.
+-- Cross-instance run cancellation.
 --
 -- cancel_requested_at records that an operator asked for the run to stop while the run
 -- was executing on ANOTHER instance. The instance that owns the run reads the column in

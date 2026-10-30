@@ -1,4 +1,4 @@
--- Phase 260 -- audit trail chain key (F-758).
+-- Audit trail chain key.
 --
 -- For the rationale (a key id, never the key; no backfill; no index) see PostgreSQL
 -- 0067_audit_chain_key.sql.

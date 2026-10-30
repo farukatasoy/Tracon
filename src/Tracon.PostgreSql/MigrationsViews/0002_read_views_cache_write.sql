@@ -1,4 +1,4 @@
--- Read contract views, second definition (Phase 253, F-420). Opt-in via
+-- Read contract views, second definition. Opt-in via
 -- TraconPostgreSqlOptions.EnableReadViews.
 --
 -- Prompt-cache writes became the FOURTH term of a run's cost: `cache_write_cost` is a
@@ -8,7 +8,7 @@
 -- the end, and the existing ones keep their name, order and type. The first definition
 -- (0001) is an applied migration and stays as it was.
 --
--- Rules (docs/111-OKUMA-SOZLESMESI-GORUNUMLERI.md, 111.1):
+-- Rules:
 --   * A published view never loses a column, renames a column, or narrows a
 --     column's type. Adding a column is free. A breaking change ships as a
 --     NEW view (runs_v2), the old one keeps working for at least one major
@@ -55,7 +55,7 @@ SELECT
     input_cost,
     output_cost,
     cached_input_cost,
-    -- total_cost: BEGIN (kept in sync with SqlQueriesBase.CostAddends -- K-483:
+    -- total_cost: BEGIN (kept in sync with SqlQueriesBase.CostAddends:
     -- NULL only when ALL addends are NULL, otherwise the non-null ones sum).
     -- A fifth *_cost column added to `runs` without being added HERE is
     -- caught by ReadViewCostTermTests at build time, not in production.

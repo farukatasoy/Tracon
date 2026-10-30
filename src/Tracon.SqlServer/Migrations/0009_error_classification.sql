@@ -1,4 +1,4 @@
--- Phase 44 -- error classification and failure clustering.
+-- Error classification and failure clustering.
 --
 -- For the rationale and the column meanings see PostgreSQL
 -- 0021_error_classification.sql. error_fingerprint is the hexadecimal form of a
@@ -11,7 +11,7 @@ IF COL_LENGTH(N'{schema}.runs', N'error_fingerprint') IS NULL
 ALTER TABLE {schema}.runs ADD error_fingerprint nvarchar(64) NULL;
 
 -- Partial (filtered) index: rows where error_class is NULL (the majority) take
--- no space in the index. The syntax is the same as PostgreSQL (K-178 handover note).
+-- no space in the index. The syntax is the same as PostgreSQL.
 --
 -- 🚨 Wrapped in EXEC: error_class is added above with ALTER TABLE in the SAME
 -- batch; SQL Server compiles the WHOLE batch before running it and without EXEC

@@ -1,8 +1,8 @@
--- Phase 65 -- per-tenant model provider bindings (BYOK) and egress policy.
+-- Per-tenant model provider bindings (BYOK) and egress policy.
 --
 -- For the rationale and column meanings see PostgreSQL 0032_tenant_provider_bindings.sql.
 --
--- 🚨 Table names carry the PREFIX (K-193): SQLite has no schema and object
+-- 🚨 Table names carry the PREFIX: SQLite has no schema and object
 -- names share a single database-wide namespace.
 
 CREATE TABLE IF NOT EXISTS {schema}tenant_provider_bindings (

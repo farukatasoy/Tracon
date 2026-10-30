@@ -1,6 +1,6 @@
--- Phase 218 -- the MCP server's `authorization_configuration_key` column goes away (F-290, K-869).
+-- The MCP server's `authorization_configuration_key` column goes away.
 --
--- Phase 190 moved the `Authorization` header into `header_configuration_keys` (a map
+-- moved the `Authorization` header into `header_configuration_keys` (a map
 -- from a header name to the NAME of the configuration key its value is read from) and
 -- deprecated the single-key column. This file moves the stored data and drops the column.
 --
@@ -12,7 +12,7 @@
 --   * a row whose map already names `Authorization` (any letter case) keeps its map: the
 --     map always won over the column;
 --   * otherwise the key name becomes the map's `Authorization` entry.
--- Only the key NAME is ever stored (K-059); no secret value moves.
+-- Only the key NAME is ever stored; no secret value moves.
 --
 -- 🚨 The column is dropped in the same migration, so there is no way back: an application
 -- build from before this migration cannot read the table.

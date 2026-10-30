@@ -1,7 +1,7 @@
--- Phase 261 (F-759) -- per-tenant tool policy.
+-- Per-tenant tool policy.
 --
 -- For the rationale and column meanings see PostgreSQL 0068_tenant_tool_policies.sql.
--- allowed_tools and granted_permissions are JSON arrays (K-182): opened with OPENJSON.
+-- allowed_tools and granted_permissions are JSON arrays: opened with OPENJSON.
 
 IF OBJECT_ID(N'{schema}.tenant_tool_policies', N'U') IS NULL
 CREATE TABLE {schema}.tenant_tool_policies (

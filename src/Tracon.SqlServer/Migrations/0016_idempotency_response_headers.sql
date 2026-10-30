@@ -1,4 +1,4 @@
--- Storage of idempotency response headers (MT-JOB-083 / HATA-S3-008).
+-- Storage of idempotency response headers.
 --
 -- For the rationale see PostgreSQL 0029_idempotency_response_headers.sql.
 

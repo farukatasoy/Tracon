@@ -1,4 +1,4 @@
--- Phase 15 -- workflows: execution and persistence.
+-- Workflows: execution and persistence.
 
 -- NO SEPARATE TABLE IS OPENED for workflow runs. The runs screen, the SSE stream,
 -- the tenant filters, the statistics and the waterfall are already built on
@@ -42,9 +42,9 @@ CREATE TABLE IF NOT EXISTS {schema}.workflows (
 -- `jsonb` reorders keys first by length then by byte and the discriminator stops
 -- being first; the read fails with "The metadata property ... is not the first property".
 --
--- Measured (phase 15): in the 7,537 byte checkpoint of a Sequential workflow
+-- Measured: in the 7,537 byte checkpoint of a Sequential workflow
 -- with three agents the `{"$type":0,...}` discriminator really does appear from
--- byte 1260 onward. This is exactly the fault that K-027 describes.
+-- byte 1260 onward. This is exactly the fault that describes.
 CREATE TABLE IF NOT EXISTS {schema}.workflow_checkpoints (
     id            uuid        NOT NULL PRIMARY KEY,
     tenant_id     text        NOT NULL,

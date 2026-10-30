@@ -1,4 +1,4 @@
--- Phase 47 -- replay and conversation branching.
+-- Replay and conversation branching.
 --
 -- For the rationale and the column meanings see PostgreSQL
 -- 0023_replay_and_branching.sql.

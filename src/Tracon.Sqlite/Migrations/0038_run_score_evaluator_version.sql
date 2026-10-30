@@ -1,4 +1,4 @@
--- The version that produced a score (phase 176).
+-- The version that produced a score.
 --
 -- For the rationale — why the column exists, why NULL is not "version zero"
 -- and why there is no backfill — see PostgreSQL 0051_run_score_evaluator_version.sql.

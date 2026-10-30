@@ -1,4 +1,4 @@
--- Phase 146 -- durable quota threshold notification dedup.
+-- Durable quota threshold notification dedup.
 --
 -- For the column rationale see PostgreSQL 0046_quota_threshold_notifications.sql.
 -- SQLite has no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety

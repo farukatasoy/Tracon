@@ -1,4 +1,4 @@
--- Phase 87 -- interrupted-run continuation.
+-- Interrupted-run continuation.
 --
 -- For the rationale and the column meaning see PostgreSQL
 -- 0037_run_continuation.sql.

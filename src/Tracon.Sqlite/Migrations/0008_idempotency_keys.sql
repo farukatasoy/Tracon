@@ -1,8 +1,8 @@
--- Phase 43 -- Idempotency-Key support.
+-- Idempotency-Key support.
 --
 -- For the rationale and the column meanings see PostgreSQL 0020_idempotency_keys.sql.
 --
--- 🚨 Table and index names carry the PREFIX (K-193). `key` is a RESERVED word in
+-- 🚨 Table and index names carry the PREFIX. `key` is a RESERVED word in
 -- SQLite; it is put in double quotes as "key" everywhere.
 
 CREATE TABLE IF NOT EXISTS {schema}idempotency_keys (

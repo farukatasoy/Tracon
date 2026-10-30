@@ -1,4 +1,4 @@
--- Phase 10 -- markdown based agent skills and resources.
+-- Markdown based agent skills and resources.
 
 CREATE TABLE IF NOT EXISTS {schema}.agent_skills (
     id            uuid        NOT NULL PRIMARY KEY,

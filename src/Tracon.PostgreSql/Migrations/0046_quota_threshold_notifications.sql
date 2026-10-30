@@ -1,4 +1,4 @@
--- Phase 146 -- durable quota threshold notification dedup.
+-- Durable quota threshold notification dedup.
 --
 -- notified_thresholds: a ',metric:percent,metric:percent,'-delimited list of
 -- the thresholds already claimed for THIS usage row's scope/period. NULL

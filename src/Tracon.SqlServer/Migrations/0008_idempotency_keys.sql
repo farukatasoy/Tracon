@@ -1,4 +1,4 @@
--- Phase 43 -- Idempotency-Key support.
+-- Idempotency-Key support.
 --
 -- For the rationale and the column meanings see PostgreSQL 0020_idempotency_keys.sql.
 --

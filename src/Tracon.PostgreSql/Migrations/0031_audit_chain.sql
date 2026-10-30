@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0031 — Audit trail hash chain (phase 64)
+-- 0031 — Audit trail hash chain
 --
 -- Adds `prev_hash`/`hash` to `audit_log`. Both columns are nullable: every row
 -- written BEFORE this migration has neither (the column did not exist yet) and
@@ -20,7 +20,7 @@
 --
 -- 🚨 `before`/`after` change from `jsonb` to `json`. Measured: `jsonb` does NOT
 -- round-trip the original text byte for byte (it reorders object keys and
--- changes whitespace) — the same K-027 reason `sessions.state` and
+-- changes whitespace) — the same reason `sessions.state` and
 -- `conversation_items.item` are plain `json`. The hash chain needs the EXACT
 -- text that was hashed at write time back at verify time; with `jsonb`, every
 -- entry that carried a `before`/`after` value misreported as
@@ -30,7 +30,7 @@
 -- 🚨 `chain_seq` exists ONLY to find "the tenant's most recently written row"
 -- (SqlAuditLog.SelectLastAuditHash/SelectAuditChain order by it, DESC/ASC).
 -- Measured: ordering by `(created_at, id)` — the obvious choice — is WRONG.
--- `id` is a uuid v7 (K-015); two entries written within the same TRUNCATED
+-- `id` is a uuid v7; two entries written within the same TRUNCATED
 -- microsecond (routine under concurrent writers, and now MORE likely because
 -- this migration also rounds `created_at` to microseconds) tie-break on `id`,
 -- whose low bits are RANDOM, not insertion order. A writer whose random id

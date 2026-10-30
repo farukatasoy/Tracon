@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0018 — The session primary key also covers the tenant (phase 41)
+-- 0018 — The session primary key also covers the tenant
 --
 -- 🚨 SECURITY FIX. `sessions.id` is a text given by the caller (the AgentSession
 -- id, the /v1/responses conversation id). Because it was the primary key on its

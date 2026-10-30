@@ -1,4 +1,4 @@
--- Job queue lanes (Phase 129).
+-- Job queue lanes.
 --
 -- For the rationale see PostgreSQL 0041_job_lanes.sql. SQL Server has no
 -- `ADD COLUMN IF NOT EXISTS`; the guard is an explicit catalog check, the

@@ -1,4 +1,4 @@
--- A job's own time limit (F-323).
+-- A job's own time limit.
 --
 -- For the rationale see PostgreSQL 0057_job_max_duration.sql. NULL means the job
 -- sets none and the handler key's mapped limit, if any, applies; existing rows stay

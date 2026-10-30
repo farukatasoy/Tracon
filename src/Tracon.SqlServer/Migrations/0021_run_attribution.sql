@@ -1,4 +1,4 @@
--- Phase 68 -- run attribution and the token breakdown.
+-- Run attribution and the token breakdown.
 --
 -- For the rationale and the column meanings see PostgreSQL
 -- 0034_run_attribution.sql.
@@ -10,7 +10,7 @@ IF COL_LENGTH(N'{schema}.runs', N'user_id') IS NULL
 ALTER TABLE {schema}.runs ADD user_id nvarchar(200) NULL;
 
 -- SQL Server has no jsonb: the map is JSON TEXT and is expanded with OPENJSON
--- (K-182, the same treatment arrays get). No ISJSON constraint is added, for the
+-- (the same treatment arrays get). No ISJSON constraint is added, for the
 -- same reason run_events.payload carries none -- observability does not break
 -- functionality, and a malformed map must not reject the run's own row.
 IF COL_LENGTH(N'{schema}.runs', N'labels') IS NULL

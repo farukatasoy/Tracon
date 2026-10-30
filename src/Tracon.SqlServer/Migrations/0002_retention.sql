@@ -1,4 +1,4 @@
--- Phase 25 -- data retention policy and archiving.
+-- Data retention policy and archiving.
 --
 -- NO default policy IS ADDED: an empty policy table = nothing is deleted.
 
@@ -17,9 +17,9 @@ CREATE TABLE {schema}.retention_policies (
 );
 
 -- tenant_id WAS NOT in the first draft of the doc; the tenant based policy
--- (K-198) needs the runs to be filterable by tenant as well. Because it can be
+-- needs the runs to be filterable by tenant as well. Because it can be
 -- high volume the primary key is NONCLUSTERED and the clustered index is put on
--- the time column (the same reason as K-180).
+-- the time column (the same reason).
 IF OBJECT_ID(N'{schema}.retention_runs', N'U') IS NULL
 CREATE TABLE {schema}.retention_runs (
     id            uniqueidentifier  NOT NULL CONSTRAINT retention_runs_pk PRIMARY KEY NONCLUSTERED,

@@ -1,7 +1,7 @@
--- Closes F-215: the run_scores upsert raced and its NULL/'' semantics
+-- Closes a defect: the run_scores upsert raced and its NULL/'' semantics
 -- deviated from PostgreSQL/SQLite.
 --
--- Root cause (docs/hafiza/sql-server-tuzaklari.md): 0035's UPDLOCK/SERIALIZABLE
+-- Root cause: 0035's UPDLOCK/SERIALIZABLE
 -- predicate wrapped the indexed column, `ISNULL(message_id, N'') = ISNULL(@message_id, N'')`.
 -- A wrapped column is NOT sargable, so SQL Server cannot take a range lock on
 -- `run_scores_target_author_name_idx` for it; two concurrent upserts of the

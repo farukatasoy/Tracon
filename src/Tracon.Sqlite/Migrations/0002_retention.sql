@@ -1,8 +1,8 @@
--- Phase 25 -- data retention policy and archiving.
+-- Data retention policy and archiving.
 --
 -- NO default policy IS ADDED: an empty policy table = nothing is deleted.
 --
--- 🚨 Index names also carry the TABLE PREFIX (K-193): in SQLite object names
+-- 🚨 Index names also carry the TABLE PREFIX: in SQLite object names
 -- share a single database wide namespace, they are NOT scoped by schema or
 -- table.
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS {schema}retention_policies (
 );
 
 -- tenant_id WAS NOT in the first draft of the doc; the tenant based policy
--- (K-198) needs the runs to be filterable by tenant as well.
+-- needs the runs to be filterable by tenant as well.
 CREATE TABLE IF NOT EXISTS {schema}retention_runs (
     id            TEXT    NOT NULL PRIMARY KEY,
     tenant_id     TEXT    NOT NULL,

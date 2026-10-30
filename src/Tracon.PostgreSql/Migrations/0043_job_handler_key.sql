@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0043 — The job's kind becomes an open handler key (Phase 137)
+-- 0043 — The job's kind becomes an open handler key
 --
 -- `kind` was a closed smallint enum with nine values, and all nine had a
 -- built-in handler. A consumer could therefore never add a job type: the

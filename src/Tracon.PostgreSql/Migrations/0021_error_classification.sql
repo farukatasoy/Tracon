@@ -1,13 +1,13 @@
--- Phase 44 -- error classification and failure clustering.
+-- Error classification and failure clustering.
 --
--- Three separate concepts, three separate columns (the K-151 pattern): error_type
+-- Three separate concepts, three separate columns: error_type
 -- is the IDENTITY and does not change (present since 0001_initial.sql);
 -- error_class is the CLASS (this migration); error_fingerprint is the CLUSTER
 -- (this migration). Derived information is written BESIDE the raw information,
--- not over it -- error_type is not rewritten on past rows (K-014).
+-- not over it -- error_type is not rewritten on past rows.
 --
 -- error_class can stay NULL: rows written before the error class was added
--- (K-014 -- no backfill is done). RunStatistics.ByErrorClass shows those rows
+-- (no backfill is done). RunStatistics.ByErrorClass shows those rows
 -- in the Unknown (0) bucket.
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS error_class       smallint;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS error_fingerprint text;

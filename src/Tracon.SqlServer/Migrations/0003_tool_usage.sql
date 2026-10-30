@@ -1,4 +1,4 @@
--- Phase 28 -- NON token usage and cost per tool call.
+-- NON token usage and cost per tool call.
 --
 -- For the rationale and the column meanings see PostgreSQL 0015_tool_usage.sql.
 --

@@ -1,12 +1,12 @@
--- Phase 218 -- the MCP server's `authorization_configuration_key` column goes away (F-290, K-869).
+-- The MCP server's `authorization_configuration_key` column goes away.
 --
--- The PostgreSQL twin is 0062; migration numbers are independent per provider (K-178). The
+-- The PostgreSQL twin is 0062; migration numbers are independent per provider. The
 -- rule, the four cases and the "no way back" warning are identical -- see that file's header.
 --
 -- 🚨 T-SQL compiles a batch UP FRONT, and MigrationRunner sends each file as ONE batch. The
 -- whole move runs through EXEC(N'...') behind a COL_LENGTH guard: a batch that already
 -- dropped the column and failed before the ledger write is re-run from the top, and its
--- UPDATE would not compile any more (the K-475 class).
+-- UPDATE would not compile any more.
 --
 -- JSON_MODIFY takes the new value as a plain string and escapes it. OPENJSON's `key` column
 -- has a binary collation, so the case-insensitive match lowers it first.

@@ -1,4 +1,4 @@
--- Phase 19 -- version comparison, diff and A/B experiments.
+-- Version comparison, diff and A/B experiments.
 
 -- ---------------------------------------------------------------------------
 -- Version and experiment information of runs
@@ -15,7 +15,7 @@ ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS variant       text;
 
 -- For the version based breakdown (RunStatistics.ByVersion) and the "how much
 -- did this version run" query. Partial index: rows where agent_version is empty
--- (records before phase 19) take no space in the index.
+-- (records) take no space in the index.
 CREATE INDEX IF NOT EXISTS runs_agent_version_idx
     ON {schema}.runs (tenant_id, agent_name, agent_version, started_at DESC)
     WHERE agent_version IS NOT NULL;

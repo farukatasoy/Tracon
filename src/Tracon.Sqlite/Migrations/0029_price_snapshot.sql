@@ -1,4 +1,4 @@
--- Phase 132 -- the price snapshot gains the unit prices it applied, and the
+-- The price snapshot gains the unit prices it applied, and the
 -- run gains the provider that actually answered.
 --
 -- For the rationale and the column meanings see PostgreSQL

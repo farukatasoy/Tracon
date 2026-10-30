@@ -1,4 +1,4 @@
--- Phase 28 -- NON token usage and cost per tool call.
+-- NON token usage and cost per tool call.
 --
 -- For the rationale and the column meanings see PostgreSQL 0015_tool_usage.sql.
 --
@@ -9,7 +9,7 @@
 -- `decimal` needs no special handling: the driver always writes TEXT and is
 -- culture independent (the Precision/Scale duty of SQL Server IS ABSENT here).
 --
--- 🚨 The index name carries the TABLE PREFIX (K-193): in SQLite index names
+-- 🚨 The index name carries the TABLE PREFIX: in SQLite index names
 -- share a single database wide namespace. Without the prefix two different
 -- TablePrefix values that share the same `.db` file clash and the second index
 -- is SILENTLY skipped.

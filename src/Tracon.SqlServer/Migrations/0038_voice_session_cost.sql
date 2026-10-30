@@ -1,4 +1,4 @@
--- Phase 161 -- the provider, the model and what a voice session cost.
+-- The provider, the model and what a voice session cost.
 --
 -- For the rationale and the column meanings see PostgreSQL 0050_voice_session_cost.sql.
 --

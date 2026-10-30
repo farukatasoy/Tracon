@@ -1,7 +1,7 @@
--- Phase 65 -- per-tenant model provider bindings (BYOK) and egress policy.
+-- Per-tenant model provider bindings (BYOK) and egress policy.
 --
 -- For the rationale and column meanings see PostgreSQL 0032_tenant_provider_bindings.sql.
--- allowed_providers is a JSON array (K-182): opened with OPENJSON.
+-- allowed_providers is a JSON array: opened with OPENJSON.
 
 IF OBJECT_ID(N'{schema}.tenant_provider_bindings', N'U') IS NULL
 CREATE TABLE {schema}.tenant_provider_bindings (

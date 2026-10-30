@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0051 -- an index for the files under a path prefix, by tenant (phase 234)
+-- 0051 -- an index for the files under a path prefix, by tenant
 --
 -- For the rationale see PostgreSQL 0064_agent_files_tenant_path_index.sql: the
 -- only index agent_files carried was (tenant_id, agent_name, path), and the

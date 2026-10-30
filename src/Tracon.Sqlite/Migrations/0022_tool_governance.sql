@@ -1,4 +1,4 @@
--- Phase 69 -- tool authorization (F-113) and execution timeout (F-114).
+-- Tool authorization and execution timeout.
 --
 -- For the rationale see PostgreSQL 0035_tool_governance.sql. SQLite has no
 -- boolean type; 0/1 on INTEGER is this schema's existing convention.

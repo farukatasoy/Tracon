@@ -1,4 +1,4 @@
--- Phase 227 -- the tool calls an eval case expects, with their arguments (F-605).
+-- The tool calls an eval case expects, with their arguments.
 --
 -- `expected_tools` held the tool NAMES as comma separated text and no check read it.
 -- The `toolCallArgsMatch` check reads `expected_tool_calls`: a JSON array of

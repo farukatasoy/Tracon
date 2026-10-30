@@ -1,7 +1,7 @@
 -- ---------------------------------------------------------------------------
--- 0024 — Vector based semantic search (phase 51, work item B)
+-- 0024 — Vector based semantic search (work item B)
 --
--- PostgreSQL only: rationale docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.3.
+-- PostgreSQL only: rationale.md, 51.3.
 -- Extension + one table + an HNSW index.
 --
 -- 🚨 {dimension} IS NOT A FIXED SCHEMA PLACEHOLDER (not like schema): it comes
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS {schema}.document_embeddings (
     chunk_index integer       NOT NULL,
     content     text          NOT NULL,
     -- 🚨 jsonb, NOT json: a plain string->string dictionary, it CARRIES no
-    -- polymorphic ChatMessage (K-027 does not hold here); indexability is the gain.
+    -- polymorphic ChatMessage; indexability is the gain.
     metadata    jsonb         NOT NULL DEFAULT '{}'::jsonb,
     embedding   vector({dimension}) NOT NULL,
     created_at  timestamptz   NOT NULL,
@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS document_embeddings_tenant_collection_idx
     ON {schema}.document_embeddings (tenant_id, collection);
 
 -- HNSW for cosine distance. It needs no training and works on small data too
--- (unlike IVFFlat) — see doc 51, open question 3.
+-- (unlike IVFFlat) — see doc 51.
 CREATE INDEX IF NOT EXISTS document_embeddings_hnsw_idx
     ON {schema}.document_embeddings USING hnsw (embedding vector_cosine_ops);
 

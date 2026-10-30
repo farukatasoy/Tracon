@@ -1,4 +1,4 @@
--- Persisted payload version stamps (Phase 126).
+-- Persisted payload version stamps.
 --
 -- For the rationale see PostgreSQL 0040_persisted_payload_version.sql.
 -- SQLite has no `ADD COLUMN IF NOT EXISTS`; migrations here run exactly

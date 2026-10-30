@@ -1,14 +1,14 @@
--- The score's name and shape (phase 152).
+-- The score's name and shape.
 --
 -- For the rationale — why `name` joins the uniqueness key and why `value`
 -- becomes a nullable double — see PostgreSQL 0048_run_score_name_and_shape.sql.
 --
--- 🚨 Index names carry the TABLE PREFIX (K-193): in SQLite object names share a
+-- 🚨 Index names carry the TABLE PREFIX: in SQLite object names share a
 -- single database-wide namespace.
 --
 -- 🚨 SQLite has no ALTER COLUMN, so `value integer NOT NULL` cannot be widened
 -- in place. The table is NOT rebuilt: a DROP TABLE under `foreign_keys = ON`
--- fires every ON DELETE CASCADE (K-666), and the recipe's escape hatch
+-- fires every ON DELETE CASCADE, and the recipe's escape hatch
 -- (`PRAGMA foreign_keys = OFF`) is a no-op inside the transaction the migration
 -- runner opens. `ALTER TABLE ... DROP COLUMN` is the right tool here — `value`
 -- appears in no index, which is the condition that tool requires.

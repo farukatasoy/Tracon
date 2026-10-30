@@ -1,4 +1,4 @@
--- Phase 6 — observability, tool approval, MCP and tenant management.
+-- Observability, tool approval, MCP and tenant management.
 --
 -- Tables whose schema was created in 0001 but were NOT FILLED become usable
 -- with this migration: tool_invocations, traces, spans.
@@ -104,10 +104,10 @@ CREATE INDEX IF NOT EXISTS tool_approval_rules_tenant_created_idx
 -- stored (`authorization_configuration_key`). The value is resolved at run time
 -- through IConfiguration and stays in `dotnet user-secrets` or an environment
 -- variable. So a database backup, an audit trail or a UI response never carries
--- a secret. Rationale: docs/KARARLAR.md, decision K-059.
+-- a secret.
 --
 -- `transport` smallint: 0 = StreamableHttp, 1 = SSE. Stdio IS DELIBERATELY ABSENT —
--- starting a process on the server breaks design rule K2 (decision K-058).
+-- starting a process on the server breaks the code-only tool rule.
 
 CREATE TABLE IF NOT EXISTS {schema}.mcp_servers (
     id                              uuid        NOT NULL PRIMARY KEY,

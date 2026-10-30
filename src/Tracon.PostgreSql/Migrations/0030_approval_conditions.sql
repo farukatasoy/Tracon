@@ -1,4 +1,4 @@
--- Phase 63 -- argument-level approval conditions.
+-- Argument-level approval conditions.
 --
 -- argument_conditions: the jsonb serialization of a ToolArgumentCondition[]. NULL
 -- (or an empty array) means the rule matches every call, same as a NULL

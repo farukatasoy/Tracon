@@ -1,4 +1,4 @@
--- What a run spends that is not tokens (phase 199, F-299).
+-- What a run spends that is not tokens.
 --
 -- For the rationale see PostgreSQL 0058_non_token_cost.sql. `non_token_unsummed IS NULL`
 -- is the presence marker of the snapshot: NULL means the run reported nothing, and the

@@ -1,4 +1,4 @@
--- Phase 66 -- inbound triggers: an external, signed event starts a queued run.
+-- Inbound triggers: an external, signed event starts a queued run.
 
 CREATE TABLE IF NOT EXISTS {schema}inbound_triggers (
     id                                 TEXT    NOT NULL PRIMARY KEY,
@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS {schema}inbound_triggers (
     name                               TEXT    NOT NULL,
     target_kind                        INTEGER NOT NULL,       -- 0=Agent 1=Workflow
     target_name                        TEXT    NOT NULL,
-    signing_secret_configuration_name  TEXT    NOT NULL,       -- configuration KEY NAME only (K-059)
+    signing_secret_configuration_name  TEXT    NOT NULL,       -- configuration KEY NAME only
     payload_mode                       INTEGER NOT NULL DEFAULT 0, -- 0=WholeBody 1=Path
     payload_path                       TEXT    NULL,
     enabled                            INTEGER NOT NULL DEFAULT 1,

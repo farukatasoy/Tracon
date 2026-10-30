@@ -1,7 +1,7 @@
--- Phase 63 -- argument-level approval conditions.
+-- Argument-level approval conditions.
 --
 -- For the column rationale see PostgreSQL 0030_approval_conditions.sql.
--- argument_conditions is nvarchar(max) (K-182 pattern, no ISJSON constraint --
+-- argument_conditions is nvarchar(max) (no ISJSON constraint --
 -- only the application writes it).
 --
 -- Unlike PostgreSQL/SQLite, SQL Server's UNIQUE CONSTRAINT already treats NULL

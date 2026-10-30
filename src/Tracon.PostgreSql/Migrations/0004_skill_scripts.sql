@@ -1,4 +1,4 @@
--- Phase 11 -- skill scripts and execution grants.
+-- Skill scripts and execution grants.
 
 CREATE TABLE IF NOT EXISTS {schema}.agent_skill_scripts (
     id                uuid        NOT NULL PRIMARY KEY,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS {schema}.skill_script_grants (
 -- 🚨 A plain UNIQUE (tenant_id, skill_name, script_name) IS NOT ENOUGH: in
 -- PostgreSQL no NULL is equal to any NULL, so an endless number of "all
 -- scripts" records could exist for the same skill. The same lesson was learned
--- in phase 6 on the tool_approval_rules table. The fix is a COALESCE expression index.
+-- in the tool_approval_rules table. The fix is a COALESCE expression index.
 CREATE UNIQUE INDEX IF NOT EXISTS skill_script_grants_uq
     ON {schema}.skill_script_grants (tenant_id, skill_name, COALESCE(script_name, ''));
 

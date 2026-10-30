@@ -1,4 +1,4 @@
--- Phase 55 -- asynchronous approval inbox.
+-- Asynchronous approval inbox.
 --
 -- For the rationale and the column meanings see PostgreSQL 0027_pending_approvals.sql.
 

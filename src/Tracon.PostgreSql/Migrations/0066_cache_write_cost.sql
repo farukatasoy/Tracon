@@ -1,4 +1,4 @@
--- Prompt-cache writes become the fourth term of a run's cost (phase 253, F-420).
+-- Prompt-cache writes become the fourth term of a run's cost.
 --
 -- A provider that bills a cache write apart from plain input (Anthropic: 1.25 times the
 -- input price for a five-minute entry, 2 times for a one-hour entry) charged more for it
@@ -19,7 +19,7 @@
 -- would rewrite history (a priced run is a snapshot).
 --
 -- The new `runs` columns are added AT THE END: the reader uses fixed column ordinals
--- (docs/hafiza/postgresql.md). numeric(20,10) like every other money column here.
+--numeric(20,10) like every other money column here.
 
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS cache_write_input_tokens      bigint;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS cache_write_long_input_tokens bigint;

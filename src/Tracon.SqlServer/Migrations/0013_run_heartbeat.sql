@@ -1,4 +1,4 @@
--- Phase 54 -- orphaned run reconciliation.
+-- Orphaned run reconciliation.
 --
 -- For the rationale and the column meaning see PostgreSQL 0026_run_heartbeat.sql.
 

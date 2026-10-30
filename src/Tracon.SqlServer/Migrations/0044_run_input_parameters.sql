@@ -1,4 +1,4 @@
--- The parameter values a run was started with (F-294).
+-- The parameter values a run was started with.
 --
 -- For the rationale see PostgreSQL 0056_run_input_parameters.sql. NULL means
 -- "nothing was recorded" and '{}' means "recorded, no values"; existing rows

@@ -1,4 +1,4 @@
--- Phase 262 (F-764) -- cross-instance run cancellation.
+-- Cross-instance run cancellation.
 --
 -- For the rationale and the column meaning see PostgreSQL 0069_run_cancel_request.sql.
 

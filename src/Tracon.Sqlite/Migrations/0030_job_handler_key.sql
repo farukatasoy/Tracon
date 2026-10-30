@@ -1,8 +1,8 @@
 -- ---------------------------------------------------------------------------
--- 0030 — The job's kind becomes an open handler key (Phase 137)
+-- 0030 — The job's kind becomes an open handler key
 --
 -- For the rationale and the nine-value mapping see PostgreSQL
--- 0043_job_handler_key.sql. Migration numbers are independent per provider (K-178).
+-- 0043_job_handler_key.sql. Migration numbers are independent per provider.
 --
 -- 🚨 DEVIATION FROM THE PLAN: the column is DROPPED IN PLACE, not moved by
 -- rebuilding the table (the 0006_sessions_tenant_key.sql precedent).

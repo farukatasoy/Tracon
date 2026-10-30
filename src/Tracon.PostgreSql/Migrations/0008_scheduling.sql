@@ -1,7 +1,7 @@
--- Phase 17 -- batch and scheduled runs: the job queue and schedule definitions.
+-- Batch and scheduled runs: the job queue and schedule definitions.
 
 -- Schedule DEFINITIONS. The actual jobs in the queue are in the `jobs` table;
--- this split is the same as the `workflows` / `workflow_checkpoints` split (phase 15).
+-- this split is the same as the `workflows` / `workflow_checkpoints` split.
 CREATE TABLE IF NOT EXISTS {schema}.job_schedules (
     id            uuid        NOT NULL PRIMARY KEY,
     tenant_id     text        NOT NULL,

@@ -6,7 +6,7 @@
 -- SQLite has no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety comes
 -- from the migration runner, which runs this file exactly once.
 --
--- 🚨 The index name carries the TABLE PREFIX (K-193): SQLite index names share
+-- 🚨 The index name carries the TABLE PREFIX: SQLite index names share
 -- one database-wide namespace.
 
 ALTER TABLE {schema}sessions ADD COLUMN owner_id TEXT NULL;

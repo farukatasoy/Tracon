@@ -1,4 +1,4 @@
--- The parameter values a run was started with (F-294).
+-- The parameter values a run was started with.
 --
 -- Until now a run carried its parameter values only inside the instructions
 -- text the model was sent; nothing durable said WHICH values. A replay, a
@@ -15,7 +15,6 @@
 -- The column is `json`, not `jsonb`: the value may be an encrypted envelope
 -- (ProtectedColumn.RunInputParameters) and jsonb would rewrite its key order.
 -- It is added AT THE END: the reader uses fixed column ordinals
--- (docs/hafiza/postgresql.md).
 
 ALTER TABLE {schema}.run_inputs
     ADD COLUMN IF NOT EXISTS parameters json;

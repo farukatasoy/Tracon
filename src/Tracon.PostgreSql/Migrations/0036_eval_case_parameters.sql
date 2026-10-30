@@ -1,4 +1,4 @@
--- Phase 86 -- parameterized agent input surface (F-34).
+-- Parameterized agent input surface.
 --
 -- A parameterized agent cannot be evaluated without a value for each
 -- placeholder its instructions reference; a case now carries the values a

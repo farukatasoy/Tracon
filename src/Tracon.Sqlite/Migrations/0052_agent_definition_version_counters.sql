@@ -1,4 +1,4 @@
--- Version counters of stored agent definitions (phase 248, F-409).
+-- Version counters of stored agent definitions.
 --
 -- For the rationale see PostgreSQL 0065_agent_definition_version_counters.sql. The table holds
 -- the highest version a name has ever had, with NO foreign key to `agent_definitions`: a

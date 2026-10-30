@@ -1,8 +1,8 @@
--- Phase 55 -- asynchronous approval inbox.
+-- Asynchronous approval inbox.
 --
 -- A pending approval request is a PROJECTION (the record of birth is the MAF
 -- session state); a decision reads the session, not this table
--- (docs/55-ASENKRON-ONAY-KUTUSU.md, 55.2). Columns match PendingApproval (Tracon.Abstractions).
+--Columns match PendingApproval (Tracon.Abstractions).
 
 CREATE TABLE IF NOT EXISTS {schema}.pending_approvals (
     id          uuid        NOT NULL PRIMARY KEY,
@@ -25,6 +25,6 @@ CREATE INDEX IF NOT EXISTS pending_approvals_tenant_status_idx
     ON {schema}.pending_approvals (tenant_id, status, created_at);
 
 -- The expiry scan (ApprovalExpirationService) scans ALL tenants (the same
--- precedent as K1 in ClaimOrphanedRuns): it filters by status=0 (Pending) AND expires_at.
+-- precedent in ClaimOrphanedRuns): it filters by status=0 (Pending) AND expires_at.
 CREATE INDEX IF NOT EXISTS pending_approvals_expiry_idx
     ON {schema}.pending_approvals (status, expires_at);

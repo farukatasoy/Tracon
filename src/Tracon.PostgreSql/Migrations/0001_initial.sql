@@ -1,7 +1,7 @@
 -- Tracon initial schema.
 --
 -- Rules:
---   * The consumer `public` schema is NOT TOUCHED (decision K-013).
+-- * The consumer `public` schema is NOT TOUCHED.
 --   * The `{schema}` placeholder is replaced at run time with TraconPostgreSqlOptions.SchemaName.
 --     The name is validated by SqlIdentifier.RequireSchemaName.
 --   * Time fields are `timestamptz`, always UTC.
@@ -15,7 +15,7 @@ CREATE SCHEMA IF NOT EXISTS {schema};
 -- ---------------------------------------------------------------------------
 -- `tenant_id` in other tables is the same text as this table `slug` value but
 -- it is NOT linked with a FOREIGN KEY. Reason: tenant records are managed in
--- phase 6; adding the constraint now would give an unexpected run time error
+-- An earlier change; adding the constraint now would give an unexpected run time error
 -- for a tenant that has no record. It is added when tenant management arrives.
 
 CREATE TABLE IF NOT EXISTS {schema}.tenants (
@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS {schema}.agent_definition_versions (
 -- of System.Text.Json must be the FIRST property of the object; jsonb breaks that
 -- guarantee and the read back fails with JsonException. The opaque state is also
 -- not queried, so the index support of jsonb is not needed.
--- Rationale: docs/KARARLAR.md, decision K-027.
 
 CREATE TABLE IF NOT EXISTS {schema}.sessions (
     id             text        NOT NULL PRIMARY KEY,
@@ -88,7 +87,7 @@ CREATE INDEX IF NOT EXISTS sessions_tenant_agent_updated_idx
 -- ---------------------------------------------------------------------------
 -- Conversations
 -- ---------------------------------------------------------------------------
--- PostgresChatHistoryProvider writes the chat history here. In phase 4 the OpenAI
+-- PostgresChatHistoryProvider writes the chat history here. The OpenAI
 -- compatible Conversations API uses the same tables.
 
 CREATE TABLE IF NOT EXISTS {schema}.conversations (
@@ -114,7 +113,7 @@ CREATE TABLE IF NOT EXISTS {schema}.conversation_items (
     CONSTRAINT conversation_items_conversation_seq_uq UNIQUE (conversation_id, seq)
 );
 
--- Responses API records. Phase 4 fills them.
+-- Responses API records. fills them.
 CREATE TABLE IF NOT EXISTS {schema}.responses (
     id              uuid        NOT NULL PRIMARY KEY,
     conversation_id uuid        REFERENCES {schema}.conversations (id) ON DELETE CASCADE,
@@ -160,13 +159,13 @@ CREATE INDEX IF NOT EXISTS runs_session_idx
     ON {schema}.runs (tenant_id, session_id, started_at DESC)
     WHERE session_id IS NOT NULL;
 
--- Append-only event stream (decision K-014). Events are NOT UPDATED, only appended.
+-- Append-only event stream. Events are NOT UPDATED, only appended.
 --
 -- `payload` is deliberately `text`, not `jsonb`: RunEventWriter formats tool
 -- arguments by hand to stay AOT compatible and the output can be invalid JSON.
 -- A `jsonb` column would then produce an error that stops the run.
 --
--- `created_at` is a candidate partition key; partitioning opens in phase 6 and
+-- `created_at` is a candidate partition key; partitioning may open later and
 -- the primary key must then also contain the `created_at` column.
 CREATE TABLE IF NOT EXISTS {schema}.run_events (
     run_id       uuid        NOT NULL REFERENCES {schema}.runs (id) ON DELETE CASCADE,
@@ -180,7 +179,7 @@ CREATE TABLE IF NOT EXISTS {schema}.run_events (
     CONSTRAINT run_events_pkey PRIMARY KEY (run_id, seq)
 );
 
--- Summary of tool calls. The schema is created here; phase 6 fills it.
+-- Summary of tool calls. The schema is created here; fills it.
 CREATE TABLE IF NOT EXISTS {schema}.tool_invocations (
     id           uuid        NOT NULL PRIMARY KEY,
     run_id       uuid        NOT NULL REFERENCES {schema}.runs (id) ON DELETE CASCADE,
@@ -199,7 +198,7 @@ CREATE INDEX IF NOT EXISTS tool_invocations_run_idx
 -- ---------------------------------------------------------------------------
 -- Observability and audit
 -- ---------------------------------------------------------------------------
--- The schema is created here; phase 6 fills it.
+-- The schema is created here; fills it.
 
 CREATE TABLE IF NOT EXISTS {schema}.traces (
     id         uuid        NOT NULL PRIMARY KEY,

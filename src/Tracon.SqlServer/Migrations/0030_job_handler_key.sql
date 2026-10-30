@@ -1,13 +1,13 @@
 -- ---------------------------------------------------------------------------
--- 0030 — The job's kind becomes an open handler key (Phase 137)
+-- 0030 — The job's kind becomes an open handler key
 --
 -- The PostgreSQL twin is 0043; migration numbers are independent per provider
--- (K-178). The rationale, the nine-value mapping and the statement order are
+--The rationale, the nine-value mapping and the statement order are
 -- identical -- see that file's header.
 --
 -- 🚨 T-SQL compiles a batch UP FRONT: a statement that names `handler_key` in
 -- the same batch as the ALTER TABLE that adds it fails with "Invalid column
--- name" (the K-475 class). MigrationRunner sends each file as ONE batch, so
+-- name". MigrationRunner sends each file as ONE batch, so
 -- every statement after the ADD goes through EXEC(N'...'), which is compiled
 -- only when it runs.
 -- ---------------------------------------------------------------------------

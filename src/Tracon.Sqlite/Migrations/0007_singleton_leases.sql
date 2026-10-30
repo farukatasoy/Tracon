@@ -1,9 +1,9 @@
--- Phase 42 -- single executor election lease table.
+-- Single executor election lease table.
 --
 -- For the rationale see PostgreSQL 0019_singleton_leases.sql. There is NO tenant
 -- column: single executor election is an operations concept for the installation.
 --
--- 🚨 The table name carries the PREFIX (K-193): in SQLite object names share a
+-- 🚨 The table name carries the PREFIX: in SQLite object names share a
 -- single database wide namespace. This table has no index.
 
 CREATE TABLE IF NOT EXISTS {schema}singleton_leases (

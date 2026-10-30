@@ -1,13 +1,13 @@
 -- ---------------------------------------------------------------------------
--- 0020 — Idempotency-Key support (phase 43)
+-- 0020 — Idempotency-Key support
 --
 -- Holds the requests reserved with an Idempotency-Key header and the response
 -- they store when they complete. Only two states are persistent: 0=Reserved (the
 -- request is still being processed), 2=Completed (the response is stored).
--- InProgress/FingerprintMismatch are derived at read (docs/43-IDEMPOTENCY-KEY.md, 43.2).
+-- InProgress/FingerprintMismatch are derived at read.
 --
--- The stored body carries NO SECRET (K-059): it is the same response that was
--- ALREADY sent to the client, only its lifetime gets longer (section 43.5).
+-- The stored body carries NO SECRET: it is the same response that was
+-- ALREADY sent to the client, only its lifetime gets longer.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}.idempotency_keys (

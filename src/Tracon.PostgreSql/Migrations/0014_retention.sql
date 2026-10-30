@@ -1,4 +1,4 @@
--- Phase 25 -- data retention policy and archiving.
+-- Data retention policy and archiving.
 --
 -- NO default policy IS ADDED: an empty policy table = nothing is deleted.
 -- A version upgrade must not start a deletion that nobody asked for.
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS {schema}.retention_policies (
 );
 
 -- tenant_id WAS NOT in the first draft of the doc; the tenant based policy
--- (K-198) needs the runs to be filterable by tenant as well.
+-- needs the runs to be filterable by tenant as well.
 CREATE TABLE IF NOT EXISTS {schema}.retention_runs (
     id            uuid        NOT NULL PRIMARY KEY,
     tenant_id     text        NOT NULL,

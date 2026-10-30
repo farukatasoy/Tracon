@@ -1,9 +1,9 @@
--- The score's name and shape (phase 152).
+-- The score's name and shape.
 --
 -- For the rationale — why `name` joins the uniqueness key and why `value`
 -- becomes a nullable float — see PostgreSQL 0048_run_score_name_and_shape.sql.
 --
--- 🚨 The unique index is FILTERED with `WHERE author IS NOT NULL` (K-184) and
+-- 🚨 The unique index is FILTERED with `WHERE author IS NOT NULL` and
 -- compares message_id directly, because SQL Server treats NULLs as EQUAL to one
 -- another — the OPPOSITE of PostgreSQL. 0005_run_scores.sql wrote that down and
 -- this migration preserves it; only `name` is added to the key.

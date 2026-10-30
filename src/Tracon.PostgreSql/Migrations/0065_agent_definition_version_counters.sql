@@ -1,10 +1,10 @@
--- Version counters of stored agent definitions (phase 248, F-409).
+-- Version counters of stored agent definitions.
 --
 -- A version number of an agent is an IDENTITY: a run, a workflow node, a waiting approval or
 -- an experiment arm that recorded version 3 must reach the content that was version 3, or
 -- nothing. agent_definition_versions hangs off the agent's row (ON DELETE CASCADE) and dies
 -- with it, and the version was read from that row, so deleting an agent and creating it again
--- restarted the numbering at 1: three saves later the old pin named a different content (K-811).
+-- restarted the numbering at 1: three saves later the old pin named a different content.
 --
 -- This table holds the one number that must outlive the delete: the highest version a name has
 -- ever had. A save takes `last_version + 1` from it, in the same transaction that writes the

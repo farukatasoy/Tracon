@@ -1,4 +1,4 @@
--- Phase 12 -- an agent calls an agent: the run tree.
+-- An agent calls an agent: the run tree.
 
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS parent_run_id uuid;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS root_run_id   uuid;
@@ -6,7 +6,7 @@ ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS depth         smallint NOT NU
 
 -- 🚨 NO FOREIGN KEY IS ADDED. parent_run_id points at the same table and would
 -- create a delete order constraint: deleting the root of a tree would first
--- need all of its leaves deleted. The retention policy of phase 25 (bulk delete
+-- need all of its leaves deleted. The retention policy (bulk delete
 -- of old runs) would suffer from that. An orphan parent_run_id shows in the UI
 -- as "parent run not found"; it is not a data integrity problem.
 

@@ -1,4 +1,4 @@
--- Phase 142 -- tool-approval presentation.
+-- Tool-approval presentation.
 --
 -- For the column rationale see PostgreSQL 0045_pending_approval_presentation.sql.
 -- SQLite has no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety comes

@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0006 — The session primary key also covers the tenant (phase 41)
+-- 0006 — The session primary key also covers the tenant
 --
 -- 🚨 SECURITY FIX. The rationale is the same as PostgreSQL 0018: `sessions.id`
 -- is given by the caller and while it was the primary key on its own, one

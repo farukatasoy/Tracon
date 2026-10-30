@@ -1,16 +1,15 @@
--- Tracon SQL Server schema (phase 23).
+-- Tracon SQL Server schema.
 --
 -- This file is the ACCUMULATED result of the PostgreSQL 0001-0013 migrations, not
--- a step by step repeat of them. SQL Server support opens in phase 23; there is
+-- a step by step repeat of them. SQL Server support opens; there is
 -- no installation to upgrade, so replaying the history would only produce a file
 -- that is hard to read. Later changes are added as 0002, 0003 ...
 --
 -- 🚨 The numbering DOES NOT MATCH PostgreSQL and it does not need to. Trying to
 -- match it would create a deadlock later, when a provider specific fix is needed.
--- Rationale: docs/KARARLAR.md, decision K-178.
 --
 -- Rules:
---   * The consumer `dbo` schema is NOT TOUCHED (decision K-013).
+-- * The consumer `dbo` schema is NOT TOUCHED.
 --   * The `{schema}` placeholder is replaced at run time with
 --     TraconSqlServerOptions.SchemaName. SqlIdentifier.RequireSchemaName validates it.
 --   * Time fields are `datetimeoffset(7)`, always written as UTC.
@@ -34,7 +33,6 @@
 -- primary key produces page splits. On heavily written tables the primary key is
 -- made NONCLUSTERED and the clustered index is put on the time column. On low
 -- volume configuration tables the default (clustered PK) is kept.
--- Rationale: docs/KARARLAR.md, decision K-180.
 
 -- ---------------------------------------------------------------------------
 -- Tenants
@@ -91,7 +89,7 @@ CREATE TABLE {schema}.agent_definition_versions (
 -- ---------------------------------------------------------------------------
 -- `state` is the SerializeSessionAsync output of Microsoft Agent Framework and it is OPAQUE.
 --
--- K-027 DOES NOT HOLD HERE: in PostgreSQL this column is `json` (not jsonb)
+-- That decision DOES NOT HOLD HERE: in PostgreSQL this column is `json` (not jsonb)
 -- because jsonb reorders the object keys and moves the polymorphic `$type`
 -- discriminator of System.Text.Json away from being the first property. On SQL
 -- Server JSON is stored as text and the order is already kept; the problem does
@@ -240,7 +238,7 @@ CREATE INDEX runs_experiment_idx ON {schema}.runs (experiment_id, variant) WHERE
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'runs_tenant_cost_idx' AND object_id = OBJECT_ID(N'{schema}.runs'))
 CREATE INDEX runs_tenant_cost_idx ON {schema}.runs (tenant_id, started_at DESC) WHERE input_cost IS NOT NULL;
 
--- Append-only event stream (decision K-014). Events are NOT UPDATED, only appended.
+-- Append-only event stream. Events are NOT UPDATED, only appended.
 --
 -- `payload` is deliberately free text and CARRIES NO ISJSON constraint:
 -- RunEventWriter formats tool arguments by hand to stay AOT compatible and the
@@ -352,7 +350,6 @@ CREATE INDEX audit_log_tenant_created_idx ON {schema}.audit_log (tenant_id, crea
 -- NULL is equal to any NULL and a plain UNIQUE would let the same rule be added
 -- endlessly. THIS IS NOT NEEDED ON SQL SERVER: a unique index treats NULLs as
 -- EQUAL and allows a single NULL row -- which is exactly the wanted behaviour.
--- Rationale: docs/KARARLAR.md, decision K-184.
 
 IF OBJECT_ID(N'{schema}.tool_approval_rules', N'U') IS NULL
 CREATE TABLE {schema}.tool_approval_rules (
@@ -375,9 +372,9 @@ CREATE INDEX tool_approval_rules_tenant_created_idx ON {schema}.tool_approval_ru
 -- 🚨 CARRIES NO SECRET. The VALUE of the authentication header and of the OAuth
 -- client secret is not stored here; only the NAME of the configuration key that
 -- the value is read from is stored. The value is resolved at run time through
--- IConfiguration. Rationale: docs/KARARLAR.md, decision K-059.
+-- IConfiguration.
 --
--- `transport` smallint: 0 = StreamableHttp, 1 = SSE. Stdio IS DELIBERATELY ABSENT (K-058).
+-- `transport` smallint: 0 = StreamableHttp, 1 = SSE. Stdio IS DELIBERATELY ABSENT.
 
 IF OBJECT_ID(N'{schema}.mcp_servers', N'U') IS NULL
 CREATE TABLE {schema}.mcp_servers (
@@ -459,7 +456,7 @@ CREATE TABLE {schema}.agent_skill_scripts (
 );
 
 -- SQL Server treats NULLs as equal in a unique index; a COALESCE expression
--- index is not needed (K-184).
+-- index is not needed.
 IF OBJECT_ID(N'{schema}.skill_script_grants', N'U') IS NULL
 CREATE TABLE {schema}.skill_script_grants (
     id          uniqueidentifier  NOT NULL CONSTRAINT skill_script_grants_pk PRIMARY KEY,
@@ -480,7 +477,7 @@ CREATE INDEX skill_script_grants_lookup_idx ON {schema}.skill_script_grants (ten
 -- Attachments and persistent agent file memory
 -- ---------------------------------------------------------------------------
 -- `session_id` is DELIBERATELY NOT a foreign key: an attachment can be uploaded
--- before its own session is ever opened (K-112).
+-- before its own session is ever opened.
 
 IF OBJECT_ID(N'{schema}.attachments', N'U') IS NULL
 CREATE TABLE {schema}.attachments (
@@ -535,7 +532,7 @@ CREATE TABLE {schema}.workflows (
     CONSTRAINT workflows_tenant_name_uq UNIQUE (tenant_id, name)
 );
 
--- K-027 does not hold here (see the sessions.state note): SQL Server stores JSON
+-- The earlier decision does not hold here (see the sessions.state note): SQL Server stores JSON
 -- as text and the `$type` discriminator stays the first property.
 IF OBJECT_ID(N'{schema}.workflow_checkpoints', N'U') IS NULL
 CREATE TABLE {schema}.workflow_checkpoints (
@@ -610,7 +607,6 @@ CREATE TABLE {schema}.jobs (
 -- constraint. SQL Server treats NULLs as EQUAL; a plain unique constraint would
 -- stop a second job without a schedule. The constraint is therefore a FILTERED
 -- unique index and it covers only jobs bound to a schedule.
--- Rationale: docs/KARARLAR.md, decision K-184.
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'jobs_schedule_scheduled_uq' AND object_id = OBJECT_ID(N'{schema}.jobs'))
 CREATE UNIQUE INDEX jobs_schedule_scheduled_uq ON {schema}.jobs (schedule_id, scheduled_for) WHERE schedule_id IS NOT NULL;
@@ -742,7 +738,7 @@ CREATE INDEX experiments_tenant_agent_idx ON {schema}.experiments (tenant_id, ag
 -- Quota and event publishing
 -- ---------------------------------------------------------------------------
 -- SQL Server treats NULLs as equal in a unique index; a rule with a NULL
--- `agent_name` can be added only once (K-184).
+-- `agent_name` can be added only once.
 
 IF OBJECT_ID(N'{schema}.quotas', N'U') IS NULL
 CREATE TABLE {schema}.quotas (
@@ -774,7 +770,6 @@ CREATE TABLE {schema}.quota_usage (
 
 -- 🚨 `events` IS A JSON ARRAY. SQL Server has no array type; the PostgreSQL
 -- `text[]` column becomes JSON text here and queries open it with OPENJSON.
--- Rationale: docs/KARARLAR.md, decision K-182.
 IF OBJECT_ID(N'{schema}.webhook_subscriptions', N'U') IS NULL
 CREATE TABLE {schema}.webhook_subscriptions (
     id                       uniqueidentifier  NOT NULL CONSTRAINT webhook_subscriptions_pk PRIMARY KEY,

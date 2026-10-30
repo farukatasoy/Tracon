@@ -1,7 +1,7 @@
--- Phase 56 -- canary release and automatic rollback.
+-- Canary release and automatic rollback.
 --
 -- For the rationale and the column meanings see PostgreSQL
--- 0028_experiment_canary.sql. canary_policy is nvarchar(max) (as in the K-182
+-- 0028_experiment_canary.sql. canary_policy is nvarchar(max) (as
 -- pattern NO ISJSON CONSTRAINT is added -- the same reason as
 -- audit_log.before/after: only the application writes it, no validation needed).
 

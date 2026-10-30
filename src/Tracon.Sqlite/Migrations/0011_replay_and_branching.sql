@@ -1,9 +1,9 @@
--- Phase 47 -- replay and conversation branching.
+-- Replay and conversation branching.
 --
 -- For the rationale and the column meanings see PostgreSQL
 -- 0023_replay_and_branching.sql.
 --
--- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- 🚨 Table and index names carry the PREFIX: SQLite has no schema and
 -- index names share a single database wide namespace.
 --
 -- 🚨 There is no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety comes

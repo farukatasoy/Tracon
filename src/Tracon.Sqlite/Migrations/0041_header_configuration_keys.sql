@@ -1,4 +1,4 @@
--- Credential headers declared by the NAME of their configuration key (phase 190).
+-- Credential headers declared by the NAME of their configuration key.
 --
 -- For the rationale see PostgreSQL 0054_header_configuration_keys.sql. Same shape
 -- as `headers`: TEXT, `{}` default, json_valid check.

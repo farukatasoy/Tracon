@@ -1,9 +1,8 @@
--- Phase 20 -- run cost: the price snapshot (the continuation of K-032).
+-- Run cost: the price snapshot.
 
 -- input_cost/output_cost are `numeric(20,10)` -- binary floating point is not
 -- used in money arithmetic. Both can stay NULL: if the price is undefined the
--- value written is NULL, not ZERO (see RunPricingResolver,
--- docs/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.1).
+-- value written is NULL, not ZERO (see RunPricingResolver).
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS input_cost     numeric(20,10);
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS output_cost    numeric(20,10);
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS cost_currency  text;

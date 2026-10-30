@@ -1,8 +1,8 @@
--- Phase 209 -- the inbox of workflow requests (F-319, K-128 reopened).
+-- The inbox of workflow requests.
 --
 -- For the rationale and the column meanings see PostgreSQL 0061_workflow_requests.sql.
 --
--- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- 🚨 Table and index names carry the PREFIX: SQLite has no schema and
 -- index names share a single database wide namespace.
 
 CREATE TABLE IF NOT EXISTS {schema}workflow_requests (

@@ -1,4 +1,4 @@
--- Read contract views, second definition (Phase 253, F-420). Opt-in via
+-- Read contract views, second definition. Opt-in via
 -- TraconSqliteOptions.EnableReadViews.
 --
 -- Prompt-cache writes became the FOURTH term of a run's cost: `cache_write_cost` is a
@@ -7,7 +7,7 @@
 -- the list -- adding a column is free, and the existing ones keep their name, order and
 -- type. The first definition (0001) is an applied migration and stays as it was.
 --
--- Rules (docs/111-OKUMA-SOZLESMESI-GORUNUMLERI.md, 111.1):
+-- Rules:
 --   * A published view never loses a column, renames a column, or narrows a
 --     column's type. Adding a column is free. A breaking change ships as a
 --     NEW view (runs_v2), the old one keeps working for at least one major
@@ -18,7 +18,7 @@
 --   * Read-only. Writing goes through the store interfaces, never the view.
 --
 -- SQLite has no schema concept; {schema} is the table prefix, concatenated
--- directly (K-190) -- "{schema}runs_v1", not "{schema}.runs_v1".
+-- directly -- "{schema}runs_v1", not "{schema}.runs_v1".
 --
 -- SQLite has no CREATE OR REPLACE VIEW; DROP + CREATE is the idempotent form.
 -- No transaction wraps this pair by itself, but MigrationRunner applies the
@@ -64,12 +64,12 @@ SELECT
     input_cost,
     output_cost,
     cached_input_cost,
-    -- total_cost: BEGIN (kept in sync with SqlQueriesBase.CostAddends -- K-483:
+    -- total_cost: BEGIN (kept in sync with SqlQueriesBase.CostAddends:
     -- NULL only when ALL addends are NULL, otherwise the non-null ones sum).
     -- A fifth *_cost column added to `runs` without being added HERE is
     -- caught by ReadViewCostTermTests at build time, not in production.
     -- 🚨 input_cost/output_cost/cache_write_cost carry TEXT affinity,
-    -- cached_input_cost carries NUMERIC affinity (docs/hafiza/sql-saglayicilari.md)
+    -- cached_input_cost carries NUMERIC affinity
     -- -- an explicit CAST to REAL on every addend is required, or the sum
     -- silently reads a non-numeric term as 0 instead of failing loudly.
     CASE

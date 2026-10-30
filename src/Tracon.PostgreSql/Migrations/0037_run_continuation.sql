@@ -1,12 +1,11 @@
 -- ---------------------------------------------------------------------------
--- 0037 — Interrupted-run continuation (phase 87)
+-- 0037 — Interrupted-run continuation
 --
 -- runs.continued_from_run_id — lineage. Shows which interrupted run this one
 -- continues. Same pattern as replay_of_run_id (0023): the column is added AT
 -- THE END, no foreign key (the source run can be deleted by the retention
 -- policy without affecting the continuation).
 --
--- Rationale: docs/87-KESILEN-ISIN-DEVAMI.md
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE {schema}.runs

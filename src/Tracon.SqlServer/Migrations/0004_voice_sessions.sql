@@ -1,4 +1,4 @@
--- Phase 29 -- summary record of real time speech connections.
+-- Summary record of real time speech connections.
 --
 -- For the rationale and the column meanings see PostgreSQL 0016_voice_sessions.sql.
 --

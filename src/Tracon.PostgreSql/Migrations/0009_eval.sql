@@ -1,4 +1,4 @@
--- Phase 18 -- evaluation (eval): suite, case, run and case result tables.
+-- Evaluation (eval): suite, case, run and case result tables.
 
 CREATE TABLE IF NOT EXISTS {schema}.eval_suites (
     id          uuid        NOT NULL PRIMARY KEY,

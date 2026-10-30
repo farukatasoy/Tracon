@@ -1,11 +1,11 @@
--- Phase 132 -- the price snapshot gains the unit prices it applied, and the
+-- The price snapshot gains the unit prices it applied, and the
 -- run gains the provider that actually answered.
 --
 -- 🚨 model_provider is NOT a cost addend and carries no rate: it is who
 -- answered, the same role model_id already plays for what answered. The three
 -- price columns are RATES (per million tokens), not amounts -- they are never
 -- summed into a run's total cost (RunCost.Total() sums input_cost/output_cost/
--- cached_input_cost only, K-483's rule; SqlQueriesBase.CostAddends does not
+-- cached_input_cost only, the rule; SqlQueriesBase.CostAddends does not
 -- list these three).
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS model_provider text;
 

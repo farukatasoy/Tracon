@@ -1,4 +1,4 @@
--- Phase 45 -- promotion of a production run to an eval case (F-53).
+-- Promotion of a production run to an eval case.
 --
 -- For the rationale and the column meanings see PostgreSQL 0022_eval_case_source.sql.
 
@@ -12,7 +12,7 @@ IF COL_LENGTH(N'{schema}.eval_cases', N'promoted_at') IS NULL
 ALTER TABLE {schema}.eval_cases ADD promoted_at datetimeoffset NULL;
 
 -- Partial (filtered) unique index: rows where source_run_id is NULL (written by
--- hand) stay outside the constraint. The syntax is the same as PostgreSQL (K-178).
+-- hand) stay outside the constraint. The syntax is the same as PostgreSQL.
 --
 -- 🚨 Wrapped in EXEC: source_run_id is added above with ALTER TABLE in the SAME
 -- batch; without EXEC it gives "Invalid column name" (see 0003_tool_usage.sql).

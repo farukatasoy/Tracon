@@ -1,4 +1,4 @@
--- Version history of stored workflow definitions (phase 200, F-300).
+-- Version history of stored workflow definitions.
 --
 -- For the rationale see PostgreSQL 0059_workflow_definition_versions.sql. The key is
 -- (tenant_id, name, version) with NO foreign key to `workflows`: a version number is an

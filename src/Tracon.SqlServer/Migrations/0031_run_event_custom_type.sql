@@ -1,8 +1,8 @@
--- Phase 141 -- the run event stream gains an escape hatch for a consumer's
+-- The run event stream gains an escape hatch for a consumer's
 -- own event: RunEventType.Custom, qualified by a namespaced CustomType string.
 --
 -- For the rationale see PostgreSQL 0044_run_event_custom_type.sql. Migration
--- numbers are independent per provider (K-178).
+-- numbers are independent per provider.
 --
 -- 🚨 nvarchar(200), like tool_name: bounded because CustomType is validated
 -- to 1-128 characters at write time (RunEventCustomTypes.IsValidType), no

@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0048 — The score's name and shape (phase 152)
+-- 0048 — The score's name and shape
 --
 -- Two limits are lifted at once.
 --
@@ -23,7 +23,6 @@
 -- is dropped and `name` is filled, and `name` cannot be made NOT NULL before
 -- every existing row carries one.
 --
--- Rationale: docs/152-SKORUN-ADI-VE-SEKLI.md, sections 152.2, 152.3, 152.5.
 -- ---------------------------------------------------------------------------
 
 -- DEFAULT 'overall' is kept on the column, not dropped after the backfill: it

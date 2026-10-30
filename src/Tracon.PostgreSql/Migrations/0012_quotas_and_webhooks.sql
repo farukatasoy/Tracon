@@ -1,17 +1,17 @@
--- Phase 21 -- quota, rate limit counters and event publishing (webhook).
+-- Quota, rate limit counters and event publishing (webhook).
 
 -- ---------------------------------------------------------------------------
 -- Job queue: attempt limit per job
 -- ---------------------------------------------------------------------------
 -- Webhook delivery uses a different ladder (5 attempts) from the general
--- `Tracon:Scheduling:MaxAttempts` setting. NULL = the general setting holds (K-160).
+-- `Tracon:Scheduling:MaxAttempts` setting. NULL = the general setting holds.
 ALTER TABLE {schema}.jobs ADD COLUMN IF NOT EXISTS max_attempts smallint;
 
 -- ---------------------------------------------------------------------------
 -- Quota definitions
 -- ---------------------------------------------------------------------------
 -- The rate limit (second/minute) and the quota (day/month) are SEPARATE concepts:
--- the rate limit lives in memory, the quota here. See docs/21-KOTA-VE-OLAY-YAYINI.md, 21.2.
+-- the rate limit lives in memory, the quota here.
 CREATE TABLE IF NOT EXISTS {schema}.quotas (
     id           uuid           NOT NULL PRIMARY KEY,
     tenant_id    text           NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS {schema}.quotas (
 
 -- 🚨 In PostgreSQL NULLs are not equal to each other: a plain UNIQUE would let
 -- the same rule with a NULL agent_name be added endlessly. The skill_scripts
--- lesson of phase 11 (docs/hafiza/postgresql.md).
+-- lesson of an earlier change.
 CREATE UNIQUE INDEX IF NOT EXISTS quotas_scope_uq
     ON {schema}.quotas (tenant_id, COALESCE(agent_name, ''), period);
 
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS {schema}.webhook_subscriptions (
     name                     text        NOT NULL,
     url                      text        NOT NULL,
     events                   text[]      NOT NULL,
-    -- 🚨 KEY NAME -- NOT A SECRET (K-059). The signing secret DOES NOT STAY in
+    -- 🚨 KEY NAME -- NOT A SECRET. The signing secret DOES NOT STAY in
     -- the database; only the name of the configuration key that the value is read
     -- from stays, and the value is resolved at run time through IConfiguration.
     secret_configuration_key text,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS {schema}.webhook_subscriptions (
 -- Delivery history
 -- ---------------------------------------------------------------------------
 -- This table IS NOT A QUEUE: scheduling and leasing live in the `jobs` table of
--- phase 17 (K-160). The `attempt` here only reports history.
+-- The `attempt` here only reports history.
 CREATE TABLE IF NOT EXISTS {schema}.webhook_deliveries (
     id              uuid        NOT NULL PRIMARY KEY,
     subscription_id uuid        NOT NULL REFERENCES {schema}.webhook_subscriptions (id) ON DELETE CASCADE,

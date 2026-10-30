@@ -1,4 +1,4 @@
--- Phase 14 -- multimodality: uploaded attachments and persistent agent file memory.
+-- Multimodality: uploaded attachments and persistent agent file memory.
 
 -- `content` is deliberately `bytea`, not base64 text. `external_uri` is filled
 -- only if IAttachmentStorage is registered; the two are never filled together.
@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS attachments_session_idx
     ON {schema}.attachments (tenant_id, session_id)
     WHERE session_id IS NOT NULL;
 
--- Persistent AgentFileStore (handed over from phase 13): the path/content pair
+-- Persistent AgentFileStore (handed over): the path/content pair
 -- that FileMemoryProvider and TextSearchProvider use. The content is text
 -- (Microsoft.Agents.AI.AgentFileStore.ReadAsync/WriteAsync returns 'String'),
 -- so a separate table is needed instead of `attachments.content` (bytea).

@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0040 — Persisted payload version stamps (Phase 126)
+-- 0040 — Persisted payload version stamps
 --
 -- `sessions.schema_version` already existed (0001_initial.sql) and has
 -- always been stamped — there is no "unstamped" era for it. It is renamed

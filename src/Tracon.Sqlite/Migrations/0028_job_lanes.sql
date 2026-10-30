@@ -1,10 +1,10 @@
--- Job queue lanes (Phase 129).
+-- Job queue lanes.
 --
 -- For the rationale see PostgreSQL 0041_job_lanes.sql. SQLite has no
 -- `ADD COLUMN IF NOT EXISTS`; migrations here run exactly once, tracked by
 -- the migration table, so the bare ADD COLUMN is correct.
 --
--- 🚨 The index name carries the TABLE PREFIX (K-193): in SQLite index names
+-- 🚨 The index name carries the TABLE PREFIX: in SQLite index names
 -- share a single database wide namespace.
 
 ALTER TABLE {schema}jobs ADD COLUMN lane TEXT NOT NULL DEFAULT 'default';

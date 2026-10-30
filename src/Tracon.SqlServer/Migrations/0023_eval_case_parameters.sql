@@ -1,4 +1,4 @@
--- Phase 86 -- parameterized agent input surface (F-34).
+-- Parameterized agent input surface.
 --
 -- For the rationale see PostgreSQL 0036_eval_case_parameters.sql.
 IF COL_LENGTH(N'{schema}.eval_cases', N'parameters') IS NULL

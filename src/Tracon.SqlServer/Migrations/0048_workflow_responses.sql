@@ -1,8 +1,8 @@
--- Phase 208 -- the answers to workflow requests (F-319).
+-- The answers to workflow requests.
 --
 -- For the rationale and the column meanings see PostgreSQL 0060_workflow_responses.sql.
 -- The claim index is a filtered unique index; '<>' is allowed in its filter (measured on
--- SQL Server 2022, phase 208). Key size: 3 x nvarchar(200) = 1200 bytes, under 1700.
+-- SQL Server 2022). Key size: 3 x nvarchar(200) = 1200 bytes, under 1700.
 
 IF OBJECT_ID(N'{schema}.workflow_responses', N'U') IS NULL
 CREATE TABLE {schema}.workflow_responses (

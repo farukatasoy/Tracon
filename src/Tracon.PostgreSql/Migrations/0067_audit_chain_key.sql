@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0067 -- Audit trail chain key (phase 260, F-758)
+-- 0067 -- Audit trail chain key
 --
 -- Adds `key_id` to `audit_log`: the id of the key that signed the row, or NULL for a row
 -- written without one.
@@ -13,7 +13,7 @@
 --
 -- THE KEY VALUE IS NOT HERE. `key_id` is a NAME (`2026-10`). The value lives in
 -- configuration (`Tracon:AuditChainKeys:<id>`) and is never written to the database, a log
--- or a response (K-059). The id is also part of the signed text, so pointing a stored row
+-- or a response. The id is also part of the signed text, so pointing a stored row
 -- at another known key breaks that row's hash.
 --
 -- NO BACKFILL. A row written before this migration has no key and keeps its plain SHA-256;

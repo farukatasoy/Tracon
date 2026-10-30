@@ -1,4 +1,4 @@
--- Phase 64 -- audit trail hash chain.
+-- Audit trail hash chain.
 --
 -- For the rationale (nullable columns, no backfill, filtered unique index) see
 -- PostgreSQL 0031_audit_chain.sql.

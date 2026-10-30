@@ -1,8 +1,8 @@
--- Phase 53 -- per tenant API keys and scopes.
+-- Per tenant API keys and scopes.
 --
 -- For the rationale and the column meanings see PostgreSQL 0025_api_keys.sql.
 --
--- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- 🚨 Table and index names carry the PREFIX: SQLite has no schema and
 -- index names share a single database wide namespace.
 
 CREATE TABLE IF NOT EXISTS {schema}api_keys (

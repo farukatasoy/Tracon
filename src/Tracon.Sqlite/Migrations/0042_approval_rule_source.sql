@@ -5,7 +5,7 @@
 --
 -- 🚨 SQLite has no `ADD COLUMN IF NOT EXISTS`. The guard is the migration
 -- ledger: a numbered file runs exactly once, so a plain ADD COLUMN is correct.
--- The index name carries the TABLE PREFIX (K-193).
+-- The index name carries the TABLE PREFIX.
 
 ALTER TABLE {schema}tool_approval_rules ADD COLUMN source_fingerprint TEXT;
 

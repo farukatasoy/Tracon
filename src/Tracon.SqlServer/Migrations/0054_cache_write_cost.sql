@@ -1,4 +1,4 @@
--- Prompt-cache writes become the fourth term of a run's cost (phase 253, F-420).
+-- Prompt-cache writes become the fourth term of a run's cost.
 --
 -- For the rationale and the column meanings see PostgreSQL 0066_cache_write_cost.sql.
 --

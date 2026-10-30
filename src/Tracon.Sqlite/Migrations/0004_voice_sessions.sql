@@ -1,8 +1,8 @@
--- Phase 29 -- summary record of real time speech connections.
+-- Summary record of real time speech connections.
 --
 -- For the rationale and the column meanings see PostgreSQL 0016_voice_sessions.sql.
 --
--- 🚨 Table and index names carry the PREFIX (K-193): in SQLite object names
+-- 🚨 Table and index names carry the PREFIX: in SQLite object names
 -- share a single database wide namespace. Without the prefix two different
 -- TablePrefix values that share the same `.db` file clash.
 --

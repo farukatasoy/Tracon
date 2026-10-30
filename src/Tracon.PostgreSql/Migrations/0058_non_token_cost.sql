@@ -1,4 +1,4 @@
--- What a run spends that is not tokens (phase 199, F-299).
+-- What a run spends that is not tokens.
 --
 -- A workflow function node reports the characters it synthesized, the seconds it
 -- rendered, the GPU minutes it used; a tool already measured its own (0015). Until
@@ -25,7 +25,6 @@
 -- reported a number for them.
 --
 -- The new `runs` columns are added AT THE END: the reader uses fixed column ordinals
--- (docs/hafiza/postgresql.md).
 
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS non_token_cost      numeric(20,10);
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS non_token_currency  text;

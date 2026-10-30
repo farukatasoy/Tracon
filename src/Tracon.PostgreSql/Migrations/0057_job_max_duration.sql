@@ -1,4 +1,4 @@
--- A job's own time limit (F-323).
+-- A job's own time limit.
 --
 -- The worker cancels the handler's token when one attempt runs longer than this.
 -- NULL means the job sets none: TraconSchedulingOptions.MaxDurationByHandlerKey
@@ -7,7 +7,7 @@
 --
 -- Whole milliseconds, as `bigint`: the timer accepts up to about 49.7 days, which is
 -- past an `int` of milliseconds. The column is added AT THE END: the reader uses
--- fixed column ordinals (docs/hafiza/postgresql.md).
+-- fixed column ordinals.
 
 ALTER TABLE {schema}.jobs
     ADD COLUMN IF NOT EXISTS max_duration_ms bigint;

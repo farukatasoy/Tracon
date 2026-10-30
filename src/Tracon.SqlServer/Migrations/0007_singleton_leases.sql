@@ -1,4 +1,4 @@
--- Phase 42 -- single executor election lease table.
+-- Single executor election lease table.
 --
 -- For the rationale see PostgreSQL 0019_singleton_leases.sql. There is NO tenant
 -- column: single executor election is an operations concept for the installation.

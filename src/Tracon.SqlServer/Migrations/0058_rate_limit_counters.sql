@@ -1,4 +1,4 @@
--- Phase 263 (F-92) -- shared rate-limit counter.
+-- Shared rate-limit counter.
 --
 -- For the rationale and the column meaning see PostgreSQL 0070_rate_limit_counters.sql. There is NO
 -- tenant column: the tenant is part of the partition key.

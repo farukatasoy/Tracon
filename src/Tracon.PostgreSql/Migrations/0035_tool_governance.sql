@@ -1,4 +1,4 @@
--- Phase 69 -- tool authorization (F-113) and execution timeout (F-114).
+-- Tool authorization and execution timeout.
 --
 -- A denied call returns a normal (non-exceptional) result to the model, so it
 -- cannot be told apart from an ordinary success by inspecting `error` alone;
