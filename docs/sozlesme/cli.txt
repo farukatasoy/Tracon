@@ -4,8 +4,10 @@
 # breaking change for a consumer, a new line is not (scripts/sozlesme_kirilma.py).
 command agent-skill
 command eval
+command export
 command health
 command help
+command import
 command migrate
 command migrate status
 command state-check
@@ -28,9 +30,21 @@ option eval --suite
 option eval --timeout
 option eval --token
 option eval --url
+option export --agent
+option export --output
+option export --token
+option export --types
+option export --url
+option export --workflow
 option health --json
 option health --token
 option health --url
+option import --apply
+option import --file
+option import --json
+option import --token
+option import --types
+option import --url
 option migrate --connection
 option migrate --provider
 option migrate status --connection

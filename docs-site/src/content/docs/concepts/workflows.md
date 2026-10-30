@@ -132,6 +132,11 @@ name again continues the numbering: after version 3 and a delete, the next save 
 4. The kept versions are not served over HTTP while the workflow is deleted. A workflow
 stored before versions were kept starts its history at the version it has today.
 
+A stored workflow can move to another installation or tenant as a file. The import writes it
+as a new version of the workflow the target already holds (or as its first version), and it
+translates an agent version a node pins to the version the target holds. See [Move
+definitions between installations](/guides/move-definitions/).
+
 ### A resume compiles the version the run recorded
 
 The row of a workflow run records the definition version it was compiled from, as

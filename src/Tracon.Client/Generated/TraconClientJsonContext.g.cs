@@ -44,6 +44,8 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(ConversationResource))]
 [JsonSerializable(typeof(CurrentTenantResponse))]
 [JsonSerializable(typeof(DataSubjectErasureResult))]
+[JsonSerializable(typeof(DefinitionBundle))]
+[JsonSerializable(typeof(DefinitionImportReport))]
 [JsonSerializable(typeof(DeletedResource))]
 [JsonSerializable(typeof(EvalCase))]
 [JsonSerializable(typeof(EvalCasePromotionRequest))]

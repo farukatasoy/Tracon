@@ -1,6 +1,6 @@
 namespace Tracon.Cli;
 
-/// <summary>Reads <c>--name value</c> style arguments by hand — three commands do not need a full parser library.</summary>
+/// <summary>Reads <c>--name value</c> style arguments by hand — a handful of commands do not need a full parser library.</summary>
 internal static class CliArgs
 {
     /// <summary>Returns the value following <paramref name="name"/>, or <see langword="null"/> if absent.</summary>
@@ -15,6 +15,22 @@ internal static class CliArgs
         }
 
         return null;
+    }
+
+    /// <summary>Returns every value that follows <paramref name="name"/>, in order, for an option that may repeat.</summary>
+    public static IReadOnlyList<string> GetOptions(IReadOnlyList<string> args, string name)
+    {
+        var values = new List<string>();
+
+        for (var i = 0; i < args.Count - 1; i++)
+        {
+            if (string.Equals(args[i], name, StringComparison.Ordinal))
+            {
+                values.Add(args[i + 1]);
+            }
+        }
+
+        return values;
     }
 
     /// <summary>Returns whether a bare flag (no value) is present.</summary>

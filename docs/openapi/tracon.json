@@ -7352,6 +7352,177 @@
         }
       }
     },
+    "/tracon/api/definitions/export": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "Definitions"
+        ],
+        "summary": "Exports definitions as one tracon.definitions file.",
+        "description": "Writes the agents, workflows, skills and MCP servers the caller\u0027s tenant keeps in the database as one JSON file, ready for POST /api/definitions/import on another installation or tenant. With no query parameter every definition of the four kinds is written. \u0027?agent=\u0027 and \u0027?workflow=\u0027 (each may repeat) name the definitions to start from, and the file also carries what they need: the stored skills an agent loads, the agents it calls, reviews with or shares instructions from, and the MCP servers whose tools it uses. \u0027?types=\u0027 (agents, workflows, skills, mcpServers; comma separated) writes every definition of the kinds named and nothing else; naming definitions and kinds in one call is refused with 400. An agent defined in code or in a custom source is not exported; a closure that reaches one leaves it out and says so in \u0027warnings\u0027. The file carries no tenant, no version history, no run, no session, no secret, no OAuth token, no script permission and no plain MCP header value: an MCP server travels with the NAMES of its headers and the names of the configuration keys its credentials are read from. A workflow in the file needs the \u0027WorkflowsRead\u0027 scope as well when the call uses an API key (403 otherwise). The export is written to the audit trail with its counts, never its content.",
+        "operationId": "TraconExportDefinitions",
+        "parameters": [
+          {
+            "name": "agent",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "workflow",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinitionBundle"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tracon/api/definitions/import": {
+      "post": {
+        "tags": [
+          "Tracon",
+          "Definitions"
+        ],
+        "summary": "Plans, validates and imports a tracon.definitions file.",
+        "description": "\u0027?dryRun=\u0027 DEFAULTS TO TRUE: a bare call plans and validates the file and writes nothing. \u0027?dryRun=false\u0027 writes, and needs the Admin role. The report names, for every item, what the import does: \u0027create\u0027 (the target has no such definition), \u0027newVersion\u0027 (an agent or workflow with other content; the history grows by one version), \u0027update\u0027 (a skill or MCP server with other content, overwritten in place), \u0027unchanged\u0027 (the target already holds the same content; nothing is written, so importing the same file twice is safe), \u0027rejected\u0027 (a write rule refuses it), \u0027blocked\u0027 (it waits for an earlier step) or \u0027skipped\u0027 (its kind is not in \u0027?types=\u0027). \u0027changedPaths\u0027 lists the JSON paths that differ, and \u0027current\u0027 and \u0027incoming\u0027 hold the two definitions side by side. Validation is complete before the first write: every item passes the same rules the save endpoints apply, with the agents and skills of the file counted as already saved, so an agent may call, pin, review with or share instructions from another agent of the same file. When any item is refused, nothing is written: a dry run answers 200 with \u0027valid: false\u0027, and \u0027?dryRun=false\u0027 answers 400 with the same report. A version pin in the file names the version the SOURCE installation gave an agent; the import translates it to the version the target holds and refuses a pin to a version the file does not hold (\u0027import_pin_untranslatable\u0027). A tool of an MCP server that the file would create or change cannot be checked before the server is saved, so an agent that uses one is \u0027blocked\u0027: import the servers first with \u0027?types=mcpServers\u0027, authorize OAuth if a server uses it, then import the rest. A file may carry no tenant, and a member this version does not know is refused with 400 that names its path, as is a \u0027formatVersion\u0027 above 1. The stores share no transaction: if one fails after items were written, the answer is 200 with \u0027applied: false\u0027 and \u0027partial: true\u0027, \u0027written\u0027 lists what is in the target, and running the import again writes the rest. Each kind needs its scope when the call uses an API key: \u0027AgentsAdmin\u0027 for agents, skills and MCP servers, \u0027WorkflowsAdmin\u0027 for workflows; \u0027requiresApproval: false\u0027 on an MCP server also needs \u0027SecurityAdmin\u0027, as it does when saved directly. A file over 8 MiB is refused with 413. There is no lock: two imports, or an import and a save, that run together are both written and the last write wins, with the version history of each side intact. A dry run writes nothing, not even an audit line; an applied import writes one summary line (counts and the SHA-256 of the file) beside the line each store writes.",
+        "operationId": "TraconImportDefinitions",
+        "parameters": [
+          {
+            "name": "dryRun",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefinitionBundle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinitionImportReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tracon/api/diagnostics": {
       "get": {
         "tags": [
@@ -11041,6 +11212,220 @@
         },
         "description": "The outcome of a data subject erasure request."
       },
+      "DefinitionBundle": {
+        "required": [
+          "format",
+          "formatVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string",
+            "description": "The file kind. Always \u0060tracon.definitions\u0060."
+          },
+          "formatVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The file format version. Always \u00601\u0060 today; a larger number is refused with \u0060400\u0060.",
+            "format": "int32"
+          },
+          "exportedAt": {
+            "type": "string",
+            "description": "When the file was written.",
+            "format": "date-time"
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedAgent"
+            },
+            "description": "The agents in the file."
+          },
+          "workflows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedWorkflow"
+            },
+            "description": "The workflows in the file."
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedSkill"
+            },
+            "description": "The stored skills in the file. A skill defined in code or on disk is not exported."
+          },
+          "mcpServers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportedMcpServer"
+            },
+            "description": "The remote MCP servers in the file."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What the export could not carry or translate, for example a version pin that points at a version\nthe file does not hold. The import ignores this field."
+          }
+        },
+        "description": "A \u0060tracon.definitions\u0060 file: the agents, workflows, skills and MCP servers one Tracon installation holds in\nits database, ready to be imported into another one. It carries no tenant, no version history, no run, no\nsession, no \u0060secret\u0060, no OAuth token, no plain MCP header value and no script permission."
+      },
+      "DefinitionImportItem": {
+        "required": [
+          "type",
+          "name",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The kind: \u0060agent\u0060, \u0060workflow\u0060, \u0060skill\u0060 or \u0060mcpServer\u0060."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the definition."
+          },
+          "action": {
+            "type": "string",
+            "description": "The action: \u0060create\u0060, \u0060newVersion\u0060, \u0060update\u0060, \u0060unchanged\u0060, \u0060rejected\u0060, \u0060blocked\u0060 or \u0060skipped\u0060."
+          },
+          "sourceVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The version the item had on the host that wrote the file.",
+            "format": "int32"
+          },
+          "targetVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The version the item has, or will have, in the target. After a dry run of a new version it is the\nnumber the store will most likely assign.",
+            "format": "int32"
+          },
+          "changedPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The JSON paths whose values differ between \u0060current\u0060 and \u0060incoming\u0060."
+          },
+          "current": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The definition the target holds now, in the shape of the file. Absent for a new item.",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "incoming": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The definition the import would write, in the shape of the file, with its version pins translated.",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DefinitionImportMessage"
+            },
+            "description": "The findings for this item."
+          }
+        },
+        "description": "What an import does, or did, with one item of a bundle."
+      },
+      "DefinitionImportMessage": {
+        "required": [
+          "severity",
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "severity": {
+            "description": "\u0060Error\u0060 stops the import; \u0060Warning\u0060 does not.",
+            "$ref": "#/components/schemas/ValidationSeverity"
+          },
+          "code": {
+            "type": "string",
+            "description": "The stable, machine-readable code, for example \u0060import_pin_untranslatable\u0060 or \u0060unknown_skill\u0060."
+          },
+          "message": {
+            "type": "string",
+            "description": "The human-readable description. It is not translated."
+          },
+          "path": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The path of the offending field inside the definition, or \u0060null\u0060 when it points at no field."
+          }
+        },
+        "description": "One finding of an import about one item."
+      },
+      "DefinitionImportReport": {
+        "required": [
+          "dryRun",
+          "valid",
+          "applied",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "description": "Whether the call was a dry run. A dry run writes nothing."
+          },
+          "valid": {
+            "type": "boolean",
+            "description": "Whether every item can be written. \u0060false\u0060 when any item is \u0060rejected\u0060 or \u0060blocked\u0060."
+          },
+          "applied": {
+            "type": "boolean",
+            "description": "Whether the import wrote the definitions."
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "Whether a write that started did not finish: a store failed after earlier items were written. The\nitems in \u0060written\u0060 are in the target; running the import again writes the rest."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DefinitionImportItem"
+            },
+            "description": "One entry for each item of the bundle, in the order the import writes them."
+          },
+          "written": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The items that were written, as \u0060kind:name\u0060."
+          }
+        },
+        "description": "What an import found out about a bundle and, when it was applied, what it wrote. A bundle with one refused\nitem writes nothing."
+      },
       "DeletedResource": {
         "required": [
           "id",
@@ -12074,6 +12459,105 @@
           }
         },
         "description": "Summarizes run results for an experiment variant (calculated in the store)."
+      },
+      "ExportedAgent": {
+        "required": [
+          "sourceVersion",
+          "definition"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The version the agent had on the host that wrote the file. Only the translation of version pins reads\nit; the importing host numbers its own versions.",
+            "format": "int32"
+          },
+          "definition": {
+            "description": "The definition, in the shape \u0060POST /api/agents\u0060 takes.",
+            "$ref": "#/components/schemas/AgentDefinitionRequest"
+          }
+        },
+        "description": "One agent of a bundle."
+      },
+      "ExportedMcpServer": {
+        "required": [
+          "name",
+          "definition"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The server name. A server takes its name from the path of \u0060PUT /api/mcp-servers/{name}\u0060."
+          },
+          "definition": {
+            "description": "The server, in the shape \u0060PUT /api/mcp-servers/{name}\u0060 takes, without \u0060headers\u0060: a plain header value is\nnever written to a file, so the importing host keeps the values it already holds. The credential header\nkeys (\u0060headerConfigurationKeys\u0060) carry names only.",
+            "$ref": "#/components/schemas/McpServerRequest"
+          },
+          "headerNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The names of the plain headers the server sends. Their values are not in the file."
+          }
+        },
+        "description": "One remote MCP server of a bundle."
+      },
+      "ExportedSkill": {
+        "required": [
+          "sourceVersion",
+          "definition"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The version the skill had on the host that wrote the file.",
+            "format": "int32"
+          },
+          "definition": {
+            "description": "The skill, in the shape \u0060PUT /api/skills/{name}\u0060 takes. A script\u0027s permission to run is not part of it:\nthe importing host grants it.",
+            "$ref": "#/components/schemas/AgentSkillRequest"
+          }
+        },
+        "description": "One stored skill of a bundle."
+      },
+      "ExportedWorkflow": {
+        "required": [
+          "name",
+          "sourceVersion",
+          "definition"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The workflow name. A workflow takes its name from the path of \u0060PUT /api/workflows/{name}\u0060."
+          },
+          "sourceVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The version the workflow had on the host that wrote the file.",
+            "format": "int32"
+          },
+          "definition": {
+            "description": "The definition, in the shape \u0060PUT /api/workflows/{name}\u0060 takes.",
+            "$ref": "#/components/schemas/WorkflowSaveRequest"
+          }
+        },
+        "description": "One workflow of a bundle."
       },
       "ExtensionPointDiagnostic": {
         "required": [
@@ -20750,6 +21234,9 @@
     },
     {
       "name": "Images"
+    },
+    {
+      "name": "Definitions"
     },
     {
       "name": "Diagnostics"

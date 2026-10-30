@@ -337,6 +337,11 @@ Every save appends a version rather than overwriting. Nothing rewrites history:
 Rollback moving forward is the point: the rollback is itself auditable and can be
 rolled back in turn.
 
+A version number belongs to one installation. Another installation, or another tenant,
+numbers the same agent its own way. When you [move definitions between
+installations](/guides/move-definitions/), a pin to a version of an agent is translated
+to the version the target holds, and a pin the file cannot translate stops the import.
+
 A version number is an identity, and a name never gets one twice. `DELETE /api/agents/{name}`
 removes the definition and every version, but the numbering stays: create the agent again and
 its first version is one more than the highest the name ever had. An agent that had versions 1

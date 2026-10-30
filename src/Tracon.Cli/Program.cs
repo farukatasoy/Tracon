@@ -42,6 +42,10 @@ internal static class Program
                     await EvalCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 "agent-skill" =>
                     await AgentSkillCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
+                "export" =>
+                    await ExportCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
+                "import" =>
+                    await ImportCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 _ => PrintUnknownCommand(args[0]),
             };
         }
@@ -90,6 +94,13 @@ internal static class Program
                               [--baseline <runId|previous>] [--max-regressions <n>]
                               [--timeout <seconds>] [--poll-interval <seconds>]
                               [--json]
+              tracon export --url <base-url> [--token <token>]
+                              [--agent <name>]... [--workflow <name>]...
+                              [--types agents,workflows,skills,mcp-servers]
+                              [--output <file>]
+              tracon import --url <base-url> --file <file> [--token <token>]
+                              [--types agents,workflows,skills,mcp-servers]
+                              [--apply] [--json]
 
             The connection string and the bearer token can also come from the
             TRACON_CONNECTION and TRACON_TOKEN environment variables
@@ -154,6 +165,36 @@ internal static class Program
             impossible (its per-case results are gone, it never completed, or
             it measures another suite). 4 is deliberately not 3: a lost
             history needs a different fix than a broken case.
+
+            export writes the agents, workflows, skills and MCP servers an
+            installation keeps in its database as one tracon.definitions file,
+            to --output or to standard output (everything else it says goes to
+            standard error). With no selection it writes every definition.
+            --agent and --workflow (each may repeat) start from the named
+            definitions and bring what they need: the stored skills an agent
+            loads, the agents it calls, reviews with or shares instructions
+            from, and the MCP servers whose tools it uses. --types writes every
+            definition of the kinds named and nothing else; naming definitions
+            and kinds together is an argument error. The file carries no tenant,
+            no version history, no run, no secret and no plain MCP header value.
+
+            import reads a tracon.definitions file and, WITHOUT --apply, only
+            plans and validates it: it writes nothing and says, item by item,
+            what would happen (create, newVersion, update, unchanged, rejected,
+            blocked, skipped), which fields differ, and how a version pin in the
+            file is translated to the version the target holds. --apply writes,
+            and only a file in which every item is valid is written at all.
+            Importing the same file twice is safe: an item the target already
+            holds is left alone. An agent that uses a tool of an MCP server the
+            file would create is blocked until the server is in place: import
+            the servers first (--types mcp-servers --apply), then the rest.
+            --json prints the report as the server sent it.
+
+            Exit codes: 0 = the file is valid (dry run) or was written,
+            1 = argument error, 2 = could not run (connection, HTTP, or a
+            store failed while writing: run the same command again),
+            3 = the file is invalid or an item is blocked (running it again,
+            unchanged, will not help).
             """);
     }
 }

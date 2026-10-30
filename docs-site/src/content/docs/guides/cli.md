@@ -97,6 +97,8 @@ tracon --help
 | `tracon state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the session and workflow checkpoint state already in the database. Writes nothing |
 | `tracon health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
 | `tracon eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
+| `tracon export --url <base-url> [--token <token>] [--agent <name>]... [--workflow <name>]... [--types agents,workflows,skills,mcp-servers] [--output <file>]` | HTTP, with the bytes unchanged | Writes the definitions an installation keeps in its database as one `tracon.definitions` file, to `--output` or to standard output |
+| `tracon import --url <base-url> --file <file> [--token <token>] [--types agents,workflows,skills,mcp-servers] [--apply] [--json]` | HTTP, with the bytes unchanged | Plans and validates a `tracon.definitions` file. Writes it only with `--apply`, and only when every item is valid |
 | `tracon agent-skill [--format claude] [--output <directory>] [--force] [--json]` | The local file system | Writes the gate skill a coding agent's harness loads before it writes Tracon code. The only command that changes your working tree, and the only one that reaches neither the database nor HTTP |
 
 `--connection` and `--token` also accept the `TRACON_CONNECTION` and
@@ -207,14 +209,38 @@ regressions. `--max-regressions` without `--baseline` is an argument error
 regressions" when nothing was compared. On a suite's first run there is no
 earlier run; that is written to stderr and the gate is skipped, not failed.
 
+### `export` and `import`: moving definitions between installations
+
+`export` writes the agents, workflows, skills and MCP servers an installation
+keeps in its database as one file. `import` reads such a file into another
+installation or tenant. A call without `--apply` is a dry run: it writes nothing
+and says, for every item, what would happen (`create`, `newVersion`, `update`,
+`unchanged`, `rejected`, `blocked`) and which fields differ. `--apply` writes,
+and only a file in which every item is valid is written at all.
+
+```bash
+tracon export --url https://dev.example.com/tracon --agent triage --output bundle.json
+tracon import --url https://prod.example.com/tracon --file bundle.json            # dry run
+tracon import --url https://prod.example.com/tracon --file bundle.json --apply
+```
+
+These two commands send and receive the file as bytes and do not go through the
+typed client. A typed object that lacks a field a newer server adds would drop
+the field, and the next import would not be the file that was exported.
+`export` writes the file to `--output`, or to standard output when there is none;
+every message goes to standard error, so `tracon export ... > bundle.json` leaves a
+file that is only the file. The [Move definitions between installations](/guides/move-definitions/)
+guide covers what a file carries and leaves out, version pins, MCP servers and their
+tools, and what happens when a write stops half way.
+
 ### Exit codes
 
 | Code | Meaning |
 |---:|---|
 | `0` | Ran and passed the gate (or no gate was given) |
 | `1` | Argument error (missing/invalid flag, unknown command) |
-| `2` | Could not run: connection failed, HTTP error, timed out, or (`eval` only) the run itself ended `Failed`/`Cancelled` |
-| `3` | Ran, but the answer is bad: (`eval`) missed the quality gate, or (`state-check`) found state this build cannot read |
+| `2` | Could not run: connection failed, HTTP error, timed out, (`eval` only) the run itself ended `Failed`/`Cancelled`, or (`import` only) a store failed while writing, so running the same command again writes the rest |
+| `3` | Ran, but the answer is bad: (`eval`) missed the quality gate, (`state-check`) found state this build cannot read, or (`import`) the file is invalid or an item is `blocked` |
 | `4` | (`eval` only) Ran, but could not be compared against `--baseline` |
 
 The distinction between `2` and `3` is operational: `2` is an infrastructure
@@ -223,7 +249,8 @@ the wrong move. `4` is a third thing again — the baseline's per-case results
 have aged out of retention, it never completed, or it measures another suite.
 Folding it into `3` would send someone hunting for a regression that was never
 measured. `migrate`, `migrate status`, and `health` never return `3` or `4`;
-`state-check` never returns `4`. `agent-skill` returns only `0`, `1`, or `2`,
+`state-check` never returns `4`. `export` returns only `0`, `1`, or `2`, and `import`
+never returns `4`. `agent-skill` returns only `0`, `1`, or `2`,
 where `2` means the file could not be written.
 
 ## Read next
@@ -231,3 +258,4 @@ where `2` means the file could not be written.
 - [Persistence](/getting-started/persistence/) — what a migration actually does to the schema
 - [Every public type](/api/) — the full generated client surface
 - [Coding agents](/guides/coding-agents/) — what `agent-skill` writes, and why
+- [Move definitions between installations](/guides/move-definitions/) — what `export` and `import` carry, and how a pin is translated

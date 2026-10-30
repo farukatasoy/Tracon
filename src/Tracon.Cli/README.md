@@ -3,8 +3,8 @@
 The `tracon` global tool. Applies migrations as a separate deployment
 step, checks whether this build can still read the state already in the
 database, reads model provider health over HTTP, runs an eval suite as a
-CI quality gate, and writes the gate skill a coding agent's harness loads
-before it writes Tracon code.
+CI quality gate, moves definitions between installations as a file, and writes
+the gate skill a coding agent's harness loads before it writes Tracon code.
 
 ```bash
 dotnet tool install -g Tracon.Cli --prerelease
@@ -20,6 +20,8 @@ tracon --help
 | `tracon state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the stored session and workflow checkpoint state. Writes nothing |
 | `tracon health --url <base-url> [--token <token>] [--json]` | HTTP, through `Tracon.Client` | Reads model provider health |
 | `tracon eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through `Tracon.Client` | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to a baseline run, or both |
+| `tracon export --url <base-url> [--token <token>] [--agent <name>]... [--workflow <name>]... [--types agents,workflows,skills,mcp-servers] [--output <file>]` | HTTP, with the bytes unchanged | Writes the definitions an installation keeps in its database as one `tracon.definitions` file, to `--output` or to standard output |
+| `tracon import --url <base-url> --file <file> [--token <token>] [--types agents,workflows,skills,mcp-servers] [--apply] [--json]` | HTTP, with the bytes unchanged | Plans and validates a `tracon.definitions` file. Writes it only with `--apply`, and only when every item is valid. Exit `0` valid or written, `1` argument error, `2` could not run, `3` the file is invalid or an item is blocked |
 | `tracon agent-skill [--format claude] [--output <directory>] [--force] [--json]` | The local file system | Writes `.claude/skills/tracon/SKILL.md`, so a coding agent reads the capability map of the installed version before it writes code Tracon already ships. An existing file is never touched without `--force` |
 
 `--connection` and `--token` can come from the `TRACON_CONNECTION` and

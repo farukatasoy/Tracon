@@ -16159,6 +16159,261 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Exports definitions as one tracon.definitions file.
+        /// </summary>
+        /// <remarks>
+        /// Writes the agents, workflows, skills and MCP servers the caller's tenant keeps in the database as one JSON file, ready for POST /api/definitions/import on another installation or tenant. With no query parameter every definition of the four kinds is written. '?agent=' and '?workflow=' (each may repeat) name the definitions to start from, and the file also carries what they need: the stored skills an agent loads, the agents it calls, reviews with or shares instructions from, and the MCP servers whose tools it uses. '?types=' (agents, workflows, skills, mcpServers; comma separated) writes every definition of the kinds named and nothing else; naming definitions and kinds in one call is refused with 400. An agent defined in code or in a custom source is not exported; a closure that reaches one leaves it out and says so in 'warnings'. The file carries no tenant, no version history, no run, no session, no secret, no OAuth token, no script permission and no plain MCP header value: an MCP server travels with the NAMES of its headers and the names of the configuration keys its credentials are read from. A workflow in the file needs the 'WorkflowsRead' scope as well when the call uses an API key (403 otherwise). The export is written to the audit trail with its counts, never its content.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<DefinitionBundle> TraconExportDefinitionsAsync(System.Collections.Generic.IEnumerable<string>? agent = null, System.Collections.Generic.IEnumerable<string>? workflow = null, string? types = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/definitions/export"
+                    urlBuilder_.Append("api/definitions/export");
+                    urlBuilder_.Append('?');
+                    if (agent != null)
+                    {
+                            foreach (var item_ in agent) { urlBuilder_.Append(System.Uri.EscapeDataString("agent")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(item_, System.Globalization.CultureInfo.InvariantCulture))).Append('&'); }
+                    }
+                    if (workflow != null)
+                    {
+                            foreach (var item_ in workflow) { urlBuilder_.Append(System.Uri.EscapeDataString("workflow")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(item_, System.Globalization.CultureInfo.InvariantCulture))).Append('&'); }
+                    }
+                    if (types != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("types")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(types, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<DefinitionBundle>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Plans, validates and imports a tracon.definitions file.
+        /// </summary>
+        /// <remarks>
+        /// '?dryRun=' DEFAULTS TO TRUE: a bare call plans and validates the file and writes nothing. '?dryRun=false' writes, and needs the Admin role. The report names, for every item, what the import does: 'create' (the target has no such definition), 'newVersion' (an agent or workflow with other content; the history grows by one version), 'update' (a skill or MCP server with other content, overwritten in place), 'unchanged' (the target already holds the same content; nothing is written, so importing the same file twice is safe), 'rejected' (a write rule refuses it), 'blocked' (it waits for an earlier step) or 'skipped' (its kind is not in '?types='). 'changedPaths' lists the JSON paths that differ, and 'current' and 'incoming' hold the two definitions side by side. Validation is complete before the first write: every item passes the same rules the save endpoints apply, with the agents and skills of the file counted as already saved, so an agent may call, pin, review with or share instructions from another agent of the same file. When any item is refused, nothing is written: a dry run answers 200 with 'valid: false', and '?dryRun=false' answers 400 with the same report. A version pin in the file names the version the SOURCE installation gave an agent; the import translates it to the version the target holds and refuses a pin to a version the file does not hold ('import_pin_untranslatable'). A tool of an MCP server that the file would create or change cannot be checked before the server is saved, so an agent that uses one is 'blocked': import the servers first with '?types=mcpServers', authorize OAuth if a server uses it, then import the rest. A file may carry no tenant, and a member this version does not know is refused with 400 that names its path, as is a 'formatVersion' above 1. The stores share no transaction: if one fails after items were written, the answer is 200 with 'applied: false' and 'partial: true', 'written' lists what is in the target, and running the import again writes the rest. Each kind needs its scope when the call uses an API key: 'AgentsAdmin' for agents, skills and MCP servers, 'WorkflowsAdmin' for workflows; 'requiresApproval: false' on an MCP server also needs 'SecurityAdmin', as it does when saved directly. A file over 8 MiB is refused with 413. There is no lock: two imports, or an import and a save, that run together are both written and the last write wins, with the version history of each side intact. A dry run writes nothing, not even an audit line; an applied import writes one summary line (counts and the SHA-256 of the file) beside the line each store writes.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<DefinitionImportReport> TraconImportDefinitionsAsync(DefinitionBundle body, bool? dryRun = null, string? types = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    var json_ = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(body, JsonSerializerSettings);
+                    var content_ = new System.Net.Http.ByteArrayContent(json_);
+                    content_.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+                    request_.Content = content_;
+                    request_.Method = new System.Net.Http.HttpMethod("POST");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/definitions/import"
+                    urlBuilder_.Append("api/definitions/import");
+                    urlBuilder_.Append('?');
+                    if (dryRun != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("dryRun")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(dryRun, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (types != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("types")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(types, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<DefinitionImportReport>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 413)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Payload Too Large", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 415)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Unsupported Media Type", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Returns the setup's self-diagnosing summary report.
         /// </summary>
         /// <remarks>
@@ -20284,6 +20539,210 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// A `tracon.definitions` file: the agents, workflows, skills and MCP servers one Tracon installation holds in
+    /// <br/>its database, ready to be imported into another one. It carries no tenant, no version history, no run, no
+    /// <br/>session, no `secret`, no OAuth token, no plain MCP header value and no script permission.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DefinitionBundle
+    {
+
+        /// <summary>
+        /// The file kind. Always `tracon.definitions`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("format")]
+        public string Format { get; set; } = default!;
+
+        /// <summary>
+        /// The file format version. Always `1` today; a larger number is refused with `400`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("formatVersion")]
+        public int FormatVersion { get; set; } = default!;
+
+        /// <summary>
+        /// When the file was written.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("exportedAt")]
+        public System.DateTimeOffset ExportedAt { get; set; } = default!;
+
+        /// <summary>
+        /// The agents in the file.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("agents")]
+        public System.Collections.Generic.ICollection<ExportedAgent> Agents { get; set; } = new System.Collections.Generic.List<ExportedAgent>();
+
+        /// <summary>
+        /// The workflows in the file.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("workflows")]
+        public System.Collections.Generic.ICollection<ExportedWorkflow> Workflows { get; set; } = new System.Collections.Generic.List<ExportedWorkflow>();
+
+        /// <summary>
+        /// The stored skills in the file. A skill defined in code or on disk is not exported.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("skills")]
+        public System.Collections.Generic.ICollection<ExportedSkill> Skills { get; set; } = new System.Collections.Generic.List<ExportedSkill>();
+
+        /// <summary>
+        /// The remote MCP servers in the file.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("mcpServers")]
+        public System.Collections.Generic.ICollection<ExportedMcpServer> McpServers { get; set; } = new System.Collections.Generic.List<ExportedMcpServer>();
+
+        /// <summary>
+        /// What the export could not carry or translate, for example a version pin that points at a version
+        /// <br/>the file does not hold. The import ignores this field.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("warnings")]
+        public System.Collections.Generic.ICollection<string> Warnings { get; set; } = new System.Collections.Generic.List<string>();
+
+    }
+
+    /// <summary>
+    /// What an import does, or did, with one item of a bundle.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DefinitionImportItem
+    {
+
+        /// <summary>
+        /// The kind: `agent`, `workflow`, `skill` or `mcpServer`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; set; } = default!;
+
+        /// <summary>
+        /// The name of the definition.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// The action: `create`, `newVersion`, `update`, `unchanged`, `rejected`, `blocked` or `skipped`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("action")]
+        public string Action { get; set; } = default!;
+
+        /// <summary>
+        /// The version the item had on the host that wrote the file.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("sourceVersion")]
+        public int? SourceVersion { get; set; } = default!;
+
+        /// <summary>
+        /// The version the item has, or will have, in the target. After a dry run of a new version it is the
+        /// <br/>number the store will most likely assign.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("targetVersion")]
+        public int? TargetVersion { get; set; } = default!;
+
+        /// <summary>
+        /// The JSON paths whose values differ between `current` and `incoming`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("changedPaths")]
+        public System.Collections.Generic.ICollection<string> ChangedPaths { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
+        /// The definition the target holds now, in the shape of the file. Absent for a new item.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("current")]
+        public System.Text.Json.JsonElement? Current { get; set; } = default!;
+
+        /// <summary>
+        /// The definition the import would write, in the shape of the file, with its version pins translated.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("incoming")]
+        public System.Text.Json.JsonElement? Incoming { get; set; } = default!;
+
+        /// <summary>
+        /// The findings for this item.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("messages")]
+        public System.Collections.Generic.ICollection<DefinitionImportMessage> Messages { get; set; } = new System.Collections.Generic.List<DefinitionImportMessage>();
+
+    }
+
+    /// <summary>
+    /// One finding of an import about one item.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DefinitionImportMessage
+    {
+
+        /// <summary>
+        /// `Error` stops the import; `Warning` does not.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("severity")]
+        public ValidationSeverity Severity { get; set; } = default!;
+
+        /// <summary>
+        /// The stable, machine-readable code, for example `import_pin_untranslatable` or `unknown_skill`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("code")]
+        public string Code { get; set; } = default!;
+
+        /// <summary>
+        /// The human-readable description. It is not translated.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public string Message { get; set; } = default!;
+
+        /// <summary>
+        /// The path of the offending field inside the definition, or `null` when it points at no field.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("path")]
+        public string? Path { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// What an import found out about a bundle and, when it was applied, what it wrote. A bundle with one refused
+    /// <br/>item writes nothing.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DefinitionImportReport
+    {
+
+        /// <summary>
+        /// Whether the call was a dry run. A dry run writes nothing.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("dryRun")]
+        public bool DryRun { get; set; } = default!;
+
+        /// <summary>
+        /// Whether every item can be written. `false` when any item is `rejected` or `blocked`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("valid")]
+        public bool Valid { get; set; } = default!;
+
+        /// <summary>
+        /// Whether the import wrote the definitions.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("applied")]
+        public bool Applied { get; set; } = default!;
+
+        /// <summary>
+        /// Whether a write that started did not finish: a store failed after earlier items were written. The
+        /// <br/>items in `written` are in the target; running the import again writes the rest.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("partial")]
+        public bool Partial { get; set; } = default!;
+
+        /// <summary>
+        /// One entry for each item of the bundle, in the order the import writes them.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("items")]
+        public System.Collections.Generic.ICollection<DefinitionImportItem> Items { get; set; } = new System.Collections.Generic.List<DefinitionImportItem>();
+
+        /// <summary>
+        /// The items that were written, as `kind:name`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("written")]
+        public System.Collections.Generic.ICollection<string> Written { get; set; } = new System.Collections.Generic.List<string>();
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class DeletedResource
     {
@@ -21261,6 +21720,106 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("averageScore")]
         public double? AverageScore { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// One agent of a bundle.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ExportedAgent
+    {
+
+        /// <summary>
+        /// The version the agent had on the host that wrote the file. Only the translation of version pins reads
+        /// <br/>it; the importing host numbers its own versions.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("sourceVersion")]
+        public int SourceVersion { get; set; } = default!;
+
+        /// <summary>
+        /// The definition, in the shape `POST /api/agents` takes.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("definition")]
+        public AgentDefinitionRequest Definition { get; set; } = new AgentDefinitionRequest();
+
+    }
+
+    /// <summary>
+    /// One remote MCP server of a bundle.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ExportedMcpServer
+    {
+
+        /// <summary>
+        /// The server name. A server takes its name from the path of `PUT /api/mcp-servers/{name}`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// The server, in the shape `PUT /api/mcp-servers/{name}` takes, without `headers`: a plain header value is
+        /// <br/>never written to a file, so the importing host keeps the values it already holds. The credential header
+        /// <br/>keys (`headerConfigurationKeys`) carry names only.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("definition")]
+        public McpServerRequest Definition { get; set; } = new McpServerRequest();
+
+        /// <summary>
+        /// The names of the plain headers the server sends. Their values are not in the file.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("headerNames")]
+        public System.Collections.Generic.ICollection<string> HeaderNames { get; set; } = new System.Collections.Generic.List<string>();
+
+    }
+
+    /// <summary>
+    /// One stored skill of a bundle.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ExportedSkill
+    {
+
+        /// <summary>
+        /// The version the skill had on the host that wrote the file.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("sourceVersion")]
+        public int SourceVersion { get; set; } = default!;
+
+        /// <summary>
+        /// The skill, in the shape `PUT /api/skills/{name}` takes. A script's permission to run is not part of it:
+        /// <br/>the importing host grants it.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("definition")]
+        public AgentSkillRequest Definition { get; set; } = new AgentSkillRequest();
+
+    }
+
+    /// <summary>
+    /// One workflow of a bundle.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ExportedWorkflow
+    {
+
+        /// <summary>
+        /// The workflow name. A workflow takes its name from the path of `PUT /api/workflows/{name}`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// The version the workflow had on the host that wrote the file.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("sourceVersion")]
+        public int SourceVersion { get; set; } = default!;
+
+        /// <summary>
+        /// The definition, in the shape `PUT /api/workflows/{name}` takes.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("definition")]
+        public WorkflowSaveRequest Definition { get; set; } = new WorkflowSaveRequest();
 
     }
 

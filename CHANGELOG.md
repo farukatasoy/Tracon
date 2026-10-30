@@ -215,6 +215,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A definition moves between installations as a file: `GET /api/definitions/export`, `POST /api/definitions/import`,
+  `tracon export`, `tracon import`, and a Transfer screen in the console.** Before, an agent built and versioned in a
+  development installation could only reach production by retyping it: `GET` returns the detail shape and `PUT` takes
+  another, an MCP server's plain header value is never returned, and a version pin carries the source installation's
+  number, which names other content in the target. The export writes the agents, workflows, stored skills and remote
+  MCP servers of the caller's tenant as one `tracon.definitions` file (format version 1, sorted by name, so the same
+  definitions write the same bytes). `?agent=` and `?workflow=` start from named definitions and bring what they need
+  (the skills an agent loads, the agents it calls, reviews with or shares instructions from, the MCP servers whose tools
+  it uses); `?types=` writes every definition of the kinds named. The import plans every item against the target (`create`,
+  `newVersion`, `update`, `unchanged`, `rejected`, `blocked`, `skipped`), validates the whole file as if it were already
+  saved, and writes only when no item is refused. `dryRun` defaults to `true`, a dry run needs `Operator` and writes
+  nothing (not even an audit line), writing needs `Admin`. Every item passes the **same rules** the save endpoints apply
+  (the four rule sets were moved out of their endpoints so both writers call one copy), so an import cannot accept what a
+  save refuses. A version pin is translated to the version the target holds, and a pin to a version the file does not
+  hold stops the import with `import_pin_untranslatable`. An agent that uses a tool of an MCP server the file would
+  create is `blocked` until the servers are imported first (`types=mcpServers`). Importing the same file twice writes
+  nothing the second time. A file carries no tenant, history, run, session, `secret`, OAuth token, plain MCP header
+  value or script permission; it moves the **names** of the headers and of the configuration keys. A member this version
+  does not know, and a `formatVersion` above 1, are refused with `400` that names the path. The stores share no
+  transaction: a store that fails part way answers `200` with `partial: true`, and running the import again writes the
+  rest. `tracon import` exits `0` valid or written, `1` argument error, `2` could not run, `3` the file is invalid or an
+  item is blocked. Nothing in the public API of the server packages changed; `Tracon.Client` and `@tracon/client` gain the
+  two operations. The guide *Move definitions between installations* has the rest.
+
 - **A run records the citations the model attached to its answer, and how many of its request's messages each source
   added.** Before, a hosted web search, a file search or a retrieval tool gave the model a source for its claim, and the
   run record kept the claim without the source: an auditor read the record and could not see what an answer rested on.

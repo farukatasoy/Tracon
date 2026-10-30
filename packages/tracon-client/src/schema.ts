@@ -2800,6 +2800,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/definitions/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Exports definitions as one tracon.definitions file.
+         * @description Writes the agents, workflows, skills and MCP servers the caller's tenant keeps in the database as one JSON file, ready for POST /api/definitions/import on another installation or tenant. With no query parameter every definition of the four kinds is written. '?agent=' and '?workflow=' (each may repeat) name the definitions to start from, and the file also carries what they need: the stored skills an agent loads, the agents it calls, reviews with or shares instructions from, and the MCP servers whose tools it uses. '?types=' (agents, workflows, skills, mcpServers; comma separated) writes every definition of the kinds named and nothing else; naming definitions and kinds in one call is refused with 400. An agent defined in code or in a custom source is not exported; a closure that reaches one leaves it out and says so in 'warnings'. The file carries no tenant, no version history, no run, no session, no secret, no OAuth token, no script permission and no plain MCP header value: an MCP server travels with the NAMES of its headers and the names of the configuration keys its credentials are read from. A workflow in the file needs the 'WorkflowsRead' scope as well when the call uses an API key (403 otherwise). The export is written to the audit trail with its counts, never its content.
+         */
+        get: operations["TraconExportDefinitions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/definitions/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plans, validates and imports a tracon.definitions file.
+         * @description '?dryRun=' DEFAULTS TO TRUE: a bare call plans and validates the file and writes nothing. '?dryRun=false' writes, and needs the Admin role. The report names, for every item, what the import does: 'create' (the target has no such definition), 'newVersion' (an agent or workflow with other content; the history grows by one version), 'update' (a skill or MCP server with other content, overwritten in place), 'unchanged' (the target already holds the same content; nothing is written, so importing the same file twice is safe), 'rejected' (a write rule refuses it), 'blocked' (it waits for an earlier step) or 'skipped' (its kind is not in '?types='). 'changedPaths' lists the JSON paths that differ, and 'current' and 'incoming' hold the two definitions side by side. Validation is complete before the first write: every item passes the same rules the save endpoints apply, with the agents and skills of the file counted as already saved, so an agent may call, pin, review with or share instructions from another agent of the same file. When any item is refused, nothing is written: a dry run answers 200 with 'valid: false', and '?dryRun=false' answers 400 with the same report. A version pin in the file names the version the SOURCE installation gave an agent; the import translates it to the version the target holds and refuses a pin to a version the file does not hold ('import_pin_untranslatable'). A tool of an MCP server that the file would create or change cannot be checked before the server is saved, so an agent that uses one is 'blocked': import the servers first with '?types=mcpServers', authorize OAuth if a server uses it, then import the rest. A file may carry no tenant, and a member this version does not know is refused with 400 that names its path, as is a 'formatVersion' above 1. The stores share no transaction: if one fails after items were written, the answer is 200 with 'applied: false' and 'partial: true', 'written' lists what is in the target, and running the import again writes the rest. Each kind needs its scope when the call uses an API key: 'AgentsAdmin' for agents, skills and MCP servers, 'WorkflowsAdmin' for workflows; 'requiresApproval: false' on an MCP server also needs 'SecurityAdmin', as it does when saved directly. A file over 8 MiB is refused with 413. There is no lock: two imports, or an import and a save, that run together are both written and the last write wins, with the version history of each side intact. A dry run writes nothing, not even an audit line; an applied import writes one summary line (counts and the SHA-256 of the file) beside the line each store writes.
+         */
+        post: operations["TraconImportDefinitions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/diagnostics": {
         parameters: {
             query?: never;
@@ -4141,6 +4181,96 @@ export interface components {
              */
             activeRunIds?: string[];
         };
+        /**
+         * @description A `tracon.definitions` file: the agents, workflows, skills and MCP servers one Tracon installation holds in
+         *     its database, ready to be imported into another one. It carries no tenant, no version history, no run, no
+         *     session, no `secret`, no OAuth token, no plain MCP header value and no script permission.
+         */
+        DefinitionBundle: {
+            /** @description The file kind. Always `tracon.definitions`. */
+            format: string;
+            /**
+             * Format: int32
+             * @description The file format version. Always `1` today; a larger number is refused with `400`.
+             */
+            formatVersion: number | string;
+            /**
+             * Format: date-time
+             * @description When the file was written.
+             */
+            exportedAt?: string;
+            /** @description The agents in the file. */
+            agents?: components["schemas"]["ExportedAgent"][];
+            /** @description The workflows in the file. */
+            workflows?: components["schemas"]["ExportedWorkflow"][];
+            /** @description The stored skills in the file. A skill defined in code or on disk is not exported. */
+            skills?: components["schemas"]["ExportedSkill"][];
+            /** @description The remote MCP servers in the file. */
+            mcpServers?: components["schemas"]["ExportedMcpServer"][];
+            /**
+             * @description What the export could not carry or translate, for example a version pin that points at a version
+             *     the file does not hold. The import ignores this field.
+             */
+            warnings?: string[];
+        };
+        /** @description What an import does, or did, with one item of a bundle. */
+        DefinitionImportItem: {
+            /** @description The kind: `agent`, `workflow`, `skill` or `mcpServer`. */
+            type: string;
+            /** @description The name of the definition. */
+            name: string;
+            /** @description The action: `create`, `newVersion`, `update`, `unchanged`, `rejected`, `blocked` or `skipped`. */
+            action: string;
+            /**
+             * Format: int32
+             * @description The version the item had on the host that wrote the file.
+             */
+            sourceVersion?: null | number | string;
+            /**
+             * Format: int32
+             * @description The version the item has, or will have, in the target. After a dry run of a new version it is the
+             *     number the store will most likely assign.
+             */
+            targetVersion?: null | number | string;
+            /** @description The JSON paths whose values differ between `current` and `incoming`. */
+            changedPaths?: string[];
+            current?: null | components["schemas"]["JsonElement"];
+            incoming?: null | components["schemas"]["JsonElement"];
+            /** @description The findings for this item. */
+            messages?: components["schemas"]["DefinitionImportMessage"][];
+        };
+        /** @description One finding of an import about one item. */
+        DefinitionImportMessage: {
+            /** @description `Error` stops the import; `Warning` does not. */
+            severity: components["schemas"]["ValidationSeverity"];
+            /** @description The stable, machine-readable code, for example `import_pin_untranslatable` or `unknown_skill`. */
+            code: string;
+            /** @description The human-readable description. It is not translated. */
+            message: string;
+            /** @description The path of the offending field inside the definition, or `null` when it points at no field. */
+            path?: null | string;
+        };
+        /**
+         * @description What an import found out about a bundle and, when it was applied, what it wrote. A bundle with one refused
+         *     item writes nothing.
+         */
+        DefinitionImportReport: {
+            /** @description Whether the call was a dry run. A dry run writes nothing. */
+            dryRun: boolean;
+            /** @description Whether every item can be written. `false` when any item is `rejected` or `blocked`. */
+            valid: boolean;
+            /** @description Whether the import wrote the definitions. */
+            applied: boolean;
+            /**
+             * @description Whether a write that started did not finish: a store failed after earlier items were written. The
+             *     items in `written` are in the target; running the import again writes the rest.
+             */
+            partial?: boolean;
+            /** @description One entry for each item of the bundle, in the order the import writes them. */
+            items: components["schemas"]["DefinitionImportItem"][];
+            /** @description The items that were written, as `kind:name`. */
+            written?: string[];
+        };
         DeletedResource: {
             id: string;
             object: string;
@@ -4673,6 +4803,55 @@ export interface components {
              *     contract.
              */
             averageScore?: null | number | string;
+        };
+        /** @description One agent of a bundle. */
+        ExportedAgent: {
+            /**
+             * Format: int32
+             * @description The version the agent had on the host that wrote the file. Only the translation of version pins reads
+             *     it; the importing host numbers its own versions.
+             */
+            sourceVersion: number | string;
+            /** @description The definition, in the shape `POST /api/agents` takes. */
+            definition: components["schemas"]["AgentDefinitionRequest"];
+        };
+        /** @description One remote MCP server of a bundle. */
+        ExportedMcpServer: {
+            /** @description The server name. A server takes its name from the path of `PUT /api/mcp-servers/{name}`. */
+            name: string;
+            /**
+             * @description The server, in the shape `PUT /api/mcp-servers/{name}` takes, without `headers`: a plain header value is
+             *     never written to a file, so the importing host keeps the values it already holds. The credential header
+             *     keys (`headerConfigurationKeys`) carry names only.
+             */
+            definition: components["schemas"]["McpServerRequest"];
+            /** @description The names of the plain headers the server sends. Their values are not in the file. */
+            headerNames?: string[];
+        };
+        /** @description One stored skill of a bundle. */
+        ExportedSkill: {
+            /**
+             * Format: int32
+             * @description The version the skill had on the host that wrote the file.
+             */
+            sourceVersion: number | string;
+            /**
+             * @description The skill, in the shape `PUT /api/skills/{name}` takes. A script's permission to run is not part of it:
+             *     the importing host grants it.
+             */
+            definition: components["schemas"]["AgentSkillRequest"];
+        };
+        /** @description One workflow of a bundle. */
+        ExportedWorkflow: {
+            /** @description The workflow name. A workflow takes its name from the path of `PUT /api/workflows/{name}`. */
+            name: string;
+            /**
+             * Format: int32
+             * @description The version the workflow had on the host that wrote the file.
+             */
+            sourceVersion: number | string;
+            /** @description The definition, in the shape `PUT /api/workflows/{name}` takes. */
+            definition: components["schemas"]["WorkflowSaveRequest"];
         };
         /** @description One host-bound extension point and whether the host replaced its built-in default. */
         ExtensionPointDiagnostic: {
@@ -9177,6 +9356,10 @@ export type ConversationMemorySearch = components['schemas']['ConversationMemory
 export type ConversationResource = components['schemas']['ConversationResource'];
 export type CurrentTenantResponse = components['schemas']['CurrentTenantResponse'];
 export type DataSubjectErasureResult = components['schemas']['DataSubjectErasureResult'];
+export type DefinitionBundle = components['schemas']['DefinitionBundle'];
+export type DefinitionImportItem = components['schemas']['DefinitionImportItem'];
+export type DefinitionImportMessage = components['schemas']['DefinitionImportMessage'];
+export type DefinitionImportReport = components['schemas']['DefinitionImportReport'];
 export type DeletedResource = components['schemas']['DeletedResource'];
 export type EvalCase = components['schemas']['EvalCase'];
 export type EvalCaseDiff = components['schemas']['EvalCaseDiff'];
@@ -9200,6 +9383,10 @@ export type ExperimentSaveRequest = components['schemas']['ExperimentSaveRequest
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
 export type ExperimentVariant = components['schemas']['ExperimentVariant'];
 export type ExperimentVariantResult = components['schemas']['ExperimentVariantResult'];
+export type ExportedAgent = components['schemas']['ExportedAgent'];
+export type ExportedMcpServer = components['schemas']['ExportedMcpServer'];
+export type ExportedSkill = components['schemas']['ExportedSkill'];
+export type ExportedWorkflow = components['schemas']['ExportedWorkflow'];
 export type ExtensionPointDiagnostic = components['schemas']['ExtensionPointDiagnostic'];
 export type HarnessSettings = components['schemas']['HarnessSettings'];
 export type HostedToolKind = components['schemas']['HostedToolKind'];
@@ -14186,6 +14373,120 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TraconExportDefinitions: {
+        parameters: {
+            query?: {
+                agent?: string[];
+                workflow?: string[];
+                types?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DefinitionBundle"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TraconImportDefinitions: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+                types?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefinitionBundle"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DefinitionImportReport"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };

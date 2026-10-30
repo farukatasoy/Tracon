@@ -98,7 +98,10 @@ internal static class DefinitionTransferEndpoints
                 "with the version history of each side intact. A dry run writes nothing, not even an audit line; an applied " +
                 "import writes one summary line (counts and the SHA-256 of the file) beside the line each store writes.")
             .Produces<DefinitionImportReport>(StatusCodes.Status200OK)
-            .Produces<DefinitionImportReport>(StatusCodes.Status400BadRequest)
+
+            // 400 is a ProblemDetails in the document: a malformed file is the common case, and a typed client that
+            // read every 400 as a report could not read it. The one 400 that carries a report ('dryRun=false' on a file
+            // with a refused item) is described in the text above; a dry run returns the same report with 200.
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
