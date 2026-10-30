@@ -94,7 +94,7 @@ public sealed class AuditChainKeySecrecyTests
 
         // The database file, the journal beside it and every byte in them. The id is in the file (a scan of an
         // empty or wrong file would pass for the wrong reason); the value is not.
-        SqliteBytes(database.Path).ShouldContain("2026-10", Case.Sensitive);
+        SqliteBytes(database.Path).ShouldContain("2026-10", Case.Sensitive, DescribeFiles(database.Path));
         SqliteBytes(database.Path).ShouldNotContain(KeyBase64);
         ContainsBytes(AllFileBytes(database.Path), KeyBytes).ShouldBeFalse("the raw key bytes are in the database file");
     }
@@ -116,6 +116,22 @@ public sealed class AuditChainKeySecrecyTests
     }
 
     private static string SqliteBytes(string path) => Encoding.Latin1.GetString(AllFileBytes(path));
+
+    // Said when the id is missing from the file: what was on disk, so a failure is not read as a missing row by guess.
+    private static string DescribeFiles(string path)
+    {
+        var directory = Path.GetDirectoryName(path)!;
+        var name = Path.GetFileName(path);
+
+        return string.Join(
+            "; ",
+            Directory.EnumerateFiles(directory, name + "*").Select(file =>
+            {
+                var bytes = File.ReadAllBytes(file);
+
+                return $"{Path.GetFileName(file)[name.Length..]}: {bytes.Length} bytes, id {(ContainsBytes(bytes, "2026-10"u8.ToArray()) ? "present" : "absent")}";
+            }));
+    }
 
     private static bool ContainsBytes(byte[] haystack, byte[] needle)
         => haystack.AsSpan().IndexOf(needle) >= 0;
