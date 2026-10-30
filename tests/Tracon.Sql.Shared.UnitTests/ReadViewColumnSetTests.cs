@@ -97,7 +97,7 @@ public sealed class ReadViewColumnSetTests
         {
             Regex.IsMatch(columnsBlock, $@"\b{Regex.Escape(column)}\b", RegexOptions.None, RegexTimeout).ShouldBeTrue(
                 $"runs_v1 must publish column '{column}' -- a published view column is never dropped " +
-                "or renamed (111.1); a breaking change ships as runs_v2 instead.");
+                "or renamed; a breaking change ships as runs_v2 instead.");
         }
     }
 
@@ -109,7 +109,7 @@ public sealed class ReadViewColumnSetTests
         {
             Regex.IsMatch(columnsBlock, $@"\b{Regex.Escape(protectedColumn)}\b", RegexOptions.None, RegexTimeout).ShouldBeFalse(
                 $"runs_v1 must never publish protected column '{protectedColumn}' -- a read contract " +
-                "view carries metadata and derived values only (111.1).");
+                "view carries metadata and derived values only.");
         }
     }
 

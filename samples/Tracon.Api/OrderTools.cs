@@ -95,8 +95,8 @@ internal static class OrderTools
     /// Demo tool: its one
     /// parameter is a supported OBJECT type, not a scalar — the
     /// generator produces a nested JSON Schema node for <see cref="ShippingAddress"/>
-    /// and binds it through <see cref="ShippingAddressJsonContext"/>
-    ///, never through reflection.
+    /// and binds it through <see cref="ShippingAddressJsonContext"/>,
+    /// never through reflection.
     /// </remarks>
     [TraconTool(
         "estimate_shipping_cost",

@@ -6,7 +6,7 @@
     inherited from src/Directory.Build.props is DELIBERATELY overridden here.
 
     This project is NOT PACKED: it ships inside Tracon.Core's nupkg under
-    analyzers/dotnet/cs/ (52.4). It is part of the slnx but `dotnet pack` skips it.
+    analyzers/dotnet/cs/. It is part of the slnx but `dotnet pack` skips it.
   -->
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>

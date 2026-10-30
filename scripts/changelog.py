@@ -3,7 +3,7 @@
 
 Shared by `kapi.py` (the release-notes gate) and the `github-release` CI job
 (the release body) so the two never grow two different parsers for the same
-`## [<version>] - <date>` heading (123.3).
+`## [<version>] - <date>` heading.
 """
 from __future__ import annotations
 
@@ -55,8 +55,8 @@ def release_notes(changelog_text: str, version: str) -> tuple[str | None, str | 
     `## [<version>]` wins when it exists. When it does not, `## [Unreleased]`
     is used instead: a version section is written at TAG time, by renaming the
     Unreleased heading to the version and the date it shipped on, so before
-    that moment the notes for the next release are the ones under Unreleased
-. Returns (None, None) when neither section carries a body - a
+    that moment the notes for the next release are the ones under Unreleased.
+    Returns (None, None) when neither section carries a body - a
     release with no notes is what the gate exists to stop.
     """
     body = section_body(changelog_text, version)

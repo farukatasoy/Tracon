@@ -6,8 +6,7 @@ namespace Tracon.Benchmarks;
 /// <summary>
 /// Measures the allocation of writing one streamed event -
 /// <see cref="RunEventWriter.AppendAsync"/> is called once per streaming delta
-/// in a real run, so its own per-call cost is the hot path
-///.
+/// in a real run, so its own per-call cost is the hot path.
 /// </summary>
 [MemoryDiagnoser]
 public class RunEventWriterBenchmarks

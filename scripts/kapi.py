@@ -613,7 +613,7 @@ BENCHMARK_REPORT_DIR = ARTIFACTS / "benchmarks" / "results"
 
 def performance_gate_triggered(paths: Iterable[str]) -> bool:
     """Whether any of the three benchmarked hot paths (or the benchmark project
-    itself) changed - the allocation gate only runs when it can move (116.4)."""
+    itself) changed - the allocation gate only runs when it can move."""
     return any(
         path == hot_path or (hot_path.endswith("/") and path.startswith(hot_path))
         for path in paths
@@ -1905,7 +1905,7 @@ def verify_package_directory(directory: pathlib.Path) -> int:
 
 
 def _dirty_tree_rejected(*, require_git: bool) -> bool:
-    """The early git rejection (136.3), shared by every pack entry point.
+    """The early git rejection, shared by every pack entry point.
 
     Returns True (after printing why) when the working tree is dirty, or when
     git is unavailable and the caller cannot work without a commit."""

@@ -36,7 +36,7 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!--
       The template package has no dependencies at all and never enters the
-      consumer's dependency graph (37.1). An AOT promise is meaningless too -
+      consumer's dependency graph. An AOT promise is meaningless too -
       it doesn't compile.
     -->
     <TraconAotCompatible>false</TraconAotCompatible>

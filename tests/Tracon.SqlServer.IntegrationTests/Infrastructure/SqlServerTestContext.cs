@@ -574,7 +574,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
             BEGIN
                 DECLARE @sql NVARCHAR(MAX) = N'';
 
-                -- Runs_v1 (the "views" optional set). A view is
+                -- runs_v1 (the "views" optional set). A view is
                 -- dropped BEFORE the table it reads from, and before the
                 -- schema drop below -- SQL Server refuses to drop a schema
                 -- that still contains any object, view included.

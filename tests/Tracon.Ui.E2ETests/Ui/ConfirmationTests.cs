@@ -398,7 +398,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await remove.ClickAsync();
 
         // No second step: the row is gone on the one click.
-        await Expect(session.Page.GetByTestId("confirm-accept"), "An action that fails the the confirm-dialog criterion opened a confirmation.").ToHaveCountAsync(0);
+        await Expect(session.Page.GetByTestId("confirm-accept"), "An action that fails the confirm-dialog criterion opened a confirmation.").ToHaveCountAsync(0);
 
         await Expect(session.Page
             .GetByText("knowledge-base", new() { Exact = true })).ToHaveCountAsync(0);

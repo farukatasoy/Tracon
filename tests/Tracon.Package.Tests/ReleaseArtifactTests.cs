@@ -8,8 +8,8 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The content contract a <c>v*</c> tag push commits to before it is pushed
-///. Reads the <see cref="ReleaseArtifactFixture"/> packages
+/// The content contract a <c>v*</c> tag push commits to before it is pushed.
+/// Reads the <see cref="ReleaseArtifactFixture"/> packages
 /// (not the shared <see cref="TemplateFixture"/> ones) because that pack forces
 /// a specific version - a second, separate <c>dotnet pack</c>, owned by the
 /// <see cref="RepositoryTreeGate"/> collection so it still runs only once.

@@ -25,7 +25,7 @@ public sealed class SqlTransactionSiteTests
     {
         ["src/Tracon.Sql.Shared/Internal/SqlStoreContext.cs"] = "the boundary itself",
         ["src/Tracon.Sql.Shared/Migrations/MigrationRunner.cs"] =
-            "retries its own guarded DDL on a deadlock and a unique violation ",
+            "retries its own guarded DDL on a deadlock and a unique violation",
         ["src/Tracon.Sql.Shared/Stores/SqlDataSubjectStore.cs"] =
             "deletes attachment content outside the database and calls back before its commit; " +
             "running that again is not safe",
