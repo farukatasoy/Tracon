@@ -21,7 +21,7 @@ namespace Tracon;
 /// generator is registered.
 /// </para>
 /// <para>
-/// Both paths return the generator inside Microsoft.Extensions.AI's OpenTelemetry ring (Phase 266), so a generation is
+/// Both paths return the generator inside Microsoft.Extensions.AI's OpenTelemetry ring, so a generation is
 /// a span of the run that asked for it. The ring is built once per registered generator and kept: the resolver is asked
 /// on every generation, and a ring owns an <see cref="System.Diagnostics.ActivitySource"/> and a
 /// <see cref="System.Diagnostics.Metrics.Meter"/>. It is not disposed here, because disposing it would dispose the

@@ -33,8 +33,16 @@ public sealed class RunTraceSensitiveDataTests
     {
         var trace = await RunAndReadTraceAsync(recordSensitiveData: false);
 
-        // The probe's spans are in the trace, so an empty search proves the filter and not a missing span.
-        trace.Spans.ShouldContain(span => span.Name.Contains("chat", StringComparison.Ordinal));
+        // 🚨 The probe's own spans must be in the trace, or an empty search below proves nothing: the host writes
+        // spans of its own (`chat probe-1`), and a probe whose spans never reached the store would pass the search.
+        // The rings the probe builds have no provider metadata, so their span names carry no model.
+        trace.Spans.ShouldContain(static span => string.Equals(span.Name, "chat", StringComparison.Ordinal), "the chat ring's span");
+        trace.Spans.ShouldContain(static span => string.Equals(span.Name, "embeddings", StringComparison.Ordinal), "the embedding ring's span");
+        trace.Spans.Count(static span => string.Equals(span.Name, "generate_content", StringComparison.Ordinal))
+            .ShouldBe(3, "the image, text-to-speech and speech-to-text rings' spans");
+        trace.Spans.ShouldContain(
+            static span => string.Equals(span.Name, "executor.process probe-step", StringComparison.Ordinal),
+            "the workflow executor's span");
 
         var stored = JsonSerializer.Serialize(trace);
 
@@ -45,14 +53,16 @@ public sealed class RunTraceSensitiveDataTests
     }
 
     [Fact]
-    public async Task The_cost_attributes_survive_the_filter()
+    public async Task The_token_counts_survive_the_filter()
     {
         var trace = await RunAndReadTraceAsync(recordSensitiveData: false);
 
-        // 🚨 A filter on the words "input" and "output" would drop these, and the cost view reads them.
-        trace.Spans
-            .Where(static span => span.Name.StartsWith("chat", StringComparison.Ordinal))
-            .ShouldContain(static span => span.Attributes.ContainsKey("gen_ai.operation.name"));
+        // 🚨 A filter on the words "input" and "output" would drop these two, and the cost view reads them. The probe's
+        // chat ring reports 11 input and 7 output tokens.
+        var chat = trace.Spans.First(static span => string.Equals(span.Name, "chat", StringComparison.Ordinal));
+
+        chat.Attributes["gen_ai.usage.input_tokens"].ShouldBe("11");
+        chat.Attributes["gen_ai.usage.output_tokens"].ShouldBe("7");
     }
 
     [Fact]
@@ -62,11 +72,27 @@ public sealed class RunTraceSensitiveDataTests
 
         var stored = JsonSerializer.Serialize(trace);
 
-        // The control: the same host and the same rings, and the filter lets the content through. Without it the
-        // test above could pass because the sentinels never reached the span.
-        stored.ShouldContain(SensitiveContentProbe.SystemInstructions);
-        stored.ShouldContain(SensitiveContentProbe.ToolArguments);
-        stored.ShouldContain(SensitiveContentProbe.ToolResult);
+        // The control: the same host and the same rings, and the filter lets every sentinel the rings really write
+        // through. Without it, the empty search above could mean that the sentinels never reached a span.
+        foreach (var sentinel in SensitiveContentProbe.Recorded)
+        {
+            stored.ShouldContain(sentinel, Case.Sensitive, $"'{sentinel}' is missing while RecordSensitiveData is on");
+        }
+    }
+
+    [Fact]
+    public async Task A_custom_additional_property_a_ring_copies_to_a_tag_is_stored_under_the_callers_own_name()
+    {
+        // The one channel the filter cannot close, pinned so that the claim stays true as written: while its content
+        // switch is on, a ring copies the entries of a request's AdditionalProperties to tags under the names the
+        // caller chose, and the store cannot know those names. The XML of RecordSensitiveData and the observability
+        // guide say so. A store that kept only known keys would flip this test on purpose.
+        var trace = await RunAndReadTraceAsync(recordSensitiveData: false);
+
+        trace.Spans
+            .Any(static span => span.Attributes.TryGetValue(SensitiveContentProbe.AdditionalPropertyKey, out var value)
+                && string.Equals(value, SensitiveContentProbe.AdditionalPropertyValue, StringComparison.Ordinal))
+            .ShouldBeTrue("the custom key the caller chose is not one the store can know");
     }
 
     private static async Task<RunTrace> RunAndReadTraceAsync(bool recordSensitiveData)

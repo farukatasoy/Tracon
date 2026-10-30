@@ -37,7 +37,17 @@ internal static class SensitiveContentProbe
     public const string ExecutorInput = "EXECUTOR-INPUT-SENTINEL";
     public const string ExecutorOutput = "EXECUTOR-OUTPUT-SENTINEL";
 
-    /// <summary>Every sentinel the probe writes.</summary>
+    /// <summary>The value a caller puts under a custom key of the chat request's <c>AdditionalProperties</c>.</summary>
+    public const string AdditionalPropertyValue = "ADDITIONAL-PROPERTY-SENTINEL";
+
+    /// <summary>The key the caller chose for <see cref="AdditionalPropertyValue"/>.</summary>
+    public const string AdditionalPropertyKey = "probe.custom";
+
+    /// <summary>
+    /// Every sentinel the probe hands a ring. None may appear in a stored span while the store is told to drop
+    /// content, <em>including the two the rings do not record today</em>: a library upgrade that starts recording the
+    /// embedding input or the text to synthesize under a key the filter does not know fails here, not in a database.
+    /// </summary>
     public static readonly IReadOnlyList<string> All =
     [
         SystemInstructions,
@@ -48,6 +58,24 @@ internal static class SensitiveContentProbe
         EmbeddingInput,
         ImagePrompt,
         SpeechText,
+        Transcript,
+        ExecutorInput,
+        ExecutorOutput,
+    ];
+
+    /// <summary>
+    /// The sentinels the rings really write into a span while their content switch is on (measured with
+    /// Microsoft.Extensions.AI 10.11.0 and Microsoft Agent Framework 1.26.0). While the store keeps content, every
+    /// one of them must be there: the control that makes an empty search in the other direction mean something.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Recorded =
+    [
+        SystemInstructions,
+        UserMessage,
+        ToolArguments,
+        ToolResult,
+        Answer,
+        ImagePrompt,
         Transcript,
         ExecutorInput,
         ExecutorOutput,
@@ -82,7 +110,12 @@ internal static class SensitiveContentProbe
 
         _ = await chat.GetResponseAsync(
             [new ChatMessage(ChatRole.User, UserMessage)],
-            new ChatOptions { Instructions = SystemInstructions, Tools = [echo] },
+            new ChatOptions
+            {
+                Instructions = SystemInstructions,
+                Tools = [echo],
+                AdditionalProperties = new AdditionalPropertiesDictionary { [AdditionalPropertyKey] = AdditionalPropertyValue },
+            },
             cancellationToken);
     }
 
@@ -149,7 +182,11 @@ internal static class SensitiveContentProbe
                 ? new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("call-1", "echo_probe", new Dictionary<string, object?>(StringComparer.Ordinal) { ["text"] = ToolArguments })])
                 : new ChatMessage(ChatRole.Assistant, Answer);
 
-            return Task.FromResult(new ChatResponse(message));
+            // The provider's own token counts: they are what the cost view reads, and no filter may take them.
+            return Task.FromResult(new ChatResponse(message)
+            {
+                Usage = new UsageDetails { InputTokenCount = 11, OutputTokenCount = 7, TotalTokenCount = 18 },
+            });
         }
 
         public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(

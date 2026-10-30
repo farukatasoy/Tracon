@@ -83,6 +83,27 @@ public sealed class WorkflowTraceTests
     }
 
     [Fact]
+    public async Task A_stored_pattern_writes_the_agents_spans_but_no_workflow_span()
+    {
+        // The five patterns (agentNames with Sequential, Concurrent, Handoff, GroupChat, Magentic) are built by the
+        // framework's AgentWorkflowBuilder, which returns a built graph and has no place for the telemetry. The guide
+        // says so; this pins it, so the day the framework offers a hook the claim is changed on purpose.
+        await using var host = await StartStoredAsync();
+
+        using var saved = await host.Client.PutAsJsonAsync(
+            new Uri("/tracon/api/workflows/pattern-flow", UriKind.Relative),
+            new WorkflowSaveRequest { Kind = WorkflowKind.Sequential, AgentNames = ["writer", "editor"] },
+            TestContext.Current.CancellationToken);
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        var trace = await RunTraceReader.ReadAsync(host, await NodeUsageHost.RunAsync(host, "pattern-flow"));
+
+        RunTraceReader.Operations(trace, "invoke_agent").Count.ShouldBe(2, "the agents are still spans of the run");
+        trace.Spans.ShouldNotContain(static span => IsExecutorSpan(span) || span.Name.StartsWith("workflow", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_code_workflow_that_asks_for_telemetry_shows_its_executor_span_in_the_run_trace()
     {
         await using var host = await StartCodeAsync(telemetry: true);
@@ -170,11 +191,17 @@ public sealed class WorkflowTraceTests
                     });
                 builder.AddWorkflow(
                     "hanging-flow",
-                    static services => new WorkflowBuilder(services.GetWorkflowFunction("hang"))
-                        .WithName("hanging-flow")
-                        .WithOutputFrom(services.GetWorkflowFunction("hang"))
-                        .WithOpenTelemetry()
-                        .Build());
+                    static services =>
+                    {
+                        // One binding for both roles: the framework refuses a second instance under the same id.
+                        var hang = services.GetWorkflowFunction("hang");
+
+                        return new WorkflowBuilder(hang)
+                            .WithName("hanging-flow")
+                            .WithOutputFrom(hang)
+                            .WithOpenTelemetry()
+                            .Build();
+                    });
             },
             configureServices: static services => services.Configure<TraconOptions>(
                 static options => options.Observability.SuccessSampleRatio = 1));
@@ -208,23 +235,22 @@ public sealed class WorkflowTraceTests
                 // its span buffer, so on a loaded machine the first frame can arrive a moment ahead of both.
                 await WaitUntil.TrueAsync(() => collector.OpenRunCount == 1, "the run in flight holds its buffer");
 
-                var status = HttpStatusCode.Conflict;
-
-                await WaitUntil.TrueAsync(
+                var cancel = await WaitUntil.ValueAsync(
                     async () =>
                     {
-                        using var cancel = await host.Client.PostAsync(
+                        using var response = await host.Client.PostAsync(
                             new Uri($"/tracon/api/runs/{runId}/cancel", UriKind.Relative),
                             content: null,
                             TestContext.Current.CancellationToken);
 
-                        status = cancel.StatusCode;
+                        var detail = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-                        return status != HttpStatusCode.Conflict;
+                        return (response.StatusCode, Detail: detail);
                     },
+                    static answer => answer.StatusCode != HttpStatusCode.Conflict,
                     "the run is registered for cancellation");
 
-                status.ShouldBe(HttpStatusCode.Accepted);
+                cancel.StatusCode.ShouldBe(HttpStatusCode.Accepted, cancel.Detail);
                 break;
             }
 

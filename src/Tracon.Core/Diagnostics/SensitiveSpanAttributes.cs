@@ -12,11 +12,17 @@ namespace Tracon;
 /// that says which of those keys are content, and the listener applies it before anything is buffered.
 /// </para>
 /// <para>
-/// 🚨 A word filter on <c>input</c> and <c>output</c> is wrong: <c>gen_ai.usage.input_tokens</c> and
+/// A word filter on <c>input</c> and <c>output</c> would be wrong: <c>gen_ai.usage.input_tokens</c> and
 /// <c>gen_ai.usage.output_tokens</c> would go, and the cost view is built from them. The rule is the three words the
 /// semantic convention uses for text (<c>message</c>, <c>prompt</c>, <c>completion</c>) plus the full names of the keys
-/// that carry text without one of them. The list is proven complete by a test that drives the real rings with
-/// sensitive data on, not by this list.
+/// that carry text without one of them. A test that drives the real rings with sensitive data on checks the list
+/// against the keys the rings write.
+/// </para>
+/// <para>
+/// One channel this class cannot close: while their content switch is on, the rings also copy the entries of a
+/// request's <c>AdditionalProperties</c> to tags under the names the caller chose. Those names are not Tracon's to
+/// know, so such a value is not a content key here and is stored. Keep user data out of <c>AdditionalProperties</c>
+/// when the content switch of a ring is on.
 /// </para>
 /// </remarks>
 internal static class SensitiveSpanAttributes

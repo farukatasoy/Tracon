@@ -238,7 +238,7 @@ caller's role and key scopes. See the complete scope table in
 | Capability | Output | Control |
 |---|---|---|
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
-| OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; Tracon can also persist a sample |
+| OpenTelemetry traces | `ActivitySource` spans for runs, agents, chat calls, tools, embeddings, images, speech and workflow steps | Your exporter remains in control; Tracon can also persist a sample, and the stored spans carry no content unless you turn `RecordSensitiveData` on |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
 | Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free. `cost` is the token cost; what nodes and tools reported beyond tokens is `nonTokenCost` on the run |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
@@ -15067,7 +15067,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 | `SuccessSampleRatio` | `0.1` | `0` persists no successful trace; `1` persists all successful traces |
 | `AlwaysPersistFailures` | `true` | Keeps failed traces independent of the success sample |
 | `MaxSpansPerRun` | `200` | Bounds the in-memory trace buffer; excess spans are dropped |
-| `RecordSensitiveData` | `false` | Excludes prompt, message, and completion text from span tags |
+| `RecordSensitiveData` | `false` | The store keeps no content from a span: prompt, message and completion text, system instructions, tool arguments and results, and workflow executor input and output. Token counts stay |
 | `IncludeAgentVersionTag` | `true` | Adds agent version to run spans and run metrics |
 | `IncludeTenantTag` | `false` | Adds the tenant to the run, cost, judge, cache, audit, recording and job metrics. Spans and the quota gauges always carry it |
 | `EnableQuotaUsageGauge` | `false` | Avoids background database reads until explicitly enabled |
@@ -15079,6 +15079,79 @@ consumer's configured exporter.
 `Observability.Enabled` is not a global exporter switch. The run-recording wrapper
 owns the root run span and stable run metrics. Your OpenTelemetry source, meter, and
 sampler configuration still decides what the consumer pipeline collects.
+
+### Spans in the run trace
+
+A retained trace holds the spans a run produced. Besides the root `tracon.run` span and
+the agent, chat and tool spans, it holds the calls that used to be invisible:
+
+| Span name | What wrote it | `gen_ai.output.type` |
+|---|---|---|
+| `embeddings` | The embedding generator you registered: the `search_knowledge` tool and knowledge ingestion | |
+| `generate_content` | The image generator (`generate_image`, `POST /api/images/generate`) | `image` |
+| `generate_content` | A Microsoft.Extensions.AI text-to-speech client served as a speech provider | `audio` |
+| `generate_content` | A Microsoft.Extensions.AI speech-to-text client served as a speech provider | `text` |
+| `workflow.session`, `workflow_invoke`, `executor.process <step>` | A workflow made from a stored definition: one `executor.process` per step | |
+
+The span name is the operation followed by the model, for example `embeddings text-embedding-3-small`
+or `generate_content gpt-image-1-mini`; `gen_ai.operation.name` holds the operation alone. A speech provider
+that is not a Microsoft.Extensions.AI client (the Google and ElevenLabs providers, or an
+`ISpeechSynthesizer` you wrote) writes no span of its own. An ingestion runs outside any run: its
+span reaches your exporter, and no stored trace holds it.
+
+A stored workflow leaves out message sends and edge groups, which are most of what the
+framework would write. A workflow of three steps, two of them agent steps and one a function,
+keeps 13 spans of the default 200. An agent step adds four spans (its executor, the agent's
+child run, the agent and its chat call), plus a tool span and a further chat span for each tool call;
+a function step adds one.
+Raise `MaxSpansPerRun` for a long graph or a graph with a way back.
+
+A workflow you build in code is yours, so Tracon cannot add the telemetry to it. Call
+`WithOpenTelemetry()` on the builder and its steps join the trace of the run; a graph that does
+not call it writes nothing, as before:
+
+```csharp
+builder.AddWorkflow("triage", services =>
+{
+    var start = services.GetWorkflowFunction("classify");
+    var finish = services.GetWorkflowFunction("route");
+
+    return new WorkflowBuilder(start)
+        .AddEdge(start, finish)
+        .WithOutputFrom(finish)
+        .WithName("triage")
+        .WithOpenTelemetry(options =>
+        {
+            // Message sends and edge groups multiply the span count; leave them out unless you read them.
+            options.DisableMessageSend = true;
+            options.DisableEdgeGroupProcess = true;
+        })
+        .Build();
+});
+```
+
+The trace listens to two sources: `Tracon` and the framework's own `Microsoft.Agents.AI.Workflows`,
+the source `WithOpenTelemetry()` writes to when you pass none. Pass your own `ActivitySource` and the
+spans go to that source instead, which the trace does not read.
+
+#### Content and the two switches
+
+Whether a span carries content is decided twice, by two different owners:
+
+- **The ring that writes the span.** The Microsoft.Extensions.AI rings (chat, embeddings, image, speech)
+  record message content only when `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is `true`, and
+  the framework's workflow telemetry only when `EnableSensitiveData` is set on it. Tracon does not set
+  either one. Whatever you choose here is what **your exporter** receives.
+- **The Tracon store.** With `RecordSensitiveData=false` the store drops every content key before it
+  keeps a span, whichever ring wrote it: any key that contains `message`, `prompt` or `completion`,
+  `gen_ai.system_instructions`, `gen_ai.tool.call.arguments`, `gen_ai.tool.call.result`,
+  `executor.input` and `executor.output`. `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`
+  stay: the cost view reads them.
+
+A stored trace therefore never holds more than `RecordSensitiveData` allows, even on a host whose
+exporter records everything. If you wrap your own generator with `UseOpenTelemetry`, your exporter sees
+two spans for each call: yours on your source, and Tracon's on `Tracon`. The trace store keeps only the
+second.
 
 ## Control run recording
 
@@ -15117,7 +15190,7 @@ is held to the same rule: a sink failure never stops the store write, and a stor
 failure never stops a sink from seeing the rest of the run.
 
 `RecordSensitiveData=false` does not redact run events, tool payloads, or saved run
-input. It applies to span tags. Configure both sections and retention according to
+input. It applies to the span store. Configure both sections and retention according to
 the data that your agents process.
 
 ## Add readiness and provider health
@@ -17375,6 +17448,11 @@ static Workflow Build(IServiceProvider services)
         .AddEdge(approved, tts).AddEdge(tts, render).AddEdge(render, qa)
         .WithOutputFrom(qa)
         .WithName("review-and-revise")
+        .WithOpenTelemetry(options =>
+        {
+            options.DisableMessageSend = true;
+            options.DisableEdgeGroupProcess = true;
+        })
         .Build();
 }
 ```
@@ -22114,6 +22192,12 @@ on the model binding, not a global setting. See
 
 These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
+
+`RecordSensitiveData` filters what the trace store keeps, not what the rings that
+write the spans record. While it is `false` the store drops every content key from
+every span: message, prompt and completion text, system instructions, tool arguments
+and results, and workflow executor input and output. Token counts stay. See
+[content and the two switches](/guides/observability/#content-and-the-two-switches).
 
 `IncludeTenantTag` adds `tracon.tenant.id` to eight metrics (run, cost, judge,
 response cache, audit failures, recording failures and jobs). It is off by default,

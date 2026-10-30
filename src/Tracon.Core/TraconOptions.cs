@@ -738,11 +738,14 @@ public sealed class TraconObservabilityOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// While this is <see langword="false"/> the store drops every content key from every span it keeps, whichever ring
-    /// wrote the span: keys that carry <c>message</c>, <c>prompt</c> or <c>completion</c>, the system instructions
-    /// (<c>gen_ai.system_instructions</c>), a tool call's arguments and result (<c>gen_ai.tool.call.arguments</c>,
-    /// <c>gen_ai.tool.call.result</c>) and an executor's input and output (<c>executor.input</c>,
-    /// <c>executor.output</c>). Token counts and other metadata stay.
+    /// While this is <see langword="false"/> the store drops the content keys the rings write from every span it keeps,
+    /// whichever ring wrote the span: keys that carry <c>message</c>, <c>prompt</c> or <c>completion</c>, the system
+    /// instructions (<c>gen_ai.system_instructions</c>), a tool call's arguments and result
+    /// (<c>gen_ai.tool.call.arguments</c>, <c>gen_ai.tool.call.result</c>) and an executor's input and output
+    /// (<c>executor.input</c>, <c>executor.output</c>). Token counts and other metadata stay. One channel is not closed:
+    /// a ring whose content switch is on also copies the entries of a request's <c>AdditionalProperties</c> to tags
+    /// under the names the caller chose, and the store cannot know those names. Keep user data out of
+    /// <c>AdditionalProperties</c> when the content switch of a ring is on.
     /// </para>
     /// <para>
     /// This setting filters what Tracon writes. It is not the switch of the rings that produce the spans: the
