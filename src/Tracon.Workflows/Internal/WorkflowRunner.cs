@@ -1146,7 +1146,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                                        scope,
                                        writer,
                                        recording,
-                                       linked)
+                                       linked,
+                                       activity)
                                    .ConfigureAwait(false))
                 {
                     if (produced.Failure is { } failure)
@@ -1456,8 +1457,20 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         AgentRunScope scope,
         RunEventWriter writer,
         TraconRunRecordingOptions recording,
-        CancellationTokenSource linked)
+        CancellationTokenSource linked,
+        Activity? runActivity)
     {
+        // 🚨 The run's root span is made current BEFORE execution starts, for the same reason as the scope below:
+        // the task the framework starts captures the ambient Activity too. The assignment made in the body of
+        // RunGuardedAsync does not survive the first `yield return` (the next MoveNextAsync runs in the consumer's
+        // context), so without it every span of every executor and every agent step was a root of its own trace and
+        // the collector, which finds the owning run by walking the parent chain, gave it to no run (measured in
+        // phase 266: a stored workflow's run trace held `tracon.run` and nothing else).
+        if (runActivity is not null)
+        {
+            Activity.Current = runActivity;
+        }
+
         // 🚨 The scope is written BEFORE execution starts; the assignment
         // inside the loop is not enough. Measured (phase 15):
         // InProcessExecution.RunStreamingAsync starts a background task that

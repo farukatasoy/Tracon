@@ -82,6 +82,12 @@ internal sealed class RunTraceCollector : IDisposable
     /// <summary>Whether the collector is persisting spans.</summary>
     public bool IsCollecting => _listener is not null;
 
+    /// <summary>
+    /// Gets how many runs hold an open buffer. A run closes its buffer in every outcome, so a value above zero with
+    /// no run in flight is a leak.
+    /// </summary>
+    internal int OpenRunCount => _buffers.Count;
+
     // The Tracon source carries the agent, chat, tool and embedding spans and the spans of a workflow Tracon builds. The
     // framework's own workflow source is the one a graph built in code writes to when its author calls
     // WithOpenTelemetry() and gives no source: a graph that does not call it writes nothing, so listening costs nothing.

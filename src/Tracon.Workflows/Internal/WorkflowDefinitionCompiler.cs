@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
@@ -26,6 +27,11 @@ namespace Tracon;
 /// </remarks>
 internal sealed class WorkflowDefinitionCompiler
 {
+    // The framework writes its workflow spans to the source it is handed. The Tracon source is the one the run trace
+    // listens to by name, so a step of a stored workflow sits in the trace beside the chat and tool spans of the
+    // same run.
+    private static readonly ActivitySource TelemetrySource = new(TraconDiagnostics.ActivitySourceName);
+
     private readonly CallableAgentResolver _resolver;
     private readonly WorkflowAgentCache _agents;
     private readonly WorkflowFunctionRegistry _functions;
@@ -211,6 +217,18 @@ internal sealed class WorkflowDefinitionCompiler
         {
             builder = builder.WithDescription(description);
         }
+
+        // Phase 266. The telemetry context is fixed when the graph is built, so it is attached here, before Build.
+        // Message sends and edge groups are off: they are the bulk of a workflow's spans and a run keeps at most
+        // Tracon:Observability:MaxSpansPerRun of them, shared with the chat spans a reader debugs a run by.
+        // EnableSensitiveData stays the framework's default (off); the trace store filter is a second line.
+        builder = builder.WithOpenTelemetry(
+            static options =>
+            {
+                options.DisableMessageSend = true;
+                options.DisableEdgeGroupProcess = true;
+            },
+            TelemetrySource);
 
         return builder.Build();
     }
