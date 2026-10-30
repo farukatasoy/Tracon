@@ -71,8 +71,7 @@ internal sealed class RunTraceCollector : IDisposable
 
         _listener = new ActivityListener
         {
-            ShouldListenTo = static source =>
-                string.Equals(source.Name, TraconDiagnostics.ActivitySourceName, StringComparison.Ordinal),
+            ShouldListenTo = static source => IsRunTraceSource(source.Name),
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
             ActivityStopped = OnActivityStopped,
         };
@@ -82,6 +81,13 @@ internal sealed class RunTraceCollector : IDisposable
 
     /// <summary>Whether the collector is persisting spans.</summary>
     public bool IsCollecting => _listener is not null;
+
+    // The Tracon source carries the agent, chat, tool and embedding spans and the spans of a workflow Tracon builds. The
+    // framework's own workflow source is the one a graph built in code writes to when its author calls
+    // WithOpenTelemetry() and gives no source: a graph that does not call it writes nothing, so listening costs nothing.
+    private static bool IsRunTraceSource(string name)
+        => string.Equals(name, TraconDiagnostics.ActivitySourceName, StringComparison.Ordinal)
+            || string.Equals(name, TraconTelemetrySources.MafWorkflows, StringComparison.Ordinal);
 
     /// <summary>
     /// Starts collecting spans for a run.
@@ -260,10 +266,10 @@ internal sealed class RunTraceCollector : IDisposable
                 continue;
             }
 
-            // Prompt and response content may carry personal data. The GenAI
-            // semantic convention carries these under `gen_ai.*.message`; they
-            // are not written to the span by default.
-            if (!includeSensitiveData && IsSensitive(tag.Key))
+            // Prompt, response, tool and executor content may carry personal data.
+            // The ring that wrote the span may have been told to record it (that
+            // switch is the consumer's), so the store filters it here.
+            if (!includeSensitiveData && SensitiveSpanAttributes.IsContent(tag.Key))
             {
                 continue;
             }
@@ -272,7 +278,7 @@ internal sealed class RunTraceCollector : IDisposable
         }
 
         // 🚨 This ran OUTSIDE the loop above, so it skipped the very filter that
-        // covers its own key: IsSensitive("error.message") is true, so the value
+        // covers its own key: IsContent("error.message") is true, so the value
         // would have been dropped had it gone through the loop. StatusDescription
         // is set unconditionally from RunError.Message, which carries the message
         // of ANY tool or provider exception - a message that can hold personal
@@ -280,18 +286,13 @@ internal sealed class RunTraceCollector : IDisposable
         // readable through GET /api/runs/{runId}/trace, so RecordSensitiveData
         // =false did not protect this field at all.
         if (activity.StatusDescription is { Length: > 0 } description
-            && (includeSensitiveData || !IsSensitive("error.message")))
+            && (includeSensitiveData || !SensitiveSpanAttributes.IsContent("error.message")))
         {
             attributes["error.message"] = description;
         }
 
         return attributes;
     }
-
-    private static bool IsSensitive(string key)
-        => key.Contains("message", StringComparison.OrdinalIgnoreCase)
-            || key.Contains("prompt", StringComparison.OrdinalIgnoreCase)
-            || key.Contains("completion", StringComparison.OrdinalIgnoreCase);
 
     // 🚨 The buffer is keyed by the trace AND the local root span, not by the
     // trace alone. A W3C trace id is INHERITED from the incoming traceparent
