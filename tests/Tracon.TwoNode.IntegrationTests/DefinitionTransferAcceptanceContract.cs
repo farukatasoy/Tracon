@@ -22,7 +22,7 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// </remarks>
 public abstract class DefinitionTransferAcceptanceContract
 {
-    private static readonly Uri Api = new("/tracon/api/", UriKind.Relative);
+    private static Uri Api(string path) => new($"/tracon/api/{path}", UriKind.Relative);
 
     /// <summary>Gets a schema no other test uses, on the class's server.</summary>
     /// <returns>The database one host connects to.</returns>
@@ -40,7 +40,7 @@ public abstract class DefinitionTransferAcceptanceContract
 
         await PutAsync(source, "skills/policy", new { name = "policy", description = "A skill.", instructions = "Read the policy." });
         await PostAsync(source, "agents", Agent("worker", "Do the work."));
-        await PostAsync(source, "agents", Agent("triage", "Route the request.", temperature: 0.7) with
+        await PostAsync(source, "agents", Agent("triage", "Route the request.", temperature: 0.7f) with
         {
             SkillNames = ["policy"],
             CallableAgents = [CallableAgentReference.FromName("worker")],
@@ -61,7 +61,7 @@ public abstract class DefinitionTransferAcceptanceContract
 
         // The agent really runs: what arrived is a definition that compiles and answers, not only one that reads back.
         using (var run = await target.Client.PostAsJsonAsync(
-                   new Uri(Api, "agents/triage/run"),
+                   Api("agents/triage/run"),
                    new AgentRunRequest { Message = "hello from the target" }))
         {
             run.StatusCode.ShouldBe(HttpStatusCode.OK, await run.Content.ReadAsStringAsync());
@@ -74,7 +74,7 @@ public abstract class DefinitionTransferAcceptanceContract
         again["written"]!.AsArray().Count.ShouldBe(0, again.ToJsonString());
         again["items"]!.AsArray().ShouldAllBe(static item => string.Equals(item!["action"]!.GetValue<string>(), "unchanged", StringComparison.Ordinal));
 
-        using var versions = await target.Client.GetAsync(new Uri(Api, "agents/triage/versions"));
+        using var versions = await target.Client.GetAsync(Api("agents/triage/versions"));
 
         (await TraconTestHost.ReadJsonAsync(versions)).GetArrayLength().ShouldBe(1);
     }
@@ -101,17 +101,17 @@ public abstract class DefinitionTransferAcceptanceContract
 
         report["applied"]!.GetValue<bool>().ShouldBeTrue(report.ToJsonString());
 
-        using var detail = await target.Client.GetAsync(new Uri(Api, "agents/caller"));
+        using var detail = await target.Client.GetAsync(Api("agents/caller"));
         var pin = (await TraconTestHost.ReadJsonAsync(detail))
             .GetProperty("definition").GetProperty("callableAgents")[0].GetProperty("version").GetInt32();
 
         pin.ShouldBe(2);
     }
 
-    private Task<TraconTestHost> StartAsync(TwoNodeDatabase database)
+    private static Task<TraconTestHost> StartAsync(TwoNodeDatabase database)
         => TraconTestHost.StartAsync(configureTracon: database.Use);
 
-    private static AgentDefinitionRequest Agent(string name, string instructions, double? temperature = null)
+    private static AgentDefinitionRequest Agent(string name, string instructions, float? temperature = null)
         => new()
         {
             Name = name,
@@ -121,21 +121,21 @@ public abstract class DefinitionTransferAcceptanceContract
 
     private static async Task PostAsync<T>(TraconTestHost host, string path, T body)
     {
-        using var response = await host.Client.PostAsJsonAsync(new Uri(Api, path), body);
+        using var response = await host.Client.PostAsJsonAsync(Api(path), body);
 
         response.EnsureSuccessStatusCode();
     }
 
     private static async Task PutAsync<T>(TraconTestHost host, string path, T body)
     {
-        using var response = await host.Client.PutAsJsonAsync(new Uri(Api, path), body);
+        using var response = await host.Client.PutAsJsonAsync(Api(path), body);
 
         response.EnsureSuccessStatusCode();
     }
 
     private static async Task<JsonNode> ExportAsync(TraconTestHost host, string query = "")
     {
-        using var response = await host.Client.GetAsync(new Uri(Api, "definitions/export" + query));
+        using var response = await host.Client.GetAsync(Api("definitions/export" + query));
 
         response.EnsureSuccessStatusCode();
 
@@ -145,7 +145,7 @@ public abstract class DefinitionTransferAcceptanceContract
     private static async Task<JsonNode> ImportAsync(TraconTestHost host, JsonNode bundle, bool dryRun)
     {
         using var response = await host.Client.PostAsync(
-            new Uri(Api, $"definitions/import?dryRun={(dryRun ? "true" : "false")}"),
+            Api($"definitions/import?dryRun={(dryRun ? "true" : "false")}"),
             new StringContent(bundle.ToJsonString(), Encoding.UTF8, "application/json"));
         var text = await response.Content.ReadAsStringAsync();
 
