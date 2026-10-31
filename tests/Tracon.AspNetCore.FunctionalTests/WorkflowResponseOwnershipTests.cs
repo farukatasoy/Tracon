@@ -492,7 +492,7 @@ public sealed class WorkflowResponseOwnershipTests
         // queue refuses the job and the run store cannot close the row either. Run reconciliation
         // reads only Running rows and a Queued run with no job cannot be cancelled, so the repeat
         // of the same answer is the one thing that can still move the request: it writes the
-        // missing job (maintainer decision 2026-10-14).
+        // missing job.
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync(runWorker: false, configureTracon: static builder => StopBeforeTheJob(builder.Services));
         var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);

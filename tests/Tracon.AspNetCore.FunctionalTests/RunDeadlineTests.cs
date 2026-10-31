@@ -11,7 +11,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <see cref="TraconAgentGraphOptions.MaxDuration"/> (T-7): the
+/// <see cref="TraconAgentGraphOptions.MaxDuration"/>: the
 /// run tree's fifth budget dimension. The cutoff always lands between two
 /// model turns — a tool call already in progress when the deadline passes is
 /// NOT interrupted — and applies on the queued (durable) run path too, where
@@ -91,7 +91,7 @@ public sealed class RunDeadlineTests
     [Fact]
     public async Task Deadline_is_enforced_on_the_queued_durable_run_path_too()
     {
-        // 🚨 T-7's core claim: a queued run's lease is renewed continuously
+        // 🚨 The core claim: a queued run's lease is renewed continuously
         // (JobWorkerBackgroundService.StartLeaseRenewal) and today carries NO
         // wall-clock limit of its own. This proves MaxDuration cuts a queued
         // run off exactly like the synchronous path above.

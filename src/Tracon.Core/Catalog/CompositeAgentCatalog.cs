@@ -207,7 +207,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
                 // schema and recorded with the current model. The pinned
                 // version's own definition describes it; a third-party source
                 // that cannot provide one keeps the listed descriptor with the
-                // pinned version number (user decision 2026-10-12).
+                // pinned version number.
                 if (source is IDescribingAgentSource describing)
                 {
                     var described = await describing

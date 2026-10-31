@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// No endpoint accepts a service interface as its request body (A-78).
+/// No endpoint accepts a service interface as its request body.
 /// </summary>
 /// <remarks>
 /// <para>

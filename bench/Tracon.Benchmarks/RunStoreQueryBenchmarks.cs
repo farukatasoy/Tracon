@@ -12,7 +12,7 @@ namespace Tracon.Benchmarks;
 /// <remarks>
 /// Measured on SQLite, not PostgreSQL/SQL Server: no Docker dependency, and
 /// allocation on the managed side is dominated by command setup and row
-/// reading, not by the wire dialect (116.2, third row).
+/// reading, not by the wire dialect.
 /// </remarks>
 [MemoryDiagnoser]
 public class RunStoreQueryBenchmarks : IDisposable

@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The audit trail records header NAMES and configuration key NAMES, and no
-/// header value (decision 6).
+/// header value.
 /// </summary>
 /// <remarks>
 /// <para>

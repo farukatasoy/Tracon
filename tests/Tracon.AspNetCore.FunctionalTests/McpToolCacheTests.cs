@@ -160,8 +160,8 @@ public sealed class McpToolCacheTests
     /// <summary>
     /// The server stops answering and, once the retention has passed, the refresh
     /// drops its tools; the connection itself stays registered. The cached path then
-    /// behaves like an uncached compile: the agent is refused with "not registered"
-    /// (user decision 2026-10-11). A retention of zero drops them at the first
+    /// behaves like an uncached compile: the agent is refused with "not registered".
+    /// A retention of zero drops them at the first
     /// failed listing; a millisecond has always passed by the next refresh.
     /// </summary>
     [Theory]

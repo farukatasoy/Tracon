@@ -191,7 +191,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
         // 🚨 With content protection on, the server-side `~` prefilter would
         // compare its pattern against CIPHERTEXT and never match; sending it
         // anyway would make every search pay for a round trip that always
-        // falls back (decision 82.3). Skip it outright instead of relying on
+        // falls back. Skip it outright instead of relying on
         // IsInvalidRegexError, which only catches a pattern PostgreSQL's ARE
         // syntax rejects, not one that is merely comparing against the wrong bytes.
         if (_context.ProtectedColumns.Contains(ProtectedColumn.AgentFileContent))

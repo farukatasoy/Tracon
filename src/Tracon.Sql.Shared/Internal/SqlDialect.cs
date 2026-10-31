@@ -70,7 +70,7 @@ internal abstract class SqlDialect
     /// core file list no longer discovers; <see cref="MigrationRunner"/> uses
     /// this map to log (once, at information level) that the row is orphaned
     /// but harmless when the corresponding optional set stays disabled
-    /// (decision 67.3 — no migration code, a diagnostic only).
+    /// (no migration code, a diagnostic only).
     /// </remarks>
     public virtual IReadOnlyDictionary<int, string> RelocatedCoreMigrationSets { get; }
         = System.Collections.Immutable.ImmutableDictionary<int, string>.Empty;

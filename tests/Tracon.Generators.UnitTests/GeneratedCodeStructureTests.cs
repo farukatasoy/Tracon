@@ -1,7 +1,7 @@
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies 52.5's three concrete guarantees: the <c>&lt;auto-generated/&gt;</c> header,
+/// Verifies the generator's three concrete guarantees: the <c>&lt;auto-generated/&gt;</c> header,
 /// <c>dotnet format</c>-compatible formatting, and AOT-safe (reflection-free) code.
 /// </summary>
 public sealed class GeneratedCodeStructureTests

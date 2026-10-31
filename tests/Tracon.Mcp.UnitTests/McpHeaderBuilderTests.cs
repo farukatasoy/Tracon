@@ -56,7 +56,7 @@ public sealed class McpHeaderBuilderTests
     }
 
     /// <summary>
-    /// A row written before keeps working (decision 7), and the
+    /// A row written before keeps working, and the
     /// operator is told to move the credential — by name.
     /// </summary>
     [Fact]
@@ -82,7 +82,7 @@ public sealed class McpHeaderBuilderTests
         keyed.ContainsKey("Authorization").ShouldBeFalse();
         logger.Text.ShouldContain("OAuth");
 
-        // Decision 7: the plain header is still sent; the SDK then skips its
+        // A stored plain header is still sent; the SDK then skips its
         // own bearer token while the header is present.
         var plain = Build(Server(oauth: true, headers: new(StringComparer.Ordinal) { ["Authorization"] = "Bearer plain-190" }), logger);
 

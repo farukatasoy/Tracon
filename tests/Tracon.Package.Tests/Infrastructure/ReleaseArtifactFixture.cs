@@ -15,7 +15,7 @@ namespace Tracon.Package.Tests.Infrastructure;
 /// </remarks>
 public sealed class ReleaseArtifactFixture : IAsyncLifetime
 {
-    /// <summary>The version this fixture forces onto every package (97.1, decision 1's target line).</summary>
+    /// <summary>The version this fixture forces onto every package.</summary>
     public const string Version = "1.0.0-preview.1";
 
     private static readonly TimeSpan PackTimeout = TimeSpan.FromMinutes(20);

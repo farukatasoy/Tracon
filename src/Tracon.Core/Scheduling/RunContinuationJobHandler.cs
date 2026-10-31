@@ -156,8 +156,8 @@ internal sealed class RunContinuationJobHandler(
             // The source run recorded the values it was bound with, and
             // the turn continues with the SAME ones. Without a record the turn
             // would run on the defaults (or fail on a required parameter) - a
-            // different prompt halfway through the conversation (user
-            // decision 2026-10-12) - so a definition that declares parameters
+            // different prompt halfway through the conversation - so a
+            // definition that declares parameters
             // and a run that recorded none stays refused.
             if (definition.Parameters.Count > 0)
             {

@@ -123,7 +123,7 @@ public sealed class EmbeddedSampleTests
 
     /// <summary>
     /// The event bridge drops under backpressure rather than blocking the run
-    /// (85.2's "queue and return" rule). A burst overflows the sink's 8-item
+    /// (the "queue and return" rule). A burst overflows the sink's 8-item
     /// channel; the runs it belongs to still complete in milliseconds.
     /// </summary>
     [Fact]

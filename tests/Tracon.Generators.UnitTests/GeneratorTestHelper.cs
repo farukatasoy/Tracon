@@ -41,7 +41,7 @@ internal static class GeneratorTestHelper
     /// <summary>
     /// Runs the generator against <paramref name="firstSource"/>, then against
     /// <paramref name="secondSource"/> with the SAME DRIVER (preserving the cache).
-    /// Incrementality (52.5, the <c>IIncrementalGenerator</c> contract) is verified by
+    /// Incrementality (the <c>IIncrementalGenerator</c> contract) is verified by
     /// inspecting the step cache reasons of this second run.
     /// </summary>
     public static (GeneratorRunResult First, GeneratorRunResult Second) RunIncremental(string firstSource, string secondSource)

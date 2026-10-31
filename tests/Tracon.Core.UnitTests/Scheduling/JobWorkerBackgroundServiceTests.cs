@@ -72,7 +72,7 @@ public sealed class JobWorkerBackgroundServiceTests
         // "default" (completes immediately). With MaxConcurrentJobsPerLane
         // capping "media" at 1, the second media job never even gets a slot --
         // but the default job must complete regardless, proving the lanes
-        // do not share a single queue position (129.4's starvation guarantee).
+        // do not share a single queue position (no lane starves another).
         await EnqueueAsync(jobs, "media", now);
         await EnqueueAsync(jobs, "media", now);
         var defaultJobId = await EnqueueAsync(jobs, "default", now);

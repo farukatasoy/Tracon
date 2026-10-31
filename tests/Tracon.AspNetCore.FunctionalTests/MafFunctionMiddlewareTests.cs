@@ -21,8 +21,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <see cref="AgentRunOptions"/>, or <c>ChatClientAgentRunOptions</c>, and throws
 /// <see cref="NotSupportedException"/> for any other type. Every Tracon endpoint
 /// passes <see cref="TraconRunOptions"/>, so the middleware threw on every run
-/// until <c>RunRecordingAgent</c> stopped handing that type inward (MAF
-/// capability matrix, G-07). The two tests cover the two run paths of
+/// until <c>RunRecordingAgent</c> stopped handing that type inward. The two
+/// tests cover the two run paths of
 /// <c>RunRecordingAgent</c>: the SSE endpoint streams, the queued run buffers.
 /// </remarks>
 public sealed class MafFunctionMiddlewareTests

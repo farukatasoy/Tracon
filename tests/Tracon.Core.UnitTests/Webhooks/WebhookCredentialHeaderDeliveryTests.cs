@@ -60,7 +60,7 @@ public sealed class WebhookCredentialHeaderDeliveryTests
         logs.ShouldNotContain("resolved-190");
     }
 
-    /// <summary>A row written before the credential rule still delivers, with a warning by name (decision 7).</summary>
+    /// <summary>A row written before the credential rule still delivers, with a warning by name.</summary>
     [Fact]
     public async Task A_stored_plain_credential_is_sent_with_a_warning_that_carries_no_value()
     {

@@ -74,7 +74,7 @@ public sealed class TelemetryNameSnapshotTests
             instrument.Tags.ShouldNotBeEmpty($"'{instrument.Name}' was not measured, so its attributes are unknown.");
         }
 
-        // The tenant attribute is off by default (A-68); the agent version stays on.
+        // The tenant attribute is off by default; the agent version stays on.
         instruments[TraconDiagnostics.RunCounterName].Tags.Contains(TraconDiagnostics.Tags.AgentVersion).ShouldBeTrue();
         instruments[TraconDiagnostics.RunCounterName].Tags.Contains(TraconDiagnostics.Tags.TenantId).ShouldBeFalse();
         instruments[TraconDiagnostics.JobCounterName].Tags.Contains(TraconDiagnostics.Tags.TenantId).ShouldBeFalse();

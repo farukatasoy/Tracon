@@ -43,7 +43,7 @@ public sealed class RunTests(BrowserFixture browsers)
         // A consumer-written RunEventType.Custom event reaches the
         // SSE stream and the console draws it with the consumer's OWN
         // CustomType as its name, not a generic "Custom" label -- proving
-        // both that the field survives the wire and that 141.2's card renders.
+        // both that the field survives the wire and that the custom event card renders.
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 

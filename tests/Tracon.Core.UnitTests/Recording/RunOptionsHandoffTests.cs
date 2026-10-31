@@ -5,8 +5,8 @@ namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
 /// <see cref="RunRecordingAgent"/> hands the inner agent a plain
-/// <see cref="AgentRunOptions"/>, never <see cref="TraconRunOptions"/> (MAF
-/// capability matrix, G-07). The end-to-end proof is
+/// <see cref="AgentRunOptions"/>, never <see cref="TraconRunOptions"/>.
+/// The end-to-end proof is
 /// <c>MafFunctionMiddlewareTests</c>; these tests pin the copy itself.
 /// </summary>
 public sealed class RunOptionsHandoffTests

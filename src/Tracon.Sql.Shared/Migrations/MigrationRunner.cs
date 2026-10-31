@@ -297,8 +297,8 @@ internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAp
 
     /// <summary>
     /// Logs (once, at information level) a core-numbered ledger row whose
-    /// migration was later relocated to an optional set that is not enabled
-    /// (decision 67.3). The row and whatever it created are
+    /// migration was later relocated to an optional set that is not enabled.
+    /// The row and whatever it created are
     /// harmless — this is a diagnostic, not a migration.
     /// </summary>
     private void LogOrphanedRelocatedMigrations(IReadOnlyDictionary<MigrationKey, AppliedMigration> applied)

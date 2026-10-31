@@ -11,8 +11,8 @@ public sealed class OptionalMigrationSetTests(PostgresFixture fixture)
 {
     /// <summary>
     /// <c>GetSnapshotAsync</c> must not report a disabled set's files as
-    /// pending — the exact failure mode 67.2's "reject the file-name-skip
-    /// alternative" rationale warns about (a permanently-Degraded diagnostic).
+    /// pending — skipping by file name alone would leave a
+    /// permanently-Degraded diagnostic.
     /// </summary>
     [Fact]
     public async Task GetSnapshotAsync_does_not_count_a_disabled_sets_files_as_pending()
@@ -39,8 +39,8 @@ public sealed class OptionalMigrationSetTests(PostgresFixture fixture)
 
     /// <summary>
     /// A core-numbered ledger row whose file relocated to a disabled optional
-    /// set is logged once at information level (decision 67.3 — a
-    /// diagnostic, not migration code); it must not throw or block startup.
+    /// set is logged once at information level (a diagnostic, not migration
+    /// code); it must not throw or block startup.
     /// </summary>
     [Fact]
     public async Task Orphaned_relocated_core_row_is_logged_and_harmless()

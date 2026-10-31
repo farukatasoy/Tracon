@@ -89,7 +89,8 @@ def _korumasiz_isler(isler: dict[str, dict]) -> list[str]:
         if "build" not in ziyaret:
             sorunlar.append(f"`{ad}` işi `build`'e bağlı değil; koşulsuz koşar")
         kosul = is_["if"] or ""
-        if DURUM_FONKSIYONU.search(kosul) and KANONIK_REPO_KOSULU not in kosul:
+        # `||` ile bağlanan koşul korumayı deler: `always() || <koşul>` her depoda doğrudur.
+        if DURUM_FONKSIYONU.search(kosul) and (KANONIK_REPO_KOSULU not in kosul or "||" in kosul):
             sorunlar.append(
                 f"`{ad}` işinin `if:`'i durum fonksiyonu taşıyor; `needs` zinciri onu atlatmayabilir, "
                 "depo koşulunu kendisi taşımalı")
@@ -935,6 +936,9 @@ class KapiTestleri(unittest.TestCase):
             "  basarisiz:\n"
             "    needs: build\n"
             "    if: failure()\n"
+            "  delik:\n"
+            "    needs: build\n"
+            "    if: always() || github.repository == 'farukatasoy/Tracon'\n"
             "  kopuk:\n"
             "    runs-on: ubuntu-latest\n"
         )
@@ -943,7 +947,7 @@ class KapiTestleri(unittest.TestCase):
         sorunlu = sorted({sorun.split("`")[1] for sorun in _korumasiz_isler(isler)})
 
         self.assertEqual(isler["ozet"]["if"], "github.ref == 'refs/heads/main' && !cancelled()")
-        self.assertEqual(sorunlu, ["basarisiz", "kopuk", "ozet", "rapor"])
+        self.assertEqual(sorunlu, ["basarisiz", "delik", "kopuk", "ozet", "rapor"])
 
     def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:

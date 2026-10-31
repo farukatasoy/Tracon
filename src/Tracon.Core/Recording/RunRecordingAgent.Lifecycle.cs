@@ -56,7 +56,7 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     // The copy names each base property by hand. RunOptionsHandoffTests fails
     // when Microsoft Agent Framework adds one, so the copy cannot silently drop
-    // it (MAF capability matrix, G-07).
+    // it.
     internal static AgentRunOptions? ForInnerAgent(AgentRunOptions? options)
     {
         if (options is not TraconRunOptions traconOptions)
