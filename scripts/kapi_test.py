@@ -369,16 +369,24 @@ class KapiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(kapi.context7_version_drift(pathlib.Path(directory)), [])
 
-    def test_scan_context7_kaymasinda_kirmizi_doner(self):
-        with tempfile.TemporaryDirectory() as directory, \
-                mock.patch.object(kapi, "public_surface_violations", return_value=[]), \
-                contextlib.redirect_stdout(io.StringIO()) as output:
-            root = self._context7_koku(
-                directory, {"previousVersions": [{"tag": "v1.0.0-preview.5"}]}, self._CHANGELOG)
-            result = kapi.scan(root)
+    def test_scan_yalniz_context7_kaymasiyla_kirmiziya_doner(self):
+        # Ötekiler boş: sonucu yalnız etiket ayırt eder. Geçici kökte migration manifesti
+        # yoktur; taklit edilmezse `scan` her iki durumda da 1 döner ve test bir şey kanıtlamaz.
+        bos = {
+            "find_sync_copies": [], "find_secrets": ([], 0), "migration_anchor_not_in_history": None,
+            "migration_integrity_violations": [], "find_stale_doc_references": [],
+            "public_surface_violations": [],
+        }
+        for tag, beklenen in (("v1.0.0-preview.6", 0), ("v1.0.0-preview.5", 1)):
+            with self.subTest(tag=tag), tempfile.TemporaryDirectory() as directory, \
+                    contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()) as output:
+                for ad, deger in bos.items():
+                    stack.enter_context(mock.patch.object(kapi, ad, return_value=deger))
+                root = self._context7_koku(directory, {"previousVersions": [{"tag": tag}]}, self._CHANGELOG)
+                result = kapi.scan(root)
 
-        self.assertEqual(result, 1)
-        self.assertIn("v1.0.0-preview.5", output.getvalue())
+            self.assertEqual(result, beklenen, output.getvalue())
+            self.assertEqual("v1.0.0-preview.5" in output.getvalue(), beklenen == 1)
 
     def test_context7_surumu_repoda_son_yayinla_ayni(self):
         # SINIF KAPISI: bu repoda gercek olan denetim.
@@ -1559,6 +1567,19 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         run.assert_not_called()
 
+    def test_yayin_tarama_kirmiziysa_pack_denenmez(self):
+        """Etiket koşusu `tarama`yı koşar ve yayınlanmış bir etiket geri alınamaz.
+        Taramanın düşüreceği her şey (sürüm etiketi kayması dahil) etiketten ÖNCE,
+        provada görünmeli; pack'e hiç girilmez."""
+        with mock.patch.object(kapi, "_git", return_value=[]), \
+                mock.patch.object(kapi, "scan", return_value=1) as scan, \
+                mock.patch.object(kapi, "_pack_release", return_value=1) as pack:
+            result = kapi.release_rehearsal(None)
+
+        self.assertEqual(result, 1)
+        scan.assert_called_once()
+        pack.assert_not_called()
+
     def test_yayin_git_bulunamazsa_taban_cozulemez_pack_denenmez(self):
         """Git yoksa temizlik denetimi uyarıyla atlanır (MSBuild kapısı
         ikinci hattır). taban adımının ikinci hattı yoktur - sessiz
@@ -1568,7 +1589,8 @@ class YayinTestleri(unittest.TestCase):
             (root / "src").mkdir()
             output = io.StringIO()
 
-            with mock.patch.object(kapi, "_git", return_value=None):
+            with mock.patch.object(kapi, "_git", return_value=None), \
+                    mock.patch.object(kapi, "scan", return_value=0):
                 with mock.patch("subprocess.run", side_effect=OSError("git yok")) as run:
                     with contextlib.redirect_stdout(output):
                         result = kapi.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
@@ -1599,6 +1621,7 @@ class YayinTestleri(unittest.TestCase):
         resolve = mock.Mock(return_value=baseline) if isinstance(baseline, str) else mock.Mock(side_effect=baseline)
         with contextlib.ExitStack() as stack:
             stack.enter_context(mock.patch.object(kapi, "_git", return_value=[]))
+            stack.enter_context(mock.patch.object(kapi, "scan", return_value=0))
             stack.enter_context(mock.patch.object(bc, "resolve_baseline", resolve))
             stack.enter_context(mock.patch.object(
                 bc, "restore_baselines", restore or (lambda ids, version, work: work / "packages")))

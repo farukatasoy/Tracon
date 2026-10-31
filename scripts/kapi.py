@@ -2115,6 +2115,11 @@ def release_rehearsal(
     # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
     if _dirty_tree_rejected(require_git=False):
         return 1
+    # Etiket koşusu aynı taramayı koşar ve yayınlanmış bir etiket geri alınamaz.
+    # Taramanın düşüreceği her şey (sürüm etiketi kayması dahil) etiket doğmadan
+    # burada görünür; dakikalarca süren pack'e girilmez.
+    if scan(root) != 0:
+        return 1
     commit = _head_commit()
 
     # Önceki bir yeşil koşumun sonucu, bu koşum kırmızı biterse yanıltmasın.
@@ -2654,7 +2659,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
     parser.add_argument("--komutlari-bas", action="store_true", help="komutları çalıştırmadan listele")
     subparsers = parser.add_subparsers(dest="stage")
 
-    subparsers.add_parser("tarama", help="sync kopyası, secret, migration, bayat doküman ve kanıtsız public yüzey taraması")
+    subparsers.add_parser("tarama", help="sync kopyası, secret, migration, bayat doküman, kanıtsız public yüzey ve Context7 sürüm etiketi taraması")
     subparsers.add_parser("uret", help="üretilen dosyaları yeniden üret: agent haritası + doküman indeksleri")
     ic_dongu = subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
     ic_dongu.add_argument(

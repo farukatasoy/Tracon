@@ -10317,7 +10317,7 @@ The project template sets the first property, so a project created with
 ```mermaid
 flowchart LR
     accTitle: What a coding agent reads, and which question each file answers
-    accDescr: The tool writes the gate skill, which sends the agent to the map before it writes code. The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout.
+    accDescr: The tool writes the gate skill, which sends the agent to the map before it writes code. The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout, and the Context7 library answers one question at a time, for the main branch or for one release.
     TOOL["tracon agent-skill"] --> SKILL[".claude/skills/tracon/SKILL.md<br/>written only when absent"]
     SKILL --> Q0["Read the map<br/>BEFORE writing code"]
     Q0 --> Q1
@@ -10328,6 +10328,7 @@ flowchart LR
     LOCAL --> Q1
     LOCAL --> Q2["Exact paths to the XML docs<br/>and the HTTP API document"]
     SITE["llms.txt · llms-full.txt"] --> Q3["The map, a one-line page index,<br/>and the full text, for an agent<br/>with no checkout"]
+    C7["Context7<br/>/farukatasoy/tracon"] --> Q4["Snippets for one question,<br/>from main or from one release"]
 ```
 
 ### `AGENTS.md` — the capability map
@@ -10408,6 +10409,26 @@ shipped copy still knows they exist.
 The generated .NET and HTTP API references are deliberately **not** in either file.
 That surface belongs to the compiler and the XML documentation; putting it in a text
 file would burn a context window and answer nothing the local reference cannot.
+
+### Context7 — for an agent that looks a library up
+
+An agent that uses the [Context7](https://context7.com) MCP server finds Tracon by
+name. The library is `/farukatasoy/tracon`. It indexes the public repository: the
+hand-written pages of this site, the package READMEs, the samples, and the lists of
+public API members. Every answer starts with a short set of library rules, such as
+"tools are defined only in code".
+
+Two IDs answer two questions:
+
+- `/farukatasoy/tracon` follows the repository's `main` branch, the same source this
+  site is built from. It can describe an API that is newer than your installed preview.
+- `/farukatasoy/tracon/v<version>` answers from the text of one release. Context7 keeps
+  the latest release as a version; `resolve-library-id` lists it. Use it when the
+  version matches the packages you installed.
+
+Context7 is a separate service, and it indexes the public repository, not your
+project. Nothing in your build calls it. For the exact signatures of the version you
+restored, the local reference above stays the source.
 
 ### Any page as plain markdown
 
@@ -10548,10 +10569,10 @@ rather than switching off the family.
 
 ## What this is not
 
-It is not a service, an index, or a plugin. Nothing runs outside `dotnet build` and
-one command you run yourself, no process listens, and no content is uploaded
-anywhere. Delete the files and unset the property and the only thing you lose is
-the map.
+The build-time part is not a service, an index, or a plugin. Nothing runs outside
+`dotnet build` and one command you run yourself, no process listens, and no content is
+uploaded anywhere. Delete the files and unset the property and the only thing you lose
+is the map.
 
 The gate skill in particular is a guardrail, not a boundary. It cannot stop an
 agent from writing anything; it only changes what the agent reads first.
