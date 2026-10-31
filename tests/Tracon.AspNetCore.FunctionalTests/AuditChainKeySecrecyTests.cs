@@ -107,12 +107,21 @@ public sealed class AuditChainKeySecrecyTests
 
         foreach (var file in Directory.EnumerateFiles(directory, name + "*"))
         {
-            using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-            stream.CopyTo(all);
+            all.Write(ReadShared(file));
         }
 
         return all.ToArray();
+    }
+
+    // The host may still hold the database open. Windows refuses a plain read of a file another handle writes to;
+    // sharing read and write access is what lets the scan see the bytes while the connection lives.
+    private static byte[] ReadShared(string file)
+    {
+        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var copy = new MemoryStream();
+
+        stream.CopyTo(copy);
+        return copy.ToArray();
     }
 
     private static string SqliteBytes(string path) => Encoding.Latin1.GetString(AllFileBytes(path));
@@ -127,7 +136,7 @@ public sealed class AuditChainKeySecrecyTests
             "; ",
             Directory.EnumerateFiles(directory, name + "*").Select(file =>
             {
-                var bytes = File.ReadAllBytes(file);
+                var bytes = ReadShared(file);
 
                 return $"{Path.GetFileName(file)[name.Length..]}: {bytes.Length} bytes, id {(ContainsBytes(bytes, "2026-10"u8.ToArray()) ? "present" : "absent")}";
             }));
