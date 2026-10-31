@@ -12,9 +12,9 @@ member needs XML documentation.
 ## What you need
 
 - **.NET SDK 10.0.402** (pinned in `global.json`; a later 10.0.4xx patch also
-  works), plus the **.NET 8 and .NET 9 runtimes** — a
-  representative set of test projects runs on `net8.0`, `net9.0`, and `net10.0`
-  (`tests/Directory.Build.props`). The gate runner stops early if one is missing.
+  works). Every test project runs on `net10.0`, the one framework the packages
+  ship; `tests/Directory.Build.props` holds the framework list, and the gate
+  runner stops early if a runtime it needs is missing.
 - **Node.js 22.22.2+, 24.15+ or 26+** — `dotnet build` builds the React console as part of the
   build
 - **Docker** — the integration tests start real databases with Testcontainers

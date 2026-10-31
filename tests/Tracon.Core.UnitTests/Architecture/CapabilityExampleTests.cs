@@ -34,10 +34,10 @@ public sealed class CapabilityExampleTests
     private const string RefreshEnvVar = "TRACON_CAPABILITY_EXAMPLE_REFRESH";
 
     /// <summary>
-    /// The single framework the gate reads. The three target frameworks produce
-    /// three different XML files (measured), but the difference comes from
-    /// conditional compilation; every entry point exists under every one of
-    /// them, so reading all three would triple the work and catch nothing.
+    /// The single framework the gate reads. The packages target this one
+    /// framework today; if more are added, their XML files differ only by
+    /// conditional compilation and every entry point exists under each of them,
+    /// so reading one is enough.
     /// </summary>
     private const string ReadTargetFramework = "net10.0";
 

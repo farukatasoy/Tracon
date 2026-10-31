@@ -22347,8 +22347,8 @@ pre-release selection.
 
 Tracon follows Microsoft's own .NET support lifecycle and does not extend it. A
 target framework normally stays in the matrix while Microsoft still supports it;
-once that support ends, a later Tracon release may drop it. One drop did not
-wait for that date: `net8.0` and `net9.0`, described below.
+once that support ends, a later Tracon release may drop it. One drop was not
+tied to that date: `net8.0` and `net9.0`, described below.
 
 Plan for this before it happens, because it changes what you can upgrade to:
 
@@ -22365,11 +22365,11 @@ Support dates come from Microsoft, not from Tracon, and they move: check the
 for the current end-of-support date of each version before you pin one. `net10.0`
 is the only target in the matrix today, and a new application should start there.
 
-**Dropped without waiting for the end of support:** `net8.0` and `net9.0` reach
-the end of Microsoft support on 2026-11-10. The announcement of 2026-09-23 said
-the first Tracon release after that date would drop both targets. The drop no
-longer waits for that date: the first release after `1.0.0-preview.6` drops
-them, even if it ships before 2026-11-10. `1.0.0-preview.6` is the last release
+**Dropped after `1.0.0-preview.6`:** `net8.0` and `net9.0` reach the end of
+Microsoft support on 2026-11-10. The announcement of 2026-09-23 said the first
+Tracon release after that date would drop both targets. The drop is no longer
+tied to that date: the first release after `1.0.0-preview.6` drops them,
+whether it ships before or after 2026-11-10. `1.0.0-preview.6` is the last release
 that carries them, and it stays on nuget.org. An application that
 targets `net8.0` or `net9.0` cannot restore a newer release (`NU1202`); move it
 to `net10.0` first.
