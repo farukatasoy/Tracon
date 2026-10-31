@@ -1177,3 +1177,7 @@ Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_run_that_still_w
 Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Stranded_runs_are_listed_oldest_closure_first_and_no_more_than_max() -> System.Threading.Tasks.Task!
 virtual Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.SetRunStatusAsync(System.Guid runId, string! tenantId, Tracon.RunStatus status) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.The_request_timeout_survives_the_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.A_revoked_key_stays_revoked_while_its_last_use_is_being_recorded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failure_counter_counts_every_concurrent_failure() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Concurrent_progress_appends_all_count() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_completed_run_stays_completed_while_its_cost_is_being_updated() -> System.Threading.Tasks.Task!

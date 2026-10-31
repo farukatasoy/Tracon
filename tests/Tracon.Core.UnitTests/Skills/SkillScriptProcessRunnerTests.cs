@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Globalization;
 using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Skills;
@@ -49,6 +51,41 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
 
         result.TimedOut.ShouldBeTrue();
         result.Succeeded.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Timeout_kills_a_script_that_never_reads_the_arguments_written_to_its_stdin()
+    {
+        // The arguments are larger than the pipe, so the write blocks until the script reads them, and this
+        // script never does. The timeout has to end the write, report a timed-out result, and kill the process.
+        Assert.SkipWhen(BashPath is null, "bash not found.");
+        var pidFile = Path.Combine(_root, "pid.txt");
+        var script = WriteScript("deaf.sh", $"echo $$ > '{pidFile}'\nexec sleep 30");
+        var arguments = "{\"arguments\":\"" + new string('x', 4 * 1024 * 1024) + "\"}";
+
+        var watch = Stopwatch.StartNew();
+        var result = await RunAsync(script, options => options.Timeout = TimeSpan.FromSeconds(1), arguments);
+
+        result.TimedOut.ShouldBeTrue();
+        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
+
+        var pid = int.Parse(await File.ReadAllTextAsync(pidFile, TestContext.Current.CancellationToken), CultureInfo.InvariantCulture);
+
+        await WaitUntil.TrueAsync(() => !IsRunning(pid), "the script process to be gone");
+    }
+
+    private static bool IsRunning(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     [Fact]

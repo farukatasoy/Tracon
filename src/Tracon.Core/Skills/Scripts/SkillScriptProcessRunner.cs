@@ -190,12 +190,15 @@ internal sealed class SkillScriptProcessRunner : ISkillScriptExecutor
         var stdout = ReadCappedAsync(process.StandardOutput, request.MaxOutputBytes, linkedSource.Token);
         var stderr = ReadCappedAsync(process.StandardError, request.MaxOutputBytes, linkedSource.Token);
 
-        await WriteArgumentsAsync(process, request.ArgumentsJson, linkedSource.Token).ConfigureAwait(false);
-
         var timedOut = false;
 
         try
         {
+            // 🚨 Inside the same guard as the wait: a script that never reads its stdin leaves a large
+            // argument blocked in the pipe, and the timeout ends that write with a cancellation. Outside
+            // the guard it escaped as a cancelled call (not a timed-out result) and the process lived on.
+            await WriteArgumentsAsync(process, request.ArgumentsJson, linkedSource.Token).ConfigureAwait(false);
+
             await process.WaitForExitAsync(linkedSource.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

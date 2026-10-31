@@ -305,6 +305,28 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
+    public async Task Failure_counter_counts_every_concurrent_failure()
+    {
+        // Deliveries of one subscription run on several job slots at once. A counter that is read, raised and
+        // written back in separate steps loses the increments of the writers that overlap.
+        const int Writers = 4;
+        const int PerWriter = 50;
+
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+        var now = DateTimeOffset.UtcNow;
+
+        await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => Task.Run(async () =>
+        {
+            for (var index = 0; index < PerWriter; index++)
+            {
+                await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, int.MaxValue, now);
+            }
+        })));
+
+        (await Store.GetSubscriptionAsync(Tenant, "orders"))!.ConsecutiveFailures.ShouldBe(Writers * PerWriter);
+    }
+
+    [Fact]
     public async Task Failure_counter_increments_and_disables_the_subscription_at_the_threshold()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());

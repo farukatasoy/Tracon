@@ -458,8 +458,10 @@ could not be read back, so `PUT /api/schedules/handler-keys` answers `400`.
 
 Tracon accepts five-field cron expressions: minute, hour, day of month, month,
 and day of week. It supports `*`, fixed values, ranges, lists, and `/step`. It does
-not support seconds or the `L`, `W`, and `#` extensions. When both day-of-month and
-day-of-week are restricted, either field can match. Time-zone identifiers are
+not support seconds or the `L`, `W`, and `#` extensions. A value with a step runs from
+that value to the end of the range: `5/15` is `5-59/15`. When both day-of-month and
+day-of-week are restricted, either field can match. An expression whose days never occur
+in its months, such as `0 0 30 2 *`, is refused as invalid. Time-zone identifiers are
 validated by `TimeZoneInfo` on the host.
 
 Useful operations are:
@@ -684,9 +686,12 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `RunReconciliation.ScanInterval` | 1 minute | Wait between reconciliation passes |
 | `RunReconciliation.MaxRunsPerScan` | `100` | Upper bound on rows closed per pass |
 
-The cron search looks ahead for at most four years. A nonexistent local time during a
-spring daylight-saving transition is skipped. A duplicated local minute during the
-fall transition maps to the earlier occurrence.
+The cron search looks ahead for at most eight years, which covers the longest gap between
+two 29ths of February. A nonexistent local time during a spring daylight-saving transition
+is skipped. When the clock is set back at the end of daylight saving time, a schedule that
+runs in every hour or in steps of hours (`*/5 * * * *`, `0 * * * *`) runs in both passes of
+the repeated stretch, so its rhythm does not break. A schedule that names its hours
+(`30 1 * * *`, `0 1,2 * * *`) is a time of day and runs once, in the first pass.
 
 ## Delivery and failure behavior
 

@@ -99,6 +99,47 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
+    public async Task A_revoked_key_stays_revoked_while_its_last_use_is_being_recorded()
+    {
+        // The last-use stamp runs on every authenticated request, so it runs beside a revocation in
+        // production. A stamp that reads the active key and writes it back after the revocation
+        // brings the key back to life; the revocation was reported as done.
+        const int Rounds = 200;
+        var revived = 0;
+
+        for (var round = 0; round < Rounds; round++)
+        {
+            var created = await Store.CreateAsync(Draft(Tenant, $"race-{round}"));
+            var id = created.Record.Id;
+            var stop = false;
+
+            var touching = Task.Run(async () =>
+            {
+                while (!Volatile.Read(ref stop))
+                {
+                    await Store.TouchLastUsedAsync(id, DateTimeOffset.UtcNow);
+                }
+            });
+
+            await Task.Delay(round % 7);
+
+            (await Store.RevokeAsync(Tenant, id)).ShouldBeTrue();
+
+            Volatile.Write(ref stop, true);
+            await touching;
+
+            var record = (await Store.ListAsync(Tenant)).Single(key => key.Id == id);
+
+            if (record.RevokedAt is null)
+            {
+                revived++;
+            }
+        }
+
+        revived.ShouldBe(0, "a revoked key was active again after a concurrent last-use update");
+    }
+
+    [Fact]
     public async Task Cannot_revoke_another_tenants_key()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "ci"));

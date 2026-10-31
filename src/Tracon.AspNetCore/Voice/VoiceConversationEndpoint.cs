@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -50,6 +51,7 @@ internal static class VoiceConversationEndpoint
                 (HttpContext context, string sessionId) =>
                     HandleAsync(context, sessionId, options, authorizationPolicyConfigured))
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("TraconVoiceStream")
             .WithTags("Tracon", "Voice")
             .WithSummary("Opens a WebSocket connection for real-time conversation.")
@@ -57,6 +59,8 @@ internal static class VoiceConversationEndpoint
                 "Client -> server: raw audio (binary) and control messages (JSON text). " +
                 "Server -> client: audio chunks (binary) and event frames (JSON text). " +
                 "The token is carried in the 'Sec-WebSocket-Protocol' subprotocol; it is NOT accepted in the query string. " +
+                "A conversation runs the agent turn after turn, so an API key needs the 'RunsWrite' scope; " +
+                "a key without it is refused with 403 before the upgrade. " +
                 "If a registered IRunAuthorizationHandler denies the caller, the handshake is refused with 404 — identical " +
                 "to a session belonging to another tenant, so a denial never confirms the session exists. " +
                 "If the tenant's egress policy does not allow the speech providers, or the tenant has its own " +
@@ -119,15 +123,13 @@ internal static class VoiceConversationEndpoint
             return;
         }
 
-        if (!await IsAuthorizedAsync(context, services, options).ConfigureAwait(false))
+        if (await CheckCredentialAsync(context, services, options).ConfigureAwait(false) is { } refused)
         {
-            // 🚨 No information about the expected token is given.
             await WriteProblemAsync(
                 context,
-                StatusCodes.Status401Unauthorized,
-                "Authentication failed",
-                $"Send the token via the '{VoiceConversationProtocol.TokenSubProtocolPrefix}<token>' subprotocol.")
-                .ConfigureAwait(false);
+                refused.StatusCode,
+                refused.ProblemDetails.Title ?? "Access denied",
+                refused.ProblemDetails.Detail ?? string.Empty).ConfigureAwait(false);
 
             return;
         }
@@ -227,10 +229,15 @@ internal static class VoiceConversationEndpoint
     /// <summary>
     /// Enforces the credential layer carried in the WebSocket subprotocol header.
     /// </summary>
+    /// <returns>
+    /// <see langword="null"/> when the credential is accepted; otherwise the refusal
+    /// to write: 401 for a missing or unknown credential, 403 for a proven API key
+    /// that lacks the scope this endpoint declares.
+    /// </returns>
     /// <remarks>
     /// A browser cannot set an <c>Authorization</c> header on a handshake, so the
-    /// credential travels in a subprotocol value instead. Two rules apply, and the
-    /// second one is the reason this method exists:
+    /// credential travels in a subprotocol value instead. Three rules apply, and
+    /// the second and third are the reason this method exists:
     /// <list type="number">
     /// <item>
     /// When nothing is presented and no static token is configured, the request
@@ -245,9 +252,15 @@ internal static class VoiceConversationEndpoint
     /// token configured, a valid API key was compared against it, did not match,
     /// and a legitimate caller got 401.
     /// </item>
+    /// <item>
+    /// A verified API key is held to the scope the endpoint declares, through the
+    /// same function the endpoint filter uses. This hand-written path skips the
+    /// filter, so it skipped the scope too: a key that could only read agents
+    /// opened a conversation that runs them.
+    /// </item>
     /// </list>
     /// </remarks>
-    private static async ValueTask<bool> IsAuthorizedAsync(
+    private static async ValueTask<ProblemHttpResult?> CheckCredentialAsync(
         HttpContext context,
         IServiceProvider services,
         TraconEndpointOptions options)
@@ -257,13 +270,13 @@ internal static class VoiceConversationEndpoint
         if (presented is null)
         {
             // Nothing presented: allowed only when no static token is demanded.
-            return options.AuthToken is not { Length: > 0 };
+            return options.AuthToken is not { Length: > 0 } ? null : Unauthorized();
         }
 
         if (options.AuthToken is { Length: > 0 } expected
             && BearerTokenValidator.IsValidToken(presented, expected))
         {
-            return true;
+            return null;
         }
 
         if (services.GetService<IApiKeyStore>() is { } apiKeyStore)
@@ -276,14 +289,26 @@ internal static class VoiceConversationEndpoint
 
             if (record is not null)
             {
+                if (TraconEndpointFilter.CheckScope(context, record) is { } scopeDenied)
+                {
+                    return scopeDenied;
+                }
+
                 ApiKeyRequestContext.Set(context, record);
 
-                return true;
+                return null;
             }
         }
 
-        return false;
+        return Unauthorized();
     }
+
+    // 🚨 No information about the expected token is given.
+    private static ProblemHttpResult Unauthorized()
+        => TypedResults.Problem(
+            title: "Authentication failed",
+            detail: $"Send the token via the '{VoiceConversationProtocol.TokenSubProtocolPrefix}<token>' subprotocol.",
+            statusCode: StatusCodes.Status401Unauthorized);
 
     /// <summary>Reads the token carried in the subprotocol header.</summary>
     /// <returns>The presented value; <see langword="null"/> if none was sent.</returns>

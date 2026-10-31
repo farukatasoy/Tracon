@@ -102,14 +102,13 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_runs.TryGetValue(runId, out var run))
-        {
-            _runs[runId] = run with
+        _runs.TryReplace(
+            runId,
+            run => run with
             {
                 DeletedRows = run.DeletedRows + deletedDelta,
                 ArchivedRows = run.ArchivedRows + archivedDelta,
-            };
-        }
+            });
 
         return default;
     }
@@ -123,10 +122,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_runs.TryGetValue(runId, out var run))
-        {
-            _runs[runId] = run with { CompletedAt = completedAt, Error = errorMessage };
-        }
+        _runs.TryReplace(runId, run => run with { CompletedAt = completedAt, Error = errorMessage });
 
         return default;
     }

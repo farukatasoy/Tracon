@@ -172,36 +172,62 @@ internal static class DefinitionReferenceGraph
     /// <paramref name="agents"/>. A cycle does not loop: the graph validation of an import refuses it, and the
     /// order only has to end.
     /// </returns>
+    /// <remarks>
+    /// The walk keeps its own stack. An import file chains as deep as its size allows — thousands of agents
+    /// each needing the next — and a recursive walk spends one stack frame per link, which ends the process
+    /// (a stack overflow cannot be caught) on a request any operator may send as a dry run.
+    /// </remarks>
     public static IReadOnlyList<string> OrderAgents(IReadOnlyDictionary<string, AgentDefinition> agents)
     {
         ArgumentNullException.ThrowIfNull(agents);
 
         var ordered = new List<string>(agents.Count);
         var visited = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<Walk>();
 
-        foreach (var name in agents.Keys)
+        foreach (var root in agents.Keys)
         {
-            Visit(name);
+            Enter(root);
+
+            while (pending.TryPeek(out var walk))
+            {
+                if (walk.Next < walk.Needs.Count)
+                {
+                    Enter(walk.Needs[walk.Next++]);
+                }
+                else
+                {
+                    pending.Pop();
+                    ordered.Add(walk.Name);
+                }
+            }
         }
 
         return ordered;
 
-        void Visit(string name)
+        void Enter(string name)
         {
             if (!visited.Add(name) || !agents.TryGetValue(name, out var definition))
             {
                 return;
             }
 
-            foreach (var reference in OfAgent(definition, []))
-            {
-                if (reference.Kind == DefinitionReferenceKind.Agent)
-                {
-                    Visit(reference.Name);
-                }
-            }
+            var needs = OfAgent(definition, [])
+                .Where(static reference => reference.Kind == DefinitionReferenceKind.Agent)
+                .Select(static reference => reference.Name)
+                .ToList();
 
-            ordered.Add(name);
+            pending.Push(new Walk(name, needs));
         }
+    }
+
+    /// <summary>An agent on the way down: the agents it needs, and how many of them were entered.</summary>
+    private sealed class Walk(string name, List<string> needs)
+    {
+        public string Name { get; } = name;
+
+        public List<string> Needs { get; } = needs;
+
+        public int Next { get; set; }
     }
 }

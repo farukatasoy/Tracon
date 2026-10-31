@@ -83,16 +83,16 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_keys.TryGetValue(id, out var stored)
-            || !string.Equals(stored.Record.TenantId, tenantId, StringComparison.Ordinal)
-            || stored.Record.RevokedAt is not null)
-        {
-            return new ValueTask<bool>(false);
-        }
+        var now = _timeProvider.GetUtcNow();
 
-        _keys[id] = stored with { Record = stored.Record with { RevokedAt = _timeProvider.GetUtcNow() } };
+        var revoked = _keys.TryReplace(
+            id,
+            stored => string.Equals(stored.Record.TenantId, tenantId, StringComparison.Ordinal)
+                && stored.Record.RevokedAt is null
+                    ? stored with { Record = stored.Record with { RevokedAt = now } }
+                    : null);
 
-        return new ValueTask<bool>(true);
+        return new ValueTask<bool>(revoked);
     }
 
     /// <inheritdoc />
@@ -100,10 +100,7 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_keys.TryGetValue(id, out var stored))
-        {
-            _keys[id] = stored with { Record = stored.Record with { LastUsedAt = usedAt } };
-        }
+        _keys.TryReplace(id, stored => stored with { Record = stored.Record with { LastUsedAt = usedAt } });
 
         return default;
     }

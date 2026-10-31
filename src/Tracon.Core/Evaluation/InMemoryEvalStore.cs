@@ -205,15 +205,14 @@ internal sealed class InMemoryEvalStore : IEvalStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_runs.TryGetValue(evalRunId, out var run))
-        {
-            _runs[evalRunId] = run with
+        _runs.TryReplace(
+            evalRunId,
+            run => run with
             {
                 Status = EvalRunStatus.Running,
                 AgentVersion = agentVersion,
                 ModelId = modelId,
-            };
-        }
+            });
 
         return default;
     }
@@ -224,9 +223,9 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(completion);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_runs.TryGetValue(completion.EvalRunId, out var run))
-        {
-            _runs[completion.EvalRunId] = run with
+        _runs.TryReplace(
+            completion.EvalRunId,
+            run => run with
             {
                 Status = completion.Status,
                 CompletedAt = completion.CompletedAt,
@@ -235,8 +234,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
                 Failed = completion.Failed,
                 InputTokens = completion.InputTokens,
                 OutputTokens = completion.OutputTokens,
-            };
-        }
+            });
 
         return default;
     }

@@ -79,6 +79,54 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         => ValueTask.FromResult<IRunScoreStore?>(null);
 
     [Fact]
+    public async Task A_completed_run_stays_completed_while_its_cost_is_being_updated()
+    {
+        // A maintenance cost update reads the row and writes it back. If it lands between the read and the
+        // write of a completion, or the reverse, the older copy must not undo the newer change: a run that
+        // finished would read as running again.
+        const int Rounds = 40;
+        var reverted = 0;
+
+        for (var round = 0; round < Rounds; round++)
+        {
+            var runId = TraconId.NewId();
+            await Store.StartRunAsync(TestData.Run(runId));
+
+            var stop = false;
+
+            var updating = Task.Run(async () =>
+            {
+                while (!Volatile.Read(ref stop))
+                {
+                    await Store.UpdateRunCostAsync(
+                        runId,
+                        new RunCost { InputCost = 1m, Currency = "USD", Source = PricingSource.Configuration },
+                        AmbientTenant.TenantId);
+                }
+            });
+
+            await Task.Delay(round % 5);
+
+            await Store.CompleteRunAsync(new RunCompletion
+            {
+                RunId = runId,
+                Status = RunStatus.Completed,
+                CompletedAt = DateTimeOffset.UtcNow,
+            });
+
+            Volatile.Write(ref stop, true);
+            await updating;
+
+            if ((await Store.GetRunAsync(runId))!.Status != RunStatus.Completed)
+            {
+                reverted++;
+            }
+        }
+
+        reverted.ShouldBe(0, "a finished run was written back as running by a concurrent cost update");
+    }
+
+    [Fact]
     public async Task StartRunAsync_upserts_when_called_twice_with_the_same_id()
     {
         // A queued run is first written as Queued, then written again

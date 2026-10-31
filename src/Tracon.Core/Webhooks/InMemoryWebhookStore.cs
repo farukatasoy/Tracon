@@ -130,22 +130,28 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_subscriptions.TryGetValue(subscriptionId, out var subscription))
-        {
-            return new ValueTask<bool>(false);
-        }
+        var disabledNow = false;
 
-        var failures = succeeded ? 0 : subscription.ConsecutiveFailures + 1;
-        var shouldDisable = !succeeded && disableThreshold > 0 && failures >= disableThreshold;
+        // The counter is read, raised and written back as one step: deliveries of one subscription run on
+        // several job slots at once, and a lost update would count fewer consecutive failures than happened.
+        _subscriptions.TryReplace(
+            subscriptionId,
+            subscription =>
+            {
+                var failures = succeeded ? 0 : subscription.ConsecutiveFailures + 1;
+                var shouldDisable = !succeeded && disableThreshold > 0 && failures >= disableThreshold;
 
-        _subscriptions[subscriptionId] = subscription with
-        {
-            ConsecutiveFailures = failures,
-            Enabled = subscription.Enabled && !shouldDisable,
-            UpdatedAt = updatedAt,
-        };
+                disabledNow = shouldDisable && subscription.Enabled;
 
-        return new ValueTask<bool>(shouldDisable && subscription.Enabled);
+                return subscription with
+                {
+                    ConsecutiveFailures = failures,
+                    Enabled = subscription.Enabled && !shouldDisable,
+                    UpdatedAt = updatedAt,
+                };
+            });
+
+        return new ValueTask<bool>(disabledNow);
     }
 
     /// <inheritdoc />
@@ -179,9 +185,9 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         ArgumentNullException.ThrowIfNull(result);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_deliveries.TryGetValue(result.DeliveryId, out var delivery))
-        {
-            _deliveries[result.DeliveryId] = delivery with
+        _deliveries.TryReplace(
+            result.DeliveryId,
+            delivery => delivery with
             {
                 Status = result.Status,
                 Attempt = result.Attempt,
@@ -190,8 +196,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
                 DeliveredAt = result.Status == WebhookDeliveryStatus.Delivered
                     ? result.RecordedAt
                     : delivery.DeliveredAt,
-            };
-        }
+            });
 
         return default;
     }

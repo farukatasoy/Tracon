@@ -98,11 +98,13 @@ internal static class QuotaPeriodCalculator
             }
         }
 
-        // At an ambiguous (twice-occurring) time, GetUtcOffset returns the
-        // earlier, non-standard offset; the period boundary starting early is
-        // preferred over starting late — the quota may reset a minute early,
-        // but no consumption is ever written to the wrong period.
-        var offset = timeZone.GetUtcOffset(midnight);
+        // 🚨 At an ambiguous (twice-occurring) time, GetUtcOffset returns the STANDARD offset, which is the later of
+        // the two instants; the earlier one has the larger offset. The period boundary starting early is
+        // preferred over starting late — the quota may reset a minute early, but no consumption is ever
+        // written to the wrong period — so the larger offset is asked for by name.
+        var offset = timeZone.IsAmbiguousTime(midnight)
+            ? timeZone.GetAmbiguousTimeOffsets(midnight).Max()
+            : timeZone.GetUtcOffset(midnight);
 
         return new DateTimeOffset(midnight, offset).ToUniversalTime();
     }

@@ -87,7 +87,7 @@ internal sealed partial class InMemoryRunStore
         ArgumentNullException.ThrowIfNull(completion);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_runs.TryGetValue(completion.RunId, out var existing))
+        if (!_runs.ContainsKey(completion.RunId))
         {
             throw new TraconException($"No run with id '{completion.RunId}' was found.");
         }
@@ -95,7 +95,9 @@ internal sealed partial class InMemoryRunStore
         // EXPECTED tenant check.
         EnsureExpectedTenant(completion.RunId, completion.TenantId, "The run was not completed.");
 
-        _runs[completion.RunId] = existing with
+        // One step: a cost update, a cancellation request or a heartbeat that lands between the read and the
+        // write must not be undone by a copy of the record that predates it.
+        _runs.TryReplace(completion.RunId, existing => existing with
         {
             Status = completion.Status,
             CompletedAt = completion.CompletedAt,
@@ -110,7 +112,7 @@ internal sealed partial class InMemoryRunStore
                 : null,
             ModelId = completion.ModelId ?? existing.ModelId,
             ModelProvider = completion.ModelProvider ?? existing.ModelProvider,
-        };
+        });
 
         return default;
     }
@@ -126,19 +128,15 @@ internal sealed partial class InMemoryRunStore
 
         // If the run was dropped (MaxRuns), the call is silently discarded:
         // this is a maintenance cost and must not interrupt the run.
-        if (_runs.TryGetValue(runId, out var existing))
-        {
-            // If the EXPECTED tenant does not match, the write is SILENTLY
-            // skipped — on the SQL side too, the WHERE condition updates zero
-            // rows and no error is thrown.
-            if (tenantId is not null
-                && !string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
-            {
-                return default;
-            }
-
-            _runs[runId] = existing with { Cost = cost };
-        }
+        // If the EXPECTED tenant does not match, the write is SILENTLY
+        // skipped — on the SQL side too, the WHERE condition updates zero
+        // rows and no error is thrown.
+        _runs.TryReplace(
+            runId,
+            existing => tenantId is not null
+                && !string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal)
+                    ? null
+                    : existing with { Cost = cost });
 
         return default;
     }

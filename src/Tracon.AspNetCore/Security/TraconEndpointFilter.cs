@@ -456,7 +456,15 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             statusCode: StatusCodes.Status401Unauthorized);
     }
 
-    private static ProblemHttpResult? CheckScope(HttpContext httpContext, ApiKeyRecord record)
+    /// <summary>
+    /// Rejects an API key that lacks the scope the matched endpoint declares.
+    /// </summary>
+    /// <remarks>
+    /// Internal because the voice socket authenticates its key by hand (the
+    /// credential travels in the subprotocol) and must judge the scope with this
+    /// same function, reading the same endpoint metadata.
+    /// </remarks>
+    internal static ProblemHttpResult? CheckScope(HttpContext httpContext, ApiKeyRecord record)
     {
         var requirement = httpContext.GetEndpoint()?.Metadata.GetMetadata<ApiKeyScopeRequirement>();
 

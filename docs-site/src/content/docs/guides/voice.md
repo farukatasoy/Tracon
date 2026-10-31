@@ -605,6 +605,10 @@ accepts the bearer value through a second subprotocol with the
 It never accepts the credential in the query string, where browser, server, and proxy
 logs would capture it.
 
+An API key needs the `RunsWrite` scope, the same scope the live voice session
+endpoint asks for: a conversation runs the agent turn after turn. A key without it
+is refused with `403` before the socket upgrades.
+
 Authentication is not authorization. A registered
 [`IRunAuthorizationHandler`](/guides/embedding/#6--run-and-session-authorization) is
 asked before the socket upgrades, with `SessionAccess.Voice` and the session id from

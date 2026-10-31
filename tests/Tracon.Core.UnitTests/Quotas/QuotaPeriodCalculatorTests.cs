@@ -97,6 +97,17 @@ public sealed class QuotaPeriodCalculatorTests
     }
 
     [Fact]
+    public void Midnight_that_occurs_twice_resolves_to_the_earlier_of_the_two()
+    {
+        // Cuba sets its clock back at 01:00, so local 00:00-00:59 on 2026-11-01 occurs twice: first at -04:00
+        // (04:00Z), then at -05:00 (05:00Z). The period starts at the first midnight, as the remarks promise.
+        var havana = TimeZoneInfo.FindSystemTimeZoneById("America/Havana");
+
+        QuotaPeriodCalculator.ToUtcInstant(new DateOnly(2026, 11, 1), havana)
+            .ShouldBe(new DateTimeOffset(2026, 11, 1, 4, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
     public void All_periods_are_computed_together()
     {
         var instant = new DateTimeOffset(2026, 8, 17, 12, 0, 0, TimeSpan.Zero);

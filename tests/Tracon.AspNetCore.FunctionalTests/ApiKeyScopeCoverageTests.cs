@@ -23,9 +23,8 @@ public sealed class ApiKeyScopeCoverageTests
     /// rationale lives on each entry below.
     /// Each one is justified; adding to the list is a
     /// deliberate decision. These ALWAYS map in the default test host (the UI
-    /// shell and the voice endpoint never connect at all when the UI provider
-    /// and the voice driver are not registered — those two are in
-    /// <see cref="ConditionallyMappedExemptRoutePatterns"/>).
+    /// shell never connects at all when the UI provider is not registered —
+    /// it is in <see cref="ConditionallyMappedExemptRoutePatterns"/>).
     /// </summary>
     private static readonly HashSet<string> ExemptRoutePatterns = new(StringComparer.Ordinal)
     {
@@ -43,27 +42,37 @@ public sealed class ApiKeyScopeCoverageTests
     };
 
     /// <summary>
-    /// Exempt endpoints that APPEAR only when the UI provider or the voice
-    /// driver is registered. Because the default test host registers neither,
-    /// these rows are not tried by
-    /// <see cref="Every_row_in_the_exemption_list_actually_exists_in_the_map"/>
+    /// Exempt endpoints that APPEAR only when the UI provider is registered.
+    /// Because the default test host does not register it, these rows are not
+    /// tried by <see cref="Every_row_in_the_exemption_list_actually_exists_in_the_map"/>
     /// — they exist only to keep the first test (exempt-if-present) out of scope.
     /// </summary>
+    /// <remarks>
+    /// The voice conversation socket is deliberately NOT here. It authenticates its
+    /// key by hand and used to be exempt on the reasoning that a key cannot open it;
+    /// it can, and it enforces the declared scope itself. The first test therefore
+    /// maps it, so a socket that loses its scope declaration fails here.
+    /// </remarks>
     private static readonly HashSet<string> ConditionallyMappedExemptRoutePatterns = new(StringComparer.Ordinal)
     {
         // SPA shell: <script src> cannot send an Authorization header; the shell carries no data.
         "/tracon/",
         "/tracon/{**path}",
-        // Validates the token ITSELF against the static AuthToken; API keys
-        // cannot open this endpoint at all today (adding metadata would be inert).
-        "/tracon/api/voice/sessions/{sessionId}/stream",
     };
 
     [Fact]
     public async Task Every_endpoint_in_the_protected_group_carries_a_scope_or_is_explicitly_exempt()
     {
+        var voice = new StubVoiceProvider();
+
         await using var host = await TraconTestHost.StartAsync(
-            configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
+            configureTracon: static builder => builder.UseVoiceConversation(),
+            configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true,
+            configureServices: services =>
+            {
+                services.AddSingleton<ISpeechTranscriber>(voice);
+                services.AddSingleton<ISpeechSynthesizer>(voice);
+            });
 
         var dataSource = host.Services.GetRequiredService<EndpointDataSource>();
 
@@ -107,8 +116,8 @@ public sealed class ApiKeyScopeCoverageTests
         // The reverse direction: if a row in the list no longer matches anything
         // (the route moved/was deleted), the exemption silently becomes
         // meaningless — catch that too. Only the 3 rows that ALWAYS map are
-        // tried; the UI shell and the voice endpoint are out of scope because
-        // they never connect on this host.
+        // tried; the UI shell is out of scope because it never connects on
+        // this host.
         await using var host = await TraconTestHost.StartAsync(
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
 

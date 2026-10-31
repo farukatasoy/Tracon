@@ -120,6 +120,28 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
+    public async Task Concurrent_progress_appends_all_count()
+    {
+        const int Writers = 4;
+        const int PerWriter = 50;
+
+        var run = await Store.CreateRunAsync(Run());
+
+        await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => Task.Run(async () =>
+        {
+            for (var index = 0; index < PerWriter; index++)
+            {
+                await Store.AppendRunProgressAsync(run.Id, deletedDelta: 1, archivedDelta: 2);
+            }
+        })));
+
+        var history = await Store.ListRunsAsync(Tenant, RetentionTargets.RunEvents, 0, 10);
+
+        history.ShouldHaveSingleItem().DeletedRows.ShouldBe(Writers * PerWriter);
+        history[0].ArchivedRows.ShouldBe(Writers * PerWriter * 2);
+    }
+
+    [Fact]
     public async Task Run_is_created_and_progress_accumulates()
     {
         var run = await Store.CreateRunAsync(Run());
