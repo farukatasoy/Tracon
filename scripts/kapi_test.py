@@ -26,16 +26,25 @@ spec.loader.exec_module(kapi)
 
 
 def _ci_isleri(metin: str) -> dict[str, dict]:
-    """`ci.yml` işleri: {ad: {"if": değer | None, "needs": [işler]}}. YAML kütüphanesi gerekmez."""
+    """`ci.yml` işleri: {ad: {"if": değer | None, "needs": [işler]}}. YAML kütüphanesi gerekmez.
+
+    Blok biçimli `if: >-` değeri izleyen daha derin girintili satırlardan toplanır.
+    """
     isler: dict[str, dict] = {}
     simdiki = None
     icinde = False
+    blok_if = False
     for satir in metin.splitlines():
         if re.match(r"^jobs:\s*$", satir):
             icinde = True
             continue
         if not icinde:
             continue
+        if blok_if:
+            if not satir.strip() or re.match(r"^ {5,}", satir):
+                isler[simdiki]["if"] = f"{isler[simdiki]['if']} {satir.strip()}".strip()
+                continue
+            blok_if = False
         is_satiri = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", satir)
         if is_satiri:
             simdiki = is_satiri.group(1)
@@ -47,10 +56,44 @@ def _ci_isleri(metin: str) -> dict[str, dict]:
         if not ozellik:
             continue
         if ozellik.group(1) == "if":
-            isler[simdiki]["if"] = ozellik.group(2)
+            blok_if = re.fullmatch(r"[|>][+-]?", ozellik.group(2)) is not None
+            isler[simdiki]["if"] = "" if blok_if else ozellik.group(2)
         else:
             isler[simdiki]["needs"] = [ad for ad in re.findall(r"[A-Za-z0-9_-]+", ozellik.group(2))]
     return isler
+
+
+KANONIK_REPO_KOSULU = "github.repository == 'farukatasoy/Tracon'"
+# Bu fonksiyonlardan biri iş düzeyindeki `if:`'te durursa atlanan bir bağımlılık işi atlatmaz.
+DURUM_FONKSIYONU = re.compile(r"\b(?:always|failure|cancelled)\(\)")
+
+
+def _korumasiz_isler(isler: dict[str, dict]) -> list[str]:
+    """Özel depoda ve fork'larda koşabilecek işler, sebebiyle.
+
+    Koşul YALNIZ `build`'de durur; diğer her iş ona (doğrudan ya da zincirle) `needs` ile
+    bağlıdır ve atlanan bir bağımlılık onları da atlatır. Durum fonksiyonu bu zinciri deler:
+    öyle bir iş depo koşulunu kendisi taşımalıdır.
+    """
+    sorunlar = []
+    for ad, is_ in isler.items():
+        if ad == "build":
+            continue
+        bekleyenler, ziyaret = [ad], set()
+        while bekleyenler:
+            simdiki = bekleyenler.pop()
+            if simdiki in ziyaret:
+                continue
+            ziyaret.add(simdiki)
+            bekleyenler.extend(isler[simdiki]["needs"])
+        if "build" not in ziyaret:
+            sorunlar.append(f"`{ad}` işi `build`'e bağlı değil; koşulsuz koşar")
+        kosul = is_["if"] or ""
+        if DURUM_FONKSIYONU.search(kosul) and KANONIK_REPO_KOSULU not in kosul:
+            sorunlar.append(
+                f"`{ad}` işinin `if:`'i durum fonksiyonu taşıyor; `needs` zinciri onu atlatmayabilir, "
+                "depo koşulunu kendisi taşımalı")
+    return sorunlar
 
 class KapiTestleri(unittest.TestCase):
     def test_git_tum_metin_dosyalarini_lf_olarak_checkout_eder(self):
@@ -866,23 +909,41 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(kapi.find_secrets(kok), ([], 0))
 
     def test_ci_her_is_kanonik_repo_korumasina_baglidir(self):
-        # Özel depoda ve fork'larda hiçbir iş dakika harcamamalı. Koşul YALNIZ
-        # `build`'de durur; diğer her iş ona (doğrudan ya da zincirle) `needs` ile
-        # bağlıdır ve atlanan bir bağımlılık onları da atlatır.
+        # Özel depoda ve fork'larda hiçbir iş dakika harcamamalı.
         isler = _ci_isleri((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
 
-        self.assertEqual(isler["build"]["if"], "github.repository == 'farukatasoy/Tracon'")
-        for ad in isler:
-            if ad == "build":
-                continue
-            bekleyenler, ziyaret = [ad], set()
-            while bekleyenler:
-                simdiki = bekleyenler.pop()
-                if simdiki in ziyaret:
-                    continue
-                ziyaret.add(simdiki)
-                bekleyenler.extend(isler[simdiki]["needs"])
-            self.assertIn("build", ziyaret, f"`{ad}` işi `build`'e bağlı değil; koşulsuz koşar")
+        self.assertEqual(isler["build"]["if"], KANONIK_REPO_KOSULU)
+        self.assertEqual(_korumasiz_isler(isler), [])
+
+    def test_ci_korumasi_zinciri_delen_isi_yakalar(self):
+        metin = (
+            "jobs:\n"
+            "  build:\n"
+            "    if: github.repository == 'farukatasoy/Tracon'\n"
+            "  rapor:\n"
+            "    needs: build\n"
+            "    if: always()\n"
+            "  ozet:\n"
+            "    needs: [build]\n"
+            "    if: >-\n"
+            "      github.ref == 'refs/heads/main' &&\n"
+            "      !cancelled()\n"
+            "    runs-on: ubuntu-latest\n"
+            "  guvenli:\n"
+            "    needs: build\n"
+            "    if: always() && github.repository == 'farukatasoy/Tracon'\n"
+            "  basarisiz:\n"
+            "    needs: build\n"
+            "    if: failure()\n"
+            "  kopuk:\n"
+            "    runs-on: ubuntu-latest\n"
+        )
+
+        isler = _ci_isleri(metin)
+        sorunlu = sorted({sorun.split("`")[1] for sorun in _korumasiz_isler(isler)})
+
+        self.assertEqual(isler["ozet"]["if"], "github.ref == 'refs/heads/main' && !cancelled()")
+        self.assertEqual(sorunlu, ["basarisiz", "kopuk", "ozet", "rapor"])
 
     def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
