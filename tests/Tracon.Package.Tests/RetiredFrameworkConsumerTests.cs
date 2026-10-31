@@ -24,6 +24,8 @@ public sealed class RetiredFrameworkConsumerTests(TemplateFixture fixture)
     [InlineData("Tracon.Core", "net9.0")]
     [InlineData("Tracon.AspNetCore", "net8.0")]
     [InlineData("Tracon.AspNetCore", "net9.0")]
+    [InlineData("Tracon.Testing", "net8.0")]
+    [InlineData("Tracon.Testing", "net9.0")]
     public async Task A_consumer_on_a_dropped_framework_is_refused_at_restore(string packageId, string framework)
     {
         using var dir = new TempDirectory();
