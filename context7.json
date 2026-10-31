@@ -1,5 +1,7 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
+  "url": "https://context7.com/farukatasoy/tracon",
+  "public_key": "pk_j7GdtM7AttdnUlmEBGGHV",
   "projectTitle": "Tracon",
   "description": "Tracon is a .NET package family that adds a control plane on Microsoft Agent Framework, published as NuGet packages that run inside your own ASP.NET Core application.",
   "folders": [
@@ -15,11 +17,12 @@
     "LICENSE.md",
     "LICENSE-MIT.md",
     "AnalyzerReleases.Shipped.md",
-    "AnalyzerReleases.Unshipped.md"
+    "AnalyzerReleases.Unshipped.md",
+    "THIRD-PARTY-NOTICES.txt"
   ],
   "rules": [
     "Tracon uses Microsoft Agent Framework types directly (AIAgent, AgentSession, ChatMessage, AIFunction), so MAF documentation applies unchanged: read it in /microsoft/agent-framework.",
-    "Wire Tracon with builder.Services.AddTracon(), which is required. Call app.MapTracon() only when the application serves the management HTTP API and console.",
+    "Register Tracon with builder.AddTracon() on the host builder, or with builder.Services.AddTracon(); one of them is required. Call app.MapTracon() only when the application serves the management HTTP API and console.",
     "Tools are defined only in code. An agent definition names an already registered tool; it never carries tool code.",
     "Tracon has not shipped 1.0: public APIs, migrations, configuration keys and provider behavior can change between previews. Use the versioned library ID that matches the installed packages."
   ],
