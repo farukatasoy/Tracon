@@ -154,7 +154,7 @@ public sealed class WorkflowFunctionNodeTests
 
         // The function node opens no `runs` row of its own: only the two
         // agent steps do. This is what keeps its cost contribution at zero
-        // (an earlier change DoD) without any special-casing in the cost rollup.
+        // without any special-casing in the cost rollup.
         runs.Count(run => run.Kind == RunKind.Agent).ShouldBe(2);
     }
 

@@ -246,7 +246,7 @@ internal static class ParameterTypeValidator
     /// single public constructor's parameters ARE the object's members - a positional
     /// record's primary constructor naturally supplies these). Mirrors the top-level
     /// scalar/array/object classification in <see cref="TryCreate"/>, minus the fields
-    /// that only apply to a tool's own top-level parameter (135.1's <c>ObjectMember</c>
+    /// that only apply to a tool's own top-level parameter (<c>ObjectMember</c>
     /// carries no binding hint - a member is never bound on its own).
     /// </summary>
     private static ObjectMember? TryCreateMember(IParameterSymbol parameter, int depth, ObjectGraphState state)
@@ -388,7 +388,7 @@ internal static class ParameterTypeValidator
     /// Every <see cref="System.ComponentModel.DataAnnotations"/> constraint attribute this
     /// validator knows applies only to a scalar or scalar array - none of them has a
     /// meaning for an object or object array. Reports each one found as unsupported (TRC0010)
-    /// instead of silently ignoring it, matching 130's "never silently produce a wrong schema"
+    /// instead of silently ignoring it, matching the "never silently produce a wrong schema"
     /// rule for every other unrenderable case.
     /// </summary>
     /// <summary>

@@ -10,7 +10,7 @@ namespace Tracon.ProviderCore.Tests;
 /// <summary>
 /// One provider options type as a host binds it from configuration: where the section lives,
 /// the keys a valid configuration needs, and the two package calls that fill the options
-///Linked into the four provider test projects.
+/// Linked into the four provider test projects.
 /// </summary>
 /// <typeparam name="TOptions">The provider options type.</typeparam>
 /// <param name="SectionName">The full section path, such as <c>Tracon:Providers:OpenAI</c>.</param>

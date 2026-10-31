@@ -68,7 +68,7 @@ GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # 2 modul 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
 # ci.yml 1'de KALIR: runner donanimi olculmedi. Kaynak cekismesi imzali bir
 # kapanis kirmizisi (izole tekrar kosumda gecen) gorulurse 1'e don ve
-# gelistirme notlarina yaz.
+# nedenini buraya yaz.
 #
 # `dotnet test` MTP kipindedir (global.json `test.runner`). Eski
 # `-maxcpucount:N` bu kipte HIC TEST KOSTURMADAN cikis kodu 5 verir; esdegeri
@@ -271,7 +271,7 @@ ZERO_TESTS_EXIT_CODE = 8  # MTP'nin kendi "sifir test" cikis kodu
 def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
     """0 if the run left TRX reports with tests in them, else `ZERO_TESTS_EXIT_CODE`.
 
-cikis kodu 0 "test kostu" demek degildir. Kosum ya hic TRX
+    cikis kodu 0 "test kostu" demek degildir. Kosum ya hic TRX
     yazmadiysa (yol degisti, bayrak yutuldu) ya da TRX'ler bos ise kapi YESIL
     degil KIRMIZI doner; ayrintiyi basar ki "yesil" sayiyla okunsun."""
     tests, modules = executed_tests_from_trx(since, root)
@@ -623,7 +623,7 @@ def performance_gate_triggered(paths: Iterable[str]) -> bool:
 
 class BaselineError(Exception):
     """Raised when bench/baseline.json is missing or malformed - always
-    surfaced as a clear message, never a bare traceback (116, DoD)."""
+    surfaced as a clear message, never a bare traceback."""
 
 
 def load_baseline(path: pathlib.Path = BENCHMARK_BASELINE) -> dict:
@@ -1098,14 +1098,14 @@ def require_test_runtimes(
           f" (kurulu: {', '.join(str(major) for major in sorted(majors)) or 'hiçbiri'}).")
     print("   Test apphost'u runtime'ı DOTNET_ROOT_<ARCH>/DOTNET_ROOT'tan, yoksa global kurulumdan"
           " çözer — PATH'teki `dotnet`'ten DEĞİL."
-          " Kurulum: gelistirme notlarindaki 'Çoklu TFM test runtime'ları' basligi.")
+          " Cozum: DOTNET_ROOT'u ilgili runtime'larin kurulu oldugu dizine ayarla.")
     return False
 
 
 def _test_target(args: Sequence[str]) -> str:
     """The project or solution a `dotnet test` command targets.
 
-MTP kipi hedefi `--solution` / `--project` ile alir; ilk konumsal
+    MTP kipi hedefi `--solution` / `--project` ile alir; ilk konumsal
     arguman (eski bicim) hala kabul edilir."""
     for flag in ("--solution", "--project"):
         if flag in args and args.index(flag) + 1 < len(args):
@@ -1217,7 +1217,7 @@ class FailedTest:
 def _recent_trx_reports(since: float, root: pathlib.Path) -> Iterable[tuple[str, pathlib.Path, Any]]:
     """`since`'ten sonra yazilmis her TRX: (proje, dosya, ayristirilmis agac).
 
-dizilim `--results-directory-layout per-module`'dur,
+    dizilim `--results-directory-layout per-module`'dur,
     `<TEST_RESULTS_DIRECTORY>/<proje>/<tfm>_<mimari>/*.trx`. Okunamayan dosya
     atlanir; TRX hic yoksa bos doner (cagiran bunu "sifir test" olarak yorumlar)."""
     import xml.etree.ElementTree as elementtree
@@ -1253,11 +1253,11 @@ def _trx_output_directory(tree: Any) -> str:
 def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[FailedTest]:
     """`since`'ten sonra yazilmis her TRX'teki dusen test.
 
-cok hedefli bir projenin her TFM bacagi AYRI bir TRX'tir; bacagin
+    cok hedefli bir projenin her TFM bacagi AYRI bir TRX'tir; bacagin
     ikilisi (`release_<tfm>`) TRX'ten okunur, yoksa o projelerin dusen testi
     SESSIZCE kaybolur ve izole yeniden kosum hic tetiklenmezdi.
 
-TRX artik ikilinin yaninda degil `TEST_RESULTS_DIRECTORY` altindadir.
+    TRX artik ikilinin yaninda degil `TEST_RESULTS_DIRECTORY` altindadir.
     Eski yolu taramak HIC dusen test bulmaz ve kapi "izole kosacak bir sey yok"
     der - kirmizi kirmizi kalir ama teshis sessizce kaybolur."""
     failures: list[FailedTest] = []
@@ -1274,7 +1274,7 @@ TRX artik ikilinin yaninda degil `TEST_RESULTS_DIRECTORY` altindadir.
 def executed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> tuple[int, int]:
     """(koşulan test sayisi, modul sayisi): `since`'ten sonra yazilmis TRX'lerden.
 
-MTP kipinde yanlis bir bayrak (`-maxcpucount` gibi) cikis kodu
+    MTP kipinde yanlis bir bayrak (`-maxcpucount` gibi) cikis kodu
     vererek HIC test kosturmeden de bitebilir; tersi de dogru - cikis kodu 0
     ve TRX'siz bir kosum "yesil" gorunur. Bu sayi o sessizligin kapisidir."""
     tests = 0
@@ -1293,9 +1293,9 @@ def isolate_failed_tests(
 ) -> list[tuple[str, str, bool]]:
     """Dusen her testi TEK BASINA tekrar kos ve hukmu bas.
 
-    `kusur-giderme` Adim 2'nin uc adimli el yordami budur. Bu repoda "tam
+    Bir kusur incelenirken kullanilan uc adimli el yordami budur. Bu repoda "tam
     kosumda duser, izole gecer" sinifi YEDI kez kayda gecti: alti vaka
-    gelistirme notlarinda belgelidir (sinif acildi;
+    belgelidir (sinif acildi;
     ayri testlerle tekrarladi), yedincisini
     2026-09-04 surec denetiminin taban kosumu uretti. Her seferinde ayirt
     etme ELLE yapildi — cogu kez TAM paketi ikinci kez kosarak (~9 dakika,
@@ -1330,11 +1330,11 @@ def isolate_failed_tests(
         print(f"   {'✅ izole GEÇTİ' if passed else '❌ izole de DÜŞTÜ'}  {label} · {name}")
     if all(passed for _, _, passed in verdicts):
         print("   → Hepsi izole geçti: tam koşum kaynak çekişmesi sınıfı"
-              " (gelistirme notlari). Tam paketi TEKRAR koş;"
+              ". Tam paketi TEKRAR koş;"
               " ikinci koşumda da düşerse gerçek kusurdur.")
     else:
         print("   → İzole de düşen test GERÇEK regresyondur;"
-              " `kusur-giderme` skill'ini koş.")
+              " Kök sebebi araştır.")
     return verdicts
 
 
@@ -2081,12 +2081,12 @@ def release_rehearsal(
 
     (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
 
-    # Staging dizini koşum başına benzersizdir (Açık Soru 1: paralel
+    # Staging dizini koşum başına benzersizdir (paralel
     # koşumlar desteklenmez, ama bu en azından ikisinin BİRBİRİNİN çıktısını
     # ezmesini önler). `artifacts/` .gitignore'dadır - staging burada yaşarsa
     # bir sonraki koşumun kendi "erken ret" denetimini kirletmez. Rapor dizini
     # de aynı sebeple koşum başınadır; ayrıca yok olan bir çıktı dosyası SDK'nın
-    # artımlı doğrulama hedefini yeniden koşturur (187.0 adım 5).
+    # artımlı doğrulama hedefini yeniden koşturur (ölçüldü).
     package_root = release_dir.parent if release_dir else PACKAGE_RELEASE_DIR.parent
     staging_root = package_root / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)
@@ -2153,7 +2153,7 @@ def pack_for_ci(output_dir: pathlib.Path, *, root: pathlib.Path = ROOT) -> int:
     api_compat: list[dict[str, object]] = []
     for project_id in sorted(packed.baseline_ids):
         report = report_dir / f"{project_id}.xml"
-        # 187.0 adım 6: farksız pakette SDK rapor YAZMAZ. "Rapor yok" meşru bir
+        # Farksız pakette SDK rapor YAZMAZ. "Rapor yok" meşru bir
         # değerdir; doğrulamanın koştuğunu semaphore kanıtladı (yukarıda).
         api_compat.append({
             "id": project_id,
@@ -2243,7 +2243,7 @@ def rehearse_package_directory(
             print(f"  {problem}")
         return 1
 
-    # Açık Soru 5 = A: `release_dir` girdi dışı paket taşıyorsa ret. Kopya
+    # `release_dir` girdi dışı paket taşıyorsa ret. Kopya
     # başlamadan söylenir; hiçbir dosya silinmez.
     input_files = {entry["file"] for entry in manifest["packages"]} | {
         entry["symbolsFile"] for entry in manifest["packages"] if entry.get("symbolsFile")}

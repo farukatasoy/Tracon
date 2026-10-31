@@ -136,7 +136,7 @@ internal sealed class ProviderHealthCheckCore(string providerName, ILogger? logg
             // On failures such as a refused connection, exception.Message embeds
             // the target address (host:port) in its text. That is not a secret,
             // but it breaks the rule that the endpoint address must not leak
-            // (DoD).
+            // into health output.
             // HttpRequestError is a category name that carries no address.
             return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }

@@ -4,7 +4,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
 /// <c>document_embeddings</c> is recognized as a retention target
-/// (<see cref="RetentionTargets.DocumentEmbeddings"/>) (DoD).
+/// (<see cref="RetentionTargets.DocumentEmbeddings"/>).
 /// </summary>
 public sealed class KnowledgeRetentionTests(PostgresFixture fixture) : IAsyncLifetime
 {

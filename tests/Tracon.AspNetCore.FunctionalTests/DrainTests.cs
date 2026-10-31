@@ -113,8 +113,8 @@ public sealed class DrainTests
             },
             []);
 
-        // Give the worker several ticks to (wrongly) pick this up. An earlier change:
-        // this used to be a fixed 200 ms, which under load could pass without
+        // Give the worker several ticks to (wrongly) pick this up. This used to be
+        // a fixed 200 ms, which under load could pass without
         // a single tick - a green test that proved nothing. Every tick reads
         // the drain state first, so counting reads counts refused ticks.
         var readsBefore = drainState.Reads;

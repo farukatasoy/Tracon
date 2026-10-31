@@ -156,7 +156,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
     /// and the suppression files, its output a semaphore. A second pack of an
     /// unchanged package skips it and reports nothing - a silent green. The
     /// rehearsal forces the target with a report path that does not exist yet
-    /// (measured, 187.0 step 5). This fact packs the same package twice against
+    /// (measured). This fact packs the same package twice against
     /// its own local baseline, no network, and requires both packs to validate.
     /// </summary>
     [Fact]
@@ -211,7 +211,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
             result.ExitCode.ShouldBe(0, result.Combined);
             File.GetLastWriteTimeUtc(SemaphorePath(ProjectId)).ShouldBeGreaterThan(before, $"pack {run} did not validate");
 
-            // Measured (187.0 step 6): with no difference the SDK writes no report.
+            // Measured: with no difference the SDK writes no report.
             // The semaphore, not the report, is the proof that validation ran.
             File.Exists(Path.Combine(reportDir, $"{ProjectId}.xml")).ShouldBeFalse($"pack {run} reported a difference against itself");
         }

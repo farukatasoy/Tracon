@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// 🚨 This test blocks a return to the 21-file "no scope enforcement" gap
-///If a new endpoint is added and
+/// If a new endpoint is added and
 /// <c>RequireApiKeyScope</c> is forgotten, this test breaks not at compile
 /// time but on the first CI run — the silent gap does not reopen.
 /// </remarks>

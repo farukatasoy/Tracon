@@ -7,7 +7,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <summary>
 /// Migration behavior on a PostgreSQL server that does NOT carry the
 /// <c>pgvector</c> extension — a managed PostgreSQL instance without
-/// permission (or ability) to install it (DoD bullets 1-2).
+/// permission (or ability) to install it.
 /// </summary>
 /// <remarks>
 /// Deliberately does NOT use the shared <see cref="Infrastructure.PostgresFixture"/>
@@ -30,7 +30,7 @@ public sealed class RestrictedEnvironmentMigrationTests : IAsyncLifetime
 
     public ValueTask DisposeAsync() => new(_container.DisposeAsync().AsTask());
 
-    /// <summary>DoD bullet 1: the core set completes on a server that never had <c>pgvector</c> in the first place.</summary>
+    /// <summary>The core set completes on a server that never had <c>pgvector</c> in the first place.</summary>
     [Fact]
     public async Task Core_set_completes_without_pgvector_on_the_server()
     {
@@ -62,7 +62,7 @@ public sealed class RestrictedEnvironmentMigrationTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// DoD bullet 2: <c>EnableKnowledge = true</c> against the same server
+    /// <c>EnableKnowledge = true</c> against the same server
     /// fails with a clear, readable error — not a raw <see cref="NpgsqlException"/>
     /// leaking past <see cref="MigrationRunner"/>'s wrapping.
     /// </summary>

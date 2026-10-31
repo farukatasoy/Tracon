@@ -6,7 +6,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// A queued workflow run that an interruption stopped is continued on the budget of the chain, not on a fresh one
-///The continuation starts from what the interrupted run spent, and the steps that run before it are not
+/// The continuation starts from what the interrupted run spent, and the steps that run before it are not
 /// counted twice.
 /// </summary>
 /// <remarks>

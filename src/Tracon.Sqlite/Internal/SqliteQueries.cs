@@ -518,7 +518,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
                     -- Session_id is set only on the ROOT run
-                    --A child run's own session_id is NULL. Direct
+                    -- A child run's own session_id is NULL. Direct
                     -- equality combined with "includeChildren=true" would
                     -- match no child run -- it also matches if the ROOT of
                     -- the record's own tree belongs to this session.

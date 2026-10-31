@@ -96,7 +96,7 @@ public sealed class OrderFulfillmentToolRunTests
     [Fact]
     public async Task A_generated_complex_results_field_value_is_seen_by_the_content_guard()
     {
-        // Proves the DoD claim behind end to end, through the REAL
+        // Proves the claim end to end, through the REAL
         // pipeline (registration -> invocation -> masking), not a manually
         // built FunctionResultContent: a source-generator tool's complex
         // result reaches the guard as its actual serialized JSON field

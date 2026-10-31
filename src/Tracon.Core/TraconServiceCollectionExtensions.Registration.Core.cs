@@ -130,7 +130,7 @@ public static partial class TraconServiceCollectionExtensions
         // and IImageGenerator registrations only when the registry is first built.
         services.TryAddSingleton<IToolRegistry>(ToolRegistry.Create);
 
-        // Phases 234 and 246: runs the tools Tracon adds to a run itself (the file tools of the session workspace,
+        // Runs the tools Tracon adds to a run itself (the file tools of the session workspace,
         // the knowledge search, the conversation memory search; none is in the registry) through the same tool
         // chain. Built on first use, so a host that uses none of them never builds it.
         services.TryAddSingleton(static provider => BuiltInToolGovernance.Create(provider));

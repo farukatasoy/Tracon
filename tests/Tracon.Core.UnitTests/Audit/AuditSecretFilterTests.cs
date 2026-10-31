@@ -169,7 +169,7 @@ public sealed class AuditSecretFilterTests
 
     /// <summary>
     /// The other half of the contract: stripping separators must not start
-    /// redacting counters. That decision recorded that a plural "tokens" is a count, and
+    /// redacting counters. A plural "tokens" is a count, and
     /// blanket-redacting it emptied real agent records.
     /// </summary>
     [Theory]

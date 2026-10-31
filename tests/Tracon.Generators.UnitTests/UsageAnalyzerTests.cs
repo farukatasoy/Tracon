@@ -676,7 +676,7 @@ public sealed class UsageAnalyzerTests
     /// A container loop must not be reported as if its own body were the
     /// enumeration boundary, and the leaf loop it contains must still be
     /// evaluated on its own account. Measured against Tracon's own code
-    ///The naive shape - "does the outer loop's body carry the
+    /// The naive shape - "does the outer loop's body carry the
     /// write, anywhere inside it" - read the inner loop's write as covering
     /// the outer loop too, and separately never gave the inner loop its own
     /// verdict. <see cref="TraconUsageAnalyzer"/>'s remarks on

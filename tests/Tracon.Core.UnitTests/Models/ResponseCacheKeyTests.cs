@@ -108,7 +108,7 @@ public sealed class ResponseCacheKeyTests
     public async Task Different_provider_does_not_share_a_cache_entry()
     {
         // Same model NAME can be reused by an OpenAI-compatible endpoint
-        // under a different provider (81.2's third additional input).
+        // under a different provider (the third additional input).
         var cache = new FakeDistributedCache();
         var innerA = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "4")));
         var innerB = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "4")));

@@ -10,8 +10,8 @@
   </ItemGroup>
 
   <!--
-    Azure OpenAI's v1 API is the OpenAI wire protocol under {endpoint}/openai/v1/
-: POST {endpoint}/openai/v1/chat/completions with the deployment
+    Azure OpenAI's v1 API is the OpenAI wire protocol under {endpoint}/openai/v1/:
+    POST {endpoint}/openai/v1/chat/completions with the deployment
     name in the body's `model` field. The plain OpenAI SDK therefore talks to it
     directly; `Azure.AI.OpenAI` (stable line frozen at 2.1.0, December 2024)
     is not used. Message mapping, streaming, tool calls, and usage counters all

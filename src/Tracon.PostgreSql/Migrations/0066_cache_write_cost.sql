@@ -19,7 +19,7 @@
 -- would rewrite history (a priced run is a snapshot).
 --
 -- The new `runs` columns are added AT THE END: the reader uses fixed column ordinals
---numeric(20,10) like every other money column here.
+-- numeric(20,10) like every other money column here.
 
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS cache_write_input_tokens      bigint;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS cache_write_long_input_tokens bigint;

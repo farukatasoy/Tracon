@@ -119,7 +119,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // Idempotent: a fresh database's __migrations already has this shape
-        // (both statements no-op there). An existing pre-phase-67 table gets
+        // (both statements no-op there). An existing table of the older shape gets
         // the column backfilled to 'core' and its single-column primary key
         // widened. Runs as its own command — see SqlDialect.UpgradeMigrationsTableAsync.
         // 🚨 The constraint swap is wrapped in EXEC: it references set_name,
@@ -618,7 +618,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
                     -- Session_id is set only on the ROOT run
-                    --A child run's own session_id is NULL. Direct
+                    -- A child run's own session_id is NULL. Direct
                     -- equality would match no child run at all when combined
                     -- with "includeChildren=true" -- a row also matches when
                     -- the ROOT of its own tree belongs to this session.
@@ -1733,7 +1733,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             inserted.archive, inserted.enabled, inserted.created_at, inserted.updated_at
             """;
 
-        // That decision two-branch upsert pattern: when UPDATE affects 0 rows, the
+        // Two-branch upsert pattern: when UPDATE affects 0 rows, the
         // real row is in the SECOND result set; DbHelpers.ReadSingleAsync
         // steps into it with NextResultAsync.
         UpsertRetentionPolicy = $"""

@@ -128,7 +128,7 @@ internal sealed class JobWorkerBackgroundService(
 
         // A lane listed in MaxConcurrentJobsPerLane gets its OWN lease pass,
         // scoped to exactly that lane, so a full lane never blocks another
-        // lane's slot (129.4's starvation guarantee) and never gets leased
+        // lane's slot (the starvation guarantee) and never gets leased
         // beyond its own budget by the shared pass below.
         foreach (var (lane, max) in options.MaxConcurrentJobsPerLane)
         {

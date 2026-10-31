@@ -1104,7 +1104,7 @@ public sealed class SessionOwnershipTests
     public async Task Strict_mode_refuses_the_unowned_session_on_the_conversations_surface_too()
     {
         // The compatibility surface reaches the same rows under a different
-        // name — the miss phases 148 and 149 both had to come back for.
+        // name — the miss that had to be fixed twice.
         await using var host = await StartAsync(
             enabled: true, out var identity, refuseUnownedSessions: true);
 

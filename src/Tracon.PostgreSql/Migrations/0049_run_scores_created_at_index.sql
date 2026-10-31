@@ -10,9 +10,9 @@
 -- Column order is (tenant_id, created_at): every query is scoped to a
 -- tenant first, so the tenant column leads.
 --
--- rewrites the OTHER index on this table (the uniqueness one) in
--- migration 0048; the two migrations are independent and ordered 152 before
--- 154 only because 154's breakdown reads the `name` column 152 introduces.
+-- Migration 0048 rewrites the OTHER index on this table (the uniqueness one);
+-- the two migrations are independent and are ordered this way only because the
+-- score breakdown reads the `name` column that 0048 introduces.
 --
 -- ---------------------------------------------------------------------------
 

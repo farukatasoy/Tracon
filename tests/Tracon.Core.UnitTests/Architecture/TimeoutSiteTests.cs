@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// where the timeout is armed: in a run, a request, a delivery attempt, a shutdown.
 /// The class scan found eighteen inputs that reached them with only a lower bound -
 /// the same defect <c>PeriodicTimerSiteTests</c> closed for background intervals
-///One call further along.
+/// One call further along.
 /// </para>
 /// <para>
 /// The gate does not read the code: it makes a NEW site fail until someone names

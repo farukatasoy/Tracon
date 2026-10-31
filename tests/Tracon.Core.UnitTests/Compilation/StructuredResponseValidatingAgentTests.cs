@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <summary>
 /// Unit-level coverage of <see cref="StructuredResponseValidatingAgent"/>: the
 /// gating logic, the built-in well-formedness check, and the fail-closed rule
-///HTTP/DI/run-record behavior is covered separately
+/// HTTP/DI/run-record behavior is covered separately
 /// in <c>Tracon.AspNetCore.FunctionalTests</c> — see
 /// <c>.md</c>.
 /// </summary>

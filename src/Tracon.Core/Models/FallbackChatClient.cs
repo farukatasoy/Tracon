@@ -79,8 +79,8 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     /// <remarks>
     /// <para>
     /// <c>DelegatingChatClient</c> keeps its wrapped client in a PRIVATE
-    /// field and exposes no protected accessor for it (measured via
-    /// <c>maf-api-kesfi</c>) — <paramref name="primaryClient"/> is therefore
+    /// field and exposes no protected accessor for it (measured by
+    /// reflection) — <paramref name="primaryClient"/> is therefore
     /// also kept in <see cref="_primaryClient"/> and called directly; the base
     /// class is used only for its <see cref="IDisposable"/>/<c>GetService</c>
     /// passthrough, never for <c>base.GetResponseAsync</c>.

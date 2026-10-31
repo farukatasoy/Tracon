@@ -9,7 +9,7 @@ namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>tracon eval</c> against a real, listening Tracon host
-///Triggers a suite through
+/// Triggers a suite through
 /// <c>Tracon.Client</c>, polls it to completion through the background job
 /// worker, and applies the CLI's own threshold gate.
 /// </summary>

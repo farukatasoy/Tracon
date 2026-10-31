@@ -316,7 +316,7 @@ test('the shipped page has a marker on every capacity row', () => {
   assert.deepEqual(census, { latency: 12, arrival: 4, storage: 3, hosts: 4, value: 5 });
 });
 
-// --- storage, arrival and prose: the paths the phase-174 audit found untested -
+// --- storage, arrival and prose: the paths no earlier test covered -
 
 /** A page carrying one storage row, one arrival row and one prose number. */
 function widePage({ storage, arrival, prose } = {}) {

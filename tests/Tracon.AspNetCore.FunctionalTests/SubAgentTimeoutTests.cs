@@ -6,7 +6,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 144.1's two-layer sub-agent wait limit, exercised through Microsoft Agent
+/// The two-layer sub-agent wait limit, exercised through Microsoft Agent
 /// Framework's real <c>background_agents_*</c> tool-call flow (the same rig
 /// as <see cref="AgentDelegationTests"/>) rather than a hand-built
 /// <see cref="ChildAgentInvoker"/> — this is the only way to prove the plain

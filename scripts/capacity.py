@@ -620,7 +620,7 @@ def build_templates(database: Database, consumer: pathlib.Path, profile: dict[st
                     run_id: str, schema: str, executions: pathlib.Path) -> dict[str, dict[str, Any]]:
     """Her seed şekli için bir ŞABLON veritabanı kurar.
 
-    🚨 Plandan sapma (gerekçesi faz dokümanında): plan hücre başına izole
+    🚨 İlk tasarım hücre başına izole
     *schema* diyordu. Ölçüldü - `full` fixture'ı public store yolundan yazmak
     10.000 run × 21 store çağrısıdır; 36 dolu hücrenin her birinde tekrarlamak
     seed'i saatlerce kritik yola koyardı. Bunun yerine şekil başına BİR şablon

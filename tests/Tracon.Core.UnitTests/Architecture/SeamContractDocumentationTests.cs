@@ -58,7 +58,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// independently; a deliberate break of one fragment still passed because a LATER,
 /// unrelated occurrence of the other fragment satisfied the check. This gate searches
 /// each dimension's vocabulary as WHOLE phrases (never split into independently-searched
-/// words) for exactly that reason, and the DoD requires each dimension to be verified red
+/// words) for exactly that reason, and each dimension must be verified red
 /// under an isolated, dedicated break — not just once for the mechanism as a whole.
 /// </para>
 /// </remarks>
@@ -458,7 +458,7 @@ public sealed class SeamContractDocumentationTests
     // --- Dimension 4: guarantee limits ---
     // Open-ended prose, not a fixed vocabulary - the same shape
     // OrderingContractDocumentationTests already gates for numeric-ordering direction.
-    // Each row is verified to fail red under an isolated, dedicated break (DoD).
+    // Each row is verified to fail red under an isolated, dedicated break.
 
     public static TheoryData<string, string, string[]> GuaranteeLimitContracts() => new()
     {

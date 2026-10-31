@@ -394,7 +394,7 @@ public sealed class WorkflowResponseOwnershipTests
         // removed later: a data subject erasure that named only the answer's run (its foreign key
         // is on the source run). There is nothing to follow and starting again could repeat what
         // the erased run did, so both paths answer 409. Measured on a real SQLite store.
-        using var database = new TempSqliteDatabase("faz208-gone");
+        using var database = new TempSqliteDatabase("response-gone");
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync(
             runWorker: false,
@@ -537,7 +537,7 @@ public sealed class WorkflowResponseOwnershipTests
         // the run id); JobStoreContract measures that refusal on every store. Both repeats read
         // the job as missing before either writes it, so both write: one write wins, the other is
         // refused, reads the job back and answers with it, and leaves the row alone.
-        using var database = sqlite ? new TempSqliteDatabase("faz208-missing-job") : null;
+        using var database = sqlite ? new TempSqliteDatabase("response-missing-job") : null;
         var reads = new JobReadBarrier();
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync(
@@ -621,7 +621,7 @@ public sealed class WorkflowResponseOwnershipTests
     {
         // The queued answer's job waits (the worker is off), so a streamed repeat follows its
         // Queued row. A data subject erasure removes the row; the follower must say so.
-        using var database = new TempSqliteDatabase("faz208-follow-erased");
+        using var database = new TempSqliteDatabase("response-follow-erased");
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync(
             runWorker: false,

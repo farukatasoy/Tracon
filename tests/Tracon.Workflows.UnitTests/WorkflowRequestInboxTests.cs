@@ -5,7 +5,7 @@ namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
 /// What the engine writes into the inbox of workflow requests when a run starts waiting
-///And what it lists from it.
+/// And what it lists from it.
 /// </summary>
 /// <remarks>
 /// <para>

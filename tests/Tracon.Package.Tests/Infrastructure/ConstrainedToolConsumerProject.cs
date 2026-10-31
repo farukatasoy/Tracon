@@ -2,8 +2,8 @@ namespace Tracon.Package.Tests.Infrastructure;
 
 /// <summary>
 /// Writes a standalone consumer project - the same shape as
-/// <see cref="ConsumerProject"/> - whose one tool carries a 130.1 constraint
-/// attribute (<c>[Range]</c>). Proves both halves of 130's DoD from a real
+/// <see cref="ConsumerProject"/> - whose one tool carries a constraint
+/// attribute (<c>[Range]</c>). Proves both halves of the package-boundary check from a real
 /// <c>PackageReference</c> consumer: the constraint reaches the packed
 /// analyzer's generated schema, and a real run still completes with the
 /// constrained argument bound correctly.

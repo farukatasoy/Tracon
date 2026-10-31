@@ -8,7 +8,7 @@
 -- 🚨 The key is (tenant_id, name, version) and there is NO foreign key to `workflows`.
 -- agent_definition_versions hangs off the agent's row and dies with it, so deleting an
 -- agent and creating it again restarts at 1 and the number names a different content
---Here a version number is an IDENTITY: deleting a workflow keeps its history,
+-- Here a version number is an IDENTITY: deleting a workflow keeps its history,
 -- and the next save continues from the highest number ever written (the INSERT branch of
 -- the upsert reads MAX(version) from this table). A run that recorded version 3 can
 -- therefore never be given another content under that number.

@@ -38,8 +38,8 @@
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
     <!--
-      Anthropic and Google providers are also NOT included in the meta package
-: a consumer using OpenAI should not be forced to pull in the
+      Anthropic and Google providers are also NOT included in the meta package:
+      a consumer using OpenAI should not be forced to pull in the
       Anthropic SDK, and a consumer not using Gemini should not be forced to pull
       in the Google.Apis.Auth chain. The sample app references them explicitly to
       show all three providers together.

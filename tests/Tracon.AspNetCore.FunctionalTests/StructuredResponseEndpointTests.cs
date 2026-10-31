@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// The structured response validation seam's behavior on the HTTP surface
-///A dedicated <see cref="FakeModelProvider"/> is scripted per
+/// A dedicated <see cref="FakeModelProvider"/> is scripted per
 /// test with an EXACT response text — the host's default "echo" provider
 /// prefixes its reply with <c>"Echo: "</c>, which would itself break JSON
 /// well-formedness and confuse what each test is actually proving.

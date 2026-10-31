@@ -106,7 +106,7 @@ public sealed class ClientCoverageTests
             .Where(method => !method.Value.TryGetProperty("operationId", out _))
             .Count();
 
-        // 83.2's coverage gate has no exemption list; this documents WHY -
+        // The coverage gate has no exemption list; this documents WHY -
         // if this ever fails, ClientCoverageTests above needs one.
         operationsWithoutId.ShouldBe(0);
     }

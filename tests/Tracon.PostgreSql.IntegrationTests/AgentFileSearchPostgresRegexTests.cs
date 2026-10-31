@@ -64,10 +64,9 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
     [Fact]
     public async Task Large_store_does_not_scan_rows_outside_the_target_directory()
     {
-        // An earlier change DoD: "A single-file search in a 10,000-file store reads a
+        // The requirement: "A single-file search in a 10,000-file store reads a
         // constant number of rows; the row count was measured and recorded
-        // here." This test produces that measurement (see
-        // DoD).
+        // here." This test produces that measurement.
         SetScope("agent-a");
 
         const int UnrelatedFileCount = 10_000;
@@ -94,8 +93,8 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
             ORDER BY path;
             """);
 
-        // Measured value (in a 10,001-row store, in the test container): 1 row
-        // (DoD). The test container's
+        // Measured value (in a 10,001-row store, in the test container): 1 row.
+        // The test container's
         // locale can turn a prefix LIKE into an index range scan; we assert a
         // wide upper bound — the real proof is staying ORDERS OF MAGNITUDE
         // below UnrelatedFileCount, the exact number can vary across

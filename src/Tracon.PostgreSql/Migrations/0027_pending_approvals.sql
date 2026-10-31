@@ -2,7 +2,7 @@
 --
 -- A pending approval request is a PROJECTION (the record of birth is the MAF
 -- session state); a decision reads the session, not this table
---Columns match PendingApproval (Tracon.Abstractions).
+-- Columns match PendingApproval (Tracon.Abstractions).
 
 CREATE TABLE IF NOT EXISTS {schema}.pending_approvals (
     id          uuid        NOT NULL PRIMARY KEY,

@@ -1,7 +1,7 @@
 -- Per tenant API keys and scopes.
 --
 -- 🚨 key_hash IS NOT THE RAW VALUE -- it is an irreversible SHA-256 digest
---The raw value is returned
+-- The raw value is returned
 -- once in the creation response only and is written nowhere.
 
 CREATE TABLE IF NOT EXISTS {schema}.api_keys (

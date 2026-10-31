@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
-// 144.1's two-layer wait limit. This mirrors the shape
+// The two-layer wait limit. This mirrors the shape
 // OnlineEvalJobHandler.JudgeOneAsync uses for JudgeTimeout — the
 // same semantic is deliberately not reinvented for sub-agents.
 
@@ -882,7 +882,7 @@ public sealed class ChildAgentInvoker : AIAgent
            $"This is a provider fault, not the sub-agent's wait limit — that limit ({_childDeadline}) " +
            "never fired. The tree continues; the sub-call produced no result.";
 
-    /// <summary>Writes 144's <see cref="RunEventType.ChildRunTimedOut"/> event.</summary>
+    /// <summary>Writes the <see cref="RunEventType.ChildRunTimedOut"/> event.</summary>
     private async ValueTask WriteTimedOutAsync(
         AgentRunScope scope,
         TraconRunOptions childOptions,

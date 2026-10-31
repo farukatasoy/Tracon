@@ -21,7 +21,7 @@ namespace Tracon.PostgreSql.IntegrationTests.Infrastructure;
 /// </para>
 /// <para>
 /// 🚨 The image is <c>pgvector/pgvector:pg18</c>, NOT <c>postgres:18-alpine</c>
-///The "knowledge" set's <c>0001_vector</c> migration runs
+/// The "knowledge" set's <c>0001_vector</c> migration runs
 /// <c>CREATE EXTENSION IF NOT EXISTS vector;</c>; <see cref="PostgresTestContext"/>
 /// enables that set by DEFAULT, so it applies on EVERY test (not
 /// just vector tests) and the plain Postgres image would blow up the whole

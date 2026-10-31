@@ -230,9 +230,9 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(kapi.find_stale_doc_references(root), [])
 
     def test_arsivlenen_faz_referansi_repoda_kalmaz(self):
-        # SINIF KAPISI: bu repoda gercek olan tarama. Bir faz kapandiginda
-        # Bir faz dokumani silinir (once arsive tasiniyordu); o dokumanin disindaki
-        # referanslar bir donem guncellenmiyordu (43 bayat referans olculdu).
+        # SINIF KAPISI: bu repoda gercek olan tarama. Bir dokuman silindiginde
+        # (once arsive tasiniyordu) onu anan baska dosyalar bir donem
+        # guncellenmiyordu (43 bayat referans olculdu).
         self.assertEqual(kapi.find_stale_doc_references(), [])
 
     def test_kanitsiz_public_tip_tarama_kapisini_kirar(self):
@@ -1978,7 +1978,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             "sha256": manifest["apiCompat"][0]["sha256"], "validationRan": True}])
 
     def test_paketle_farksiz_pakette_rapor_yok_mesru_kayittir(self):
-        """187.0 adım 6: farksız pakette SDK rapor yazmaz."""
+        """Farksız pakette SDK rapor yazmaz."""
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory, report=False)
 
@@ -2254,7 +2254,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertIn("tek bir sürüm hattında değil", text)
 
     def test_paket_dizini_modu_surum_beklenen_surum_olarak_denetlenir(self):
-        """Açık Soru 4 = A: --surum ile --paket-dizini birlikte izinlidir."""
+        """--surum ile --paket-dizini birlikte izinlidir."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
@@ -2264,7 +2264,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertIn("Paket üretilmedi", text)
 
     def test_paket_dizini_modu_release_dirde_girdi_disi_paket_reddedilir(self):
-        """Açık Soru 5 = A: ret, dosya silinmez."""
+        """Ret, dosya silinmez."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             release_dir = root / "artifacts" / "package" / "release"

@@ -122,7 +122,7 @@ public sealed class StreamingTests
     {
         // The escape hatch reaches the client additively -- the
         // SAME endpoint serves both the live SSE tail and a finished run's
-        // historical read, so this one test stands for both DoD rows
+        // historical read, so this one test stands for both claims
         // ("SSE carries customType" and "replay/historical read carries it").
         const string ToolName = "mark_preview_ready";
 

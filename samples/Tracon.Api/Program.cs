@@ -58,9 +58,6 @@
 //     is NOT a dependency of Tracon, the credential factory comes from the
 //     consumer
 //
-// An earlier change,
-// An earlier change,
-//
 // Set secrets before running:
 //   dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "Host=localhost;Database=Tracon;Username=...;Password=..."
 //
@@ -594,7 +591,7 @@ var model = openAiEnabled
 // judge — by itself it SCORES nothing. The real gate is
 // `Tracon:OnlineEvaluation:Enabled` AND `:SampleRate`; both are OFF
 // in the committed appsettings and are only turned on at runtime through an
-// environment variable (DoD).
+// environment variable.
 if (openAiEnabled)
 {
     tracon.AddModelRunJudge(options =>

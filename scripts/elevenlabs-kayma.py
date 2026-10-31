@@ -8,8 +8,8 @@ kullandigi operasyonlari, sorgu parametrelerini, alan yollarini ve her alanin JS
 tipini BEYAN eder;
 birim testi (`ElevenLabsOperationDriftTests`) o beyanin KODLA birebir ayni
 oldugunu kanitlar. Bu betik beyanin CANLI belgede hala gecerli olup olmadigini
-sorar. Agdan etkilenir, bu yuzden CI'da kosmaz: `nuget-danismani` Adim 0.2 ve
-`kusur-giderme` turlarinda elle kosulur.
+sorar. Agdan etkilenir, bu yuzden CI'da kosmaz: yayin oncesi kontrolde ve
+kusur turlarinda elle kosulur.
 
 Kullanim:
     python3 scripts/elevenlabs-kayma.py                 # canli belgeyi indirir

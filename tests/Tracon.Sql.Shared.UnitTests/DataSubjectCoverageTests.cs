@@ -12,7 +12,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <remarks>
 /// <para>
 /// 🚨 The same gap came back four times: conversations had no session id
-///Attachment bytes stayed in storage, workflow checkpoints
+/// Attachment bytes stayed in storage, workflow checkpoints
 /// had no foreign key to runs, and run scores were matched only by the
 /// run ids a resolver named. Each time the table was simply not in
 /// <c>DataSubjectTargetRegistry</c>, and nothing failed. This gate turns the

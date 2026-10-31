@@ -2,7 +2,7 @@
 --
 -- 🚨 api_key_configuration_name is NOT THE SECRET VALUE -- it is the NAME of
 -- the configuration key the value is read from at call time
---The value itself
+-- The value itself
 -- lives only in `dotnet user-secrets`/environment/key vault and is never
 -- written here.
 

@@ -488,7 +488,7 @@ def release_notes_for(changelog: pathlib.Path, version: str) -> tuple[str | None
 
 
 def untagged_cut_hint(changelog: pathlib.Path, baseline: str) -> str | None:
-    """A version section above the baseline with no tag yet (Açık Soru 1 = C).
+    """A version section above the baseline with no tag yet.
 
     The cut commit and its tag are pushed together; until the tag exists the
     rehearsal cannot know the section is the one it ships."""

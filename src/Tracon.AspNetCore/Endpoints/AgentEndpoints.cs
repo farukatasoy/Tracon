@@ -1115,8 +1115,8 @@ internal static class AgentEndpoints
 
                 // ANY update, not the last one. A tool turn cut at the limit
                 // raises it too; the notice scan then finds no event, which costs one
-                // read. Missing the final turn's reason would lose the notice. An earlier change:
-                // a content-filter reason may leave a notice as well.
+                // read. Missing the final turn's reason would lose the notice. A content-filter reason
+                // may leave a notice as well.
                 var sawIncomplete = false;
 
                 await foreach (var update in updates.ConfigureAwait(false))

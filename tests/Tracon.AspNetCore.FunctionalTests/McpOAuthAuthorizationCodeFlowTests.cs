@@ -17,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// answer whose <c>state</c> differs. The provider sends that value back. The coordinator
 /// used to key its pending flows by a <c>state</c> of its own that never left the server,
 /// so every callback answered "not found or has expired" and no token was ever obtained
-/// (kusur-giderme, 2026-10-29; the flow had never completed).
+/// (found 2026-10-29; the flow had never completed).
 /// </para>
 /// <para>
 /// A cached token belongs to the resource it was issued for. The SDK sends a valid cached

@@ -83,8 +83,8 @@ public static class TraconWorkflowsBuilderExtensions
 
         // Registered here TOO (not only by AddWorkflowFunction), so that a
         // definition compiles into an EMPTY registry - not a missing
-        // dependency - when no function was ever registered in code. DoD:
-        // behavior with zero function nodes must stay identical.
+        // dependency - when no function was ever registered in code.
+        // Behavior with zero function nodes must stay identical.
         services.TryAddSingleton<WorkflowFunctionRegistry>();
         services.TryAddSingleton<IWorkflowFunctionCatalog>(
             static provider => provider.GetRequiredService<WorkflowFunctionRegistry>());

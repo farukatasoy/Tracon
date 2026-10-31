@@ -2,7 +2,7 @@
 -- 0030 — The job's kind becomes an open handler key
 --
 -- The PostgreSQL twin is 0043; migration numbers are independent per provider
---The rationale, the nine-value mapping and the statement order are
+-- The rationale, the nine-value mapping and the statement order are
 -- identical -- see that file's header.
 --
 -- 🚨 T-SQL compiles a batch UP FRONT: a statement that names `handler_key` in

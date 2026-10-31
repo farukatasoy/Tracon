@@ -10,8 +10,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// An agent with skills runs where nobody can answer an approval request (A2A, a run with no
-/// session) when its definition turns the skill read approval off, and not otherwise (
-/// An earlier change).
+/// session) when its definition turns the skill read approval off, and not otherwise.
 /// </summary>
 /// <remarks>
 /// <para>

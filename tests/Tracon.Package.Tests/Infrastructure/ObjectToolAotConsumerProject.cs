@@ -2,9 +2,9 @@ namespace Tracon.Package.Tests.Infrastructure;
 
 /// <summary>
 /// Writes a standalone, Native-AOT-published consumer project whose one tool
-/// takes an object parameter - proves the row of 135's DoD that a
+/// takes an object parameter - proves what a
 /// generator unit test cannot: <c>System.Text.Json.JsonSerializer.Deserialize(
-/// JsonElement, JsonTypeInfo)</c>, the call 135.5's binding code emits, has the
+/// JsonElement, JsonTypeInfo)</c>, the call the generated binding code emits, has the
 /// metadata it needs to run WITHOUT reflection once trimmed, from a real
 /// <c>PackageReference</c> consumer - not just a <c>ProjectReference</c>
 /// in-solution build, which never crosses the packed <c>analyzers/dotnet/cs/</c>

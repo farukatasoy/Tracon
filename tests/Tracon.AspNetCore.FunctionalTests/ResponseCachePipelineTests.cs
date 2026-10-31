@@ -86,7 +86,7 @@ public sealed class ResponseCachePipelineTests
         // Both turns hit the cache: no NEW real model call.
         provider.Requests.Count.ShouldBe(requestsAfterFirstRun);
 
-        // 🚨 81.1's central claim: a cache hit still lets the loop run the
+        // 🚨 The central claim: a cache hit still lets the loop run the
         // FunctionCallContent it carries. The tool body ran a SECOND time
         // even though the model was never asked again.
         callCount.ShouldBe(2);
@@ -99,7 +99,7 @@ public sealed class ResponseCachePipelineTests
         // ResponseCacheUsageTests already
         // locks the behavior at the TraconResponseCachingChatClient level,
         // but the bug this guards was only OBSERVED through GET /api/runs/{id}
-        // against a real OpenAI call - repo history (phases 6/12/15/16/18/20/21/28)
+        // against a real OpenAI call - the repository's history
         // shows this class of defect passes client-level tests and only
         // surfaces at the recorded-run boundary.
         var provider = new FakeModelProvider("cached-model")

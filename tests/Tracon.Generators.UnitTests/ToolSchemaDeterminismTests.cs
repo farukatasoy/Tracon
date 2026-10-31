@@ -1,7 +1,7 @@
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies 130's DoD: the same source produces a BIT-IDENTICAL generated schema across
+/// Verifies that the same source produces a BIT-IDENTICAL generated schema across
 /// two independent generator runs (two separate drivers, not the same driver's cache -
 /// <see cref="IncrementalGeneratorCacheTests"/> covers the cache instead).
 /// </summary>
@@ -33,7 +33,7 @@ public sealed class ToolSchemaDeterminismTests
         first.SingleWrapperFile().ShouldBe(second.SingleWrapperFile());
     }
 
-    /// <summary>135's DoD: an object parameter's schema is just as bit-identical across two independent runs.</summary>
+    /// <summary>An object parameter's schema is just as bit-identical across two independent runs.</summary>
     [Fact]
     public void An_object_parameters_schema_is_byte_identical_across_two_independent_runs()
     {

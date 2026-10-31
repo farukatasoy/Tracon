@@ -266,7 +266,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
 
 /**
  * Renders a numeric score. `null` means NO MEASUREMENT was made, not zero
- *So it renders as a dash rather than a 0 nobody wrote. A whole
+ * So it renders as a dash rather than a 0 nobody wrote. A whole
  * number keeps its short form; a decimal keeps at most two places.
  */
 function formatScoreValue(value: number | null | undefined): string {

@@ -129,7 +129,7 @@ public sealed class TraconPricingBindingTests
 
     /// <summary>
     /// The rejection reaches the consumer's console, so it must read as English
-    ///Both messages used to glue a two-letter Turkish correlative
+    /// Both messages used to glue a two-letter Turkish correlative
     /// conjunction around the two key names, which the language gate could not
     /// see while it skipped two-letter words. It no longer skips them, so the
     /// phrase cannot be quoted here either — see

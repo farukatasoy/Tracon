@@ -243,7 +243,7 @@ public sealed class OptionalMigrationSetTests(PostgresFixture fixture)
         var realCoreMigrations = MigrationDescriptor
             .Discover(typeof(MigrationRunner).Assembly, "Tracon.PostgreSql.Migrations.");
 
-        // Replicates a genuine pre-phase-67 database: every core migration's
+        // Replicates a genuine older database: every core migration's
         // real DDL actually ran (so later migrations that reference earlier
         // tables/columns keep working), recorded in the OLD ledger shape
         // (id-only primary key, no set_name column).

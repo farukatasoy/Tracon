@@ -32,7 +32,7 @@ public sealed class DocumentedPolicyTests
     /// Every option type a claim is allowed to name. Explicit rather than
     /// assembly-scanned: instantiating an arbitrary type by reflection should
     /// not be something a doc marker can opt into just by spelling a name
-    /// right. Adding a type here is the deliberate step 158.3 describes.
+    /// right. Adding a type here is a deliberate step.
     /// </summary>
     private static readonly Dictionary<string, Type> ClaimableOptionTypes = new(StringComparer.Ordinal)
     {

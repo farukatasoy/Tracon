@@ -27,7 +27,7 @@ export interface Step {
   timeout: string;
   /**
    * The timeout the server sent, kept so an untouched field goes back exactly as stored
-   *The field shows seconds, and `00:00:02.5000000` would otherwise come back as
+   * The field shows seconds, and `00:00:02.5000000` would otherwise come back as
    * `00:00:02.500`.
    */
   storedTimeout?: string | null;
@@ -82,7 +82,7 @@ export function hasStepTimeouts(steps: readonly Step[]): boolean {
  * the agents' live token stream. Such a chain loaded from a node list written over HTTP, or
  * one whose last function step was removed, is held back instead of losing its timeouts on a
  * full-replace save. A pinned agent version is the other thing that makes a node list
- *The operator asked for a node there, so a timeout beside it is kept.
+ * The operator asked for a node there, so a timeout beside it is kept.
  */
 export function hasStrandedTimeouts(kind: WorkflowKind, steps: readonly Step[]): boolean {
   return canonicalForm(kind, steps) === 'agentNames' && hasStepTimeouts(steps);
@@ -299,7 +299,7 @@ function formatTimeSpan(totalMilliseconds: number): string {
 /**
  * What decides whether a run that is waiting to be resumed WITH THE NEW GRAPH still can be: the
  * pattern and the steps, in order. A description, a settings value, a timeout or an agent pin is
- * not part of it (measured, phases 195, 196 and 200). A run that is waiting keeps resuming the
+ * not part of it (measured). A run that is waiting keeps resuming the
  * definition version it recorded, so a save does not take the old graph away from it.
  */
 export function shapeOf(kind: WorkflowKind, steps: readonly Step[], handoffs: readonly HandoffEdge[] = []): string {

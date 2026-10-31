@@ -139,7 +139,7 @@
       sm       12   secondary line under a value
       base     13   table cell, label, help text
       body     14   panel prose, form field
-      section: 15 panel heading
+      section: 15   panel heading
       metric   18   a single number worth reading across the room
       title    20   screen heading
       id     12.5   run / session / tenant / span identifiers (monospace)

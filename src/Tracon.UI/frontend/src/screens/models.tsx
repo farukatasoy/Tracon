@@ -60,7 +60,7 @@ function HealthBadge({ health }: { health: ModelProviderHealth | undefined }): R
  * Registered providers, their model catalogue, and connectivity status.
  *
  * An empty catalogue is not an error. Tracon ships no built-in model list
- *A package cannot keep provider model names current, and a
+ * A package cannot keep provider model names current, and a
  * stale list produced a 403 model_not_found the day it was written.
  *
  * The catalogue is also not a validation list — a model name that is missing

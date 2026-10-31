@@ -10,7 +10,7 @@ namespace Tracon.Package.Tests;
 /// </summary>
 public sealed class TemplateSecretTests(TemplateFixture fixture)
 {
-    // Same pattern as the DoD verification command.
+    // Same pattern as the repository's secret scan.
     private static readonly Regex SecretLike = new(
         "sk-[a-z0-9]{20}|api[_-]?key\"\\s*:\\s*\"[^\"]+\"",
         RegexOptions.IgnoreCase,

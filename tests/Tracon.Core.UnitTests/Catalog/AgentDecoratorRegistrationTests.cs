@@ -103,7 +103,7 @@ public sealed class AgentDecoratorRegistrationTests
     }
 
     /// <summary>
-    /// The primary DoD assertion: three decorators registered through
+    /// The primary assertion: three decorators registered through
     /// <c>AddAgentDecorator</c> all run when the catalog resolves an agent, in
     /// <see cref="IAgentDecorator.Order"/> order (highest first, so it ends up outermost).
     /// </summary>

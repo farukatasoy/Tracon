@@ -91,7 +91,7 @@ reflection, no dynamic code, zero analyzer warnings.
 
 Tracon has not shipped a `1.0` yet, and these contracts are still moving. A
 change here breaks every implementation of the seam it touches, so each one is
-recorded in the repository's decision log before it is made.
+called out in the release notes before it is made.
 
 ## Links
 

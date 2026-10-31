@@ -9,7 +9,7 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 151's harness loop, exercised through a real host: the run is recorded, the
+/// The harness loop, exercised through a real host: the run is recorded, the
 /// events go through the real <c>RunEventWriter</c>, and the streaming path is
 /// the real <c>RunCoreStreamingAsync</c>.
 /// </summary>

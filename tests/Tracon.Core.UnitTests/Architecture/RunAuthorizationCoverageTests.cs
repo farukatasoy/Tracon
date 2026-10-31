@@ -213,7 +213,7 @@ public sealed class RunAuthorizationCoverageTests
         => AssertEveryFileMatches(
             ExpectedRunStartingFiles,
             "the run-start gate — a run can start there WITHOUT going through the " +
-            "installation's own IRunAuthorizationHandler (phases 139 and 147)");
+            "installation's own IRunAuthorizationHandler");
 
     [Fact]
     public void Every_known_run_resource_surface_still_calls_the_gate()
@@ -355,7 +355,7 @@ public sealed class RunAuthorizationCoverageTests
     /// all but one left the gate green. MEASURED (2026-09-06):
     /// <c>RunEndpoints.cs</c> carries TWELVE resource checks — eleven could
     /// have been removed silently, and <c>OpenAIConversationsEndpoints.cs</c>
-    /// carries three, the file phases 147 and 149 each had to come back for.
+    /// carries three, the file that had to be fixed more than once.
     /// <para>
     /// The count is EXACT, not a floor. A floor would let an addition pay for
     /// a deletion and go green on a net zero, and the point of a ratchet on a

@@ -640,7 +640,7 @@ internal sealed class WebhookDeliveryJobHandler(
             }
 
             // The remote target's own response body is entirely third-party controlled and
-            // is never persisted (119.3's open question #3): the status code is enough to
+            // is never persisted: the status code is enough to
             // diagnose a delivery failure.
             var body = await ReadCappedAsync(response, options.MaxResponseBytes, attempt.Token).ConfigureAwait(false);
 

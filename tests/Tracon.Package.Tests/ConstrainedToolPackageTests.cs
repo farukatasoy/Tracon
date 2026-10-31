@@ -5,7 +5,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// 130's package-boundary DoD row: a constrained tool's schema, and the run
+/// Package-boundary check: a constrained tool's schema, and the run
 /// that calls it, both work from a real <c>PackageReference</c> consumer -
 /// not just the in-solution generator unit tests, which never cross the
 /// packed <c>analyzers/dotnet/cs/</c> boundary. Companion to

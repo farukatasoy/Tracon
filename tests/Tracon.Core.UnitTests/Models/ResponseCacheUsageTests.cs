@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Models;
 /// <see cref="ChatResponse.Usage"/> and <see cref="UsageContent"/>. Serving
 /// them again on every subsequent hit made a run's own <c>usage</c> field
 /// show the SAME non-zero token count as the first, real call — double
-/// counting tokens/cost the provider was never billed for again. 81.1's
+/// counting tokens/cost the provider was never billed for again. The
 /// entire "a hit spends nothing" claim depends on this.
 /// </remarks>
 public sealed class ResponseCacheUsageTests

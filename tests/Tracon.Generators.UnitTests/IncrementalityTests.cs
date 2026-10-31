@@ -4,7 +4,7 @@ namespace Tracon.Generators.UnitTests;
 
 /// <summary>
 /// Verifies the <c>IIncrementalGenerator</c> contract: an unrelated change
-/// must NOT invalidate a step's cache (52.5, DoD "IncrementalityTests").
+/// must NOT invalidate a step's cache.
 /// </summary>
 public sealed class IncrementalityTests
 {

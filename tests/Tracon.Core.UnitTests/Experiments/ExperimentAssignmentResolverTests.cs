@@ -91,7 +91,7 @@ public sealed class ExperimentAssignmentResolverTests
         // control is FIRST (weight 95), canary is SECOND (weight 5) -- physical
         // order is control-first. When the canary rule is DEFINED, bucket
         // computation must still place canary in the [0, 5) range and control in
-        // the [5, 100) range -- this is the basis of 56.4's "does not switch
+        // the [5, 100) range -- this is the basis of the "does not switch
         // existing sessions' arm" guarantee.
         var experiment = Experiment(
             new ExperimentVariant { Name = "control", Version = 1, Weight = 95 },

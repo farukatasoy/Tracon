@@ -66,12 +66,11 @@
     <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="[1.26.0-preview.261023.1]" />
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="[1.26.0-alpha.261023.1]" />
     <!--
-Tracon'i disa acan A2A sunucusu. Ayni surum hatti
+      Tracon'i disa acan A2A sunucusu. Ayni surum hatti
       (1.26.0-preview.261023.1), yalnizca Tracon.AspNetCore.
       `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslaginda OLCULMEMISTI;
       `AddA2AServer` yalniz KAYIT yapar, HTTP ucunu `A2A.AspNetCore`'un
-      `MapA2A`/`MapHttpA2A` uzantilari acar (bir duzeltme:
-      ). Olculen artimli maliyet: A2A, A2A.AspNetCore,
+      `MapA2A`/`MapHttpA2A` uzantilari acar. Olculen artimli maliyet: A2A, A2A.AspNetCore,
       Microsoft.Agents.AI.Hosting.A2A, Microsoft.Agents.AI.Hosting.AspNetCore
       (4 paket, hepsi ayni SDK ailesi; yabanci bagimlilik yok).
     -->
@@ -196,7 +195,7 @@ Tracon'i disa acan A2A sunucusu. Ayni surum hatti
   </ItemGroup>
 
   <!--
-samples/Tracon.Embedded'in isteğe bağlı EF Core boyutu — iki
+    samples/Tracon.Embedded'in isteğe bağlı EF Core boyutu — iki
     bağlantı düzleminin AYNI NpgsqlDataSource üzerinde buluştuğunu kanıtlar
     (docs-site/.../guides/ef-core.md). Tracon EF Core kullanmaz (L16, L29);
     bu bağımlılık yalnız samples/ altındadır, sevk edilen hiçbir pakete girmez.
@@ -207,8 +206,8 @@ samples/Tracon.Embedded'in isteğe bağlı EF Core boyutu — iki
   </ItemGroup>
 
   <!--
-samples/Tracon.Api'nin isteğe bağlı Redis önbelleği — iki süreçli kabul case'i
- `Tracon:Mcp:OAuthTokenStore = DistributedCache` için
+    samples/Tracon.Api'nin isteğe bağlı Redis önbelleği — iki süreçli kabul case'i
+    `Tracon:Mcp:OAuthTokenStore = DistributedCache` için
     süreçler arasında paylaşılan bir `IDistributedCache` ister. Tracon Redis'e bağlı değildir; bu bağımlılık
     yalnız samples/ altındadır, sevk edilen hiçbir pakete girmez.
   -->
@@ -217,7 +216,7 @@ samples/Tracon.Api'nin isteğe bağlı Redis önbelleği — iki süreçli kabul
   </ItemGroup>
 
   <!--
-samples/Tracon.AppHost (Aspire) ve samples/Tracon.Api'nin kosullu OTLP cikisi. Bu paketler yalniz
+    samples/Tracon.AppHost (Aspire) ve samples/Tracon.Api'nin kosullu OTLP cikisi. Bu paketler yalniz
     samples/ altindadir, sevk edilen hicbir paketin grafina girmez; Tracon kendi `ActivitySource` ve `Meter`
     adini acar, disa aktarimi tuketicinin uygulamasi secer (docs-site guides/observability.md).
     `Aspire.AppHost.Sdk` sürümü csproj'un `Sdk=` ozniteliginde yasar (13.6.4); buradaki hosting paketi ile ayni olmali.
@@ -241,7 +240,7 @@ samples/Tracon.AppHost (Aspire) ve samples/Tracon.Api'nin kosullu OTLP cikisi. B
   <ItemGroup Label="Model Context Protocol">
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.3.0" />
     <!--
-Tracon'i disa acan MCP sunucusu. Kosul degisti:
+      Tracon'i disa acan MCP sunucusu. Kosul degisti:
       "Tracon yalnizca istemcidir" artik dogru degil. Yalnizca
       Tracon.AspNetCore icine girer; Tracon.Mcp (istemci) `.Core`'da
       kalir. Olculdu (2026-08-07): 13 gecisli paket, tumu Microsoft.Extensions.*
@@ -254,7 +253,7 @@ Tracon'i disa acan MCP sunucusu. Kosul degisti:
     -->
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
     <!--
-MCP Tasks uzantisi (2026-07-28 spec). Yalnizca
+      MCP Tasks uzantisi (2026-07-28 spec). Yalnizca
       Tracon.AspNetCore icine girer. Olculdu (2026-08-26, gercek restore,
       net10.0, temiz proje): + ModelContextProtocol.AspNetCore -> 13 paket,
       + bu paket -> 14 paket. Net yeni gecisli paket SIFIR - on iki gecisli
@@ -265,7 +264,7 @@ MCP Tasks uzantisi (2026-07-28 spec). Yalnizca
   </ItemGroup>
 
   <!--
-AG-UI ucu (Tracon.AGUI). Gerekce: AG-UI, CopilotKit gibi on yuzlerin konustugu bir protokoldur ve
+    AG-UI ucu (Tracon.AGUI). Gerekce: AG-UI, CopilotKit gibi on yuzlerin konustugu bir protokoldur ve
     olay donusturucusunu (MEAI akisi -> AG-UI olaylari) bu iki paket tasir; ayni donusturucuyu elle yazmak protokolun
     tel bicimini kopyalamak olurdu. Yayinci "AG-UI Protocol" (Microsoft degil), MIT, nuget.org'da dogrulanmis sahip,
     yazar imzasi gecerli (`dotnet nuget verify`, 2026-10-23). Bagimlilik yalniz Microsoft.Extensions.AI.Abstractions
@@ -285,7 +284,7 @@ AG-UI ucu (Tracon.AGUI). Gerekce: AG-UI, CopilotKit gibi on yuzlerin konustugu b
   </ItemGroup>
 
   <!--
-Tracon.Generators (tool kaynak ureteci). Tracon.Core icinde
+    Tracon.Generators (tool kaynak ureteci). Tracon.Core icinde
     Analyzer olarak tasinir, PrivateAssets=all + ReferenceOutputAssembly=false;
     tuketicinin bagimlilik grafigine SIZMAZ (dotnet list package ile dogrulanir).
 
@@ -367,7 +366,7 @@ Tracon.Generators (tool kaynak ureteci). Tracon.Core icinde
     -->
     <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
     <!--
-".extensibility.core" above carries [Fact]/[Theory] and
+      ".extensibility.core" above carries [Fact]/[Theory] and
       IAsyncLifetime but NOT the Assert class (that lives in
       xunit.v3.assert.dll) - ToolArgumentValidationContract needs
       Assert.SkipWhen for a schema shape its generator cannot fuzz (a nested
@@ -377,7 +376,7 @@ Tracon.Generators (tool kaynak ureteci). Tracon.Core icinde
     -->
     <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
     <!--
-Tracon.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
+      Tracon.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
       (AzureOpenAIProviderOptions.CredentialFactory'nin gerekcesine bak): kimlik
       bilgisi tipi tuketiciye birakilir. Sevk edilen `<example>` yine de
       DefaultAzureCredential adlandiriyor; her ornegin derlendigini kanitlayan
@@ -388,7 +387,7 @@ Tracon.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
   </ItemGroup>
 
   <!--
-bench/ - a repository discipline, not a shipped capability. The
+    bench/ - a repository discipline, not a shipped capability. The
     project is IsPackable=false and no shipped package references it, so its
     22 transitive packages (Roslyn, Iced, Capstone, TraceEvent - BenchmarkDotNet's
     own disassembly/diagnostics stack) never reach a consumer's dependency

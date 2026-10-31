@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// <c>TraconOptions</c> is bound by hand (AOT). This structurally locks
 /// out the "new field added but not added to <c>Bind()</c>" defect — the same
 /// defect was found independently three times: <c>RunRecording.RecordRunInput</c>
-///<c>Observability.IncludeAgentVersionTag</c>, and
+/// <c>Observability.IncludeAgentVersionTag</c>, and
 /// <c>Validation.McpTimeout</c> (defined but never bound).
 /// </summary>
 /// <remarks>

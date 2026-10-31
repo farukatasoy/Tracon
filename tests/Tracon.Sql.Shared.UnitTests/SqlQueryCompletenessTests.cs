@@ -13,7 +13,7 @@ namespace Tracon.SqlProviders.Tests;
 /// only at run time, when the empty text reaches the server. moves
 /// 117 queries into the base class's constructor; a derived class that still
 /// assigns the same property afterward would silently overwrite the shared
-/// text (94.3, step 3) with whatever it computes -- or, if it simply forgets
+/// text with whatever it computes -- or, if it simply forgets
 /// to delete a since-shared field, leaves a dead assignment that this test
 /// cannot see (that risk is closed by <see cref="SqlTextSnapshotTests"/>
 /// instead, which fails on ANY text drift, not just emptiness).

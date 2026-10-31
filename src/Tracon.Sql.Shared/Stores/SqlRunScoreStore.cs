@@ -108,7 +108,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
     /// </remarks>
     // 🚨 A column added to RunScoreColumns has to be APPENDED: inserting one in
     // the middle shifts every field below, and the shift is SILENT whenever the
-    // neighbouring types happen to agree. An earlier change and both appended.
+    // neighbouring types happen to agree.
     private static RunScore Read(DbDataReader reader)
         => new()
         {

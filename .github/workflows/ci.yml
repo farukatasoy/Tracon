@@ -29,7 +29,7 @@ env:
   PYTHONUTF8: 1
 
 # ---------------------------------------------------------------------------
-# Zaman sinirlari (2026-09-23, kusur-giderme). Her is `timeout-minutes`
+# Zaman sinirlari (2026-09-23). Her is `timeout-minutes`
 # tasir. Sinir yoksa GitHub'in 360 dk varsayilani gecerlidir: asilan bir test
 # uygulamasi iki runner'i alti saat yakar ve log hangi uygulamanin asildigini
 # soylemez. Bir kapi, siniri olmayan her isi kirmizi sayar.
@@ -434,7 +434,7 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # `npm-publish`'ten SONRA kosar (RK-011). Iki kanal PARALEL kostugu surece
+  # `npm-publish`'ten SONRA kosar. Iki kanal PARALEL kostugu surece
   # npm tarafi kirilirsa 20 NuGet paketi KALICI olarak yayinlanmis olur ve
   # sevk edilen dokuman (`docs-site` -> `npm install @tracon/client`) var
   # olmayan bir paketi tarif eder. NuGet'te geri donus yoktur; npm'in kisitli
@@ -516,12 +516,12 @@ jobs:
           --skip-duplicate
 
   # ---------------------------------------------------------------------------
-  # @tracon/client -> npm.org (bolum 84.11)
+  # @tracon/client -> npm.org
   #
   # NuGet yayiniyla AYNI 'v*' etiketinde tetiklenir ve surumu AYNI etiketten
   # turetir -- iki kanal boylece YAPISAL olarak eslesir, ayri bir surum dosyasi
   # yoktur. `needs: build` yeterlidir (paket testleri orada kosuyor). Bu is
-  # `publish`'ten ONCE kosar ve `publish` buna baglidir (RK-011): geri donusu
+  # `publish`'ten ONCE kosar ve `publish` buna baglidir: geri donusu
   # olmayan kanal (NuGet) en son basar.
   # ---------------------------------------------------------------------------
   npm-publish:
@@ -639,8 +639,8 @@ jobs:
   # GitHub release
   #
   # `publish` VE `npm-publish`'ten SONRA kosar: paket yayini bu ise bagli
-  # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse (OP-007
-  # hata modu tablosu). Govde CHANGELOG.md'nin o surume ait bolumudur --
+  # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse.
+  # Govde CHANGELOG.md'nin o surume ait bolumudur --
   # `scripts/changelog.py` kapi.py'nin surum-notu kapisiyla AYNI ayrıştırıcıdır,
   # iki ayri parser yazmak drift uretirdi. Surum bolumu yoksa `## [Unreleased]`
   # okunur: bolum ETIKET aninda yazilir, yani bu is kosarken heniz yazilmamis

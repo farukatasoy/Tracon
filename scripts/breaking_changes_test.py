@@ -75,7 +75,7 @@ def _baseline_record(diagnostic: str, target: str, tfm: str = "net10.0") -> str:
 
 
 def _framework_record(tfm: str) -> str:
-    # Measured 2026-09-24 (187.0 step 4): PKV006 carries the framework as its
+    # Measured 2026-09-24: PKV006 carries the framework as its
     # Target and NO Left/Right/IsBaselineSuppression element.
     return f"  <Suppression>\n    <DiagnosticId>PKV006</DiagnosticId>\n    <Target>{tfm}</Target>\n  </Suppression>"
 
@@ -395,7 +395,7 @@ class KiriciListeTestleri(unittest.TestCase):
         self.assertEqual(changes.type_count(), 1)
 
     def test_pkv006_paket_ve_tfm_ister(self):
-        """The measured report of Tracon.Voice packed for net10.0 only (187.0 step 4)."""
+        """The measured report of Tracon.Voice packed for net10.0 only."""
         with tempfile.TemporaryDirectory() as directory:
             reports = pathlib.Path(directory)
             (reports / "Tracon.Voice.xml").write_bytes((TESTDATA / "voice-net10-only.xml").read_bytes())
@@ -465,7 +465,7 @@ class KiriciListeTestleri(unittest.TestCase):
         self.assertIn("Tracon.Core: rapor okunamadı", changes.errors[0])
 
     def test_gercek_rapor_fikstur(self):
-        """The full Tracon.Core report against v1.0.0-preview.2 (187.0 step 7):
+        """The full Tracon.Core report against v1.0.0-preview.2:
         216 records - 207 CP0001, 9 CP0002 - over three frameworks."""
         with tempfile.TemporaryDirectory() as directory:
             reports = pathlib.Path(directory)
@@ -614,7 +614,7 @@ class KapiCagrisiTestleri(unittest.TestCase):
         self.assertEqual(result["baseline"], "1.0.0-preview.2")
 
     def test_kesilmis_etiketsiz_surum(self):
-        """Açık Soru 1 = C: the cut commit (section renamed, empty
+        """The cut commit (section renamed, empty
         [Unreleased] above) pushed without its tag. MinVer still resolves
         `1.0.0-preview.2.N`; the notes are not found and the message says to
         push the cut and the tag together."""
@@ -1155,7 +1155,7 @@ class YuzeyKapiTestleri(unittest.TestCase):
         self.assertIn("Contract testi eklemesi (taban v1.0.0'den beri): 1", output)
 
     def test_contract_kapisi_preview_hattinda_da_kosar(self):
-        """Açık Soru 1 = A: the first real run must not be GA day."""
+        """The first real run must not be GA day."""
         code, output = self._run(version="1.0.0-preview.6", baseline="1.0.0-preview.5", notes="", edit=self._add_test)
 
         self.assertEqual(code, 1)

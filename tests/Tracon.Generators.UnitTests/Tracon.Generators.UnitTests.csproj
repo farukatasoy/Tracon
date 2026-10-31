@@ -21,8 +21,8 @@
     <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
     <!--
       Examples/ExampleCompilationTests.cs compiles every shipped
-      <example> block, and the 49 blocks are spread across 15 packages
-. Tracon.Abstractions comes in
+      <example> block, and the 49 blocks are spread across 15 packages.
+      Tracon.Abstractions comes in
       transitively through Core; these 11 are the rest.
     -->
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />

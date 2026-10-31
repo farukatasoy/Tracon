@@ -78,9 +78,9 @@ export const indexingEnabled = process.env.TRACON_SITE_INDEXING !== 'disabled';
  * are listed for completeness; Perplexity documents that its fetcher ignores
  * robots.txt for that reason, and OpenAI documents the same for ChatGPT-User.
  *
- * Sources, each the operator's own: developers.openai.com/api/
+ * Sources, each the operator's own: https://developers.openai.com/api/docs/bots,
  * support.claude.com article 8896518, docs.perplexity.ai/guides/bots,
- * developers.google.com/search/
+ * https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers,
  * support.apple.com/en-us/119829, commoncrawl.org/ccbot, and
  * developers.facebook.com/documentation/sharing/webmasters/web-crawlers.
  */

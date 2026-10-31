@@ -25,7 +25,7 @@ Workflows version changed the checkpoint state shape enough to break the
 remarks for why a full `ResumeStreamingAsync` proof is not possible here).
 That is the finding — replacing the fixture with one captured under the new
 version would erase the very thing the test exists to catch. Treat a break
-as a real compatibility question and take it to the `nuget-danismani` skill,
+as a real compatibility question for the maintainers,
 not as a fixture maintenance chore.
 
 A new fixture is added — never replacing this one — only when Tracon's

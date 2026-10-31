@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
 /// The budget of a run that continues earlier runs of the same workflow starts from what they spent
-///And the difference between that and what the tenant's counter has seen is measured from
+/// And the difference between that and what the tenant's counter has seen is measured from
 /// there.
 /// </summary>
 public sealed class AgentRunBudgetCarryOverTests

@@ -17,8 +17,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <see cref="RunBackedMcpTaskStore"/> was never told anything by A — its
 /// same-instance cache is empty by construction, so every read here is forced
 /// through <see cref="McpTaskStatusMapping"/>'s reconstruction path. This is also
-/// the automated proof for the change's "a task is visible from a second instance"
-/// DoD line.
+/// the automated proof that "a task is visible from a second instance"
+/// holds.
 /// </summary>
 public sealed class McpTaskCrossInstanceTests
 {

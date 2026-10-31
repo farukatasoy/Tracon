@@ -45,7 +45,7 @@ public sealed class RunResourceAuthorizationTests
 
     private static readonly Guid Missing = new("00000000-0000-0000-0000-0000000000ff");
 
-    // --- DoD 1: nothing registered, nothing changes ---
+    // --- nothing registered, nothing changes ---
 
     [Fact]
     public async Task Every_resource_endpoint_is_unchanged_when_no_handler_is_registered()

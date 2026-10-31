@@ -14,7 +14,6 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// Ollama is not installed on this machine; this stand-in server verifies
 /// the "local, keyless server" mechanism (connect + unauthenticated request)
 /// over a real socket.
-/// and its DoD note.
 /// </remarks>
 internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
 {

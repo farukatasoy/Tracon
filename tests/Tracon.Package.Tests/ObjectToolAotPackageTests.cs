@@ -4,7 +4,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// 135's DoD: an object parameter binds through
+/// An object parameter binds through
 /// <c>System.Text.Json.JsonSerializer.Deserialize(JsonElement, JsonTypeInfo)</c>
 /// - a run-time behavior a generator unit test cannot prove, because it
 /// never crosses the packed <c>analyzers/dotnet/cs/</c> boundary and never

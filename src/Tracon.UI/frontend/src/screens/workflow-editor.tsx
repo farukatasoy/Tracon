@@ -64,7 +64,7 @@ interface Draft {
   steps: Step[];
   /**
    * The run parameters the workflow declares - carried, never edited here
-   *The console has no schema editor yet; the agent editor treats its
+   * The console has no schema editor yet; the agent editor treats its
    * own `parameters` the same way.
    *
    * 🚨 `PUT /api/workflows/{name}` is a full replace: a save that did

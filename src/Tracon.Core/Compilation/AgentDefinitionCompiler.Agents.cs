@@ -431,7 +431,7 @@ public sealed partial class AgentDefinitionCompiler
             // 144.4: the option object is built by Tracon on BOTH compile
             // paths, so behavior never depends on what MAF's own null
             // semantics happen to be for BackgroundAgentsProviderOptions
-            // (measured unassigned before this change — see 144's plan).
+            // (measured unassigned before this change).
             options.BackgroundAgents = build.Children;
             options.BackgroundAgentsProviderOptions = new BackgroundAgentsProviderOptions { WaitTimeout = build.WaitTimeout };
         }

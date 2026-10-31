@@ -8,7 +8,7 @@ namespace Tracon.Embedded.Tests;
 
 /// <summary>
 /// Runs <c>samples/Tracon.Embedded</c>'s actual entry point end to end
-///Confirms the DoD this sample exists to prove: the six
+/// Confirms what this sample exists to prove: the six
 /// embedding points it customizes report as bound, a background job with no
 /// HTTP request behind it still carries the right tenant and user, and a
 /// congested event bridge drops events instead of slowing the run down.

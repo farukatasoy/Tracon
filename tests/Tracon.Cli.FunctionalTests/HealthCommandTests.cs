@@ -23,7 +23,7 @@ public sealed class HealthCommandTests
     [Fact]
     public async Task Reads_health_through_a_custom_MapTracon_prefix()
     {
-        // 83.3's trap: a client generated straight from the document (which
+        // The trap: a client generated straight from the document (which
         // carries NO prefix) would 404 the moment the app mounts anywhere
         // other than the default "/tracon". This proves the stripped
         // prefix moved to TraconClientOptions.BaseAddress correctly.

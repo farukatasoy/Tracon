@@ -1,7 +1,7 @@
 -- Tracon SQL Server schema.
 --
 -- This file is the ACCUMULATED result of the PostgreSQL 0001-0013 migrations, not
--- a step by step repeat of them. SQL Server support opens; there is
+-- a step by step repeat of them. SQL Server support starts at this file; there is
 -- no installation to upgrade, so replaying the history would only produce a file
 -- that is hard to read. Later changes are added as 0002, 0003 ...
 --
@@ -9,7 +9,7 @@
 -- match it would create a deadlock later, when a provider specific fix is needed.
 --
 -- Rules:
--- * The consumer `dbo` schema is NOT TOUCHED.
+--   * The consumer `dbo` schema is NOT TOUCHED.
 --   * The `{schema}` placeholder is replaced at run time with
 --     TraconSqlServerOptions.SchemaName. SqlIdentifier.RequireSchemaName validates it.
 --   * Time fields are `datetimeoffset(7)`, always written as UTC.
@@ -89,7 +89,7 @@ CREATE TABLE {schema}.agent_definition_versions (
 -- ---------------------------------------------------------------------------
 -- `state` is the SerializeSessionAsync output of Microsoft Agent Framework and it is OPAQUE.
 --
--- That decision DOES NOT HOLD HERE: in PostgreSQL this column is `json` (not jsonb)
+-- The PostgreSQL choice DOES NOT HOLD HERE: in PostgreSQL this column is `json` (not jsonb)
 -- because jsonb reorders the object keys and moves the polymorphic `$type`
 -- discriminator of System.Text.Json away from being the first property. On SQL
 -- Server JSON is stored as text and the order is already kept; the problem does

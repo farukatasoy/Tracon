@@ -13,7 +13,7 @@ namespace Tracon.AGUI.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// The decision is the one the management API takes: audited BEFORE it is applied, remembered the same way
-///And carried by the next turn of the session. What differs is the surface it is audited under.
+/// And carried by the next turn of the session. What differs is the surface it is audited under.
 /// </remarks>
 public sealed class AGUIApprovalTests
 {

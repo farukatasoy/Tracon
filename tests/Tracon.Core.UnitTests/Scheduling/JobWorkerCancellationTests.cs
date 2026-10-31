@@ -52,7 +52,7 @@ public sealed class JobWorkerCancellationTests
     }
 
     /// <summary>
-    /// The DoD's "within one <c>PollInterval</c>", measured on the worker's own clock: the
+    /// The requirement "within one <c>PollInterval</c>", measured on the worker's own clock: the
     /// watch reads the job when one poll interval has passed and not before, so a cancel
     /// reaches the token at that tick. The test above bounds the same path only by a
     /// failure timeout.

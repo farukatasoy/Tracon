@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Quotas;
 
 /// <summary>
 /// The check a run tree that is already running makes before it starts a function node or an agent step
-///The same rules and reads as the door's check, the tree's own unwritten spend added.
+/// The same rules and reads as the door's check, the tree's own unwritten spend added.
 /// </summary>
 public sealed class QuotaEnforcerTreeStartTests
 {

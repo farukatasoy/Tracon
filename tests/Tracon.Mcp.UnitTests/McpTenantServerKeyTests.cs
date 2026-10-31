@@ -56,7 +56,7 @@ public sealed class McpTenantServerKeyTests
     /// <summary>
     /// 🚨 A token belongs to the resource it was issued for. The MCP SDK sends a valid
     /// cached token to whatever endpoint the transport points at, so a cache found by the
-    /// server's name alone handed the token to a new endpoint (kusur-giderme, 2026-10-29).
+    /// server's name alone handed the token to a new endpoint (found 2026-10-29).
     /// </summary>
     [Theory]
     [InlineData("https://other.example.com/mcp", "client")]

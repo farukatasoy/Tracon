@@ -5,7 +5,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <summary>
 /// The counting/deletion/archive-read behavior of the PostgreSQL
 /// implementation of <see cref="IRetentionStore"/>. Meets the real evidence
-/// requirement in the earlier change's DoD: old rows are dropped, while the <c>runs</c>
+/// requirement that old rows are dropped, while the <c>runs</c>
 /// summary and <c>audit_log</c> are PRESERVED.
 /// </summary>
 public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLifetime

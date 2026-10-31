@@ -22,7 +22,7 @@ the fixture remains.
 version cannot read a session written by the old one. That is the finding —
 replacing the fixture with one captured under the new version would erase
 the very thing the test exists to catch. Treat a break as a real
-compatibility question and take it to the `nuget-danismani` skill, not as a
+compatibility question for the maintainers, not as a
 fixture maintenance chore.
 
 A new fixture is added — never replacing this one — only when Tracon's
