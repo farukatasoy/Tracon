@@ -75,11 +75,11 @@ The persistence choices are `memory`, `postgres`, `sqlite`, and `sqlserver`.
 
 ### A package will not target my test project
 
-Every package you reference from application or test code targets .NET 8, 9, and
-10 — `Tracon.Testing` included, so a .NET 8 LTS application can be tested with the
-same helpers it runs with. Two packages are single-framework on purpose: the
-`tracon` CLI is a .NET tool, and the template generates a .NET 10 application. See
-[Compatibility](/reference/compatibility/).
+Every package you reference from application or test code targets .NET 10 —
+`Tracon.Testing` included. A project that targets `net8.0` or `net9.0` fails restore
+with `NU1202`: move it to `net10.0`, or stay on `1.0.0-preview.6`, the last release
+that carries those targets. The `tracon` CLI is a .NET tool, and the template
+generates a .NET 10 application. See [Compatibility](/reference/compatibility/).
 
 ### Restore reports `NU1107` or `NU1608` for a Tracon package
 

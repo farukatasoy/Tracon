@@ -76,9 +76,8 @@ building it: a record of what happened, a console for operators and teams that s
 not need to modify application code, and a way to change supported agent
 configuration without a deployment.
 
-It does not fit if you want a hosted agent product, or if you are not on .NET. Runtime
-packages target `net8.0`, `net9.0`, and `net10.0`, and the testing packages follow the
-same matrix, so an app on .NET 8 LTS can be tested on .NET 8. The project template
+It does not fit if you want a hosted agent product, or if you are not on .NET 10. Runtime
+packages target `net10.0`, and the testing packages follow the same target. The project template
 generates a `net10.0` project pinned to the template package's own Tracon version
 (`--TraconVersion x.y.z` overrides it), the `tracon` global tool targets `net10.0`,
 and the source generator that ships inside Core targets `netstandard2.0`. The

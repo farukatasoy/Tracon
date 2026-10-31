@@ -95,7 +95,7 @@ open; it defaults to `false`.
 
 ## Compatibility
 
-Targets `net8.0`, `net9.0`, and `net10.0`. This package is **not** AOT-compatible —
+Targets `net10.0`. This package is **not** AOT-compatible —
 the hosting dependencies are not — while the runtime packages below it are.
 
 ## Links

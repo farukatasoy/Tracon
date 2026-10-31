@@ -174,8 +174,7 @@ providers (`Tracon.OpenAI`, `.Anthropic`, `.Google`, `.Azure`), workflows
 
 ## Compatibility
 
-Targets `net8.0`, `net9.0`, and `net10.0`. The package is trimming- and
-AOT-compatible.
+Targets `net10.0`. The package is trimming- and AOT-compatible.
 
 Two overloads are the exception and say so in their signature: `AddTool(Delegate)`
 and `AddToolsFrom<T>()` build a tool from method metadata and therefore carry

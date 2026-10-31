@@ -201,8 +201,8 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 
 **Target framework:** `net10.0` for every package, including `Tracon.Testing`; only the
 source generator inside `Tracon.Core` targets `netstandard2.0`. `net8.0` and `net9.0` were
-dropped after `1.0.0-preview.6`, ahead of the end of Microsoft support for .NET 8 and .NET 9
-on 2026-11-10. Detail: [compatibility matrix](https://tracon.dev/reference/compatibility/).
+dropped after `1.0.0-preview.6`; Microsoft support for .NET 8 and .NET 9 ends on 2026-11-10.
+Detail: [compatibility matrix](https://tracon.dev/reference/compatibility/).
 
 **Licence:** the `Licence` column above; three packages are MIT so that writing and
 testing an extension, and owning what `dotnet new` generates, never needs a licence.

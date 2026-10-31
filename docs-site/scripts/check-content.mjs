@@ -539,14 +539,14 @@ if (apiPackagePages.length > 0) {
 }
 
 // The framework claim is read BEFORE a consumer can compile anything: someone on
-// .NET 8 LTS decides from this table whether Tracon is usable at all. One default
+// an older .NET decides from this table whether Tracon is usable at all. One default
 // matrix lives in src/Directory.Build.props and a few projects deviate from it, so
 // the page restates a fact it cannot see change. It drifted: getting-started said
 // "the testing and template packages require .NET 10" for weeks after
 // Tracon.Testing rejoined the runtime matrix, and an outside reviewer had to
 // reconcile two pages to work out which one was true. Bind the table to the
 // csproj files instead, in both directions - a narrowed package with a stale
-// `net8/9/10` cell is the direction that costs more, because it promises a
+// multi-framework cell is the direction that costs more, because it promises a
 // framework that no longer builds.
 const defaultFrameworks = readFileSync(join(sourceRoot, 'Directory.Build.props'), 'utf8')
   .match(/<TargetFrameworks>([^<]+)<\/TargetFrameworks>/)?.[1];
@@ -554,7 +554,7 @@ const defaultFrameworks = readFileSync(join(sourceRoot, 'Directory.Build.props')
 if (!defaultFrameworks) {
   errors.push('src/Directory.Build.props: the default <TargetFrameworks> element was not found');
 } else {
-  // How the table writes a framework set: `net8.0;net9.0;net10.0` reads `net8/9/10`,
+  // How the table writes a framework set: `net10.0;net11.0` reads `net10/11`,
   // and a single framework keeps its own spelling (`net10`, `netstandard2.0`).
   const shorthand = (frameworks) => {
     const parts = frameworks.split(';').map((value) => value.trim()).filter(Boolean);
@@ -582,7 +582,7 @@ if (!defaultFrameworks) {
     if (!existsSync(join(sourceRoot, packageName, `${packageName}.csproj`))) continue;
 
     const expected = shorthand(deviating.get(packageName) ?? defaultFrameworks);
-    // The cell may add a qualifier ("net10 output", "net8/9/10 dependency groups"),
+    // The cell may add a qualifier ("net10 output", "net10 dependency group"),
     // but it must OPEN with the set the project actually builds. The boundary stops
     // `net10` from passing as the opening of `net10.0-windows`.
     const opening = new RegExp(`^${expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w.])`);

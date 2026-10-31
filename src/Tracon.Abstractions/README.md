@@ -84,7 +84,7 @@ operator response differs), `TraconSessionConflictException`, and
 
 ## Compatibility
 
-Targets `net8.0`, `net9.0`, and `net10.0`. Trimming- and AOT-compatible: no
+Targets `net10.0`. Trimming- and AOT-compatible: no
 reflection, no dynamic code, zero analyzer warnings.
 
 ## Stability

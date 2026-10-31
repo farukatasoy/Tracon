@@ -17,18 +17,13 @@ capability does not apply; it does not mean “probably works.”
 
 | Artifact | Target | Notes |
 |---|---|---|
-| Runtime packages | `net8.0`, `net9.0`, `net10.0` | This includes Core, all providers, all SQL packages, AspNetCore, MCP, Workflows, UI, and Voice |
-| `Tracon.Testing` | `net8.0`, `net9.0`, `net10.0` | The test host resolves its ASP.NET Core hosting dependency per framework, so it matches the runtime matrix |
+| Runtime packages | `net10.0` | This includes Core, all providers, all SQL packages, AspNetCore, MCP, Workflows, UI, Voice, and AG-UI |
+| `Tracon.Testing` | `net10.0` | It follows the runtime packages, so an app is tested on the framework it runs on |
 | `Tracon.Templates` | Generates `net10.0` | It is a content package, not a runtime assembly |
 | Embedded source generator | `netstandard2.0` | It ships through `Tracon.Core`; `Tracon.Generators` is not a separate public NuGet package |
 
-The runtime packages and `Tracon.Testing` build for all three targets. Only part of
-that matrix is also run on each target. In Tracon's own CI a representative set of test
-suites runs on `net8.0`, `net9.0`, and `net10.0`: Core, the four model providers, the
-shared SQL layer, SQLite storage, and the extension contract suite. The other suites
-(ASP.NET Core hosting, MCP, Workflows, Voice, the console, and the PostgreSQL and SQL
-Server stores) run on `net10.0` only. Before a release, a `net8.0` console application
-restores the packed `Tracon.Core` package and runs an agent on the .NET 8 runtime.
+Every test suite in Tracon's own CI runs on `net10.0`, the one target the runtime
+packages build for.
 
 The packages are still pre-release. Install them with an explicit preview version or
 the CLI's pre-release option. The template package also needs a preview version or
@@ -37,15 +32,16 @@ pre-release selection.
 ### How long each target framework stays
 
 Tracon follows Microsoft's own .NET support lifecycle and does not extend it. A
-target framework stays in the matrix while Microsoft still supports it; once
-that support ends, a later Tracon release may drop it.
+target framework normally stays in the matrix while Microsoft still supports it;
+once that support ends, a later Tracon release may drop it. One drop did not
+wait for that date: `net8.0` and `net9.0`, described below.
 
 Plan for this before it happens, because it changes what you can upgrade to:
 
 - **Dropping an out-of-support target framework is not treated as a breaking
   change** under the versioning policy. It can land in a minor release.
 - A release that drops one says so in its changelog entry, and the package's
-  own `net8.0`/`net9.0`/`net10.0` assets simply stop appearing.
+  own assets for that framework simply stop appearing.
 - Your application keeps working on the release it already resolved; nothing
   is withdrawn from nuget.org. What ends is new Tracon releases for that
   framework.
@@ -53,14 +49,16 @@ Plan for this before it happens, because it changes what you can upgrade to:
 Support dates come from Microsoft, not from Tracon, and they move: check the
 [.NET support policy](https://dotnet.microsoft.com/platform/support/policy/dotnet-core)
 for the current end-of-support date of each version before you pin one. `net10.0`
-is the longest-lived target in the matrix today, and a new application should
-start there.
+is the only target in the matrix today, and a new application should start there.
 
-**Scheduled (announced 2026-09-23):** `net8.0` and `net9.0` reach the end of
-Microsoft support on 2026-11-10. The first Tracon release after that date drops
-both targets. An urgent security release may still carry them. Move an
-application that targets `net8.0` or `net9.0` to `net10.0` before you take that
-release.
+**Dropped without waiting for the end of support:** `net8.0` and `net9.0` reach
+the end of Microsoft support on 2026-11-10. The announcement of 2026-09-23 said
+the first Tracon release after that date would drop both targets. The drop no
+longer waits for that date: the first release after `1.0.0-preview.6` drops
+them, even if it ships before 2026-11-10. `1.0.0-preview.6` is the last release
+that carries them, and it stays on nuget.org. An application that
+targets `net8.0` or `net9.0` cannot restore a newer release (`NU1202`); move it
+to `net10.0` first.
 
 ## The 21 packages
 
@@ -69,26 +67,26 @@ dependency graph. `AOT` states the promise made by the package itself.
 
 | Package | Meta | Frameworks | Native AOT | Purpose or limit |
 |---|---:|---|---:|---|
-| `Tracon` | — | net8/9/10 dependency groups | No | Meta package; it carries no assembly and includes packages that do not promise AOT |
-| `Tracon.Abstractions` | Yes | net8/9/10 | Yes | Contracts and data types only |
-| `Tracon.Core` | Yes | net8/9/10 | Yes | Catalog, compiler, decorators, in-memory stores, jobs, evaluation, and governance services |
-| `Tracon.PostgreSql` | No | net8/9/10 | Yes | Durable stores and the only built-in vector-search store |
-| `Tracon.OpenAI` | Yes | net8/9/10 | Yes | OpenAI Chat Completions, Responses, and named compatible endpoints |
-| `Tracon.AspNetCore` | Yes | net8/9/10 | No | Minimal API delegate routing uses reflection |
-| `Tracon.Workflows` | Yes | net8/9/10 | No | The MAF workflow engine uses reflection |
-| `Tracon.Mcp` | Yes | net8/9/10 | No | Runtime MCP schemas and the MCP SDK use reflection for JSON handling |
-| `Tracon.UI` | Yes | net8/9/10 | No | Embedded asset discovery plus its ASP.NET Core dependency |
-| `Tracon.SqlServer` | No | net8/9/10 | No promise | Measured clean, but no live-query AOT guarantee is made |
-| `Tracon.Sqlite` | No | net8/9/10 | No | `SQLitePCLRaw` carries a native library |
-| `Tracon.Anthropic` | No | net8/9/10 | No | Claude provider; the Anthropic SDK's `IChatClient` adapter uses reflection-based JSON, so a Native AOT app fails on the first request |
-| `Tracon.Google` | No | net8/9/10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
-| `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected |
-| `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
-| `Tracon.AGUI` | No | net8/9/10 | No | The AG-UI endpoint; it sits on `Tracon.AspNetCore`, whose minimal API routing uses reflection |
-| `Tracon.Testing` | No | net8/9/10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
-| `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for seven extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, job handlers, skill script executors, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
+| `Tracon` | — | net10 dependency group | No | Meta package; it carries no assembly and includes packages that do not promise AOT |
+| `Tracon.Abstractions` | Yes | net10 | Yes | Contracts and data types only |
+| `Tracon.Core` | Yes | net10 | Yes | Catalog, compiler, decorators, in-memory stores, jobs, evaluation, and governance services |
+| `Tracon.PostgreSql` | No | net10 | Yes | Durable stores and the only built-in vector-search store |
+| `Tracon.OpenAI` | Yes | net10 | Yes | OpenAI Chat Completions, Responses, and named compatible endpoints |
+| `Tracon.AspNetCore` | Yes | net10 | No | Minimal API delegate routing uses reflection |
+| `Tracon.Workflows` | Yes | net10 | No | The MAF workflow engine uses reflection |
+| `Tracon.Mcp` | Yes | net10 | No | Runtime MCP schemas and the MCP SDK use reflection for JSON handling |
+| `Tracon.UI` | Yes | net10 | No | Embedded asset discovery plus its ASP.NET Core dependency |
+| `Tracon.SqlServer` | No | net10 | No promise | Measured clean, but no live-query AOT guarantee is made |
+| `Tracon.Sqlite` | No | net10 | No | `SQLitePCLRaw` carries a native library |
+| `Tracon.Anthropic` | No | net10 | No | Claude provider; the Anthropic SDK's `IChatClient` adapter uses reflection-based JSON, so a Native AOT app fails on the first request |
+| `Tracon.Google` | No | net10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
+| `Tracon.Azure` | No | net10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected |
+| `Tracon.Voice` | No | net10 | Yes | ElevenLabs speech tools and reusable speech contracts |
+| `Tracon.AGUI` | No | net10 | No | The AG-UI endpoint; it sits on `Tracon.AspNetCore`, whose minimal API routing uses reflection |
+| `Tracon.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
+| `Tracon.Testing.Contracts.Xunit` | No | net10 | No promise | Behavior contract suite for seven extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, job handlers, skill script executors, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |
-| `Tracon.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
+| `Tracon.Client` | No | net10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
 | `Tracon.Cli` | No | net10 (`DotnetTool`) | No | The `tracon` global tool; wraps `Tracon.Client` and ships as IL, not native code |
 
 `Tracon.Core` remains AOT-compatible because reflection-based convenience calls

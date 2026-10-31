@@ -110,7 +110,7 @@ contract test suite, so the choice does not change your code.
 
 ## Compatibility
 
-Targets `net8.0`, `net9.0`, and `net10.0`. Trimming- and AOT-compatible. Uses `Npgsql`
+Targets `net10.0`. Trimming- and AOT-compatible. Uses `Npgsql`
 directly — there is no ORM, and no Entity Framework dependency enters your graph.
 
 ## Links
