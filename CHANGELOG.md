@@ -64,6 +64,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `AuditChainStatus` values (a generated client included) must handle `UnknownKey`. A custom `IAuditLog` that computes its own chain
   is not asked to sign. The shared `AuditLogContract` gains the signed-chain cases and two optional hooks,
   `CreateKeyedLogAsync` and `KeyedLogsShareStorage`; an implementation that does not override them skips those cases.
+  The new cases: `AuditLogContract.A_chain_signed_by_two_keys_verifies_after_rotation`,
+  `AuditLogContract.A_keyed_chain_verifies_as_valid`,
+  `AuditLogContract.Concurrent_keyed_writes_for_one_tenant_produce_a_single_valid_chain`,
+  `AuditLogContract.Downgrading_a_keyed_entry_is_detected_as_broken`,
+  `AuditLogContract.Re_signing_under_another_key_id_is_detected_as_broken`,
+  `AuditLogContract.Recomputing_a_keyed_row_without_the_key_is_detected_as_broken`,
+  `AuditLogContract.Tampering_a_keyed_row_directly_is_detected_as_broken`,
+  `AuditLogContract.The_write_path_sets_the_key_id_and_ignores_a_caller_supplied_one`,
+  `AuditLogContract.Turning_the_key_off_keeps_the_entry_and_the_walk_reports_the_downgrade`,
+  `AuditLogContract.Two_tenants_keyed_chains_verify_independently`,
+  `AuditLogContract.Two_writers_with_a_mixed_key_configuration_leave_the_chain_broken_at_the_unsigned_entry_for_good`
+  and `AuditLogContract.Unkeyed_history_before_the_first_keyed_entry_stays_valid_and_is_counted`.
 
 - **A cancel request reaches a run whichever instance takes it. A custom `IRunStore` must implement one new member and one changed signature.**
   `IRunStore.TouchHeartbeatAsync` now returns `ValueTask<IReadOnlyList<RunCancellationRequest>>` instead of `ValueTask`, and
@@ -72,6 +84,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and `false` from `RequestCancellationAsync` to keep the old behavior, or implement them as the `RunStoreContract` cases
   describe. `RunStoreContract` gains eleven cases for the two members. New public types: `RunCancellationRequest`, and
   `RunRecord.CancelRequestedAt` (also `cancelRequestedAt` in `GET /api/runs/{id}` and the generated clients).
+  The eleven cases: `RunStoreContract.A_request_written_while_Queued_survives_the_upsert_to_Running`,
+  `RunStoreContract.ClaimOrphanedRunsAsync_returns_the_cancellation_request_of_the_run_it_closes`,
+  `RunStoreContract.RequestCancellationAsync_ignores_another_tenants_run`,
+  `RunStoreContract.RequestCancellationAsync_is_false_for_a_terminal_run_and_leaves_the_row_alone`,
+  `RunStoreContract.RequestCancellationAsync_is_false_for_an_unknown_run`,
+  `RunStoreContract.RequestCancellationAsync_keeps_the_first_time_and_stays_true`,
+  `RunStoreContract.RequestCancellationAsync_records_the_request_and_the_next_heartbeat_returns_it_with_the_tenant`,
+  `RunStoreContract.RequestCancellationAsync_uses_the_expected_tenant_and_not_the_ambient_one`,
+  `RunStoreContract.RequestCancellationAsync_works_on_a_Queued_run`,
+  `RunStoreContract.TouchHeartbeatAsync_returns_an_empty_list_when_no_request_was_written` and
+  `RunStoreContract.TouchHeartbeatAsync_returns_only_requested_active_rows_with_their_tenant`.
 - **`POST /api/runs/{runId}/cancel` answers `202` where it answered `409` for a run another instance executes, when
   `Tracon:RunReconciliation:Enabled` is `true`.** The receiving instance writes the request onto the run's row
   (`runs.cancel_requested_at`) and the owner reads it on its next heartbeat, so the run ends within one
@@ -98,6 +121,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Tracon.Testing.Contracts.Xunit`; `TraconDiagnostics.RateLimitStoreFailureCounterName` and `TraconDiagnostics.Tags.Limiter`.
   A host that registers nothing keeps the in-memory counter, and the setting that uses it is off by default, so nothing
   changes for it.
+  A counter store of your own passes the contract's cases:
+  `RateLimitCounterStoreContract.A_later_window_restarts_the_count`,
+  `RateLimitCounterStoreContract.A_partition_key_is_compared_as_a_whole`,
+  `RateLimitCounterStoreContract.A_slow_clock_does_not_move_the_stored_window_back`,
+  `RateLimitCounterStoreContract.An_earlier_window_is_counted_in_the_stored_window`,
+  `RateLimitCounterStoreContract.Concurrent_increments_are_all_counted`,
+  `RateLimitCounterStoreContract.Concurrent_increments_that_open_a_new_window_restart_the_count_once`,
+  `RateLimitCounterStoreContract.Increments_in_the_same_window_count_up`,
+  `RateLimitCounterStoreContract.Partitions_are_counted_apart` and
+  `RateLimitCounterStoreContract.The_first_increment_of_a_partition_counts_one_in_the_given_window`.
 
 - **The `Tracon` package no longer brings PostgreSQL.** It now carries the HTTP API, workflows, MCP, the OpenAI
   provider, and the console, and no storage engine, so a host on SQL Server, SQLite, or the in-memory stores no longer
@@ -138,7 +171,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   saved earlier ran with a seed nobody had written. `POST /api/agents/validate` now reports `sampling_value_out_of_range`
   at `model.seed`, and a run of the stored agent fails with the compile error. Change the seed to a value from
   -2147483648 to 2147483647, or clear it.
-- **`AddJobHandler` and `UseScheduling` are now methods of the Tracon chain, not of `IServiceCollection`.** Every other
+- **`AddJobHandler` and `UseScheduling` are now methods of the Tracon chain, not of `IServiceCollection`.** They moved
+  from `TraconServiceCollectionExtensions` to `TraconBuilderExtensions`. Every other
   capability already was one, and the site taught two entry points. A host that calls either on `builder.Services` fails
   to build (`CS1061`: `IServiceCollection` does not contain a definition for `AddJobHandler`, or for `UseScheduling`). Call
   it on the chain `AddTracon()` returns: `builder.AddTracon().AddJobHandler<MyHandler>("contoso.my-job")` and
@@ -245,6 +279,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   file of `tracon export` and `tracon import` carries the four fields. New public types: `WorkflowHandoff`, and
   `WorkflowDefinition.Handoffs`, `MaxHandoffs`, `MaxStalls`, `MaxResets`. `MaxIterations` no longer claims to be the only
   guard against a handoff loop.
+  A custom `IWorkflowDefinitionStore` keeps the four fields with each version; the new cases:
+  `WorkflowDefinitionStoreContract.A_handoff_definition_without_edges_or_a_limit_reads_back_as_the_star_with_no_limit`,
+  `WorkflowDefinitionStoreContract.Handoff_topology_and_the_handoff_limit_survive_the_round_trip`,
+  `WorkflowDefinitionStoreContract.Magentic_limits_survive_the_round_trip` and
+  `WorkflowDefinitionStoreContract.The_handoff_topology_and_the_limits_are_kept_by_the_version_they_were_saved_as`.
 
 
 - **A definition moves between installations as a file: `GET /api/definitions/export`, `POST /api/definitions/import`,
@@ -363,6 +402,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   /api/tenants/{tenantId}/tools` (`SecurityAdmin`, and platform authority for another tenant; saves and deletes are
   audited as `tenant_tool_policy.save` and `.delete`) or in the tenant panel of the console. The new migration adds one
   table on each provider and changes no existing table.
+  A store of your own implements `ITenantToolPolicyStore` and passes the new `TenantToolPolicyStoreContract` in
+  `Tracon.Testing.Contracts.Xunit`: `TenantToolPolicyStoreContract.A_policy_is_deleted_whatever_case_the_caller_uses`,
+  `TenantToolPolicyStoreContract.A_policy_saved_under_a_different_case_replaces_the_existing_one`,
+  `TenantToolPolicyStoreContract.A_tenant_is_matched_case_insensitively`,
+  `TenantToolPolicyStoreContract.Concurrent_saves_for_one_tenant_leave_one_whole_policy`,
+  `TenantToolPolicyStoreContract.Deleting_the_policy_removes_it`,
+  `TenantToolPolicyStoreContract.Each_list_is_kept_apart_from_the_other`,
+  `TenantToolPolicyStoreContract.Saved_policy_is_read_back_with_both_lists_in_order`,
+  `TenantToolPolicyStoreContract.Tenant_with_no_saved_policy_has_none`,
+  `TenantToolPolicyStoreContract.Two_empty_lists_are_a_policy_and_not_the_absence_of_one`,
+  `TenantToolPolicyStoreContract.Upsert_replaces_the_existing_policy` and
+  `TenantToolPolicyStoreContract.Upsert_returns_the_canonical_tenant`.
 - **`Tracon:Tools:RequireTenantPolicy` makes a tenant with no tool policy run no tool.** Off by default. Turned on, a
   tenant without a policy row is refused on every tool the policy covers, and the default tenant needs its own row. The
   refusal text names the setting. Saving a policy is never blocked by it. It is the second answer to the
