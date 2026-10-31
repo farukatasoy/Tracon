@@ -255,6 +255,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Covered by `TenantValueFormatTests`; the old `TenancyTests.Malformed_tenant_falls_back_to_default` was removed with
   the behavior it asserted.
 
+- **An application or test project that targets `net8.0` or `net9.0` cannot restore this release: every package now
+  targets `net10.0` only.** Restore fails with `NU1202`. Move the project to `net10.0`, or stay on `1.0.0-preview.6`, the
+  last release that carries `net8.0` and `net9.0`; it stays on nuget.org. The `1.0.0-preview.3` notes announced the drop
+  for the first release after Microsoft support for .NET 8 and .NET 9 ends on 2026-11-10; the drop no longer waits for
+  that date. The source generator inside `Tracon.Core` now builds against Roslyn 5.0.0, the compiler of the oldest .NET
+  10 SDK, so every SDK that can build `net10.0` loads it.
+
 ### Added
 
 - **A stored `Handoff` workflow names who may hand off to whom: `WorkflowDefinition.Handoffs`, with a per-run limit,
@@ -550,6 +557,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `TraconSqlServerOptions.SchemaName`) and the descriptions of the `tracon.run.cost`, `tracon.judge.cost` and
   `tracon.judge.score` instruments say the reason in a clause instead. The codes, severities and metric names are unchanged;
   a test or an alert that matches the old message text needs the new text.
+
+### Removed
+
+- `Tracon.Abstractions`, `Tracon.AGUI`, `Tracon.Anthropic`, `Tracon.AspNetCore`, `Tracon.Azure`, `Tracon.Client`,
+  `Tracon.Core`, `Tracon.Google`, `Tracon.Mcp`, `Tracon.OpenAI`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`,
+  `Tracon.Testing`, `Tracon.Testing.Contracts.Xunit`, `Tracon.UI`, `Tracon.Voice`, `Tracon.Workflows`: the `net8.0` and
+  `net9.0` targets. Microsoft support for .NET 8 and .NET 9 ends on 2026-11-10; the `1.0.0-preview.3` notes announced the
+  drop for the first release after that date, and it no longer waits for it. Every package now targets `net10.0` only,
+  and the meta package `Tracon` carries one `net10.0` dependency group.
 
 ### Fixed
 
