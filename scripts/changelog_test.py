@@ -67,6 +67,26 @@ class ChangelogTestleri(unittest.TestCase):
 
         self.assertTrue(changelog.has_section(text, "Unreleased"))
 
+    # latest_released_version: yayın, tarihli ilk bölümdür; `site-deploy.sh` aynı kuralı okur.
+
+    def test_son_yayin_ilk_tarihli_bolumdur(self):
+        text = (
+            "# Changelog\n\n"
+            "## [Unreleased]\n\n### Added\n- devam eden\n\n"
+            "## [1.0.0-preview.2] - 2026-09-01\n\n"
+            "## [1.0.0-preview.1] - 2026-08-28\n"
+        )
+
+        self.assertEqual(changelog.latest_released_version(text), "1.0.0-preview.2")
+
+    def test_tarihsiz_surum_bolumu_yayin_sayilmaz(self):
+        text = "## [Unreleased]\n\n## [1.0.0-preview.3]\n\n## [1.0.0-preview.2] - 2026-09-01\n"
+
+        self.assertEqual(changelog.latest_released_version(text), "1.0.0-preview.2")
+
+    def test_tarihli_bolum_yoksa_son_yayin_yoktur(self):
+        self.assertIsNone(changelog.latest_released_version("# Changelog\n\n## [Unreleased]\n"))
+
     # release_notes: sürüm bölümü ETİKET anında yazılır, prova ondan önce koşar.
 
     def test_surum_bolumu_varsa_o_kazanir(self):

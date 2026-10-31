@@ -309,6 +309,81 @@ class KapiTestleri(unittest.TestCase):
         # SINIF KAPISI: bu repoda gercek olan denetim.
         self.assertEqual(kapi.public_surface_violations(), [])
 
+    # Context7 surumlu kimligi `previousVersions` ilk etiketinden uretir. Etiket son yayindan
+    # geride kalirsa ajanlar kurulu paketin degil eski bir surumun metnini okur.
+
+    def _context7_koku(self, directory: str, config: object, changelog_text: str | None) -> pathlib.Path:
+        root = pathlib.Path(directory)
+        text = config if isinstance(config, str) else json.dumps(config)
+        (root / "context7.json").write_text(text, encoding="utf-8")
+        if changelog_text is not None:
+            (root / "CHANGELOG.md").write_text(changelog_text, encoding="utf-8")
+        return root
+
+    _CHANGELOG = "## [Unreleased]\n\n### Added\n- devam eden\n\n## [1.0.0-preview.6] - 2026-10-27\n"
+
+    def test_context7_etiketi_son_yayinla_ayniysa_temiz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._context7_koku(
+                directory, {"previousVersions": [{"tag": "v1.0.0-preview.6"}]}, self._CHANGELOG)
+
+            self.assertEqual(kapi.context7_version_drift(root), [])
+
+    def test_context7_etiketi_dize_olarak_da_okunur(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._context7_koku(directory, {"previousVersions": ["v1.0.0-preview.6"]}, self._CHANGELOG)
+
+            self.assertEqual(kapi.context7_version_drift(root), [])
+
+    def test_context7_etiketi_son_yayindan_geride_kalirsa_kirar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._context7_koku(
+                directory, {"previousVersions": [{"tag": "v1.0.0-preview.5"}]}, self._CHANGELOG)
+
+            found = kapi.context7_version_drift(root)
+
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("v1.0.0-preview.5", found[0])
+        self.assertIn("v1.0.0-preview.6", found[0])
+
+    def test_context7_bos_surum_listesi_kirar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._context7_koku(directory, {"previousVersions": []}, self._CHANGELOG)
+
+            self.assertEqual(len(kapi.context7_version_drift(root)), 1)
+
+    def test_context7_bozuk_json_kirar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._context7_koku(directory, "{ bozuk", self._CHANGELOG)
+
+            self.assertEqual(len(kapi.context7_version_drift(root)), 1)
+
+    def test_context7_tarihli_yayin_yoksa_kirar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._context7_koku(
+                directory, {"previousVersions": [{"tag": "v1.0.0-preview.6"}]}, "## [Unreleased]\n")
+
+            self.assertEqual(len(kapi.context7_version_drift(root)), 1)
+
+    def test_context7_dosyasi_yoksa_kontrol_atlanir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(kapi.context7_version_drift(pathlib.Path(directory)), [])
+
+    def test_scan_context7_kaymasinda_kirmizi_doner(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(kapi, "public_surface_violations", return_value=[]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            root = self._context7_koku(
+                directory, {"previousVersions": [{"tag": "v1.0.0-preview.5"}]}, self._CHANGELOG)
+            result = kapi.scan(root)
+
+        self.assertEqual(result, 1)
+        self.assertIn("v1.0.0-preview.5", output.getvalue())
+
+    def test_context7_surumu_repoda_son_yayinla_ayni(self):
+        # SINIF KAPISI: bu repoda gercek olan denetim.
+        self.assertEqual(kapi.context7_version_drift(), [])
+
     def test_harita_eksigi_tam_test_kosumuna_duser(self):
         projects, full = kapi.affected_test_projects(["src/Unknown.Package/Thing.cs"])
 

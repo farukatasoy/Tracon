@@ -414,18 +414,56 @@ def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
     return found
 
 
+CONTEXT7_CONFIG = pathlib.Path("context7.json")
+
+
+def context7_version_drift(root: pathlib.Path = ROOT) -> list[str]:
+    """The first `previousVersions` tag of `context7.json` must be the latest release.
+
+    Context7 builds the versioned library ID from that tag. The release cut dates a
+    CHANGELOG.md section; if the same commit leaves the tag behind, coding agents read
+    an older release than the one consumers install. No `context7.json`, no check.
+    """
+    config_path = root / CONTEXT7_CONFIG
+    if not config_path.is_file():
+        return []
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exception:
+        return [f"{CONTEXT7_CONFIG} okunamadı: {exception}"]
+
+    versions = config.get("previousVersions") if isinstance(config, dict) else None
+    first = versions[0] if isinstance(versions, list) and versions else None
+    tag = first.get("tag") if isinstance(first, dict) else first
+    if not isinstance(tag, str) or not tag:
+        return [f"{CONTEXT7_CONFIG}: `previousVersions` ilk öğesi son yayının etiketi olmalı; etiket yok"]
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import changelog
+
+    changelog_path = root / "CHANGELOG.md"
+    latest = changelog.latest_released_version(
+        changelog_path.read_text(encoding="utf-8")) if changelog_path.is_file() else None
+    if latest is None:
+        return [f"{CONTEXT7_CONFIG}: CHANGELOG.md tarihli bir sürüm bölümü taşımıyor; etiket doğrulanamadı"]
+    if tag != f"v{latest}":
+        return [f"{CONTEXT7_CONFIG}: `previousVersions` ilk etiketi {tag}; CHANGELOG.md son yayını v{latest}"]
+    return []
+
+
 def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
-    """Run the synchronization-copy, secret, migration-integrity, doc-reference and public-surface scans."""
+    """Run the synchronization-copy, secret, migration-integrity, doc-reference, public-surface and Context7-version scans."""
     copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
     secrets, synthetic = find_secrets(root)
     foreign_anchor = migration_anchor_not_in_history(root)
     migrations = [] if foreign_anchor else migration_integrity_violations(root)
     stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
     public_surface = public_surface_violations(root)
+    context7 = context7_version_drift(root)
     if foreign_anchor:
         print(f"Tarama: ⚠️ uygulanmış migration bütünlüğü bu depoda doğrulanamadı: {APPLIED_MIGRATION_MANIFEST} "
               f"tabanı ({foreign_anchor[:12]}) bu deponun geçmişinde yok. Doğrulama, tabanı taşıyan depoda koşar.")
-    if not copies and not secrets and not migrations and not stale_docs and not public_surface:
+    if not copies and not secrets and not migrations and not stale_docs and not public_surface and not context7:
         print("Tarama: ✅ temiz"
               + (f" ({synthetic} işaretli sentetik credential atlandı)" if synthetic else ""))
         return 0
@@ -454,6 +492,10 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
         print("Tarama: ❌ kanıtsız public yüzey — tipi `internal` yap, rehberde adıyla an "
               "ya da `scripts/public-yuzey-gerekceleri.tsv`'ye gerekçe yaz")
         for violation in public_surface:
+            print(f"  {violation}")
+    if context7:
+        print("Tarama: ❌ Context7 sürüm kayması — yayın kesimi `context7.json` etiketini de günceller")
+        for violation in context7:
             print(f"  {violation}")
     return 1
 

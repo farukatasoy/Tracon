@@ -10,7 +10,7 @@ from __future__ import annotations
 import pathlib
 import re
 
-SECTION_HEADER_PATTERN = re.compile(r"^## \[(?P<version>[^\]]+)\](?:\s*-\s*.+)?\s*$")
+SECTION_HEADER_PATTERN = re.compile(r"^## \[(?P<version>[^\]]+)\](?:\s*-\s*(?P<date>.+))?\s*$")
 
 
 def section_body(changelog_text: str, version: str) -> str | None:
@@ -44,6 +44,20 @@ def has_section(changelog_text: str, version: str) -> bool:
     """True when CHANGELOG.md carries a non-empty `## [<version>]` section."""
     body = section_body(changelog_text, version)
     return bool(body)
+
+
+def latest_released_version(changelog_text: str) -> str | None:
+    """The version of the first dated `## [<version>] - <date>` heading.
+
+    A release is dated when it is cut, so an undated heading (`[Unreleased]`,
+    or a version still being prepared) is not the latest release. Returns None
+    when no heading is dated.
+    """
+    for line in changelog_text.splitlines():
+        match = SECTION_HEADER_PATTERN.match(line)
+        if match and match.group("date"):
+            return match.group("version")
+    return None
 
 
 UNRELEASED = "Unreleased"
