@@ -943,9 +943,8 @@ def test_target_frameworks(
     """The frameworks a multi-targeted test project builds for.
 
     An environment variable of the same name wins, exactly as it does for
-    MSBuild (environment variables are initial properties) - the windows-latest
-    CI leg narrows the matrix to net10.0 that way, and this script must then
-    look for the same output directories MSBuild produced."""
+    MSBuild (environment variables are initial properties) - a run narrowed
+    that way must look for the same output directories MSBuild produced."""
     override = environ.get(TEST_FRAMEWORKS_ENV, "").strip()
     if override:
         value = override
@@ -1069,7 +1068,7 @@ def installed_runtime_majors(
     and the apphost resolves the runtime from DOTNET_ROOT_<ARCH> or DOTNET_ROOT,
     then from the GLOBAL install location - never from the `dotnet` muxer that
     happens to be on PATH. A private SDK put first on PATH without DOTNET_ROOT
-    would otherwise pass this check while every net8.0 leg fails."""
+    would otherwise pass this check while every leg it serves fails."""
     dotnet_root = _apphost_dotnet_root(environ, machine) or _global_dotnet_root(
         system, machine, install_location_dir)
     if dotnet_root:
@@ -1109,7 +1108,7 @@ def missing_test_runtimes(
 ) -> list[str]:
     """Frameworks whose runtime the test apphost cannot find.
 
-    Without this a missing net8.0 runtime surfaces minutes later as a failed
+    Without this a missing runtime surfaces minutes later as a failed
     test leg, and the isolated re-run then calls it a REAL regression. An
     unreadable runtime list blocks nothing: the real command then fails on its
     own, with its own message."""
@@ -1251,7 +1250,7 @@ class FailedTest:
 
     @property
     def label(self) -> str:
-        """`Proje` for a single-framework project, `Proje (net8.0)` for one leg of a multi-targeted one."""
+        """`Proje` for a single-framework project, `Proje (net10.0)` for one leg of a multi-targeted one."""
         framework = self.output.removeprefix("release").removeprefix("_")
         return f"{self.project} ({framework})" if framework else self.project
 
@@ -1550,19 +1549,29 @@ PACKAGE_LICENSES: dict[str, str] = {
 
 TARGET_FRAMEWORKS_PATTERN = re.compile(r"<TargetFrameworks>([^<]+)</TargetFrameworks>")
 
-DEFAULT_TARGET_FRAMEWORKS = ("net8.0", "net9.0", "net10.0")
+SRC_BUILD_PROPS = pathlib.Path("src") / "Directory.Build.props"
+
+
+def _frameworks_in(path: pathlib.Path) -> tuple[str, ...]:
+    match = TARGET_FRAMEWORKS_PATTERN.search(path.read_text(encoding="utf-8"))
+    if match and match.group(1).strip():
+        return tuple(part.strip() for part in match.group(1).split(";") if part.strip())
+    return ()
 
 
 def _target_frameworks(root: pathlib.Path, project_id: str) -> tuple[str, ...]:
-    """Most packages inherit net8.0;net9.0;net10.0 from src/Directory.Build.props;
+    """Most packages inherit the framework list from src/Directory.Build.props;
     a project that pins a single framework (e.g. Tracon.Cli, which is packed as
     a tool and so cannot cross-target) overrides
-    TargetFrameworks (plural) explicitly."""
-    text = (root / "src" / project_id / f"{project_id}.csproj").read_text(encoding="utf-8")
-    match = TARGET_FRAMEWORKS_PATTERN.search(text)
-    if match and match.group(1).strip():
-        return tuple(part.strip() for part in match.group(1).split(";") if part.strip())
-    return DEFAULT_TARGET_FRAMEWORKS
+    TargetFrameworks (plural) explicitly. The default is read, not restated:
+    adding a framework to the packages is then one edit."""
+    own = _frameworks_in(root / "src" / project_id / f"{project_id}.csproj")
+    if own:
+        return own
+    inherited = _frameworks_in(root / SRC_BUILD_PROPS)
+    if not inherited:
+        raise ValueError(f"{SRC_BUILD_PROPS}: <TargetFrameworks> bulunamadı")
+    return inherited
 
 
 def _names_own_version(project_id: str, file_name: str) -> bool:
@@ -2679,7 +2688,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
     test.add_argument("--proje", default="Tracon.Core.UnitTests", help="test proje adı")
     test.add_argument(
         "--tfm",
-        help="çoklu TFM projesinde tek bacak (ör. net8.0); verilmezse her bacak koşar")
+        help="çoklu TFM projesinde tek bacak (ör. net10.0); verilmezse her bacak koşar")
     yayin = subparsers.add_parser("yayin", help="yayın provası - ağa hiçbir şey yazmaz")
     yayin.add_argument(
         "--kuru", action="store_true", required=True,
@@ -2782,15 +2791,6 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             else:
                 print(f"$ {pack_command('<staging>', ('<187 taban özellikleri>',), no_build=False).display}")
             return 0
-        # Prova bir net8.0 tüketicisini .NET 8 runtime'ında koşturur.
-        # Eksik runtime dakikalarca paketlemeden SONRA değil, şimdi söylenir.
-        sys.path.insert(0, str(ROOT / "scripts"))
-        import release_extension_samples
-
-        if not require_test_runtimes(
-                (release_extension_samples.NET8_CONSUMER_FRAMEWORK,),
-                purpose="Yayın provasının net8.0 tüketicisi"):
-            return 1
         if args.paket_dizini:
             return rehearse_package_directory(pathlib.Path(args.paket_dizini).resolve(), args.surum)
         return release_rehearsal(args.surum)

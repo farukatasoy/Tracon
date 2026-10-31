@@ -25,6 +25,15 @@ sys.modules[spec.name] = kapi
 spec.loader.exec_module(kapi)
 
 
+def _write_src_build_props(root: pathlib.Path, frameworks: str = "net10.0") -> None:
+    """Paketlerin varsayilan TFM listesi; `_target_frameworks` onu buradan okur."""
+    props = root / "src" / "Directory.Build.props"
+    props.parent.mkdir(parents=True, exist_ok=True)
+    props.write_text(
+        f"<Project><PropertyGroup><TargetFrameworks>{frameworks}</TargetFrameworks></PropertyGroup></Project>\n",
+        encoding="utf-8")
+
+
 def _ci_isleri(metin: str) -> dict[str, dict]:
     """`ci.yml` işleri: {ad: {"if": değer | None, "needs": [işler]}}. YAML kütüphanesi gerekmez.
 
@@ -135,31 +144,35 @@ class KapiTestleri(unittest.TestCase):
             parts, ("Tracon.Generators.UnitTests", "release", "Tracon.Generators.UnitTests"))
 
     def test_coklu_tfm_projesi_her_bacagi_ayri_kosar(self):
-        # Cok hedefli projenin ciktisi release/ DEGIL release_<tfm>/'dir.
-        commands = kapi.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={})
-
+        # Cok hedefli projenin ciktisi release/ DEGIL release_<tfm>/'dir. Paketler
+        # bugun tek TFM hedefler; altyapi ikinci bir TFM'i ortam degiskeniyle sinar.
         self.assertEqual(
-            [pathlib.PurePath(command.args[0]).parts[-2] for command in commands],
-            ["release_net8.0", "release_net9.0", "release_net10.0"])
+            [pathlib.PurePath(command.args[0]).parts[-2]
+             for command in kapi.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={})],
+            ["release_net10.0"])
+        self.assertEqual(
+            [pathlib.PurePath(command.args[0]).parts[-2]
+             for command in kapi.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
+            ["release_net10.0", "release_net11.0"])
 
     def test_tfm_secimi_tek_bacagi_kosar(self):
-        commands = kapi.test_commands("Tracon.Core.UnitTests", ["*X*"], "net8.0", environ={})
+        commands = kapi.test_commands("Tracon.Core.UnitTests", ["*X*"], "net11.0", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})
 
         self.assertEqual(len(commands), 1)
         self.assertEqual(
             pathlib.PurePath(commands[0].args[0]).parts[-3:],
-            ("Tracon.Core.UnitTests", "release_net8.0", "Tracon.Core.UnitTests"))
+            ("Tracon.Core.UnitTests", "release_net11.0", "Tracon.Core.UnitTests"))
 
     def test_derlenmeyen_tfm_istenirse_sessiz_gecmez(self):
         with self.assertRaises(ValueError):
             kapi.test_commands("Tracon.Core.UnitTests", ["*X*"], "net7.0", environ={})
         with self.assertRaises(ValueError):
-            # Tek hedefli proje yalniz net10.0 derlenir; net8.0 istemek bayat
-            # ya da var olmayan bir ikiliyi kosturmak olurdu.
-            kapi.test_commands("Tracon.Generators.UnitTests", ["*X*"], "net8.0", environ={})
+            # Tek hedefli proje yalniz net10.0 derlenir; baska bir TFM istemek
+            # bayat ya da var olmayan bir ikiliyi kosturmak olurdu.
+            kapi.test_commands("Tracon.Generators.UnitTests", ["*X*"], "net11.0", environ={})
 
     def test_temsilci_kume_ve_tfm_listesi_props_dosyasindan_okunur(self):
-        self.assertEqual(kapi.test_target_frameworks(environ={}), ("net8.0", "net9.0", "net10.0"))
+        self.assertEqual(kapi.test_target_frameworks(environ={}), ("net10.0",))
         self.assertEqual(kapi.single_test_target_framework(), "net10.0")
         self.assertEqual(
             sorted(kapi.multi_target_test_projects()),
@@ -183,15 +196,13 @@ class KapiTestleri(unittest.TestCase):
             # indirir ve runtime nobetcisi net10'da yine gecer.
             self.assertNotIn("<TargetFramework", csproj.read_text(encoding="utf-8"), project)
 
-    def test_tfm_listesi_ortam_degiskeniyle_daralir(self):
-        # windows-latest bacagi MSBuild'e ayni adli ortam degiskenini verir;
+    def test_tfm_listesi_ortam_degiskeninden_okunur(self):
+        # Ayni adli ortam degiskeni MSBuild'e baslangic ozelligi olarak gider;
         # betik de ayni ciktilari aramalidir.
+        self.assertEqual(kapi.test_target_frameworks(environ={"TraconTestTargetFrameworks": "net10.0;net11.0"}), ("net10.0", "net11.0"))
         self.assertEqual(
-            kapi.test_target_frameworks(environ={"TraconTestTargetFrameworks": "net10.0"}), ("net10.0",))
-        self.assertEqual(
-            [path.name for path in kapi.test_output_directories(
-                "Tracon.Core.UnitTests", environ={"TraconTestTargetFrameworks": "net10.0"})],
-            ["release_net10.0"])
+            [path.name for path in kapi.test_output_directories("Tracon.Core.UnitTests", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
+            ["release_net10.0", "release_net11.0"])
 
     def test_bayat_tek_hedef_klasoru_secilmez(self):
         # Proje cok hedefli olduktan sonra eski release/ klasoru diskte kalir;
@@ -517,9 +528,9 @@ class KapiTestleri(unittest.TestCase):
             runner = mock.Mock()
 
             missing = kapi.missing_test_runtimes(
-                ("net8.0", "net9.0", "net10.0"), environ={"DOTNET_ROOT": directory}, runner=runner)
+                ("net10.0", "net11.0"), environ={"DOTNET_ROOT": directory}, runner=runner)
 
-        self.assertEqual(missing, ["net8.0"])
+        self.assertEqual(missing, ["net11.0"])
         runner.assert_not_called()
 
     def test_mimariye_ozel_dotnet_root_once_gelir(self):
@@ -532,8 +543,8 @@ class KapiTestleri(unittest.TestCase):
 
     def test_eksik_runtime_global_kurulum_konumundan_bulunur(self):
         # Denetim bulgusu: DOTNET_ROOT yokken apphost PATH'teki
-        # muxer'i DEGIL global kurulumu okur. PATH'e net8'li ozel bir SDK
-        # konsa bile on kontrol global kokte net8 yoksa durdurmalidir.
+        # muxer'i DEGIL global kurulumu okur. PATH'e net11'li ozel bir SDK
+        # konsa bile on kontrol global kokte net11 yoksa durdurmalidir.
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
             (kok / "etc").mkdir()
@@ -544,10 +555,10 @@ class KapiTestleri(unittest.TestCase):
             runner = mock.Mock()
 
             missing = kapi.missing_test_runtimes(
-                ("net8.0", "net10.0"), environ={}, runner=runner,
+                ("net10.0", "net11.0"), environ={}, runner=runner,
                 system="Darwin", machine="arm64", install_location_dir=kok / "etc")
 
-        self.assertEqual(missing, ["net8.0"])
+        self.assertEqual(missing, ["net11.0"])
         runner.assert_not_called()
 
     def test_global_kurulum_dosyasi_yoksa_varsayilan_kok_kullanilir(self):
@@ -560,17 +571,17 @@ class KapiTestleri(unittest.TestCase):
 
     def test_windowsta_list_runtimes_ciktisindan_bulunur(self):
         stdout = (
-            "Microsoft.AspNetCore.App 8.0.31 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]\n"
+            "Microsoft.AspNetCore.App 11.0.0 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]\n"
             "Microsoft.NETCore.App 9.0.20 [/usr/share/dotnet/shared/Microsoft.NETCore.App]\n"
             "Microsoft.NETCore.App 10.0.0 [/usr/share/dotnet/shared/Microsoft.NETCore.App]\n")
         runner = mock.Mock(return_value=mock.Mock(returncode=0, stdout=stdout))
 
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            ok = kapi.require_test_runtimes(("net8.0", "net10.0"), environ={}, runner=runner, system="Windows")
+            ok = kapi.require_test_runtimes(("net10.0", "net11.0"), environ={}, runner=runner, system="Windows")
 
-        # ASP.NET Core 8 runtime'i NETCore 8 yerine SAYILMAZ.
+        # ASP.NET Core 11 runtime'i NETCore 11 yerine SAYILMAZ.
         self.assertFalse(ok)
-        self.assertIn("net8.0", output.getvalue())
+        self.assertIn("net11.0", output.getvalue())
         # Denetim bulgusu: ayrac ile DEGIL platformun kendi yol
         # bicimiyle karsilastirilir - windows-latest'te PurePath ters egik
         # cizgi uretir (test_mtp_filtresi_filter_class_uretir ile ayni sinif).
@@ -582,11 +593,11 @@ class KapiTestleri(unittest.TestCase):
         runner = mock.Mock(side_effect=FileNotFoundError("dotnet"))
 
         self.assertEqual(
-            kapi.missing_test_runtimes(("net8.0",), environ={}, runner=runner, system="Windows"), [])
+            kapi.missing_test_runtimes(("net11.0",), environ={}, runner=runner, system="Windows"), [])
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(
                 kapi.missing_test_runtimes(
-                    ("net8.0",), environ={"DOTNET_ROOT": str(pathlib.Path(directory) / "yok")}, runner=runner),
+                    ("net11.0",), environ={"DOTNET_ROOT": str(pathlib.Path(directory) / "yok")}, runner=runner),
                 [])
 
     def test_diger_paylasimli_test_kaynagi_hala_tam_kosum_ister(self):
@@ -691,8 +702,8 @@ class KapiTestleri(unittest.TestCase):
                 f"<TestDefinitions><UnitTest>{metot}</UnitTest></TestDefinitions></TestRun>"))
 
         self.assertEqual(
-            kapi._trx_output_directory(agac('<TestMethod codeBase="C:\\r\\bin\\P\\release_net8.0\\P.dll" name="M" />')),
-            "release_net8.0")
+            kapi._trx_output_directory(agac('<TestMethod codeBase="C:\\r\\bin\\P\\release_net10.0\\P.dll" name="M" />')),
+            "release_net10.0")
         self.assertEqual(
             kapi._trx_output_directory(agac('<TestMethod codeBase="/r/bin/P/release/P.dll" name="M" />')),
             "release")
@@ -709,7 +720,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("koşulmuş test yok", output.getvalue())
 
             self._trx(kok, "P", [("N.S.Gecen", "Passed"), ("N.S.Dusen", "Failed")])
-            self._trx(kok, "Q", [("N.S.Gecen", "Passed")], cikti="release_net8.0")
+            self._trx(kok, "Q", [("N.S.Gecen", "Passed")], cikti="release_net10.0")
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertEqual(kapi.require_executed_tests(0, kok), 0)
             self.assertIn("3 test, 2 modül", output.getvalue())
@@ -780,17 +791,17 @@ class KapiTestleri(unittest.TestCase):
             dusenler, [kapi.FailedTest("Tracon.Ui.E2ETests", "release", "Tracon.Ui.E2ETests.UiTests.Dusen")])
 
     def test_coklu_tfm_trx_i_bacagiyla_bulunur(self):
-        # Yalniz release/ taransaydi net8.0 bacaginda dusen test
+        # Yalniz release/ taransaydi net11.0 bacaginda dusen test
         # hic raporlanmaz, izole kosum da tetiklenmezdi.
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
-            self._trx(kok, "Tracon.Core.UnitTests", [("N.S.Dusen", "Failed")], cikti="release_net8.0")
+            self._trx(kok, "Tracon.Core.UnitTests", [("N.S.Dusen", "Failed")], cikti="release_net11.0")
             self._trx(kok, "Tracon.Core.UnitTests", [("N.S.Dusen", "Passed")], cikti="release_net10.0")
 
             dusenler = kapi.failed_tests_from_trx(0, kok)
 
-        self.assertEqual(dusenler, [kapi.FailedTest("Tracon.Core.UnitTests", "release_net8.0", "N.S.Dusen")])
-        self.assertEqual(dusenler[0].label, "Tracon.Core.UnitTests (net8.0)")
+        self.assertEqual(dusenler, [kapi.FailedTest("Tracon.Core.UnitTests", "release_net11.0", "N.S.Dusen")])
+        self.assertEqual(dusenler[0].label, "Tracon.Core.UnitTests (net11.0)")
 
     def test_bayat_trx_sayilmaz(self):
         # Onceki kosumun TRX'i bu kosumun dusen testi degildir.
@@ -824,7 +835,7 @@ class KapiTestleri(unittest.TestCase):
     def test_izole_kosum_dusen_bacagin_ikilisini_kosar(self):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
-            for cikti in ("release_net8.0", "release_net10.0"):
+            for cikti in ("release_net10.0", "release_net11.0"):
                 ikili = kok / "artifacts" / "bin" / "P" / cikti
                 ikili.mkdir(parents=True)
                 (ikili / "P").write_text("", encoding="utf-8")
@@ -832,11 +843,11 @@ class KapiTestleri(unittest.TestCase):
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 hukumler = kapi.isolate_failed_tests(
-                    [kapi.FailedTest("P", "release_net8.0", "N.S.Dusen")], runner=runner, root=kok)
+                    [kapi.FailedTest("P", "release_net11.0", "N.S.Dusen")], runner=runner, root=kok)
 
-        self.assertEqual(pathlib.PurePath(runner.call_args.args[0][0]).parts[-2], "release_net8.0")
-        self.assertEqual(hukumler, [("P (net8.0)", "N.S.Dusen", False)])
-        self.assertIn("P (net8.0) · N.S.Dusen", output.getvalue())
+        self.assertEqual(pathlib.PurePath(runner.call_args.args[0][0]).parts[-2], "release_net11.0")
+        self.assertEqual(hukumler, [("P (net11.0)", "N.S.Dusen", False)])
+        self.assertIn("P (net11.0) · N.S.Dusen", output.getvalue())
 
     def test_izole_de_dusen_test_gercek_regresyondur(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1379,6 +1390,7 @@ class YayinTestleri(unittest.TestCase):
         directory.mkdir(parents=True)
         (directory / f"{project_id}.csproj").write_text(
             f'<Project Sdk="Microsoft.NET.Sdk">\n{body}\n</Project>\n', encoding="utf-8")
+        _write_src_build_props(root)
 
     def test_paketlenebilir_proje_kimlikleri_isPackable_false_olani_disler(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1445,9 +1457,15 @@ class YayinTestleri(unittest.TestCase):
             root = pathlib.Path(directory)
             self._write_csproj(root, "Tracon.Testing", "<PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks></PropertyGroup>")
             self._write_csproj(root, "Tracon.Core")
+            _write_src_build_props(root, "net10.0;net11.0")
 
             self.assertEqual(kapi._target_frameworks(root, "Tracon.Testing"), ("net10.0",))
-            self.assertEqual(kapi._target_frameworks(root, "Tracon.Core"), ("net8.0", "net9.0", "net10.0"))
+            # Varsayilan props'tan OKUNUR, betikte tekrar yazilmaz.
+            self.assertEqual(kapi._target_frameworks(root, "Tracon.Core"), ("net10.0", "net11.0"))
+
+            (root / "src" / "Directory.Build.props").write_text("<Project />\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                kapi._target_frameworks(root, "Tracon.Core")
 
     @staticmethod
     def _write_fake_nupkg(path: pathlib.Path, *, content: bytes, psmdcp_guid: str = "0" * 32) -> None:
@@ -1778,8 +1796,7 @@ class YayinTestleri(unittest.TestCase):
             for entry in ("icon.png", "README.md", "LICENSE.md"):
                 archive.writestr(entry, "x")
             archive.writestr(f"{project_id}.nuspec", nuspec)
-            for tfm in ("net8.0", "net9.0", "net10.0"):
-                archive.writestr(f"lib/{tfm}/{project_id}.xml", "<doc />")
+            archive.writestr(f"lib/net10.0/{project_id}.xml", "<doc />")
         (staging_dir / f"{project_id}.{version}.snupkg").write_bytes(b"")
 
     def _finish(self, root: pathlib.Path, gate_result: int):
@@ -1813,6 +1830,7 @@ class YayinTestleri(unittest.TestCase):
             project_dir = root / "src" / project_id
             project_dir.mkdir(parents=True, exist_ok=True)
             (project_dir / f"{project_id}.csproj").write_text('<Project Sdk="Microsoft.NET.Sdk" />\n', encoding="utf-8")
+            _write_src_build_props(root)
             self._write_valid_library_nupkg(staging_dir, project_id, version)
             nupkg = staging_dir / f"{project_id}.{version}.nupkg"
             with zipfile.ZipFile(nupkg) as archive:
@@ -2013,6 +2031,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             project.mkdir(parents=True)
             (project / f"{project_id}.csproj").write_text(
                 f'<Project Sdk="Microsoft.NET.Sdk">\n{body}\n</Project>\n', encoding="utf-8")
+        _write_src_build_props(root)
         return root
 
     def _write_package(self, directory: pathlib.Path, project_id: str, *, version: str | None = None,
@@ -2030,8 +2049,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
                 archive.writestr(entry, "x")
             archive.writestr(f"{project_id}.nuspec", nuspec)
             if library:
-                for tfm in ("net8.0", "net9.0", "net10.0"):
-                    archive.writestr(f"lib/{tfm}/{project_id}.xml", "<doc />")
+                archive.writestr(f"lib/net10.0/{project_id}.xml", "<doc />")
         if library:
             with zipfile.ZipFile(directory / f"{project_id}.{version}.snupkg", "w") as archive:
                 archive.writestr(f"lib/net10.0/{project_id}.pdb", "pdb")
