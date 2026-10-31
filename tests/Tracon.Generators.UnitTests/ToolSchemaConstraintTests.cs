@@ -67,7 +67,7 @@ public sealed class ToolSchemaConstraintTests
     }
 
     /// <summary>
-    /// 130.3: a length constraint on an array targets the array itself, never its
+    /// A length constraint on an array targets the array itself, never its
     /// element - <c>[MinLength(2)] string[] tags</c> means "at least two tags", not
     /// "each tag at least two characters".
     /// </summary>
@@ -341,7 +341,7 @@ public sealed class ToolSchemaConstraintTests
     }
 
     /// <summary>
-    /// 130.3: <c>minimum</c>/<c>maximum</c> are rendered with
+    /// <c>minimum</c>/<c>maximum</c> are rendered with
     /// <see cref="CultureInfo.InvariantCulture"/>, independent of the generator process's
     /// current culture - a comma-decimal culture must never leak a "1,5" into the JSON text.
     /// </summary>

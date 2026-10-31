@@ -60,6 +60,20 @@ def latest_released_version(changelog_text: str) -> str | None:
     return None
 
 
+def released_versions(changelog_text: str) -> set[str]:
+    """Every version with a dated `## [<version>] - <date>` heading.
+
+    A tag whose release run failed burns its number: the fix ships under the
+    next number and takes over the heading, so the burned version has no dated
+    heading and is not in this set.
+    """
+    return {
+        match.group("version")
+        for line in changelog_text.splitlines()
+        if (match := SECTION_HEADER_PATTERN.match(line)) and match.group("date")
+    }
+
+
 UNRELEASED = "Unreleased"
 
 

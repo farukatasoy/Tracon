@@ -198,7 +198,7 @@ public sealed class AnthropicCacheWriteTests
     [Fact]
     public async Task Without_write_rates_the_cost_is_what_it_was_before_the_write_was_priced()
     {
-        // 253.3: the same call on a catalog that carries no write rate costs exactly the input price
+        // The same call on a catalog that carries no write rate costs exactly the input price
         // for the written tokens, and the run records the counters all the same.
         await using var anthropic = await FakeAnthropicServer.StartAsync();
         anthropic.Respond(Message(SplitUsage));

@@ -5,7 +5,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Catalog;
 
 /// <summary>
-/// 101.5: a source that resolves a name it does not report from <c>ListAsync</c> is a
+/// A source that resolves a name it does not report from <c>ListAsync</c> is a
 /// contract violation, but a legitimate race exists — the agent can be deleted between
 /// the winning source's <c>ListAsync</c> and its <c>ResolveAsync</c> (<c>DELETE
 /// /api/agents/{name}</c>). The catalog must not throw for this; it must not FABRICATE a

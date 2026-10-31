@@ -14,8 +14,8 @@ namespace Tracon;
 /// Where the window is counted follows <see cref="TraconRateLimitOptions.Scope"/>.
 /// <see cref="RateLimitScope.Instance"/> (the default) builds a thin layer over .NET's
 /// <see cref="PartitionedRateLimiter"/> type: <c>System.Threading.RateLimiting</c> comes from
-/// the ASP.NET Core shared framework, so there is no extra package dependency (measured in
-/// 21.1). <see cref="RateLimitScope.Deployment"/> counts in the <see cref="IRateLimitCounterStore"/>
+/// the ASP.NET Core shared framework, so there is no extra package dependency (measured).
+/// <see cref="RateLimitScope.Deployment"/> counts in the <see cref="IRateLimitCounterStore"/>
 /// through <see cref="DeploymentRateLimiter"/>, and falls back to the same
 /// <see cref="PartitionedRateLimiter"/> for the requests during which the store fails.
 /// </para>

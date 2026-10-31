@@ -95,7 +95,7 @@ public sealed class RunEventFrameNameContractTests
     [Fact]
     public void The_unknown_catch_all_branch_is_still_present()
     {
-        // 145.2: the catch-all is NOT deleted -- a future RunEventType member
+        // The catch-all is NOT deleted -- a future RunEventType member
         // must still compile against this switch. The completeness guarantee
         // comes from the test above (no member's OWN arm may resolve to
         // "unknown"), not from removing the fallback.

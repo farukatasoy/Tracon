@@ -88,7 +88,7 @@ class SurfaceResult:
 
 
 # -----------------------------------------------------------------------------
-# 238.2 - name sets
+# Name sets
 # -----------------------------------------------------------------------------
 
 
@@ -168,7 +168,7 @@ def name_set_delta(root: pathlib.Path, tag: str, surface: NameSurface, *, snapsh
 
 
 # -----------------------------------------------------------------------------
-# 238.4 - HTTP: the OpenAPI document
+# HTTP: the OpenAPI document
 # -----------------------------------------------------------------------------
 #
 # The rule table (HTTP row). Everything here is one of three things:

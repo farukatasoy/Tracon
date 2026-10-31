@@ -16,8 +16,8 @@ namespace Tracon.SqlProviders.Tests;
 public sealed class ReadViewColumnSetTests
 {
     /// <summary>
-    /// The published contract (
-    /// 111.2). A column dropped from here is a BREAKING change and ships as
+    /// The published contract.
+    /// A column dropped from here is a BREAKING change and ships as
     /// <c>runs_v2</c>, never edited in place.
     /// </summary>
     private static readonly string[] ExpectedColumns =

@@ -57,8 +57,8 @@ public sealed class AgentRunBudgetDurationTests
     [Fact]
     public void TryReserveRun_also_refuses_once_the_deadline_has_passed()
     {
-        // 128.2: "TryReserveRun (child run start) also checks the deadline: no
-        // new child run starts in a tree whose time has run out."
+        // TryReserveRun (child run start) also checks the deadline: no
+        // new child run starts in a tree whose time has run out.
         var clock = new ManualTimeProvider();
         var budget = new AgentRunBudget(TimeSpan.FromMinutes(5), clock);
 

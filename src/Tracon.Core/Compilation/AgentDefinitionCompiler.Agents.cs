@@ -428,7 +428,7 @@ public sealed partial class AgentDefinitionCompiler
 
         if (backgroundAgents is { } build)
         {
-            // 144.4: the option object is built by Tracon on BOTH compile
+            // The option object is built by Tracon on BOTH compile
             // paths, so behavior never depends on what MAF's own null
             // semantics happen to be for BackgroundAgentsProviderOptions
             // (measured unassigned before this change).

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Tracon.Core.UnitTests.Catalog;
 
 /// <summary>
-/// 101.4: <see cref="AgentSourceValidationService"/> checks the structural agent-source
+/// <see cref="AgentSourceValidationService"/> checks the structural agent-source
 /// contract while the host starts, cheaply — it must never call <c>ListAsync</c>, because
 /// that call can do I/O (see the rationale on <c>ExternalSurfaceGuard</c> for why a
 /// blocking startup call is unacceptable for a source backed by a database).

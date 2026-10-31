@@ -137,7 +137,7 @@ public sealed class WorkflowToolApprovalTests
     [Fact]
     public async Task A_waiting_workflow_is_answered_by_a_host_started_after_the_first_one_stopped()
     {
-        // 230.6: the request and the call live in the checkpoint, so an answer given after a restart still runs
+        // The request and the call live in the checkpoint, so an answer given after a restart still runs
         // the tool once. Two hosts, one SQLite file.
         using var database = new TempSqliteDatabase("tool-approval-restart");
         var calls = new int[1];

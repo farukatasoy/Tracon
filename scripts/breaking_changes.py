@@ -54,7 +54,7 @@ class SemaphoreError(Exception):
 
 
 # -----------------------------------------------------------------------------
-# 187.2 - baseline selection
+# Baseline selection
 # -----------------------------------------------------------------------------
 
 
@@ -72,6 +72,12 @@ def resolve_baseline(root: pathlib.Path = ROOT) -> str:
     On a tagged HEAD (a tag run) the baseline is the PREVIOUS `v*` tag:
     comparing a release with itself would produce a silent "no breaking
     change". Otherwise it is the last `v*` tag reachable from HEAD.
+
+    A public tag never moves. When a release run fails on a code defect its
+    number burns: the fix ships under the next number and takes over the
+    CHANGELOG heading. The burned tag stays reachable but its packages are not
+    on nuget.org, so a baseline nobody can restore would turn every pack red.
+    A tag whose version has no dated CHANGELOG heading is therefore skipped.
     """
     shallow = _git(root, "rev-parse", "--is-shallow-repository")
     if shallow.returncode:
@@ -82,17 +88,44 @@ def resolve_baseline(root: pathlib.Path = ROOT) -> str:
 
     exact = _git(root, "describe", "--tags", "--exact-match", "--match", f"{TAG_PREFIX}*", "HEAD")
     start = "HEAD^" if exact.returncode == 0 else "HEAD"
-    found = _git(root, "describe", "--tags", "--abbrev=0", "--match", f"{TAG_PREFIX}*", start)
-    if found.returncode:
-        where = "HEAD'in üst commit'inden" if start == "HEAD^" else "HEAD'den"
-        reason = (found.stderr or found.stdout).strip() or f"çıkış {found.returncode}"
-        raise BaselineError(f"{where} erişilen bir '{TAG_PREFIX}*' etiketi yok ({reason})")
+    released: set[str] | None = None
+    burned: list[str] = []
+    while True:
+        found = _git(root, "describe", "--tags", "--abbrev=0", "--match", f"{TAG_PREFIX}*", start)
+        if found.returncode:
+            if burned:
+                raise BaselineError(
+                    f"yayınlanmış bir '{TAG_PREFIX}*' etiketi yok; CHANGELOG'da tarihli bölümü olmayan "
+                    f"(yanmış) etiketler atlandı: {', '.join(burned)}")
+            where = "HEAD'in üst commit'inden" if start == "HEAD^" else "HEAD'den"
+            reason = (found.stderr or found.stdout).strip() or f"çıkış {found.returncode}"
+            raise BaselineError(f"{where} erişilen bir '{TAG_PREFIX}*' etiketi yok ({reason})")
 
-    tag = found.stdout.strip()
-    version = tag[len(TAG_PREFIX):]
-    if not tag.startswith(TAG_PREFIX) or _parse_version(version) is None:
-        raise BaselineError(f"etiket bir sürüm adlandırmıyor: '{tag}'")
+        tag = found.stdout.strip()
+        version = tag[len(TAG_PREFIX):]
+        if not tag.startswith(TAG_PREFIX) or _parse_version(version) is None:
+            raise BaselineError(f"etiket bir sürüm adlandırmıyor: '{tag}'")
+        if released is None:
+            released = _released_versions(root)
+        if version in released:
+            break
+        burned.append(tag)
+        start = f"{tag}^"
+
+    if burned:
+        print(f"Taban: yanmış etiket atlandı (CHANGELOG'da tarihli bölümü yok): {', '.join(burned)}")
     return version
+
+
+def _released_versions(root: pathlib.Path) -> set[str]:
+    """Versions with a dated CHANGELOG heading. No file is no evidence: red, never a silent fallback."""
+    path = root / "CHANGELOG.md"
+    if not path.is_file():
+        raise BaselineError(f"{path.name} yok: hangi etiketin yayınlandığı doğrulanamaz")
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import changelog as changelog_module
+
+    return changelog_module.released_versions(path.read_text(encoding="utf-8"))
 
 
 _VERSION = re.compile(r"^(?P<core>\d+\.\d+\.\d+)(?:-(?P<pre>[0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
@@ -137,7 +170,7 @@ def version_is_above_baseline(version: str, baseline: str) -> bool:
 
 
 # -----------------------------------------------------------------------------
-# 237.2 - release line
+# Release line
 # -----------------------------------------------------------------------------
 
 FROZEN_FROM = "1.0.0-rc.1"
@@ -200,7 +233,7 @@ def release_line(baseline: str, version: str | None) -> ReleaseLine:
 
 
 # -----------------------------------------------------------------------------
-# 187.3 / 187.7 - baseline package set and the first-release flag
+# Baseline package set and the first-release flag
 # -----------------------------------------------------------------------------
 
 
@@ -237,7 +270,7 @@ def stale_first_release_flags(root: pathlib.Path, baseline_tag: str) -> list[str
 
 
 # -----------------------------------------------------------------------------
-# 187.3 - isolated baseline restore
+# Isolated baseline restore
 # -----------------------------------------------------------------------------
 
 _NUGET_CONFIG = f"""<?xml version="1.0" encoding="utf-8"?>
@@ -340,7 +373,7 @@ def pack_properties(cache: pathlib.Path, version: str, report_dir: pathlib.Path)
 
 
 # -----------------------------------------------------------------------------
-# 187.5 - proof that validation ran in THIS pack
+# Proof that validation ran in THIS pack
 # -----------------------------------------------------------------------------
 
 
@@ -381,7 +414,7 @@ def validation_not_run(root: pathlib.Path, ids: Iterable[str], since: float) -> 
 
 
 # -----------------------------------------------------------------------------
-# 187.6 - report -> breaking list
+# Report -> breaking list
 # -----------------------------------------------------------------------------
 
 
@@ -472,7 +505,7 @@ def read_breaking_changes(report_dir: pathlib.Path) -> BreakingChanges:
 
 
 # -----------------------------------------------------------------------------
-# 187.6 - release notes and the naming rule
+# Release notes and the naming rule
 # -----------------------------------------------------------------------------
 
 
@@ -586,7 +619,7 @@ def unnamed_changes(changes: BreakingChanges, notes: str | None) -> list[str]:
 
 
 # -----------------------------------------------------------------------------
-# 237.3 / 237.4 - what the ApiCompat report cannot see
+# What the ApiCompat report cannot see
 # -----------------------------------------------------------------------------
 #
 # Measured 2026-10-24, SDK 10.0.402, baseline validation on:

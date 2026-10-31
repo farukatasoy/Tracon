@@ -31,7 +31,7 @@ public sealed class CompositeAgentCatalogTests
     }
 
     /// <summary>
-    /// 101.9: <c>Enumerable.OrderBy</c> is a documented STABLE sort, so two sources sharing
+    /// <c>Enumerable.OrderBy</c> is a documented STABLE sort, so two sources sharing
     /// a priority tie-break on the order they were registered in DI — the order they were
     /// passed to the catalog here.
     /// </summary>

@@ -678,7 +678,7 @@ function EventRow({ event }: { event: RunEvent }): ReactNode {
   const style: { label: string; tone: StatusTone } =
     EVENT_STYLE[event.type] ?? { label: event.type, tone: 'neutral' };
   const sourceRunId = answeredSourceRunId(event);
-  // 141.2: a Custom event's own name IS its CustomType, not the generic
+  // A Custom event's own name IS its CustomType, not the generic
   // fallback label -- a consumer's contoso.preview-ready must read as
   // that, not as an unstyled "Custom" row.
   const label = event.type === 'Custom' && event.customType != null ? event.customType : style.label;

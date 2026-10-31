@@ -56,7 +56,7 @@ public sealed class InboundTriggerDispatcherTests
     [Fact]
     public async Task Unknown_trigger_name_and_a_wrong_signature_on_a_real_trigger_produce_the_identical_result()
     {
-        // 66.2: the caller must not be able to enumerate trigger names by
+        // The caller must not be able to enumerate trigger names by
         // comparing responses — this asserts the outcomes are the SAME
         // discriminated value, not just "both happen to map to 401".
         var (dispatcher, clock) = await CreateDispatcherWithSavedTriggerAsync();

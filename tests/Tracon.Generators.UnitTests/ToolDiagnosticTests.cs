@@ -288,7 +288,7 @@ public sealed class ToolDiagnosticTests
     }
 
     /// <summary>
-    /// 135.2: a constraint attribute that does not apply to its type/shape is reported
+    /// A constraint attribute that does not apply to its type/shape is reported
     /// the same way whether it sits on a top-level parameter or on a member anywhere in
     /// an object parameter's graph - the walk that builds the object model must surface
     /// what it finds, not only record it.

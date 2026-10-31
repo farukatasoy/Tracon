@@ -62,7 +62,7 @@ public sealed class ChildAgentInvokerTests
     [Fact]
     public async Task New_child_run_does_not_start_once_the_deadline_has_passed()
     {
-        // 128.2: TryReserveRun (child-run start) also checks the deadline —
+        // TryReserveRun (child-run start) also checks the deadline —
         // no new child run starts in a tree whose time has run out. A
         // negative MaxDuration constructs an already-passed Deadline
         // deterministically, with no fake clock needed.

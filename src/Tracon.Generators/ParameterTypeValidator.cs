@@ -29,7 +29,7 @@ internal sealed record ObjectGraphError(ObjectGraphErrorKind Kind, string PathTe
 internal static class ParameterTypeValidator
 {
     /// <summary>
-    /// 135.1: the root parameter is depth 0; its own object members are depth 1. A graph
+    /// The root parameter is depth 0; its own object members are depth 1. A graph
     /// deeper than this is rejected (TRC0012) instead of silently generated - the model's
     /// error rate rises with schema depth, and a graph this deep is usually a sign the tool
     /// is doing too much.

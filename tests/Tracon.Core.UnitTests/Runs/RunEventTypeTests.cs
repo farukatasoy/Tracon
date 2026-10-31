@@ -64,7 +64,7 @@ public sealed class RunEventTypeTests
     [Fact]
     public void Custom_stays_29()
     {
-        // 144.3: the new member (ChildRunTimedOut) had to land AFTER Custom,
+        // The new member (ChildRunTimedOut) had to land AFTER Custom,
         // never between it and its predecessor.
         ((int)RunEventType.Custom).ShouldBe(29);
     }

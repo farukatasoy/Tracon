@@ -87,6 +87,19 @@ class ChangelogTestleri(unittest.TestCase):
     def test_tarihli_bolum_yoksa_son_yayin_yoktur(self):
         self.assertIsNone(changelog.latest_released_version("# Changelog\n\n## [Unreleased]\n"))
 
+    # released_versions: kırıcı değişiklik tabanı yalnız bu kümedeki etiketi seçer; yanmış numaranın başlığı yoktur.
+
+    def test_yayinlanmis_surumler_yalniz_tarihli_basliklardir(self):
+        text = (
+            "## [Unreleased]\n\n"
+            "## [1.0.0-preview.4]\n\n"
+            "## [1.0.0-preview.3] - 2026-09-24\n\n"
+            "### Added\n- `## [1.0.0-preview.9] - 2026-01-01` bir başlık değil\n\n"
+            "## [1.0.0-preview.1] - 2026-09-20\n"
+        )
+
+        self.assertEqual(changelog.released_versions(text), {"1.0.0-preview.3", "1.0.0-preview.1"})
+
     # release_notes: sürüm bölümü ETİKET anında yazılır, prova ondan önce koşar.
 
     def test_surum_bolumu_varsa_o_kazanir(self):

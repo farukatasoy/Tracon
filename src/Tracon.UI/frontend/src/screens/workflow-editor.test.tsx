@@ -466,7 +466,7 @@ describe('WorkflowEditorScreen - the settings field', () => {
 });
 
 describe('WorkflowEditorScreen - what a save changes', () => {
-  // 195.4: a structural edit makes a run that waits to be resumed unresumable (measured), so the
+  // A structural edit makes a run that waits to be resumed unresumable (measured), so the
   // screen says so; a settings or description edit does not, so it stays quiet.
   it('stays quiet about waiting runs for an edit of the settings or the description', async () => {
     open(mixed);

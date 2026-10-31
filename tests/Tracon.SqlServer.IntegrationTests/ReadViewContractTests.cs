@@ -203,7 +203,7 @@ public sealed class ReadViewContractTests(SqlServerFixture fixture) : IAsyncLife
     }
 
     /// <summary>
-    /// 111.1: the view is NOT a tenant boundary. A consumer that queries it
+    /// The view is NOT a tenant boundary. A consumer that queries it
     /// without its own <c>WHERE tenant_id = ...</c> clause sees every
     /// tenant's rows -- the manual acceptance case 5 this test automates.
     /// </summary>

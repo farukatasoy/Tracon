@@ -104,7 +104,7 @@ public sealed class IncrementalGeneratorCacheTests
     }
 
     /// <summary>
-    /// 135.3: an object member's list is held in <c>EquatableArray&lt;ObjectMember&gt;</c>,
+    /// An object member's list is held in <c>EquatableArray&lt;ObjectMember&gt;</c>,
     /// not a bare <c>ImmutableArray</c> - a value-equal object graph must still hit the
     /// pipeline's cache, exactly like <see cref="ParameterConstraints"/> above. Roslyn
     /// re-runs the analysis on every incremental run regardless (a syntax provider always

@@ -49,6 +49,12 @@ def _repo(directory: str) -> pathlib.Path:
     return repo
 
 
+def _changelog(repo: pathlib.Path, *released: str) -> None:
+    """A CHANGELOG whose dated headings are the published versions; the baseline reads only these."""
+    sections = "".join(f"## [{version}] - 2026-10-01\n\n- x\n\n" for version in released)
+    (repo / "CHANGELOG.md").write_text(f"# Changelog\n\n## [Unreleased]\n\n{sections}", encoding="utf-8")
+
+
 def _write_csproj(root: pathlib.Path, project_id: str, body: str = "") -> pathlib.Path:
     path = root / "src" / project_id / f"{project_id}.csproj"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -96,6 +102,7 @@ class TabanSecimiTestleri(unittest.TestCase):
             _commit(repo, "two")
             _git(repo, "tag", "v1.0.0-preview.2")
             _commit(repo, "three")
+            _changelog(repo, "1.0.0-preview.2", "1.0.0-preview.1")
 
             self.assertEqual(bc.resolve_baseline(repo), "1.0.0-preview.2")
 
@@ -107,6 +114,7 @@ class TabanSecimiTestleri(unittest.TestCase):
             _git(repo, "tag", "v1.0.0-preview.1")
             _commit(repo, "two")
             _git(repo, "tag", "v1.0.0-preview.2")
+            _changelog(repo, "1.0.0-preview.2", "1.0.0-preview.1")
 
             self.assertEqual(bc.resolve_baseline(repo), "1.0.0-preview.1")
 
@@ -117,8 +125,67 @@ class TabanSecimiTestleri(unittest.TestCase):
             _git(repo, "tag", "v1.0.0-preview.1")
             _commit(repo, "two")
             _git(repo, "tag", "site-2026")
+            _changelog(repo, "1.0.0-preview.1")
 
             self.assertEqual(bc.resolve_baseline(repo), "1.0.0-preview.1")
+
+    def test_yanmis_etiket_taban_olmaz(self):
+        """A tag with no dated heading never shipped: its packages are not there to restore."""
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _repo(directory)
+            _commit(repo, "one")
+            _git(repo, "tag", "v1.0.0-preview.1")
+            _commit(repo, "two")
+            _git(repo, "tag", "v1.0.0-preview.2")
+            _commit(repo, "three")
+            _changelog(repo, "1.0.0-preview.1")
+
+            baseline, output = _quiet(lambda: bc.resolve_baseline(repo))
+
+        self.assertEqual(baseline, "1.0.0-preview.1")
+        self.assertIn("v1.0.0-preview.2", output)
+
+    def test_etiketli_headde_aradaki_yanmis_etiket_de_atlanir(self):
+        """The fix ships as preview.3 and takes over the heading of the burned preview.2."""
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _repo(directory)
+            _commit(repo, "one")
+            _git(repo, "tag", "v1.0.0-preview.1")
+            _commit(repo, "two")
+            _git(repo, "tag", "v1.0.0-preview.2")
+            _commit(repo, "fix")
+            _git(repo, "tag", "v1.0.0-preview.3")
+            _changelog(repo, "1.0.0-preview.3", "1.0.0-preview.1")
+
+            baseline, _ = _quiet(lambda: bc.resolve_baseline(repo))
+
+        self.assertEqual(baseline, "1.0.0-preview.1")
+
+    def test_hicbir_etiket_yayinlanmadiysa_kirmizi(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _repo(directory)
+            _commit(repo, "one")
+            _git(repo, "tag", "v1.0.0-preview.1")
+            _commit(repo, "two")
+            _changelog(repo)
+
+            with self.assertRaises(bc.BaselineError) as raised:
+                bc.resolve_baseline(repo)
+
+        self.assertIn("yanmış", str(raised.exception))
+        self.assertIn("v1.0.0-preview.1", str(raised.exception))
+
+    def test_changelog_yoksa_kirmizi_sessiz_geri_dusus_yok(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _repo(directory)
+            _commit(repo, "one")
+            _git(repo, "tag", "v1.0.0-preview.1")
+            _commit(repo, "two")
+
+            with self.assertRaises(bc.BaselineError) as raised:
+                bc.resolve_baseline(repo)
+
+        self.assertIn("CHANGELOG.md yok", str(raised.exception))
 
     def test_etiket_yoksa_kirmizi(self):
         with tempfile.TemporaryDirectory() as directory:

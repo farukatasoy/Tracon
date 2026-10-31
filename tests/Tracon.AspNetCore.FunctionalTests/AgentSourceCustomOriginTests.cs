@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 101.2: an agent from a custom <see cref="IAgentSource"/> gets
+/// An agent from a custom <see cref="IAgentSource"/> gets
 /// <see cref="AgentDefinitionOrigin.Custom"/>. The management API must treat it the
 /// same way it treats a code agent — read-only, <c>409</c> on write — instead of the
 /// pre-101 behavior, where an unrecognized origin fell through to the "database

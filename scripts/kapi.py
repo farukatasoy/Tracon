@@ -2560,7 +2560,7 @@ def _finish_release_rehearsal_unchecked(
     if breaking_result:
         return breaking_result
 
-    # 136.3 - overwrite koruması ve manifest. Staging'de doğrulanmış paketler
+    # Overwrite koruması ve manifest. Staging'de doğrulanmış paketler
     # ancak burada release_dir'e taşınır (promote); `_promote_staged_packages`
     # aynı isimde FARKLI bir SHA-256 bulursa HİÇBİR dosyayı taşımaz ve mevcut
     # release_dir olduğu gibi kalır (hepsi ya da hiçbiri). Paket dizini

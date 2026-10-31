@@ -284,7 +284,7 @@ public sealed class TriggerEndpointTests
     [Fact]
     public async Task An_unknown_trigger_name_and_a_wrong_signature_return_the_identical_response()
     {
-        // 66.2: a caller must not be able to enumerate trigger names by
+        // A caller must not be able to enumerate trigger names by
         // comparing the "does not exist" and "wrong signature" responses —
         // this asserts the two bodies are actually EQUAL, not merely that
         // each independently returns some 4xx code.

@@ -278,7 +278,7 @@ public sealed class DiagnosticTests
     [Fact]
     public void An_unprocessable_class_is_never_skipped_silently_it_always_produces_a_diagnostic()
     {
-        // 52.5: silent skipping is forbidden - the tests verifying TRC0003/4/7 already
+        // Silent skipping is forbidden - the tests verifying TRC0003/4/7 already
         // prove this; here we confirm in one place that at least one blocking diagnostic
         // is produced for EVERY category.
         const string Source = """
