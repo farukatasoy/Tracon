@@ -23,8 +23,8 @@ internal sealed class McpToolCallScope
 {
     private static readonly AsyncLocal<McpToolCallScope?> Holder = new();
 
-    // Locks on the list itself: net8.0 has no System.Threading.Lock, and a separate
-    // object field would trigger MA0158 on net9.0+ (the InMemoryJobStore pattern).
+    // Locks on the list itself: a separate object field would trigger MA0158 (the
+    // InMemoryJobStore pattern).
     private readonly List<ToolInputAnswer> _unconsumed;
     private PendingToolInput? _pending;
     private volatile bool _active = true;

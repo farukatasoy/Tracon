@@ -8,8 +8,8 @@ namespace Tracon;
 /// <c>Tracon.SqlServer</c> or <c>Tracon.Sqlite</c>.
 /// </para>
 /// <para>
-/// The record dictionary is itself the lock (the <c>InMemoryJobStore</c> pattern: net8.0 has
-/// no <c>System.Threading.Lock</c>, and a separate lock object would trigger MA0158), so a
+/// The record dictionary is itself the lock (the <c>InMemoryJobStore</c> pattern: a separate
+/// lock object would trigger MA0158), so a
 /// claim and a replacement are atomic the way the SQL stores make them atomic with a unique
 /// index and a transaction. Records of a deleted
 /// source run are not removed: there is no foreign key in memory.

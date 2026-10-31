@@ -16,8 +16,8 @@
     <!--
       The net10.0 restriction is NOT inherited: that constraint comes from
       Microsoft.AspNetCore.TestHost, which this package does not take. The
-      TFM set matches Abstractions (net8.0;net9.0;net10.0) because a
-      consumer's own store can target any one of the three - this is the
+      TFM set matches Abstractions because a consumer's own store can
+      target any framework Abstractions ships - this is the
       Directory.Build.props default and is left unset here on purpose.
     -->
   </PropertyGroup>

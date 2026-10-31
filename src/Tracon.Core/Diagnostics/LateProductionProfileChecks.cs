@@ -22,8 +22,8 @@ namespace Tracon;
 /// </remarks>
 internal sealed class LateProductionProfileChecks
 {
-    // Locks on the list itself: Core also targets net8.0, which has no System.Threading.Lock,
-    // and the list never leaves this class.
+    // Locks on the list itself, which never leaves this class: a separate object field
+    // would trigger MA0158.
     private readonly List<IProductionProfileCheck> _checks = [];
 
     /// <summary>Adds a check.</summary>

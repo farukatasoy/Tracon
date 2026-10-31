@@ -105,7 +105,7 @@ internal sealed record MigrationDescriptor(int Id, string Name, string Sql, stri
         Span<byte> hash = stackalloc byte[32];
         SHA256.HashData(Encoding.UTF8.GetBytes(normalized), hash);
 
-        // Convert.ToHexStringLower is only available in .NET 9+; the package also targets net8.0.
+        // Uppercase hex: applied migrations store this exact checksum, so its case must not change.
         return Convert.ToHexString(hash);
     }
 }

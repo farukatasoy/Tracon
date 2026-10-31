@@ -8,8 +8,8 @@ namespace Tracon;
 /// <c>Tracon.PostgreSql</c>, <c>Tracon.SqlServer</c> or <c>Tracon.Sqlite</c>.
 /// </para>
 /// <para>
-/// The row dictionary is itself the lock (the <c>InMemoryJobStore</c> pattern: net8.0 has no
-/// <c>System.Threading.Lock</c>, and a separate lock object would trigger MA0158), so an answer
+/// The row dictionary is itself the lock (the <c>InMemoryJobStore</c> pattern: a separate lock
+/// object would trigger MA0158), so an answer
 /// and an expiry that meet on one row are atomic the way the SQL stores make them atomic with one
 /// statement. Rows of a deleted run are not removed: there is no foreign key in memory.
 /// </para>

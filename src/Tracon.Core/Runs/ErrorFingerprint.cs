@@ -65,7 +65,7 @@ internal static partial class ErrorFingerprint
 
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
 
-        // Convert.ToHexStringLower was added in net9.0; the repo also targets net8.0.
+        // Lowercase hex, the form fingerprints are stored and compared in.
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 

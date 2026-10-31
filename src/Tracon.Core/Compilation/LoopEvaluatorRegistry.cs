@@ -696,7 +696,7 @@ internal sealed class LoopEvaluatorRegistry
     private sealed class CustomCriterion(TraconLoopEvaluatorRegistration registration)
     {
         // The lock is taken on the registration this type alone holds: a separate
-        // object field would trigger MA0158 on net9.0+ (the InMemoryJobStore pattern).
+        // object field would trigger MA0158 (the InMemoryJobStore pattern).
         private LoopEvaluator? _instance;
         private bool _creating;
 

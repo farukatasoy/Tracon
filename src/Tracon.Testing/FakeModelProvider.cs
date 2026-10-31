@@ -33,9 +33,8 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
 {
     private readonly Dictionary<string, FakeModelScript> _scripts = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ModelDescriptor> _models = [];
-    // The recorded-request list is locked ON ITSELF. Since net8.0 is also targeted,
-    // System.Threading.Lock is unavailable, and a separate object field would trigger
-    // MA0158 on net9.0+ — the same pattern as InMemoryJobStore.
+    // The recorded-request list is locked ON ITSELF: a separate object field would
+    // trigger MA0158 — the same pattern as InMemoryJobStore.
     private readonly List<FakeModelRequest> _requests = [];
     private readonly FakeModelScript _default = new();
 

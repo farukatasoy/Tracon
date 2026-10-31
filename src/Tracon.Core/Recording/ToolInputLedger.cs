@@ -12,8 +12,8 @@ namespace Tracon;
 /// </remarks>
 internal sealed class ToolInputLedger
 {
-    // Locks on the list itself: net8.0 has no System.Threading.Lock, and a separate
-    // object field would trigger MA0158 on net9.0+ (the InMemoryJobStore pattern).
+    // Locks on the list itself: a separate object field would trigger MA0158 (the
+    // InMemoryJobStore pattern).
     private readonly List<PendingToolInput> _pending = [];
 
     /// <summary>Gets whether any call was suspended.</summary>

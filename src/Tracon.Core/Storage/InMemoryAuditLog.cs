@@ -11,8 +11,7 @@ namespace Tracon;
 /// tenant's list is locked for its own read-last-hash/compute/append sequence —
 /// a single process has no cross-connection writer race the way a SQL provider
 /// does, so a lock (not a retry loop) is enough. Locking ON THE LIST ITSELF
-/// (rather than a dedicated lock field) is deliberate: net8.0 is also targeted
-/// and <c>System.Threading.Lock</c> arrived only with .NET 9 — the same pattern
+/// (rather than a dedicated lock field) is deliberate — the same pattern
 /// <c>RunTraceCollector.RunSpanBuffer</c> uses.
 /// </para>
 /// </remarks>

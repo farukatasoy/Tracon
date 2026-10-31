@@ -45,7 +45,7 @@
     generator and would leak server-side store interfaces (like IRunStore)
     into an HTTP consumer. Serialization uses raw System.Text.Json source
     generation (TraconClientJsonContext.g.cs), which is part of the
-    net8.0+ shared framework - no NuGet package for it.
+    shared framework - no NuGet package for it.
 
     The ONE NuGet package taken is Microsoft.Extensions.DependencyInjection.Abstractions,
     for AddTraconClient(this IServiceCollection ...). It carries no

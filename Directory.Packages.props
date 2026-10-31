@@ -102,10 +102,9 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <!--
       Sevk edilen hicbir paket bu satira bagli DEGILDIR - Tracon kutuphaneleri
-      Hosting.Abstractions ile yetinir. Tam generic host'u uc tuketici kullanir:
+      Hosting.Abstractions ile yetinir. Tam generic host'u iki tuketici kullanir:
       tests/Tracon.WorkerHarness (iki process ariza kanitinin OLDURULEN
-      worker'i), samples/Tracon.Samples.Net8Consumer (net8 tuketici smoke'u) ve
-      samples/Tracon.Samples.ExtensionAotSmoke (Native AOT altinda
+      worker'i) ve samples/Tracon.Samples.ExtensionAotSmoke (Native AOT altinda
       gercek host baslatir; paket ailesi hizalama kontrolu orada kosar).
     -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsVersion)" />
@@ -172,19 +171,20 @@
       8.0.1, net9.0/net10.0 9.0.13 ve 9.0.18 (GHSA-846f-f764-76mx yuksek,
       GHSA-2fmv-rv2c-59x7 orta). Yeniden olculdu 2026-10-16 ve 2026-10-28 (SqlClient
       7.1.1, hala en yenisi; bos bir proje, NuGetAudit): net8.0 8.0.1, net9.0/net10.0
-      9.0.18, iki uyari de duruyor (NU1902 + NU1903). Sabitler degismedi:
-      platform yamasi 10.0.14 bu paketi etkilemez, 10.0.13 yamali taban olarak kalir. SqlClient'i yukseltmek bunu kapatmaz; yama
-      surumleri 8.0.2, 9.0.21 ve 10.0.13'tur. CentralPackageTransitivePinningEnabled
-      kapali oldugu icin surum Tracon.SqlServer'da dogrudan
-      PackageReference ile zorlanir; bu, tuketicinin grafiginde de SqlClient'in
-      surumunun onune gecer. Surum her hedef cati icin ayridir: net8.0 ve net9.0
-      icin 10.0.13 Microsoft.Bcl.Cryptography ile System.Formats.Asn1'i de
-      getirirdi, eslesen surum hicbir paket getirmez (net gecisli agirlik: 0).
-      SqlClient yamali surumu kendisi cektiginde bu uc satir kaldirilir.
+      9.0.18, iki uyari de duruyor (NU1902 + NU1903). Yeniden olculdu 2026-10-31
+      (SqlClient 7.1.1 hala en yenisi; bos net10.0 projesi, NuGetAudit): 9.0.18,
+      NU1902 + NU1903. Platform yamasi 10.0.14 bu paketi etkilemez, 10.0.13 yamali
+      taban olarak kalir. SqlClient'i yukseltmek bunu kapatmaz.
+      CentralPackageTransitivePinningEnabled kapali oldugu icin surum
+      Tracon.SqlServer'da dogrudan PackageReference ile zorlanir; bu, tuketicinin
+      grafiginde de SqlClient'in surumunun onune gecer. Paketler yalniz net10.0
+      hedefler, bu yuzden tek satir yeter. Surum hedef catiyla eslenir: yeni bir
+      cati eklenirse o cati kendi yamali surumunu alir (eski net8.0/net9.0
+      satirlari 8.0.2 ve 9.0.21'di; 10.0.13 onlara Microsoft.Bcl.Cryptography ile
+      System.Formats.Asn1'i de getirirdi). SqlClient yamali surumu kendisi
+      cektiginde bu satir kaldirilir.
     -->
-    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
-    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" Condition="'$(TargetFramework)' == 'net9.0'" />
-    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <!--
       SQLite surucusu. SQLitePCLRaw yerel kutuphane tasir; AOT/publish
       etkisi olculur.
@@ -248,7 +248,7 @@
       `ModelContextProtocol` [2.2.0]'i, o da `.Core` [2.2.0] + Caching.Abstractions
       10.0.10 + Hosting.Abstractions 10.0.10 ceker. Yabanci bagimlilik yok.
       2.3.0 (2026-10-21): ayni paket listesi, yalniz taban surumler yukseldi; Tracon.Mcp
-      grafigi net10.0/net9.0/net8.0'da 32/38/38 paket, degismedi. API farki: +1 uye
+      grafigi net10.0'da 32 paket (o gun net9.0/net8.0'da 38/38), degismedi. API farki: +1 uye
       (`McpClientOptions.TimeProvider`), 0 kaldirma (API farki).
     -->
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
@@ -268,7 +268,7 @@
     olay donusturucusunu (MEAI akisi -> AG-UI olaylari) bu iki paket tasir; ayni donusturucuyu elle yazmak protokolun
     tel bicimini kopyalamak olurdu. Yayinci "AG-UI Protocol" (Microsoft degil), MIT, nuget.org'da dogrulanmis sahip,
     yazar imzasi gecerli (`dotnet nuget verify`, 2026-10-23). Bagimlilik yalniz Microsoft.Extensions.AI.Abstractions
-    >= 10.6.0 (Tracon 10.11.0'da); net8.0 ve net9.0'da System.Text.Json de gelir. Yalnizca Tracon.AGUI icine girer;
+    >= 10.6.0 (Tracon 10.11.0'da). Yalnizca Tracon.AGUI icine girer;
     Tracon.AspNetCore ve meta paketin grafigi degismez. Surum sabit; kararli oldugu icin ailede tek hatta cikar.
   -->
   <ItemGroup Label="AG-UI">
@@ -288,15 +288,16 @@
     Analyzer olarak tasinir, PrivateAssets=all + ReferenceOutputAssembly=false;
     tuketicinin bagimlilik grafigine SIZMAZ (dotnet list package ile dogrulanir).
 
-    🚨 Surum 4.8.0'dir, DAHA YENI DEGIL. Olculdu (2026-08-08): .NET 8 SDK GA'nin
-    tasidigi Roslyn 4.8.0'dir (dotnet/roslyn#70919); .NET 9 SDK (9.0.305/306)
-    4.14.0, .NET 10 SDK (10.0.100) 5.0.0 tasir. Uretec, kendisini yukleyen
+    🚨 Surum 5.0.0'dir, DAHA YENI DEGIL. Uretec, kendisini yukleyen
     derleyicinin Roslyn'inden YENI olamaz - yeni olursa eski SDK'da SESSIZCE
-    yuklenmez. Tracon net8.0'i da hedefledigi ve tuketicinin net8.0
-    projesini eski bir 8.0.1xx SDK ile derleyebilecegi icin taban 4.8.0'dir.
+    yuklenmez. Paketler yalniz net10.0 hedefler; net10.0 projesini derleyebilen
+    en eski SDK 10.0.100'dur ve Roslyn 5.0.0 tasir (olculdu 2026-10-16:
+    10.0.100 -> 5.0.0 · 10.0.402 -> 5.9.0). Taban bu yuzden 5.0.0'dir; 5.9.0
+    SDK 10.0.100'de yuklenmez. Paketler net8.0'i da hedefledigi surece taban
+    4.8.0'di (.NET 8 SDK GA'nin Roslyn'i, dotnet/roslyn#70919).
   -->
   <ItemGroup Label="Kaynak Ureteci (Tracon.Generators, IsPackable=false)">
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
   </ItemGroup>
 
   <!--

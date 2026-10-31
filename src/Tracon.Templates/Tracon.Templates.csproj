@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <!--
       TargetFrameworks (PLURAL) is left EMPTY: src/Directory.Build.props assigns
-      it "net8.0;net9.0;net10.0". TargetFramework (SINGULAR) is enough for
+      it the package framework list. TargetFramework (SINGULAR) is enough for
       `dotnet build`, but `dotnet pack`'s cross-targeting path reads the PLURAL
       value; leaving it empty pins the template to a single TFM (it doesn't
       compile anyway, so a TFM has no meaning here).

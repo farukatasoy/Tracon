@@ -256,7 +256,6 @@ public sealed class ObservabilityTests
 
         foreach (var span in trace.Spans)
         {
-            // Shouldly's net8.0 build has no ShouldNotContainKey for IReadOnlyDictionary.
             span.Attributes.ContainsKey("error.message").ShouldBeFalse(
                 "the exception message can carry personal data and RecordSensitiveData is off.");
         }

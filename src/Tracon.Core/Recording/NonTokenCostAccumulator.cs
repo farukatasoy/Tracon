@@ -78,7 +78,7 @@ internal sealed class NonTokenCostAccumulator
     /// </summary>
     public const decimal MaxTotal = 9_999_999_999m;
 
-    // A private type, not `object`: System.Threading.Lock does not exist on net8.0.
+    // A private type, not `object`: an `object` field would trigger MA0158.
     private readonly Gate _gate = new();
     private readonly string? _currency;
     private readonly AgentRunBudget? _budget;

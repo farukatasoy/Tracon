@@ -238,9 +238,8 @@ internal sealed class VoiceConversationDriver
 
         /// <summary>
         /// The lock of the state machine. The lock <em>is the object itself</em>: a
-        /// separate <c>object</c> field would trigger MA0158, which recommends
-        /// <c>System.Threading.Lock</c> — a type we cannot use because net8.0 is also
-        /// a target.
+        /// separate <c>object</c> field would trigger MA0158, and the state machine
+        /// needs no other lock.
         /// </summary>
         private readonly VoiceConversationStateMachine _state = new();
         private readonly VoiceConversationOptions _options = driver._options;

@@ -27,12 +27,7 @@ internal sealed class ManualClock : TimeProvider
 {
     private static readonly DateTimeOffset Start = new(2026, 10, 13, 9, 0, 0, TimeSpan.Zero);
 
-    // A linked project also builds for net8.0, which has no System.Threading.Lock.
-#if NET9_0_OR_GREATER
     private readonly Lock _gate = new();
-#else
-    private readonly object _gate = new();
-#endif
     private readonly List<ManualTimer> _timers = [];
     private long _elapsedTicks;
 

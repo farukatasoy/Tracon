@@ -63,7 +63,7 @@ public static class WebhookSigner
             Encoding.UTF8.GetBytes(secret),
             Encoding.UTF8.GetBytes(signedPayload));
 
-        // Convert.ToHexStringLower arrived in .NET 9; this package also targets net8.0.
+        // Lowercase hex, the form a receiver verifies against.
         return $"sha256={Convert.ToHexString(hash).ToLowerInvariant()}";
     }
 

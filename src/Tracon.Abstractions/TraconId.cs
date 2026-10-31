@@ -13,9 +13,10 @@ namespace Tracon;
 /// <c>bigserial</c>.
 /// </para>
 /// <para>
-/// We use our own implementation instead of <c>Guid.CreateVersion7()</c> from
-/// .NET 9. The reason: the package also targets <c>net8.0</c>, and storage keys
-/// must be produced the same way on every target.
+/// We use our own implementation instead of <c>Guid.CreateVersion7()</c>:
+/// <see cref="DeriveId"/> needs a deterministic variant (a timestamp plus a seed)
+/// that the BCL does not offer, and every identifier must keep the exact layout
+/// it was stored with.
 /// </para>
 /// </remarks>
 public static class TraconId

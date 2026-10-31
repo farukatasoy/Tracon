@@ -3,9 +3,10 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <!--
-    The packages ship net8.0;net9.0;net10.0, so a REPRESENTATIVE set
-    of test projects runs on every one of those frameworks. The rest of the tree
-    stays on net10.0 only - the whole tree on three frameworks would triple CI
+    A REPRESENTATIVE set of test projects runs on every framework the packages
+    ship. Today that is net10.0 alone; the set stays multi-targeted so that a
+    framework added to the packages is one entry below. The rest of the tree
+    stays on net10.0 only - the whole tree on every framework would multiply CI
     for projects (hosting, E2E, Docker) whose framework-specific behaviour the
     set below already covers.
 
@@ -15,16 +16,15 @@
     only, silently (the mirror image of that decision). One list also gives
     `scripts/kapi.py` a single place to read the set from.
 
-    TraconTestTargetFrameworks is a build input. The windows-latest CI leg sets it
-    to net10.0 as an ENVIRONMENT VARIABLE (MSBuild reads environment variables as
-    initial properties), so restore, build, format, and test all see the same set
-    and `scripts/kapi.py` - which reads the same variable - looks for the same
+    TraconTestTargetFrameworks is a build input. Narrow it for one run with an
+    ENVIRONMENT VARIABLE (MSBuild reads environment variables as initial
+    properties), so restore, build, format, and test all see the same set and
+    `scripts/kapi.py` - which reads the same variable - looks for the same
     output folders. A `-p:` on one command line would reach MSBuild but not the
-    script. The framework matrix is the ubuntu leg's job; the platform matrix is
-    the windows leg's.
+    script.
   -->
   <PropertyGroup Label="Target framework">
-    <TraconTestTargetFrameworks Condition=" '$(TraconTestTargetFrameworks)' == '' ">net8.0;net9.0;net10.0</TraconTestTargetFrameworks>
+    <TraconTestTargetFrameworks Condition=" '$(TraconTestTargetFrameworks)' == '' ">net10.0</TraconTestTargetFrameworks>
     <TraconMultiTargetTest Condition=" '$(MSBuildProjectName)' == 'Tracon.Core.UnitTests'
                                       Or '$(MSBuildProjectName)' == 'Tracon.Sql.Shared.UnitTests'
                                       Or '$(MSBuildProjectName)' == 'Tracon.OpenAI.UnitTests'
@@ -94,8 +94,8 @@
 
   <!--
     Every multi-targeted project proves that each of its legs ran on
-    the runtime it was built for. A net8.0 leg rolled forward onto a newer
-    runtime would pass every other test and prove nothing about net8.0.
+    the runtime it was built for. A leg rolled forward onto a newer runtime
+    would pass every other test and prove nothing about its own framework.
   -->
   <ItemGroup Condition=" '$(TraconMultiTargetTest)' == 'true' ">
     <Compile Include="$(MSBuildThisFileDirectory)Shared/TargetFramework/*.cs" LinkBase="Shared/TargetFramework" />

@@ -5,11 +5,10 @@
     <PackageTags>$(CommonPackageTags);testing;fixtures;mocks</PackageTags>
     <!--
       The TFM set is inherited from src/Directory.Build.props and is NOT narrowed
-      here: the test package follows the same net8.0/net9.0/net10.0 matrix as the
-      runtime packages. A consumer whose production app runs on .NET 8 LTS must be
-      able to test it.
-      The one hosting dependency that forced this package to net10.0 until then
-      (Microsoft.AspNetCore.TestHost) is resolved per TFM in the ItemGroup below.
+      here: the test package follows the same matrix as the runtime packages, so
+      a consumer can test an app on every framework the runtime packages ship.
+      Its one hosting dependency (Microsoft.AspNetCore.TestHost) is versioned per
+      framework; see the ItemGroup below.
     -->
     <!--
       The test package does not run in production: FakeModelProvider.CallsTool
@@ -45,15 +44,13 @@
     <!--
       🚨 ONE version per TFM. The hosting package version maps one-to-one to the
       framework version (10.0.x restores ONLY on net10.0 — NU1202 elsewhere), so a
-      single central version cannot cover the matrix. net10.0 takes the central
-      version from Directory.Packages.props; net8.0/net9.0 take VersionOverride,
-      which is the documented CPM escape for exactly this case.
-      The three values are the SAME servicing wave (published 2026-07-14) — keep
-      them in step when the central 10.0.x value moves.
+      single central version cannot cover a matrix. net10.0, the only target
+      today, takes the central version from Directory.Packages.props. A framework
+      added to the matrix needs its own conditional reference with
+      VersionOverride (the documented CPM escape for exactly this case) from the
+      same servicing wave as the central value.
     -->
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Condition=" '$(TargetFramework)' == 'net8.0' " VersionOverride="8.0.29" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Condition=" '$(TargetFramework)' == 'net9.0' " VersionOverride="9.0.18" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Condition=" '$(TargetFramework)' == 'net10.0' " />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
   </ItemGroup>
 
   <!--

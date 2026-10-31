@@ -48,19 +48,28 @@ internal static class PackableProjects
 
     /// <summary>
     /// The target frameworks this project compiles for. Most packages inherit
-    /// <c>net8.0;net9.0;net10.0</c> from <c>src/Directory.Build.props</c>; a
-    /// project that pins a single framework (e.g. <c>Tracon.Cli</c>, which is
-    /// packed as a tool and so cannot cross-target) overrides
-    /// <c>TargetFrameworks</c> (plural) explicitly.
+    /// the framework list from <c>src/Directory.Build.props</c>; a project that
+    /// pins a single framework (e.g. <c>Tracon.Cli</c>, which is packed as a
+    /// tool and so cannot cross-target) overrides <c>TargetFrameworks</c>
+    /// (plural) explicitly.
     /// </summary>
     public static IReadOnlyList<string> TargetFrameworksOf(string projectId)
+        => FrameworksIn(File.ReadAllText(CsprojPath(projectId))) ?? DefaultTargetFrameworks.Value;
+
+    // Read the default out of src/Directory.Build.props rather than restate it:
+    // adding a framework to the packages is then one edit, not two.
+    private static readonly Lazy<IReadOnlyList<string>> DefaultTargetFrameworks = new(() =>
+        FrameworksIn(File.ReadAllText(Path.Combine(RepoRoot.Path, "src", "Directory.Build.props")))
+        ?? throw new InvalidOperationException(
+            "<TargetFrameworks> was not found in src/Directory.Build.props; the framework list moved."));
+
+    private static string[]? FrameworksIn(string projectText)
     {
-        var text = File.ReadAllText(CsprojPath(projectId));
-        var match = TargetFrameworksElement.Match(text);
+        var match = TargetFrameworksElement.Match(projectText);
 
         return match.Success && match.Groups["value"].Value.Trim().Length > 0
             ? match.Groups["value"].Value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            : ["net8.0", "net9.0", "net10.0"];
+            : null;
     }
 
     private static readonly System.Text.RegularExpressions.Regex MitLicensedProject = new(

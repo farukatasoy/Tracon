@@ -347,7 +347,6 @@ public sealed class ContentProtectionTests(SqliteFixture fixture)
         rawPayload.ShouldContain("$apEnc");
         rawPayload.ShouldNotContain("secret-payload");
 
-        // No ToListAsync: System.Linq.AsyncEnumerable is BCL only from net10.0 and this project also runs on net8.0/net9.0.
         var events = new List<RunEvent>();
         await foreach (var runEvent in runs.ReadEventsAsync(runId))
         {

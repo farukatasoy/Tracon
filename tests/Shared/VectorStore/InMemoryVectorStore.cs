@@ -23,12 +23,7 @@ namespace Tracon.Tests.Common;
 /// </remarks>
 internal sealed class InMemoryVectorStore : VectorStore
 {
-    // A linked project also builds for net8.0, which has no System.Threading.Lock.
-#if NET9_0_OR_GREATER
     private readonly Lock _gate = new();
-#else
-    private readonly object _gate = new();
-#endif
     private readonly Dictionary<string, InMemoryCollection> _collections = new(StringComparer.Ordinal);
 
     /// <summary>Gets the definition the first <see cref="GetDynamicCollection"/> call handed over.</summary>
@@ -124,11 +119,7 @@ internal sealed class InMemoryVectorStore : VectorStore
 
     private sealed class InMemoryCollection(string name, InMemoryVectorStore owner) : VectorStoreCollection<object, Dictionary<string, object?>>
     {
-#if NET9_0_OR_GREATER
         private readonly Lock _gate = new();
-#else
-        private readonly object _gate = new();
-#endif
         private readonly List<Dictionary<string, object?>> _records = [];
 
         public bool Exists { get; private set; }

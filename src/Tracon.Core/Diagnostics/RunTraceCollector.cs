@@ -353,9 +353,8 @@ internal sealed class RunTraceCollector : IDisposable
     /// </summary>
     private sealed class RunSpanBuffer
     {
-        // Locking on the list itself: net8.0 is also targeted, and
-        // System.Threading.Lock arrived with .NET 9. A separate `object` field
-        // would trigger MA0158.
+        // Locking on the list itself: a separate `object` field would trigger
+        // MA0158.
         private readonly List<TraceSpan> _spans = [];
         private int _reserved;
         private int _overflowReported;

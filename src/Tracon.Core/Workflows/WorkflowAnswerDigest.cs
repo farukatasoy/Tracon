@@ -79,7 +79,7 @@ internal static class WorkflowAnswerDigest
             writer.WriteEndObject();
         }
 
-        // Lowercase by contract (AuditChainHasher's form); ToHexStringLower is not on net8.0.
+        // Lowercase by contract (AuditChainHasher's form).
         return Convert.ToHexString(SHA256.HashData(buffer.WrittenSpan)).ToLowerInvariant();
     }
 

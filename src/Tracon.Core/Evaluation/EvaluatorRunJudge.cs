@@ -224,7 +224,7 @@ internal sealed class EvaluatorRunJudge(
     private sealed class UsageCountingChatClient(IChatClient inner) : DelegatingChatClient(inner)
     {
         // The lock is taken on the list this type alone holds: a separate object
-        // field would trigger MA0158 on net9.0+ (the InMemoryJobStore pattern).
+        // field would trigger MA0158 (the InMemoryJobStore pattern).
         private readonly List<UsageDetails> _calls = [];
 
         public UsageDetails? Total()

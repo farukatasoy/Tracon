@@ -8,9 +8,8 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Leasing is protected by locking the <c>_jobs</c> dictionary itself. Since net8.0
-/// is also targeted, it does not use <c>System.Threading.Lock</c>, because a separate
-/// lock field would trigger MA0158. Two competing <see cref="LeaseAsync"/> calls cannot
+/// Leasing is protected by locking the <c>_jobs</c> dictionary itself, so no separate
+/// lock field is needed (an <c>object</c> one would trigger MA0158). Two competing <see cref="LeaseAsync"/> calls cannot
 /// return the same job. This matches the contract from <c>FOR UPDATE SKIP LOCKED</c> in PostgreSQL.
 /// </para>
 /// <para>

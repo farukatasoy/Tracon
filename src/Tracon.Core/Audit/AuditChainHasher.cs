@@ -76,7 +76,7 @@ internal static class AuditChainHasher
         var bytes = Encoding.UTF8.GetBytes(canonical);
         var hash = key is { } signing ? HMACSHA256.HashData(signing.Value, bytes) : SHA256.HashData(bytes);
 
-        // Convert.ToHexStringLower arrived with .NET 9; net8.0 is also targeted.
+        // Lowercase hex is the stored chain form; it must not change.
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 

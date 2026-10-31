@@ -24,8 +24,8 @@
 
   <!--
     Moves the generator DLL into the package's analyzers/dotnet/cs/ folder. Core
-    targets MULTIPLE TFMs (net8/9/10); @(Analyzer) is populated only in the
-    INNER (TFM-specific) build, and is EMPTY in the outer cross-targeting
+    is cross-targeted (the PLURAL TargetFrameworks, even with one value);
+    @(Analyzer) is populated only in the INNER (TFM-specific) build, and is EMPTY in the outer cross-targeting
     build (measured). This is why `BeforeTargets="_GetPackageFiles"` is NOT
     ENOUGH - the official solution is TargetsForTfmSpecificContentInPackage;
     the target reruns for EVERY inner build and is collected via
@@ -48,10 +48,10 @@
   </PropertyGroup>
 
   <!--
-    The target is called for EVERY inner build (net8/9/10), but the generator
-    DLL is INDEPENDENT of TFM; adding it three times gives NU5118 ("file
-    already exists"). We guarantee uniqueness by pinning to a single TFM
-    (net10.0, the highest one).
+    The target is called for EVERY inner build, but the generator DLL is
+    INDEPENDENT of TFM; with more than one framework, adding it once per inner
+    build gives NU5118 ("file already exists"). We guarantee uniqueness by
+    pinning to a single TFM (net10.0, today the only one).
   -->
   <Target Name="TraconPackGeneratorAssembly" Condition="'$(TargetFramework)' == 'net10.0'">
     <MSBuild Projects="../Tracon.Generators/Tracon.Generators.csproj"

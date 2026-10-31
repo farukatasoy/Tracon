@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!--
       TargetFrameworks (PLURAL) is left EMPTY: src/Directory.Build.props
-      assigns it "net8.0;net9.0;net10.0", but PackAsTool needs exactly ONE
+      assigns the package framework list, but PackAsTool needs exactly ONE
       TFM and cannot cross-target (Tracon.Templates.csproj
       and Tracon.Generators.csproj do the same).
     -->

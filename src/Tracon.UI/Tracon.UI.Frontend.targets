@@ -228,11 +228,11 @@
     A stamp file alone cannot make the chain exclusive. The stamp only turns
     fresh AFTER the chain finishes, while an inner build starts as soon as
     something else asks for it - and every project that references this one
-    (the Tracon meta package for each of its three frameworks, the E2E and
+    (the Tracon meta package for each of its frameworks, the E2E and
     generator test projects) asks for an inner build directly, scheduled
     independently of the outer build. Measured (2026-09-09, cold stamp,
-    `dotnet build Tracon.slnx`): FOUR instances - [], net8.0, net9.0,
-    net10.0 - entered `npm ci` within two seconds of each other and stayed
+    `dotnet build Tracon.slnx`, when the packages shipped three frameworks):
+    FOUR instances - [], net8.0, net9.0, net10.0 - entered `npm ci` within two seconds of each other and stayed
     inside together. On Windows that ends the build:
     "npm error ENOTEMPTY: directory not empty, rmdir ...\node_modules\react-refresh"
     - one process was extracting into the directory the other was deleting.

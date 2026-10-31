@@ -252,7 +252,6 @@ internal sealed class DistributedMcpTokenCache : ITokenCache
         }
     }
 
-    // A private type, not `object`: System.Threading.Lock does not exist on net8.0, and an
-    // object field is what MA0158 flags on the others.
+    // A private type, not `object`: an object field is what MA0158 flags.
     private sealed class LeaseGate;
 }

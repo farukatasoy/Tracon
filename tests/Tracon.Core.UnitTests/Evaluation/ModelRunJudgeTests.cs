@@ -291,7 +291,6 @@ public sealed class ModelRunJudgeContractTests : RunJudgeContract
                 new ChatMessage(ChatRole.Assistant, """{"score":80,"reason":"contract"}""")));
         }
 
-        // System.Linq.AsyncEnumerable is BCL only from net10.0; this project also runs on net8.0/net9.0.
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,

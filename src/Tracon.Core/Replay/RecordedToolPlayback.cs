@@ -48,9 +48,9 @@ internal sealed class RecordedToolPlayback
 {
     // With recordLiveCalls, a live call can add a KEY that was not present at
     // construction (from a concurrent tool call, or a later fallback link) —
-    // ConcurrentDictionary, not Dictionary. The queue itself still needs no
-    // lock for concurrent calls under the SAME key — a lock would require a
-    // different type across the targeted three frameworks (net8/9/10).
+    // ConcurrentDictionary, not Dictionary. The queue itself needs no lock for
+    // concurrent calls under the SAME key: ConcurrentQueue makes each dequeue
+    // atomic.
     private readonly ConcurrentDictionary<string, ConcurrentQueue<LedgerEntry>> _byKey;
     private readonly ToolPlaybackMismatchPolicy _mismatchPolicy;
     private readonly bool _recordLiveCalls;
