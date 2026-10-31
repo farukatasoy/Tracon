@@ -39,5 +39,9 @@ Directory.Packages.props
 NuGet.config
 global.json
 nswag.json
+
+# Context7 reads it from the default branch: the folders it indexes and the release tag it versions.
+context7.json
+
 Tracon.slnx
 Tracon.*.slnf
