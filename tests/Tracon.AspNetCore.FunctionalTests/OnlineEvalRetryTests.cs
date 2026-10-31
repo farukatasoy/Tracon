@@ -255,7 +255,9 @@ public sealed class OnlineEvalRetryTests
         leased.ShouldNotBeNull();
         leased!.Id.ShouldBe(jobId);
 
-        await jobStore.MarkRunningAsync(leased.Id, owner);
+        var lease = JobLease.Of(leased);
+
+        (await jobStore.MarkRunningAsync(lease)).ShouldBeTrue();
         var items = await jobStore.ListItemsAsync(leased.Id);
 
         var context = new JobContext
@@ -270,19 +272,20 @@ public sealed class OnlineEvalRetryTests
         {
             await handler.ExecuteAsync(context);
 
-            await jobStore.CompleteAsync(new JobCompletion
-            {
-                JobId = leased.Id,
-                Status = JobStatus.Completed,
-                CompletedAt = DateTimeOffset.UtcNow,
-            });
+            (await jobStore.CompleteAsync(
+                lease,
+                new JobCompletion
+                {
+                    Status = JobStatus.Completed,
+                    CompletedAt = DateTimeOffset.UtcNow,
+                })).ShouldBeTrue();
         }
         catch (JobRetryException exception)
         {
             // The real backoff delay is skipped here on purpose (see the
             // comment at the call site); only the re-lease/attempt-increment
             // behavior under test needs to be real.
-            await jobStore.ReleaseForRetryAsync(leased.Id, exception.Message, retryAfter: TimeSpan.Zero);
+            (await jobStore.ReleaseForRetryAsync(lease, exception.Message, retryAfter: TimeSpan.Zero)).ShouldBeTrue();
         }
     }
 

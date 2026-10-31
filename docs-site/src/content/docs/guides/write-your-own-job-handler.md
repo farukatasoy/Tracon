@@ -146,14 +146,15 @@ returned is not a handler failure: the worker tries the write of the outcome
 again while it still holds the lease, and does not call the handler again for
 it.
 
-**A running handler is never interrupted by its own lease.** The worker renews
-the lease on a timer for as long as `ExecuteAsync` has not returned. A job is
+**A running handler is never interrupted by its lease running out.** The worker
+renews the lease on a timer for as long as `ExecuteAsync` has not returned; only a
+lease the store takes away stops the handler (see the table below). A job is
 bounded only by a time limit you give it: `JobRequest.MaxDuration` for one job,
 or `Tracon:Scheduling:MaxDurationByHandlerKey` for every job of a handler key
 (the job's own value wins; no value means no limit). The limit applies to each
 attempt.
 
-**The `CancellationToken` you receive is cancelled for three reasons**, and the
+**The `CancellationToken` you receive is cancelled for four reasons**, and the
 worker decides the outcome from the reason, not from the exception your
 handler throws:
 
@@ -161,10 +162,14 @@ handler throws:
 |---|---|---|
 | The worker stops | Host shutdown | Nothing is written; the job is leased again when its lease runs out |
 | The job is cancelled | `POST /api/jobs/{id}/cancel`, read every `PollInterval` (10 seconds by default) | The job stays `Cancelled`, with no error |
+| The worker loses the lease | The store refused a renewal because another worker leased the job after the lease lapsed, or renewals kept failing until the worker could no longer prove it holds the lease | Nothing is written for this attempt, whatever the handler does next: the job belongs to the worker that took it over, and that worker completes it or returns it to the queue |
 | The time limit passes | The attempt ran longer than its limit | The attempt fails with `tracon.job.max-duration-exceeded`; the job is leased again while attempts are left |
 
-A handler that returns normally after its token was cancelled completes the
-job: the work it did stands. A handler that ignores its token is waited for,
+A handler that returns normally after its token was cancelled (except for a
+lost lease, above) completes the job: the work it did stands. A lost lease
+stops the record from changing, not the handler from having run: a call the
+handler already made to an external system is not undone, so keep side effects
+idempotent. A handler that ignores its token is waited for,
 and keeps its worker slot (which counts against `MaxConcurrentJobs`, default 2)
 until it returns. Pass the token to every call the handler makes.
 

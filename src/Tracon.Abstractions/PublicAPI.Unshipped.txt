@@ -1071,16 +1071,16 @@ Tracon.IJobScheduleStore.SaveAsync(Tracon.JobSchedule! schedule, System.Threadin
 Tracon.IJobScheduleStore.TryClaimNextRunAsync(System.Guid scheduleId, System.DateTimeOffset expectedNextRunAt, System.DateTimeOffset newNextRunAt, System.DateTimeOffset ranAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IJobStore
 Tracon.IJobStore.CancelAsync(string! tenantId, System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
-Tracon.IJobStore.CompleteAsync(Tracon.JobCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IJobStore.CompleteAsync(Tracon.JobLease! lease, Tracon.JobCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IJobStore.EnqueueAsync(Tracon.JobRecord! job, System.Collections.Generic.IReadOnlyList<string!>! items, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.JobRecord!>
 Tracon.IJobStore.GetAsync(string! tenantId, System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.JobRecord?>
 Tracon.IJobStore.GetQueueDepthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.JobQueueDepth!>!>
 Tracon.IJobStore.LeaseAsync(Tracon.JobLeaseRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.JobRecord?>
 Tracon.IJobStore.ListItemsAsync(System.Guid jobId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.JobItemRecord!>!>
-Tracon.IJobStore.MarkRunningAsync(System.Guid jobId, string! owner, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.IJobStore.MarkRunningAsync(Tracon.JobLease! lease, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IJobStore.QueryAsync(Tracon.JobQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.JobRecord!>!>
-Tracon.IJobStore.ReleaseForRetryAsync(System.Guid jobId, string! errorMessage, System.TimeSpan? retryAfter = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-Tracon.IJobStore.RenewLeaseAsync(System.Guid jobId, string! owner, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IJobStore.ReleaseForRetryAsync(Tracon.JobLease! lease, string! errorMessage, System.TimeSpan? retryAfter = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.IJobStore.RenewLeaseAsync(Tracon.JobLease! lease, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IJobStore.ReportItemAsync(Tracon.JobItemResult! item, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ILiveVoiceProvider
 Tracon.ILiveVoiceProvider.AttachAsync(string! providerSessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ILiveVoiceSideband!>
@@ -1200,6 +1200,16 @@ Tracon.ISamplingSupport.SamplingLimits.get -> Tracon.SamplingLimits!
 Tracon.ISamplingSupport.SupportedSamplingFields.get -> Tracon.SamplingFields
 Tracon.IResponseSchemaSupport
 Tracon.IResponseSchemaSupport.DescribeResponseSchema(Tracon.ModelBinding! binding, System.Text.Json.JsonElement schema) -> Tracon.ResponseSchemaShape!
+Tracon.JobLease
+Tracon.JobLease.<Clone>$() -> Tracon.JobLease!
+Tracon.JobLease.Attempt.get -> int
+Tracon.JobLease.Attempt.init -> void
+Tracon.JobLease.Equals(Tracon.JobLease? other) -> bool
+Tracon.JobLease.JobId.get -> System.Guid
+Tracon.JobLease.JobId.init -> void
+Tracon.JobLease.JobLease() -> void
+Tracon.JobLease.Owner.get -> string!
+Tracon.JobLease.Owner.init -> void
 Tracon.RateLimitScope
 Tracon.RateLimitScope.Deployment = 1 -> Tracon.RateLimitScope
 Tracon.RateLimitScope.Instance = 0 -> Tracon.RateLimitScope
@@ -1228,6 +1238,9 @@ Tracon.ResponseSchemaShape.Strict.init -> void
 override Tracon.CallableAgentReference.Equals(object? obj) -> bool
 override Tracon.CallableAgentReference.GetHashCode() -> int
 override Tracon.CallableAgentReference.ToString() -> string!
+override Tracon.JobLease.Equals(object? obj) -> bool
+override Tracon.JobLease.GetHashCode() -> int
+override Tracon.JobLease.ToString() -> string!
 override Tracon.RateLimitWindowCount.Equals(object? obj) -> bool
 override Tracon.RateLimitWindowCount.GetHashCode() -> int
 override Tracon.RateLimitWindowCount.ToString() -> string!
@@ -1238,6 +1251,9 @@ static Tracon.CallableAgentReference.FromName(string! name) -> Tracon.CallableAg
 static Tracon.CallableAgentReference.implicit operator Tracon.CallableAgentReference!(string! name) -> Tracon.CallableAgentReference!
 static Tracon.CallableAgentReference.operator !=(Tracon.CallableAgentReference? left, Tracon.CallableAgentReference? right) -> bool
 static Tracon.CallableAgentReference.operator ==(Tracon.CallableAgentReference? left, Tracon.CallableAgentReference? right) -> bool
+static Tracon.JobLease.Of(Tracon.JobRecord! leased) -> Tracon.JobLease!
+static Tracon.JobLease.operator !=(Tracon.JobLease? left, Tracon.JobLease? right) -> bool
+static Tracon.JobLease.operator ==(Tracon.JobLease? left, Tracon.JobLease? right) -> bool
 static Tracon.RateLimitWindowCount.operator !=(Tracon.RateLimitWindowCount? left, Tracon.RateLimitWindowCount? right) -> bool
 static Tracon.RateLimitWindowCount.operator ==(Tracon.RateLimitWindowCount? left, Tracon.RateLimitWindowCount? right) -> bool
 static Tracon.ResponseSchemaShape.operator !=(Tracon.ResponseSchemaShape? left, Tracon.ResponseSchemaShape? right) -> bool
@@ -1455,8 +1471,6 @@ Tracon.JobCompletion.Equals(Tracon.JobCompletion? other) -> bool
 Tracon.JobCompletion.ErrorMessage.get -> string?
 Tracon.JobCompletion.ErrorMessage.init -> void
 Tracon.JobCompletion.JobCompletion() -> void
-Tracon.JobCompletion.JobId.get -> System.Guid
-Tracon.JobCompletion.JobId.init -> void
 Tracon.JobCompletion.Status.get -> Tracon.JobStatus
 Tracon.JobCompletion.Status.init -> void
 Tracon.JobContext

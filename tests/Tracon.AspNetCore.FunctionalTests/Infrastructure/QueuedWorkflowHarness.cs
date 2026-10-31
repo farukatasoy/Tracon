@@ -384,7 +384,7 @@ internal static class QueuedWorkflowHarness
 
         if (markRunning)
         {
-            (await store.MarkRunningAsync(job.Id, owner)).ShouldBeTrue($"'{owner}' must hold the lease of job {job.Id}");
+            (await store.MarkRunningAsync(new JobLease { JobId = job.Id, Owner = owner, Attempt = job.Attempt })).ShouldBeTrue($"'{owner}' must hold the lease of job {job.Id}");
         }
 
         var registry = services.GetRequiredService<JobHandlerRegistry>();

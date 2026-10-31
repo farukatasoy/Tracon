@@ -168,11 +168,10 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task MarkRunningAsync_works_only_for_the_real_owner()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        var owner = Owner();
-        await LeaseAsync(owner, TimeSpan.FromMinutes(5));
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        (await Store.MarkRunningAsync(job.Id, Owner())).ShouldBeFalse();
-        (await Store.MarkRunningAsync(job.Id, owner)).ShouldBeTrue();
+        (await Store.MarkRunningAsync(lease with { Owner = Owner() })).ShouldBeFalse();
+        (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.Status.ShouldBe(JobStatus.Running);
@@ -281,14 +280,15 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task CompleteAsync_releases_the_lease()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.CompleteAsync(new JobCompletion
-        {
-            JobId = job.Id,
-            Status = JobStatus.Completed,
-            CompletedAt = DateTimeOffset.UtcNow,
-        });
+        (await Store.CompleteAsync(
+            lease,
+            new JobCompletion
+            {
+                Status = JobStatus.Completed,
+                CompletedAt = DateTimeOffset.UtcNow,
+            })).ShouldBeTrue();
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.Status.ShouldBe(JobStatus.Completed);
@@ -301,9 +301,9 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task ReleaseForRetryAsync_returns_to_pending_without_resetting_the_attempt()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.ReleaseForRetryAsync(job.Id, "temporary error");
+        (await Store.ReleaseForRetryAsync(lease, "temporary error")).ShouldBeTrue();
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.Status.ShouldBe(JobStatus.Pending);
@@ -320,19 +320,21 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         // worker's failure path. Before the store refused these writes, the
         // cancelled job became Failed (last attempt) or Pending — and ran again.
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
         (await Store.CancelAsync(job.TenantId, job.Id)).ShouldBeTrue();
 
-        await Store.CompleteAsync(new JobCompletion
-        {
-            JobId = job.Id,
-            Status = JobStatus.Failed,
-            CompletedAt = DateTimeOffset.UtcNow,
-            ErrorMessage = "thrown after the cancel",
-        });
+        (await Store.CompleteAsync(
+            lease,
+            new JobCompletion
+            {
+                Status = JobStatus.Failed,
+                CompletedAt = DateTimeOffset.UtcNow,
+                ErrorMessage = "thrown after the cancel",
+            })).ShouldBeFalse();
 
-        await Store.ReleaseForRetryAsync(job.Id, "thrown after the cancel");
+        (await Store.ReleaseForRetryAsync(lease, "thrown after the cancel")).ShouldBeFalse();
+        (await Store.MarkRunningAsync(lease)).ShouldBeFalse();
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.Status.ShouldBe(JobStatus.Cancelled);
@@ -344,20 +346,218 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task A_finished_job_is_not_finalized_a_second_time()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.CompleteAsync(new JobCompletion { JobId = job.Id, Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow });
-        await Store.CompleteAsync(new JobCompletion
-        {
-            JobId = job.Id,
-            Status = JobStatus.Failed,
-            CompletedAt = DateTimeOffset.UtcNow,
-            ErrorMessage = "late",
-        });
+        (await Store.CompleteAsync(lease, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeTrue();
+        (await Store.CompleteAsync(
+            lease,
+            new JobCompletion
+            {
+                Status = JobStatus.Failed,
+                CompletedAt = DateTimeOffset.UtcNow,
+                ErrorMessage = "late",
+            })).ShouldBeFalse();
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.Status.ShouldBe(JobStatus.Completed);
         current.ErrorMessage.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_worker_that_lost_its_lease_cannot_close_the_new_owners_attempt()
+    {
+        // A worker that stalls past its lease (a long pause, a network cut) comes back
+        // and writes its outcome. Another worker has leased the job since; the stalled
+        // worker's write must not close the attempt that is running.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var stalled = await LeaseOfAsync(Owner(), TimeSpan.FromMilliseconds(20));
+
+        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
+
+        var holder = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+        (await Store.MarkRunningAsync(holder)).ShouldBeTrue();
+
+        (await Store.CompleteAsync(stalled, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeFalse();
+
+        var current = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        current.Status.ShouldBe(JobStatus.Running);
+        current.LeaseOwner.ShouldBe(holder.Owner);
+        current.Attempt.ShouldBe(holder.Attempt);
+        current.CompletedAt.ShouldBeNull();
+
+        // The holder is not locked out by the refused write.
+        (await Store.CompleteAsync(holder, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeTrue();
+        (await Store.GetAsync(job.TenantId, job.Id))!.Status.ShouldBe(JobStatus.Completed);
+    }
+
+    [Fact]
+    public async Task A_stale_attempt_of_the_same_owner_cannot_complete_the_new_attempt()
+    {
+        // The worker identity is the same process-wide, so a worker that leases a job
+        // again is the SAME owner: only the attempt number tells its two attempts apart.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var owner = Owner();
+        var stale = await LeaseOfAsync(owner, TimeSpan.FromMilliseconds(20));
+
+        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
+
+        var current = await LeaseOfAsync(owner, TimeSpan.FromMinutes(5));
+
+        current.Owner.ShouldBe(stale.Owner);
+        current.Attempt.ShouldBe(stale.Attempt + 1);
+
+        (await Store.MarkRunningAsync(stale)).ShouldBeFalse();
+        (await Store.RenewLeaseAsync(stale, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+        (await Store.CompleteAsync(stale, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeFalse();
+        (await Store.ReleaseForRetryAsync(stale, "stale")).ShouldBeFalse();
+
+        var record = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        record.Status.ShouldBe(JobStatus.Leased);
+        record.Attempt.ShouldBe(current.Attempt);
+        record.ErrorMessage.ShouldBeNull();
+
+        (await Store.MarkRunningAsync(current)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_worker_that_lost_its_lease_cannot_return_the_job_to_the_queue()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var stalled = await LeaseOfAsync(Owner(), TimeSpan.FromMilliseconds(20));
+
+        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
+
+        var holder = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+        (await Store.MarkRunningAsync(holder)).ShouldBeTrue();
+
+        (await Store.ReleaseForRetryAsync(stalled, "stalled worker's failure")).ShouldBeFalse();
+
+        var current = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        current.Status.ShouldBe(JobStatus.Running);
+        current.LeaseOwner.ShouldBe(holder.Owner);
+        current.ErrorMessage.ShouldBeNull();
+
+        // Not back in the queue: no third worker can take it.
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_released_attempt_cannot_touch_the_attempt_that_replaced_it()
+    {
+        // A job released for another attempt is leasable at once, and the worker that
+        // released it can lease it again before the first attempt has finished returning.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var owner = Owner();
+        var first = await LeaseOfAsync(owner, TimeSpan.FromMinutes(5));
+
+        (await Store.ReleaseForRetryAsync(first, "try again")).ShouldBeTrue();
+
+        var second = await LeaseOfAsync(owner, TimeSpan.FromMinutes(5));
+
+        second.Attempt.ShouldBe(first.Attempt + 1);
+
+        (await Store.CompleteAsync(first, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeFalse();
+        (await Store.ReleaseForRetryAsync(first, "again")).ShouldBeFalse();
+        (await Store.RenewLeaseAsync(first, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+
+        var record = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        record.Status.ShouldBe(JobStatus.Leased);
+        record.Attempt.ShouldBe(second.Attempt);
+        (await Store.MarkRunningAsync(second)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Renewing_a_lease_extends_it_only_for_the_attempt_that_holds_it()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromSeconds(30));
+        var before = (await Store.GetAsync(job.TenantId, job.Id))!.LeaseUntil.ShouldNotBeNull();
+
+        (await Store.RenewLeaseAsync(lease, TimeSpan.FromMinutes(10))).ShouldBeTrue();
+
+        (await Store.GetAsync(job.TenantId, job.Id))!.LeaseUntil.ShouldNotBeNull().ShouldBeGreaterThan(before);
+
+        // The worker renews for as long as its handler runs, so a Running job's lease is renewed too.
+        (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
+        (await Store.RenewLeaseAsync(lease, TimeSpan.FromMinutes(10))).ShouldBeTrue();
+
+        (await Store.RenewLeaseAsync(lease with { Owner = Owner() }, TimeSpan.FromMinutes(10))).ShouldBeFalse();
+        (await Store.RenewLeaseAsync(lease with { Attempt = lease.Attempt + 1 }, TimeSpan.FromMinutes(10))).ShouldBeFalse();
+        (await Store.RenewLeaseAsync(lease with { JobId = Guid.NewGuid() }, TimeSpan.FromMinutes(10))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Renewing_the_lease_of_a_cancelled_or_finished_job_returns_false()
+    {
+        // Cancelling clears the lease, so a worker that renews it learns the job is
+        // no longer its own.
+        var cancelled = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var cancelledLease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        (await Store.CancelAsync(cancelled.TenantId, cancelled.Id)).ShouldBeTrue();
+        (await Store.RenewLeaseAsync(cancelledLease, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+
+        var finished = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var finishedLease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        finishedLease.JobId.ShouldBe(finished.Id);
+        (await Store.CompleteAsync(finishedLease, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeTrue();
+        (await Store.RenewLeaseAsync(finishedLease, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Completing_or_releasing_with_another_workers_lease_changes_nothing()
+    {
+        // Same job, same attempt, different owner: the attempt number alone does not name a lease.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+        var other = lease with { Owner = Owner() };
+
+        (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
+
+        (await Store.CompleteAsync(other, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeFalse();
+        (await Store.ReleaseForRetryAsync(other, "not mine")).ShouldBeFalse();
+
+        var current = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        current.Status.ShouldBe(JobStatus.Running);
+        current.LeaseOwner.ShouldBe(lease.Owner);
+        current.ErrorMessage.ShouldBeNull();
+        current.CompletedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Only_one_of_two_concurrent_completions_of_the_same_lease_is_applied()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+        (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
+
+        var completed = new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow };
+        var failed = new JobCompletion { Status = JobStatus.Failed, CompletedAt = DateTimeOffset.UtcNow, ErrorMessage = "second writer" };
+
+        var results = await Task.WhenAll(
+            Task.Run(async () => await Store.CompleteAsync(lease, completed)),
+            Task.Run(async () => await Store.CompleteAsync(lease, failed)));
+
+        results.Count(static applied => applied).ShouldBe(1);
+
+        var current = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        // The record is the winner's, whole: not one writer's status with the other's message.
+        if (current.Status == JobStatus.Completed)
+        {
+            current.ErrorMessage.ShouldBeNull();
+        }
+        else
+        {
+            current.Status.ShouldBe(JobStatus.Failed);
+            current.ErrorMessage.ShouldBe("second writer");
+        }
     }
 
     [Theory]
@@ -370,7 +570,9 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 
         if (status is JobStatus.Completed or JobStatus.Failed)
         {
-            await Store.CompleteAsync(new JobCompletion { JobId = job.Id, Status = status, CompletedAt = DateTimeOffset.UtcNow });
+            var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+            (await Store.CompleteAsync(lease, new JobCompletion { Status = status, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeTrue();
         }
 
         (await Store.CancelAsync(job.TenantId, job.Id)).ShouldBe(expected);
@@ -570,12 +772,11 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task Lease_with_a_tenant_cap_counts_a_running_job()
     {
-        var first = await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 30), ["a"]);
         await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
-        var owner = Owner();
 
-        (await LeaseAsync(owner, TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
-        (await Store.MarkRunningAsync(first.Id, owner)).ShouldBeTrue();
+        var first = JobLease.Of((await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull());
+        (await Store.MarkRunningAsync(first)).ShouldBeTrue();
 
         (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldBeNull();
     }
@@ -638,9 +839,9 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     public async Task Retry_preserves_the_jobs_lane()
     {
         var job = await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
-        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.ReleaseForRetryAsync(job.Id, "temporary error");
+        (await Store.ReleaseForRetryAsync(lease, "temporary error")).ShouldBeTrue();
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.Lane.ShouldBe("media");
@@ -696,10 +897,8 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 
         // Lease twice: the first leased job is moved on to Running, so all
         // three open statuses are represented at once.
-        var owner = Owner();
-        var first = await LeaseAsync(owner, TimeSpan.FromMinutes(5));
-        first.ShouldNotBeNull();
-        await Store.MarkRunningAsync(first.Id, owner);
+        var first = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+        (await Store.MarkRunningAsync(first)).ShouldBeTrue();
         await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
 
         var depth = await Store.GetQueueDepthAsync();
@@ -712,18 +911,24 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task Queue_depth_never_counts_a_terminal_status()
     {
-        var completed = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        var cancelled = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var first = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var second = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         await Store.EnqueueAsync(TestData.Job(), ["a"]);
 
-        await Store.CompleteAsync(new JobCompletion
-        {
-            JobId = completed.Id,
-            Status = JobStatus.Completed,
-            CompletedAt = DateTimeOffset.UtcNow,
-        });
+        // Whichever job the lease picks is the one completed; the other of the first two is cancelled.
+        var completed = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.CancelAsync(cancelled.TenantId, cancelled.Id);
+        (await Store.CompleteAsync(
+            completed,
+            new JobCompletion
+            {
+                Status = JobStatus.Completed,
+                CompletedAt = DateTimeOffset.UtcNow,
+            })).ShouldBeTrue();
+
+        var cancelled = completed.JobId == first.Id ? second : first;
+
+        (await Store.CancelAsync(cancelled.TenantId, cancelled.Id)).ShouldBeTrue();
 
         var depth = await Store.GetQueueDepthAsync();
 
@@ -748,14 +953,16 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task Queue_depth_drops_a_lane_once_its_last_job_finishes()
     {
-        var job = await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+        await Store.EnqueueAsync(TestData.Job() with { Lane = "media" }, ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.CompleteAsync(new JobCompletion
-        {
-            JobId = job.Id,
-            Status = JobStatus.Completed,
-            CompletedAt = DateTimeOffset.UtcNow,
-        });
+        (await Store.CompleteAsync(
+            lease,
+            new JobCompletion
+            {
+                Status = JobStatus.Completed,
+                CompletedAt = DateTimeOffset.UtcNow,
+            })).ShouldBeTrue();
 
         // A pair with no open jobs is omitted, not reported as zero.
         (await Store.GetQueueDepthAsync()).ShouldNotContain(static row => row.Lane == "media");
@@ -764,10 +971,10 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task Queue_depth_counts_a_job_released_for_retry_as_pending_again()
     {
-        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.ReleaseForRetryAsync(job.Id, "temporary error");
+        (await Store.ReleaseForRetryAsync(lease, "temporary error")).ShouldBeTrue();
 
         var depth = await Store.GetQueueDepthAsync();
 
@@ -779,6 +986,9 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         => depth
             .Where(row => string.Equals(row.Lane, lane, StringComparison.Ordinal) && row.Status == status)
             .Sum(static row => row.Count);
+
+    private async Task<JobLease> LeaseOfAsync(string owner, TimeSpan leaseDuration)
+        => JobLease.Of((await LeaseAsync(owner, leaseDuration)).ShouldNotBeNull());
 
     private ValueTask<JobRecord?> LeaseAsync(
         string owner,

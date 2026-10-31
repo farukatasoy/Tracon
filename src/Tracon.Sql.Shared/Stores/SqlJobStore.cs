@@ -147,64 +147,64 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Lease renewal is guarded by the job's owning WORKER identity (owner); it carries no tenant concept.")]
-    public async ValueTask RenewLeaseAsync(
-        Guid jobId,
-        string owner,
+        "A lease belongs to the job itself: the job id, the owning WORKER identity and the attempt name it. It carries no tenant concept.")]
+    public async ValueTask<bool> RenewLeaseAsync(
+        JobLease lease,
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        ArgumentNullException.ThrowIfNull(lease);
 
         var command = CreateCommand(_sql.RenewJobLease);
-        DbHelpers.Add(command, "id", jobId);
-        DbHelpers.Add(command, "owner", owner);
+        AddLease(command, lease);
         Dialect.AddTimestamp(command, "lease_until", (DateTimeOffset.UtcNow + leaseDuration));
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    [TenantAgnostic(
-        "Same rationale as RenewLeaseAsync: ownership is guarded by the worker identity.")]
-    public async ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-
-        var command = CreateCommand(_sql.MarkJobRunning);
-        DbHelpers.Add(command, "id", jobId);
-        DbHelpers.Add(command, "owner", owner);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "The job id comes from LeaseAsync; the call carries no separate tenant intent.")]
-    public async ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
+        "Same rationale as RenewLeaseAsync: the lease belongs to the job itself.")]
+    public async ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(completion);
+        ArgumentNullException.ThrowIfNull(lease);
 
-        var command = CreateCommand(_sql.CompleteJob);
-        DbHelpers.Add(command, "id", completion.JobId);
-        DbHelpers.Add(command, "status", (short)completion.Status);
-        Dialect.AddTimestamp(command, "completed_at", completion.CompletedAt);
-        AddNullableText(command, "error_message", completion.ErrorMessage);
+        var command = CreateCommand(_sql.MarkJobRunning);
+        AddLease(command, lease);
 
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Same rationale as CompleteAsync: the job id comes from LeaseAsync.")]
-    public async ValueTask ReleaseForRetryAsync(
-        Guid jobId,
+        "Same rationale as RenewLeaseAsync: the lease belongs to the job itself.")]
+    public async ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        ArgumentNullException.ThrowIfNull(completion);
+
+        var command = CreateCommand(_sql.CompleteJob);
+        AddLease(command, lease);
+        DbHelpers.Add(command, "status", (short)completion.Status);
+        Dialect.AddTimestamp(command, "completed_at", completion.CompletedAt);
+        AddNullableText(command, "error_message", completion.ErrorMessage);
+
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "Same rationale as RenewLeaseAsync: the lease belongs to the job itself.")]
+    public async ValueTask<bool> ReleaseForRetryAsync(
+        JobLease lease,
         string errorMessage,
         TimeSpan? retryAfter = null,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(lease);
+
         var command = CreateCommand(_sql.ReleaseJobForRetry);
-        DbHelpers.Add(command, "id", jobId);
+        AddLease(command, lease);
         AddNullableText(command, "error_message", errorMessage);
 
         // Backoff is set up via scheduled_for; LeaseJob already filters
@@ -216,7 +216,14 @@ internal sealed class SqlJobStore : IJobStore
 
         Dialect.AddTimestamp(command, "retry_at", retryAt);
 
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    private static void AddLease(DbCommand command, JobLease lease)
+    {
+        DbHelpers.Add(command, "id", lease.JobId);
+        DbHelpers.Add(command, "owner", lease.Owner);
+        DbHelpers.Add(command, "attempt", lease.Attempt);
     }
 
     /// <inheritdoc />

@@ -15,6 +15,19 @@ namespace Tracon;
 /// transitions must be idempotent — the same item may be reported twice if
 /// the lease expires and the job is re-leased.
 /// </para>
+/// <para>
+/// <strong>A write that needs the lease is fenced by it.</strong>
+/// <see cref="RenewLeaseAsync"/>, <see cref="MarkRunningAsync"/>,
+/// <see cref="CompleteAsync"/> and <see cref="ReleaseForRetryAsync"/> take the
+/// <see cref="JobLease"/> the worker was given and change the job only while the job's
+/// lease is exactly that one: the same <see cref="JobLease.JobId"/>, the same
+/// <see cref="JobLease.Owner"/> and the same <see cref="JobLease.Attempt"/>, in the
+/// <see cref="JobStatus.Leased"/> or <see cref="JobStatus.Running"/> status. They return
+/// <see langword="false"/>, and leave the job as it is, when it is not. This is how a
+/// worker that stalled past its lease (a long pause, a network cut) is kept from closing or
+/// requeuing the attempt of the worker that took the job over. The check and the write are
+/// one atomic step. A store that checks first and writes after leaves the gap open.
+/// </para>
 /// </remarks>
 public interface IJobStore
 {
@@ -78,14 +91,20 @@ public interface IJobStore
         CancellationToken cancellationToken = default);
 
     /// <summary>Extends an in-progress job's lease. Does not change the job's status.</summary>
-    /// <param name="jobId">The job identifier.</param>
-    /// <param name="owner">The identifier of the worker holding the lease. The operation is ignored if it does not match.</param>
+    /// <param name="lease">The lease to extend.</param>
     /// <param name="leaseDuration">The new lease duration.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The completion task.</returns>
-    ValueTask RenewLeaseAsync(
-        Guid jobId,
-        string owner,
+    /// <returns>
+    /// <see langword="true"/> if the lease was extended; <see langword="false"/> if the job's
+    /// lease is no longer <paramref name="lease"/> (another worker leased the job, or it was
+    /// cancelled or finished), in which case nothing changed.
+    /// </returns>
+    /// <remarks>
+    /// A worker that gets <see langword="false"/> has lost the job and must stop working on it.
+    /// A cancelled job answers <see langword="false"/> too, because cancelling clears the lease.
+    /// </remarks>
+    ValueTask<bool> RenewLeaseAsync(
+        JobLease lease,
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default);
 
@@ -94,37 +113,47 @@ public interface IJobStore
     /// <see cref="JobStatus.Running"/>. The worker calls this right after
     /// obtaining the lease, before starting execution.
     /// </summary>
-    /// <param name="jobId">The job identifier.</param>
-    /// <param name="owner">The identifier of the worker holding the lease. The operation is ignored if it does not match.</param>
+    /// <param name="lease">The lease the worker holds.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns><see langword="true"/> if the transition happened.</returns>
-    ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true"/> if the transition happened; <see langword="false"/> if the job's
+    /// lease is no longer <paramref name="lease"/> or the job is not <see cref="JobStatus.Leased"/>.
+    /// </returns>
+    ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default);
 
     /// <summary>Finalizes a job.</summary>
+    /// <param name="lease">The lease the worker holds.</param>
     /// <param name="completion">The finalization information.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The completion task.</returns>
+    /// <returns>
+    /// <see langword="true"/> if the job was finalized; <see langword="false"/> if the job's
+    /// lease is no longer <paramref name="lease"/>, in which case nothing changed.
+    /// </returns>
     /// <remarks>
-    /// Only an open job (<see cref="JobStatus.Pending"/>, <see cref="JobStatus.Leased"/>
-    /// or <see cref="JobStatus.Running"/>) is finalized; the call leaves a job
-    /// that already reached a terminal status unchanged. A cancelled job stays
-    /// <see cref="JobStatus.Cancelled"/> even when its handler throws afterwards.
+    /// Only an open job (<see cref="JobStatus.Leased"/> or <see cref="JobStatus.Running"/>)
+    /// that <paramref name="lease"/> still holds is finalized; the call leaves any other job
+    /// unchanged, one that already reached a terminal status included. A cancelled job stays
+    /// <see cref="JobStatus.Cancelled"/> even when its handler throws afterwards, and the call
+    /// answers <see langword="false"/> for it.
     /// </remarks>
-    ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default);
+    ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns a job to the <see cref="JobStatus.Pending"/> state; releases
     /// its lease. <see cref="JobRecord.Attempt"/> does not change here since
     /// it is already incremented at lease time.
     /// </summary>
-    /// <param name="jobId">The job identifier.</param>
+    /// <param name="lease">The lease the worker holds.</param>
     /// <param name="errorMessage">The most recent attempt's error.</param>
     /// <param name="retryAfter">
     /// The time to wait before the next attempt. If <see langword="null"/> or
     /// zero, the job may be re-leased immediately (the old behavior).
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The completion task.</returns>
+    /// <returns>
+    /// <see langword="true"/> if the job went back to the queue; <see langword="false"/> if the
+    /// job's lease is no longer <paramref name="lease"/>, in which case nothing changed.
+    /// </returns>
     /// <remarks>
     /// <para>
     /// <paramref name="retryAfter"/> pushes the <see cref="JobRecord.ScheduledFor"/>
@@ -142,8 +171,8 @@ public interface IJobStore
     /// <see cref="JobStatus.Pending"/>.
     /// </para>
     /// </remarks>
-    ValueTask ReleaseForRetryAsync(
-        Guid jobId,
+    ValueTask<bool> ReleaseForRetryAsync(
+        JobLease lease,
         string errorMessage,
         TimeSpan? retryAfter = null,
         CancellationToken cancellationToken = default);

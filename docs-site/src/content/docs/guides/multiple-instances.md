@@ -100,6 +100,7 @@ on PostgreSQL and on SQL Server on every build.
 | MCP tools | Both instances list the tools of an MCP server while `SingletonExecution` is on |
 | Job lease takeover | When a worker process is killed, its job is not taken before the lease expires, it is taken after, and the two workers never run it at the same time. Separate operating-system processes, killed with `SIGKILL` |
 | Workflow concurrency | `MaxConcurrentRunsPerTenant` holds in the queue across both instances: a tenant at its ceiling holds one slot, and another tenant still runs |
+| A stalled worker | An instance that stalls past a job's lease cannot close or requeue the attempt of the instance that took the job over. The job is `Completed` once, by the instance that held the lease. Both orders are shown: the stalled instance learns the lease is gone first, and its completion reaches the database first and the store refuses it |
 
 Four of them were also shown to fail when their setting is off: the rate-limit scope, the tenant ceiling in the queue, run reconciliation and the OAuth token store. A test that cannot fail proves nothing. The other behaviors have no setting to switch off, so they were not tried that way.
 

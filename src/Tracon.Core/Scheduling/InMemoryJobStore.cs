@@ -203,39 +203,20 @@ internal sealed class InMemoryJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public ValueTask RenewLeaseAsync(
-        Guid jobId,
-        string owner,
+    public ValueTask<bool> RenewLeaseAsync(
+        JobLease lease,
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        ArgumentNullException.ThrowIfNull(lease);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
         {
-            if (_jobs.TryGetValue(jobId, out var job) && string.Equals(job.LeaseOwner, owner, StringComparison.Ordinal))
+            if (_jobs.TryGetValue(lease.JobId, out var job) && Holds(job, lease))
             {
-                _jobs[jobId] = job with { LeaseUntil = _clock.GetUtcNow() + leaseDuration };
-            }
-        }
+                _jobs[lease.JobId] = job with { LeaseUntil = _clock.GetUtcNow() + leaseDuration };
 
-        return default;
-    }
-
-    /// <inheritdoc />
-    public ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (_jobs)
-        {
-            if (_jobs.TryGetValue(jobId, out var job)
-                && job.Status == JobStatus.Leased
-                && string.Equals(job.LeaseOwner, owner, StringComparison.Ordinal))
-            {
-                _jobs[jobId] = job with { Status = JobStatus.Running };
                 return new ValueTask<bool>(true);
             }
 
@@ -244,18 +225,37 @@ internal sealed class InMemoryJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
+    public ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(lease);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_jobs)
+        {
+            if (_jobs.TryGetValue(lease.JobId, out var job) && job.Status == JobStatus.Leased && Holds(job, lease))
+            {
+                _jobs[lease.JobId] = job with { Status = JobStatus.Running };
+                return new ValueTask<bool>(true);
+            }
+
+            return new ValueTask<bool>(false);
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
         ArgumentNullException.ThrowIfNull(completion);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
         {
-            // A terminal job is never changed — the same rule the SQL
-            // stores apply with their status filter.
-            if (_jobs.TryGetValue(completion.JobId, out var job) && job.Status is (JobStatus.Pending or JobStatus.Leased or JobStatus.Running))
+            // A terminal job is never changed, and neither is a job whose lease went to
+            // another attempt — the same rules the SQL stores apply in the one statement.
+            if (_jobs.TryGetValue(lease.JobId, out var job) && Holds(job, lease))
             {
-                _jobs[completion.JobId] = job with
+                _jobs[lease.JobId] = job with
                 {
                     Status = completion.Status,
                     CompletedAt = completion.CompletedAt,
@@ -263,24 +263,27 @@ internal sealed class InMemoryJobStore : IJobStore
                     LeaseOwner = null,
                     LeaseUntil = null,
                 };
-            }
-        }
 
-        return default;
+                return new ValueTask<bool>(true);
+            }
+
+            return new ValueTask<bool>(false);
+        }
     }
 
     /// <inheritdoc />
-    public ValueTask ReleaseForRetryAsync(
-        Guid jobId,
+    public ValueTask<bool> ReleaseForRetryAsync(
+        JobLease lease,
         string errorMessage,
         TimeSpan? retryAfter = null,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(lease);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
         {
-            if (_jobs.TryGetValue(jobId, out var job) && job.Status is (JobStatus.Pending or JobStatus.Leased or JobStatus.Running))
+            if (_jobs.TryGetValue(lease.JobId, out var job) && Holds(job, lease))
             {
                 // Backoff is represented through ScheduledFor, which leasing already
                 // filters. There is no separate "next attempt" field.
@@ -288,7 +291,7 @@ internal sealed class InMemoryJobStore : IJobStore
                     ? _clock.GetUtcNow() + delay
                     : job.ScheduledFor;
 
-                _jobs[jobId] = job with
+                _jobs[lease.JobId] = job with
                 {
                     Status = JobStatus.Pending,
                     LeaseOwner = null,
@@ -296,11 +299,22 @@ internal sealed class InMemoryJobStore : IJobStore
                     ErrorMessage = errorMessage,
                     ScheduledFor = scheduledFor,
                 };
-            }
-        }
 
-        return default;
+                return new ValueTask<bool>(true);
+            }
+
+            return new ValueTask<bool>(false);
+        }
     }
+
+    /// <summary>
+    /// Whether <paramref name="lease"/> is the job's current lease: the same owner and attempt, on a job
+    /// that is still open. The SQL stores state the same three conditions in their WHERE clause.
+    /// </summary>
+    private static bool Holds(JobRecord job, JobLease lease)
+        => job.Status is JobStatus.Leased or JobStatus.Running
+           && job.Attempt == lease.Attempt
+           && string.Equals(job.LeaseOwner, lease.Owner, StringComparison.Ordinal);
 
     /// <inheritdoc />
     public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)

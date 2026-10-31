@@ -52,7 +52,7 @@ public sealed class WorkflowAsyncRunCancelTests
         // The worker holds the job and has marked it Running; the run is still
         // Queued when the cancel arrives, before the handler starts it.
         var job = await LeaseAsync(host, "worker", TimeSpan.FromMinutes(5));
-        (await host.Services.GetRequiredService<IJobStore>().MarkRunningAsync(job.Id, "worker")).ShouldBeTrue();
+        (await host.Services.GetRequiredService<IJobStore>().MarkRunningAsync(JobLease.Of(job))).ShouldBeTrue();
 
         using var cancelled = await host.Client.PostAsync($"/tracon/api/runs/{runId}/cancel", content: null);
         cancelled.StatusCode.ShouldBe(HttpStatusCode.Accepted);

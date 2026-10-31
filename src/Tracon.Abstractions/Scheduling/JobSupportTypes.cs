@@ -25,12 +25,71 @@ public sealed record JobQuery
     public int Take { get; init; } = 50;
 }
 
-/// <summary>The information needed to finalize a job.</summary>
-public sealed record JobCompletion
+/// <summary>The lease one worker holds on one attempt of a job.</summary>
+/// <remarks>
+/// <para>
+/// A write that only the lease holder may make (<see cref="IJobStore.RenewLeaseAsync"/>,
+/// <see cref="IJobStore.MarkRunningAsync"/>, <see cref="IJobStore.CompleteAsync"/> and
+/// <see cref="IJobStore.ReleaseForRetryAsync"/>) carries this value, and a store applies it only
+/// while the job's lease is exactly this one.
+/// </para>
+/// <para>
+/// The attempt number is part of the lease because the owner identifier is not enough: a worker
+/// that leases a job again keeps the same <see cref="Owner"/>, and the attempt it had before must not
+/// be able to change the attempt that replaced it. <see cref="JobRecord.Attempt"/> grows by one
+/// each time the job is leased, so an older attempt always carries a smaller number.
+/// </para>
+/// </remarks>
+public sealed record JobLease
 {
     /// <summary>The job identifier.</summary>
     public required Guid JobId { get; init; }
 
+    /// <summary>The identifier of the worker holding the lease.</summary>
+    /// <exception cref="ArgumentException">The value is <see langword="null"/>, empty or white space.</exception>
+    public required string Owner
+    {
+        get;
+        init
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(value);
+            field = value;
+        }
+    }
+
+    /// <summary>The attempt this lease was taken for: <see cref="JobRecord.Attempt"/> as <see cref="IJobStore.LeaseAsync"/> returned it.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is zero or negative.</exception>
+    public required int Attempt
+    {
+        get;
+        init
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+            field = value;
+        }
+    }
+
+    /// <summary>Takes the lease from the record <see cref="IJobStore.LeaseAsync"/> returned.</summary>
+    /// <param name="leased">The leased job record.</param>
+    /// <returns>The lease the record describes.</returns>
+    /// <exception cref="ArgumentException">The record carries no lease owner or no attempt: it is not a leased record.</exception>
+    public static JobLease Of(JobRecord leased)
+    {
+        ArgumentNullException.ThrowIfNull(leased);
+
+        return new JobLease
+        {
+            JobId = leased.Id,
+            Owner = leased.LeaseOwner ?? throw new ArgumentException("The record is not leased: it carries no lease owner.", nameof(leased)),
+            Attempt = leased.Attempt,
+        };
+    }
+}
+
+/// <summary>The information needed to finalize a job.</summary>
+/// <remarks>The job is named by the <see cref="JobLease"/> passed to <see cref="IJobStore.CompleteAsync"/>.</remarks>
+public sealed record JobCompletion
+{
     /// <summary>The final status.</summary>
     public required JobStatus Status { get; init; }
 

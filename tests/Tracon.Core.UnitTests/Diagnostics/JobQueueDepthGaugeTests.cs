@@ -424,17 +424,17 @@ public sealed class JobQueueDepthGaugeTests
         public ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
             => Inner.LeaseAsync(request, cancellationToken);
 
-        public ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
-            => Inner.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);
+        public ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+            => Inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
 
-        public ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
-            => Inner.MarkRunningAsync(jobId, owner, cancellationToken);
+        public ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
+            => Inner.MarkRunningAsync(lease, cancellationToken);
 
-        public ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
-            => Inner.CompleteAsync(completion, cancellationToken);
+        public ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+            => Inner.CompleteAsync(lease, completion, cancellationToken);
 
-        public ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
-            => Inner.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken);
+        public ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+            => Inner.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken);
 
         public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
             => Inner.CancelAsync(tenantId, jobId, cancellationToken);

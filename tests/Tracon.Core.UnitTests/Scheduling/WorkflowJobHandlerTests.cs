@@ -303,7 +303,7 @@ public sealed class WorkflowJobHandlerTests
 
     /// <summary>A limit of five minutes whose deadline the test fires by hand.</summary>
     private static JobAttemptSignals LimitOf(CancellationTokenSource deadline)
-        => new(TimeSpan.FromMinutes(5), CancellationToken.None, CancellationToken.None, deadline.Token);
+        => new(TimeSpan.FromMinutes(5), CancellationToken.None, CancellationToken.None, deadline.Token, CancellationToken.None);
 
     private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending, Guid? runId = null)
         => new() { Id = Guid.NewGuid(), JobId = Guid.NewGuid(), Seq = seq, Input = input, Status = status, RunId = runId };

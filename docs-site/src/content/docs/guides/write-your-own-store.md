@@ -226,6 +226,17 @@ Two more rules carry the
   `MaxLeasedPerTenant` live leases on those keys (an expired lease does not count);
   the oldest job that is still eligible is leased instead. With no cap the oldest
   ready job is leased whichever tenant owns it. The count may be read without a lock.
+- **`IJobStore` fences every write that needs the lease.** `RenewLeaseAsync`,
+  `MarkRunningAsync`, `CompleteAsync` and `ReleaseForRetryAsync` take a `JobLease`
+  (the job, the owner and the attempt that `LeaseAsync` returned) and change the job only
+  while its lease is exactly that one, in the `Leased` or `Running` status. Otherwise they
+  return `false` and change nothing. Check and write in **one** statement: a store that
+  reads the lease first and writes after leaves a window in which a worker that stalled
+  past its lease closes the attempt of the worker that took the job over. Compare the
+  attempt as well as the owner, because a worker keeps its owner when it leases a job
+  again. Cancelling a job clears its lease, so a cancelled job answers `false` to all four.
+  `JobStoreContract` checks the owner, the attempt, the status and a cancelled job. It cannot prove
+  that check and write are one step, so keep them in one statement.
 - **`IRunStore` marks and closes a `Queued` row that has a heartbeat.**
   `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`

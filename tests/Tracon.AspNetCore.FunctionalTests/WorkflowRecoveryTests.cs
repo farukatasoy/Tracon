@@ -339,6 +339,70 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
+    /// A worker whose job lease went to another attempt stops the run it was running, and the run's checkpoints
+    /// outlive the close: the worker that holds the job reads them. The worker that lost the lease writes
+    /// nothing, so the job is continued once its lease runs out.
+    /// </summary>
+    /// <param name="keepCheckpointsAfterCompletion">The checkpoint setting; with it off, a close that cleans up would delete them.</param>
+    /// <returns>A task that completes when the scenario is checked.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_run_stopped_by_a_lost_lease_keeps_its_checkpoints_and_is_continued(bool keepCheckpointsAfterCompletion)
+    {
+        using var database = new TempSqliteDatabase($"workflow-lease-lost-{keepCheckpointsAfterCompletion}");
+        var probe = new RecoveryProbe();
+        await using var lifetime = probe;
+        var refusal = new FirstAttemptRenewalRefusal();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder =>
+            {
+                builder.UseSqlite(database.ConnectionString);
+                Register(builder, probe, resumeInterruptedRuns: true, maxResumeAttempts: 1);
+                builder.Services.Configure<TraconWorkflowOptions>(
+                    options => options.KeepCheckpointsAfterCompletion = keepCheckpointsAfterCompletion);
+                refusal.Install(builder.Services);
+            },
+            configureServices: static services => services.Configure<TraconSchedulingOptions>(static options =>
+            {
+                options.PollInterval = TimeSpan.FromMilliseconds(50);
+                options.LeaseDuration = TimeSpan.FromSeconds(2);
+            }));
+
+        await SaveRecoverableAsync(host);
+
+        var reached = probe.ArmHang(StepBehavior.HangUntilCancelled);
+
+        using var accepted = await PostAsync(host, $"/api/workflows/{Recoverable}/run", new WorkflowRunHttpRequest { Message = "episode 7" });
+        var headId = await AcceptedRunIdAsync(accepted);
+
+        await reached.WaitAsync(TimeSpan.FromSeconds(30));
+        await WaitUntil.TrueAsync(
+            async () => (await host.Services.GetRequiredService<IWorkflowCheckpointStore>()
+                .ListByRunAsync(TenantOf(host), headId)).Count > 0,
+            "the first super-step's checkpoint");
+
+        // The renewal is refused (the lease is "taken") and the hung step is cancelled; the lease then runs out
+        // on the database's clock and the same worker leases the job again as attempt 2.
+        var job = await WaitForJobAsync(host, headId);
+
+        job.Status.ShouldBe(JobStatus.Completed, job.ErrorMessage);
+        job.Attempt.ShouldBe(2);
+        refusal.Refused.ShouldBeTrue("the first attempt's renewal was never refused, so the case proves nothing");
+
+        var continuation = (await WorkflowRunsAsync(host)).Single(run => run.ContinuedFromRunId == headId);
+        continuation.Status.ShouldBe(RunStatus.Completed, continuation.Error?.Message);
+
+        probe.FirstCalls.ShouldBe(1, "the finished first step must not run again: its checkpoint was deleted when the lost attempt closed the run");
+
+        var checkpoints = await host.Services.GetRequiredService<IWorkflowCheckpointStore>()
+            .ListByRunAsync(TenantOf(host), headId);
+
+        (checkpoints.Count == 0).ShouldBe(!keepCheckpointsAfterCompletion);
+    }
+
+    /// <summary>
     /// Failure mode 19: a checkpoint written by another Microsoft Agent Framework version
     /// cannot be read. The continuation fails once, naming why, and nothing loops: the
     /// item is reported failed and no further continuation opens.
@@ -386,7 +450,7 @@ public sealed class WorkflowRecoveryTests
         item.Status.ShouldBe(JobItemStatus.Failed);
 
         // A later lease finds nothing pending: no loop.
-        await store.ReleaseForRetryAsync(jobId, "test: lease the job again");
+        (await store.ReleaseForRetryAsync(JobLease.Of(second), "test: lease the job again")).ShouldBeTrue();
         var third = await LeaseAsync(host, "another-worker", TimeSpan.FromMinutes(5));
         await RunAttemptAsync(host, third, "another-worker");
 
@@ -421,4 +485,72 @@ public sealed class WorkflowRecoveryTests
                 options.PollInterval = TimeSpan.FromMilliseconds(50);
                 options.LeaseDuration = TimeSpan.FromSeconds(2);
             }));
+
+    /// <summary>Refuses the renewals of the first attempt of a job, the way a store answers a worker whose lease was taken.</summary>
+    private sealed class FirstAttemptRenewalRefusal
+    {
+        private int _refused;
+
+        public bool Refused => Volatile.Read(ref _refused) == 1;
+
+        /// <summary>Wraps the job store already registered; call it after the database is chosen.</summary>
+        /// <param name="services">The host's services.</param>
+        public void Install(IServiceCollection services)
+        {
+            var registered = services.Last(static descriptor => descriptor.ServiceType == typeof(IJobStore));
+
+            services.Remove(registered);
+            services.AddSingleton<IJobStore>(provider => new Store(
+                this,
+                (IJobStore)ActivatorUtilities.CreateInstance(provider, registered.ImplementationType!)));
+        }
+
+        private sealed class Store(FirstAttemptRenewalRefusal owner, IJobStore inner) : IJobStore
+        {
+            public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
+                => inner.EnqueueAsync(job, items, cancellationToken);
+
+            public ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+                => inner.LeaseAsync(request, cancellationToken);
+
+            public ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+            {
+                if (lease.Attempt != 1)
+                {
+                    return inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+                }
+
+                Volatile.Write(ref owner._refused, 1);
+
+                return new ValueTask<bool>(false);
+            }
+
+            public ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
+                => inner.MarkRunningAsync(lease, cancellationToken);
+
+            public ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+                => inner.CompleteAsync(lease, completion, cancellationToken);
+
+            public ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+                => inner.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken);
+
+            public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+                => inner.CancelAsync(tenantId, jobId, cancellationToken);
+
+            public ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+                => inner.GetAsync(tenantId, jobId, cancellationToken);
+
+            public ValueTask<IReadOnlyList<JobRecord>> QueryAsync(JobQuery query, CancellationToken cancellationToken = default)
+                => inner.QueryAsync(query, cancellationToken);
+
+            public ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
+                => inner.ListItemsAsync(jobId, cancellationToken);
+
+            public ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
+                => inner.ReportItemAsync(item, cancellationToken);
+
+            public ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
+                => inner.GetQueueDepthAsync(cancellationToken);
+        }
+    }
 }

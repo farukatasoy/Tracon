@@ -83,10 +83,10 @@ public sealed class InMemoryJobStoreTests
     {
         var store = new InMemoryJobStore();
         var job = await store.EnqueueAsync(NewJob(), ["a"]);
-        await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) });
+        var lease = JobLease.Of((await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) }))!);
 
-        (await store.MarkRunningAsync(job.Id, "wrong-worker")).ShouldBeFalse();
-        (await store.MarkRunningAsync(job.Id, "worker-1")).ShouldBeTrue();
+        (await store.MarkRunningAsync(lease with { Owner = "wrong-worker" })).ShouldBeFalse();
+        (await store.MarkRunningAsync(lease)).ShouldBeTrue();
 
         var current = await store.GetAsync("tenant", job.Id);
         current!.Status.ShouldBe(JobStatus.Running);
@@ -128,17 +128,20 @@ public sealed class InMemoryJobStoreTests
     [Fact]
     public async Task CompleteAsync_releases_the_lease()
     {
-        var clock = new ManualTimeProvider();
+        // The job is scheduled at the clock's own time: one scheduled in the clock's future is not
+        // leasable, and this test must hold a lease to complete it.
+        var clock = new ManualTimeProvider(DateTimeOffset.UtcNow);
         var store = new InMemoryJobStore(clock);
-        var job = await store.EnqueueAsync(NewJob(), ["a"]);
-        await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) });
+        var job = await store.EnqueueAsync(NewJob() with { ScheduledFor = clock.GetUtcNow() }, ["a"]);
+        var lease = JobLease.Of((await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) }))!);
 
-        await store.CompleteAsync(new JobCompletion
-        {
-            JobId = job.Id,
-            Status = JobStatus.Completed,
-            CompletedAt = clock.GetUtcNow(),
-        });
+        (await store.CompleteAsync(
+            lease,
+            new JobCompletion
+            {
+                Status = JobStatus.Completed,
+                CompletedAt = clock.GetUtcNow(),
+            })).ShouldBeTrue();
 
         var current = await store.GetAsync("tenant", job.Id);
         current!.Status.ShouldBe(JobStatus.Completed);
@@ -151,9 +154,9 @@ public sealed class InMemoryJobStoreTests
     {
         var store = new InMemoryJobStore();
         var job = await store.EnqueueAsync(NewJob(), ["a"]);
-        await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) });
+        var lease = JobLease.Of((await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) }))!);
 
-        await store.ReleaseForRetryAsync(job.Id, "temporary error");
+        (await store.ReleaseForRetryAsync(lease, "temporary error")).ShouldBeTrue();
 
         var current = await store.GetAsync("tenant", job.Id);
         current!.Status.ShouldBe(JobStatus.Pending);
@@ -176,21 +179,21 @@ public sealed class InMemoryJobStoreTests
         var job = await store.EnqueueAsync(NewJob(), ["a"]);
 
         // CompleteAsync/LeaseAsync are used to set up the status indirectly.
-        if (status is JobStatus.Completed or JobStatus.Failed)
-        {
-            await store.CompleteAsync(new JobCompletion { JobId = job.Id, Status = status, CompletedAt = DateTimeOffset.UtcNow });
-        }
-        else if (status == JobStatus.Cancelled)
+        if (status == JobStatus.Cancelled)
         {
             await store.CancelAsync("tenant", job.Id);
         }
-        else if (status is JobStatus.Leased or JobStatus.Running)
+        else if (status is JobStatus.Leased or JobStatus.Running or JobStatus.Completed or JobStatus.Failed)
         {
-            await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) });
+            var lease = JobLease.Of((await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) }))!);
 
             if (status == JobStatus.Running)
             {
-                await store.MarkRunningAsync(job.Id, "worker-1");
+                (await store.MarkRunningAsync(lease)).ShouldBeTrue();
+            }
+            else if (status is JobStatus.Completed or JobStatus.Failed)
+            {
+                (await store.CompleteAsync(lease, new JobCompletion { Status = status, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeTrue();
             }
         }
 

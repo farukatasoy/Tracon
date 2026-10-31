@@ -724,8 +724,23 @@ whose status is no longer `Pending`; see
 - A store error while the worker writes a job's outcome is not a handler failure.
   The worker tries the write again with a growing pause, under the same lease, and
   the handler does not run again for it. The worker stops a third of the lease
-  before the lease it can prove runs out, so its write never lands on another
-  worker's attempt; it logs an error, and the job takes the lease-expiry path above.
+  before the lease it can prove runs out, and the store applies the write only
+  while the job's lease is still the one the worker took (see the next item), so
+  its write never lands on another worker's attempt; it logs an error, and the job
+  takes the lease-expiry path above.
+- A worker that loses a job's lease writes nothing for it. A worker that stalls past
+  its lease (a long garbage collection, a frozen container, a network cut) can come
+  back after another worker leased the job. Completing and releasing a job, renewing
+  its lease and marking it running are each applied only while the job's lease is the
+  one that worker took: the same worker identity **and** the same attempt number. The
+  store answers `false` otherwise and changes nothing, and the worker then logs a
+  warning, cancels the handler's token, and neither counts the job nor publishes
+  `job.completed` or `job.failed`: the worker that holds the job does. The worker also
+  gives the lease up when renewals fail until it can no longer prove it holds the
+  lease (a third of the lease before it runs out, so two missed renewals in a row).
+  A cancelled job refuses a renewal too, and stays a cancelled job, not a lost lease.
+  This keeps the job's record right; it does not undo what the stalled handler already
+  did outside it, so side effects stay at-least-once.
 - A queued agent turn — a queued run, an approval continuation, a run continuation —
   saves its session after the model answers. A store error on that save is tried
   again the same way, and the model is not called again. If the save still fails,

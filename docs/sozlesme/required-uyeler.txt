@@ -158,7 +158,6 @@ Tracon.InboundTrigger.TargetName
 Tracon.InboundTrigger.TenantId
 Tracon.InboundTrigger.UpdatedAt
 Tracon.JobCompletion.CompletedAt
-Tracon.JobCompletion.JobId
 Tracon.JobCompletion.Status
 Tracon.JobContext.IsCancelledAsync
 Tracon.JobContext.Items
@@ -172,6 +171,9 @@ Tracon.JobItemRecord.Status
 Tracon.JobItemResult.JobId
 Tracon.JobItemResult.Seq
 Tracon.JobItemResult.Status
+Tracon.JobLease.Attempt
+Tracon.JobLease.JobId
+Tracon.JobLease.Owner
 Tracon.JobLeaseRequest.LeaseDuration
 Tracon.JobLeaseRequest.Owner
 Tracon.JobQueueDepth.Count

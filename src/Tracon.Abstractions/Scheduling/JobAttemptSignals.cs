@@ -14,23 +14,27 @@ internal enum JobStopReason
 
     /// <summary>The attempt reached the job's time limit (<see cref="JobRecord.MaxDuration"/>).</summary>
     MaxDurationExceeded = 3,
+
+    /// <summary>The worker no longer holds the job's lease; the job is another worker's now.</summary>
+    LeaseLost = 4,
 }
 
 /// <summary>
-/// The three sources behind the token one job attempt's handler receives, kept apart so
+/// The four sources behind the token one job attempt's handler receives, kept apart so
 /// a reader can say which one fired.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The handler is given ONE token, linked to all three. A cancelled token is a question,
+/// The handler is given ONE token, linked to all four. A cancelled token is a question,
 /// not an answer: the built-in workflow handlers need the answer, because a shutdown
-/// leaves the work to the lease, a cancel ends the job, and a time limit ends the work
-/// without a continuation.
+/// leaves the work to the lease, a cancel ends the job, a lost lease leaves the work to
+/// the job's new holder, and a time limit ends the work without a continuation.
 /// </para>
 /// <para>
 /// When more than one source fired, the order below decides: a worker that is stopping
-/// leaves the job to its lease whatever else happened, and a cancelled job stays
-/// cancelled whatever the clock says.
+/// leaves the job to its lease whatever else happened, a cancelled job stays
+/// cancelled whatever the clock says, and a lease that is lost ends the attempt before
+/// its time limit can name it.
 /// </para>
 /// </remarks>
 // Two rules shape these signals: an OperationCanceledException is a question,
@@ -45,22 +49,26 @@ internal sealed class JobAttemptSignals
 
     private readonly CancellationToken _cancelled;
     private readonly CancellationToken _deadline;
+    private readonly CancellationToken _leaseLost;
 
     /// <summary>Creates the signals of one attempt.</summary>
     /// <param name="maxDuration">The attempt's time limit; <see langword="null"/> when it has none.</param>
     /// <param name="workerStopping">Cancelled when the worker shuts down.</param>
     /// <param name="cancelled">Cancelled when the worker finds the job cancelled or gone.</param>
     /// <param name="deadline">Cancelled when the attempt reaches the job's time limit.</param>
+    /// <param name="leaseLost">Cancelled when the worker finds it no longer holds the job's lease.</param>
     public JobAttemptSignals(
         TimeSpan? maxDuration,
         CancellationToken workerStopping,
         CancellationToken cancelled,
-        CancellationToken deadline)
+        CancellationToken deadline,
+        CancellationToken leaseLost)
     {
         MaxDuration = maxDuration;
         WorkerStopping = workerStopping;
         _cancelled = cancelled;
         _deadline = deadline;
+        _leaseLost = leaseLost;
     }
 
     /// <summary>Gets the token the worker's shutdown cancels.</summary>
@@ -73,6 +81,7 @@ internal sealed class JobAttemptSignals
     public JobStopReason Reason
         => WorkerStopping.IsCancellationRequested ? JobStopReason.WorkerStopping
             : _cancelled.IsCancellationRequested ? JobStopReason.Cancelled
+            : _leaseLost.IsCancellationRequested ? JobStopReason.LeaseLost
             : _deadline.IsCancellationRequested ? JobStopReason.MaxDurationExceeded
             : JobStopReason.None;
 

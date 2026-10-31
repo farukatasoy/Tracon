@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.Core.UnitTests.Fakes;
 
@@ -143,8 +144,6 @@ public sealed class JobWorkerLeaseContractTests
     /// had finished; under three the handler ran a second time.
     /// </summary>
     [Theory]
-    [InlineData(StoreCall.Get, 1)]
-    [InlineData(StoreCall.Get, 3)]
     [InlineData(StoreCall.ListItems, 1)]
     [InlineData(StoreCall.ListItems, 3)]
     [InlineData(StoreCall.Complete, 1)]
@@ -328,12 +327,303 @@ public sealed class JobWorkerLeaseContractTests
         record!.Status.ShouldBe(JobStatus.Running);
     }
 
+    /// <summary>
+    /// A worker whose renewal the store refuses has lost the job: it tells the handler, writes
+    /// nothing, counts nothing and publishes nothing. The worker that took the job over does all four.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Handler_is_cancelled_when_a_renewal_is_refused(bool handlerReturnsNormally)
+    {
+        var jobs = new LeaseLossJobStore { Renewal = RenewalAnswer.Refuse };
+        var handler = new StopsWhenCancelledHandler(handlerReturnsNormally);
+        var publisher = new RecordingPublisher();
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        using var meters = new TestMeterFactory();
+        using var collector = new MetricCollector(meters.Meter);
+        using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(300), metrics: metrics, publisher: publisher, logger: logger);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+        handler.Calls.ShouldBe(1, "the lost attempt must not be run again by its own worker");
+
+        // One warning says why; the handler's cancellation is not reported as a failed job.
+        logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal));
+        logger.Entries.ShouldNotContain(entry => entry.Level >= LogLevel.Error);
+        jobs.CompleteCalls.ShouldBe(0, "a worker that lost its lease would close the attempt of the worker that holds it");
+        jobs.ReleaseCalls.ShouldBe(0, "a worker that lost its lease would requeue the attempt of the worker that holds it");
+        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldBeEmpty("the worker that holds the job counts it");
+        publisher.Published.ShouldBeEmpty("the worker that holds the job publishes its outcome");
+
+        // Nothing was written: the store still shows the attempt this worker started.
+        var record = (await jobs.PeekAsync(jobId)).ShouldNotBeNull();
+
+        record.Status.ShouldBe(JobStatus.Running);
+        record.Attempt.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Renewals that fail past the point the lease can be proven leave the worker unable to say
+    /// whether another worker holds the job. It stops the handler rather than guess.
+    /// </summary>
+    [Fact]
+    public async Task Handler_is_cancelled_when_the_lease_cannot_be_proven()
+    {
+        var jobs = new LeaseLossJobStore { Renewal = RenewalAnswer.Throw };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(300));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+        jobs.RenewCalls.ShouldBeGreaterThanOrEqualTo(1, "the worker tried before it gave the lease up");
+        jobs.CompleteCalls.ShouldBe(0);
+        jobs.ReleaseCalls.ShouldBe(0);
+        (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Running);
+    }
+
+    /// <summary>One missed renewal is inside the margin a third of the lease leaves; it is not a lost lease.</summary>
+    [Fact]
+    public async Task A_transient_store_error_in_renewal_does_not_lose_the_lease()
+    {
+        var jobs = new LeaseLossJobStore { Renewal = RenewalAnswer.ThrowOnce };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 1, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(900));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await handler.Started.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        // The first renewal throws, the second succeeds: three calls mean the lease survived the miss.
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 3, "the lease to be renewed after the missed renewal");
+
+        handler.WasCancelled.ShouldBeFalse("a single missed renewal stopped a healthy handler");
+
+        handler.Release();
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the job to finish");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        record!.Status.ShouldBe(JobStatus.Completed);
+    }
+
+    /// <summary>
+    /// A cancelled job refuses a renewal too (cancelling clears the lease). That is the cancel watch's case:
+    /// telling the handler its lease was lost would leave a cancelled job's checkpoints behind, and the job
+    /// would not be counted as cancelled.
+    /// </summary>
+    [Fact]
+    public async Task A_renewal_refused_because_the_job_was_cancelled_is_not_a_lost_lease()
+    {
+        var jobs = new LeaseLossJobStore();
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        using var meters = new TestMeterFactory();
+        using var collector = new MetricCollector(meters.Meter);
+        using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        // The renewal (every 100 ms) reaches the cancel long before the cancel watch (every 1.5 s) does.
+        using var worker = CreateWorker(
+            jobs,
+            host,
+            TimeSpan.FromMilliseconds(300),
+            metrics: metrics,
+            pollInterval: TimeSpan.FromMilliseconds(1500));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await handler.Started.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        (await jobs.CancelInnerAsync(jobId)).ShouldBeTrue();
+
+        await WaitUntil.TrueAsync(() => jobs.RefusedRenewals >= 1, "the store to refuse the cancelled job's renewal");
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.Cancelled);
+        (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Cancelled);
+        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
+            .ShouldBe(nameof(JobStatus.Cancelled));
+    }
+
+    /// <summary>
+    /// The renewal said the lease was fine and the write lost the race (the lease moved in between). The refusal is an answer:
+    /// no retry, no metric, no outcome.
+    /// </summary>
+    [Fact]
+    public async Task A_lost_lease_publishes_no_outcome_and_counts_no_job()
+    {
+        var jobs = new LeaseLossJobStore { RefuseWrites = true };
+        var handler = new CountingHandler();
+        var publisher = new RecordingPublisher();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        using var meters = new TestMeterFactory();
+        using var collector = new MetricCollector(meters.Meter);
+        using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMinutes(5), metrics: metrics, publisher: publisher);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => jobs.CompleteCalls >= 1, "the worker to try to complete the job");
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        jobs.CompleteCalls.ShouldBe(1, "a refusal is an answer: the same call would be refused again");
+        handler.Calls.ShouldBe(1);
+        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldBeEmpty();
+        publisher.Published.ShouldBeEmpty();
+        (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Running);
+    }
+
+    /// <summary>A failed attempt whose release is refused is not released again and does not run again.</summary>
+    [Fact]
+    public async Task A_release_the_store_refuses_is_not_tried_again()
+    {
+        var jobs = new LeaseLossJobStore { RefuseWrites = true };
+        var handler = new FailingHandler(failures: int.MaxValue);
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMinutes(5));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => jobs.ReleaseCalls >= 1, "the worker to try to release the job");
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        jobs.ReleaseCalls.ShouldBe(1);
+        handler.Calls.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// The store committed the completion and only its answer was lost. The next try finds the job closed and the
+    /// store answers <see langword="false"/> (the lease is gone), which must not read as another worker's job:
+    /// the outcome is counted and published once.
+    /// </summary>
+    [Fact]
+    public async Task A_completion_whose_answer_was_lost_is_still_counted_and_published()
+    {
+        var jobs = new LostAnswerJobStore();
+        var handler = new CountingHandler(jobs.Arm);
+        var publisher = new RecordingPublisher();
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        using var meters = new TestMeterFactory();
+        using var collector = new MetricCollector(meters.Meter);
+        using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMinutes(5), metrics: metrics, publisher: publisher, logger: logger);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => publisher.Published.Count > 0, "the worker to publish the completed job");
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        jobs.Threw.ShouldBeTrue("the lost answer was never raised, so the case proves nothing");
+        (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Completed);
+        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
+            .ShouldBe(nameof(JobStatus.Completed));
+        publisher.Published.ShouldBe(["job.completed"]);
+        logger.Entries.ShouldNotContain(entry => entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A refused renewal whose status read fails cannot be told apart from a cancelled job, so the lease is given up
+    /// only when it can no longer be proven. The handler is stopped then, as it is for renewals that fail.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_renewal_whose_status_read_fails_is_a_lost_lease_once_the_lease_cannot_be_proven()
+    {
+        var jobs = new LeaseLossJobStore { Renewal = RenewalAnswer.Refuse, GetFails = true };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(300));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+        jobs.RefusedRenewals.ShouldBeGreaterThanOrEqualTo(1, "the worker asked before it gave the lease up");
+        jobs.CompleteCalls.ShouldBe(0);
+        jobs.ReleaseCalls.ShouldBe(0);
+    }
+
+    /// <summary>A refused completion whose status read fails counts and publishes nothing, and says why.</summary>
+    [Fact]
+    public async Task A_refused_write_whose_status_read_fails_is_not_counted()
+    {
+        var jobs = new LeaseLossJobStore { RefuseWrites = true, GetFails = true };
+        var handler = new CountingHandler();
+        var publisher = new RecordingPublisher();
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        using var meters = new TestMeterFactory();
+        using var collector = new MetricCollector(meters.Meter);
+        using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
+
+        await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMinutes(5), metrics: metrics, publisher: publisher, logger: logger);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => jobs.CompleteCalls >= 1, "the worker to try to complete the job");
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldBeEmpty();
+        publisher.Published.ShouldBeEmpty();
+        logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The attempt is over once the worker asks for another job: a worker with one slot leases only while
+    /// the slot is free. Stopping the worker earlier would let the shutdown decide the outcome.
+    /// </summary>
+    private static async Task AttemptEndedAsync(LeaseLossJobStore jobs)
+    {
+        var calls = jobs.LeaseCalls;
+
+        await WaitUntil.TrueAsync(() => jobs.LeaseCalls > calls, "the worker to finish the attempt and ask for another job");
+    }
+
     /// <summary>The store operation a <see cref="ThrowOnceJobStore"/> fails.</summary>
     public enum StoreCall
     {
-        /// <summary><see cref="IJobStore.GetAsync"/>.</summary>
-        Get,
-
         /// <summary><see cref="IJobStore.ListItemsAsync"/>.</summary>
         ListItems,
 
@@ -349,7 +639,10 @@ public sealed class JobWorkerLeaseContractTests
         TestJobHandlerHost host,
         TimeSpan leaseDuration,
         TimeProvider? clock = null,
-        TraconMetrics? metrics = null)
+        TraconMetrics? metrics = null,
+        IWebhookPublisher? publisher = null,
+        TimeSpan? pollInterval = null,
+        ILogger<JobWorkerBackgroundService>? logger = null)
         => new(
             jobs,
             new InMemoryJobScheduleStore(),
@@ -358,7 +651,7 @@ public sealed class JobWorkerLeaseContractTests
             new StaticOptionsMonitor<TraconSchedulingOptions>(new TraconSchedulingOptions
             {
                 MaxConcurrentJobs = 1,
-                PollInterval = TimeSpan.FromMilliseconds(5),
+                PollInterval = pollInterval ?? TimeSpan.FromMilliseconds(5),
                 LeaseDuration = leaseDuration,
                 MaxAttempts = 3,
             }),
@@ -366,7 +659,8 @@ public sealed class JobWorkerLeaseContractTests
             new NotDraining(),
             timeProvider: clock,
             metrics: metrics,
-            logger: NullLogger<JobWorkerBackgroundService>.Instance);
+            webhookPublisher: publisher,
+            logger: logger ?? NullLogger<JobWorkerBackgroundService>.Instance);
 
     private static async Task<Guid> EnqueueAsync(IJobStore jobs, int maxAttempts, DateTimeOffset now)
     {
@@ -508,20 +802,20 @@ public sealed class JobWorkerLeaseContractTests
         public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
             => Inner.EnqueueAsync(job, items, cancellationToken);
 
-        public ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+        public virtual ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
             => Inner.LeaseAsync(request, cancellationToken);
 
-        public virtual ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
-            => Inner.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);
+        public virtual ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+            => Inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
 
-        public virtual ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
-            => Inner.MarkRunningAsync(jobId, owner, cancellationToken);
+        public virtual ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
+            => Inner.MarkRunningAsync(lease, cancellationToken);
 
-        public virtual ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
-            => Inner.CompleteAsync(completion, cancellationToken);
+        public virtual ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+            => Inner.CompleteAsync(lease, completion, cancellationToken);
 
-        public virtual ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
-            => Inner.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken);
+        public virtual ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+            => Inner.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken);
 
         public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
             => Inner.CancelAsync(tenantId, jobId, cancellationToken);
@@ -549,10 +843,10 @@ public sealed class JobWorkerLeaseContractTests
 
         public int RenewCalls => Volatile.Read(ref _renewCalls);
 
-        public override ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+        public override ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
             => Interlocked.Increment(ref _renewCalls) == 1
                 ? throw new TimeoutException("The store did not answer in time.")
-                : base.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);
+                : base.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
     }
 
     /// <summary>
@@ -569,28 +863,22 @@ public sealed class JobWorkerLeaseContractTests
         /// <summary>Called by the handler, so only the worker's calls after it can fail.</summary>
         public void Arm() => Volatile.Write(ref _armed, 1);
 
-        public override ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
-        {
-            ThrowOnce(StoreCall.Get);
-            return base.GetAsync(tenantId, jobId, cancellationToken);
-        }
-
         public override ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
         {
             ThrowOnce(StoreCall.ListItems);
             return base.ListItemsAsync(jobId, cancellationToken);
         }
 
-        public override ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
+        public override ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
         {
             ThrowOnce(StoreCall.Complete);
-            return base.CompleteAsync(completion, cancellationToken);
+            return base.CompleteAsync(lease, completion, cancellationToken);
         }
 
-        public override ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+        public override ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
         {
             ThrowOnce(StoreCall.ReleaseForRetry);
-            return base.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken);
+            return base.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken);
         }
 
         private void ThrowOnce(StoreCall call)
@@ -617,7 +905,7 @@ public sealed class JobWorkerLeaseContractTests
 
         public void Arm() => Volatile.Write(ref _armed, 1);
 
-        public override ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
+        public override ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
         {
             if (completion.Status == JobStatus.Completed && Volatile.Read(ref _armed) == 1)
             {
@@ -625,7 +913,226 @@ public sealed class JobWorkerLeaseContractTests
                 throw new TimeoutException("The store did not answer in time.");
             }
 
-            return base.CompleteAsync(completion, cancellationToken);
+            return base.CompleteAsync(lease, completion, cancellationToken);
+        }
+    }
+
+    /// <summary>How <see cref="LeaseLossJobStore"/> answers a renewal.</summary>
+    private enum RenewalAnswer
+    {
+        /// <summary>Reaches the store.</summary>
+        Pass,
+
+        /// <summary>Answers <see langword="false"/>: the lease is not this worker's.</summary>
+        Refuse,
+
+        /// <summary>Throws every time, the way a store that is down does.</summary>
+        Throw,
+
+        /// <summary>Throws the first call, then reaches the store.</summary>
+        ThrowOnce,
+    }
+
+    /// <summary>Counts the worker's lease-bound calls and answers its renewals, and optionally its writes, as a store that lost the lease would.</summary>
+    private sealed class LeaseLossJobStore : DelegatingJobStore
+    {
+        private int _renewCalls;
+        private int _refusedRenewals;
+        private int _completeCalls;
+        private int _releaseCalls;
+        private int _leaseCalls;
+
+        public RenewalAnswer Renewal { get; init; } = RenewalAnswer.Pass;
+
+        /// <summary>Gets whether completion and release answer <see langword="false"/> without writing.</summary>
+        public bool RefuseWrites { get; init; }
+
+        /// <summary>Gets whether every status read throws, the way a store that is down does.</summary>
+        public bool GetFails { get; init; }
+
+        public int RenewCalls => Volatile.Read(ref _renewCalls);
+
+        public int RefusedRenewals => Volatile.Read(ref _refusedRenewals);
+
+        public int CompleteCalls => Volatile.Read(ref _completeCalls);
+
+        public int ReleaseCalls => Volatile.Read(ref _releaseCalls);
+
+        public int LeaseCalls => Volatile.Read(ref _leaseCalls);
+
+        public override ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+            => GetFails
+                ? throw new TimeoutException("The store did not answer in time.")
+                : base.GetAsync(tenantId, jobId, cancellationToken);
+
+        public ValueTask<bool> CancelInnerAsync(Guid jobId)
+            => Inner.CancelAsync(TenantId, jobId, TestContext.Current.CancellationToken);
+
+        public override ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _leaseCalls);
+
+            return base.LeaseAsync(request, cancellationToken);
+        }
+
+        public override async ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+        {
+            var call = Interlocked.Increment(ref _renewCalls);
+
+            if (Renewal == RenewalAnswer.Throw || (Renewal == RenewalAnswer.ThrowOnce && call == 1))
+            {
+                throw new TimeoutException("The store did not answer in time.");
+            }
+
+            var renewed = Renewal != RenewalAnswer.Refuse
+                && await base.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+
+            if (!renewed)
+            {
+                Interlocked.Increment(ref _refusedRenewals);
+            }
+
+            return renewed;
+        }
+
+        public override ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _completeCalls);
+
+            return RefuseWrites ? new ValueTask<bool>(false) : base.CompleteAsync(lease, completion, cancellationToken);
+        }
+
+        public override ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _releaseCalls);
+
+            return RefuseWrites ? new ValueTask<bool>(false) : base.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken);
+        }
+    }
+
+    /// <summary>Waits until its token is cancelled (or it is released) and records why the worker cancelled it.</summary>
+    /// <param name="returnsNormally">Returns when cancelled, as a handler that swallows the cancellation does; throws otherwise.</param>
+    private sealed class StopsWhenCancelledHandler(bool returnsNormally = false) : IJobHandler
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public Task Started => _started.Task;
+
+        public Task Cancelled => _cancelled.Task;
+
+        public bool WasCancelled => _cancelled.Task.IsCompleted;
+
+        public JobStopReason ReasonWhenCancelled { get; private set; }
+
+        public void Release() => _release.TrySetResult();
+
+        public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _calls);
+            _started.TrySetResult();
+
+            var stopped = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
+
+            if (await Task.WhenAny(stopped, _release.Task) == _release.Task)
+            {
+                // Released by the test: the handler finishes its work.
+                return;
+            }
+
+            ReasonWhenCancelled = context.Signals!.Reason;
+            _cancelled.TrySetResult();
+
+            if (!returnsNormally)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+        }
+    }
+
+    private sealed class CollectingLogger : ILogger<JobWorkerBackgroundService>
+    {
+        private readonly List<(LogLevel Level, string Message)> _entries = [];
+
+        public IReadOnlyList<(LogLevel Level, string Message)> Entries
+        {
+            get
+            {
+                lock (_entries)
+                {
+                    return [.. _entries];
+                }
+            }
+        }
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            lock (_entries)
+            {
+                _entries.Add((logLevel, formatter(state, exception)));
+            }
+        }
+    }
+
+    private sealed class RecordingPublisher : IWebhookPublisher
+    {
+        private readonly List<string> _published = [];
+
+        public IReadOnlyList<string> Published
+        {
+            get
+            {
+                lock (_published)
+                {
+                    return [.. _published];
+                }
+            }
+        }
+
+        public ValueTask<int> PublishAsync(string tenantId, string eventType, WebhookEventPayload payload, CancellationToken cancellationToken = default)
+        {
+            lock (_published)
+            {
+                _published.Add(eventType);
+            }
+
+            return new ValueTask<int>(1);
+        }
+    }
+
+    /// <summary>
+    /// Applies the first completion made after <see cref="Arm"/> and then throws: the write committed and only its
+    /// answer was lost, the way a dropped connection loses it.
+    /// </summary>
+    private sealed class LostAnswerJobStore : DelegatingJobStore
+    {
+        private int _armed;
+        private int _thrown;
+
+        public bool Threw => Volatile.Read(ref _thrown) == 1;
+
+        public void Arm() => Volatile.Write(ref _armed, 1);
+
+        public override async ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+        {
+            var applied = await base.CompleteAsync(lease, completion, cancellationToken);
+
+            if (Volatile.Read(ref _armed) == 1 && Interlocked.CompareExchange(ref _thrown, 1, 0) == 0)
+            {
+                throw new TimeoutException("The store did not answer in time.");
+            }
+
+            return applied;
         }
     }
 
@@ -644,14 +1151,14 @@ public sealed class JobWorkerLeaseContractTests
         /// <summary>The worker's first read after marking the job running failed.</summary>
         public Task ReadAfterMarkRunning => _readAfterMarkRunning.Task;
 
-        public override async ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
+        public override async ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
         {
             if (CancelBeforeMarkRunning)
             {
-                await Inner.CancelAsync(TenantId, jobId, cancellationToken);
+                await Inner.CancelAsync(TenantId, lease.JobId, cancellationToken);
             }
 
-            var marked = await base.MarkRunningAsync(jobId, owner, cancellationToken);
+            var marked = await base.MarkRunningAsync(lease, cancellationToken);
 
             _markedRunning = true;
 

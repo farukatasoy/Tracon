@@ -2373,8 +2373,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
     /// <summary>
     /// Whether a run that closes now is not finished: a worker that is stopping
-    /// cancelled it, and its job continues it from the latest checkpoint when the job
-    /// is leased again.
+    /// cancelled it, or its job's lease went to another worker, and the job continues
+    /// it from the latest checkpoint when it is leased again (or, in the second case,
+    /// already has).
     /// </summary>
     /// <param name="status">The status the run closes with.</param>
     /// <returns><see langword="true"/> when the run's checkpoints must outlive its close.</returns>
@@ -2382,13 +2383,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// With <see cref="TraconWorkflowOptions.KeepCheckpointsAfterCompletion"/> off,
     /// a graceful shutdown deleted the checkpoints of the run it stopped, and the
     /// continuation ran every finished step again. The continuation shares the session,
-    /// so the cleanup runs when it finishes. A run its job cancelled or timed out is
-    /// never continued and is cleaned up at once.
+    /// so the cleanup runs when it finishes. A worker that lost its lease must not delete
+    /// them either: the worker that took the job over may be reading them. A run its job
+    /// cancelled or timed out is never continued and is cleaned up at once.
     /// </remarks>
     private bool IsLeftToItsJob(RunStatus status)
         => status == RunStatus.Canceled &&
            _options.Value.ResumeInterruptedRuns &&
-           AmbientJobAttempt.Current is { Reason: JobStopReason.WorkerStopping };
+           AmbientJobAttempt.Current is { Reason: JobStopReason.WorkerStopping or JobStopReason.LeaseLost };
 
     private async ValueTask<bool> SessionHasOpenRunAsync(WorkflowExecution execution)
     {

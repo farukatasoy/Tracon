@@ -62,24 +62,28 @@ public sealed class JobWorkerReleaseRaceTests
         var (worker, host) = Worker(store, handler);
 
         var leasedAgain = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        JobLease? secondLease = null;
         store.Leased = job =>
         {
             if (job.Attempt == 2)
             {
+                secondLease = JobLease.Of(job);
                 leasedAgain.TrySetResult();
             }
         };
-        store.AfterReleaseForRetry = async jobId =>
+        store.AfterReleaseForRetry = async _ =>
         {
             await leasedAgain.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-            // Something else finished the job before the waiting lease could run it.
-            await store.CompleteAsync(new JobCompletion
-            {
-                JobId = jobId,
-                Status = JobStatus.Completed,
-                CompletedAt = DateTimeOffset.UtcNow,
-            });
+            // Something else finished the job before the waiting lease could run it: whoever holds
+            // the second lease.
+            (await store.CompleteAsync(
+                secondLease.ShouldNotBeNull(),
+                new JobCompletion
+                {
+                    Status = JobStatus.Completed,
+                    CompletedAt = DateTimeOffset.UtcNow,
+                })).ShouldBeTrue();
         };
 
         using (host)

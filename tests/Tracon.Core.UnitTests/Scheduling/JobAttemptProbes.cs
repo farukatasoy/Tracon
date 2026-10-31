@@ -231,26 +231,28 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
     }
 
     /// <inheritdoc />
-    public ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
-        => inner.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);
+    public ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+        => inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
-        => inner.MarkRunningAsync(jobId, owner, cancellationToken);
+    public ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
+        => inner.MarkRunningAsync(lease, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
-        => inner.CompleteAsync(completion, cancellationToken);
+    public ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+        => inner.CompleteAsync(lease, completion, cancellationToken);
 
     /// <inheritdoc />
-    public async ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
     {
-        await inner.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken).ConfigureAwait(false);
+        var released = await inner.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken).ConfigureAwait(false);
 
         if (AfterReleaseForRetry is { } step)
         {
-            await step(jobId).ConfigureAwait(false);
+            await step(lease.JobId).ConfigureAwait(false);
         }
+
+        return released;
     }
 
     /// <inheritdoc />

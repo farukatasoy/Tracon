@@ -9332,8 +9332,23 @@ whose status is no longer `Pending`; see
 - A store error while the worker writes a job's outcome is not a handler failure.
   The worker tries the write again with a growing pause, under the same lease, and
   the handler does not run again for it. The worker stops a third of the lease
-  before the lease it can prove runs out, so its write never lands on another
-  worker's attempt; it logs an error, and the job takes the lease-expiry path above.
+  before the lease it can prove runs out, and the store applies the write only
+  while the job's lease is still the one the worker took (see the next item), so
+  its write never lands on another worker's attempt; it logs an error, and the job
+  takes the lease-expiry path above.
+- A worker that loses a job's lease writes nothing for it. A worker that stalls past
+  its lease (a long garbage collection, a frozen container, a network cut) can come
+  back after another worker leased the job. Completing and releasing a job, renewing
+  its lease and marking it running are each applied only while the job's lease is the
+  one that worker took: the same worker identity **and** the same attempt number. The
+  store answers `false` otherwise and changes nothing, and the worker then logs a
+  warning, cancels the handler's token, and neither counts the job nor publishes
+  `job.completed` or `job.failed`: the worker that holds the job does. The worker also
+  gives the lease up when renewals fail until it can no longer prove it holds the
+  lease (a third of the lease before it runs out, so two missed renewals in a row).
+  A cancelled job refuses a renewal too, and stays a cancelled job, not a lost lease.
+  This keeps the job's record right; it does not undo what the stalled handler already
+  did outside it, so side effects stay at-least-once.
 - A queued agent turn — a queued run, an approval continuation, a run continuation —
   saves its session after the model answers. A store error on that save is tried
   again the same way, and the model is not called again. If the save still fails,
@@ -15230,6 +15245,7 @@ on PostgreSQL and on SQL Server on every build.
 | MCP tools | Both instances list the tools of an MCP server while `SingletonExecution` is on |
 | Job lease takeover | When a worker process is killed, its job is not taken before the lease expires, it is taken after, and the two workers never run it at the same time. Separate operating-system processes, killed with `SIGKILL` |
 | Workflow concurrency | `MaxConcurrentRunsPerTenant` holds in the queue across both instances: a tenant at its ceiling holds one slot, and another tenant still runs |
+| A stalled worker | An instance that stalls past a job's lease cannot close or requeue the attempt of the instance that took the job over. The job is `Completed` once, by the instance that held the lease. Both orders are shown: the stalled instance learns the lease is gone first, and its completion reaches the database first and the store refuses it |
 
 Four of them were also shown to fail when their setting is off: the rate-limit scope, the tenant ceiling in the queue, run reconciliation and the OAuth token store. A test that cannot fail proves nothing. The other behaviors have no setting to switch off, so they were not tried that way.
 
@@ -20552,14 +20568,15 @@ returned is not a handler failure: the worker tries the write of the outcome
 again while it still holds the lease, and does not call the handler again for
 it.
 
-**A running handler is never interrupted by its own lease.** The worker renews
-the lease on a timer for as long as `ExecuteAsync` has not returned. A job is
+**A running handler is never interrupted by its lease running out.** The worker
+renews the lease on a timer for as long as `ExecuteAsync` has not returned; only a
+lease the store takes away stops the handler (see the table below). A job is
 bounded only by a time limit you give it: `JobRequest.MaxDuration` for one job,
 or `Tracon:Scheduling:MaxDurationByHandlerKey` for every job of a handler key
 (the job's own value wins; no value means no limit). The limit applies to each
 attempt.
 
-**The `CancellationToken` you receive is cancelled for three reasons**, and the
+**The `CancellationToken` you receive is cancelled for four reasons**, and the
 worker decides the outcome from the reason, not from the exception your
 handler throws:
 
@@ -20567,10 +20584,14 @@ handler throws:
 |---|---|---|
 | The worker stops | Host shutdown | Nothing is written; the job is leased again when its lease runs out |
 | The job is cancelled | `POST /api/jobs/{id}/cancel`, read every `PollInterval` (10 seconds by default) | The job stays `Cancelled`, with no error |
+| The worker loses the lease | The store refused a renewal because another worker leased the job after the lease lapsed, or renewals kept failing until the worker could no longer prove it holds the lease | Nothing is written for this attempt, whatever the handler does next: the job belongs to the worker that took it over, and that worker completes it or returns it to the queue |
 | The time limit passes | The attempt ran longer than its limit | The attempt fails with `tracon.job.max-duration-exceeded`; the job is leased again while attempts are left |
 
-A handler that returns normally after its token was cancelled completes the
-job: the work it did stands. A handler that ignores its token is waited for,
+A handler that returns normally after its token was cancelled (except for a
+lost lease, above) completes the job: the work it did stands. A lost lease
+stops the record from changing, not the handler from having run: a call the
+handler already made to an external system is not undone, so keep side effects
+idempotent. A handler that ignores its token is waited for,
 and keeps its worker slot (which counts against `MaxConcurrentJobs`, default 2)
 until it returns. Pass the token to every call the handler makes.
 
@@ -21212,6 +21233,17 @@ Two more rules carry the
   `MaxLeasedPerTenant` live leases on those keys (an expired lease does not count);
   the oldest job that is still eligible is leased instead. With no cap the oldest
   ready job is leased whichever tenant owns it. The count may be read without a lock.
+- **`IJobStore` fences every write that needs the lease.** `RenewLeaseAsync`,
+  `MarkRunningAsync`, `CompleteAsync` and `ReleaseForRetryAsync` take a `JobLease`
+  (the job, the owner and the attempt that `LeaseAsync` returned) and change the job only
+  while its lease is exactly that one, in the `Leased` or `Running` status. Otherwise they
+  return `false` and change nothing. Check and write in **one** statement: a store that
+  reads the lease first and writes after leaves a window in which a worker that stalled
+  past its lease closes the attempt of the worker that took the job over. Compare the
+  attempt as well as the owner, because a worker keeps its owner when it leases a job
+  again. Cancelling a job clears its lease, so a cancelled job answers `false` to all four.
+  `JobStoreContract` checks the owner, the attempt, the status and a cancelled job. It cannot prove
+  that check and write are one step, so keep them in one statement.
 - **`IRunStore` marks and closes a `Queued` row that has a heartbeat.**
   `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`

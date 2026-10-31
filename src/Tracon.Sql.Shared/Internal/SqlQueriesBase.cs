@@ -1971,24 +1971,32 @@ internal abstract class SqlQueriesBase
                     0, 0, 0, @scheduled_for, @created_at, @max_attempts, @lane, @max_duration_ms);
             """;
 
+        // 🚨 The four writes a lease holder makes carry the lease as a WHERE clause:
+        // the owner AND the attempt, on a job that is still open. The check and the
+        // write are one statement, so there is no gap between "I still hold it" and
+        // "I changed it". The owner alone is not enough: a worker that leases a job
+        // again keeps its owner, and its earlier attempt must not touch the new one.
+        // Zero rows updated means the lease is not this caller's any more.
         RenewJobLease = $"""
-            UPDATE {Table("jobs")} SET lease_until = @lease_until WHERE id = @id AND lease_owner = @owner;
+            UPDATE {Table("jobs")} SET lease_until = @lease_until
+             WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
             """;
 
         MarkJobRunning = $"""
-            UPDATE {Table("jobs")} SET status = 2 WHERE id = @id AND lease_owner = @owner AND status = 1;
+            UPDATE {Table("jobs")} SET status = 2
+             WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status = 1;
             """;
 
-        // 🚨 Only an open job (Pending, Leased, Running) is finalized or
-        // released. Without the status filter a cancelled job whose
-        // handler threw on its way out was overwritten: Failed on its last
-        // attempt, Pending — and run again — on an earlier one. A terminal
-        // status is never changed; the same filter CancelJob already carries.
+        // Only an open job the caller still holds is finalized or released. A
+        // cancelled job has no owner (cancelling clears the lease) and a terminal
+        // job is never changed, so a cancelled job whose handler threw on its way out
+        // is not overwritten: Failed on its last attempt, Pending — and run again — on
+        // an earlier one.
         CompleteJob = $"""
             UPDATE {Table("jobs")}
                SET status = @status, completed_at = @completed_at, error_message = @error_message,
                    lease_owner = NULL, lease_until = NULL
-             WHERE id = @id AND status IN (0, 1, 2);
+             WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
             """;
 
         // If @retry_at is NULL, scheduled_for is left untouched (the old
@@ -1999,7 +2007,7 @@ internal abstract class SqlQueriesBase
             UPDATE {Table("jobs")}
                SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
                    scheduled_for = COALESCE(@retry_at, scheduled_for)
-             WHERE id = @id AND status IN (0, 1, 2);
+             WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
             """;
 
         CancelJob = $"""

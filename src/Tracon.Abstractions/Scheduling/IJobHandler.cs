@@ -40,14 +40,14 @@ public interface IJobHandler
     /// <param name="context">The job context: record, items, reporting, and cancellation check.</param>
     /// <param name="cancellationToken">
     /// The cancellation token. Cancelled when the worker shuts down, when the job is
-    /// cancelled (<c>POST /api/jobs/{id}/cancel</c>), and when the attempt reaches the
-    /// job's time limit.
+    /// cancelled (<c>POST /api/jobs/{id}/cancel</c>), when the worker loses the job's
+    /// lease, and when the attempt reaches the job's time limit.
     /// </param>
     /// <returns>The completion task.</returns>
     /// <remarks>
     /// <para>
     /// <strong>Stop when the token is cancelled.</strong> The worker cancels it for
-    /// three reasons and tells them apart itself:
+    /// four reasons and tells them apart itself:
     /// </para>
     /// <list type="bullet">
     /// <item>
@@ -60,6 +60,14 @@ public interface IJobHandler
     /// handler runs, and cancels the token when it finds the job
     /// <see cref="JobStatus.Cancelled"/> or gone. The job stays cancelled whatever the
     /// handler does next.
+    /// </item>
+    /// <item>
+    /// The worker lost the job's lease: the store refused a renewal (another worker
+    /// leased the job after the lease lapsed), or renewals kept failing until the lease
+    /// could no longer be proven. The job belongs to another attempt now. The worker
+    /// writes nothing for this one: it neither completes the job nor returns it to the
+    /// queue, whatever the handler does next. Work the handler already did outside the
+    /// job's record is not undone.
     /// </item>
     /// <item>
     /// The attempt ran past <see cref="JobRecord.MaxDuration"/> (or
@@ -89,10 +97,11 @@ public interface IJobHandler
     /// keeps failing until then leaves the job to the lease-lapse case above.
     /// </para>
     /// <para>
-    /// <strong>A running handler is never interrupted by its own lease.</strong>
+    /// <strong>A running handler is never interrupted by its own lease running
+    /// out.</strong>
     /// The worker renews the lease on a timer for as long as
     /// <see cref="ExecuteAsync"/> has not returned, and it renews without a
-    /// limit. A job with no time limit (<see cref="JobRecord.MaxDuration"/>
+    /// limit. Only a lease the store takes away (see above) stops the handler. A job with no time limit (<see cref="JobRecord.MaxDuration"/>
     /// unset, and no entry for its key in
     /// <c>TraconSchedulingOptions.MaxDurationByHandlerKey</c>) can therefore run
     /// for ever, and a handler that ignores its token holds its worker slot even
@@ -174,7 +183,7 @@ public sealed class JobContext
 
     /// <summary>
     /// Says why the handler's token was cancelled: the worker stopping, the job
-    /// cancelled, or the attempt's time limit.
+    /// cancelled, the lease lost, or the attempt's time limit.
     /// </summary>
     /// <remarks>
     /// Internal on purpose, like <see cref="ProvableLeaseRemaining"/>: the built-in

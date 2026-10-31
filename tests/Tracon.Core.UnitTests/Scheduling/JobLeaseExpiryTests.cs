@@ -36,7 +36,7 @@ public sealed class JobLeaseExpiryTests
 
         var firstLease = await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-crashed", LeaseDuration = leaseDuration });
         firstLease.ShouldNotBeNull();
-        await store.MarkRunningAsync(job.Id, "worker-crashed");
+        (await store.MarkRunningAsync(JobLease.Of(firstLease))).ShouldBeTrue();
 
         // The crashed worker manages to report the first item before dying --
         // this is exactly the state a real process crash, or a lease that

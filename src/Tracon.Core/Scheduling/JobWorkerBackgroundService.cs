@@ -460,15 +460,27 @@ internal sealed class JobWorkerBackgroundService(
         string handlerKeyTag,
         CancellationToken stoppingToken)
     {
-        await jobStore.CompleteAsync(
+        var closed = await jobStore.CompleteAsync(
+            LeaseOf(job),
             new JobCompletion
             {
-                JobId = job.Id,
                 Status = JobStatus.Failed,
                 CompletedAt = completedAt,
                 ErrorMessage = errorMessage,
             },
             stoppingToken).ConfigureAwait(false);
+
+        if (!closed)
+        {
+            // Not closed: the job was cancelled in the meantime, or its lease went to
+            // another worker, which counts and publishes the outcome itself.
+            if (await IsCancelledAfterRefusalAsync(job, "fail it", stoppingToken).ConfigureAwait(false))
+            {
+                RecordJobMetric(job, JobStatus.Cancelled, startedAt, handlerKeyTag);
+            }
+
+            return;
+        }
 
         RecordJobMetric(job, JobStatus.Failed, startedAt, handlerKeyTag);
         await PublishJobOutcomeAsync(job, JobStatus.Failed, errorMessage, stoppingToken).ConfigureAwait(false);
@@ -482,7 +494,7 @@ internal sealed class JobWorkerBackgroundService(
         long leaseRequestedAt,
         CancellationToken stoppingToken)
     {
-        if (!await jobStore.MarkRunningAsync(job.Id, _ownerId, stoppingToken).ConfigureAwait(false))
+        if (!await jobStore.MarkRunningAsync(LeaseOf(job), stoppingToken).ConfigureAwait(false))
         {
             // The job left Leased between the lease and here: it was cancelled,
             // or its lease went to another worker. Either way it is not this
@@ -506,20 +518,25 @@ internal sealed class JobWorkerBackgroundService(
 
         // The renewal stays on until the outcome below is written, not only
         // while the handler runs: a store error is retried under a live lease.
-        using var leaseRenewal = StartLeaseRenewal(job.Id, options.LeaseDuration, leaseRequestedAt, stoppingToken);
+        using var leaseRenewal = StartLeaseRenewal(job, options.LeaseDuration, leaseRequestedAt, stoppingToken);
 
-        // The handler's token has THREE sources, kept apart so the
+        // The handler's token has FOUR sources, kept apart so the
         // outcome below can say which one fired: the worker stopping, the
-        // job cancelled (read every PollInterval by the watch below), and the
-        // attempt's time limit. Before, only the first existed: a cancel reached
-        // the handler only if it asked between items, and nothing bounded a job.
+        // job cancelled (read every PollInterval by the watch below), the
+        // lease lost (the renewal above says so), and the attempt's time limit.
+        // Before, only the first existed: a cancel reached the handler only if it
+        // asked between items, and nothing bounded a job.
         var maxDuration = ResolveMaxDuration(job, options);
         using var cancelled = new CancellationTokenSource();
         using var deadline = maxDuration is { } limit
             ? new CancellationTokenSource(limit, _clock)
             : new CancellationTokenSource();
-        using var handlerToken = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, cancelled.Token, deadline.Token);
-        var signals = new JobAttemptSignals(maxDuration, stoppingToken, cancelled.Token, deadline.Token);
+        using var handlerToken = CancellationTokenSource.CreateLinkedTokenSource(
+            stoppingToken,
+            cancelled.Token,
+            deadline.Token,
+            leaseRenewal.LostToken);
+        var signals = new JobAttemptSignals(maxDuration, stoppingToken, cancelled.Token, deadline.Token, leaseRenewal.LostToken);
 
         var context = new JobContext
         {
@@ -575,7 +592,16 @@ internal sealed class JobWorkerBackgroundService(
         // Read once, now that the handler has returned: which source fired decides
         // the outcome, not the exception the handler happened to throw.
         var reason = signals.Reason;
-        var window = new FinalizationWindow(_clock, leaseRenewal.ProvableRemaining);
+        var window = new FinalizationWindow(_clock, leaseRenewal);
+
+        if (reason == JobStopReason.LeaseLost)
+        {
+            // 🚨 The job is another worker's now, and the log entry written when the lease
+            // was lost said why. Nothing is written for this attempt and nothing counted:
+            // a Completed or a Pending from here would close or requeue the attempt of the
+            // worker that holds the job. That worker counts and publishes the outcome.
+            return;
+        }
 
         if (failure is null)
         {
@@ -741,11 +767,17 @@ internal sealed class JobWorkerBackgroundService(
         var listed = await RetryFinalizationAsync(
             job,
             "read its items",
-            async ct => finalItems = await jobStore.ListItemsAsync(job.Id, ct).ConfigureAwait(false),
+            async ct =>
+            {
+                finalItems = await jobStore.ListItemsAsync(job.Id, ct).ConfigureAwait(false);
+
+                return true;
+            },
+            appliedStatus: null,
             window,
             stoppingToken).ConfigureAwait(false);
 
-        if (!listed)
+        if (listed != FinalizationResult.Written)
         {
             return;
         }
@@ -754,32 +786,44 @@ internal sealed class JobWorkerBackgroundService(
 
         var completion = new JobCompletion
         {
-            JobId = job.Id,
             Status = allFailed ? JobStatus.Failed : JobStatus.Completed,
             CompletedAt = _clock.GetUtcNow(),
             ErrorMessage = allFailed ? "All of the job's items failed." : null,
         };
 
+        var lease = LeaseOf(job);
+
         var completed = await RetryFinalizationAsync(
             job,
             "complete it",
-            ct => jobStore.CompleteAsync(completion, ct),
+            ct => jobStore.CompleteAsync(lease, completion, ct),
+            completion.Status,
             window,
             stoppingToken).ConfigureAwait(false);
 
-        if (!completed)
+        if (completed == FinalizationResult.GaveUp)
         {
             return;
         }
 
-        // A job cancelled while its handler ran (the handler saw it through
-        // IsCancelledAsync and exited early) is not overwritten: the store
-        // leaves a terminal job unchanged. Only a read can tell which status
-        // the job now has, and that read decides the metric and nothing else.
-        // Cancelled IS terminal, so the attempt is still counted.
-        var finalStatus = await TryReadStatusAsync(job, stoppingToken).ConfigureAwait(false) == JobStatus.Cancelled
-            ? JobStatus.Cancelled
-            : completion.Status;
+        var finalStatus = completion.Status;
+
+        if (completed == FinalizationResult.Refused)
+        {
+            // A job cancelled while its handler ran (the handler saw it through
+            // IsCancelledAsync and exited early) is not overwritten: the store
+            // refuses the write on a terminal job. Cancelled IS terminal, so the
+            // attempt is still counted. A refusal for any other reason is a lost
+            // lease: the job is another worker's, and that worker counts it.
+            if (!await IsCancelledAfterRefusalAsync(job, "complete it", stoppingToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            finalStatus = JobStatus.Cancelled;
+        }
+
+        window.Settled();
 
         RecordJobMetric(job, finalStatus, startedAt);
         await PublishJobOutcomeAsync(job, finalStatus, completion.ErrorMessage, stoppingToken).ConfigureAwait(false);
@@ -885,23 +929,33 @@ internal sealed class JobWorkerBackgroundService(
         {
             var completion = new JobCompletion
             {
-                JobId = job.Id,
                 Status = JobStatus.Failed,
                 CompletedAt = _clock.GetUtcNow(),
                 ErrorMessage = safeMessage,
             };
 
+            var failLease = LeaseOf(job);
+
             var failed = await RetryFinalizationAsync(
                 job,
                 "fail it",
-                ct => jobStore.CompleteAsync(completion, ct),
+                ct => jobStore.CompleteAsync(failLease, completion, ct),
+                JobStatus.Failed,
                 window,
                 stoppingToken).ConfigureAwait(false);
 
-            if (failed)
+            if (failed == FinalizationResult.Written)
             {
+                window.Settled();
+
                 RecordJobMetric(job, JobStatus.Failed, startedAt);
                 await PublishJobOutcomeAsync(job, JobStatus.Failed, safeMessage, stoppingToken).ConfigureAwait(false);
+            }
+            else if (failed == FinalizationResult.Refused
+                && await IsCancelledAfterRefusalAsync(job, "fail it", stoppingToken).ConfigureAwait(false))
+            {
+                // Cancelled between the read above and this write.
+                RecordJobMetric(job, JobStatus.Cancelled, startedAt);
             }
 
             return;
@@ -910,13 +964,26 @@ internal sealed class JobWorkerBackgroundService(
         // The handler may request a delay; if not, the old behavior
         // (immediately re-leasable) is preserved.
         var retryAfter = (exception as JobRetryException)?.RetryAfter;
+        var releaseLease = LeaseOf(job);
 
-        await RetryFinalizationAsync(
+        var released = await RetryFinalizationAsync(
             job,
             "release it for another attempt",
-            ct => jobStore.ReleaseForRetryAsync(job.Id, safeMessage, retryAfter, ct),
+            ct => jobStore.ReleaseForRetryAsync(releaseLease, safeMessage, retryAfter, ct),
+            JobStatus.Pending,
             window,
             stoppingToken).ConfigureAwait(false);
+
+        if (released == FinalizationResult.Written)
+        {
+            window.Settled();
+        }
+        else if (released == FinalizationResult.Refused
+            && await IsCancelledAfterRefusalAsync(job, "release it for another attempt", stoppingToken).ConfigureAwait(false))
+        {
+            // Cancelled between the read above and this write.
+            RecordJobMetric(job, JobStatus.Cancelled, startedAt);
+        }
 
         // 🚨 Deliberately NOT counted. The job has not finished; it will be
         // leased again. Counting a release for retry would turn
@@ -933,10 +1000,18 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="job">The job being finalized.</param>
     /// <param name="step">What the call does, for the log.</param>
     /// <param name="call">The store call.</param>
+    /// <param name="appliedStatus">
+    /// The status the call leaves the job in when it applies; <see langword="null"/> for a call that
+    /// writes nothing. It lets a try that follows an error recognise a write the earlier try had already
+    /// made.
+    /// </param>
     /// <param name="window">How long the tries may go on.</param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
     /// <returns>
-    /// <see langword="true"/> once the call succeeded; <see langword="false"/>
+    /// <see cref="FinalizationResult.Written"/> once the call applied;
+    /// <see cref="FinalizationResult.Refused"/> when the store answered that the write
+    /// did not apply (the lease is another attempt's, or the job is closed), or when this
+    /// worker already knows the lease is lost; <see cref="FinalizationResult.GaveUp"/>
     /// when the window ran out first. The job is then left to the lease-expiry
     /// path: it is leased again once its lease runs out, and that lease counts
     /// as an attempt.
@@ -948,32 +1023,57 @@ internal sealed class JobWorkerBackgroundService(
     /// leaves a terminal job unchanged.
     /// </para>
     /// <para>
-    /// The tries stop at the window's end because the store's completion and
-    /// release calls carry no owner check: once the lease this worker can
-    /// prove has run out, another worker may own the job, and a late write
-    /// would close or requeue that worker's attempt. Shutdown ends the tries
+    /// A refusal is an answer, not an error, and is not tried again: the store
+    /// fences the completion and release calls by the lease, so the same call would be
+    /// refused again.
+    /// </para>
+    /// <para>
+    /// The tries stop at the window's end even though the store fences the write: once
+    /// the lease this worker can prove has run out, the job may belong to another worker
+    /// already, and a write that is sent anyway only has the fence to stop it. The window
+    /// closes at once when the renewal reports the lease lost. Shutdown ends the tries
     /// too; its cancellation propagates like that of any other store call.
     /// </para>
     /// </remarks>
-    private async Task<bool> RetryFinalizationAsync(
+    private async Task<FinalizationResult> RetryFinalizationAsync(
         JobRecord job,
         string step,
-        Func<CancellationToken, ValueTask> call,
+        Func<CancellationToken, ValueTask<bool>> call,
+        JobStatus? appliedStatus,
         FinalizationWindow window,
         CancellationToken stoppingToken)
     {
         var delay = FinalizationRetryFirstDelay;
+        var failedBefore = false;
 
         while (true)
         {
+            if (window.LeaseLost)
+            {
+                return FinalizationResult.Refused;
+            }
+
             try
             {
-                await call(stoppingToken).ConfigureAwait(false);
+                if (await call(stoppingToken).ConfigureAwait(false))
+                {
+                    return FinalizationResult.Written;
+                }
 
-                return true;
+                // 🚨 A refusal after an error is not yet a lost lease: the earlier try may have
+                // committed and only its answer been lost (a dropped connection). The second try
+                // then finds the job already closed, and the store answers false because the
+                // lease is gone, which a write that applied also clears.
+                return failedBefore
+                    && appliedStatus is { } expected
+                    && await AppliedByThisAttemptAsync(job, expected, stoppingToken).ConfigureAwait(false)
+                        ? FinalizationResult.Written
+                        : FinalizationResult.Refused;
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
+                failedBefore = true;
+
                 var left = window.Left;
 
                 if (left <= TimeSpan.Zero)
@@ -990,7 +1090,7 @@ internal sealed class JobWorkerBackgroundService(
                             correlationId);
                     }
 
-                    return false;
+                    return FinalizationResult.GaveUp;
                 }
 
                 if (delay > left)
@@ -1041,6 +1141,93 @@ internal sealed class JobWorkerBackgroundService(
             return null;
         }
     }
+
+    /// <summary>
+    /// Tells whether a job is in the status this attempt's own write leaves it in, on this attempt.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="expected">The status the write leaves the job in.</param>
+    /// <param name="stoppingToken">The worker's shutdown token.</param>
+    /// <returns>
+    /// <see langword="true"/> when the job carries this attempt's number and that status; <see langword="false"/> when
+    /// it does not, or the read failed.
+    /// </returns>
+    /// <remarks>
+    /// The attempt number is what makes the answer this attempt's: it grows each time the job is leased and the
+    /// store lets only the holder of that attempt close or requeue it, so no other writer leaves the job in a
+    /// terminal status (or back in the queue) with this attempt's number. A cancelled job reads
+    /// <see cref="JobStatus.Cancelled"/> and never matches.
+    /// </remarks>
+    private async Task<bool> AppliedByThisAttemptAsync(JobRecord job, JobStatus expected, CancellationToken stoppingToken)
+    {
+        try
+        {
+            var current = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false);
+
+            return current is not null && current.Attempt == job.Attempt && current.Status == expected;
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "Could not read job {JobId} back to learn whether an earlier try wrote its outcome.", job.Id);
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Tells why a write that needs the lease was refused: the job was cancelled in the
+    /// meantime, or the lease is gone.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="step">What the refused write did, for the log.</param>
+    /// <param name="stoppingToken">The worker's shutdown token.</param>
+    /// <returns>
+    /// <see langword="true"/> when the job is cancelled, which is counted like any cancelled
+    /// job; <see langword="false"/> when the lease was lost, which the log records and nothing
+    /// else follows from: the job belongs to another attempt, and that attempt counts it.
+    /// </returns>
+    /// <remarks>
+    /// Cancelling a job clears its lease, so a cancelled job refuses a write exactly as a
+    /// job that changed hands does. Only a read tells the two apart. A read that fails
+    /// answers "lost": the write did not apply either way, and the worker must not count a
+    /// job it cannot show it still owns.
+    /// </remarks>
+    private async Task<bool> IsCancelledAfterRefusalAsync(JobRecord job, string step, CancellationToken stoppingToken)
+    {
+        if (await TryReadStatusAsync(job, stoppingToken).ConfigureAwait(false) == JobStatus.Cancelled)
+        {
+            return true;
+        }
+
+        LogLeaseLost(job, $"the store refused to {step}");
+
+        return false;
+    }
+
+    private void LogLeaseLost(JobRecord job, string why)
+    {
+        if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                "Job {JobId} attempt {Attempt}: this worker no longer holds the lease ({Reason}); the attempt's result is not written.",
+                job.Id,
+                job.Attempt,
+                why);
+        }
+    }
+
+    /// <summary>Builds the lease this worker holds on <paramref name="job"/>, a record <c>LeaseAsync</c> returned to it.</summary>
+    /// <param name="job">The leased job.</param>
+    /// <returns>The lease: the job, this worker, and the attempt the lease counted.</returns>
+    /// <remarks>
+    /// Built from the worker's own identity, not from <see cref="JobRecord.LeaseOwner"/>: the worker
+    /// knows who it leased as, whether or not a store fills that field on the record it returns.
+    /// </remarks>
+    private JobLease LeaseOf(JobRecord job)
+        => new() { JobId = job.Id, Owner = _ownerId, Attempt = job.Attempt };
 
     /// <summary>
     /// Publishes <c>job.completed</c> or <c>job.failed</c> for a job that just
@@ -1217,7 +1404,7 @@ internal sealed class JobWorkerBackgroundService(
     }
 
     private LeaseRenewal StartLeaseRenewal(
-        Guid jobId,
+        JobRecord job,
         TimeSpan leaseDuration,
         long leaseRequestedAt,
         CancellationToken stoppingToken)
@@ -1239,18 +1426,20 @@ internal sealed class JobWorkerBackgroundService(
         // between workers.
         var renewal = new LeaseRenewal(_clock, leaseDuration, interval, leaseRequestedAt, stoppingToken);
 
-        _ = RenewLoopAsync(jobId, leaseDuration, interval, renewal, renewal.Token);
+        _ = RenewLoopAsync(job, leaseDuration, interval, renewal, renewal.Token);
 
         return renewal;
     }
 
     private async Task RenewLoopAsync(
-        Guid jobId,
+        JobRecord job,
         TimeSpan leaseDuration,
         TimeSpan interval,
         LeaseRenewal renewal,
         CancellationToken token)
     {
+        var lease = LeaseOf(job);
+
         try
         {
             using var timer = new PeriodicTimer(interval, _clock);
@@ -1261,20 +1450,39 @@ internal sealed class JobWorkerBackgroundService(
                 // ended renewal for good on the first transient store error: the
                 // handler kept running, the lease ran out, and another worker
                 // leased the job and ran it a second time beside the first.
-                // IJobHandler promises a lease renewed without limit.
+                // A store ERROR is a missed tick; only an ANSWER (the store says the
+                // lease is not this worker's) or a lease that can no longer be proven
+                // ends the renewal, and then the handler is told.
                 try
                 {
                     var requestedAt = _clock.GetTimestamp();
 
-                    await jobStore.RenewLeaseAsync(jobId, _ownerId, leaseDuration, token).ConfigureAwait(false);
+                    if (await jobStore.RenewLeaseAsync(lease, leaseDuration, token).ConfigureAwait(false))
+                    {
+                        renewal.Confirm(requestedAt);
 
-                    renewal.Confirm(requestedAt);
+                        continue;
+                    }
+
+                    await StopRefusedRenewalAsync(job, renewal, token).ConfigureAwait(false);
+
+                    return;
                 }
                 catch (Exception exception) when (OperationCancellation.IsFailure(exception, token))
                 {
                     if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                     {
-                        logger.LogWarning(exception, "Lease renewal failed: {JobId}. The next tick tries again.", jobId);
+                        logger.LogWarning(exception, "Lease renewal failed: {JobId}. The next tick tries again.", job.Id);
+                    }
+
+                    // Errors cannot go on for ever: past the point the lease can be proven
+                    // the job may be another worker's, and this one cannot tell.
+                    if (renewal.ProvableRemaining <= TimeSpan.Zero)
+                    {
+                        LogLeaseLost(job, "its renewals kept failing until the lease could no longer be proven");
+                        renewal.MarkLost();
+
+                        return;
                     }
                 }
             }
@@ -1284,6 +1492,34 @@ internal sealed class JobWorkerBackgroundService(
             // The job finished, or the worker is shutting down. Only then: a
             // store's own timeout is a renewal failure and is logged above.
         }
+    }
+
+    /// <summary>
+    /// Handles a renewal the store refused: ends the renewal, and tells the handler when the
+    /// job has changed hands.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="renewal">The attempt's renewal.</param>
+    /// <param name="token">The renewal's token.</param>
+    /// <returns>A task that completes when the refusal has been handled.</returns>
+    /// <remarks>
+    /// Cancelling a job clears its lease, so a refusal may only mean the job was cancelled. That case
+    /// is the cancel watch's: it reads the status itself, stops the handler as a cancel and counts the
+    /// job as cancelled, and a handler told that its lease was lost would leave a cancelled job's
+    /// checkpoints behind. A read that throws propagates to the loop, which counts it as a missed
+    /// tick and asks again on the next one.
+    /// </remarks>
+    private async Task StopRefusedRenewalAsync(JobRecord job, LeaseRenewal renewal, CancellationToken token)
+    {
+        var current = await jobStore.GetAsync(job.TenantId, job.Id, token).ConfigureAwait(false);
+
+        if (current is null || current.Status == JobStatus.Cancelled)
+        {
+            return;
+        }
+
+        LogLeaseLost(job, "the store refused the renewal");
+        renewal.MarkLost();
     }
 
     /// <summary>
@@ -1302,7 +1538,9 @@ internal sealed class JobWorkerBackgroundService(
         private readonly TimeSpan _duration;
         private readonly TimeSpan _margin;
         private readonly CancellationTokenSource _cts;
+        private readonly CancellationTokenSource _lost = new();
         private long _confirmedAt;
+        private int _isLost;
 
         public LeaseRenewal(
             TimeProvider clock,
@@ -1321,6 +1559,12 @@ internal sealed class JobWorkerBackgroundService(
         /// <summary>Cancelled when the renewal stops. Read it before <see cref="Dispose"/>.</summary>
         public CancellationToken Token => _cts.Token;
 
+        /// <summary>Cancelled when the lease is lost. Read it before <see cref="Dispose"/>.</summary>
+        public CancellationToken LostToken => _lost.Token;
+
+        /// <summary>Gets whether the lease was lost: the store refused a renewal, or none could be proven in time.</summary>
+        public bool IsLost => Volatile.Read(ref _isLost) != 0;
+
         /// <summary>
         /// The time left on the lease this worker can prove, less the margin.
         /// Zero or negative once the margin is reached.
@@ -1332,12 +1576,40 @@ internal sealed class JobWorkerBackgroundService(
         /// <param name="requestedAt">The monotonic timestamp taken before the renewal was sent.</param>
         public void Confirm(long requestedAt)
         {
-            // A renewal sent after the proven lease ran out proves nothing: the
-            // store ignores a renewal from a worker that no longer owns the
-            // lease, and reports no error for it.
+            // A renewal sent after the proven lease ran out proves nothing: the job
+            // may have changed hands in between, and an answer that only says the
+            // lease was extended says nothing about who holds it now.
             if (_clock.GetElapsedTime(Volatile.Read(ref _confirmedAt), requestedAt) < _duration)
             {
                 Volatile.Write(ref _confirmedAt, requestedAt);
+            }
+        }
+
+        /// <summary>Records that the lease is lost and cancels <see cref="LostToken"/>.</summary>
+        public void MarkLost()
+        {
+            Volatile.Write(ref _isLost, 1);
+
+            try
+            {
+                _lost.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The attempt ended while the loop was answering: nobody is left to tell.
+            }
+        }
+
+        /// <summary>Stops the renewal once the attempt's outcome is written. Safe to call more than once.</summary>
+        public void Stop()
+        {
+            try
+            {
+                _cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed: the renewal has stopped.
             }
         }
 
@@ -1346,6 +1618,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             _cts.Cancel();
             _cts.Dispose();
+            _lost.Dispose();
         }
     }
 
@@ -1356,14 +1629,38 @@ internal sealed class JobWorkerBackgroundService(
     /// <remarks>
     /// Fixed, and not moved by later renewals: a store that keeps renewing the
     /// lease while it refuses the completion would otherwise hold the job
-    /// Running, and the worker's slot, without end.
+    /// Running, and the worker's slot, without end. It closes early when the
+    /// renewal reports the lease lost.
     /// </remarks>
-    private sealed class FinalizationWindow(TimeProvider clock, TimeSpan length)
+    private sealed class FinalizationWindow(TimeProvider clock, LeaseRenewal renewal)
     {
         private readonly long _openedAt = clock.GetTimestamp();
+        private TimeSpan Length { get; } = renewal.ProvableRemaining;
+
+        /// <summary>Gets whether the lease was lost: nothing is written for this attempt.</summary>
+        public bool LeaseLost => renewal.IsLost;
 
         /// <summary>The time left; zero or negative once the window has closed.</summary>
-        public TimeSpan Left => length - clock.GetElapsedTime(_openedAt);
+        public TimeSpan Left => renewal.IsLost ? TimeSpan.Zero : Length - clock.GetElapsedTime(_openedAt);
+
+        /// <summary>
+        /// Says the attempt's outcome is written, so the lease no longer needs renewing. A renewal that
+        /// went on would be refused (the job is closed or requeued) and read as a lost lease.
+        /// </summary>
+        public void Settled() => renewal.Stop();
+    }
+
+    /// <summary>What one fenced finalization step came to.</summary>
+    private enum FinalizationResult
+    {
+        /// <summary>The store applied the write.</summary>
+        Written,
+
+        /// <summary>The store answered that the write did not apply, or the lease was already known to be lost.</summary>
+        Refused,
+
+        /// <summary>Store errors used up the window.</summary>
+        GaveUp,
     }
 
     /// <summary>
