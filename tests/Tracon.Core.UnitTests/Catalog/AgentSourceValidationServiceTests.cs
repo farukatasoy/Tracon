@@ -59,7 +59,7 @@ public sealed class AgentSourceValidationServiceTests
     }
 
     /// <summary>
-    /// Sharing a priority — built-in or not — is not an error (101.9: nothing bars a
+    /// Sharing a priority — built-in or not — is not an error (nothing bars a
     /// custom source from choosing <see cref="AgentSourcePriority.Code"/> or
     /// <see cref="AgentSourcePriority.Database"/>); it just ties, and DI order breaks the
     /// tie. Startup still warns so the operator can see the tie exists.

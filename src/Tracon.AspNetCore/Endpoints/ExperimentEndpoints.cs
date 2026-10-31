@@ -371,7 +371,7 @@ internal static class ExperimentEndpoints
     }
 
     /// <summary>
-    /// Validates a canary rule. The two-arm constraint from 56.4 is enforced
+    /// Validates a canary rule. The two-arm constraint is enforced
     /// here: if the number of remaining arms is not 1, session stickiness
     /// (see the <see cref="CanaryPolicy"/> class documentation) cannot be guaranteed.
     /// </summary>

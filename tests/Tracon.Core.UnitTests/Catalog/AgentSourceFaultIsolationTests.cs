@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Catalog;
 
 /// <summary>
-/// Verifies the two source-failure policies from 101.3: <c>ListAsync</c> is
+/// Verifies the two source-failure policies: <c>ListAsync</c> is
 /// fail-open (a broken source is skipped, the rest of the catalog stays usable),
 /// <c>ResolveAsync</c> is fail-closed (a broken source stops the call instead of
 /// silently falling through to a lower-priority source that might resolve a

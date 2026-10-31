@@ -4,7 +4,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 101.4 at the host boundary: <c>AgentSourceValidationService</c> is an
+/// Source validation at the host boundary: <c>AgentSourceValidationService</c> is an
 /// <see cref="Microsoft.Extensions.Hosting.IHostedService"/>, so its structural check runs
 /// while the real ASP.NET Core host starts — not deferred to the first HTTP request, the
 /// way the equivalent <c>CodeAgentSource</c> duplicate-name check used to be before 101.

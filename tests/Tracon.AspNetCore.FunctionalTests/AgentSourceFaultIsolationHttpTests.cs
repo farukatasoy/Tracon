@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 101.3 at the HTTP boundary: a broken <see cref="IAgentSource"/> must not take down
+/// Source isolation at the HTTP boundary: a broken <see cref="IAgentSource"/> must not take down
 /// <c>GET /api/agents</c> for everyone else, and a run against the broken source's own
 /// agent must not leak the raw third-party exception text into the response body.
 /// </summary>

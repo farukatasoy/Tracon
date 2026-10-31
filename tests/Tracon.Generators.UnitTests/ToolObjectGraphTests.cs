@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies 135.1/135.4: an object parameter's graph is limited to 3 nested levels, a cycle
+/// Verifies that an object parameter's graph is limited to 3 nested levels, a cycle
 /// is caught instead of recursing forever (TRC0012), and every object type reached must be
 /// declared on the tool's <c>JsonSerializerContext</c> (TRC0011) - the same rule TRC0008
 /// already enforces for a complex RESULT type, extended to cover a nested PARAMETER type too.
@@ -83,7 +83,7 @@ public sealed class ToolObjectGraphTests
         result.SingleWrapperFile().ShouldNotBeEmpty();
     }
 
-    /// <summary>135.1: a type that reaches itself again through its own members is rejected, never walked forever.</summary>
+    /// <summary>A type that reaches itself again through its own members is rejected, never walked forever.</summary>
     [Fact]
     public async Task A_cycle_produces_TRC0012_naming_the_cyclic_path_and_the_generator_returns_promptly()
     {
@@ -208,7 +208,7 @@ public sealed class ToolObjectGraphTests
         result.SingleWrapperFile().ShouldNotBeEmpty();
     }
 
-    /// <summary>135.1: a type with more than one public constructor has no single, unambiguous member list - unsupported (TRC0003), not silently picked.</summary>
+    /// <summary>A type with more than one public constructor has no single, unambiguous member list - unsupported (TRC0003), not silently picked.</summary>
     [Fact]
     public void A_type_with_more_than_one_public_constructor_is_reported_as_an_unsupported_parameter_type()
     {
@@ -241,7 +241,7 @@ public sealed class ToolObjectGraphTests
         result.DiagnosticsWithId("TRC0012").ShouldBeEmpty();
     }
 
-    /// <summary>135.1: a generic type is never a supported object shape - unsupported (TRC0003).</summary>
+    /// <summary>A generic type is never a supported object shape - unsupported (TRC0003).</summary>
     [Fact]
     public void A_generic_record_parameter_is_reported_as_an_unsupported_parameter_type()
     {
@@ -265,7 +265,7 @@ public sealed class ToolObjectGraphTests
         result.DiagnosticsWithId("TRC0003").Count.ShouldBe(1);
     }
 
-    /// <summary>135.4: TRC0003's message no longer claims a nested object can never be expressed.</summary>
+    /// <summary>TRC0003's message no longer claims a nested object can never be expressed.</summary>
     [Fact]
     public void TRC0003_no_longer_claims_a_nested_object_is_never_expressed()
     {

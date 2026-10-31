@@ -2,7 +2,7 @@ namespace Tracon;
 
 /// <summary>Resolved inputs that determine an agent compilation and its cache key.</summary>
 /// <remarks>
-/// Internal, not public: 101.7 measured every definition-backed <see cref="IAgentSource"/>
+/// Internal, not public: a measurement covered every definition-backed <see cref="IAgentSource"/>
 /// this repo has — the two built-in sources and the published
 /// <c>Tracon.Samples.CustomAgentSource</c> sample — and every one of them only ever
 /// needs <see cref="AgentDefinitionCompiler.CompileCachedAsync"/>. This type exists to

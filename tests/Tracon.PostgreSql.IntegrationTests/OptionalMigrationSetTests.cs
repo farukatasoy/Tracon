@@ -177,7 +177,7 @@ public sealed class OptionalMigrationSetTests(PostgresFixture fixture)
 
     /// <summary>
     /// A schema first migrated with knowledge OFF, then restarted with it ON
-    /// (manual acceptance case 4): only the knowledge set applies; the core
+    /// (a manual acceptance check): only the knowledge set applies; the core
     /// set does not run again.
     /// </summary>
     [Fact]

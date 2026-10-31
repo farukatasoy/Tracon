@@ -226,8 +226,7 @@ internal sealed class CanaryEvaluationService(
     /// <summary>
     /// Advances the canary weight to the next <see cref="CanaryPolicy.RampSteps"/>
     /// value. UNLIKE a rollback, this is NOT written to the audit log - it is
-    /// only a reversible operation that increases the traffic share (see the
-    /// 56.2 flow diagram).
+    /// only a reversible operation that increases the traffic share.
     /// </summary>
     private async Task TryAdvanceRampAsync(
         Experiment experiment,

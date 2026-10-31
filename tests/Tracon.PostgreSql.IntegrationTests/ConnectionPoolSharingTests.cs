@@ -4,7 +4,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// The 110.1 measurement: does an <c>NpgsqlDataSource</c> built from the SAME
+/// The measurement: does an <c>NpgsqlDataSource</c> built from the SAME
 /// connection string as another <c>NpgsqlDataSource</c> share ITS connection
 /// pool, or open a second one?
 /// </summary>

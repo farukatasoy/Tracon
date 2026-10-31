@@ -215,7 +215,7 @@ internal static class RetentionTargetRegistry
                 IdKey),
 
             // The basis is not the created_at of the checkpoint itself but the
-            // completion time of the ASSOCIATED RUN (25.1: "7 days after the run
+            // completion time of the ASSOCIATED RUN ("7 days after the run
             // completes"). For THE SAME REASON the MaxRows threshold is computed with
             // a correlated subquery over runs.completed_at (the same pattern as
             // eval_case_results). The correlation is the FULLY QUALIFIED name here as

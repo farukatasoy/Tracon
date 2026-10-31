@@ -278,6 +278,10 @@ public sealed class ShippedDocumentationSelfContainmentTests
     [InlineData("// recorded as HATA-S3-008 and MT-MCP-023")]
     [InlineData("// see section 53.4 of the plan")]
     [InlineData("// This phase widens the store.")]
+    [InlineData("// 144.4: the option object is built by Tracon")]
+    [InlineData("# 237.3 / 237.4 - what the report cannot see")]
+    [InlineData("/// 21.1). The scope counts in the store")]
+    [InlineData("/// <summary>135.1: a generic type is rejected.</summary>")]
     public void A_reference_into_the_development_record_is_flagged(string line)
     {
         CountOffendingLines([line], Rules.Reference).ShouldBe(1);
@@ -294,6 +298,9 @@ public sealed class ShippedDocumentationSelfContainmentTests
     [InlineData("See https://tracon.dev/docs/guides/setup")]
     [InlineData("the phase of the moon")]
     [InlineData("an ordinary comment about retries")]
+    [InlineData("// a contrast of 4.5:1 is the floor")]
+    [InlineData("// one millisecond to about 24.8 days)")]
+    [InlineData("// the window is 49.8 s long")]
     public void Text_the_public_reader_holds_is_not_flagged(string line)
     {
         CountOffendingLines([line], Rules.Reference).ShouldBe(0);

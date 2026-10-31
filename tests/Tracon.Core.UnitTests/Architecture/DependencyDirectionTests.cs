@@ -39,7 +39,7 @@ public sealed class DependencyDirectionTests
         // passed to the compiler as an analyzer. Even so, the <ProjectReference>
         // tag still shows up in the .csproj XML this test reads, so it must be
         // in the allow-list. Tracon.Generators itself is NOT a KEY of this
-        // dictionary (it is not published, it carries no README requirement - 52.4).
+        // dictionary (it is not published, it carries no README requirement).
         ["Tracon.Core"] = ["Tracon.Abstractions", "Tracon.Generators"],
         ["Tracon.PostgreSql"] = ["Tracon.Core"],
         ["Tracon.OpenAI"] = ["Tracon.Core"],

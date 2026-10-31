@@ -10,7 +10,7 @@ public sealed class SchemaArgumentGeneratorTests
 {
     // A representative, real AIFunctionFactory-produced schema: one required
     // string, one bounded integer, one pattern-constrained optional string.
-    // Not hand-authored JSON - 143.3 requires reading the shape the runtime
+    // Not hand-authored JSON - the generator must read the shape the runtime
     // actually produces, not a shape this test assumes.
     private static AIFunction SearchTool { get; } = AIFunctionFactory.Create(
         (Func<string, int, string?, string>)Search,

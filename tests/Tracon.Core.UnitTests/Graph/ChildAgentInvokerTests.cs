@@ -172,7 +172,7 @@ public sealed class ChildAgentInvokerTests
     [Fact]
     public async Task Callers_own_cancellation_still_propagates_when_no_timeout_fires()
     {
-        // 144.1 regression: the caller's real cancellation must not be
+        // Regression: the caller's real cancellation must not be
         // mistaken for either wait-limit layer. Both layers are set far
         // longer than the test's own cancellation, so only the caller's
         // token can possibly end this call.

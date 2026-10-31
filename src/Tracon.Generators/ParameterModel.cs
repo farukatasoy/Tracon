@@ -21,7 +21,7 @@ internal enum ParameterShape
 
 /// <summary>
 /// The leaf CLR type of a parameter or an array parameter element. JSON schema and
-/// converter expression derive from this information. Under 52.5, generated code
+/// converter expression derive from this information. Generated code
 /// must only be a function of these fields. It does not retain a separate converter
 /// text field because the two representations could diverge.
 /// </summary>

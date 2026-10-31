@@ -59,7 +59,7 @@ public sealed class JobTests(BrowserFixture browsers)
         await Expect(session.Page.GetByText("completed", new() { Exact = true }).First).ToBeVisibleAsync();
 
         // The triggered job's own row also carries the schedule's lane
-        // (129.1: a cron/trigger-dispatched job inherits it from the schedule).
+        // (a cron/trigger-dispatched job inherits it from the schedule).
         await Expect(session.Page.Locator("table").Last.Locator("tbody tr").First
             .GetByText("media", new() { Exact = true })).ToBeVisibleAsync();
 

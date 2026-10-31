@@ -51,7 +51,7 @@ public sealed class ToolGovernanceEndpointTests
     [Fact]
     public async Task Rejected_arguments_complete_the_run_and_are_recorded_as_ToolFailed()
     {
-        // the development notes, 127.2: unlike an authorization denial (recorded as an
+        // Unlike an authorization denial (recorded as an
         // ordinary successful result), a rejected call is recorded as
         // ToolFailed - the same conversion TimeoutAIFunction's thrown
         // exception already produces.

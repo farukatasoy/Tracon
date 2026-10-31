@@ -38,7 +38,7 @@ public sealed class RetentionPolicyResolverTests
     {
         // For Sessions/Conversations, RetentionTargetOptions.MaxAgeDays defaults to
         // null — Enabled=true alone is NOT enough; MaxAgeDays must also be set
-        // explicitly (25.1: user data, default DISABLED).
+        // explicitly (user data, default DISABLED).
         var resolver = Build(new TraconRetentionOptions { Enabled = true });
 
         (await resolver.ResolveAsync(Tenant, RetentionTargets.Sessions)).ShouldBeNull();

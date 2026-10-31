@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies 130.4: <c>ParameterConstraints</c> only carries primitive fields, so it
+/// Verifies that <c>ParameterConstraints</c> only carries primitive fields, so it
 /// participates in <c>ParameterModel</c>'s incremental-generator value equality
 /// automatically. A constraint-only change between two runs of the SAME driver must
 /// invalidate the cached step and reach the second run's schema - the same pattern

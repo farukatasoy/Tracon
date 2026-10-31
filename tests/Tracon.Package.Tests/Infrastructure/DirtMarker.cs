@@ -9,7 +9,7 @@ namespace Tracon.Package.Tests.Infrastructure;
 /// <c>Directory.Build.props</c> and running <c>git checkout --</c> afterwards):
 /// an untracked file can never corrupt real content if a test crashes before
 /// cleanup runs, and it exercises the untracked-file half of the gate's
-/// contract on its own (136.1 - an untracked file blocks the gate too).
+/// contract on its own (an untracked file blocks the gate too).
 /// Spinning up a second, isolated git repository with its own restored
 /// dependency graph was considered and rejected - it would cost minutes per
 /// fact for no coverage this approach does not already give.

@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Tracon.Core.UnitTests.Catalog;
 
-/// <summary>101.8: the three <c>AddAgentSource</c> registration overloads.</summary>
+/// <summary>The three <c>AddAgentSource</c> registration overloads.</summary>
 public sealed class TraconBuilderAgentSourceTests
 {
     [Fact]

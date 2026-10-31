@@ -242,7 +242,7 @@ internal static class ParameterTypeValidator
     }
 
     /// <summary>
-    /// Classifies one object member from its source constructor parameter (135.1: the
+    /// Classifies one object member from its source constructor parameter (the
     /// single public constructor's parameters ARE the object's members - a positional
     /// record's primary constructor naturally supplies these). Mirrors the top-level
     /// scalar/array/object classification in <see cref="TryCreate"/>, minus the fields

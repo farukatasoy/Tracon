@@ -215,7 +215,7 @@ public sealed class ReadViewContractTests(SqliteFixture fixture) : IAsyncLifetim
     /// <summary>
     /// The view is NOT a tenant boundary. A consumer that queries it
     /// without its own <c>WHERE tenant_id = ...</c> clause sees every
-    /// tenant's rows -- the manual acceptance case 5 this test automates.
+    /// tenant's rows -- the manual acceptance check this test automates.
     /// </summary>
     [Fact]
     public async Task View_carries_every_tenants_rows_unfiltered()

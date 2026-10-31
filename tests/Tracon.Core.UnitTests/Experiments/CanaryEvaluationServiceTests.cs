@@ -151,7 +151,7 @@ public sealed class CanaryEvaluationServiceTests
         advanced.Variants.Single(static v => string.Equals(v.Name, "canary", StringComparison.Ordinal)).Weight.ShouldBe(rampedCanaryWeight);
         advanced.Variants.Single(static v => string.Equals(v.Name, "control", StringComparison.Ordinal)).Weight.ShouldBe(100 - rampedCanaryWeight);
 
-        // 🚨 56.4: even if the weight changes, existing sessions must NOT switch arms.
+        // 🚨 Even if the weight changes, existing sessions must NOT switch arms.
         ExperimentAssignmentResolver.SelectVariant(advanced, canaryKey).Name.ShouldBe("canary");
         ExperimentAssignmentResolver.SelectVariant(advanced, controlKey).Name.ShouldBe("control");
     }

@@ -4,7 +4,7 @@ namespace Tracon.Package.Tests;
 
 /// <summary>
 /// The MSBuild gate (<c>TraconValidateCleanWorkingTree</c>,
-/// <c>Directory.Build.targets</c>, 136.1/136.2) that refuses to
+/// <c>Directory.Build.targets</c>) that refuses to
 /// pack a dirty working tree. Runs against THIS repository's own working
 /// tree - see <see cref="DirtMarker"/> for why, and <see cref="RepositoryTreeGate"/>
 /// for how it stays isolated from every other pack/build in this project.

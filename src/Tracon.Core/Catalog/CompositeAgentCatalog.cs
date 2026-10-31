@@ -341,7 +341,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     /// run endpoint's <c>400</c>/<c>502</c> split reads <see cref="TraconException.ErrorType"/>).
     /// Re-wrapping it here would both lose that type and misreport an ordinary
     /// compilation problem as an "agent source failure" it is not. Only a genuinely raw,
-    /// unexpected exception — the actual case 101.3 exists to contain — gets wrapped.
+    /// unexpected exception — the actual case source isolation exists to contain — gets wrapped.
     /// </remarks>
     private TraconAgentSourceException HandleSourceFailure(IAgentSource source, string operation, Exception exception)
     {

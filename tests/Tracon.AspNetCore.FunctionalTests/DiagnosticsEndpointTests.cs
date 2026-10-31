@@ -113,7 +113,7 @@ public sealed class DiagnosticsEndpointTests
         public string TenantId => "host-tenant";
     }
 
-    /// <summary>101.3: registered agent sources — built-in and custom — appear in priority order.</summary>
+    /// <summary>Registered agent sources — built-in and custom — appear in priority order.</summary>
     [Fact]
     public async Task Registered_agent_sources_are_reported_in_priority_order()
     {

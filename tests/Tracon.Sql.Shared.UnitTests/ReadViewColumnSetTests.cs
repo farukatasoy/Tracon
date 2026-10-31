@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The <c>runs_v1</c> read contract view (111.5 "column set gate"):
+/// The <c>runs_v1</c> read contract view (the column set gate):
 /// a published column is never lost or renamed. Adding a column is free.
 /// </summary>
 /// <remarks>

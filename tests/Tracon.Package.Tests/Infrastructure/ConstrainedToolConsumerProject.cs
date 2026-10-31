@@ -45,7 +45,7 @@ internal static class ConstrainedToolConsumerProject
 
             /// <summary>
             /// The tool this smoke test exercises. [Range(1, 10)] on the second
-            /// parameter proves 130.1 travels through the packed analyzer DLL into a
+            /// parameter proves the constraint travels through the packed analyzer DLL into a
             /// real PackageReference consumer's generated schema, not just a
             /// ProjectReference/in-solution build.
             /// </summary>

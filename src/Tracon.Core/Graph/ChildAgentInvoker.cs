@@ -64,12 +64,12 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <param name="callerName">Name of the calling agent.</param>
     /// <param name="child">Summary of the sub-agent being called.</param>
     /// <param name="childDeadline">
-    /// The cooperative wait limit (144.1 layer 1), resolved beforehand from
+    /// The cooperative wait limit (the first of two layers), resolved beforehand from
     /// <see cref="SubAgentSettings.ChildDeadline"/>/<see cref="TraconAgentGraphOptions.ChildDeadline"/>.
     /// Must be greater than zero.
     /// </param>
     /// <param name="waitTimeout">
-    /// The hard wait cutoff (144.1 layer 2), resolved beforehand from
+    /// The hard wait cutoff (the second of two layers), resolved beforehand from
     /// <see cref="SubAgentSettings.WaitTimeout"/>/<see cref="TraconAgentGraphOptions.WaitTimeout"/>.
     /// Must be greater than <paramref name="childDeadline"/>.
     /// </param>
@@ -243,14 +243,14 @@ public sealed class ChildAgentInvoker : AIAgent
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
-        // 144.1 layer 1: the caller's token and Tracon's own deadline are
+        // Layer 1: the caller's token and Tracon's own deadline are
         // combined. A child that reads the token genuinely cancels here.
         var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(_childDeadline);
 
         var invocation = agent.RunAsync(messages, session, childOptions, deadline.Token);
 
-        // 144.1 layer 2: a hard cutoff for the child that ignores the token
+        // Layer 2: a hard cutoff for the child that ignores the token
         // above. Raced with CancellationToken.None so a real elapsed timeout
         // is never confused with the caller's own cancellation below.
         var waitTimeoutTask = Task.Delay(_waitTimeout, _timeProvider, CancellationToken.None);

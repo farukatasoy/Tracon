@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies 130.1/130.3: standard <c>System.ComponentModel.DataAnnotations</c> attributes
+/// Verifies that standard <c>System.ComponentModel.DataAnnotations</c> attributes
 /// reach the generated JSON Schema as <c>minimum</c>/<c>maximum</c>/<c>minLength</c>/
 /// <c>maxLength</c>/<c>minItems</c>/<c>maxItems</c>/<c>pattern</c>, in a fixed key order,
 /// independent of the build's current culture.

@@ -1568,7 +1568,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Score summary (a query, not a counter; 154.1)
+        // Score summary (a query, not a counter)
         // -------------------------------------------------------------------
 
         // Shared by every breakdown AND the series query below. `prefix` is

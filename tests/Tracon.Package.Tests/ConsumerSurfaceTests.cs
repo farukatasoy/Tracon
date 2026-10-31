@@ -11,8 +11,8 @@ namespace Tracon.Package.Tests;
 /// </summary>
 /// <remarks>
 /// Measured cases: <c>Tracon.IRunStore</c> stays public, its default
-/// implementation <c>Tracon.InMemoryRunStore</c> became <c>internal</c>
-/// (item 96.6); <c>Tracon.IMigrationApplier</c> stays public, the
+/// implementation <c>Tracon.InMemoryRunStore</c> became <c>internal</c>;
+/// <c>Tracon.IMigrationApplier</c> stays public, the
 /// SQL providers' <c>Tracon.MigrationRunner</c> became <c>internal</c>
 /// - it had been public in all three provider packages under the
 /// same name. Neither <see cref="ConsumerRunTests"/> nor

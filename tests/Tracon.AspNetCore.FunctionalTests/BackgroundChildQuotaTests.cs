@@ -263,7 +263,7 @@ public sealed class BackgroundChildQuotaTests
     [Fact]
     public async Task A_child_the_deadline_cancels_before_it_spent_anything_writes_no_entry()
     {
-        // 144.1 layer 1: the child reads its token and stops. It reported no usage, so it adds
+        // Layer 1 of the wait limit: the child reads its token and stops. It reported no usage, so it adds
         // nothing: no entry, instead of a store round trip that leaves the counter where it was.
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
         var quota = new EntryRecordingQuotaStore();

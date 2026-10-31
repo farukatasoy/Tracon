@@ -45,7 +45,7 @@ public sealed class WorkflowJobHandlerTests
         reported[0].Error.ShouldNotBeNullOrWhiteSpace();
     }
 
-    /// <summary>197.3: an item's session id is the run's execution session.</summary>
+    /// <summary>An item's session id is the run's execution session.</summary>
     [Fact]
     public async Task An_items_session_id_is_handed_to_the_run()
     {

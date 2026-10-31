@@ -189,7 +189,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
     /// <inheritdoc />
     /// <remarks>
     /// This method is not audited. Only <c>CanaryEvaluationService</c> calls it, and
-    /// gradual increases do not enter the audit trail according to the 56.2 flow.
+    /// gradual increases do not enter the audit trail by design.
     /// Only rollback is written. See <see cref="RollbackCanaryAsync"/>.
     /// </remarks>
     public ValueTask<Experiment> AdvanceCanaryRampAsync(

@@ -55,7 +55,7 @@ internal static class ConsumerProject
             /// registered at build time by the source generator through
             /// AddGeneratedTools() - this compiling at all proves the analyzer DLL
             /// travels inside the packed .nupkg's analyzers/dotnet/cs/ folder. The
-            /// parameter's [Description] proves the same for 125.1: it reaches the
+            /// parameter's [Description] proves the same for the description: it reaches the
             /// schema from a real PackageReference consumer, not just a ProjectReference.
             /// </summary>
             internal static class OrderTools

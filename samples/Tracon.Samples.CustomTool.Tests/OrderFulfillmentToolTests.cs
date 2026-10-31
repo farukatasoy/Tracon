@@ -100,7 +100,7 @@ public sealed class OrderFulfillmentToolRunTests
         // pipeline (registration -> invocation -> masking), not a manually
         // built FunctionResultContent: a source-generator tool's complex
         // result reaches the guard as its actual serialized JSON field
-        // values. Before 102.2 the guard saw only a bare CLR type name
+        // values. Earlier the guard saw only a bare CLR type name
         // ("Tracon.Samples.CustomTool.OrderPreview") and this card number
         // would leak straight through to the model's own final answer.
         const string CardNumber = "4539578763621486";

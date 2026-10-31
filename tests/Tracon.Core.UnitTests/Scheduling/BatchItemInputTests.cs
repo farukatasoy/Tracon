@@ -125,7 +125,7 @@ public sealed class BatchItemInputTests
     public void Wrapping_a_null_text_is_rejected()
         => Should.Throw<ArgumentNullException>(() => BatchItemInput.Envelope(null!));
 
-    /// <summary>197.3: a structured item may name the execution session of its workflow run.</summary>
+    /// <summary>A structured item may name the execution session of its workflow run.</summary>
     [Fact]
     public void A_structured_item_may_name_its_session()
     {

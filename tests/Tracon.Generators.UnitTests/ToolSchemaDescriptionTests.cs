@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies 125.1/125.2: <c>[Description]</c> on a tool parameter reaches the generated
+/// Verifies that <c>[Description]</c> on a tool parameter reaches the generated
 /// JSON schema, is placed correctly for an array parameter, survives JSON-unsafe text,
 /// and its absence is reported (TRC0009) without blocking generation.
 /// </summary>

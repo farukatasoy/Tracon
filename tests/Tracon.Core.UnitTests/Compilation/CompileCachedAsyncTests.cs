@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 
 /// <summary>
 /// <see cref="AgentDefinitionCompiler.CompileCachedAsync"/> is the one high-level path
-/// 101.7 asks every definition-backed <see cref="IAgentSource"/> to use instead of
+/// the source contract asks every definition-backed <see cref="IAgentSource"/> to use instead of
 /// re-deriving the cache key itself. These tests prove the three dependency
 /// fingerprints it combines (skill, callable agent, shared instructions) actually
 /// invalidate the cache when they change — none of them had a regression test before

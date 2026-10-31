@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Tracon.Generators.UnitTests;
 
 /// <summary>
-/// Verifies 135.1/135.2: a supported object type (a public record or class with a single
+/// Verifies that a supported object type (a public record or class with a single
 /// public constructor) and an array of that type produce a nested JSON Schema node, and
 /// the existing constraint/description handling carries over to an object member exactly
 /// as it does at the top level.
@@ -87,7 +87,7 @@ public sealed class ToolSchemaObjectTests
         items.GetProperty("properties").GetProperty("Name").GetProperty("type").GetString().ShouldBe("string");
     }
 
-    /// <summary>135.2: the existing constraint handling applies to an object member exactly as it does at the top level.</summary>
+    /// <summary>The existing constraint handling applies to an object member exactly as it does at the top level.</summary>
     [Fact]
     public void A_Range_attribute_on_an_object_member_produces_minimum_and_maximum_on_the_member_node()
     {
@@ -188,7 +188,7 @@ public sealed class ToolSchemaObjectTests
         required.ShouldNotContain(name => string.Equals(name, "Weight", StringComparison.Ordinal));
     }
 
-    /// <summary>135.5: binding deserializes the whole object through the tool's own <c>JsonSerializerContext</c>, never through reflection.</summary>
+    /// <summary>Binding deserializes the whole object through the tool's own <c>JsonSerializerContext</c>, never through reflection.</summary>
     [Fact]
     public void An_object_parameter_binds_through_the_tools_JsonSerializerContext()
     {

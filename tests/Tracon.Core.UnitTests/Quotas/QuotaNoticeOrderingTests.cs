@@ -110,7 +110,7 @@ public sealed class QuotaNoticeOrderingTests
         // The quota check happens before a run starts; consumption is
         // recorded when it ends, REGARDLESS of how it ends. A run canceled
         // mid-flight already spent real tokens and must still be counted --
-        // 146.1 moved WHEN this write happens (earlier), not WHETHER it does.
+        // The notice change moved WHEN this write happens (earlier), not WHETHER it does.
         using var harness = new QuotaHarness();
         var agent = harness.CreateAgent(new BlockingChatClient());
 
