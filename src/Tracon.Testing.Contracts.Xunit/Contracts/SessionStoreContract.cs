@@ -388,8 +388,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     public async Task An_owned_session_round_trips_its_owner()
     {
         // OwnerId is the user a session belongs to - a SECOND
-        // boundary under the tenant, not the owning TENANT that
-        // GetOwnerTenantIdAsync answers.
+        // boundary under the tenant, not the tenant itself.
         await Store.SaveAsync(TestData.Session("owned") with { OwnerId = "user-a" });
 
         (await Store.GetAsync("owned")).ShouldNotBeNull().OwnerId.ShouldBe("user-a");
@@ -541,22 +540,42 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
-    public async Task GetOwnerTenantIdAsync_returns_null_for_a_never_used_id()
+    public async Task Two_tenants_may_hold_the_same_id_and_each_reads_only_its_own()
     {
-        AmbientTenant.TenantId = TenantA;
-        (await Store.GetOwnerTenantIdAsync("never-used")).ShouldBeNull();
-    }
+        // A session identity is (tenant, id): the same id in two tenants is two
+        // sessions. Neither tenant sees, overwrites, deletes or lists the other's.
+        await Store.SaveAsync(TestData.Session("shared-id", TestData.State("""{"who":"a"}""")) with { TenantId = TenantA });
+        await Store.SaveAsync(TestData.Session("shared-id", TestData.State("""{"who":"b"}""")) with { TenantId = TenantB });
 
-    [Fact]
-    public async Task GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant()
-    {
-        // GetAsync is filtered by the ambient tenant, so it can
-        // never correctly answer a cross-tenant ownership question.
-        // GetOwnerTenantIdAsync must NOT apply a tenant filter.
         AmbientTenant.TenantId = TenantA;
-        await Store.SaveAsync(TestData.Session("hidden") with { TenantId = TenantA });
+
+        (await Store.GetAsync("shared-id")).ShouldNotBeNull()
+            .State.GetProperty("who").GetString().ShouldBe("a");
+        (await Store.QueryAsync(new SessionQuery())).ShouldHaveSingleItem().Id.ShouldBe("shared-id");
 
         AmbientTenant.TenantId = TenantB;
-        (await Store.GetOwnerTenantIdAsync("hidden")).ShouldBe(TenantA);
+
+        (await Store.GetAsync("shared-id")).ShouldNotBeNull()
+            .State.GetProperty("who").GetString().ShouldBe("b");
+        (await Store.QueryAsync(new SessionQuery())).ShouldHaveSingleItem().Id.ShouldBe("shared-id");
+
+        // A write by one tenant leaves the other's record alone.
+        await Store.SaveAsync(TestData.Session("shared-id", TestData.State("""{"who":"b2"}""")));
+
+        AmbientTenant.TenantId = TenantA;
+
+        (await Store.GetAsync("shared-id")).ShouldNotBeNull()
+            .State.GetProperty("who").GetString().ShouldBe("a");
+
+        // A delete by one tenant removes only its own.
+        AmbientTenant.TenantId = TenantB;
+
+        (await Store.DeleteAsync("shared-id")).ShouldBeTrue();
+        (await Store.GetAsync("shared-id")).ShouldBeNull();
+
+        AmbientTenant.TenantId = TenantA;
+
+        (await Store.GetAsync("shared-id")).ShouldNotBeNull()
+            .State.GetProperty("who").GetString().ShouldBe("a");
     }
 }

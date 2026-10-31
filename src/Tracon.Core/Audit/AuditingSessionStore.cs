@@ -50,16 +50,6 @@ internal sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
         => _inner.GetAsync(sessionId, cancellationToken);
 
     /// <inheritdoc />
-    /// <remarks>
-    /// The same pitfall as <see cref="TryCreateAsync"/> applies. If this delegation is
-    /// omitted, the decorator falls back to its default implementation, which filters
-    /// by tenant and cannot correctly answer a cross-tenant query. It would silently
-    /// disable the truly tenant-independent implementation in the inner store.
-    /// </remarks>
-    public ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
-        => _inner.GetOwnerTenantIdAsync(sessionId, cancellationToken);
-
-    /// <inheritdoc />
     public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default)
         => _inner.SaveAsync(record, cancellationToken);
 

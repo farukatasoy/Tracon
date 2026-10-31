@@ -585,8 +585,6 @@ Tracon.Testing.Contracts.Storage.SessionStoreContract.An_owned_session_round_tri
 Tracon.Testing.Contracts.Storage.SessionStoreContract.An_owner_at_the_maximum_allowed_length_round_trips_whole() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.An_unowned_session_can_still_be_given_an_owner() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Delete_removes_the_record() -> System.Threading.Tasks.Task!
-Tracon.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_null_for_a_never_used_id() -> System.Threading.Tasks.Task!
-Tracon.Testing.Contracts.Storage.SessionStoreContract.GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Nonexistent_session_returns_null() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Query_applies_paging() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Query_applies_the_owner_filter_BEFORE_paging() -> System.Threading.Tasks.Task!
@@ -610,6 +608,7 @@ Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_refuses_a_s
 Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_replaces_the_record_and_advances_the_version() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_returns_false_for_an_id_that_does_not_exist() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.TryUpdateAsync_writes_the_records_own_tenant_not_the_ambient_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Two_tenants_may_hold_the_same_id_and_each_reads_only_its_own() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Empty_lease_can_be_acquired() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Owner_can_renew_its_lease() -> System.Threading.Tasks.Task!

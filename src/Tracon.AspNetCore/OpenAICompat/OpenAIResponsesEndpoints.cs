@@ -258,10 +258,12 @@ internal static class OpenAIResponsesEndpoints
                 type: TraconSessionOwnerRequiredException.SessionOwnerRequiredErrorType);
         }
 
-        // 'conversation' and 'previous_response_id' are untrusted input;
-        // tenant ownership is verified before loading.
-        if (!await OpenAICompatSupport
-                .IsOwnedByTenantAsync(sessions, tenantContext, loadId, cancellationToken)
+        // 'conversation' and 'previous_response_id' are untrusted input. An id
+        // that only another tenant holds is an unused id here: the first turn
+        // opens a session under it in the caller's own tenant. The gate refuses
+        // only a store that hands back another tenant's record.
+        if (!await SessionTenantGate
+                .MayUseAsync(sessions, loadId, tenantContext.TenantId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return OpenAICompatSupport.Error(

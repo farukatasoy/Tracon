@@ -237,9 +237,18 @@ Two more rules carry the
   `TouchHeartbeatAsync` still compiles and passes most scenarios, but a cancel that reached
   another instance is then never delivered; `RunStoreContract` checks both members.
 
-`ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
-per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are
+`ISessionStore`'s contract (`SessionStoreContract`) checks three rules. Two of them make
+per-user [session ownership](/concepts/sessions/#session-ownership) work, and all three are
 easy to miss in a custom store because everything else keeps passing without them:
+
+- **A session is keyed by the tenant and the identifier.** Two tenants can hold the same
+  identifier, and each one's `GetAsync`, `SaveAsync`, `DeleteAsync` and `QueryAsync` reach
+  only its own record. The OpenAI-compatible and voice endpoints rely on it: for the caller
+  an identifier that only another tenant holds is an unused one, and the first turn opens a
+  session under it. A store keyed by the identifier alone overwrites the other tenant's
+  session instead. The endpoints refuse a record that carries another tenant's `TenantId`,
+  but that is a backstop, not a substitute for the key. `ISessionStore` has no member that
+  looks across tenants.
 
 - **`SessionQuery.OwnerId` filters before `Skip`/`Take`.** The contract seeds five
   owned and five unowned sessions with the unowned ones newest, then asks for

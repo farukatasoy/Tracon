@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **A conversation identifier is local to the calling tenant. `GET /v1/conversations/{id}`, `GET …/items`, `DELETE …/{id}` and
+  `POST /v1/responses` (`conversation`, `previous_response_id`) no longer answer `404` for an identifier that only another
+  tenant holds, and `ISessionStore.GetOwnerTenantIdAsync` is removed.** Two tenants can hold the same session identifier
+  (a session is keyed by tenant and identifier), but these routes looked the identifier up across every tenant and took
+  the first row's tenant as its owner. A tenant could get `404` for its own conversation, and the `404` told a caller that
+  another tenant used the identifier. The routes now ask the calling tenant only, and an identifier it does not hold is an
+  unused reservation: `GET` answers `200`, the item list is empty, `DELETE` answers `200` with `deleted: false`, and
+  `POST /v1/responses` opens a session under it in the caller's own tenant without touching the other tenant's. `404`
+  remains for a refusal by `IRunAuthorizationHandler` or by session ownership, and for a custom `ISessionStore` that returns
+  another tenant's record. Your `IRunAuthorizationHandler` is now also asked about an identifier that only another tenant
+  holds, as it is for any identifier the caller's tenant has not used. The voice endpoints already worked this way. Remove the method from your own `ISessionStore`;
+  `SessionStoreContract` drops `GetOwnerTenantIdAsync_returns_null_for_a_never_used_id` and
+  `GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant`, and gains
+  `Two_tenants_may_hold_the_same_id_and_each_reads_only_its_own`, which a store keyed by the identifier alone fails.
+
 - **A database that applied any earlier preview migration refuses to start: the checksum of 177 migration files changed. No SQL statement
   changed; only comments did.** `MigrationRunner` compares the checksum it recorded for each applied migration with the file's
   checksum, and the comments inside the files carried references that mean nothing outside the repository, so they were

@@ -69,9 +69,10 @@ internal static class OpenAIConversationsEndpoints
             .WithDescription(
                 "A conversation identifier is a reservation, so an id that has never carried a " +
                 "call is still valid and answers 200 with the current time as its creation time. " +
-                "404 therefore means 'not yours', not 'never used': an identifier owned by " +
-                "another tenant is reported as missing rather than forbidden, so the API does " +
-                "not confirm that it exists.")
+                "An identifier is local to the calling tenant: one that only another tenant uses " +
+                "answers exactly the same way, so the API never reveals what another tenant " +
+                "holds. 404 means the caller is refused: the registered authorization handler " +
+                "denied the read, or the session belongs to another user.")
             .Produces<ConversationResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
@@ -83,9 +84,11 @@ internal static class OpenAIConversationsEndpoints
             .WithSummary("Deletes a conversation and the session underneath it.")
             .WithDescription(
                 "Following the OpenAI shape, the response is 200 with a 'deleted' flag rather " +
-                "than 204: the flag is false when the identifier was valid but no session had " +
-                "been created for it yet, so a client can tell a real deletion from a no-op. " +
-                "An identifier owned by another tenant returns 404.")
+                "than 204: the flag is false when the calling tenant holds no session under the " +
+                "identifier, so a client can tell a real deletion from a no-op. An identifier " +
+                "that only another tenant uses deletes nothing and answers false. 404 means the " +
+                "caller is refused: the registered authorization handler denied the delete, or " +
+                "the session belongs to another user.")
             .Produces<DeletedResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
@@ -101,8 +104,9 @@ internal static class OpenAIConversationsEndpoints
                 "the end and sets 'has_more' to true, which is computed from the real total " +
                 "before trimming, so a truncated list never looks complete. There is no cursor " +
                 "paging: 'first_id' and 'last_id' describe the returned window only. A " +
-                "conversation with no history returns an empty list, and an identifier owned by " +
-                "another tenant returns 404.")
+                "conversation with no history returns an empty list, and so does an identifier " +
+                "that only another tenant uses. 404 means the caller is refused: the registered " +
+                "authorization handler denied the read, or the session belongs to another user.")
             .Produces<ItemListResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
     }
@@ -172,12 +176,12 @@ internal static class OpenAIConversationsEndpoints
         [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
         CancellationToken cancellationToken)
     {
-        // The ownership check runs BEFORE GetAsync, independent of the tenant;
-        // because GetAsync is already filtered by the ambient tenant, it
-        // CANNOT SEE another tenant's record and could never trigger the
-        // check.
-        if (!await OpenAICompatSupport
-                .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+        // A conversation id is local to the calling tenant: an id that only
+        // another tenant holds is an unused id here, a reservation like any
+        // other. The gate refuses only a store that hands back a record
+        // belonging to another tenant.
+        if (!await SessionTenantGate
+                .MayUseAsync(sessions, conversationId, tenantContext.TenantId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);
@@ -189,18 +193,14 @@ internal static class OpenAIConversationsEndpoints
         // once with the ownership boundary. Asked AFTER the tenant is settled
         // and BEFORE any state is read, and the gate's own problem body
         // is deliberately DISCARDED — this endpoint answers in the OpenAI error
-        // shape, byte for byte the "wrong tenant" answer above.
+        // shape.
         //
-        // 🚨 What that byte equality does and does NOT buy, on THIS endpoint:
-        // it keeps a refusal indistinguishable from another tenant's
-        // conversation, which is the comparison that matters. It does not hide
-        // existence, and it cannot: an identifier nobody has used yet answers
-        // 200 here, because a conversation id is a RESERVATION and the session
-        // is born on the first /v1/responses call (see the type remarks). So on
-        // this surface "404" already means "not yours" rather than "never
-        // existed" — the endpoint's own WithDescription says so — and the
-        // identity-hiding 404 of /api/sessions/{id} has no equivalent to
-        // preserve here.
+        // 🚨 What that does and does NOT buy, on THIS endpoint: a refusal is
+        // the only way to get a 404 here, because an identifier nobody in this
+        // tenant has used answers 200 — a conversation id is a RESERVATION and
+        // the session is born on the first /v1/responses call (see the type
+        // remarks). The identity-hiding 404 of /api/sessions/{id} therefore
+        // has no equivalent to preserve here.
         if (await RunAuthorizationGate
                 .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Read, httpContext, cancellationToken)
                 .ConfigureAwait(false) is not null)
@@ -213,8 +213,8 @@ internal static class OpenAIConversationsEndpoints
         // Leaving it out made `/api/sessions/{id}` answer 404 for another
         // user's session while `/v1/conversations/{id}/items` returned its
         // whole history: one door locked, the one beside it open. The answer
-        // is this endpoint's OWN "not found", byte for byte the tenant check's
-        // — the same equality, and the same limit, as the handler gate above.
+        // is this endpoint's OWN "not found", byte for byte the handler gate's
+        // above.
         if (await SessionOwnershipGate
                 .DeniesAsync(sessionOwnershipOptions, attributionContext, sessions, conversationId, httpContext, cancellationToken)
                 .ConfigureAwait(false))
@@ -245,8 +245,8 @@ internal static class OpenAIConversationsEndpoints
         [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
         CancellationToken cancellationToken)
     {
-        if (!await OpenAICompatSupport
-                .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+        if (!await SessionTenantGate
+                .MayUseAsync(sessions, conversationId, tenantContext.TenantId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);
@@ -294,8 +294,8 @@ internal static class OpenAIConversationsEndpoints
         int? limit,
         CancellationToken cancellationToken)
     {
-        if (!await OpenAICompatSupport
-                .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+        if (!await SessionTenantGate
+                .MayUseAsync(sessions, conversationId, tenantContext.TenantId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return NotFound(conversationId);

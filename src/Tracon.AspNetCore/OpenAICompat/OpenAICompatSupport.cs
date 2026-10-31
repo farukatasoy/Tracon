@@ -96,43 +96,6 @@ internal static class OpenAICompatSupport
             : null;
 
     /// <summary>
-    /// Checks whether an untrusted session identifier belongs to the current tenant.
-    /// </summary>
-    /// <param name="store">Session store.</param>
-    /// <param name="tenantContext">Tenant context.</param>
-    /// <param name="sessionId">Identifier coming from the client.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>
-    /// <see langword="false"/> if the identifier belongs to another tenant. If
-    /// there is no record, returns <see langword="true"/>: the identifier has
-    /// not been used yet and a new session will be opened.
-    /// </returns>
-    /// <remarks>
-    /// <c>conversation</c> and <c>previous_response_id</c> come from the
-    /// client and are treated as <strong>untrusted</strong>. The check happens
-    /// here, in the HTTP layer.
-    /// <para>
-    /// <see cref="ISessionStore.GetAsync"/> is NOT USED: it is filtered by
-    /// the ambient tenant, so it can never correctly answer the cross-tenant
-    /// question — another tenant's record is NEVER VISIBLE from this context
-    /// and the result would always be "no record, allow it".
-    /// <see cref="ISessionStore.GetOwnerTenantIdAsync"/> is used instead; it
-    /// does NOT APPLY a tenant filter.
-    /// </para>
-    /// </remarks>
-    public static async ValueTask<bool> IsOwnedByTenantAsync(
-        ISessionStore store,
-        ITenantContext tenantContext,
-        string sessionId,
-        CancellationToken cancellationToken)
-    {
-        var ownerTenantId = await store.GetOwnerTenantIdAsync(sessionId, cancellationToken).ConfigureAwait(false);
-
-        return ownerTenantId is null ||
-               string.Equals(ownerTenantId, tenantContext.TenantId, StringComparison.Ordinal);
-    }
-
-    /// <summary>
     /// Maps the finish reason of the answer's final model call to the Chat Completions
     /// <c>finish_reason</c>.
     /// </summary>

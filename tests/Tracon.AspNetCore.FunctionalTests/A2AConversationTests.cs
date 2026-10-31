@@ -163,10 +163,8 @@ public sealed class A2AConversationTests
     [Fact]
     public async Task One_user_in_two_tenants_with_the_same_context_id_keeps_two_conversations()
     {
-        // The sessions table keys a row by tenant AND identity, so two tenants
-        // could share an identity without a row clash. They must not: a lookup by
-        // identity alone (ISessionStore.GetOwnerTenantIdAsync, which the OpenAI
-        // compatible surfaces use) has to find ONE tenant.
+        // The identity digest carries the tenant, so the same caller and
+        // contextId in two tenants are two conversations with two identities.
         var provider = Provider();
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder
@@ -197,7 +195,7 @@ public sealed class A2AConversationTests
         var acme = (await SessionsAsync(host, "acme")).ShouldHaveSingleItem();
         var globex = (await SessionsAsync(host, "globex")).ShouldHaveSingleItem();
 
-        string.Equals(acme.Id, globex.Id, StringComparison.Ordinal).ShouldBeFalse("an identity belongs to one tenant");
+        string.Equals(acme.Id, globex.Id, StringComparison.Ordinal).ShouldBeFalse("the identity digest carries the tenant");
     }
 
     [Fact]

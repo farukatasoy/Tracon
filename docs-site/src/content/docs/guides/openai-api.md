@@ -118,8 +118,10 @@ curl -sS https://agents.example.com/tracon/v1/responses \
 ```
 
 Creating a conversation reserves an identifier; the session is born on the first
-response call. Tenant ownership is checked on every reference. An identifier owned
-by another tenant returns `404`, not evidence that the resource exists.
+response call. An identifier is local to the calling tenant: two tenants can use the
+same one, and each reaches only its own session. An identifier that only another
+tenant uses behaves like one nobody has used, so a response never confirms that
+another tenant holds it.
 
 ### The conversation routes go through your own gates
 
@@ -130,7 +132,10 @@ reaches, so they pass the same two checks before answering:
   `RefuseUnownedSessions`. See
   [Sessions: session ownership](/concepts/sessions/#session-ownership).
 - **Your registered `IRunAuthorizationHandler`**, with `SessionAccess.Read` on
-  the two reads and `SessionAccess.Delete` on the delete.
+  the two reads and `SessionAccess.Delete` on the delete. The handler is asked
+  about every id the caller names, including one that only another tenant uses:
+  in the caller's tenant that id is unused, and only your handler can say whether
+  this caller may open it.
 
 :::caution[Behaviour change]
 Before this, the conversation routes never asked your handler. If you have one

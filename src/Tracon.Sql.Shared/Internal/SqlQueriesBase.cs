@@ -715,15 +715,6 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string UpdateSessionIfVersionMatches { get; protected set; } = string.Empty;
 
-    /// <summary>
-    /// Gets the query that reads the tenant owning a session identifier, WITHOUT
-    /// applying the tenant filter.
-    /// the cross-tenant ownership check cannot use
-    /// <see cref="SelectSession"/> — that one is already filtered by tenant and never
-    /// sees the record of another tenant.
-    /// </summary>
-    public string SelectSessionOwner { get; protected set; } = string.Empty;
-
     /// <summary>Gets the query that deletes a session.</summary>
     public string DeleteSession { get; protected set; } = string.Empty;
 
@@ -1554,8 +1545,6 @@ internal abstract class SqlQueriesBase
                    version              = version + 1
              WHERE id = @id AND tenant_id = @tenant_id AND version = @expected_version;
             """;
-
-        SelectSessionOwner = $"SELECT tenant_id FROM {Table("sessions")} WHERE id = @id;";
 
         DeleteSession = $"DELETE FROM {Table("sessions")} WHERE id = @id AND tenant_id = @tenant_id;";
 

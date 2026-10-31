@@ -42,9 +42,9 @@ namespace Tracon;
 /// <c>contextId</c> has no length limit and the <c>sessions</c> identity column
 /// does (SQL Server: <c>nvarchar(200)</c>). The same <c>contextId</c> on two
 /// agents would restore one agent's state into the other. The tenant is part of
-/// the digest too: the table keys a row by tenant and identity, but a lookup by
-/// identity alone must find ONE tenant. The <c>a2a:</c> prefix keeps the
-/// identity apart from the ones other surfaces write.
+/// the digest too, so one tenant's conversation never shares an identity with
+/// another's even when the caller and the <c>contextId</c> match. The
+/// <c>a2a:</c> prefix keeps the identity apart from the ones other surfaces write.
 /// </para>
 /// <para>
 /// The format is persisted data. Changing it leaves every stored conversation

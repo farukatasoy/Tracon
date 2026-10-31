@@ -1761,9 +1761,6 @@ public sealed class SessionOwnershipTests
         public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
             => new((SessionRecord?)null);
 
-        public ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
-            => new((string?)null);
-
         public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default)
             => new(false);
 

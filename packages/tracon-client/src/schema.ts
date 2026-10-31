@@ -2929,14 +2929,14 @@ export interface paths {
         };
         /**
          * Returns a conversation's metadata.
-         * @description A conversation identifier is a reservation, so an id that has never carried a call is still valid and answers 200 with the current time as its creation time. 404 therefore means 'not yours', not 'never used': an identifier owned by another tenant is reported as missing rather than forbidden, so the API does not confirm that it exists.
+         * @description A conversation identifier is a reservation, so an id that has never carried a call is still valid and answers 200 with the current time as its creation time. An identifier is local to the calling tenant: one that only another tenant uses answers exactly the same way, so the API never reveals what another tenant holds. 404 means the caller is refused: the registered authorization handler denied the read, or the session belongs to another user.
          */
         get: operations["TraconOpenAIGetConversation"];
         put?: never;
         post?: never;
         /**
          * Deletes a conversation and the session underneath it.
-         * @description Following the OpenAI shape, the response is 200 with a 'deleted' flag rather than 204: the flag is false when the identifier was valid but no session had been created for it yet, so a client can tell a real deletion from a no-op. An identifier owned by another tenant returns 404.
+         * @description Following the OpenAI shape, the response is 200 with a 'deleted' flag rather than 204: the flag is false when the calling tenant holds no session under the identifier, so a client can tell a real deletion from a no-op. An identifier that only another tenant uses deletes nothing and answers false. 404 means the caller is refused: the registered authorization handler denied the delete, or the session belongs to another user.
          */
         delete: operations["TraconOpenAIDeleteConversation"];
         options?: never;
@@ -2953,7 +2953,7 @@ export interface paths {
         };
         /**
          * Lists a conversation's messages in the OpenAI item format.
-         * @description Items come back oldest first, and one stored message can expand into several items — a reply plus its tool calls, for example. '?limit=' trims the list from the end and sets 'has_more' to true, which is computed from the real total before trimming, so a truncated list never looks complete. There is no cursor paging: 'first_id' and 'last_id' describe the returned window only. A conversation with no history returns an empty list, and an identifier owned by another tenant returns 404.
+         * @description Items come back oldest first, and one stored message can expand into several items — a reply plus its tool calls, for example. '?limit=' trims the list from the end and sets 'has_more' to true, which is computed from the real total before trimming, so a truncated list never looks complete. There is no cursor paging: 'first_id' and 'last_id' describe the returned window only. A conversation with no history returns an empty list, and so does an identifier that only another tenant uses. 404 means the caller is refused: the registered authorization handler denied the read, or the session belongs to another user.
          */
         get: operations["TraconOpenAIListConversationItems"];
         put?: never;

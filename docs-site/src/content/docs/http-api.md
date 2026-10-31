@@ -149,9 +149,10 @@ because their size is bounded by configuration rather than by traffic.
 Failures are `application/problem+json` with a title and a detail. Two conventions run
 through the whole API:
 
-**A resource you may not see is reported as `404`, not `403`.** Another tenant's run,
-session, or conversation is reported as missing, so the API does not confirm that it
-exists.
+**A resource you may not see is reported as `404`, not `403`.** Another tenant's run or
+session is reported as missing, so the API does not confirm that it exists. A conversation
+id is local to your tenant: one that only another tenant uses answers like an id nobody has
+used (see [OpenAI-compatible API](/guides/openai-api/)).
 
 **A field the schema declares as non-nullable rejects an explicit `null`.** Omitting
 a list is fine — `{"message": "hello"}` is a complete run request, and every list the

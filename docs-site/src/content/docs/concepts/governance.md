@@ -138,7 +138,10 @@ else on it.
 ### Below the tenant: session ownership
 
 The tenant is the data boundary, and it is the only one Tracon draws by
-default: inside a tenant, every `Reader` sees every session. Turning on
+default: inside a tenant, every `Reader` sees every session. A session
+identifier belongs to the tenant too: two tenants can hold the same one and each
+reaches only its own session, so no route confirms that another tenant uses an
+identifier. Turning on
 `Tracon:SessionOwnership` adds a second, narrower line under it — a session
 records which user opened it, and the session list narrows to that user. It
 governs sessions only, and it never crosses the tenant: the same person in two

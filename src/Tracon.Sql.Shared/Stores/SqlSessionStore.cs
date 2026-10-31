@@ -179,25 +179,6 @@ internal sealed class SqlSessionStore : ISessionStore
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// <see cref="SqlQueriesBase.SelectSessionOwner"/> applies NO FILTER on the
-    /// tenant column — unlike <see cref="GetAsync"/>, the record is found even
-    /// when its owner does not match the ambient tenant.
-    /// </remarks>
-    public async ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(sessionId);
-
-        var command = CreateCommand(_sql.SelectSessionOwner);
-        DbHelpers.Add(command, "id", sessionId);
-
-        return await DbHelpers.ReadSingleAsync(
-            command,
-            static reader => reader.GetString(0),
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
     public async ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);

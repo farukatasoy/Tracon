@@ -135,11 +135,15 @@ conversation. The session screen reads stored items and can branch at any point.
 `/v1/conversations` maps onto the same sessions. Two behaviours are worth knowing:
 
 - A conversation id is a **reservation**. An id that has never carried a call is still
-  valid and answers `200`. So a `404` means "not yours", not "never used" — an id
-  owned by another tenant is reported as missing rather than forbidden, so the API
-  does not confirm that it exists.
-- `previous_response_id` and `conversation_id` are treated as untrusted input. Tenant
-  ownership is verified on every use.
+  valid and answers `200`. A conversation id is also **local to the calling tenant**:
+  two tenants can use the same id and each reaches only its own session. An id that
+  only another tenant uses answers exactly like one nobody has used — `200` for a
+  read, an empty item list, `deleted: false` for a delete — so the API never confirms
+  what another tenant holds. A `404` means the caller is refused (your
+  authorization handler, or the session belongs to another user).
+- `previous_response_id` and `conversation_id` are treated as untrusted input. A
+  response call that names an id only another tenant uses opens a new session under
+  it in the caller's own tenant and leaves the other tenant's session untouched.
 
 ## A2A conversations
 

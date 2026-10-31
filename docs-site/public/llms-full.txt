@@ -1861,7 +1861,10 @@ else on it.
 ### Below the tenant: session ownership
 
 The tenant is the data boundary, and it is the only one Tracon draws by
-default: inside a tenant, every `Reader` sees every session. Turning on
+default: inside a tenant, every `Reader` sees every session. A session
+identifier belongs to the tenant too: two tenants can hold the same one and each
+reaches only its own session, so no route confirms that another tenant uses an
+identifier. Turning on
 `Tracon:SessionOwnership` adds a second, narrower line under it — a session
 records which user opened it, and the session list narrows to that user. It
 governs sessions only, and it never crosses the tenant: the same person in two
@@ -3722,11 +3725,15 @@ conversation. The session screen reads stored items and can branch at any point.
 `/v1/conversations` maps onto the same sessions. Two behaviours are worth knowing:
 
 - A conversation id is a **reservation**. An id that has never carried a call is still
-  valid and answers `200`. So a `404` means "not yours", not "never used" — an id
-  owned by another tenant is reported as missing rather than forbidden, so the API
-  does not confirm that it exists.
-- `previous_response_id` and `conversation_id` are treated as untrusted input. Tenant
-  ownership is verified on every use.
+  valid and answers `200`. A conversation id is also **local to the calling tenant**:
+  two tenants can use the same id and each reaches only its own session. An id that
+  only another tenant uses answers exactly like one nobody has used — `200` for a
+  read, an empty item list, `deleted: false` for a delete — so the API never confirms
+  what another tenant holds. A `404` means the caller is refused (your
+  authorization handler, or the session belongs to another user).
+- `previous_response_id` and `conversation_id` are treated as untrusted input. A
+  response call that names an id only another tenant uses opens a new session under
+  it in the caller's own tenant and leaves the other tenant's session untouched.
 
 ## A2A conversations
 
@@ -16133,8 +16140,10 @@ curl -sS https://agents.example.com/tracon/v1/responses \
 ```
 
 Creating a conversation reserves an identifier; the session is born on the first
-response call. Tenant ownership is checked on every reference. An identifier owned
-by another tenant returns `404`, not evidence that the resource exists.
+response call. An identifier is local to the calling tenant: two tenants can use the
+same one, and each reaches only its own session. An identifier that only another
+tenant uses behaves like one nobody has used, so a response never confirms that
+another tenant holds it.
 
 ### The conversation routes go through your own gates
 
@@ -16145,7 +16154,10 @@ reaches, so they pass the same two checks before answering:
   `RefuseUnownedSessions`. See
   [Sessions: session ownership](/concepts/sessions/#session-ownership).
 - **Your registered `IRunAuthorizationHandler`**, with `SessionAccess.Read` on
-  the two reads and `SessionAccess.Delete` on the delete.
+  the two reads and `SessionAccess.Delete` on the delete. The handler is asked
+  about every id the caller names, including one that only another tenant uses:
+  in the caller's tenant that id is unused, and only your handler can say whether
+  this caller may open it.
 
 :::caution[Behaviour change]
 Before this, the conversation routes never asked your handler. If you have one
@@ -21211,9 +21223,18 @@ Two more rules carry the
   `TouchHeartbeatAsync` still compiles and passes most scenarios, but a cancel that reached
   another instance is then never delivered; `RunStoreContract` checks both members.
 
-`ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
-per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are
+`ISessionStore`'s contract (`SessionStoreContract`) checks three rules. Two of them make
+per-user [session ownership](/concepts/sessions/#session-ownership) work, and all three are
 easy to miss in a custom store because everything else keeps passing without them:
+
+- **A session is keyed by the tenant and the identifier.** Two tenants can hold the same
+  identifier, and each one's `GetAsync`, `SaveAsync`, `DeleteAsync` and `QueryAsync` reach
+  only its own record. The OpenAI-compatible and voice endpoints rely on it: for the caller
+  an identifier that only another tenant holds is an unused one, and the first turn opens a
+  session under it. A store keyed by the identifier alone overwrites the other tenant's
+  session instead. The endpoints refuse a record that carries another tenant's `TenantId`,
+  but that is a backstop, not a substitute for the key. `ISessionStore` has no member that
+  looks across tenants.
 
 - **`SessionQuery.OwnerId` filters before `Skip`/`Take`.** The contract seeds five
   owned and five unowned sessions with the unowned ones newest, then asks for
@@ -21814,9 +21835,10 @@ because their size is bounded by configuration rather than by traffic.
 Failures are `application/problem+json` with a title and a detail. Two conventions run
 through the whole API:
 
-**A resource you may not see is reported as `404`, not `403`.** Another tenant's run,
-session, or conversation is reported as missing, so the API does not confirm that it
-exists.
+**A resource you may not see is reported as `404`, not `403`.** Another tenant's run or
+session is reported as missing, so the API does not confirm that it exists. A conversation
+id is local to your tenant: one that only another tenant uses answers like an id nobody has
+used (see [OpenAI-compatible API](/guides/openai-api/)).
 
 **A field the schema declares as non-nullable rejects an explicit `null`.** Omitting
 a list is fine — `{"message": "hello"}` is a complete run request, and every list the

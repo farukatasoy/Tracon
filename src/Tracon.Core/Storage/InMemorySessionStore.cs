@@ -134,28 +134,6 @@ internal sealed class InMemorySessionStore : ISessionStore
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Because the key is a <c>(TenantId, Id)</c> composite, this cannot be
-    /// filtered by the ambient tenant; it scans across all tenants for the
-    /// record carrying this identity.
-    /// </remarks>
-    public ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(sessionId);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        foreach (var key in _sessions.Keys)
-        {
-            if (string.Equals(key.Id, sessionId, StringComparison.Ordinal))
-            {
-                return new ValueTask<string?>(key.TenantId);
-            }
-        }
-
-        return new ValueTask<string?>((string?)null);
-    }
-
-    /// <inheritdoc />
     public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);

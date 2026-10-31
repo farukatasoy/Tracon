@@ -25,8 +25,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// The claim under test is not "a denial is refused" but "a denial is
 /// INDISTINGUISHABLE from absence": the answer is this
-/// endpoint's own OpenAI-shaped <c>404</c>, byte for byte what a conversation
-/// belonging to another tenant already produced, never the gate's own
+/// endpoint's own OpenAI-shaped <c>404</c>, the same whether this tenant, another
+/// tenant or nobody holds the id, never the gate's own
 /// <c>ProblemDetails</c> body and never a <c>403</c> that would confirm the
 /// conversation exists.
 /// </para>
@@ -76,41 +76,38 @@ public sealed class OpenAIConversationsAuthorizationTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public async Task Retrieving_a_conversation_a_handler_denies_reads_exactly_like_another_tenants()
+    public async Task A_conversation_a_handler_denies_looks_the_same_whether_this_tenant_another_tenant_or_nobody_holds_it()
     {
-        // 🚨 The comparison is against ANOTHER TENANT's conversation, not
-        // against a second denial by the same handler — two refusals matching
-        // each other proves nothing. The tenant refusal is the body that was
-        // already reachable before this change, so matching it is what keeps the
-        // new gate from introducing a distinguishable answer.
-        //
-        // 🚨 And that is ALL the byte equality buys here. This endpoint does
-        // not hide existence and cannot: an unused identifier answers 200,
-        // because a conversation id is a reservation (see
-        // The_conversations_surface_is_mapped_by_default). "404" on this
-        // surface has always meant "not yours", never "never existed".
+        // 🚨 The comparison is between three DENIED ids, one per way an id can
+        // exist. Two refusals of the same kind matching each other proves
+        // nothing; what matters is that the refusal gives no hint of which
+        // case the id was in, so the denial cannot be used to probe what this
+        // tenant or any other holds.
         var handler = new RecordingHandler { Allow = false };
 
         await using var host = await StartAsync(handler);
         await SeedAsync(host, "conv-1");
-
-        // Written under a DIFFERENT tenant, so the tenant check refuses it
-        // before the handler is ever consulted.
         await SeedAsync(host, "conv-elsewhere", tenantId: "other-tenant");
 
-        using var denied = await host.Client.GetAsync(Conversation("conv-1"));
-        using var otherTenant = await host.Client.GetAsync(Conversation("conv-elsewhere"));
+        var answers = new List<(HttpStatusCode Status, string Body)>();
 
-        denied.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        otherTenant.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        foreach (var id in new[] { "conv-1", "conv-elsewhere", "conv-unused" })
+        {
+            using var response = await host.Client.GetAsync(Conversation(id));
 
-        (await denied.Content.ReadAsStringAsync())
-            .ShouldBe((await otherTenant.Content.ReadAsStringAsync())
-                .Replace("conv-elsewhere", "conv-1", StringComparison.Ordinal));
+            answers.Add((
+                response.StatusCode,
+                (await response.Content.ReadAsStringAsync()).Replace(id, "<id>", StringComparison.Ordinal)));
+        }
 
-        // The tenant refusal short-circuits BEFORE the handler: another
-        // tenant's identity must never reach a consumer's own policy code.
-        handler.Requests.Select(static request => request.SessionId).ShouldBe(["conv-1"]);
+        answers.ShouldAllBe(static answer => answer.Status == HttpStatusCode.NotFound);
+        answers.Select(static answer => answer.Body).Distinct(StringComparer.Ordinal).Count().ShouldBe(1);
+
+        // The handler is asked about every id: to the caller's tenant an id only
+        // another tenant holds is an unused id, and only the consumer can say
+        // whether this caller may open one.
+        handler.Requests.Select(static request => request.SessionId)
+            .ShouldBe(["conv-1", "conv-elsewhere", "conv-unused"]);
     }
 
     [Fact]

@@ -124,43 +124,17 @@ public interface ISessionStore
     }
 
     /// <summary>Fetches the session.</summary>
-    /// <param name="sessionId">The session identifier.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The session; <see langword="null"/> if it does not exist.</returns>
-    ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Returns the tenant that owns a session identifier, WITHOUT applying
-    /// the ambient tenant filter read from <see cref="ITenantContext"/>.
-    /// </summary>
     /// <remarks>
-    /// <para>
-    /// <see cref="GetAsync"/> is filtered by the ambient tenant; because of
-    /// this, it can never answer "does this identifier belong to ANOTHER
-    /// tenant" — the caller is already inside their own tenant's context, and
-    /// another tenant's record is NEVER VISIBLE from that context, so the
-    /// result is always <see langword="null"/>. This is exactly
-    /// why the OpenAI-compatible endpoints' cross-tenant ownership check was
-    /// dead code — the rejection branch never fired, the identifier was
-    /// silently treated as "never used" and a new session was opened.
-    /// </para>
-    /// <para>
-    /// The default implementation calls <see cref="GetAsync"/> — so it
-    /// CARRIES THE BUG ABOVE and can never correctly answer the cross-tenant
-    /// question. This exists only so old/custom stores that have not yet
-    /// overridden this method keep compiling. The real stores
-    /// (<c>SqlSessionStore</c>, <c>InMemorySessionStore</c>) override this
-    /// method with a genuinely correct implementation that is INDEPENDENT of the tenant.
-    /// </para>
+    /// A session is identified by the ambient tenant AND the identifier: another
+    /// tenant may hold the same identifier, and its record is never visible
+    /// here. A store keyed by the identifier alone cannot tell the two apart.
     /// </remarks>
     /// <param name="sessionId">The session identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// The identifier of the owning tenant if the identifier has been used;
-    /// <see langword="null"/> if the identifier has never been used.
+    /// The session in the ambient tenant; <see langword="null"/> if that tenant has none.
     /// </returns>
-    async ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
-        => (await GetAsync(sessionId, cancellationToken).ConfigureAwait(false))?.TenantId;
+    ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default);
 
     /// <summary>Deletes the session.</summary>
     /// <param name="sessionId">The session identifier.</param>
@@ -207,9 +181,7 @@ public sealed record SessionRecord
     /// <para>
     /// This is a SECOND, NARROWER boundary drawn UNDER the tenant, not a
     /// replacement for it: <see cref="TenantId"/> still answers "whose data is
-    /// this", and this answers "which user inside that tenant". Do not confuse
-    /// it with <see cref="ISessionStore.GetOwnerTenantIdAsync"/>, whose "owner"
-    /// is the owning TENANT.
+    /// this", and this answers "which user inside that tenant".
     /// </para>
     /// <para>
     /// The value is an <strong>opaque string</strong> with the same meaning

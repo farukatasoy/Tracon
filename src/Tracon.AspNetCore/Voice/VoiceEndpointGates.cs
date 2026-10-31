@@ -42,17 +42,11 @@ internal static class VoiceEndpointGates
             return false;
         }
 
-        // 🚨 The "someone else's session" rejection was removed here ON
-        // PURPOSE. GetAsync is scoped to the ambient tenant, so another tenant's
-        // record returns null, the caller opens a FRESH session in their own tenant,
-        // and the other tenant's record is never touched. That removes an existence
-        // oracle. Do NOT "fix" this into an owner lookup without reopening that choice --
-        // the OpenAI-compatible endpoints answer 404 instead, and the difference
-        // between the two surfaces is a decision, not an oversight.
-        var store = services.GetRequiredService<ISessionStore>();
-        var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
-
-        return record is null || string.Equals(record.TenantId, tenantId, StringComparison.Ordinal);
+        // The rule is shared with the OpenAI-compatible endpoints: an id that
+        // only another tenant holds is an unused id for this caller.
+        return await SessionTenantGate
+            .MayUseAsync(services.GetRequiredService<ISessionStore>(), sessionId, tenantId, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>Asks the consumer's authorization handler and the ownership gate.</summary>
