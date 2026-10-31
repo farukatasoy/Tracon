@@ -199,14 +199,10 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | `Tracon.Cli` | PolyForm | The `tracon` global tool — `migrate`, `migrate status`, `health`, `eval`, `state-check`, `agent-skill`. Not a library; not in the meta package |
 | `@tracon/client` | PolyForm | **npm, not NuGet** — the same 182 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
 
-**Target frameworks:** `net8.0`, `net9.0`, `net10.0` — including `Tracon.Testing`, so an
-app on .NET 8 LTS is tested on .NET 8. Three differ: `Tracon.Templates` generates a
-`net10.0` project, `Tracon.Cli` is a `net10.0` global tool, and the source generator in
-`Tracon.Core` targets `netstandard2.0`. Detail: [compatibility
-matrix](https://tracon.dev/reference/compatibility/). What runs on each framework: a
-representative set of this repository's test projects (Core, the four providers, the
-shared SQL layer, SQLite, the contract suite) on all three; the rest of the suite on
-`net10.0`; and the release gate runs a packed `net8.0` console consumer.
+**Target framework:** `net10.0` for every package, including `Tracon.Testing`; only the
+source generator inside `Tracon.Core` targets `netstandard2.0`. `net8.0` and `net9.0` were
+dropped after `1.0.0-preview.6`, ahead of the end of Microsoft support for .NET 8 and .NET 9
+on 2026-11-10. Detail: [compatibility matrix](https://tracon.dev/reference/compatibility/).
 
 **Licence:** the `Licence` column above; three packages are MIT so that writing and
 testing an extension, and owning what `dotnet new` generates, never needs a licence.
@@ -330,8 +326,7 @@ dotnet format Tracon.slnx --verify-no-changes
 
 `TreatWarningsAsErrors` is on — there are no warnings, only errors.
 
-Requirements: .NET SDK 10.0.402 (pinned in `global.json`) plus the **.NET 8 and .NET 9 runtimes** (a representative
-set of test projects runs on every shipped framework), **Node.js 22.22.2+, 24.15+ or 26+** (the console
+Requirements: .NET SDK 10.0.402 (pinned in `global.json`), **Node.js 22.22.2+, 24.15+ or 26+** (the console
 build), and **Docker** (integration tests bring up a real database with Testcontainers).
 The end-to-end tests download Chromium themselves on first run.
 

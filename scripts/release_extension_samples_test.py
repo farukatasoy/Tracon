@@ -22,11 +22,11 @@ EXACT_VERSION = "1.0.0-preview.1"
 COMPATIBILITY_TABLE = """\
 | Package | Meta | Frameworks | Native AOT | Purpose or limit |
 |---|---:|---|---:|---|
-| `Tracon.OpenAI` | Yes | net8/9/10 | Yes | OpenAI |
-| `Tracon.Anthropic` | No | net8/9/10 | No | Claude provider |
-| `Tracon.Google` | No | net8/9/10 | No | Gemini provider |
-| `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider |
-| `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs |
+| `Tracon.OpenAI` | Yes | net10 | Yes | OpenAI |
+| `Tracon.Anthropic` | No | net10 | No | Claude provider |
+| `Tracon.Google` | No | net10 | No | Gemini provider |
+| `Tracon.Azure` | No | net10 | Yes | Azure OpenAI provider |
+| `Tracon.Voice` | No | net10 | Yes | ElevenLabs |
 """
 
 SMOKE_PACKAGES = ("Tracon.Core", "Tracon.OpenAI", "Tracon.Azure", "Tracon.Voice")
@@ -40,22 +40,15 @@ def _write_compatibility_page(root: pathlib.Path, table: str = COMPATIBILITY_TAB
 
 def _write_clean_tree(root: pathlib.Path) -> None:
     samples = root / "samples"
-    for project in (
-        *release_extension_samples.SAMPLE_TEST_PROJECTS,
-        *release_extension_samples.AOT_PROJECTS,
-        release_extension_samples.NET8_CONSUMER_PROJECT,
-    ):
+    for project in (*release_extension_samples.SAMPLE_TEST_PROJECTS, *release_extension_samples.AOT_PROJECTS):
         project_dir = samples / project
         project_dir.mkdir(parents=True)
-        framework = (
-            "<PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>"
-            if project == release_extension_samples.NET8_CONSUMER_PROJECT else "")
         packages = SMOKE_PACKAGES if project == release_extension_samples.PROVIDER_AOT_PROJECT else ("Tracon",)
         references = "".join(
             f'<PackageReference Include="{package}" VersionOverride="$(TraconSamplePackageVersion)" />'
             for package in packages)
         (project_dir / f"{project}.csproj").write_text(
-            f'<Project Sdk="Microsoft.NET.Sdk">{framework}<ItemGroup>{references}</ItemGroup></Project>',
+            f'<Project Sdk="Microsoft.NET.Sdk"><ItemGroup>{references}</ItemGroup></Project>',
             encoding="utf-8",
         )
     _write_compatibility_page(root)
@@ -71,21 +64,6 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
-    def test_net8_tuketicisi_net8_hedeflemezse_reddedilir(self):
-        # <TargetFramework> satiri silinirse ornek net10.0'i
-        # samples/Directory.Build.props'tan miras alir ve yine GECER.
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            _write_clean_tree(root)
-            project = release_extension_samples.NET8_CONSUMER_PROJECT
-            csproj = root / "samples" / project / f"{project}.csproj"
-            csproj.write_text(
-                csproj.read_text(encoding="utf-8").replace("net8.0", "net10.0"), encoding="utf-8")
-
-            errors = release_extension_samples.validate_sample_contract(root, EXACT_VERSION)
-
-        self.assertTrue(any("must target net8.0" in error for error in errors), errors)
-
     def test_saglayici_aot_vaadi_smoke_olmadan_reddedilir(self):
         # "Native AOT: Yes" yalnız smoke'un kanıtladığı
         # paket için verilir. Anthropic'i "Yes" yapmak smoke'a eklemeden geçmemeli.
@@ -93,7 +71,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
             root = pathlib.Path(directory)
             _write_clean_tree(root)
             _write_compatibility_page(root, COMPATIBILITY_TABLE.replace(
-                "| `Tracon.Anthropic` | No | net8/9/10 | No |", "| `Tracon.Anthropic` | No | net8/9/10 | Yes |"))
+                "| `Tracon.Anthropic` | No | net10 | No |", "| `Tracon.Anthropic` | No | net10 | Yes |"))
 
             errors = release_extension_samples.validate_sample_contract(root, EXACT_VERSION)
 
@@ -153,11 +131,6 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
         # package was promised AOT (or the smoke lost a package) without the
         # other half being updated.
         self.assertEqual(release_extension_samples.validate_provider_aot_promises(ROOT), [])
-
-    def test_gercek_net8_tuketicisi_net8_hedefler(self):
-        errors = release_extension_samples.validate_sample_contract(ROOT, EXACT_VERSION)
-
-        self.assertFalse(any("net8" in error for error in errors), errors)
 
     def test_bos_surum_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -319,7 +292,7 @@ class TraconBagimlilikKapanisiTestleri(unittest.TestCase):
             f'<dependency id="{dependency}" version="[{self.VERSION}]" exclude="Build,Analyzers" />'
             for dependency in dependencies)
         nuspec = (f'<package><metadata><id>{package_id}</id><dependencies>'
-                  f'<group targetFramework="net8.0">{deps}<dependency id="xunit.v3.assert" version="3.2.2" /></group>'
+                  f'<group targetFramework="net10.0">{deps}<dependency id="xunit.v3.assert" version="3.2.2" /></group>'
                   f'</dependencies></metadata></package>')
         with zipfile.ZipFile(directory / f"{package_id}.{self.VERSION}.nupkg", "w") as archive:
             archive.writestr(f"{package_id}.nuspec", nuspec)

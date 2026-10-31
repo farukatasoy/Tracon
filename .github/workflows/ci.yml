@@ -65,19 +65,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        # Temsilci test projeleri (tests/Directory.Build.props)
-        # net8.0;net9.0;net10.0 derlenir ve kosar. TFM matrisi ubuntu
-        # bacaginin isidir; Windows bacagi PLATFORM farkini olcer ve
-        # net10.0'da kalir. Bos deger = props dosyasinin varsayilani.
-        include:
-          - os: windows-latest
-            test-frameworks: net10.0
-
-    # MSBuild ortam degiskenlerini baslangic ozelligi olarak okur; boylece
-    # restore, build, format ve test AYNI TFM kumesini gorur. `kapi.py` de
-    # ayni degiskeni okur (`test_target_frameworks`).
-    env:
-      TraconTestTargetFrameworks: ${{ matrix.test-frameworks }}
 
     steps:
       - name: Kaynak kodu al
@@ -90,18 +77,6 @@ jobs:
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
-
-      # Cok hedefli test bacaklari net8.0/net9.0 RUNTIME'ini ister.
-      # SDK global.json'dan secilir (10.0.x); bu surumler yalniz runtime
-      # icin kurulur. Test apphost'u runtime'i DOTNET_ROOT'tan cozer ve
-      # setup-dotnet ikisini ayni dizine kurar.
-      - name: net8.0/net9.0 runtime'larini kur
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
-        with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
 
       # Arayuz derlemesi icin. jsdom 30 Node ^22.22.2 (veya ^24.15, >=26) ister.
       # npm onbellegi package-lock.json uzerinden anahtarlanir.
@@ -276,8 +251,9 @@ jobs:
       # SKIPPED olarak gorunur (Assert.SkipWhen); ubuntu ayagi onlari kosar.
       - name: Test et (tum projeler)
         if: matrix.os == 'ubuntu-latest'
-        # Olculen en uzun 24,6 dk, ama uc TFM bacagindan ONCE.
-        # Bacaklar yerel tam kosumu 782 -> 910 sn uzatti (%16): 24,6 x 1,16 x 2 = 57.
+        # Olculen en uzun 43,0 dk (2026-10-31, son uc kosum 27,8-43,0 dk), uc TFM
+        # bacagiyla. Bacaklar tek TFM'e indi; ilk tek TFM kosumu yeniden olculur
+        # ve sinir o olcumle guncellenir.
         timeout-minutes: 60
         # `dotnet test` Microsoft Testing Platform kipindedir (global.json
         # `test.runner`); `-maxcpucount` bu kipte HIC TEST KOSTURMADAN cikis kodu 5
@@ -384,13 +360,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 8.0.x: net8.0 tuketici smoke'u (Tracon.Samples.Net8Consumer)
-      # paketleri .NET 8 runtime'inda kosturur. SDK yine global.json'dan secilir.
       - name: .NET SDK kur
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
-          dotnet-version: 8.0.x
 
       # Yalniz `npm publish --dry-run` icin (kapi.py'nin npm adimi). Bu is
       # paketlemez; arayuz varliklari (TRACON0003) `build` isinde gerekir.
