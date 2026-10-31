@@ -81,7 +81,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
             }
             else
             {
-                // Meta and template packages have no lib/; the tool is never validated
+                // Meta and template packages carry no assembly; the tool is never validated
                 // (the SDK's PackTool targets set EnablePackageValidation=false); a
                 // library flagged TraconPackageFirstRelease has no published baseline.
                 properties["PackageValidationBaselinePath"].ShouldBeEmpty(id);

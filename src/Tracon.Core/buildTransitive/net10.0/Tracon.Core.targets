@@ -13,10 +13,18 @@
 
     buildTransitive/, not build/: a consumer usually references the Tracon
     meta package, and a build/ asset does not flow across a transitive reference.
+
+    buildTransitive/net10.0/, not the buildTransitive/ root: NuGet counts a
+    .targets file at the root as an asset for EVERY framework, so a project on a
+    framework the package does not ship restored it without NU1202 and failed
+    later at compile time, with no Tracon type in sight. Under the lowest shipped
+    framework NuGet applies the file to that framework and every newer one, and
+    refuses an older one at restore. The capability map stays one level up, at
+    the path it has always had.
   -->
 
   <PropertyGroup>
-    <TraconAgentMapFile>$(MSBuildThisFileDirectory)Tracon.AgentMap.md</TraconAgentMapFile>
+    <TraconAgentMapFile>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)..', 'Tracon.AgentMap.md'))</TraconAgentMapFile>
 
     <!--
       The repository root, not the project directory: an agent reads AGENTS.md

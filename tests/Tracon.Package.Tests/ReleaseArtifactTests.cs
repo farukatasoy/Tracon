@@ -454,6 +454,81 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
     }
 
     /// <summary>
+    /// A package declares exactly the frameworks its project builds - no more, no
+    /// fewer - so NuGet refuses any other framework at restore (<c>NU1202</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The XML doc count above only counts; it cannot tell a <c>lib/net8.0/</c>
+    /// folder left by a stale project override from the <c>lib/net10.0/</c> one it
+    /// should be. Dependency groups are checked for every package that has them.
+    /// </para>
+    /// <para>
+    /// Two layouts make NuGet treat a package as compatible with EVERY framework,
+    /// and both were measured after <c>net8.0</c> and <c>net9.0</c> were dropped: a
+    /// <c>.props</c>/<c>.targets</c> at the <c>build/</c> or <c>buildTransitive/</c>
+    /// root (<c>Tracon.Core</c> and <c>Tracon.AspNetCore</c>), and a package with
+    /// dependency groups but no <c>lib/</c> folder (the meta package). A
+    /// <c>net8.0</c> project restored all three without an error, received no
+    /// Tracon assembly, and failed only at compile time. The meta package
+    /// therefore carries an empty <c>lib/&lt;tfm&gt;/_._</c> marker.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryPackageShipsOnlyTheFrameworksItsProjectBuilds()
+    {
+        var failures = new List<string>();
+        var groupsSeen = 0;
+
+        foreach (var id in PackableProjects.Ids())
+        {
+            var profile = PackableProjects.ProfileOf(id);
+            var expected = PackableProjects.TargetFrameworksOf(id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            using var package = ZipFile.OpenRead(NupkgPath(id));
+            var paths = package.Entries.Select(entry => entry.FullName.Split('/')).ToList();
+
+            foreach (var parts in paths.Where(IsFrameworkNeutralBuildAsset))
+            {
+                failures.Add($"{id}: '{string.Join('/', parts)}' sits at the {parts[0]}/ root, which makes the package compatible with every framework");
+            }
+
+            if (profile is PackageProfile.Library or PackageProfile.Meta)
+            {
+                var libFrameworks = paths
+                    .Where(parts => parts.Length > 2 && string.Equals(parts[0], "lib", StringComparison.Ordinal))
+                    .Select(parts => parts[1])
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (!libFrameworks.SetEquals(expected))
+                {
+                    failures.Add($"{id}: lib/ carries [{string.Join(", ", libFrameworks.Order(StringComparer.Ordinal))}], the project builds [{string.Join(", ", expected.Order(StringComparer.Ordinal))}]");
+                }
+
+                var metadata = XDocument.Parse(ReadNuspec(id)).Root?.Elements().SingleOrDefault(element => IsNamed(element, "metadata"))
+                    ?? throw new InvalidOperationException($"'{id}.nuspec' has no <metadata> element.");
+                var groups = Dependencies(metadata).Select(entry => entry.Group).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                groupsSeen += groups.Count;
+
+                foreach (var group in groups.Where(group => !expected.Contains(group)))
+                {
+                    failures.Add($"{id}: dependency group '{group}' is not a framework the project builds [{string.Join(", ", expected.Order(StringComparer.Ordinal))}]");
+                }
+            }
+        }
+
+        groupsSeen.ShouldBeGreaterThan(0, "No dependency group was found in any nuspec; the parser no longer matches the nuspec shape.");
+        failures.ShouldBeEmpty(string.Join("\n", failures));
+    }
+
+    // NuGet imports only <id>.props and <id>.targets from build/ and buildTransitive/;
+    // a document beside them (the capability map, the OpenAPI file) is not an asset.
+    private static bool IsFrameworkNeutralBuildAsset(string[] parts)
+        => parts.Length == 2
+            && (string.Equals(parts[0], "build", StringComparison.Ordinal) || string.Equals(parts[0], "buildTransitive", StringComparison.Ordinal))
+            && (parts[1].EndsWith(".props", StringComparison.OrdinalIgnoreCase) || parts[1].EndsWith(".targets", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// EVERY framework of Tracon.UI carries the UI, not just the one the
     /// browser tests happen to run on.
     /// </summary>

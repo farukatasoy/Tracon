@@ -327,7 +327,7 @@ public sealed class DiagnosticIntegrityTests
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 
     private static string CoreTargetsPath { get; } =
-        Path.Combine(RepositoryRoot, "src", "Tracon.Core", "buildTransitive", "Tracon.Core.targets");
+        Path.Combine(RepositoryRoot, "src", "Tracon.Core", "buildTransitive", "net10.0", "Tracon.Core.targets");
 
     private static string CapabilityMapPath { get; } =
         Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "capabilities.md");

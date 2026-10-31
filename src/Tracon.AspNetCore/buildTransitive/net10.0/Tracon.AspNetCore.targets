@@ -13,10 +13,14 @@
     The file name is a contract: NuGet imports buildTransitive/<PackageId>.props
     and buildTransitive/<PackageId>.targets by itself and nothing else. A file
     under any other name is packed and then silently ignored.
+
+    This file sits under buildTransitive/net10.0/ for the reason given in
+    Tracon.Core.targets; the OpenAPI document stays one level up, at the path
+    the package documentation names.
   -->
 
   <PropertyGroup>
-    <TraconOpenApiDocumentFile>$(MSBuildThisFileDirectory)tracon.json</TraconOpenApiDocumentFile>
+    <TraconOpenApiDocumentFile>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)..', 'tracon.json'))</TraconOpenApiDocumentFile>
   </PropertyGroup>
 
 </Project>

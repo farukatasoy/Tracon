@@ -19,8 +19,25 @@
     -->
     <IncludeSymbols>false</IncludeSymbols>
     <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
+
+  <!--
+    An empty lib/<tfm>/_._ marker per target framework. Without a framework-specific
+    asset a package with dependency groups only counts as compatible with EVERY
+    framework: a project on a framework the family does not ship restored this
+    package without NU1202, received no dependency at all, and failed later at
+    compile time. The marker makes NuGet refuse that project at restore, and it
+    matches each dependency group to a lib/ folder.
+  -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);TraconPackFrameworkMarker</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <Target Name="TraconPackFrameworkMarker">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(MSBuildThisFileDirectory)_._" PackagePath="lib/$(TargetFramework)" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup Label="Tracon components in the meta package (no storage engine)">
     <ProjectReference Include="../Tracon.AspNetCore/Tracon.AspNetCore.csproj" />

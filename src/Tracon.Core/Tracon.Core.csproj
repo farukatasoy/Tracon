@@ -67,7 +67,9 @@
   <!--
     The consumer-facing MSBuild target and the generated capability
     map. buildTransitive/ is what makes them flow through the Tracon meta
-    package; build/ would stop at a direct reference.
+    package; build/ would stop at a direct reference. The target goes under the
+    lowest shipped framework (net10.0): at the buildTransitive/ root NuGet would
+    count it as an asset for every framework and skip NU1202 for an older one.
 
     🚨 `Update` does NOT work here, and the failure is silent: the SDK's default
     None glob is applied only in the INNER (TFM-specific) builds, while `dotnet
@@ -80,7 +82,7 @@
   -->
   <ItemGroup>
     <None Remove="buildTransitive/**" />
-    <None Include="buildTransitive/Tracon.Core.targets" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="buildTransitive/net10.0/Tracon.Core.targets" Pack="true" PackagePath="buildTransitive/net10.0/" />
     <None Include="buildTransitive/Tracon.AgentMap.md" Pack="true" PackagePath="buildTransitive/" />
   </ItemGroup>
 

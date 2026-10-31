@@ -62,11 +62,12 @@
 
     🚨 The file name is a contract: NuGet auto-imports only
     buildTransitive/<PackageId>.props and buildTransitive/<PackageId>.targets.
-    A different name packs cleanly and is then never imported.
+    A different name packs cleanly and is then never imported. The target goes
+    under buildTransitive/net10.0/ for the reason given in Tracon.Core.csproj.
   -->
   <ItemGroup>
     <None Remove="buildTransitive/**" />
-    <None Include="buildTransitive/Tracon.AspNetCore.targets" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="buildTransitive/net10.0/Tracon.AspNetCore.targets" Pack="true" PackagePath="buildTransitive/net10.0/" />
     <None Include="../../docs/openapi/tracon.json" Pack="true" PackagePath="buildTransitive/" />
   </ItemGroup>
 
