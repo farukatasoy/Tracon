@@ -111,6 +111,9 @@ internal static class OpenAIConversationsEndpoints
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
     }
 
+    /// <summary>The most characters the body of a conversation create may hold.</summary>
+    private const int MaxCreateBodyCharacters = 65_536;
+
     private static async Task<IResult> CreateAsync(
         HttpContext httpContext,
         ITenantContext tenantContext,
@@ -125,8 +128,24 @@ internal static class OpenAIConversationsEndpoints
         // a malformed body is not silently ignored.
         JsonElement body = default;
 
-        var raw = await new StreamReader(httpContext.Request.Body)
-            .ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        // The body is 'metadata' and nothing else (sixteen short pairs), so a limit far above any
+        // real one is enough; the read stops there instead of holding whatever the server admits.
+        var buffer = new char[MaxCreateBodyCharacters + 1];
+        int read;
+
+        using (var reader = new StreamReader(httpContext.Request.Body))
+        {
+            read = await reader.ReadBlockAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+        }
+
+        if (read > MaxCreateBodyCharacters)
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status400BadRequest,
+                $"Body is too large: a conversation takes at most {MaxCreateBodyCharacters} characters of 'metadata'.");
+        }
+
+        var raw = new string(buffer, 0, read);
 
         if (!string.IsNullOrWhiteSpace(raw))
         {
@@ -360,7 +379,7 @@ internal static class OpenAIConversationsEndpoints
     /// A single message can produce more than one item: the model can both
     /// call a tool and return text. Order is preserved.
     /// </remarks>
-    private static IEnumerable<ItemResource> ToItems(ChatMessage message)
+    internal static IEnumerable<ItemResource> ToItems(ChatMessage message)
     {
         var isAssistant = message.Role == ChatRole.Assistant;
         var textParts = new List<ItemContent>();
@@ -396,7 +415,9 @@ internal static class OpenAIConversationsEndpoints
                         CallId: result.CallId,
                         Name: null,
                         Arguments: null,
-                        Output: result.Exception?.Message ?? result.Result?.ToString());
+                        // Never the exception's message: it can carry a connection string or a path, and
+                        // the result is what the model was given in its place.
+                        Output: result.Result?.ToString());
                     break;
 
                 default:
@@ -470,7 +491,7 @@ internal static class OpenAIConversationsEndpoints
         [property: JsonPropertyName("last_id")] string? LastId,
         [property: JsonPropertyName("has_more")] bool HasMore);
 
-    private sealed record ItemResource(
+    internal sealed record ItemResource(
         [property: JsonPropertyName("id")] string Id,
         [property: JsonPropertyName("type")] string Type,
         [property: JsonPropertyName("status")] string? Status,
@@ -481,7 +502,7 @@ internal static class OpenAIConversationsEndpoints
         [property: JsonPropertyName("arguments")] string? Arguments,
         [property: JsonPropertyName("output")] string? Output);
 
-    private sealed record ItemContent(
+    internal sealed record ItemContent(
         [property: JsonPropertyName("type")] string Type,
         [property: JsonPropertyName("text")] string Text);
 }

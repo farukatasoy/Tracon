@@ -607,6 +607,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The items of a conversation never list the message of the exception a tool threw.** `GET /v1/conversations/{id}/items`
+  listed `Exception.Message` as the output of a failed tool call when the message history held the exception object. A
+  stored session does not (the object is not serialized), but a custom `ChatHistoryProvider` that keeps live objects returns
+  one, and its message can carry a connection string or a path. The output is now the result the model was given in its
+  place, or empty; the item is still `incomplete`.
+- **`POST /v1/conversations` reads at most 65 536 characters of body.** It read the whole body into a string, so the only
+  limit was the server's (30 MB for Kestrel by default) for a body that holds sixteen short `metadata` pairs. A larger body
+  answers `400` ("Body is too large") without being parsed.
 - **A tenant taken off `AllowedTenants` stops its API keys too.** The list was judged for a tenant named by the header or the
   claim, and an API key skipped it: a key bound to a tenant that was not on the list kept working on every endpoint and on the
   voice conversation socket. The key's tenant is now judged with the same rule and the same canonical form, and a key of a

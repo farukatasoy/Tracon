@@ -229,6 +229,33 @@ public sealed class OpenAIConversationsTests
             .GetProperty("error").GetProperty("type").ValueKind.ShouldBe(JsonValueKind.String);
     }
 
+    [Fact]
+    public async Task A_body_far_larger_than_any_metadata_is_refused_without_being_parsed()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        var oversize = "{\"metadata\":{\"k\":\"" + new string('x', 200_000) + "\"}}";
+
+        using var content = new StringContent(oversize, System.Text.Encoding.UTF8, "application/json");
+        using var response = await host.Client.PostAsync(Conversations, content);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(response))
+            .GetProperty("error").GetProperty("message").GetString().ShouldNotBeNull().ShouldContain("too large", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Metadata_within_the_limit_is_still_kept()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(Conversations, new { metadata = new { topic = "billing" } });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await TraconTestHost.ReadJsonAsync(response))
+            .GetProperty("metadata").GetProperty("topic").GetString().ShouldBe("billing");
+    }
+
     /// <summary>Opens a conversation, runs one turn, and returns the conversation id.</summary>
     private static async Task<string> CreateAndRunAsync(TraconTestHost host, string message)
     {
