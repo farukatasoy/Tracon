@@ -59,6 +59,12 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     // swaps the reference atomically. Readers always see a consistent snapshot.
     private volatile Dictionary<string, McpTenantTools> _byTenant = new(StringComparer.Ordinal);
 
+    // One server that never answers costs its ConnectionTimeout. The pass holds the
+    // refresh gate for as long as its slowest wave of connections, so the servers are
+    // connected side by side: sequentially, one tenant's dead servers added their
+    // timeouts to every other tenant's refresh, manual refresh, and OAuth completion.
+    private const int MaxParallelConnections = 8;
+
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
     // ConcurrentDictionary: writes are always single-writer under
@@ -153,20 +159,18 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             var registered = new HashSet<McpTenantServerKey>();
             var total = 0;
             var hadUnreachableServers = false;
+            var plans = new List<TenantPlan>(tenantIds.Count);
 
             foreach (var tenantId in tenantIds)
             {
-                var registrations = new List<TraconToolRegistration>();
-                var sources = new Dictionary<TraconToolRegistration, string>(ReferenceEqualityComparer.Instance);
-                var generations = new Dictionary<TraconToolRegistration, long>(ReferenceEqualityComparer.Instance);
-                var serverNames = new List<string>();
+                var plan = new TenantPlan(tenantId);
 
                 foreach (var server in await _servers.ListAsync(tenantId, cancellationToken).ConfigureAwait(false))
                 {
                     // Every registered server, reachable or not: a tool named like
                     // one of theirs that is missing from the snapshot then reads as
                     // an UNRESOLVED remote source, never as a code tool.
-                    serverNames.Add(server.Name);
+                    plan.ServerNames.Add(server.Name);
                     registered.Add(new McpTenantServerKey(tenantId, server.Name));
 
                     if (!server.Enabled)
@@ -176,12 +180,34 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
                     var key = new McpTenantServerKey(tenantId, server.Name);
                     live.Add(key);
+                    plan.Connects.Add(new ServerConnect(key, server));
+                }
 
-                    var (connection, unreachable) = await EnsureConnectionAsync(tenantId, key, server, cancellationToken).ConfigureAwait(false);
+                plans.Add(plan);
+            }
 
-                    hadUnreachableServers |= unreachable;
+            // Each key is its own work item and owns its result slot; nothing else is shared.
+            await Parallel.ForEachAsync(
+                    plans.SelectMany(static plan => plan.Connects.Select(connect => (plan.TenantId, connect))),
+                    new ParallelOptions { MaxDegreeOfParallelism = MaxParallelConnections, CancellationToken = cancellationToken },
+                    async (item, token) =>
+                    {
+                        (item.connect.Connection, item.connect.Unreachable) =
+                            await EnsureConnectionAsync(item.TenantId, item.connect.Key, item.connect.Server, token).ConfigureAwait(false);
+                    })
+                .ConfigureAwait(false);
 
-                    if (connection is not null)
+            foreach (var plan in plans)
+            {
+                var registrations = new List<TraconToolRegistration>();
+                var sources = new Dictionary<TraconToolRegistration, string>(ReferenceEqualityComparer.Instance);
+                var generations = new Dictionary<TraconToolRegistration, long>(ReferenceEqualityComparer.Instance);
+
+                foreach (var connect in plan.Connects)
+                {
+                    hadUnreachableServers |= connect.Unreachable;
+
+                    if (connect.Connection is { } connection)
                     {
                         registrations.AddRange(connection.Tools);
 
@@ -193,9 +219,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                     }
                 }
 
-                if (registrations.Count > 0 || serverNames.Count > 0)
+                if (registrations.Count > 0 || plan.ServerNames.Count > 0)
                 {
-                    byTenant[tenantId] = McpTenantTools.Create(
+                    byTenant[plan.TenantId] = McpTenantTools.Create(
                         registrations,
                         _logger,
                         _authorizationHandler,
@@ -208,7 +234,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         _loggerFactory.CreateLogger<ValidatingAIFunction>(),
                         _coreOptions.Value.Tools.DefaultMaxOutputBytes,
                         sources,
-                        serverNames,
+                        plan.ServerNames,
                         generations);
                     total += registrations.Count;
                 }
@@ -274,6 +300,29 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         }
 
         return ids;
+    }
+
+    /// <summary>One tenant's servers in one refresh pass.</summary>
+    /// <param name="TenantId">The tenant.</param>
+    private sealed record TenantPlan(string TenantId)
+    {
+        /// <summary>Every registered server, enabled or not.</summary>
+        public List<string> ServerNames { get; } = [];
+
+        /// <summary>The enabled servers, in the order the store listed them.</summary>
+        public List<ServerConnect> Connects { get; } = [];
+    }
+
+    /// <summary>One enabled server of a pass and what connecting to it produced.</summary>
+    /// <param name="Key">The server's key.</param>
+    /// <param name="Server">The server's definition.</param>
+    private sealed record ServerConnect(McpTenantServerKey Key, McpServerDefinition Server)
+    {
+        /// <summary>The live connection, or <see langword="null"/> when there is none.</summary>
+        public McpConnection? Connection { get; set; }
+
+        /// <summary>Whether the server could not be reached or listed.</summary>
+        public bool Unreachable { get; set; }
     }
 
     private async ValueTask<(McpConnection? Connection, bool Unreachable)> EnsureConnectionAsync(
