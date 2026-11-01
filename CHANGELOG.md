@@ -625,7 +625,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   then inserts without a lock fails it.
 - **A currency label is stored in upper case by the SQL stores.** The cost queries upper-case the currency column in SQL so that
   `usd` and `USD` are one currency, and that function follows the locale of the database: under a Turkish locale
-  `UPPER('inr')` is `İNR` while `INR` stays `INR`, so one currency became two and the cost total of a run tree left the amount
+  `UPPER('inr')` gives a dotted capital I (U+0130) before `NR` while `INR` stays `INR`, so one currency became two and the cost total of a run tree left the amount
   out. The label is now folded to upper case, in the invariant culture, when it is written (run cost, tool call and late tool
   usage, non-token cost, voice session cost), so the query's `UPPER` finds nothing to change in any locale. The in-memory
   stores already count the labels without regard to case.

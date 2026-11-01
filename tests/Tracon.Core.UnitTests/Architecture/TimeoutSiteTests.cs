@@ -34,6 +34,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Cli/Commands/ImportCommand.cs"] = "constant 5 min (DefinitionTransferHttp.Budget) that no operator sets",
         ["src/Tracon.Core/Approvals/ToolApprovalPresenterRunner.cs"] = "TraconToolOptions.ApprovalPresentationTimeout — TraconOptionsValidator",
         ["src/Tracon.Core/Compilation/AgentDefinitionValidator.cs"] = "TraconValidationOptions.McpTimeout — TraconOptionsValidator",
+        ["src/Tracon.Core/Diagnostics/TaskRace.cs"] = "the wait its callers pass — ChildAgentInvoker's wait limit and OnlineEvaluationOptions.JudgeTimeout, each bounded at its own site (Task.Delay rejects a value outside the timer range)",
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] = "OnlineEvaluationOptions.JudgeTimeout — OnlineEvaluationOptionsValidator (at most 5 min)",
         ["src/Tracon.Core/Graph/ChildAgentInvoker.cs"] = "SubAgentSettings / TraconAgentGraphOptions ChildDeadline / WorkflowNodeReference.Timeout — compiler, TraconOptionsValidator, WorkflowDefinitionValidator, constructor guard",
         ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "JobRecord.MaxDuration / TraconSchedulingOptions.MaxDurationByHandlerKey — JobDispatcher guard, TraconSchedulingOptionsValidator, worker check before arming (JobWorkerDeadlineTests); the finalization retry delay is a constant ceiling cut to the lease window left",

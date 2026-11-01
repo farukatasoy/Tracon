@@ -33,7 +33,7 @@ internal static class SqlText
     /// <remarks>
     /// The cost queries upper-case the column in SQL (<c>UPPER</c>) so that <c>usd</c> and <c>USD</c> are one
     /// currency. That function follows the locale of the database: under a Turkish locale
-    /// <c>UPPER('inr')</c> is <c>İNR</c>, while <c>INR</c> stays <c>INR</c>, so one currency became two totals and
+    /// <c>UPPER('inr')</c> gives a dotted capital I (U+0130) before <c>NR</c>, while <c>INR</c> stays <c>INR</c>, so one currency became two totals and
     /// the amount was left out. A label stored in upper case reaches <c>UPPER</c> unchanged in every locale.
     /// </remarks>
     public static string? Currency(string? currency)

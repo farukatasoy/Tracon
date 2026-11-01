@@ -7,7 +7,7 @@ namespace Tracon.Sqlite.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// The cost queries upper-case the column in SQL so that <c>usd</c> and <c>USD</c> are one currency, and that
-/// function follows the locale of the database: under a Turkish locale <c>UPPER('inr')</c> is <c>İNR</c>. A value
+/// function follows the locale of the database: under a Turkish locale <c>UPPER('inr')</c> gives a dotted capital I (U+0130) before <c>NR</c>. A value
 /// stored in upper case reaches it unchanged in every locale.
 /// </remarks>
 public sealed class SqlCurrencyCaseTests(SqliteSchemaFixture schema) : IClassFixture<SqliteSchemaFixture>
