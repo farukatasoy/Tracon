@@ -607,6 +607,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The egress guard no longer lets a private address through when it is written as an IPv4-compatible IPv6 address ending in
+  `.1`.** The guard decodes the IPv6 notations that carry an IPv4 address (mapped, compatible, translated, 6to4) and judges the
+  decoded address. The compatible form skipped every address whose last byte is 1, which was meant only for `::1`, so
+  `::192.168.1.1`, `::10.0.0.1` and `::127.2.173.1` were judged public. The form is deprecated and an ordinary stack does not
+  route it, so the reach was narrow; the verdict now matches the IPv4 address in every notation. Webhook, MCP and model provider
+  targets all go through this check.
 - **A bracket in a file path or glob matches itself on SQL Server.** SQL Server reads `[abc]` in a `LIKE` pattern as a character
   class, and the escape the agent file store used covered `\`, `%` and `_` but not `[`. A search under `/n[1]` also found the
   files under `/n1`, and a glob of `[a].md` matched `a.md`. The store now escapes the opening bracket too; PostgreSQL and SQLite

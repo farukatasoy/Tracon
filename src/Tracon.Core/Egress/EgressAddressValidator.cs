@@ -214,8 +214,9 @@ internal static class EgressAddressValidator
         }
 
         // IPv4-compatible ::a.b.c.d -- the whole 96-bit prefix is zero.
-        // :: and ::1 are excluded; both are already caught as private on their own.
-        if (IsZero(bytes.AsSpan(0, 12)) && !IsZero(bytes.AsSpan(12, 4)) && bytes[15] != 0x01)
+        // :: and ::1 are excluded; both are already caught as private on their own. Only ::1 itself: a
+        // private address that ends in .1 (::192.168.1.1, ::10.0.0.1) is decoded like any other.
+        if (IsZero(bytes.AsSpan(0, 12)) && !IsZero(bytes.AsSpan(12, 4)) && !(IsZero(bytes.AsSpan(12, 3)) && bytes[15] == 0x01))
         {
             embedded = new IPAddress(bytes.AsSpan(12, 4).ToArray());
 

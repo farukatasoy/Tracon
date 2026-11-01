@@ -63,6 +63,9 @@ public sealed class EgressAddressValidatorTests
     [InlineData("::169.254.169.254")]           // IPv4-compatible, RFC 4291
     [InlineData("64:ff9b::a9fe:a9fe")]          // NAT64 well-known prefix, RFC 6052
     [InlineData("2002:a9fe:a9fe::")]            // 6to4, RFC 3056
+    [InlineData("::192.168.1.1")]               // IPv4-compatible and ending in .1: a router address
+    [InlineData("::10.0.0.1")]
+    [InlineData("::127.2.173.1")]               // found by the property test
     public void Ipv6_forms_that_embed_a_private_ipv4_address_are_private(string address)
         => EgressAddressValidator.IsPrivate(IPAddress.Parse(address)).ShouldBeTrue();
 
