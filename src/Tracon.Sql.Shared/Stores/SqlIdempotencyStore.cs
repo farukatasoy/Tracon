@@ -57,6 +57,16 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         }
         catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
         {
+            // A reservation nobody finished (the process died between the reservation and the response) is taken over by the
+            // first request that finds it old enough. The row does the choosing: of several requests that race for it, one
+            // changes it and the others find it newer than their cutoff.
+            if (request.ReservationTimeout is { } timeout
+                && timeout > TimeSpan.Zero
+                && await TakeOverAsync(request, timeout, cancellationToken).ConfigureAwait(false))
+            {
+                return new IdempotencyReservation { State = IdempotencyState.Reserved };
+            }
+
             var existing = await ReadAsync(request.TenantId, request.Key, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException(
                     $"Reservation for idempotency key '{request.Key}' conflicted but the record could not be read.", ex);
@@ -107,6 +117,18 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         DbHelpers.Add(command, "key", key);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<bool> TakeOverAsync(IdempotencyRequest request, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var command = CreateCommand(_sql.TakeOverIdempotencyKey);
+        DbHelpers.AddTenant(command, request.TenantId);
+        DbHelpers.Add(command, "key", request.Key);
+        Dialect.AddText(command, "fingerprint", request.Fingerprint);
+        Dialect.AddTimestamp(command, "created_at", request.CreatedAt);
+        Dialect.AddTimestamp(command, "cutoff", request.CreatedAt - timeout);
+
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) == 1;
     }
 
     private async ValueTask<StoredEntry?> ReadAsync(string tenantId, string key, CancellationToken cancellationToken)

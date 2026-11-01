@@ -1763,6 +1763,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
             DELETE FROM {Schema}idempotency_keys WHERE tenant_id = @tenant_id AND "key" = @key;
             """;
 
+        TakeOverIdempotencyKey = $"""
+            UPDATE {Schema}idempotency_keys
+               SET fingerprint = @fingerprint, created_at = @created_at
+             WHERE tenant_id = @tenant_id AND "key" = @key AND state = 0 AND created_at <= @cutoff;
+            """;
+
         // The SAME pattern as ClaimOrphanedRuns: closed rows are read via
         // RETURNING. There is NO tenant filter -- this is a maintenance
         // operation.

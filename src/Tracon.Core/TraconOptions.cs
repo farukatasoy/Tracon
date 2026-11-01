@@ -950,6 +950,25 @@ public sealed class TraconRunRecordingOptions
     /// <see cref="RecordMessageDeltas"/>'s retention bucket, it is not tracked separately.
     /// </remarks>
     public bool RecordReasoningDeltas { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long the writer waits for one <see cref="IRunEventSink"/> to take one event. Default: 30 seconds.
+    /// <see cref="Timeout.InfiniteTimeSpan"/> (or zero) waits for ever.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A sink is called while the writer holds the run's append gate, one event at a time, so a sink that never
+    /// returns holds up every later event of that run, and with them the run. When the time is up the sink is
+    /// dropped for that run, as for any other failure of a sink: the loss is logged and counted at the <c>sink</c>
+    /// stage, the store and the other sinks are not affected, and the run goes on. Its call is left to finish on
+    /// its own; the sink is not told to stop.
+    /// </para>
+    /// <para>
+    /// The time is for one event, not for the run. A sink that needs longer than this for each event is slower
+    /// than the run and should queue the events itself.
+    /// </para>
+    /// </remarks>
+    public TimeSpan SinkTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>

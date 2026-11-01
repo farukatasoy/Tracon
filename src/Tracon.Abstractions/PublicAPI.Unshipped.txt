@@ -1402,6 +1402,8 @@ Tracon.IdempotencyRequest.Fingerprint.init -> void
 Tracon.IdempotencyRequest.IdempotencyRequest() -> void
 Tracon.IdempotencyRequest.Key.get -> string!
 Tracon.IdempotencyRequest.Key.init -> void
+Tracon.IdempotencyRequest.ReservationTimeout.get -> System.TimeSpan?
+Tracon.IdempotencyRequest.ReservationTimeout.init -> void
 Tracon.IdempotencyRequest.TenantId.get -> string!
 Tracon.IdempotencyRequest.TenantId.init -> void
 Tracon.IdempotencyReservation

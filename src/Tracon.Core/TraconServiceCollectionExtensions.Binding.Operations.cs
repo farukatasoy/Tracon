@@ -210,6 +210,11 @@ public static partial class TraconServiceCollectionExtensions
             nameof(TraconIdempotencyOptions.MaxKeyLength),
             static o => o.MaxKeyLength,
             static (o, v) => o.MaxKeyLength = v);
+
+        read.TimeSpan(
+            nameof(TraconIdempotencyOptions.ReservationTimeout),
+            static o => o.ReservationTimeout,
+            static (o, v) => o.ReservationTimeout = v);
     }
 
     /// <summary>Binds the <c>Tracon:AsyncRun</c> section.</summary>

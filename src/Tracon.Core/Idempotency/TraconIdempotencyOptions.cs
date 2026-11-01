@@ -27,4 +27,21 @@ public sealed class TraconIdempotencyOptions
 
     /// <summary>The maximum key length. The endpoint returns <c>400</c> when it is exceeded.</summary>
     public int MaxKeyLength { get; set; } = 255;
+
+    /// <summary>
+    /// Gets or sets how old a reserved key that was never completed has to be before the next request with the same key
+    /// takes it over. Zero (or less) never takes one over. Default: one hour.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A request reserves its key, runs, and then stores its response. A process that dies in between leaves a key nobody
+    /// finishes, and every later request with it answers <c>409</c> until the record is deleted by retention. After this
+    /// time the next request takes the key and runs.
+    /// </para>
+    /// <para>
+    /// Set it longer than the longest request that carries an <c>Idempotency-Key</c>. A request that is still running when
+    /// its key is taken over runs a second time, which is the very thing the key is there to prevent.
+    /// </para>
+    /// </remarks>
+    public TimeSpan ReservationTimeout { get; set; } = TimeSpan.FromHours(1);
 }

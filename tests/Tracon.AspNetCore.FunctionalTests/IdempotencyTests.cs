@@ -95,6 +95,45 @@ public sealed class IdempotencyTests
         second.Headers.Location!.OriginalString.ShouldBe(first.Headers.Location!.OriginalString);
     }
 
+    /// <summary>
+    /// A request that dies between the reservation and the response leaves a key nobody finishes. The next request with the
+    /// key takes it once it is older than <c>ReservationTimeout</c>, and is told the key is in progress before that.
+    /// </summary>
+    [Theory]
+    [InlineData(120, 3_600, HttpStatusCode.Accepted)]
+    [InlineData(5, 3_600, HttpStatusCode.Conflict)]
+    [InlineData(120, 0, HttpStatusCode.Conflict)]
+    public async Task A_reservation_nobody_finished_is_taken_over_only_after_the_timeout(int minutesOld, int timeoutSeconds, HttpStatusCode expected)
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            },
+            configureServices: services => services.Configure<TraconIdempotencyOptions>(
+                options => options.ReservationTimeout = TimeSpan.FromSeconds(timeoutSeconds)));
+
+        var key = Guid.NewGuid().ToString("N");
+
+        // The process that reserved the key is gone: nothing will complete or release it.
+        var reserved = await host.Services.GetRequiredService<IIdempotencyStore>().ReserveAsync(
+            new IdempotencyRequest
+            {
+                TenantId = host.Services.GetRequiredService<ITenantContext>().TenantId,
+                Key = key,
+                Fingerprint = "a-request-that-died",
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-minutesOld),
+            },
+            TestContext.Current.CancellationToken);
+
+        reserved.State.ShouldBe(IdempotencyState.Reserved);
+
+        using var response = await PostAsyncWithKeyAsync(host, Run, new AgentRunRequest { Message = "hello" }, key);
+
+        response.StatusCode.ShouldBe(expected);
+    }
+
     [Fact]
     public async Task Same_key_DIFFERENT_body_returns_422()
     {

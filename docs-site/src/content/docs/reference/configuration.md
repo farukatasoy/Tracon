@@ -271,6 +271,7 @@ their own before the rest are folded into a single `other` series — see
 | `RunRecording:RecordCitationUrls` | `false` |
 | `RunRecording:MaxPayloadLength` | `8192` characters |
 | `RunRecording:RecordRunInput` | `true` |
+| `RunRecording:SinkTimeout` | 30 seconds. How long the writer waits for one `IRunEventSink` to take one event; a sink that does not return is dropped for that run. `00:00:00` waits for ever |
 
 Disable tool payloads when they can contain personal or regulated data. A citation event records only the scheme and host of the source by default; `RecordCitationUrls` records the whole address, which can hold a signed credential when a retrieval tool produced it. Replay needs
 recorded run input, and so does continuing a parameterized run: the parameter values a
@@ -525,6 +526,7 @@ not enable sampling.
 | `RateLimit:Scope` | `Instance`. `Deployment` counts both rate limiters in the database; it needs `QueueLimit` of `0`, which is checked at startup |
 | `Idempotency:Enabled` | `true` |
 | `Idempotency:MaxKeyLength` | `255` |
+| `Idempotency:ReservationTimeout` | 1 hour. A reserved key that no response completed (the process died) is taken over by the next request once it is this old; `00:00:00` never takes one over. Keep it longer than your longest request that carries an `Idempotency-Key` |
 | `ContentGuard:InspectInput` | `true` |
 | `ContentGuard:InspectOutput` | `true` |
 | `ContentGuard:BufferStreamingOutput` | `true` |

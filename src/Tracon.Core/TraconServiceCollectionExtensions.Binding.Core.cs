@@ -345,6 +345,11 @@ public static partial class TraconServiceCollectionExtensions
             nameof(TraconRunRecordingOptions.MaxPayloadLength),
             static o => o.MaxPayloadLength,
             static (o, v) => o.MaxPayloadLength = v);
+
+        recordingRead.TimeSpan(
+            nameof(TraconRunRecordingOptions.SinkTimeout),
+            static o => o.SinkTimeout,
+            static (o, v) => o.SinkTimeout = v);
     }
 
     private static void BindObservability(IConfigurationSection section, TraconObservabilityOptions options, TraconOptions root)

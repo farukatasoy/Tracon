@@ -14,6 +14,25 @@ public sealed record IdempotencyRequest
 
     /// <summary>The time the reservation was made (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
+
+    /// <summary>
+    /// How old a reservation that was never completed or released has to be before this request takes it over.
+    /// <see langword="null"/> or zero never takes one over, which is how a reservation behaved before there was a limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A process that dies between the reservation and the response leaves a reservation nobody finishes, and
+    /// every later request with the key would be told it is still being processed. A request that finds a reservation
+    /// older than this takes it: the store keeps the key, sets its fingerprint and time to the taker's, and answers
+    /// <see cref="IdempotencyState.Reserved"/>. Of several requests that race for one expired reservation exactly
+    /// one takes it. A completed key is never taken over.
+    /// </para>
+    /// <para>
+    /// Set it longer than the longest request that uses the key: a request that is still running when it is taken over
+    /// runs a second time.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? ReservationTimeout { get; init; }
 }
 
 /// <summary>The result of an <see cref="IIdempotencyStore.ReserveAsync"/> call.</summary>

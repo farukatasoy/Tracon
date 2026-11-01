@@ -61,6 +61,15 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
+    /// <summary>A request made <paramref name="later"/> after <paramref name="first"/>, with the given reservation timeout.</summary>
+    private static IdempotencyRequest RequestAfter(IdempotencyRequest first, TimeSpan later, TimeSpan? timeout, string? fingerprint = null)
+        => first with
+        {
+            CreatedAt = first.CreatedAt + later,
+            Fingerprint = fingerprint ?? first.Fingerprint,
+            ReservationTimeout = timeout,
+        };
+
     private static IdempotencyResponse Response(int statusCode = 200, IReadOnlyDictionary<string, string>? headers = null)
         => new()
         {
@@ -108,6 +117,121 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
         var second = await Store.ReserveAsync(Request(Tenant, key));
 
         second.State.ShouldBe(IdempotencyState.InProgress);
+    }
+
+    /// <summary>
+    /// A process that dies between the reservation and the response leaves a reservation nobody will ever finish. Without
+    /// a limit, every later request with the key is told it is still being processed until the record is deleted.
+    /// </summary>
+    [Fact]
+    public async Task A_reservation_older_than_the_timeout_is_taken_over_by_the_next_request()
+    {
+        var first = Request(Tenant, Key());
+        var timeout = TimeSpan.FromMinutes(30);
+
+        (await Store.ReserveAsync(first)).State.ShouldBe(IdempotencyState.Reserved);
+
+        var retry = await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromMinutes(31), timeout));
+
+        retry.State.ShouldBe(IdempotencyState.Reserved, "the first request never finished, so the retry owns the key now");
+
+        // The taker owns it from its own time: a request right after it is told the key is in progress again.
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromMinutes(32), timeout)))
+            .State.ShouldBe(IdempotencyState.InProgress);
+    }
+
+    [Fact]
+    public async Task A_reservation_younger_than_the_timeout_is_still_in_progress()
+    {
+        var first = Request(Tenant, Key());
+
+        await Store.ReserveAsync(first);
+
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromMinutes(29), TimeSpan.FromMinutes(30))))
+            .State.ShouldBe(IdempotencyState.InProgress, "the request may still be running");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    public async Task A_reservation_is_never_taken_over_without_a_positive_timeout(int? minutes)
+    {
+        var first = Request(Tenant, Key());
+
+        await Store.ReserveAsync(first);
+
+        TimeSpan? timeout = minutes is { } value ? TimeSpan.FromMinutes(value) : null;
+
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromDays(30), timeout)))
+            .State.ShouldBe(IdempotencyState.InProgress);
+    }
+
+    [Fact]
+    public async Task A_completed_key_is_never_taken_over_however_old_it_is()
+    {
+        var first = Request(Tenant, Key());
+
+        await Store.ReserveAsync(first);
+        await Store.CompleteAsync(Tenant, first.Key, Response(statusCode: 201));
+
+        var replay = await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromDays(30), TimeSpan.FromMinutes(30)));
+
+        replay.State.ShouldBe(IdempotencyState.Completed, "a finished request is replayed, not run again");
+        replay.Response!.StatusCode.ShouldBe(201);
+    }
+
+    [Fact]
+    public async Task A_taken_over_reservation_belongs_to_the_taker_with_its_own_fingerprint()
+    {
+        var first = Request(Tenant, Key(), "fp-a");
+        var timeout = TimeSpan.FromMinutes(30);
+
+        await Store.ReserveAsync(first);
+
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1), timeout, "fp-b")))
+            .State.ShouldBe(IdempotencyState.Reserved);
+
+        await Store.CompleteAsync(Tenant, first.Key, Response(statusCode: 201));
+
+        // The finished request is the taker's: its body is the one that matches.
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1), timeout, "fp-b")))
+            .State.ShouldBe(IdempotencyState.Completed);
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1), timeout, "fp-a")))
+            .State.ShouldBe(IdempotencyState.FingerprintMismatch);
+    }
+
+    [Fact]
+    public async Task Only_one_of_several_requests_that_race_for_an_expired_reservation_takes_it()
+    {
+        const int Racers = 8;
+
+        var first = Request(Tenant, Key());
+        var timeout = TimeSpan.FromMinutes(30);
+
+        await Store.ReserveAsync(first);
+
+        var states = await Task.WhenAll(Enumerable.Range(0, Racers).Select(async index =>
+            (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1) + TimeSpan.FromTicks(index), timeout))).State));
+
+        states.Count(static state => state == IdempotencyState.Reserved)
+            .ShouldBe(1, "two requests that both took the key would run the work twice");
+        states.Count(static state => state == IdempotencyState.InProgress).ShouldBe(Racers - 1);
+    }
+
+    [Fact]
+    public async Task A_reservation_of_another_tenant_is_not_taken_over()
+    {
+        var key = Key();
+        var first = Request("tenant-a", key);
+
+        await Store.ReserveAsync(first);
+        await Store.ReserveAsync(Request("tenant-b", key));
+
+        // Tenant B's slot is its own: tenant A's expired reservation is taken over by A's retry alone.
+        (await Store.ReserveAsync(RequestAfter(Request("tenant-b", key), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(30))))
+            .State.ShouldBe(IdempotencyState.InProgress);
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1), TimeSpan.FromMinutes(30))))
+            .State.ShouldBe(IdempotencyState.Reserved);
     }
 
     [Fact]

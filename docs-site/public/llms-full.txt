@@ -3188,7 +3188,11 @@ return; do not publish to a message bus inline. One instance serves every concur
 run, so it must be thread-safe. A sink that throws is disabled for the rest of that
 run and logged; neither the store write nor any other registered sink is affected —
 and that includes a sink whose own call times out with an `OperationCanceledException`
-while the run itself is not cancelled. Register none and nothing changes.
+while the run itself is not cancelled. So is a sink that does not return: Tracon waits
+`RunRecording:SinkTimeout` (30 seconds by default, `00:00:00` waits for ever) for one
+event, then drops the sink for that run, counts the loss at the `sink` stage of
+`tracon.run.recording_failures`, and leaves its call to finish on its own. Register none
+and nothing changes.
 
 Within one run, a sink receives events in sequence order, the same order the store
 holds. A run writes from more than one place at once — concurrent tool calls, a child
@@ -17469,7 +17473,8 @@ A useful production baseline is:
     },
     "Idempotency": {
       "Enabled": true,
-      "MaxKeyLength": 255
+      "MaxKeyLength": 255,
+      "ReservationTimeout": "01:00:00"
     },
     "SingletonExecution": {
       "Enabled": true,
@@ -17662,6 +17667,7 @@ body buffering and the idempotency-store query.
 | First request reserves the key | The endpoint executes |
 | Same completed 2xx request | Stored status, body, content type, `Location`, and `Preference-Applied` are replayed |
 | Same key is still in progress | `409 Conflict` |
+| Same key, reserved longer ago than `ReservationTimeout` and never completed (the first process died) | The request takes the key and the endpoint executes |
 | Same key, different path or raw body | `422 Unprocessable Entity` |
 | Key longer than 255 characters by default | `400 Bad Request` |
 | Key on a request whose body sets `stream:true` | `400 Bad Request` |
@@ -18098,7 +18104,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | A run's response came from an unexpected model | Check the run's events for `ModelFallbackUsed`; the primary provider was unavailable for that call |
 | A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
-| A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another |
+| A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another. A reservation whose process died is taken over by the next request once it is older than `ReservationTimeout` (one hour by default) |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |
 | An idempotent request returns `501` | Re-enable `Tracon:Idempotency` or omit the header and accept normal execution semantics |
 | A run stays `Running` after a process crash | Enable reconciliation, use shared SQL state, and confirm singleton election permits a scanner to run |
@@ -22558,7 +22564,7 @@ tests. The registration and provider-specific configuration still change.
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
-| Identifiers a client chooses (session id, idempotency key, file path, checkpoint id, score author) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. Trailing spaces do not count (`abc` and `abc ` are one key) | Exact |
+| Identifiers a client chooses (session id, idempotency key, file path, checkpoint id, score author) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. SQL Server ignores trailing spaces in any collation, so `abc` and `abc ` are one key there; the run, `/v1/responses` and AG-UI endpoints refuse a session id that starts or ends with whitespace (`400`) so the stores agree | Exact |
 | ORM | None | None | None | None |
 | AOT promise | Yes through Core | Yes | No promise | No |
 
@@ -23079,6 +23085,7 @@ their own before the rest are folded into a single `other` series — see
 | `RunRecording:RecordCitationUrls` | `false` |
 | `RunRecording:MaxPayloadLength` | `8192` characters |
 | `RunRecording:RecordRunInput` | `true` |
+| `RunRecording:SinkTimeout` | 30 seconds. How long the writer waits for one `IRunEventSink` to take one event; a sink that does not return is dropped for that run. `00:00:00` waits for ever |
 
 Disable tool payloads when they can contain personal or regulated data. A citation event records only the scheme and host of the source by default; `RecordCitationUrls` records the whole address, which can hold a signed credential when a retrieval tool produced it. Replay needs
 recorded run input, and so does continuing a parameterized run: the parameter values a
@@ -23333,6 +23340,7 @@ not enable sampling.
 | `RateLimit:Scope` | `Instance`. `Deployment` counts both rate limiters in the database; it needs `QueueLimit` of `0`, which is checked at startup |
 | `Idempotency:Enabled` | `true` |
 | `Idempotency:MaxKeyLength` | `255` |
+| `Idempotency:ReservationTimeout` | 1 hour. A reserved key that no response completed (the process died) is taken over by the next request once it is this old; `00:00:00` never takes one over. Keep it longer than your longest request that carries an `Idempotency-Key` |
 | `ContentGuard:InspectInput` | `true` |
 | `ContentGuard:InspectOutput` | `true` |
 | `ContentGuard:BufferStreamingOutput` | `true` |

@@ -38,7 +38,8 @@ A useful production baseline is:
     },
     "Idempotency": {
       "Enabled": true,
-      "MaxKeyLength": 255
+      "MaxKeyLength": 255,
+      "ReservationTimeout": "01:00:00"
     },
     "SingletonExecution": {
       "Enabled": true,
@@ -231,6 +232,7 @@ body buffering and the idempotency-store query.
 | First request reserves the key | The endpoint executes |
 | Same completed 2xx request | Stored status, body, content type, `Location`, and `Preference-Applied` are replayed |
 | Same key is still in progress | `409 Conflict` |
+| Same key, reserved longer ago than `ReservationTimeout` and never completed (the first process died) | The request takes the key and the endpoint executes |
 | Same key, different path or raw body | `422 Unprocessable Entity` |
 | Key longer than 255 characters by default | `400 Bad Request` |
 | Key on a request whose body sets `stream:true` | `400 Bad Request` |
@@ -667,7 +669,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | A run's response came from an unexpected model | Check the run's events for `ModelFallbackUsed`; the primary provider was unavailable for that call |
 | A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
-| A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another |
+| A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another. A reservation whose process died is taken over by the next request once it is older than `ReservationTimeout` (one hour by default) |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |
 | An idempotent request returns `501` | Re-enable `Tracon:Idempotency` or omit the header and accept normal execution semantics |
 | A run stays `Running` after a process crash | Enable reconciliation, use shared SQL state, and confirm singleton election permits a scanner to run |

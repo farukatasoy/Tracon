@@ -201,6 +201,7 @@ SelectWorkflows	SELECT definition, version, updated_at, name\nFROM tracon_workfl
 SetExperimentCanaryPolicy	UPDATE tracon_experiments\nSET canary_policy = @canary_policy, updated_at = @now\nWHERE tenant_id = @tenant_id AND name = @name\nRETURNING id;
 StartExperiment	UPDATE tracon_experiments\nSET status = 1, started_at = @now, updated_at = @now\nWHERE tenant_id = @tenant_id AND name = @name AND status = 0\nRETURNING id;
 StopExperiment	UPDATE tracon_experiments\nSET status = 2, ended_at = @now, updated_at = @now\nWHERE tenant_id = @tenant_id AND name = @name AND status = 1\nRETURNING id;
+TakeOverIdempotencyKey	UPDATE tracon_idempotency_keys\n   SET fingerprint = @fingerprint, created_at = @created_at\n WHERE tenant_id = @tenant_id AND "key" = @key AND state = 0 AND created_at <= @cutoff;
 TouchApiKeyLastUsed	UPDATE tracon_api_keys\n   SET last_used_at = @last_used_at\n WHERE id = @id;
 TouchRunHeartbeat	UPDATE tracon_runs\nSET heartbeat_at = @at\nWHERE id = @id AND status IN (@status_running, @status_queued)\nRETURNING tenant_id, cancel_requested_at;
 TryClaimJobScheduleNextRun	UPDATE tracon_job_schedules\n   SET next_run_at = @new_next_run_at, last_run_at = @ran_at\n WHERE id = @id AND next_run_at = @expected_next_run_at;

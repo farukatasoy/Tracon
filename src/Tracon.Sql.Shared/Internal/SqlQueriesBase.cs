@@ -1083,6 +1083,13 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that deletes an idempotency key (releasing it after a failed request).</summary>
     public string DeleteIdempotencyKey { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Takes over a reservation nobody finished: sets the fingerprint and the time of the taker on a row that is still
+    /// <c>Reserved</c> and not newer than <c>@cutoff</c>. One statement, so of several requests that race for one expired
+    /// reservation exactly one changes the row (the row count says which); the others find a row newer than their cutoff.
+    /// </summary>
+    public string TakeOverIdempotencyKey { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that inserts a new pending approval request.</summary>
     public string InsertPendingApproval { get; protected set; } = string.Empty;
 

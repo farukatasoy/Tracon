@@ -396,7 +396,11 @@ return; do not publish to a message bus inline. One instance serves every concur
 run, so it must be thread-safe. A sink that throws is disabled for the rest of that
 run and logged; neither the store write nor any other registered sink is affected —
 and that includes a sink whose own call times out with an `OperationCanceledException`
-while the run itself is not cancelled. Register none and nothing changes.
+while the run itself is not cancelled. So is a sink that does not return: Tracon waits
+`RunRecording:SinkTimeout` (30 seconds by default, `00:00:00` waits for ever) for one
+event, then drops the sink for that run, counts the loss at the `sink` stage of
+`tracon.run.recording_failures`, and leaves its call to finish on its own. Register none
+and nothing changes.
 
 Within one run, a sink receives events in sequence order, the same order the store
 holds. A run writes from more than one place at once — concurrent tool calls, a child

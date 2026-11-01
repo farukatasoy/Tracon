@@ -359,6 +359,8 @@ Tracon.TraconIdempotencyOptions.Enabled.get -> bool
 Tracon.TraconIdempotencyOptions.Enabled.set -> void
 Tracon.TraconIdempotencyOptions.MaxKeyLength.get -> int
 Tracon.TraconIdempotencyOptions.MaxKeyLength.set -> void
+Tracon.TraconIdempotencyOptions.ReservationTimeout.get -> System.TimeSpan
+Tracon.TraconIdempotencyOptions.ReservationTimeout.set -> void
 Tracon.TraconIdempotencyOptions.TraconIdempotencyOptions() -> void
 Tracon.TraconImageOptions
 Tracon.TraconImageOptions.Enabled.get -> bool
@@ -532,6 +534,8 @@ Tracon.TraconRunRecordingOptions.RecordRunInput.get -> bool
 Tracon.TraconRunRecordingOptions.RecordRunInput.set -> void
 Tracon.TraconRunRecordingOptions.RecordToolPayloads.get -> bool
 Tracon.TraconRunRecordingOptions.RecordToolPayloads.set -> void
+Tracon.TraconRunRecordingOptions.SinkTimeout.get -> System.TimeSpan
+Tracon.TraconRunRecordingOptions.SinkTimeout.set -> void
 Tracon.TraconRunRecordingOptions.TraconRunRecordingOptions() -> void
 Tracon.TraconBuilderExtensions
 Tracon.TraconServiceCollectionExtensions

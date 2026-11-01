@@ -460,7 +460,7 @@ public sealed class RunEventWriter
 
             try
             {
-                await _sinks[i].OnEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
+                await CallSinkAsync(_sinks[i], runEvent, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
             {
@@ -485,6 +485,47 @@ public sealed class RunEventWriter
                     _sinks[i].GetType().Name,
                     RunId);
             }
+        }
+    }
+
+    /// <summary>Hands one event to one sink and waits for it no longer than <see cref="TraconRunRecordingOptions.SinkTimeout"/>.</summary>
+    /// <remarks>
+    /// 🚨 The sink is called while the writer holds the append gate of the run, so a sink that never returns holds every
+    /// later event of the run. A sink that is late is dropped like one that throws, and its call is left to finish on its
+    /// own: the sink gets the caller's token, not one of ours, because a source of ours that is disposed while the
+    /// abandoned call still reads its token is the bug of every abandoned wait. What the abandoned call ends with is
+    /// looked at, so that an exception nobody awaits does not surface later as an unobserved one.
+    /// </remarks>
+    private async ValueTask CallSinkAsync(IRunEventSink sink, RunEvent runEvent, CancellationToken cancellationToken)
+    {
+        var timeout = _options.SinkTimeout;
+        var call = sink.OnEventAsync(runEvent, cancellationToken);
+
+        // No allocation on the common path: a sink that is done when it returns costs nothing but the call.
+        if (call.IsCompleted || timeout <= TimeSpan.Zero || timeout == Timeout.InfiniteTimeSpan)
+        {
+            await call.ConfigureAwait(false);
+
+            return;
+        }
+
+        var pending = call.AsTask();
+
+        try
+        {
+            await pending.WaitAsync(timeout, _timeProvider, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException timedOut) when (!pending.IsCompleted)
+        {
+            _ = pending.ContinueWith(
+                static finished => _ = finished.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            throw new TimeoutException(
+                $"The run event sink {sink.GetType().Name} did not take an event within {timeout}.",
+                timedOut);
         }
     }
 

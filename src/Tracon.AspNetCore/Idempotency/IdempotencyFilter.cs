@@ -142,6 +142,7 @@ internal sealed class IdempotencyFilter : IEndpointFilter
                 Key = key,
                 Fingerprint = fingerprint,
                 CreatedAt = DateTimeOffset.UtcNow,
+                ReservationTimeout = options.ReservationTimeout,
             },
             cancellationToken).ConfigureAwait(false);
 

@@ -22,7 +22,7 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         cancellationToken.ThrowIfCancellationRequested();
 
         var dictionaryKey = (request.TenantId, request.Key);
-        var entry = new Entry(request.Fingerprint);
+        var entry = new Entry(request.Fingerprint, request.CreatedAt);
 
         // TryAdd is atomic. If two concurrent requests use the same key, only one
         // creates the new entry and the other follows the existing-entry path below.
@@ -33,14 +33,30 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
 
         var existing = _entries[dictionaryKey];
 
-        return ValueTask.FromResult(existing.State switch
+        // One step with the takeover: two requests that race for an expired reservation take it one after the other, and the
+        // second finds a reservation that is no longer old.
+        lock (existing)
         {
-            IdempotencyState.Completed when string.Equals(existing.Fingerprint, request.Fingerprint, StringComparison.Ordinal) =>
-                new IdempotencyReservation { State = IdempotencyState.Completed, Response = existing.Response },
-            IdempotencyState.Completed =>
-                new IdempotencyReservation { State = IdempotencyState.FingerprintMismatch },
-            _ => new IdempotencyReservation { State = IdempotencyState.InProgress },
-        });
+            if (existing.State == IdempotencyState.Reserved
+                && request.ReservationTimeout is { } timeout
+                && timeout > TimeSpan.Zero
+                && existing.CreatedAt <= request.CreatedAt - timeout)
+            {
+                existing.Fingerprint = request.Fingerprint;
+                existing.CreatedAt = request.CreatedAt;
+
+                return ValueTask.FromResult(new IdempotencyReservation { State = IdempotencyState.Reserved });
+            }
+
+            return ValueTask.FromResult(existing.State switch
+            {
+                IdempotencyState.Completed when string.Equals(existing.Fingerprint, request.Fingerprint, StringComparison.Ordinal) =>
+                    new IdempotencyReservation { State = IdempotencyState.Completed, Response = existing.Response },
+                IdempotencyState.Completed =>
+                    new IdempotencyReservation { State = IdempotencyState.FingerprintMismatch },
+                _ => new IdempotencyReservation { State = IdempotencyState.InProgress },
+            });
+        }
     }
 
     /// <inheritdoc />
@@ -57,8 +73,11 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
 
         if (_entries.TryGetValue((tenantId, key), out var entry))
         {
-            entry.State = IdempotencyState.Completed;
-            entry.Response = response;
+            lock (entry)
+            {
+                entry.State = IdempotencyState.Completed;
+                entry.Response = response;
+            }
         }
 
         return ValueTask.CompletedTask;
@@ -76,9 +95,11 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         return ValueTask.CompletedTask;
     }
 
-    private sealed class Entry(string fingerprint)
+    private sealed class Entry(string fingerprint, DateTimeOffset createdAt)
     {
-        public string Fingerprint { get; } = fingerprint;
+        public string Fingerprint { get; set; } = fingerprint;
+
+        public DateTimeOffset CreatedAt { get; set; } = createdAt;
 
         public IdempotencyState State { get; set; } = IdempotencyState.Reserved;
 

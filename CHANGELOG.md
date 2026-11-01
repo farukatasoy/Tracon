@@ -348,6 +348,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
+  stores its response. A process that died in between left a reservation nobody finished, and every later request with the key answered `409` until
+  retention deleted the record. The next request now takes a reservation that is older than `ReservationTimeout` (default one hour, `00:00:00`
+  never takes one over), on the memory store and on the three SQL providers; of several requests that race for one expired reservation exactly one
+  takes it, and a completed key is never taken over. Keep the value longer than your longest request that carries a key: a request that is still
+  running when its key is taken runs a second time. `IdempotencyRequest` gains `ReservationTimeout` for a store you wrote or call yourself;
+  new contract tests: `IdempotencyStoreContract.A_reservation_older_than_the_timeout_is_taken_over_by_the_next_request` and six more.
+
+- **`Tracon:RunRecording:SinkTimeout`: a run event sink that does not return no longer stops its run.** Tracon calls each `IRunEventSink` while it holds the
+  run's append gate, one event at a time, so a sink that never returned (a lost connection, a full queue it waits on) held every later event
+  of the run and the run with them. The writer now waits `SinkTimeout` (default 30 seconds; `00:00:00` or `-1` waits for ever, which is how it
+  behaved) for one event, then drops that sink for the run as it does for a sink that throws: logged, counted once at the `sink` stage of
+  `tracon.run.recording_failures`, the store and the other sinks unaffected. The sink is not told to stop; its call finishes on its own,
+  and a failure it ends with is observed rather than reported later as an unobserved task exception.
+
 - **A stored `Handoff` workflow names who may hand off to whom: `WorkflowDefinition.Handoffs`, with a per-run limit,
   `MaxHandoffs`, that stops a loop of handoffs.** Before, a stored `Handoff` workflow was a star: the first agent could
   hand off to every other agent and none of them could hand off, so a specialist could not return to the coordinator
