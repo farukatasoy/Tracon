@@ -200,6 +200,11 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
                     return conflict;
                 }
 
+                if (CheckKeyTenantAllowed(httpContext, record) is { } notAllowed)
+                {
+                    return notAllowed;
+                }
+
                 var scopeDenied = CheckScope(httpContext, record);
 
                 if (scopeDenied is not null)
@@ -373,6 +378,38 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             title: "Authentication failed",
             detail: "A valid 'Authorization: Bearer <token>' header is required.",
             statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    /// <summary>
+    /// Rejects an API key whose tenant is not on <see cref="TraconTenancyOptions.AllowedTenants"/>
+    /// while that list is populated.
+    /// </summary>
+    /// <param name="httpContext">The current request.</param>
+    /// <param name="record">The key the request proved.</param>
+    /// <returns>The <c>403</c>; <see langword="null"/> when the key's tenant may use the installation.</returns>
+    /// <remarks>
+    /// The list says which tenants may use the installation, and a tenant taken off it must
+    /// stop at once. A key names its tenant as surely as a header or a claim does, and a
+    /// key issued while the tenant was on the list outlives the change, so it is judged
+    /// here with the same rule and the same canonical form as the other two.
+    /// </remarks>
+    internal static ProblemHttpResult? CheckKeyTenantAllowed(HttpContext httpContext, ApiKeyRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+        ArgumentNullException.ThrowIfNull(record);
+
+        var tenancyOptions = httpContext.RequestServices.GetService<IOptions<TraconTenancyOptions>>()?.Value;
+
+        if (tenancyOptions is not { Enabled: true, AllowedTenants.Count: > 0 }
+            || HttpTenantContext.IsAllowed(AmbientTenantScope.Normalize(record.TenantId), tenancyOptions))
+        {
+            return null;
+        }
+
+        return TypedResults.Problem(
+            title: "Tenant rejected",
+            detail: "The tenant this API key is bound to is not on the allow list.",
+            statusCode: StatusCodes.Status403Forbidden);
     }
 
     /// <summary>

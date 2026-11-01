@@ -42,7 +42,7 @@ internal sealed record PendingToolInput
     public required string Message { get; init; }
 
     /// <summary>Gets the flat JSON schema of the fields the server asks for.</summary>
-    public JsonElement RequestedSchema { get; init; }
+    public required JsonElement RequestedSchema { get; init; }
 
     /// <summary>
     /// Gets the digest of the message and the schema the server sent. The replayed call applies an

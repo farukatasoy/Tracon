@@ -23698,7 +23698,7 @@ freeze an exposure allowlist at registration, or define request-resolution polic
   | `ClaimType` | *(none)* | The claim the resolver reads from the authenticated principal. **Left unset, no claim is read at all** — set it explicitly, for example to `tenant_id` |
   | `AllowHeaderResolution` | `false` | Whether `X-Tracon-Tenant` may name the tenant. **Leave this off in production** unless a trusted gateway sets the header and strips any client copy |
   | `HeaderName` | `X-Tracon-Tenant` | The header consulted when header resolution is on |
-  | `AllowedTenants` | empty | When populated, an allowlist: a resolved tenant outside it is rejected rather than served |
+  | `AllowedTenants` | empty | When populated, an allowlist: a resolved tenant outside it is rejected rather than served. An API key is judged by the tenant it is bound to, so taking a tenant off the list stops its keys too |
 - `UseMcpServer(TraconMcpServerOptions)` exposes no agent by default (`false`).<!-- claim:option TraconMcpServerOptions.ExposeAllAgents=false -->
 - `UseA2A(TraconA2AOptions)` exposes no agent by default.
 - `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and its

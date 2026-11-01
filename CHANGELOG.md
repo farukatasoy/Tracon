@@ -607,6 +607,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A tenant taken off `AllowedTenants` stops its API keys too.** The list was judged for a tenant named by the header or the
+  claim, and an API key skipped it: a key bound to a tenant that was not on the list kept working on every endpoint and on the
+  voice conversation socket. The key's tenant is now judged with the same rule and the same canonical form, and a key of a
+  tenant outside the list answers `403` ("Tenant rejected"). A list that is empty, or tenancy that is off, changes nothing.
 - **A U+0000 character in a value no longer fails the write on PostgreSQL.** PostgreSQL cannot hold U+0000 in a `text` value
   (`22021`) or the escape `\u0000` in a `jsonb` value (`22P05`), and SQL Server, SQLite and the in-memory stores accept
   both, so a model reply, a tool result or a request body that carried one wrote fine on three stores and failed on

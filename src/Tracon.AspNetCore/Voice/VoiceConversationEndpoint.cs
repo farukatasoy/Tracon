@@ -296,6 +296,11 @@ internal static class VoiceConversationEndpoint
 
             if (record is not null)
             {
+                if (TraconEndpointFilter.CheckKeyTenantAllowed(context, record) is { } notAllowed)
+                {
+                    return notAllowed;
+                }
+
                 if (TraconEndpointFilter.CheckScope(context, record) is { } scopeDenied)
                 {
                     return scopeDenied;
