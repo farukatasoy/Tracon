@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -106,17 +107,7 @@ public sealed class StoreFailureMatrixTests
 
         foreach (var afterCommit in ModesFor(service, name))
         {
-            await using var host = await StartAsync(builder =>
-            {
-                var fault = (Func<Exception>)(static () => new InjectedDbException());
-                var inject = typeof(FaultInjection)
-                    .GetMethod(afterCommit ? nameof(FaultInjection.ThrowAfter) : nameof(FaultInjection.ThrowFrom))!
-                    .MakeGenericMethod(service);
-
-                inject.Invoke(
-                    null,
-                    afterCommit ? [builder.Services, name, fault, 1] : [builder.Services, name, fault, 1, null]);
-            });
+            await using var host = await StartFailingAsync(service, name, afterCommit);
 
             var mode = afterCommit ? "after the write" : "before the write";
             var status = await PostAsync(host);
@@ -124,6 +115,51 @@ public sealed class StoreFailureMatrixTests
             status.ShouldBe(expected, $"{member} failing {mode}");
         }
     }
+
+    /// <summary>
+    /// The answer is the caller's half. The record is the other half: a run that was answered must not stay
+    /// <c>Running</c> because one write of its record failed once. A lost event costs the stream after it; the closing
+    /// write is tried again, so the record still ends.
+    /// </summary>
+    [Theory]
+    [InlineData("IRunStore.AppendEventAsync")]
+    [InlineData("IRunStore.CompleteRunAsync")]
+    public async Task A_run_whose_record_write_failed_once_still_ends_in_a_terminal_state(string member)
+    {
+        var (service, name) = Resolve(member);
+
+        foreach (var afterCommit in ModesFor(service, name))
+        {
+            await using var host = await StartFailingAsync(service, name, afterCommit);
+
+            (await PostAsync(host)).ShouldBe(HttpStatusCode.OK);
+
+            // The injected failure is spent by now, so this read goes to the real store. The closing write may land a
+            // moment after the response (it waits before it asks again), so wait for it.
+            var runs = host.Services.GetRequiredService<IRunStore>();
+
+            await WaitUntil.TrueAsync(
+                async () => (await runs.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken))
+                    .SingleOrDefault()?.Status is { } status && status != RunStatus.Running,
+                $"the record to leave Running after {member} failed {(afterCommit ? "after" : "before")} the write");
+
+            (await runs.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken))
+                .ShouldHaveSingleItem().Status.ShouldBe(RunStatus.Completed);
+        }
+    }
+
+    private static Task<TraconTestHost> StartFailingAsync(Type service, string member, bool afterCommit)
+        => StartAsync(builder =>
+        {
+            var fault = (Func<Exception>)(static () => new InjectedDbException());
+            var inject = typeof(FaultInjection)
+                .GetMethod(afterCommit ? nameof(FaultInjection.ThrowAfter) : nameof(FaultInjection.ThrowFrom))!
+                .MakeGenericMethod(service);
+
+            inject.Invoke(
+                null,
+                afterCommit ? [builder.Services, member, fault, 1] : [builder.Services, member, fault, 1, null]);
+        });
 
     /// <summary>
     /// A write that is reported as failed after it was done can only be built around a member that returns a plain task.

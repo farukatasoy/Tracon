@@ -28,7 +28,9 @@ namespace Tracon;
 /// <strong>Store failures do not interrupt the run.</strong> Observability
 /// must not break functionality. Every write failure is logged and
 /// swallowed; once the writer hits a failure, it moves into the
-/// <see cref="IsDisabled"/> state and attempts no further writes for that run.
+/// <see cref="IsDisabled"/> state and attempts no further writes for that run,
+/// except the closing write, which is tried again after a short pause so that
+/// one failed event does not leave the run record <c>Running</c>.
 /// </para>
 /// <para>
 /// <strong>The loss is counted, not only logged.</strong> Every lost write
@@ -61,6 +63,12 @@ public sealed class RunEventWriter
     private readonly int[] _sinkDisabled;
     private readonly TraconMetrics? _metrics;
     private readonly TimeProvider _timeProvider;
+
+    /// <summary>How long the writer waits before it asks the store for the closing write again.</summary>
+    internal static readonly TimeSpan CompletionRetryPause = TimeSpan.FromMilliseconds(250);
+
+    // The first try and one more.
+    private const int CompletionAttempts = 2;
 
     // Numbering, the store write and the sink dispatch of ONE event form
     // a single step. Without it two writers took 5 and 6, the second one's store
@@ -149,7 +157,8 @@ public sealed class RunEventWriter
 
     /// <summary>
     /// Gets whether the writer was disabled because it hit a store failure.
-    /// A disabled writer silently does nothing.
+    /// A disabled writer silently does nothing, except that the closing write is
+    /// still attempted.
     /// </summary>
     public bool IsDisabled => Volatile.Read(ref _disabled) != 0;
 
@@ -661,35 +670,56 @@ public sealed class RunEventWriter
 
         await AppendAsync(closingEvent, cancellationToken).ConfigureAwait(false);
 
-        if (IsDisabled)
+        // 🚨 NOT gated on IsDisabled either, and tried twice. Every other write gives up on the first
+        // failure, so one dropped connection costs the rest of a run's events; if the closing write went
+        // with them, the record would stay Running after the run ended while the caller got its answer,
+        // and only reconciliation (off by default, and five minutes late when on) would ever close it.
+        // The closing write is the one that must not be lost to an unrelated blip, so it asks again.
+        var completion = new RunCompletion
         {
-            return;
-        }
+            RunId = RunId,
+            Status = status,
+            CompletedAt = _timeProvider.GetUtcNow(),
+            EventCount = EventCount,
+            Usage = usage,
+            Error = error,
+            Cost = cost,
+            NonTokenCost = nonTokenCost,
+            ModelId = modelId,
+            ModelProvider = modelProvider,
 
-        try
+            // Expected tenant stamp.
+            TenantId = TenantId,
+        };
+
+        for (var attempt = 1; ; attempt++)
         {
-            await _store.CompleteRunAsync(
-                new RunCompletion
+            // An earlier loss in this run is usually the blip that is still going on, and so is a refused first
+            // try: give the store a moment before asking.
+            if (attempt > 1 || IsDisabled)
+            {
+                await Task.Delay(CompletionRetryPause, _timeProvider, cancellationToken).ConfigureAwait(false);
+            }
+
+            try
+            {
+                // Writing the same closing state twice is harmless: a first try that was committed but reported
+                // as failed (a timeout after the commit) is overwritten with the same values.
+                await _store.CompleteRunAsync(completion, cancellationToken).ConfigureAwait(false);
+
+                return;
+            }
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+            {
+                // A TraconException is the store's own verdict (no such run, another tenant's run): asking
+                // again gets the same answer.
+                if (attempt == CompletionAttempts || ex is TraconException)
                 {
-                    RunId = RunId,
-                    Status = status,
-                    CompletedAt = _timeProvider.GetUtcNow(),
-                    EventCount = EventCount,
-                    Usage = usage,
-                    Error = error,
-                    Cost = cost,
-                    NonTokenCost = nonTokenCost,
-                    ModelId = modelId,
-                    ModelProvider = modelProvider,
+                    Disable(ex, RunRecordingStages.Completion);
 
-                    // Expected tenant stamp.
-                    TenantId = TenantId,
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
-        {
-            Disable(ex, RunRecordingStages.Completion);
+                    return;
+                }
+            }
         }
     }
 

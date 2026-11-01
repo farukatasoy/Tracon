@@ -294,7 +294,8 @@ the audit trail is not something to find out about by reading logs.
 Run recording is best-effort in the same way, and goes one step further — after the
 first store failure, recording is switched off for the rest of that run. A single
 transient error can therefore cost the remainder of that run's events, not just one
-of them. It is counted the same way too: `tracon.run.recording_failures` rises once
+of them. The closing write is the exception: it is tried once more after a short
+pause, so the run record still ends instead of staying `running`. It is counted the same way too: `tracon.run.recording_failures` rises once
 for that run, tagged with the stage the record was lost at — see [what a lost run
 record looks like](/guides/observability/#what-a-lost-run-record-looks-like). The same
 sentence applies to a run as to the audit trail: a hole in the evidence is not

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.Core.UnitTests.Fakes;
+using Tracon.Tests.Common;
 
 namespace Tracon.Core.UnitTests.Recording;
 
@@ -27,18 +28,25 @@ public sealed class RunRecordingFailureMetricTests
         using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var store = new FailingRunStore(FailAt.StartRun);
-        var writer = NewWriter(store, metrics);
+        var clock = new ManualClock();
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics, sinks: null, clock);
 
-        // Three write attempts are MADE; only the first one reaches the store.
+        // Three write attempts are MADE; the first one and the closing write reach the store.
         await writer.StartAsync(Start(writer, "tenant-a"), "the user's question");
         await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = "delta" });
-        await writer.CompleteAsync(RunStatus.Completed);
+
+        var closing = writer.CompleteAsync(RunStatus.Completed).AsTask();
+        await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the writer to wait before the closing write");
+        clock.Advance(RunEventWriter.CompletionRetryPause);
+        await closing;
 
         // 🚨 That difference IS the mechanism, so it is asserted rather than described:
         // IsDisabled stops the writer from attempting anything after the first failure,
-        // which is why one broken run is one measurement however long it runs. The
-        // concurrent case is a DIFFERENT mechanism and has its own test below.
-        store.StoreCallCount.ShouldBe(1, "a disabled writer must not keep calling the store.");
+        // which is why one broken run is one measurement however long it runs. The one
+        // exception is the closing write (the delta was never offered to the store), and a
+        // closing write that goes through adds no second measurement. The concurrent case
+        // is a DIFFERENT mechanism and has its own test below.
+        store.StoreCallCount.ShouldBe(2, "a disabled writer must not keep calling the store, the closing write apart.");
         writer.IsDisabled.ShouldBeTrue();
 
         collector.LongValues(Counter).Count.ShouldBe(1);

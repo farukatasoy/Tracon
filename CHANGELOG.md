@@ -642,6 +642,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **One failed write of a run's record no longer leaves the run `running`.** Run recording gives up on its first store failure, and that
+  included the closing write: a dropped connection or a deadlock victim on any event left the record unfinished after the caller had its
+  answer, and only reconciliation (off by default, and five minutes late when on) ever closed it. The closing write is now tried again
+  after a short pause, whether an earlier write was lost or the closing write itself failed. Events are not retried: a run that lost one
+  still loses the stream after it, and `tracon.run.recording_failures` still counts the run once. A refusal that is the store's own verdict
+  (no such run, another tenant's run) is not asked twice.
 - **A quota period ends at the right instant in zones that change the clock at local midnight.** Paraguay, Chile and Greenland start
   daylight saving time at midnight, so that midnight never shows on a clock. The end of the daily and monthly period (the instant a
   refused call is told to retry at) was computed from the offset after the change and came out an hour early: still inside the

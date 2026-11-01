@@ -12,6 +12,12 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     /// <summary>Gets or sets whether closing a run fails.</summary>
     public bool FailCompletes { get; set; }
 
+    /// <summary>Gets or sets how many of the next closing writes fail; the ones after them go through.</summary>
+    public int FailNextCompletes { get; set; }
+
+    /// <summary>Gets how many closing writes reached the store, failed ones included.</summary>
+    public int CompleteAttempts { get; private set; }
+
     /// <summary>Gets or sets whether appending an event fails.</summary>
     public bool FailEventAppends { get; set; }
 
@@ -49,8 +55,17 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
 
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
+        CompleteAttempts++;
+
         if (FailCompletes)
         {
+            throw new InvalidOperationException("the store is unavailable");
+        }
+
+        if (FailNextCompletes > 0)
+        {
+            FailNextCompletes--;
+
             throw new InvalidOperationException("the store is unavailable");
         }
 
