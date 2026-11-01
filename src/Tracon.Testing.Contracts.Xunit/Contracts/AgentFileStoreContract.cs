@@ -187,5 +187,30 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         ExitRunScope();
         return default;
     }
+
+    /// <summary>
+    /// A bracket in a directory name or in a glob is a character of the name, not a pattern.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server reads <c>[abc]</c> in a <c>LIKE</c> pattern as a character class, which the escape character the other
+    /// stores need does not switch off for the opening bracket alone. A search under <c>/n[1]</c> then also matched
+    /// <c>/n1</c>, and a glob of <c>[a].md</c> matched <c>a.md</c>.
+    /// </remarks>
+    [Fact]
+    public async Task A_bracket_in_a_directory_or_a_glob_matches_itself_only()
+    {
+        Enter(TenantA);
+
+        await Store.WriteAsync("/n[1]/inside.md", "bracket keyword");
+        await Store.WriteAsync("/n1/outside.md", "bracket keyword");
+        await Store.WriteAsync("/g/[a].md", "glob keyword");
+        await Store.WriteAsync("/g/a.md", "glob keyword");
+
+        var directory = await Store.SearchAsync("/n[1]", "bracket keyword", recursive: true);
+        directory.ShouldHaveSingleItem().FileName.ShouldBe("/n[1]/inside.md");
+
+        var glob = await Store.SearchAsync("/g", "glob keyword", globPattern: "[a].md", recursive: true);
+        glob.ShouldHaveSingleItem().FileName.ShouldBe("/g/[a].md");
+    }
 }
 #pragma warning restore MAAI001

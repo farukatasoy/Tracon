@@ -607,6 +607,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A bracket in a file path or glob matches itself on SQL Server.** SQL Server reads `[abc]` in a `LIKE` pattern as a character
+  class, and the escape the agent file store used covered `\`, `%` and `_` but not `[`. A search under `/n[1]` also found the
+  files under `/n1`, and a glob of `[a].md` matched `a.md`. The store now escapes the opening bracket too; PostgreSQL and SQLite
+  take the escaped bracket as the bracket itself. The new contract test is
+  `AgentFileStoreContract.A_bracket_in_a_directory_or_a_glob_matches_itself_only`.
 - **A list that is paged by offset returns each row once when several rows share the sort time.** The session, attachment, audit
   log, job, eval run, webhook delivery, retention run and voice session lists were ordered by one time column. Rows that share
   the time have no order of their own, and PostgreSQL may order them differently for the page that starts at 0 and the page that

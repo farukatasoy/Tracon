@@ -332,13 +332,17 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
     }
 
     /// <summary>Escapes a string so it matches literally in a <c>LIKE</c> pattern.</summary>
+    /// <remarks>
+    /// The opening bracket is escaped for SQL Server, which reads <c>[abc]</c> as a character class; the other stores
+    /// take the escaped bracket as the bracket itself.
+    /// </remarks>
     private static string EscapeLikeLiteral(string text)
     {
         var builder = new StringBuilder(text.Length);
 
         foreach (var ch in text)
         {
-            if (ch is '\\' or '%' or '_')
+            if (ch is '\\' or '%' or '_' or '[')
             {
                 builder.Append('\\');
             }
@@ -371,7 +375,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
             {
                 builder.Append('_');
             }
-            else if (ch is '\\' or '%' or '_')
+            else if (ch is '\\' or '%' or '_' or '[')
             {
                 builder.Append('\\').Append(ch);
             }
