@@ -27,6 +27,18 @@ internal static class SqlText
     public static string? WithoutNul(string? value)
         => value is null || value.IndexOf('\0', StringComparison.Ordinal) < 0 ? value : value.Replace('\0', Replacement);
 
+    /// <summary>Gives a currency label the one form every SQL store holds: upper case, in the invariant culture.</summary>
+    /// <param name="currency">The label as the caller wrote it; it can be <see langword="null"/>.</param>
+    /// <returns>The label in upper case; <see langword="null"/> stays <see langword="null"/>.</returns>
+    /// <remarks>
+    /// The cost queries upper-case the column in SQL (<c>UPPER</c>) so that <c>usd</c> and <c>USD</c> are one
+    /// currency. That function follows the locale of the database: under a Turkish locale
+    /// <c>UPPER('inr')</c> is <c>İNR</c>, while <c>INR</c> stays <c>INR</c>, so one currency became two totals and
+    /// the amount was left out. A label stored in upper case reaches <c>UPPER</c> unchanged in every locale.
+    /// </remarks>
+    public static string? Currency(string? currency)
+        => currency?.ToUpperInvariant();
+
     /// <summary>Replaces each U+0000 of a JSON text, written raw or as the escape <c>\u0000</c>.</summary>
     /// <param name="json">The JSON text; it can be <see langword="null"/>.</param>
     /// <returns>The JSON text with U+FFFD where U+0000 stood; the same instance when it held none.</returns>

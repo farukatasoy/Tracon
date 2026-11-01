@@ -237,7 +237,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableDecimal(command, "cache_write_cost", completion.Cost?.CacheWriteCost);
         AddNullableDecimal(command, "cache_write_price_per_mtok", completion.Cost?.CacheWritePricePerMillionTokens);
         AddNullableDecimal(command, "cache_write_long_price_per_mtok", completion.Cost?.CacheWriteLongPricePerMillionTokens);
-        AddNullableText(command, "cost_currency", completion.Cost?.Currency);
+        AddNullableText(command, "cost_currency", SqlText.Currency(completion.Cost?.Currency));
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
         // The run's reported non-token total, a snapshot like the cost above.
@@ -246,7 +246,7 @@ internal sealed class SqlRunStore : IRunStore
         // reported items none of which carried an amount writes unsummed > 0 and a
         // NULL amount -- unknown, not free.
         AddNullableDecimal(command, "non_token_cost", completion.NonTokenCost?.Amount);
-        AddNullableText(command, "non_token_currency", completion.NonTokenCost?.Currency);
+        AddNullableText(command, "non_token_currency", SqlText.Currency(completion.NonTokenCost?.Currency));
         Dialect.AddNullableBoolean(command, "non_token_estimated", completion.NonTokenCost?.IsEstimated);
         Dialect.AddInt32(command, "non_token_unsummed", completion.NonTokenCost?.UnsummedItemCount);
 
@@ -288,7 +288,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableDecimal(command, "cache_write_cost", cost?.CacheWriteCost);
         AddNullableDecimal(command, "cache_write_price_per_mtok", cost?.CacheWritePricePerMillionTokens);
         AddNullableDecimal(command, "cache_write_long_price_per_mtok", cost?.CacheWriteLongPricePerMillionTokens);
-        AddNullableText(command, "cost_currency", cost?.Currency);
+        AddNullableText(command, "cost_currency", SqlText.Currency(cost?.Currency));
         Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
 
         // EXPECTED tenant. The maintenance endpoint
@@ -817,7 +817,7 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddDecimal(command, "usage_quantity", invocation.Usage?.Quantity);
         Dialect.AddNullableBoolean(command, "usage_estimated", invocation.Usage?.IsEstimated);
         Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
-        AddNullableText(command, "cost_currency", invocation.Usage?.Currency);
+        AddNullableText(command, "cost_currency", SqlText.Currency(invocation.Usage?.Currency));
         AddNullableText(command, "usage_provider", invocation.Usage?.Provider);
         AddNullableText(command, "usage_model", invocation.Usage?.Model);
 
@@ -873,7 +873,7 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddDecimal(command, "usage_quantity", completion.Usage?.Quantity);
         Dialect.AddNullableBoolean(command, "usage_estimated", completion.Usage?.IsEstimated);
         Dialect.AddDecimal(command, "cost", completion.Usage?.Cost);
-        AddNullableText(command, "cost_currency", completion.Usage?.Currency);
+        AddNullableText(command, "cost_currency", SqlText.Currency(completion.Usage?.Currency));
         AddNullableText(command, "usage_provider", completion.Usage?.Provider);
         AddNullableText(command, "usage_model", completion.Usage?.Model);
         Dialect.AddTimestamp(command, "late_completed_at", completion.LateCompletedAt);
@@ -915,7 +915,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "unit", record.Usage.Unit);
         Dialect.AddDecimal(command, "quantity", record.Usage.Quantity);
         Dialect.AddDecimal(command, "cost", record.Usage.Cost);
-        AddNullableText(command, "currency", record.Usage.Currency);
+        AddNullableText(command, "currency", SqlText.Currency(record.Usage.Currency));
         Dialect.AddBoolean(command, "estimated", record.Usage.IsEstimated);
         AddNullableText(command, "provider", record.Usage.Provider);
         AddNullableText(command, "model", record.Usage.Model);

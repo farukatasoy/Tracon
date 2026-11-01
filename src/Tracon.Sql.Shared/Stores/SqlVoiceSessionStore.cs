@@ -50,7 +50,7 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
                 Dialect.AddDecimal(command, "live_seconds", record.LiveSeconds);
                 Dialect.AddDecimal(command, "duration_cost", record.Cost?.DurationCost);
                 Dialect.AddDecimal(command, "character_cost", record.Cost?.CharacterCost);
-                Dialect.AddText(command, "currency", record.Cost?.Currency);
+                Dialect.AddText(command, "currency", SqlText.Currency(record.Cost?.Currency));
             },
             (command, token) => DbHelpers.ExecuteAsync(command, token),
             cancellationToken).ConfigureAwait(false);
