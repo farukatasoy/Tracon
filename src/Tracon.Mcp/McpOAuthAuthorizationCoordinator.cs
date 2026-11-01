@@ -142,7 +142,14 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         // authorization address (RunAuthorizationAsync's callback handler).
         var pending = new PendingAuthorization(tenantId, serverName);
 
-        _ = RunAuthorizationAsync(server, baseUri, pending);
+        // 🚨 The flow outlives the request that started it (the administrator has until AuthorizationWindow to
+        // click), so it starts on a clean execution context, as McpConnection does for a connection. Started
+        // inline it kept this request's tenant, audit actor and trace for as long as it ran, and a callback of
+        // the SDK then ran as that request.
+        using (ExecutionContext.SuppressFlow())
+        {
+            _ = Task.Run(() => RunAuthorizationAsync(server, baseUri, pending), CancellationToken.None);
+        }
 
         using var timeout = new CancellationTokenSource(mcpOptions.ConnectionTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);

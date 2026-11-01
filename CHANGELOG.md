@@ -642,6 +642,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The MCP OAuth authorization flow no longer carries the request that started it.** The flow keeps running after the request answers, for as long as the
+  administrator takes to consent, and it was started inside the request. Its tenant, audit actor and trace therefore stayed attached to a callback of the
+  SDK long after the request ended. It now starts on a clean execution context, as the connection to an MCP server already did.
 - **A store that is down while an agent is compiled answers `503`, not `400 Agent compilation failed`.** Reading a tenant's provider binding or egress
   policy happens while the agent is compiled, and the catalog wrapped any exception it did not recognize as "the agent source failed". A
   database error therefore told the caller their agent was broken, and the caller went to fix an agent that was fine. A `DbException` now
