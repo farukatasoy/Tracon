@@ -75,6 +75,10 @@ internal sealed class TraconTestHost : IAsyncDisposable
     /// process provides; a test that asserts environment-dependent behavior
     /// (the non-persistent storage warning) sets it explicitly.
     /// </param>
+    /// <param name="validateServiceProvider">
+    /// Turns on scope and build validation of the service provider, as a Development host built with the full
+    /// builder has them on.
+    /// </param>
     /// <returns>The running host.</returns>
     public static async Task<TraconTestHost> StartAsync(
         Action<ITraconBuilder>? configureTracon = null,
@@ -84,7 +88,8 @@ internal sealed class TraconTestHost : IAsyncDisposable
         bool withOpenApi = false,
         Action<WebApplication>? configureApp = null,
         Action<WebApplication>? configureAfterMap = null,
-        string? environment = null)
+        string? environment = null,
+        bool validateServiceProvider = false)
     {
         var logs = new RecordingLoggerProvider();
 
@@ -92,6 +97,18 @@ internal sealed class TraconTestHost : IAsyncDisposable
             ? WebApplication.CreateSlimBuilder()
             : WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.WebHost.UseTestServer();
+
+        if (validateServiceProvider)
+        {
+            // What the framework turns on by itself in a Development host built with the full builder; the slim
+            // builder used here does not, so a test that wants the consumer's first run asks for it.
+            builder.Host.UseDefaultServiceProvider(static options =>
+            {
+                options.ValidateScopes = true;
+                options.ValidateOnBuild = true;
+            });
+        }
+
         builder.Logging.ClearProviders();
         builder.Logging.AddProvider(logs);
         builder.Logging.SetMinimumLevel(LogLevel.Trace);
