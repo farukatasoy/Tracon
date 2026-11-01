@@ -1191,3 +1191,4 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.A_completed_run_stays_complete
 Tracon.Testing.Contracts.Storage.RunStoreContract.An_event_whose_text_holds_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_job_whose_payload_and_input_hold_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.A_schedule_whose_payload_holds_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first() -> System.Threading.Tasks.Task!

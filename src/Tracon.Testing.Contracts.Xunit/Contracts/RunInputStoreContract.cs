@@ -250,4 +250,41 @@ public abstract class RunInputStoreContract : StoreCancellationContract<IRunInpu
             Parameters = parameters,
             CreatedAt = DateTimeOffset.UtcNow,
         };
+
+    /// <summary>
+    /// Writes of the same run that arrive at once all return, and the first to land is the one kept.
+    /// </summary>
+    /// <remarks>
+    /// A second write is ignored, so a store that checks "is there a row" and then inserts must make the two
+    /// steps one: two writers that both see no row would both insert, and the loser would fail with a
+    /// duplicate key instead of being ignored. A queued run that is retried writes its input again.
+    /// </remarks>
+    [Fact]
+    public async Task Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first()
+    {
+        const int Writers = 24;
+
+        for (var round = 0; round < 5; round++)
+        {
+            var runId = await NewRunAsync();
+            using var start = new ManualResetEventSlim(initialState: false);
+
+            var writes = Enumerable.Range(0, Writers)
+                .Select(index => Task.Run(async () =>
+                {
+                    start.Wait();
+
+                    await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, $"writer {index}")]));
+                }))
+                .ToArray();
+
+            start.Set();
+
+            await Task.WhenAll(writes);
+
+            var kept = (await Store.GetAsync(Tenant, runId)).ShouldNotBeNull();
+
+            kept.Messages.ShouldHaveSingleItem().Text.ShouldStartWith("writer ", Case.Sensitive);
+        }
+    }
 }

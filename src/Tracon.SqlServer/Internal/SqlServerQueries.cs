@@ -874,11 +874,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Run inputs ---
         // 🚨 A second write is ignored; T-SQL has no ON CONFLICT, so the
-        // condition is written with NOT EXISTS (MERGE is not used).
+        // condition is written with NOT EXISTS (MERGE is not used). The lookup
+        // holds an update lock on the key range (UPDLOCK, HOLDLOCK): without it
+        // two writers of one run both find no row, both insert, and the loser
+        // fails with a duplicate key instead of being ignored.
         InsertRunInput = $"""
             INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at, parameters)
             SELECT @run_id, @tenant_id, @messages, @created_at, @parameters
-            WHERE NOT EXISTS (SELECT 1 FROM {Schema}.run_inputs WHERE run_id = @run_id);
+            WHERE NOT EXISTS (SELECT 1 FROM {Schema}.run_inputs WITH (UPDLOCK, HOLDLOCK) WHERE run_id = @run_id);
             """;
 
         // --- Tool invocations ---
