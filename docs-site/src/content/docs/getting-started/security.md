@@ -168,7 +168,11 @@ The real-time voice WebSocket is not an exemption: a browser cannot set a header
 handshake either, so the token travels in the `Sec-WebSocket-Protocol` subprotocol and
 is verified in constant time. A query string was rejected — it would be written to
 server and proxy logs. A WebSocket is not bound by CORS, so an anonymous socket is held
-to the same host and origin rule as an anonymous request.
+to the same host and origin rule as an anonymous request. A socket that your authorization
+policy authenticates (usually with a cookie, which a browser sends from any page) is held
+to an origin rule too: it opens from the installation's own origin or from an entry of
+`AllowedOrigins`. A socket that presents its own token or key is not judged by origin, and
+neither is a client that sends no `Origin` header, such as a server.
 
 ## Outbound requests are guarded too
 

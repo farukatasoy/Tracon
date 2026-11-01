@@ -609,6 +609,12 @@ An API key needs the `RunsWrite` scope, the same scope the live voice session
 endpoint asks for: a conversation runs the agent turn after turn. A key without it
 is refused with `403` before the socket upgrades.
 
+When your authorization policy authenticates the socket instead (usually with a cookie),
+a browser sends that cookie from any page. The socket then opens only for a page of the
+installation's own origin or one listed in `AllowedOrigins`; another origin is refused with
+`403` before the upgrade. A client that sends no `Origin` header, such as a server or a
+mobile app, is not judged by origin.
+
 Authentication is not authorization. A registered
 [`IRunAuthorizationHandler`](/guides/embedding/#6--run-and-session-authorization) is
 asked before the socket upgrades, with `SessionAccess.Voice` and the session id from
@@ -689,6 +695,13 @@ separate voice mapping call.
 The request did not complete a WebSocket upgrade. Use a WebSocket client and the
 mapped route `/api/voice/sessions/{sessionId}/stream`. `MapTracon()` installs the
 required middleware when voice conversation is registered.
+
+### The WebSocket request returns `403` with "Origin not allowed"
+
+The page that opened the socket is neither served by the installation nor listed in
+`AllowedOrigins`. A policy-authenticated socket is held to that rule because a browser
+sends its cookie from any page. Add the console's origin to `AllowedOrigins`, or send the
+token or key in the `tracon.token.` subprotocol instead of relying on the cookie.
 
 ### The WebSocket request returns `401`
 

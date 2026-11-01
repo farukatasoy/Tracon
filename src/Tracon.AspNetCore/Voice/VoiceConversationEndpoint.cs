@@ -45,11 +45,12 @@ internal static class VoiceConversationEndpoint
         // Read once, like every other access setting: a later change must not
         // loosen the running endpoint.
         var authorizationPolicyConfigured = options.AuthorizationPolicy is { Length: > 0 };
+        var allowedOrigins = options.AllowedOrigins.ToArray();
 
         builder.MapGet(
                 "/api/voice/sessions/{sessionId}/stream",
                 (HttpContext context, string sessionId) =>
-                    HandleAsync(context, sessionId, options, authorizationPolicyConfigured))
+                    HandleAsync(context, sessionId, options, authorizationPolicyConfigured, allowedOrigins))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("TraconVoiceStream")
@@ -71,7 +72,8 @@ internal static class VoiceConversationEndpoint
         HttpContext context,
         string sessionId,
         TraconEndpointOptions options,
-        bool authorizationPolicyConfigured)
+        bool authorizationPolicyConfigured,
+        IReadOnlyCollection<string> allowedOrigins)
     {
         var services = context.RequestServices;
 
@@ -109,10 +111,15 @@ internal static class VoiceConversationEndpoint
         // The group filter leaves the anonymous caller to this endpoint: the
         // credential of a socket travels in the subprotocol, which the filter
         // does not read. A socket is not bound by CORS, so a page of another
-        // site can open one to the local API unless its origin is judged here.
+        // site can open one unless its origin is judged here. With no token
+        // presented the identity is ambient: no authentication method at all
+        // (the local operator), or the authorization policy's, usually a
+        // cookie, which a browser sends from any page.
         if (ExtractPresentedToken(context) is null
             && options.AuthToken is not { Length: > 0 }
-            && AnonymousAccessGuard.Check(context, authorizationPolicyConfigured) is { } rejected)
+            && (authorizationPolicyConfigured
+                ? SocketOriginGuard.Check(context, allowedOrigins)
+                : AnonymousAccessGuard.Check(context, authorizationPolicyConfigured)) is { } rejected)
         {
             await WriteProblemAsync(
                 context,

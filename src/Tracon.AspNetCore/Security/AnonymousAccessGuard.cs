@@ -32,7 +32,9 @@ namespace Tracon;
 /// <para>
 /// A request with a credential is not judged here: a page of another site
 /// cannot present the token or the key. A configured authorization policy
-/// decides for itself.
+/// decides for itself; a WebSocket it authenticates is still judged by
+/// <see cref="SocketOriginGuard"/>, because a browser sends its cookie on a
+/// socket from any page.
 /// </para>
 /// </remarks>
 internal static class AnonymousAccessGuard
