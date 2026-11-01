@@ -364,14 +364,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   never takes one over), on the memory store and on the three SQL providers; of several requests that race for one expired reservation exactly one
   takes it, and a completed key is never taken over. Keep the value longer than your longest request that carries a key: a request that is still
   running when its key is taken runs a second time. `IdempotencyRequest` gains `ReservationTimeout` for a store you wrote or call yourself;
-  new contract tests: `IdempotencyStoreContract.A_reservation_older_than_the_timeout_is_taken_over_by_the_next_request` and six more.
+  contract tests: `IdempotencyStoreContract.A_reservation_older_than_the_timeout_is_taken_over_by_the_next_request` and the others of that group.
+  `CompleteAsync` and `ReleaseAsync` of `IIdempotencyStore` take an optional `reservedAt`, the `CreatedAt` of the reservation the caller holds: a
+  request that was taken over and finishes late changes nothing, so it cannot store its response under the request that took the key or delete
+  that request's record. A store you wrote has to take the parameter; `null` keeps the old behavior.
 
 - **`Tracon:RunRecording:SinkTimeout`: a run event sink that does not return no longer stops its run.** Tracon calls each `IRunEventSink` while it holds the
   run's append gate, one event at a time, so a sink that never returned (a lost connection, a full queue it waits on) held every later event
-  of the run and the run with them. The writer now waits `SinkTimeout` (default 30 seconds; `00:00:00` or `-1` waits for ever, which is how it
-  behaved) for one event, then drops that sink for the run as it does for a sink that throws: logged, counted once at the `sink` stage of
+  of the run and the run with them. The writer now waits `SinkTimeout` (default 30 seconds; `00:00:00` waits for ever, which is how it
+  behaved, and so does `Timeout.InfiniteTimeSpan` in code, written `-00:00:00.001` in configuration) for one event, then drops that sink for the run as it does for a sink that throws: logged, counted once at the `sink` stage of
   `tracon.run.recording_failures`, the store and the other sinks unaffected. The sink is not told to stop; its call finishes on its own,
-  and a failure it ends with is observed rather than reported later as an unobserved task exception.
+  and a failure it ends with is observed rather than reported later as an unobserved task exception. Nothing is remembered between runs: every
+  run that meets a sink which does not return waits the whole time on its first event.
 
 - **A stored `Handoff` workflow names who may hand off to whom: `WorkflowDefinition.Handoffs`, with a per-run limit,
   `MaxHandoffs`, that stops a loop of handoffs.** Before, a stored `Handoff` workflow was a star: the first agent could

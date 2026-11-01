@@ -36,7 +36,7 @@ public sealed class RunRecordingFailureMetricTests
         await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = "delta" });
 
         var closing = writer.CompleteAsync(RunStatus.Completed).AsTask();
-        await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the writer to wait before the closing write");
+        await WaitUntil.TrueAsync(() => clock.Pending.Any(static due => due <= RunEventWriter.CompletionRetryPause), "the writer to wait before the closing write");
         clock.Advance(RunEventWriter.CompletionRetryPause);
         await closing;
 

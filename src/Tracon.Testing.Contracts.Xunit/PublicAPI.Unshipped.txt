@@ -247,6 +247,9 @@ Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Starting_returns_the_ru
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Stopping_stops_the_experiment_and_frees_the_running_slot() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_completed_key_is_never_taken_over_however_old_it_is() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_request_that_was_taken_over_cannot_delete_a_response_the_new_owner_stored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_request_that_was_taken_over_cannot_release_the_new_owners_reservation() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_request_that_was_taken_over_cannot_store_its_response_under_the_new_owner() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_is_never_taken_over_without_a_positive_timeout(int? minutes) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_of_another_tenant_is_not_taken_over() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_older_than_the_timeout_is_taken_over_by_the_next_request() -> System.Threading.Tasks.Task!
@@ -1204,6 +1207,7 @@ Tracon.Testing.Contracts.Storage.SessionStoreContract.Paging_through_sessions_wi
 Tracon.Testing.Contracts.Storage.AgentFileStoreContract.A_bracket_in_a_directory_or_a_glob_matches_itself_only() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Ids_that_differ_only_in_case_are_two_sessions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Keys_that_differ_only_in_case_are_two_reservations() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.The_owner_of_a_reservation_completes_and_releases_it_as_before() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Author_message_and_name_that_differ_only_in_case_open_rows_of_their_own() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RateLimitCounterStoreContract.Partitions_that_differ_only_in_case_are_counted_apart() -> System.Threading.Tasks.Task!

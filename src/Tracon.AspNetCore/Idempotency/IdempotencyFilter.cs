@@ -135,13 +135,17 @@ internal sealed class IdempotencyFilter : IEndpointFilter
         var tenants = httpContext.RequestServices.GetRequiredService<ITenantContext>();
         var store = httpContext.RequestServices.GetRequiredService<IIdempotencyStore>();
 
+        // The reservation is known by this time: Complete and Release carry it, so a request that was taken over (it ran longer
+        // than ReservationTimeout) cannot store its response under, or delete, the record of the request that took the key.
+        var reservedAt = DateTimeOffset.UtcNow;
+
         var reservation = await store.ReserveAsync(
             new IdempotencyRequest
             {
                 TenantId = tenants.TenantId,
                 Key = key,
                 Fingerprint = fingerprint,
-                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedAt = reservedAt,
                 ReservationTimeout = options.ReservationTimeout,
             },
             cancellationToken).ConfigureAwait(false);
@@ -165,7 +169,7 @@ internal sealed class IdempotencyFilter : IEndpointFilter
                     statusCode: StatusCodes.Status422UnprocessableEntity);
 
             default:
-                return await ExecuteAndCaptureAsync(context, next, store, tenants.TenantId, key, cancellationToken)
+                return await ExecuteAndCaptureAsync(context, next, store, tenants.TenantId, key, reservedAt, cancellationToken)
                     .ConfigureAwait(false);
         }
     }
@@ -176,6 +180,7 @@ internal sealed class IdempotencyFilter : IEndpointFilter
         IIdempotencyStore store,
         string tenantId,
         string key,
+        DateTimeOffset reservedAt,
         CancellationToken cancellationToken)
     {
         try
@@ -186,16 +191,16 @@ internal sealed class IdempotencyFilter : IEndpointFilter
             {
                 // Not expected: the endpoint always returns IResult. Since we cannot
                 // capture it, release the reservation; the next request retries.
-                await store.ReleaseAsync(tenantId, key, CancellationToken.None).ConfigureAwait(false);
+                await store.ReleaseAsync(tenantId, key, reservedAt, CancellationToken.None).ConfigureAwait(false);
 
                 return result;
             }
 
-            return new IdempotencyCapturingResult(inner, store, tenantId, key);
+            return new IdempotencyCapturingResult(inner, store, tenantId, key, reservedAt);
         }
         catch
         {
-            await store.ReleaseAsync(tenantId, key, CancellationToken.None).ConfigureAwait(false);
+            await store.ReleaseAsync(tenantId, key, reservedAt, CancellationToken.None).ConfigureAwait(false);
 
             throw;
         }

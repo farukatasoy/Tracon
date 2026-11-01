@@ -225,12 +225,102 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
 
         await Store.ReserveAsync(first);
 
-        var states = await Task.WhenAll(Enumerable.Range(0, Racers).Select(async index =>
-            (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1) + TimeSpan.FromTicks(index), timeout))).State));
+        // Real parallelism: every racer starts on a thread of its own and waits at the gate, so a store that answers
+        // synchronously is still asked by several callers at the same moment.
+        using var gate = new ManualResetEventSlim(false);
+
+        var racers = Enumerable.Range(0, Racers).Select(index => Task.Run(async () =>
+        {
+            gate.Wait();
+
+            return (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1) + TimeSpan.FromTicks(index), timeout))).State;
+        })).ToList();
+
+        gate.Set();
+
+        var states = await Task.WhenAll(racers);
 
         states.Count(static state => state == IdempotencyState.Reserved)
             .ShouldBe(1, "two requests that both took the key would run the work twice");
         states.Count(static state => state == IdempotencyState.InProgress).ShouldBe(Racers - 1);
+    }
+
+    /// <summary>
+    /// The request that was taken over may still be running. Its response is not the key's: stored, it would sit under
+    /// the fingerprint of the request that took the key, and the next request with that body would replay it.
+    /// </summary>
+    [Fact]
+    public async Task A_request_that_was_taken_over_cannot_store_its_response_under_the_new_owner()
+    {
+        var old = Request(Tenant, Key(), "fp-old");
+        var timeout = TimeSpan.FromMinutes(30);
+        var taker = RequestAfter(old, TimeSpan.FromHours(1), timeout, "fp-new");
+
+        await Store.ReserveAsync(old);
+        (await Store.ReserveAsync(taker)).State.ShouldBe(IdempotencyState.Reserved);
+
+        // The old owner finishes late.
+        await Store.CompleteAsync(Tenant, old.Key, Response(statusCode: 201), old.CreatedAt);
+
+        (await Store.ReserveAsync(RequestAfter(taker, TimeSpan.FromSeconds(1), timeout, "fp-new")))
+            .State.ShouldBe(IdempotencyState.InProgress, "the key is still the taker's and the taker has not finished");
+
+        await Store.CompleteAsync(Tenant, taker.Key, Response(statusCode: 202), taker.CreatedAt);
+
+        var replay = await Store.ReserveAsync(RequestAfter(taker, TimeSpan.FromSeconds(2), timeout, "fp-new"));
+
+        replay.State.ShouldBe(IdempotencyState.Completed);
+        replay.Response!.StatusCode.ShouldBe(202, "the response stored is the one of the request that owns the key");
+    }
+
+    [Fact]
+    public async Task A_request_that_was_taken_over_cannot_release_the_new_owners_reservation()
+    {
+        var old = Request(Tenant, Key());
+        var timeout = TimeSpan.FromMinutes(30);
+        var taker = RequestAfter(old, TimeSpan.FromHours(1), timeout);
+
+        await Store.ReserveAsync(old);
+        await Store.ReserveAsync(taker);
+
+        await Store.ReleaseAsync(Tenant, old.Key, old.CreatedAt);
+
+        // Had the release gone through, this request would reserve the key and run beside the taker.
+        (await Store.ReserveAsync(RequestAfter(taker, TimeSpan.FromSeconds(1), timeout)))
+            .State.ShouldBe(IdempotencyState.InProgress);
+    }
+
+    [Fact]
+    public async Task A_request_that_was_taken_over_cannot_delete_a_response_the_new_owner_stored()
+    {
+        var old = Request(Tenant, Key());
+        var timeout = TimeSpan.FromMinutes(30);
+        var taker = RequestAfter(old, TimeSpan.FromHours(1), timeout);
+
+        await Store.ReserveAsync(old);
+        await Store.ReserveAsync(taker);
+        await Store.CompleteAsync(Tenant, taker.Key, Response(statusCode: 201), taker.CreatedAt);
+
+        await Store.ReleaseAsync(Tenant, old.Key, old.CreatedAt);
+
+        (await Store.ReserveAsync(RequestAfter(taker, TimeSpan.FromSeconds(1), timeout)))
+            .State.ShouldBe(IdempotencyState.Completed, "a finished request is never taken over, and an old owner cannot undo it");
+    }
+
+    [Fact]
+    public async Task The_owner_of_a_reservation_completes_and_releases_it_as_before()
+    {
+        var completed = Request(Tenant, Key());
+        var released = Request(Tenant, Key());
+
+        await Store.ReserveAsync(completed);
+        await Store.ReserveAsync(released);
+
+        await Store.CompleteAsync(Tenant, completed.Key, Response(statusCode: 201), completed.CreatedAt);
+        await Store.ReleaseAsync(Tenant, released.Key, released.CreatedAt);
+
+        (await Store.ReserveAsync(completed)).State.ShouldBe(IdempotencyState.Completed);
+        (await Store.ReserveAsync(released)).State.ShouldBe(IdempotencyState.Reserved, "the release freed the key");
     }
 
     [Fact]

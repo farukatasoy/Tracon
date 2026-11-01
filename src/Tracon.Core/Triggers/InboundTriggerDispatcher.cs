@@ -241,7 +241,7 @@ internal sealed class InboundTriggerDispatcher
         }
         catch (JsonException)
         {
-            await _idempotencyStore.ReleaseAsync(tenantId, signatureHeader!, cancellationToken).ConfigureAwait(false);
+            await _idempotencyStore.ReleaseAsync(tenantId, signatureHeader!, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return new InboundTriggerValidationResult
             {
@@ -256,7 +256,7 @@ internal sealed class InboundTriggerDispatcher
                     document.RootElement, trigger.PayloadMode, trigger.PayloadPath, out var message) ||
                 string.IsNullOrWhiteSpace(message))
             {
-                await _idempotencyStore.ReleaseAsync(tenantId, signatureHeader!, cancellationToken).ConfigureAwait(false);
+                await _idempotencyStore.ReleaseAsync(tenantId, signatureHeader!, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 return new InboundTriggerValidationResult
                 {
@@ -391,7 +391,7 @@ internal sealed class InboundTriggerDispatcher
     {
         ArgumentNullException.ThrowIfNull(validated);
 
-        return _idempotencyStore.ReleaseAsync(validated.Trigger.TenantId, validated.IdempotencyKey, cancellationToken);
+        return _idempotencyStore.ReleaseAsync(validated.Trigger.TenantId, validated.IdempotencyKey, cancellationToken: cancellationToken);
     }
 
     private bool TryVerifySignature(InboundTrigger trigger, string rawBody, string? timestampHeader, string? signatureHeader)

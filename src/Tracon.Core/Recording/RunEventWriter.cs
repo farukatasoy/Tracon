@@ -70,6 +70,9 @@ public sealed class RunEventWriter
     // The first try and one more.
     private const int CompletionAttempts = 2;
 
+    /// <summary>How long the closing write may take, after a failure, before the writer gives it up.</summary>
+    internal static readonly TimeSpan CompletionBudget = TimeSpan.FromSeconds(5);
+
     // Numbering, the store write and the sink dispatch of ONE event form
     // a single step. Without it two writers took 5 and 6, the second one's store
     // write and dispatch overtook the first one's, and a sink saw 6 before 5 -
@@ -733,34 +736,79 @@ public sealed class RunEventWriter
             TenantId = TenantId,
         };
 
-        for (var attempt = 1; ; attempt++)
+        await WriteClosingAsync(completion, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Writes the closing state of the run: once, and once more after a short pause when the store refused it. Whatever
+    /// the store does, the caller is held for a bounded time beyond its own first try (<see cref="CompletionBudget"/>).
+    /// </summary>
+    /// <remarks>
+    /// A store that has already failed in this run, or has just failed the closing write, may be unreachable rather than
+    /// refusing: a database that drops packets answers after its connect and command timeouts, and a run that waited for
+    /// two of those at its very end would hold its caller for a minute to record a state the caller does not read. The
+    /// first try of a writer that is still healthy is as unbounded as every store call of the run; everything after a
+    /// failure shares one budget.
+    /// </remarks>
+    private async ValueTask WriteClosingAsync(RunCompletion completion, CancellationToken cancellationToken)
+    {
+        var bounded = IsDisabled;
+        var budget = bounded ? new CancellationTokenSource(CompletionBudget, _timeProvider) : null;
+        CancellationTokenSource? linked = null;
+
+        try
         {
-            // An earlier loss in this run is usually the blip that is still going on, and so is a refused first
-            // try: give the store a moment before asking.
-            if (attempt > 1 || IsDisabled)
+            for (var attempt = 1; ; attempt++)
             {
-                await Task.Delay(CompletionRetryPause, _timeProvider, cancellationToken).ConfigureAwait(false);
-            }
+                var token = cancellationToken;
 
-            try
-            {
-                // Writing the same closing state twice is harmless: a first try that was committed but reported
-                // as failed (a timeout after the commit) is overwritten with the same values.
-                await _store.CompleteRunAsync(completion, cancellationToken).ConfigureAwait(false);
-
-                return;
-            }
-            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
-            {
-                // A TraconException is the store's own verdict (no such run, another tenant's run): asking
-                // again gets the same answer.
-                if (attempt == CompletionAttempts || ex is TraconException)
+                if (budget is not null)
                 {
-                    Disable(ex, RunRecordingStages.Completion);
+                    linked ??= CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, budget.Token);
+                    token = linked.Token;
+                }
+
+                try
+                {
+                    // An earlier loss in this run is usually the blip that is still going on, and so is a refused first
+                    // try: give the store a moment before asking.
+                    if (attempt > 1 || bounded)
+                    {
+                        await Task.Delay(CompletionRetryPause, _timeProvider, token).ConfigureAwait(false);
+                    }
+
+                    // Writing the same closing state twice is harmless: a first try that was committed but reported
+                    // as failed (a timeout after the commit) is overwritten with the same values.
+                    await _store.CompleteRunAsync(completion, token).ConfigureAwait(false);
+
+                    if (attempt > 1 && _logger.IsEnabled(LogLevel.Information))
+                    {
+                        _logger.LogInformation(
+                            "Tracon run recording closed run {RunId} on its second try; the first closing write was refused.",
+                            RunId);
+                    }
 
                     return;
                 }
+                catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+                {
+                    // A TraconException is the store's own verdict (no such run, another tenant's run): asking
+                    // again gets the same answer. The budget running out is a failure like any other.
+                    if (attempt == CompletionAttempts || ex is TraconException)
+                    {
+                        Disable(ex, RunRecordingStages.Completion);
+
+                        return;
+                    }
+
+                    budget ??= new CancellationTokenSource(CompletionBudget, _timeProvider);
+                }
             }
+        }
+        finally
+        {
+            linked?.Dispose();
+            budget?.Dispose();
         }
     }
 

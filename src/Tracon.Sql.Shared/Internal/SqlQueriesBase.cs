@@ -1077,10 +1077,17 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads an idempotency key by tenant and key.</summary>
     public string SelectIdempotencyKey { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that turns a reserved idempotency key into <c>Completed</c> and writes the response.</summary>
+    /// <summary>
+    /// Gets the query that turns a reserved idempotency key into <c>Completed</c> and writes the response. With
+    /// <c>@reserved_at</c> given it changes the row only while it is still that reservation (<c>Reserved</c>, created at
+    /// that time); with it <c>NULL</c> it changes the row whoever holds it.
+    /// </summary>
     public string CompleteIdempotencyKey { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that deletes an idempotency key (releasing it after a failed request).</summary>
+    /// <summary>
+    /// Gets the query that deletes an idempotency key (releasing it after a failed request). <c>@reserved_at</c> fences it
+    /// the same way as <see cref="CompleteIdempotencyKey"/>.
+    /// </summary>
     public string DeleteIdempotencyKey { get; protected set; } = string.Empty;
 
     /// <summary>

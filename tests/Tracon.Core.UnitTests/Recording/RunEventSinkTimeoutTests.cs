@@ -1,4 +1,7 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
 using Tracon.Tests.Common;
 
@@ -70,8 +73,26 @@ public sealed class RunEventSinkTimeoutTests
     [Fact]
     public async Task A_sink_that_fails_after_it_was_dropped_leaves_no_unobserved_exception()
     {
-        var clock = new ManualClock();
         var hanging = new HangingSink();
+
+        await DropSinkAsync(hanging);
+
+        // The abandoned call fails later. Nobody awaits it, so the writer has to have looked at it: an exception nobody
+        // observes is reported by the test host as a failure of the whole run. The sink lets go of its task as it fails it,
+        // or the task could not be collected, and a task that is not collected reports nothing either way.
+        hanging.Fail(new InvalidOperationException("the sink broke after it was dropped"));
+
+        UnobservedTaskGuard.ForceCollection();
+
+        UnobservedTaskGuard.Take(static e => e.Message.Contains("broke after it was dropped", StringComparison.Ordinal))
+            .ShouldBeEmpty("the abandoned call of the sink failed and nobody looked at it");
+    }
+
+    /// <summary>Runs a writer until it has dropped the sink, in a frame of its own so that nothing of it stays reachable.</summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static async Task DropSinkAsync(HangingSink hanging)
+    {
+        var clock = new ManualClock();
         var writer = NewWriter(new TraconRunRecordingOptions { SinkTimeout = Timeout10 }, clock, metrics: null, hanging);
 
         var starting = writer.StartAsync(Start(writer), "hello").AsTask();
@@ -79,10 +100,47 @@ public sealed class RunEventSinkTimeoutTests
         await WaitUntil.TrueAsync(() => hanging.Calls == 1, "the writer to hand the first event to the sink");
         clock.Advance(Timeout10);
         await starting.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+    }
 
-        // The abandoned call fails later. Nobody awaits it, so the writer has to have looked at it: an exception nobody
-        // observes is reported by the test host as a failure of the whole run.
-        hanging.Fail(new InvalidOperationException("the sink broke after it was dropped"));
+    [Fact]
+    public async Task A_sink_dropped_in_one_run_is_asked_again_by_the_next_run()
+    {
+        // The sink is registered once and shared by every concurrent run; being dropped is a fact about one run. The other
+        // side of it: every run that meets a sink that hangs pays the whole time on its first event.
+        var clock = new ManualClock();
+        var hanging = new HangingSink();
+
+        var first = NewWriter(new TraconRunRecordingOptions { SinkTimeout = Timeout10 }, clock, metrics: null, hanging);
+        var firstStart = first.StartAsync(Start(first), "hello").AsTask();
+
+        await WaitUntil.TrueAsync(() => hanging.Calls == 1, "the first run to hand its first event to the sink");
+        clock.Advance(Timeout10);
+        await firstStart.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        var second = NewWriter(new TraconRunRecordingOptions { SinkTimeout = Timeout10 }, clock, metrics: null, hanging);
+        var secondStart = second.StartAsync(Start(second), "hello").AsTask();
+
+        await WaitUntil.TrueAsync(() => hanging.Calls == 2, "the second run to hand its first event to the sink");
+        secondStart.IsCompleted.ShouldBeFalse("the second run waits its own time before it gives the sink up");
+
+        clock.Advance(Timeout10);
+        await secondStart.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public void The_default_wait_is_thirty_seconds_and_the_option_binds_from_configuration()
+    {
+        new TraconRunRecordingOptions().SinkTimeout.ShouldBe(TimeSpan.FromSeconds(30));
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection([new KeyValuePair<string, string?>("Tracon:RunRecording:SinkTimeout", "00:00:07")])
+            .Build();
+        var services = new ServiceCollection();
+        services.AddTracon(configuration.GetSection(TraconOptions.SectionName));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<TraconOptions>>().Value.RunRecording.SinkTimeout.ShouldBe(TimeSpan.FromSeconds(7));
     }
 
     [Fact]
@@ -122,7 +180,7 @@ public sealed class RunEventSinkTimeoutTests
     /// <summary>Takes the first event and does not give it back until it is released or fails.</summary>
     private sealed class HangingSink : IRunEventSink
     {
-        private readonly TaskCompletionSource _pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource _pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _calls;
 
         public int Calls => Volatile.Read(ref _calls);
@@ -136,7 +194,14 @@ public sealed class RunEventSinkTimeoutTests
 
         public void Release() => _pending.TrySetResult();
 
-        public void Fail(Exception exception) => _pending.TrySetException(exception);
+        /// <summary>Fails the call that is pending and lets go of its task.</summary>
+        public void Fail(Exception exception)
+        {
+            var pending = _pending;
+            _pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            pending.TrySetException(exception);
+        }
     }
 
     private sealed class SpySink : IRunEventSink

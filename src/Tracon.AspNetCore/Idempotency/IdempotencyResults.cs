@@ -42,7 +42,8 @@ internal sealed class IdempotencyCapturingResult(
     IResult inner,
     IIdempotencyStore store,
     string tenantId,
-    string key) : IResult
+    string key,
+    DateTimeOffset reservedAt) : IResult
 {
     /// <inheritdoc />
     public async Task ExecuteAsync(HttpContext httpContext)
@@ -60,7 +61,7 @@ internal sealed class IdempotencyCapturingResult(
         catch
         {
             httpContext.Response.Body = original;
-            await store.ReleaseAsync(tenantId, key, CancellationToken.None).ConfigureAwait(false);
+            await store.ReleaseAsync(tenantId, key, reservedAt, CancellationToken.None).ConfigureAwait(false);
 
             throw;
         }
@@ -84,11 +85,12 @@ internal sealed class IdempotencyCapturingResult(
                     Body = Encoding.UTF8.GetString(bytes),
                     Headers = CaptureReplayableHeaders(httpContext.Response.Headers),
                 },
+                reservedAt,
                 CancellationToken.None).ConfigureAwait(false);
         }
         else
         {
-            await store.ReleaseAsync(tenantId, key, CancellationToken.None).ConfigureAwait(false);
+            await store.ReleaseAsync(tenantId, key, reservedAt, CancellationToken.None).ConfigureAwait(false);
         }
 
         await original.WriteAsync(bytes, httpContext.RequestAborted).ConfigureAwait(false);

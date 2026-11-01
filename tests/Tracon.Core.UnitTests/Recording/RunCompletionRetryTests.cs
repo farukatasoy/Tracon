@@ -175,7 +175,7 @@ public sealed class RunCompletionRetryTests
         using var caller = new CancellationTokenSource();
         var closing = writer.CompleteAsync(RunStatus.Completed, cancellationToken: caller.Token).AsTask();
 
-        await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the writer to wait before the closing write");
+        await WaitUntil.TrueAsync(() => HasPause(clock), "the writer to wait before the closing write");
         await caller.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(() => closing);
@@ -184,8 +184,50 @@ public sealed class RunCompletionRetryTests
     }
 
     /// <summary>
-    /// Closes the run and answers every wait of the writer, so the test never sleeps. Returns how many waits there
-    /// were.
+    /// A closing write against a store that never answers is given up when the budget is spent. Without the budget a
+    /// run would wait for the store's own connect and command timeouts, twice, to record a state its caller does not read.
+    /// </summary>
+    [Fact]
+    public async Task A_closing_write_against_a_store_that_never_answers_is_given_up_when_the_budget_is_spent()
+    {
+        using var factory = new TestMeterFactory();
+        using var collector = new MetricCollector(factory.Meter);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
+
+        var store = new FaultyRunStore(new InMemoryRunStore()) { HangCompletes = true };
+        var clock = new ManualClock();
+        var writer = NewWriter(store, metrics, clock);
+
+        // The store failed earlier in this run, so it is the unreachable kind of failing and the closing write is bounded
+        // from its first try.
+        store.FailEventAppends = true;
+        await writer.StartAsync(Start(writer), "hello");
+        store.FailEventAppends = false;
+
+        var closing = writer.CompleteAsync(RunStatus.Completed).AsTask();
+
+        await WaitUntil.TrueAsync(() => HasPause(clock), "the writer to wait before the closing write");
+        clock.Advance(RunEventWriter.CompletionRetryPause);
+
+        await WaitUntil.TrueAsync(() => store.CompleteAttempts == 1, "the closing write to reach the store");
+        closing.IsCompleted.ShouldBeFalse("the store has not answered");
+
+        clock.Advance(RunEventWriter.CompletionBudget);
+        await closing.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        store.CompleteAttempts.ShouldBe(1, "a closing write that spent the budget is not tried again");
+        writer.IsDisabled.ShouldBeTrue();
+
+        collector.LongTags(Counter)
+            .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
+            .ShouldBe(RunRecordingStages.Event);
+    }
+
+    private static bool HasPause(ManualClock clock) => clock.Pending.Any(static due => due <= RunEventWriter.CompletionRetryPause);
+
+    /// <summary>
+    /// Closes the run and answers every pause of the writer, so the test never sleeps. Returns how many pauses there
+    /// were. The budget timer is armed too, but it is far longer than a pause and is left alone.
     /// </summary>
     private static async Task<int> CloseAsync(RunEventWriter writer, ManualClock clock)
     {
@@ -194,7 +236,7 @@ public sealed class RunCompletionRetryTests
 
         while (true)
         {
-            await WaitUntil.TrueAsync(() => closing.IsCompleted || clock.Pending.Count > 0, "the writer to finish or to wait");
+            await WaitUntil.TrueAsync(() => closing.IsCompleted || HasPause(clock), "the writer to finish or to pause");
 
             if (closing.IsCompleted)
             {

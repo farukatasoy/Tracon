@@ -1050,8 +1050,8 @@ Tracon.IExperimentStore.SetCanaryPolicyAsync(string! tenantId, string! name, Tra
 Tracon.IExperimentStore.StartAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.Experiment!>
 Tracon.IExperimentStore.StopAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.Experiment!>
 Tracon.IIdempotencyStore
-Tracon.IIdempotencyStore.CompleteAsync(string! tenantId, string! key, Tracon.IdempotencyResponse! response, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-Tracon.IIdempotencyStore.ReleaseAsync(string! tenantId, string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IIdempotencyStore.CompleteAsync(string! tenantId, string! key, Tracon.IdempotencyResponse! response, System.DateTimeOffset? reservedAt = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IIdempotencyStore.ReleaseAsync(string! tenantId, string! key, System.DateTimeOffset? reservedAt = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IIdempotencyStore.ReserveAsync(Tracon.IdempotencyRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.IdempotencyReservation!>
 Tracon.IInboundTriggerStore
 Tracon.IInboundTriggerStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>

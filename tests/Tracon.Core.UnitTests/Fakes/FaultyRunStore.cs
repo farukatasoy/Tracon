@@ -15,6 +15,9 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     /// <summary>Gets or sets how many of the next closing writes fail; the ones after them go through.</summary>
     public int FailNextCompletes { get; set; }
 
+    /// <summary>Gets or sets whether a closing write never answers, as a store behind a network that drops packets.</summary>
+    public bool HangCompletes { get; set; }
+
     /// <summary>Gets how many closing writes reached the store, failed ones included.</summary>
     public int CompleteAttempts { get; private set; }
 
@@ -56,6 +59,11 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
         CompleteAttempts++;
+
+        if (HangCompletes)
+        {
+            return new ValueTask(Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken));
+        }
 
         if (FailCompletes)
         {

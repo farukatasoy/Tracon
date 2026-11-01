@@ -41,11 +41,18 @@ public interface IIdempotencyStore
     /// <param name="tenantId">The tenant identifier.</param>
     /// <param name="key">The key.</param>
     /// <param name="response">The response to store.</param>
+    /// <param name="reservedAt">
+    /// The <see cref="IdempotencyRequest.CreatedAt"/> of the reservation the caller holds, or <see langword="null"/> to
+    /// change the record whoever holds it. When it is given and the record has since been taken over (see
+    /// <see cref="IdempotencyRequest.ReservationTimeout"/>) or removed, the call changes nothing: a request that no longer owns
+    /// the key does not store its response under the new owner's.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask CompleteAsync(
         string tenantId,
         string key,
         IdempotencyResponse response,
+        DateTimeOffset? reservedAt = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -54,6 +61,11 @@ public interface IIdempotencyStore
     /// </summary>
     /// <param name="tenantId">The tenant identifier.</param>
     /// <param name="key">The key.</param>
+    /// <param name="reservedAt">
+    /// The <see cref="IdempotencyRequest.CreatedAt"/> of the reservation the caller holds, or <see langword="null"/> to
+    /// delete the record whoever holds it. When it is given and the record is no longer that reservation (it was taken over,
+    /// or completed), nothing is deleted.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <remarks>
     /// A failed run's record is NOT kept. The purpose of idempotency is to
@@ -63,5 +75,6 @@ public interface IIdempotencyStore
     ValueTask ReleaseAsync(
         string tenantId,
         string key,
+        DateTimeOffset? reservedAt = null,
         CancellationToken cancellationToken = default);
 }

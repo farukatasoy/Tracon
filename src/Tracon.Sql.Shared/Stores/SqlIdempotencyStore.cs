@@ -87,6 +87,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         string tenantId,
         string key,
         IdempotencyResponse response,
+        DateTimeOffset? reservedAt = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -102,12 +103,17 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         Dialect.AddUuid(command, "run_id", response.RunId);
         Dialect.AddJsonb(command, "headers", SerializeHeaders(response.Headers));
         Dialect.AddTimestamp(command, "completed_at", DateTimeOffset.UtcNow);
+        Dialect.AddTimestamp(command, "reserved_at", reservedAt);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async ValueTask ReleaseAsync(string tenantId, string key, CancellationToken cancellationToken = default)
+    public async ValueTask ReleaseAsync(
+        string tenantId,
+        string key,
+        DateTimeOffset? reservedAt = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -115,6 +121,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         var command = CreateCommand(_sql.DeleteIdempotencyKey);
         DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "key", key);
+        Dialect.AddTimestamp(command, "reserved_at", reservedAt);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }

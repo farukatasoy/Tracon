@@ -2067,11 +2067,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             UPDATE {Schema}.idempotency_keys
                SET state = 2, status_code = @status_code, content_type = @content_type,
                    body = @body, run_id = @run_id, headers = @headers, completed_at = @completed_at
-             WHERE tenant_id = @tenant_id AND [key] = @key;
+             WHERE tenant_id = @tenant_id AND [key] = @key AND (@reserved_at IS NULL OR (state = 0 AND created_at = @reserved_at));
             """;
 
         DeleteIdempotencyKey = $"""
-            DELETE FROM {Schema}.idempotency_keys WHERE tenant_id = @tenant_id AND [key] = @key;
+            DELETE FROM {Schema}.idempotency_keys
+             WHERE tenant_id = @tenant_id AND [key] = @key AND (@reserved_at IS NULL OR (state = 0 AND created_at = @reserved_at));
             """;
 
         TakeOverIdempotencyKey = $"""

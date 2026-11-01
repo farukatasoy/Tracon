@@ -22,40 +22,51 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         cancellationToken.ThrowIfCancellationRequested();
 
         var dictionaryKey = (request.TenantId, request.Key);
-        var entry = new Entry(request.Fingerprint, request.CreatedAt);
 
-        // TryAdd is atomic. If two concurrent requests use the same key, only one
-        // creates the new entry and the other follows the existing-entry path below.
-        if (_entries.TryAdd(dictionaryKey, entry))
+        while (true)
         {
-            return ValueTask.FromResult(new IdempotencyReservation { State = IdempotencyState.Reserved });
-        }
-
-        var existing = _entries[dictionaryKey];
-
-        // One step with the takeover: two requests that race for an expired reservation take it one after the other, and the
-        // second finds a reservation that is no longer old.
-        lock (existing)
-        {
-            if (existing.State == IdempotencyState.Reserved
-                && request.ReservationTimeout is { } timeout
-                && timeout > TimeSpan.Zero
-                && request.CreatedAt - existing.CreatedAt >= timeout)
+            // TryAdd is atomic. If two concurrent requests use the same key, only one
+            // creates the new entry and the other follows the existing-entry path below.
+            if (_entries.TryAdd(dictionaryKey, new Entry(request.Fingerprint, request.CreatedAt)))
             {
-                existing.Fingerprint = request.Fingerprint;
-                existing.CreatedAt = request.CreatedAt;
-
                 return ValueTask.FromResult(new IdempotencyReservation { State = IdempotencyState.Reserved });
             }
 
-            return ValueTask.FromResult(existing.State switch
+            if (!_entries.TryGetValue(dictionaryKey, out var existing))
             {
-                IdempotencyState.Completed when string.Equals(existing.Fingerprint, request.Fingerprint, StringComparison.Ordinal) =>
-                    new IdempotencyReservation { State = IdempotencyState.Completed, Response = existing.Response },
-                IdempotencyState.Completed =>
-                    new IdempotencyReservation { State = IdempotencyState.FingerprintMismatch },
-                _ => new IdempotencyReservation { State = IdempotencyState.InProgress },
-            });
+                continue;
+            }
+
+            // One step with the takeover, the completion and the release: two requests that race for an expired
+            // reservation take it one after the other, and the second finds a reservation that is no longer old.
+            lock (existing)
+            {
+                // Released between the lookup and the lock: the key is free, so reserve it afresh.
+                if (existing.Removed)
+                {
+                    continue;
+                }
+
+                if (existing.State == IdempotencyState.Reserved
+                    && request.ReservationTimeout is { } timeout
+                    && timeout > TimeSpan.Zero
+                    && request.CreatedAt - existing.CreatedAt >= timeout)
+                {
+                    existing.Fingerprint = request.Fingerprint;
+                    existing.CreatedAt = request.CreatedAt;
+
+                    return ValueTask.FromResult(new IdempotencyReservation { State = IdempotencyState.Reserved });
+                }
+
+                return ValueTask.FromResult(existing.State switch
+                {
+                    IdempotencyState.Completed when string.Equals(existing.Fingerprint, request.Fingerprint, StringComparison.Ordinal) =>
+                        new IdempotencyReservation { State = IdempotencyState.Completed, Response = existing.Response },
+                    IdempotencyState.Completed =>
+                        new IdempotencyReservation { State = IdempotencyState.FingerprintMismatch },
+                    _ => new IdempotencyReservation { State = IdempotencyState.InProgress },
+                });
+            }
         }
     }
 
@@ -64,6 +75,7 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         string tenantId,
         string key,
         IdempotencyResponse response,
+        DateTimeOffset? reservedAt = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -75,8 +87,11 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         {
             lock (entry)
             {
-                entry.State = IdempotencyState.Completed;
-                entry.Response = response;
+                if (!entry.Removed && Owns(entry, reservedAt))
+                {
+                    entry.State = IdempotencyState.Completed;
+                    entry.Response = response;
+                }
             }
         }
 
@@ -84,16 +99,40 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
     }
 
     /// <inheritdoc />
-    public ValueTask ReleaseAsync(string tenantId, string key, CancellationToken cancellationToken = default)
+    public ValueTask ReleaseAsync(
+        string tenantId,
+        string key,
+        DateTimeOffset? reservedAt = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         cancellationToken.ThrowIfCancellationRequested();
 
-        _entries.TryRemove((tenantId, key), out _);
+        var dictionaryKey = (tenantId, key);
+
+        if (_entries.TryGetValue(dictionaryKey, out var entry))
+        {
+            lock (entry)
+            {
+                if (!entry.Removed && Owns(entry, reservedAt))
+                {
+                    entry.Removed = true;
+                    _entries.TryRemove(new KeyValuePair<(string TenantId, string Key), Entry>(dictionaryKey, entry));
+                }
+            }
+        }
 
         return ValueTask.CompletedTask;
     }
+
+    /// <summary>
+    /// Says whether a caller that holds the reservation made at <paramref name="reservedAt"/> may still change the entry:
+    /// the entry is still that reservation (not taken over by a later request, not completed). A caller that names no
+    /// reservation changes the entry whoever holds it.
+    /// </summary>
+    private static bool Owns(Entry entry, DateTimeOffset? reservedAt)
+        => reservedAt is not { } at || (entry.State == IdempotencyState.Reserved && entry.CreatedAt == at);
 
     private sealed class Entry(string fingerprint, DateTimeOffset createdAt)
     {
@@ -104,5 +143,8 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         public IdempotencyState State { get; set; } = IdempotencyState.Reserved;
 
         public IdempotencyResponse? Response { get; set; }
+
+        /// <summary>Set under the entry's lock when it leaves the dictionary, so a request that already holds it starts over.</summary>
+        public bool Removed { get; set; }
     }
 }

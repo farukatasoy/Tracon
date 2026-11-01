@@ -66,21 +66,24 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             (failures ??= []).Add(
                 $"{nameof(TraconOptions)}.{nameof(TraconOptions.RunRecording)} cannot be empty.");
         }
-        else if (recording.MaxPayloadLength is < 0 or > 1_048_576)
+        else
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconRunRecordingOptions)}.{nameof(TraconRunRecordingOptions.MaxPayloadLength)} " +
-                $"must be between 0 and 1048576. Actual value: {recording.MaxPayloadLength}.");
-        }
+            if (recording.MaxPayloadLength is < 0 or > 1_048_576)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(TraconRunRecordingOptions)}.{nameof(TraconRunRecordingOptions.MaxPayloadLength)} " +
+                    $"must be between 0 and 1048576. Actual value: {recording.MaxPayloadLength}.");
+            }
 
-        else if (recording.SinkTimeout != Timeout.InfiniteTimeSpan
-            && recording.SinkTimeout != TimeSpan.Zero
-            && !TimerPeriod.IsValid(recording.SinkTimeout))
-        {
             // Zero and Timeout.InfiniteTimeSpan mean "wait for ever"; anything else arms a timer.
-            (failures ??= []).Add(TimerPeriod.Failure(
-                $"{nameof(TraconRunRecordingOptions)}.{nameof(TraconRunRecordingOptions.SinkTimeout)}",
-                recording.SinkTimeout));
+            if (recording.SinkTimeout != Timeout.InfiniteTimeSpan
+                && recording.SinkTimeout != TimeSpan.Zero
+                && !TimerPeriod.IsValid(recording.SinkTimeout))
+            {
+                (failures ??= []).Add(TimerPeriod.Failure(
+                    $"{nameof(TraconRunRecordingOptions)}.{nameof(TraconRunRecordingOptions.SinkTimeout)}",
+                    recording.SinkTimeout));
+            }
         }
 
         var deployment = options.Deployment;
