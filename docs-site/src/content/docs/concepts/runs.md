@@ -193,6 +193,12 @@ iterations, not before `done`.
 A client written against one contract will not decode the other; pick the endpoint
 that matches what you are building — a live turn, or a run's full recorded history.
 
+The `id:` of a live frame counts the frames of that one response (`0` is `run`, then
+`update`, then `done`). It is not a sequence number of the recorded log, so do not send
+it as `Last-Event-ID` to `GET /api/runs/{runId}/events`: that header takes a sequence
+number from the `/events` stream itself. To pick up a run after a dropped live
+connection, read `/events` from the beginning (or from the last sequence you read there).
+
 Tool calls are also written individually — name, arguments, result, duration, error —
 so "which tool failed and with what input" is a query, not a log search. A call is
 [recorded where it happens](#tool-calls-are-recorded-where-they-happen), so the row is
