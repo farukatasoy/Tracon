@@ -140,6 +140,7 @@ internal sealed partial class KnowledgeIngestionService
     /// <param name="top">How many results to return. If not given, <see cref="TraconKnowledgeOptions.MaxResults"/>.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Results sorted by ascending distance.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="top"/> is given and is less than 1.</exception>
     /// <exception cref="TraconException"><see cref="IsSupported"/> is <see langword="false"/>.</exception>
     public async ValueTask<IReadOnlyList<VectorSearchHit>> SearchAsync(
         string collection,
@@ -150,6 +151,7 @@ internal sealed partial class KnowledgeIngestionService
         ArgumentException.ThrowIfNullOrWhiteSpace(collection);
         RequireValidCollectionName(collection);
         ArgumentException.ThrowIfNullOrWhiteSpace(query);
+        ArgumentOutOfRangeException.ThrowIfLessThan(top ?? 1, 1, nameof(top));
         RequireSupported();
 
         var queryEmbedding = await GenerateAsync(query, cancellationToken).ConfigureAwait(false);

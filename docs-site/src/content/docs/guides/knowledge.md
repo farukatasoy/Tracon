@@ -258,8 +258,8 @@ of embedding calls.
 | Tenant boundary | Every write and search is scoped to the current tenant |
 | Built-in vector store | PostgreSQL only |
 
-The HTTP search request can set `top`. Use a positive value; this endpoint does not
-apply the `1..200` clamp used by paged list endpoints. The agent tool always uses
+The HTTP search request can set `top`. A value below 1 is refused with `400`; this endpoint
+does not apply the `1..200` clamp used by paged list endpoints. The agent tool always uses
 `MaxResults`. The HTTP contract does not expose a distance threshold; use returned
 distances to calibrate relevance in your own ingestion and evaluation process.
 

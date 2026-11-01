@@ -607,6 +607,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`GET /api/jobs` and `GET /api/evals/{name}/runs` clamp `skip` and `take`, and a knowledge search refuses a `top` below 1.**
+  The two lists passed both values to the store as they came: a huge `take` returned every row, and a negative `skip` is an
+  error in the `OFFSET` of PostgreSQL. They now clamp like the other list endpoints (`skip` at 0 or more, `take` from 1 to
+  200). `POST /api/knowledge/{collection}/search` sent a `top` of 0 or less to the vector store as a `LIMIT`, where
+  PostgreSQL refuses a negative one and the host answered `500`; it now answers `400`. A larger `top` is still allowed.
 - **The items of a conversation never list the message of the exception a tool threw.** `GET /v1/conversations/{id}/items`
   listed `Exception.Message` as the output of a failed tool call when the message history held the exception object. A
   stored session does not (the object is not serialized), but a custom `ChatHistoryProvider` that keeps live objects returns

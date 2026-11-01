@@ -465,8 +465,8 @@ internal static class SchedulingEndpoints
                 Status = status,
                 ScheduleId = scheduleId,
                 Lane = lane,
-                Skip = skip ?? 0,
-                Take = take ?? 50,
+                Skip = Math.Max(skip ?? 0, 0),
+                Take = Math.Clamp(take ?? 50, 1, 200),
             },
             cancellationToken).ConfigureAwait(false);
 
