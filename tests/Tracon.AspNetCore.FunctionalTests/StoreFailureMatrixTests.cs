@@ -47,6 +47,7 @@ public sealed class StoreFailureMatrixTests
             ["IQuotaStore.ListAsync"] = HttpStatusCode.OK,
             ["IQuotaStore.AddUsageAsync"] = HttpStatusCode.OK,
             ["IWebhookStore.FindForEventAsync"] = HttpStatusCode.OK,
+            ["ITraceStore.WriteSpansAsync"] = HttpStatusCode.OK,
 
             // These decide whether the run may start, or whether the caller may retry it: 503, the store did not answer.
             ["IIdempotencyStore.ReserveAsync"] = HttpStatusCode.ServiceUnavailable,
@@ -58,6 +59,12 @@ public sealed class StoreFailureMatrixTests
             ["ITenantProviderBindingStore.GetAsync"] = HttpStatusCode.BadRequest,
             ["ITenantEgressPolicyStore.GetAsync"] = HttpStatusCode.BadRequest,
         };
+
+    /// <summary>
+    /// Members a run calls only when the exporter happens to flush before the run is over. Whether it does depends on the
+    /// machine, so these rows are not waited for; a call to one still needs its row.
+    /// </summary>
+    private static readonly HashSet<string> Optional = new(StringComparer.Ordinal) { "ITraceStore.WriteSpansAsync" };
 
     public static TheoryData<string> Members() => [.. Answers.Keys];
 
@@ -76,13 +83,18 @@ public sealed class StoreFailureMatrixTests
 
         (await PostAsync(host)).ShouldBe(HttpStatusCode.OK);
 
-        calls.Keys
-            .Select(static key => $"{key.Service.Name}.{key.Member}")
-            .Order(StringComparer.Ordinal)
-            .ToList()
-            .ShouldBe(
-                Answers.Keys.Order(StringComparer.Ordinal).ToList(),
-                customMessage: "A store member the run calls has no row, or a row names a member it no longer calls. Add or remove the row and say what the run does when that call fails.");
+        // Some of the calls happen after the response (the webhook lookup for the finished run is one), and a loaded
+        // machine runs them late. Wait until every row has been called (the optional ones excepted), then look for a member
+        // with no row: one that arrives after the comparison is not caught.
+        await WaitUntil.TrueAsync(
+            () => Answers.Keys.Where(static row => !Optional.Contains(row)).All(row => calls.Keys.Any(key => string.Equals($"{key.Service.Name}.{key.Member}", row, StringComparison.Ordinal))),
+            "every store member of the table to be called by the run");
+
+        var called = calls.Keys.Select(static key => $"{key.Service.Name}.{key.Member}").ToHashSet(StringComparer.Ordinal);
+        var withoutRow = called.Except(Answers.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+
+        withoutRow.ShouldBeEmpty(
+            "The run calls a store member that has no row. Add the row and say what the run does when that call fails.");
     }
 
     [Theory]
