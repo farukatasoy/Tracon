@@ -192,7 +192,22 @@ public sealed class WorkflowResponseOwnershipTests
 
         var (runId, frames) = await AnswerUntilAppliedAsync(host, sourceId, requestId);
 
-        frames.ShouldContain(static frame => frame.Data.Contains("\"WorkflowOutput\"", StringComparison.Ordinal));
+        // The message is the evidence this assertion needs when it fails: the runs and the events of the answer that did not
+        // carry the output. The answer's run has been seen completing with no output event under parallel load.
+        var stored = new List<string>();
+
+        await foreach (var storedEvent in host.Services.GetRequiredService<IRunStore>().ReadEventsAsync(runId))
+        {
+            stored.Add($"stored {storedEvent.Sequence} {storedEvent.Type}");
+        }
+
+        var diagnosis = string.Join(
+            Environment.NewLine,
+            (await WorkflowRunsAsync(host)).Select(run => $"run {run.Id} {run.Status} {run.Error?.Type}")
+                .Concat(frames.Select(static frame => $"{frame.Event} {frame.Data}"))
+                .Concat(stored));
+
+        frames.ShouldContain(static frame => frame.Data.Contains("\"WorkflowOutput\"", StringComparison.Ordinal), diagnosis);
         (await host.WaitForTerminalRunAsync(runId)).Status.ShouldBe(RunStatus.Completed);
     }
 
