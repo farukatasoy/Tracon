@@ -83,8 +83,9 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
 
     /// <summary>Starts a server.</summary>
     /// <param name="refreshDelay">How long a refresh grant takes to answer; it widens the window two refreshes can meet in.</param>
+    /// <param name="authorizationEndpoint">The <c>authorization_endpoint</c> the metadata publishes; the server's own <c>/authorize</c> when omitted.</param>
     /// <returns>The running server.</returns>
-    public static async Task<OAuthProtectedMcpServer> StartAsync(TimeSpan refreshDelay = default)
+    public static async Task<OAuthProtectedMcpServer> StartAsync(TimeSpan refreshDelay = default, string? authorizationEndpoint = null)
     {
         var accessToken = $"access-{Guid.NewGuid():N}";
         var authorizationHeaders = new ConcurrentQueue<string>();
@@ -130,8 +131,8 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
 
         app.MapGet("/.well-known/oauth-protected-resource/{**rest}", () => Results.Json(ResourceMetadata(Base())));
         app.MapGet("/.well-known/oauth-protected-resource", () => Results.Json(ResourceMetadata(Base())));
-        app.MapGet("/.well-known/oauth-authorization-server", () => Results.Json(ServerMetadata(Base())));
-        app.MapGet("/.well-known/openid-configuration", () => Results.Json(ServerMetadata(Base())));
+        app.MapGet("/.well-known/oauth-authorization-server", () => Results.Json(ServerMetadata(Base(), authorizationEndpoint)));
+        app.MapGet("/.well-known/openid-configuration", () => Results.Json(ServerMetadata(Base(), authorizationEndpoint)));
         OAuthProtectedMcpServer? self = null;
 
         app.MapPost("/token", async (HttpContext context) =>
@@ -231,11 +232,11 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
             ["authorization_servers"] = new[] { address },
         };
 
-    private static Dictionary<string, object> ServerMetadata(string address)
+    private static Dictionary<string, object> ServerMetadata(string address, string? authorizationEndpoint)
         => new(StringComparer.Ordinal)
         {
             ["issuer"] = address,
-            ["authorization_endpoint"] = $"{address}/authorize",
+            ["authorization_endpoint"] = authorizationEndpoint ?? $"{address}/authorize",
             ["token_endpoint"] = $"{address}/token",
             ["response_types_supported"] = new[] { "code" },
             ["code_challenge_methods_supported"] = new[] { "S256" },
