@@ -607,6 +607,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A session identifier over 200 characters is refused with `400` on the run and Responses endpoints.** The `sessions` table of
+  SQL Server holds `nvarchar(200)`, so `POST /api/agents/{name}/run` with a longer `sessionId`, or `POST /v1/responses` with
+  a longer `conversation` or `previous_response_id`, ended in a truncation error and a `500` there while PostgreSQL, SQLite
+  and the in-memory stores accepted it. The AG-UI endpoint already refused it; the three surfaces now agree.
 - **`GET /api/jobs` and `GET /api/evals/{name}/runs` clamp `skip` and `take`, and a knowledge search refuses a `top` below 1.**
   The two lists passed both values to the store as they came: a huge `take` returned every row, and a negative `skip` is an
   error in the `OFFSET` of PostgreSQL. They now clamp like the other list endpoints (`skip` at 0 or more, `take` from 1 to

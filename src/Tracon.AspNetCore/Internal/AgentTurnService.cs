@@ -65,6 +65,14 @@ internal static class AgentTurnService
             return attributionProblem;
         }
 
+        if (request.SessionId is { Length: > SessionIdLimits.MaxLength })
+        {
+            return Results.Problem(
+                title: "Session id too long",
+                detail: $"'sessionId' cannot exceed {SessionIdLimits.MaxLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         if (await RunAuthorizationGate
                 .CheckRunAsync(
                     services.GetService<IRunAuthorizationHandler>(),

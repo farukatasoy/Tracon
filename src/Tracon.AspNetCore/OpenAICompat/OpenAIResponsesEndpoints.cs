@@ -225,6 +225,13 @@ internal static class OpenAIResponsesEndpoints
         var saveId = runRequest.ConversationId ?? responseId;
         var loadId = OpenAIResponses.GetSessionStoreId(runRequest) ?? saveId;
 
+        if (saveId.Length > SessionIdLimits.MaxLength || loadId.Length > SessionIdLimits.MaxLength)
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status400BadRequest,
+                $"'conversation' and 'previous_response_id' cannot exceed {SessionIdLimits.MaxLength} characters.");
+        }
+
         // The attribution is checked before the run starts, as on the
         // agent run endpoint; this protocol's own error shape carries it.
         if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
