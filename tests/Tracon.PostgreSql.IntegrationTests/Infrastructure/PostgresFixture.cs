@@ -32,10 +32,16 @@ namespace Tracon.PostgreSql.IntegrationTests.Infrastructure;
 /// </remarks>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("pgvector/pgvector:pg18")
-        .WithDatabase("tracon_tests")
-        .WithCleanUp(true)
-        .Build();
+    /// <summary>The environment variable that replaces the default image.</summary>
+    public const string ImageVariable = "TRACON_TEST_POSTGRES_IMAGE";
+
+    /// <summary>
+    /// The environment variable that initializes the cluster with an ICU locale
+    /// (<c>--locale-provider=icu --icu-locale=…</c>), for example <c>tr-TR</c>.
+    /// </summary>
+    public const string IcuLocaleVariable = "TRACON_TEST_POSTGRES_ICU_LOCALE";
+
+    private readonly PostgreSqlContainer _container = CreateContainer();
 
     /// <summary>Gets the connection string of the running container.</summary>
     public string ConnectionString => _container.GetConnectionString();
@@ -70,4 +76,28 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await _container.DisposeAsync();
+
+    /// <summary>
+    /// One run covers one cell of the version and locale matrix. A variable that
+    /// is empty or unset keeps the default, so a plain run stays what CI runs.
+    /// The image ships only a few libc locales, so a Turkish locale goes through ICU.
+    /// </summary>
+    private static PostgreSqlContainer CreateContainer()
+    {
+        var image = Environment.GetEnvironmentVariable(ImageVariable);
+        var icuLocale = Environment.GetEnvironmentVariable(IcuLocaleVariable);
+
+        var builder = new PostgreSqlBuilder(string.IsNullOrWhiteSpace(image) ? "pgvector/pgvector:pg18" : image)
+            .WithDatabase("tracon_tests")
+            .WithCleanUp(true);
+
+        if (!string.IsNullOrWhiteSpace(icuLocale))
+        {
+            builder = builder.WithEnvironment(
+                "POSTGRES_INITDB_ARGS",
+                $"--locale-provider=icu --icu-locale={icuLocale}");
+        }
+
+        return builder.Build();
+    }
 }

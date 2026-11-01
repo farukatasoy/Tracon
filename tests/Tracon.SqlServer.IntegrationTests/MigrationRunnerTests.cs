@@ -259,8 +259,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
 
         foreach (var migration in realCoreMigrations)
         {
-            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
-            await context.ExecuteAsync(
+            await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteRetryingDeadlockAsync(
                 $"INSERT INTO {schemaName}.__migrations (id, name, checksum, applied_at) " +
                 $"VALUES ({migration.Id}, N'{migration.Name}', N'{migration.Checksum}', SYSDATETIMEOFFSET());");
         }
@@ -299,8 +299,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
 
         foreach (var migration in migrations.Where(candidate => candidate.Id < upgrade.Id))
         {
-            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
-            await context.ExecuteAsync(
+            await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteRetryingDeadlockAsync(
                 $"INSERT INTO {schemaName}.__migrations (set_name, id, name, checksum, applied_at) " +
                 $"VALUES (N'core', {migration.Id}, N'{migration.Name}', N'{migration.Checksum}', '2026-01-01T00:00:00Z');");
         }

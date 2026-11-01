@@ -151,8 +151,8 @@ public sealed class CacheWriteMigrationTests(SqlServerFixture fixture)
 
         foreach (var migration in migrations)
         {
-            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
-            await context.ExecuteAsync(
+            await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteRetryingDeadlockAsync(
                 $"INSERT INTO {prefix}__migrations (set_name, id, name, checksum, applied_at) " +
                 $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', SYSDATETIMEOFFSET());");
         }

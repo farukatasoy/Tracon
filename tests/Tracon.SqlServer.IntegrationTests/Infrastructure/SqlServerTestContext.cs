@@ -337,6 +337,18 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         return await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>Runs raw SQL and tries it again when the server picks it as a deadlock victim.</summary>
+    /// <param name="sql">The SQL to run. It has to be safe to run twice: the victim is rolled back, but a batch of
+    /// several statements is not one transaction.</param>
+    /// <returns>The number of affected rows.</returns>
+    /// <remarks>
+    /// 🚨 The test classes share one database and migrate their own schemas at the same time. A test that applies
+    /// migration SQL itself does not pass through the migration runner, which retries a deadlock victim, and met error
+    /// 1205 on a slow run. The migrations only write guarded DDL, so running one again is what the runner does too.
+    /// </remarks>
+    public ValueTask<int> ExecuteRetryingDeadlockAsync(string sql)
+        => RunWithDeadlockRetryAsync(() => ExecuteAsync(sql));
+
     /// <summary>Runs raw SQL that returns a single value.</summary>
     /// <typeparam name="T">The expected type.</typeparam>
     /// <param name="sql">The SQL to run.</param>

@@ -76,7 +76,7 @@ public sealed class AgentVersionCounterMigrationTests(SqlServerFixture fixture)
             .Discover(typeof(MigrationRunner).Assembly, "Tracon.SqlServer.Migrations.")
             .Single(static migration => migration.Name.Contains("agent_definition_version_counters", StringComparison.Ordinal));
 
-        await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+        await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
 
         // The same SQL again adds no row and does not move the counter back to the agent row's number.
         (await CountersAsync(context)).ShouldBe(2);
@@ -166,8 +166,8 @@ public sealed class AgentVersionCounterMigrationTests(SqlServerFixture fixture)
 
         foreach (var migration in before)
         {
-            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
-            await context.ExecuteAsync(
+            await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteRetryingDeadlockAsync(
                 $"INSERT INTO {schemaName}.__migrations (set_name, id, name, checksum, applied_at) " +
                 $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', SYSDATETIMEOFFSET());");
         }

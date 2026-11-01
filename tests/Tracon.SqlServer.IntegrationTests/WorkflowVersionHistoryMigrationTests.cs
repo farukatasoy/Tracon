@@ -79,7 +79,7 @@ public sealed class WorkflowVersionHistoryMigrationTests(SqlServerFixture fixtur
             .Discover(typeof(MigrationRunner).Assembly, "Tracon.SqlServer.Migrations.")
             .Single(static migration => migration.Name.Contains("workflow_definition_versions", StringComparison.Ordinal));
 
-        await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+        await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
 
         (await context.ScalarAsync<long>($"SELECT CAST(COUNT(*) AS bigint) FROM {context.SchemaName}.workflow_definition_versions;")).ShouldBe(before);
         (await store.GetVersionAsync(Tenant, "alpha", 4))!.Description.ShouldBe("Saved after the upgrade.");
@@ -113,8 +113,8 @@ public sealed class WorkflowVersionHistoryMigrationTests(SqlServerFixture fixtur
 
         foreach (var migration in before)
         {
-            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
-            await context.ExecuteAsync(
+            await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteRetryingDeadlockAsync(
                 $"INSERT INTO {schemaName}.__migrations (set_name, id, name, checksum, applied_at) " +
                 $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', SYSDATETIMEOFFSET());");
         }

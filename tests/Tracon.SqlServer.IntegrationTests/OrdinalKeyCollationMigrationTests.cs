@@ -144,7 +144,7 @@ public sealed class OrdinalKeyCollationMigrationTests(SqlServerFixture fixture)
         var before = await RowCountsAsync(context);
 
         // A run that wrote its work but not its ledger line starts over from the top.
-        await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+        await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
 
         (await RowCountsAsync(context)).ShouldBe(before);
         AssertCollation(await CollationOfAsync(context, "run_scores", "message_key"), ordinal: true, "the computed column follows message_id");
@@ -260,8 +260,8 @@ public sealed class OrdinalKeyCollationMigrationTests(SqlServerFixture fixture)
 
         foreach (var migration in before)
         {
-            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
-            await context.ExecuteAsync(
+            await context.ExecuteRetryingDeadlockAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteRetryingDeadlockAsync(
                 $"INSERT INTO {schemaName}.__migrations (set_name, id, name, checksum, applied_at) " +
                 $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', SYSDATETIMEOFFSET());");
         }

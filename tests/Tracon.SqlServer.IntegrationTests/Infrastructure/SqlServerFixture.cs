@@ -26,10 +26,16 @@ namespace Tracon.SqlServer.IntegrationTests.Infrastructure;
 /// </remarks>
 public sealed class SqlServerFixture : IAsyncLifetime
 {
-    private readonly MsSqlContainer _container =
-        new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithCleanUp(true)
-            .Build();
+    /// <summary>The environment variable that replaces the default image.</summary>
+    public const string ImageVariable = "TRACON_TEST_SQLSERVER_IMAGE";
+
+    /// <summary>The environment variable that sets the server collation (<c>MSSQL_COLLATION</c>).</summary>
+    public const string CollationVariable = "TRACON_TEST_SQLSERVER_COLLATION";
+
+    /// <summary>The environment variable that sets the server language (<c>MSSQL_LCID</c>), for example 1055 for Turkish.</summary>
+    public const string LcidVariable = "TRACON_TEST_SQLSERVER_LCID";
+
+    private readonly MsSqlContainer _container = CreateContainer();
 
     /// <summary>Gets the connection string of the running container.</summary>
     public string ConnectionString => _container.GetConnectionString();
@@ -39,4 +45,30 @@ public sealed class SqlServerFixture : IAsyncLifetime
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await _container.DisposeAsync();
+
+    /// <summary>
+    /// One run covers one cell of the version and collation matrix. A variable
+    /// that is empty or unset keeps the default, so a plain run stays what CI runs.
+    /// </summary>
+    private static MsSqlContainer CreateContainer()
+    {
+        var image = Environment.GetEnvironmentVariable(ImageVariable);
+        var collation = Environment.GetEnvironmentVariable(CollationVariable);
+        var lcid = Environment.GetEnvironmentVariable(LcidVariable);
+
+        var builder = new MsSqlBuilder(string.IsNullOrWhiteSpace(image) ? "mcr.microsoft.com/mssql/server:2022-latest" : image)
+            .WithCleanUp(true);
+
+        if (!string.IsNullOrWhiteSpace(collation))
+        {
+            builder = builder.WithEnvironment("MSSQL_COLLATION", collation);
+        }
+
+        if (!string.IsNullOrWhiteSpace(lcid))
+        {
+            builder = builder.WithEnvironment("MSSQL_LCID", lcid);
+        }
+
+        return builder.Build();
+    }
 }
