@@ -35,7 +35,7 @@ namespace Tracon.Generators.UnitTests.Examples;
 /// </remarks>
 internal static class ExamplePrelude
 {
-    private static readonly (string Type, string Name, string Value)[] Placeholders =
+    internal static readonly (string Type, string Name, string Value)[] Placeholders =
     [
         ("IHostApplicationBuilder", "builder", "null!"),
         ("IEndpointRouteBuilder", "app", "null!"),
@@ -61,7 +61,7 @@ internal static class ExamplePrelude
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
-    private const string Usings = """
+    internal const string Usings = """
         using System;
         using System.Collections.Generic;
         using System.Text.Json;

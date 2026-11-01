@@ -1,0 +1,135 @@
+# Hand-written documentation blocks that cannot compile on their own, one per line:
+#   <page>#<digest of the block> | the first error
+# The list only shrinks. See SiteExampleCompilationTests.
+concepts/agents.md#3bb90988 | CS9035: Required member 'AgentDefinition.Name' must be set in the object initializer or attribute constructor.
+concepts/agents.md#6a29728f | CS1002: ; expected
+concepts/agents.md#9d34c136 | CS0246: The type or namespace name 'HousePolicyProvider' could not be found (are you missing a using directive or an assembly reference?)
+concepts/agents.md#3ae8db35 | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
+concepts/agents.md#40923cb3 | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
+concepts/agents.md#09002cad | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
+concepts/agents.md#71b8d5ab | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
+concepts/agents.md#c027304f | CS1002: ; expected
+concepts/agents.md#41b32ee5 | CS0246: The type or namespace name 'ReviewerCriterion' could not be found (are you missing a using directive or an assembly reference?)
+concepts/agents.md#53a5fd0d | CS1002: ; expected
+concepts/governance.md#a6869dcf | CS0246: The type or namespace name 'IOrderRepository' could not be found (are you missing a using directive or an assembly reference?)
+concepts/governance.md#7a3dbcdf | CS0103: The name 'LookUpSessionIds' does not exist in the current context
+concepts/runs.md#2f07892c | CS0246: The type or namespace name 'Channel<>' could not be found (are you missing a using directive or an assembly reference?)
+concepts/runs.md#87ffd461 | CS0246: The type or namespace name 'IHttpContextAccessor' could not be found (are you missing a using directive or an assembly reference?)
+concepts/runs.md#62edf14e | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
+concepts/sessions.md#89d0e49b | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
+concepts/tools.md#a66094c1 | CS0103: The name 'CallerHasPermission' does not exist in the current context
+concepts/tools.md#21e95d6d | CS8635: Unexpected character sequence '...'
+concepts/tools.md#d93ec2d7 | CS0103: The name 'GetReport' does not exist in the current context
+concepts/tools.md#fb763a7a | CS0103: The name 'characters' does not exist in the current context
+concepts/workflow-answers.md#076f325e | CS0103: The name 'BuildPublishApproval' does not exist in the current context
+concepts/workflow-function-nodes.md#d154aade | CS0246: The type or namespace name 'AudioClip' could not be found (are you missing a using directive or an assembly reference?)
+concepts/workflow-function-nodes.md#f81d86f9 | CS0103: The name 'CallShippingApiAsync' does not exist in the current context
+concepts/workflow-function-nodes.md#0813ed1f | CS0103: The name 'RenderAsync' does not exist in the current context
+concepts/workflow-requests.md#9012fb45 | CS0103: The name 'BuildPublishApproval' does not exist in the current context
+getting-started/first-agent.md#9d57a851 | CS0103: The name 'modelName' does not exist in the current context
+getting-started/persistence.md#94c67dc9 | CS0103: The name 'yourDataSource' does not exist in the current context
+getting-started/security.md#f98594a5 | CS0103: The name 'options' does not exist in the current context
+getting-started/security.md#3fd7ea89 | CS0103: The name 'options' does not exist in the current context
+getting-started/tools.md#b61edd0a | CS1061: 'ITraconBuilder' does not contain a definition for 'AddGeneratedTools' and no accessible extension method 'AddGeneratedTools' accepting a first argument of type 'ITraconBuilder' could be found (are you missing a using directive or an assembly reference?)
+getting-started/tools.md#b464b40e | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
+getting-started/tools.md#fcb3c47f | CS0103: The name 'GetOrderStatus' does not exist in the current context
+getting-started/tools.md#27af9d47 | CS1109: Extension methods must be defined in a top level static class; ContosoToolsExtensions is a nested class
+getting-started/tools.md#afed6a73 | CS0246: The type or namespace name 'IOrderRepository' could not be found (are you missing a using directive or an assembly reference?)
+getting-started/tools.md#997be292 | CS0246: The type or namespace name 'IOrderRepository' could not be found (are you missing a using directive or an assembly reference?)
+getting-started/tools.md#f9927b9c | CS1525: Invalid expression term ';'
+guides/any-maf-feature.md#fda73957 | CS0246: The type or namespace name 'ToolCallLog' could not be found (are you missing a using directive or an assembly reference?)
+guides/any-maf-feature.md#e8fb9303 | CS0246: The type or namespace name 'ToolCallLog' could not be found (are you missing a using directive or an assembly reference?)
+guides/any-maf-feature.md#5944fab8 | CS0103: The name 'ExtensionName' does not exist in the current context
+guides/any-maf-feature.md#ee9a1db0 | CS0103: The name 'Notice' does not exist in the current context
+guides/any-maf-feature.md#a8414c06 | CS1002: ; expected
+guides/any-maf-feature.md#a84458d5 | CS0103: The name 'ExtensionName' does not exist in the current context
+guides/any-maf-feature.md#b5d52146 | CS0115: 'GetResponseAsync(IEnumerable<ChatMessage>, ChatOptions?, CancellationToken)': no suitable method found to override
+guides/any-maf-feature.md#a3e0a11d | CS0103: The name 'AgentName' does not exist in the current context
+guides/any-maf-feature.md#9e57e9a5 | CS0103: The name 'AgentName' does not exist in the current context
+guides/any-maf-feature.md#02bed66f | CS0103: The name 'AgentName' does not exist in the current context
+guides/any-maf-feature.md#105a386c | CS0103: The name 'models' does not exist in the current context
+guides/aspire.md#053590e0 | CS0103: The name 'DistributedApplication' does not exist in the current context
+guides/aspire.md#5e813450 | CS1061: 'IServiceCollection' does not contain a definition for 'AddOpenTelemetry' and no accessible extension method 'AddOpenTelemetry' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
+guides/build-diagnostics.md#be401f39 | CS0103: The name 'MyMethod' does not exist in the current context
+guides/build-diagnostics.md#3b0ecb13 | CS0246: The type or namespace name 'JsonSerializerContext' could not be found (are you missing a using directive or an assembly reference?)
+guides/build-diagnostics.md#fb79497d | CS0246: The type or namespace name 'OrderPreview' could not be found (are you missing a using directive or an assembly reference?)
+guides/build-diagnostics.md#c2d75986 | CS1002: ; expected
+guides/build-diagnostics.md#81371523 | CS0616: 'Range' is not an attribute class
+guides/build-diagnostics.md#be401f39 | CS0103: The name 'MyMethod' does not exist in the current context
+guides/build-diagnostics.md#c5b36f9c | CS0246: The type or namespace name 'JsonSerializerContext' could not be found (are you missing a using directive or an assembly reference?)
+guides/build-diagnostics.md#be401f39 | CS0103: The name 'MyMethod' does not exist in the current context
+guides/build-diagnostics.md#7aef714d | CS0103: The name 'scope' does not exist in the current context
+guides/build-diagnostics.md#3a2b2c09 | CS0103: The name 'scope' does not exist in the current context
+guides/build-diagnostics.md#8f4f18bc | CS1002: ; expected
+guides/cli.md#e854057a | CS0246: The type or namespace name 'TraconApiClient' could not be found (are you missing a using directive or an assembly reference?)
+guides/context-and-memory.md#d00e8302 | CS0246: The type or namespace name 'VectorStore' could not be found (are you missing a using directive or an assembly reference?)
+guides/ef-core.md#a6bc98a1 | CS0246: The type or namespace name 'NpgsqlDataSourceBuilder' could not be found (are you missing a using directive or an assembly reference?)
+guides/ef-core.md#52195625 | CS0103: The name 'modelBuilder' does not exist in the current context
+guides/embedding.md#463626aa | CS0246: The type or namespace name 'YourTenantContext' could not be found (are you missing a using directive or an assembly reference?)
+guides/embedding.md#6e8bbd00 | CS0246: The type or namespace name 'IYourIdentityService' could not be found (are you missing a using directive or an assembly reference?)
+guides/embedding.md#8c3bc0e9 | CS0103: The name 'job' does not exist in the current context
+guides/embedding.md#375039d4 | CS0246: The type or namespace name 'IYourBlobClient' could not be found (are you missing a using directive or an assembly reference?)
+guides/embedding.md#5aac7889 | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
+guides/embedding.md#4384f6f0 | CS0246: The type or namespace name 'NpgsqlDataSourceBuilder' could not be found (are you missing a using directive or an assembly reference?)
+guides/embedding.md#9388d627 | CS0246: The type or namespace name 'YourRunAuthorizationHandler' could not be found (are you missing a using directive or an assembly reference?)
+guides/from-maf-hosting.md#276f62f8 | CS0103: The name 'model' does not exist in the current context
+guides/from-maf-hosting.md#a3e0a11d | CS0103: The name 'AgentName' does not exist in the current context
+guides/from-maf-hosting.md#52a27eec | CS0246: The type or namespace name 'OrderFulfillmentTool' could not be found (are you missing a using directive or an assembly reference?)
+guides/gemini-speech.md#a364e68f | CS0103: The name 'speech' does not exist in the current context
+guides/hosted-tools.md#0a92a9be | CS0103: The name 'Docs' does not exist in the current context
+guides/inbound-triggers.md#aa2107a0 | CS0103: The name 'rawBody' does not exist in the current context
+guides/mcp-across-instances.md#6b548b4b | CS1061: 'IServiceCollection' does not contain a definition for 'AddStackExchangeRedisCache' and no accessible extension method 'AddStackExchangeRedisCache' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
+guides/model-providers.md#4cbee201 | CS1002: ; expected
+guides/model-providers.md#025627bb | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
+guides/model-providers.md#08f83e42 | CS1002: ; expected
+guides/observability.md#f70b7335 | CS1061: 'IServiceCollection' does not contain a definition for 'AddOpenTelemetry' and no accessible extension method 'AddOpenTelemetry' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
+guides/openai-api.md#811b9f54 | CS0103: The name 'client' does not exist in the current context
+guides/reliability.md#4dca4172 | CS0103: The name 'StoreAsync' does not exist in the current context
+guides/review-and-revise-workflow.md#4dfd990e | CS0103: The name 'schema' does not exist in the current context
+guides/review-and-revise-workflow.md#4f952e91 | CS0246: The type or namespace name 'ScriptCheck' could not be found (are you missing a using directive or an assembly reference?)
+guides/structured-output.md#c0ef91fd | CS1002: ; expected
+guides/structured-output.md#c3981a2f | CS0103: The name 'ResponseFormat' does not exist in the current context
+guides/testing.md#4a21b1d6 | CS0103: The name 'run' does not exist in the current context
+guides/testing.md#93baa906 | CS1519: Invalid token 'using' in a member declaration
+guides/voice.md#3941af06 | CS0103: The name 'synthesizer' does not exist in the current context
+guides/voice.md#44d12346 | CS0246: The type or namespace name 'ContosoSpeechProvider' could not be found (are you missing a using directive or an assembly reference?)
+guides/voice.md#bed32067 | CS0246: The type or namespace name 'StudioSpeechSynthesizer' could not be found (are you missing a using directive or an assembly reference?)
+guides/voice.md#46da86f5 | CS0246: The type or namespace name 'NarrationSettings' could not be found (are you missing a using directive or an assembly reference?)
+guides/voice.md#71e8cbb5 | CS0246: The type or namespace name 'StudioTextToSpeechClient' could not be found (are you missing a using directive or an assembly reference?)
+guides/voice.md#d8e6782f | CS0246: The type or namespace name 'NarrationSettings' could not be found (are you missing a using directive or an assembly reference?)
+guides/voice.md#86464bb5 | CS0103: The name 'request' does not exist in the current context
+guides/write-your-own-agent-decorator.md#1d826a8a | CS0246: The type or namespace name 'AuditingAgent' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-decorator.md#8107c6c5 | CS0246: The type or namespace name 'AuditingAgentDecorator' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-decorator.md#6301caad | CS0246: The type or namespace name 'AuditingAgentDecorator' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-decorator.md#3992b781 | CS0246: The type or namespace name 'ILogger<>' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-decorator.md#20bf4a04 | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-decorator.md#5504ffdf | CS0246: The type or namespace name 'AuditingAgentDecorator' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#a9fd7499 | CS0246: The type or namespace name 'GitAgentSourceOptions' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#3ad5d6ef | CS0246: The type or namespace name 'GitAgentSource' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#450c6fe5 | CS0103: The name '_repository' does not exist in the current context
+guides/write-your-own-agent-source.md#3a7f92b9 | CS0246: The type or namespace name 'GitAgentSource' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-job-handler.md#0ca5e761 | CS0246: The type or namespace name 'ILogger<>' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-job-handler.md#20bf4a04 | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-job-handler.md#38d09a5b | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-script-executor.md#8ed401d8 | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-script-executor.md#82e8e888 | CS0246: The type or namespace name 'RunnerServiceScriptExecutor' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-script-executor.md#581ba9b0 | CS0246: The type or namespace name 'RunnerServiceScriptExecutor' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-store.md#51a9fba9 | CS0161: 'MyRunStore.StartRunAsync(RunStartInfo, CancellationToken)': not all code paths return a value
+guides/write-your-own-store.md#4b4016c5 | CS0246: The type or namespace name 'MyRunStore' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-store.md#0d255be0 | CS0246: The type or namespace name 'MyRecord' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-store.md#9227fb6d | CS0246: The type or namespace name 'IDatabase' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-store.md#6a569520 | CS0246: The type or namespace name 'RateLimitCounterStoreContract' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-tool.md#113a9f35 | CS0534: 'OrderToolJsonContext' does not implement inherited abstract member 'JsonSerializerContext.GetTypeInfo(Type)'
+guides/write-your-own-tool.md#a44c9f12 | CS1737: Optional parameters must appear after all required parameters
+guides/write-your-own-tool.md#a5c231e4 | CS0246: The type or namespace name 'JsonSerializerContext' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-tool.md#37ed4f42 | CS0246: The type or namespace name 'JsonSerializerContext' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-tool.md#ec995212 | CS0246: The type or namespace name 'IOrderRepository' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-tool.md#5b48e498 | CS0246: The type or namespace name 'IOrderWriter' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-tool.md#4100128e | CS0103: The name 'ExpectedFieldCount' does not exist in the current context
+guides/write-your-own-tool.md#4db8e12d | CS0103: The name 'MyOrderTool' does not exist in the current context
+guides/write-your-own-tool.md#41a8663d | CS0103: The name 'MyOrderTool' does not exist in the current context
+http-api.md#60f9addf | CS1061: 'IServiceCollection' does not contain a definition for 'AddOpenApi' and no accessible extension method 'AddOpenApi' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
+http-api.md#c2c3b851 | CS1061: 'IServiceCollection' does not contain a definition for 'AddSwaggerGen' and no accessible extension method 'AddSwaggerGen' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
+reference/read-views.md#ce85abcd | CS0103: The name 'modelBuilder' does not exist in the current context
+reference/releases/1.0.0-preview.3.md#3e94165a | CS1002: ; expected
+reference/releases/1.0.0-preview.3.md#5ffe411b | CS0103: The name 'fn' does not exist in the current context

@@ -30,6 +30,7 @@
     <ProjectReference Include="../../src/Tracon.Anthropic/Tracon.Anthropic.csproj" />
     <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
+    <ProjectReference Include="../../src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj" />
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <ProjectReference Include="../../src/Tracon.UI/Tracon.UI.csproj" />
     <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
