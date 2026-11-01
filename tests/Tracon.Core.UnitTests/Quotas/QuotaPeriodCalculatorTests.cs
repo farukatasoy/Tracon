@@ -149,4 +149,33 @@ public sealed class QuotaPeriodCalculatorTests
 
         QuotaPeriodCalculator.ToUtcInstant(date, zone).ShouldBe(scan);
     }
+
+    /// <summary>
+    /// A period that ends where its zone skips a whole date ends when the next date that exists begins.
+    /// </summary>
+    /// <remarks>
+    /// Kiribati (1994), Samoa and Tokelau (2011) moved across the date line and have no 2011-12-30 or 1994-12-31. The offset
+    /// estimate for the missing date landed a day inside the previous one and the walk to the date gave up after four hours,
+    /// so the period ended some twenty hours early. The oracle scans forward minute by minute with the zone's own conversion.
+    /// </remarks>
+    [Theory]
+    [InlineData("Pacific/Fakaofo", 2011, 12, 29, 11, 21)]
+    [InlineData("Pacific/Apia", 2011, 12, 29, 12, 0)]
+    [InlineData("Pacific/Kiritimati", 1994, 12, 30, 20, 0)]
+    public void A_period_ends_when_the_next_date_that_exists_begins_where_the_zone_skips_a_date(
+        string zoneId, int year, int month, int day, int hour, int minute)
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+        var instant = new DateTimeOffset(year, month, day, hour, minute, 0, TimeSpan.Zero);
+        var startNow = QuotaPeriodCalculator.GetPeriodStart(instant, QuotaPeriod.Daily, zone);
+
+        var scan = instant;
+
+        while (QuotaPeriodCalculator.GetPeriodStart(scan, QuotaPeriod.Daily, zone) == startNow)
+        {
+            scan = scan.AddMinutes(1);
+        }
+
+        QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, zone).ShouldBe(scan);
+    }
 }

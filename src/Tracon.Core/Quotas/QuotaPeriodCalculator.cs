@@ -111,8 +111,10 @@ internal static class QuotaPeriodCalculator
         // The zone's own conversion is the authority on which date an instant is on, and GetPeriodStart asks it.
         // Where a rule moves the clock at local midnight (Paraguay, Chile, Greenland), the offset above can be the one
         // from after the move and the instant lands an hour inside the previous date. Walk to the first instant that
-        // is on the date; the loops stop at a few hours, the longest a rule moves a clock.
-        for (var step = 0; step < MaxAdjustSteps && DateOf(instant, timeZone) < date; step++)
+        // is on the date. The backward walk stops at a few hours, the longest a rule moves a clock; the forward walk
+        // can have to cross a whole date, because a zone that moves across the date line skips one (Samoa and
+        // Tokelau skipped 2011-12-30), and the first instant on the date is then the first instant of the next one.
+        for (var step = 0; step < MaxForwardSteps && DateOf(instant, timeZone) < date; step++)
         {
             instant = instant.AddMinutes(1);
         }
@@ -125,8 +127,14 @@ internal static class QuotaPeriodCalculator
         return instant;
     }
 
-    /// <summary>The longest, in minutes, the first instant of a date can be from the offset-based estimate.</summary>
+    /// <summary>The longest, in minutes, the first instant of a date can be before the offset-based estimate.</summary>
     private const int MaxAdjustSteps = 4 * 60;
+
+    /// <summary>
+    /// The longest, in minutes, the first instant of a date can be after the offset-based estimate: a skipped date plus
+    /// the hours a rule moves a clock. Only a zone that skipped a date walks far; every other zone stops within a few steps.
+    /// </summary>
+    private const int MaxForwardSteps = 36 * 60;
 
     private static DateOnly DateOf(DateTimeOffset instant, TimeZoneInfo timeZone)
         => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, timeZone).DateTime);

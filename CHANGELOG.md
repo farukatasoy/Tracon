@@ -647,6 +647,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   refused call is told to retry at) was computed from the offset after the change and came out an hour early: still inside the
   old date. The instant is now checked against the zone's own conversion, the one the counter's date key uses. What a call is
   counted against was not affected; only the reported end of the period.
+- **A quota period ends at the right instant where a zone skips a whole date.** Kiribati (1994), Samoa and Tokelau (2011) moved across
+  the date line and have no 1994-12-31 or 2011-12-30. The end of the daily period before the missing date was computed twenty hours
+  early, because the search for the first instant of the next date gave up after four hours. It now looks as far as a missing
+  date needs. Only instants in those zones and years were affected; what a call is counted against was not.
 - **The egress guard no longer lets a private address through when it is written as an IPv4-compatible IPv6 address ending in
   `.1`.** The guard decodes the IPv6 notations that carry an IPv4 address (mapped, compatible, translated, 6to4) and judges the
   decoded address. The compatible form skipped every address whose last byte is 1, which was meant only for `::1`, so
