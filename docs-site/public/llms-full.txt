@@ -7100,7 +7100,11 @@ The real-time voice WebSocket is not an exemption: a browser cannot set a header
 handshake either, so the token travels in the `Sec-WebSocket-Protocol` subprotocol and
 is verified in constant time. A query string was rejected — it would be written to
 server and proxy logs. A WebSocket is not bound by CORS, so an anonymous socket is held
-to the same host and origin rule as an anonymous request.
+to the same host and origin rule as an anonymous request. A socket that your authorization
+policy authenticates (usually with a cookie, which a browser sends from any page) is held
+to an origin rule too: it opens from the installation's own origin or from an entry of
+`AllowedOrigins`. A socket that presents its own token or key is not judged by origin, and
+neither is a client that sends no `Origin` header, such as a server.
 
 ## Outbound requests are guarded too
 
@@ -17569,7 +17573,9 @@ conversation state itself is not carried over. A tool call that already
 completed on an earlier link is not run a second time, though: every link in
 the chain shares one ledger for the turn, so if the fallback model asks the
 same question again, it gets the already-computed answer instead of running
-the tool's body a second time. This matters for a tool with a real side effect
+the tool's body a second time. The same question means the same tool with the
+same argument names and values, in any order; a different value, or the same
+number written another way, is a new question and runs. This matters for a tool with a real side effect
 (charging a payment, sending a webhook, deleting a record) — without it, a
 provider outage that happens right after such a tool call would silently run
 it twice. A read-only tool call is answered from the ledger the same way; the
@@ -19849,6 +19855,12 @@ An API key needs the `RunsWrite` scope, the same scope the live voice session
 endpoint asks for: a conversation runs the agent turn after turn. A key without it
 is refused with `403` before the socket upgrades.
 
+When your authorization policy authenticates the socket instead (usually with a cookie),
+a browser sends that cookie from any page. The socket then opens only for a page of the
+installation's own origin or one listed in `AllowedOrigins`; another origin is refused with
+`403` before the upgrade. A client that sends no `Origin` header, such as a server or a
+mobile app, is not judged by origin.
+
 Authentication is not authorization. A registered
 [`IRunAuthorizationHandler`](/guides/embedding/#6--run-and-session-authorization) is
 asked before the socket upgrades, with `SessionAccess.Voice` and the session id from
@@ -19929,6 +19941,13 @@ separate voice mapping call.
 The request did not complete a WebSocket upgrade. Use a WebSocket client and the
 mapped route `/api/voice/sessions/{sessionId}/stream`. `MapTracon()` installs the
 required middleware when voice conversation is registered.
+
+### The WebSocket request returns `403` with "Origin not allowed"
+
+The page that opened the socket is neither served by the installation nor listed in
+`AllowedOrigins`. A policy-authenticated socket is held to that rule because a browser
+sends its cookie from any page. Add the console's origin to `AllowedOrigins`, or send the
+token or key in the `tracon.token.` subprotocol instead of relying on the cookie.
 
 ### The WebSocket request returns `401`
 

@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **The voice conversation socket asks an API key for the `RunsWrite` scope, and a socket that your authorization policy
+  authenticates opens only from the installation's own origin or from `AllowedOrigins`.** The socket checked a key by hand
+  and nothing else, so a key that could only read agents (`AgentsRead`) opened a conversation that runs them, although the
+  endpoint that opens a live voice session asks for `RunsWrite`. A key without it now gets `403` before the upgrade; give it
+  the scope. Separately, a browser sends its cookie on a WebSocket from any page and a WebSocket is not bound by CORS, so
+  when `RequireAuthorization` authenticated the socket with a cookie, a page of another origin could open a conversation as
+  the signed-in user and read every frame. The handshake now answers `403` for an `Origin` that is neither the request's own
+  nor one of `AllowedOrigins`. A client that sends no `Origin` header (a server, a mobile app) and a socket that presents its
+  own token or key in the subprotocol are not judged by origin.
+
+- **A cron expression written as `N/step` counts from `N` to the end of the field, and one that can never match is refused when
+  it is saved.** `5/15` in the minute field meant only minute 5 (once an hour); it now means `5-59/15`, minutes 5, 20, 35 and
+  50, as Cronos reads it, so a schedule written that way runs more often than before. `0 0 30 2 *` (the 30th of
+  February) was accepted and then failed when the next run was computed; it is now a `FormatException` at parse time, and a
+  day and month combination that does occur, such as `0 0 29 2 *`, is found even when it is years away (the search looks eight
+  years ahead). On the night a clock goes back, a job that runs often (`*/5 * * * *`, or a step in the hour field) runs through
+  both passes of the repeated hour; before, it fell silent for that hour and five minutes. A job that names its hour
+  (`30 2 * * *`) still runs once, in the first pass.
+
 - **A job's lease is fenced. `IJobStore.RenewLeaseAsync`, `MarkRunningAsync`, `CompleteAsync` and `ReleaseForRetryAsync` take a `JobLease` (job, owner, attempt) and return `bool`, and `JobCompletion.JobId` is removed.** A worker that stalled past its lease (a long pause, a frozen container, a network cut) could come back after another worker had leased the job and still complete it or return it to the queue: the store checked neither the owner nor the attempt on those writes, and the worker never learned that a renewal had been ignored. The job then read `Completed` while the new holder was still running it, or went back to `Pending` and was leased a third time. Each of the four writes is now one conditional statement. It applies only while the job's lease is the one the worker took (same owner **and** same attempt, status `Leased` or `Running`) and otherwise answers `false` and changes nothing. The attempt is part of the key because a worker keeps its owner identity when it leases a job again. The built-in worker cancels the handler's token when a renewal is refused, or when renewals keep failing until it can no longer prove the lease (a third of the lease before it runs out). It then writes nothing for that attempt, counts no job and publishes no `job.completed` or `job.failed`: the worker that holds the job does. `IJobHandler`'s token is cancelled for four reasons now, and a queued workflow run whose job lost its lease keeps its checkpoints for the worker that took the job over. A cancelled job refuses a renewal too and is not treated as a lost lease. Fencing keeps the job's record right; it does not undo what the stalled handler already did elsewhere, so execution stays at-least-once. To upgrade a custom `IJobStore`, take the `JobLease`, check it in the same atomic step as the write, and return `false` when the write did not apply; `CompleteAsync` and `ReleaseForRetryAsync` also answer `false` for a cancelled job. `JobStoreContract` changes the calls it makes to take a `JobLease` and gains `JobStoreContract.A_worker_that_lost_its_lease_cannot_close_the_new_owners_attempt`, `JobStoreContract.A_stale_attempt_of_the_same_owner_cannot_complete_the_new_attempt`, `JobStoreContract.A_worker_that_lost_its_lease_cannot_return_the_job_to_the_queue`, `JobStoreContract.A_released_attempt_cannot_touch_the_attempt_that_replaced_it`, `JobStoreContract.Renewing_a_lease_extends_it_only_for_the_attempt_that_holds_it`, `JobStoreContract.Renewing_the_lease_of_a_cancelled_or_finished_job_returns_false`, `JobStoreContract.Completing_or_releasing_with_another_workers_lease_changes_nothing` and `JobStoreContract.Only_one_of_two_concurrent_completions_of_the_same_lease_is_applied`. The first two fail a store that checks the owner alone, or the attempt alone; a store that reads the lease and writes in a second step passes them, and only the last one can catch it, when its two calls overlap.
 
 - **Four more contract tests catch a store that loses a concurrent update.** `ApiKeyStoreContract.A_revoked_key_stays_revoked_while_its_last_use_is_being_recorded` (a last-use stamp must not bring a revoked key back), `RetentionPolicyStoreContract.Concurrent_progress_appends_all_count` (concurrent progress appends are all counted), `RunStoreContract.A_completed_run_stays_completed_while_its_cost_is_being_updated` (a cost update must not make a finished run read as running again) and `WebhookStoreContract.Failure_counter_counts_every_concurrent_failure` (the failure counter counts every overlapping failure). A custom store passes them when each of those updates is one atomic step rather than a read followed by a write. The shipped in-memory stores were changed to meet them.
@@ -588,6 +607,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A fallback chain's shared tool ledger recognises a call whose arguments arrive in another order.** The ledger keeps a tool
+  call that completed on one link, so the next link does not run it again. It compared the arguments as text in the order the
+  model wrote them, so a charge that ran on the primary link ran again when the fallback model listed `amount` before
+  `customer`. The same tool with the same argument names and values, in any order, is now answered from the ledger; a
+  different value, or the same number written another way, is a new call and runs. The ledger of a replay or a continuation
+  still compares the text as it was recorded.
+- **One tenant's silent MCP servers no longer hold every tenant's refresh.** A refresh connected the servers one after another
+  while it held the catalog's refresh gate, so each server that accepted a connection and never answered added its
+  `ConnectionTimeout` (30 seconds by default) to the manual refresh, to the end of every OAuth authorization, and to the
+  background discovery of all tenants. Three such servers made a 2-second timeout last 6 seconds; the pass now takes about 2.
+  At most eight connections are tried at the same time.
+- **A definition package with a long chain of references no longer ends the process.** The import (a dry run included, which
+  the Operator role may call) ordered agents with a recursion as deep as the longest chain. A package of about 8 000 agents,
+  each naming the next as its shared instructions and well under the 8 MB limit, overflowed the stack, which cannot be caught.
+  The ordering is iterative now.
+- **A skill script that never reads its standard input no longer outlives its timeout.** The runner writes the arguments to the
+  script's standard input. A script that did not read them blocked the write once the arguments outgrew the pipe (4 MB
+  measured), and the timeout came out as an `OperationCanceledException` before the process was killed, so the script kept
+  running. The write is now inside the guard that kills the process.
+- **The quota period ends at the earlier midnight on a day a zone repeats it.** In a zone whose midnight can occur twice
+  (Havana, Santiago) the period end, and so the `Retry-After` of a refused call, was an hour late on that one day of the year.
+  What a call is counted against was not affected.
 - **`Tracon:Observability:RecordSensitiveData=false` did not keep the system instructions and every tool call's arguments
   and result out of the span store when the host had turned on the content switch of its own exporter.** A host that set
   `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` found `gen_ai.system_instructions`,
