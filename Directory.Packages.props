@@ -337,6 +337,11 @@
       tests/Tracon.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
     -->
     <PackageVersion Include="Microsoft.Playwright" Version="1.63.0" />
+    <!--
+      Property-based testing (CsCheck): generators, shrinking, and a seed printed with every failure.
+      Test-only; it never reaches a Tracon package or a consumer.
+    -->
+    <PackageVersion Include="CsCheck" Version="5.0.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--

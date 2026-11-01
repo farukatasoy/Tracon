@@ -24,6 +24,13 @@
 
   <ItemGroup>
     <!--
+      Test-only: property-based tests (CsCheck), starting with the cron expression.
+    -->
+    <PackageReference Include="CsCheck" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       Test-only: a REAL vector store connector, so the filters conversation memory builds
       are translated by a connector and not only run by the test double.
     -->
