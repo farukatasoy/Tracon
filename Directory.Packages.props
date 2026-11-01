@@ -332,6 +332,13 @@
          surumunu ceker. 1.x ile birlikte calisma aninda TypeLoadException verir. -->
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
     <!--
+      Code coverage for the test projects, opt-in: only a build with
+      -p:TraconCoverage=true references it (tests/Directory.Build.props), so a plain
+      build, restore, and pack never see it. 18.12.0 asks for Microsoft.Testing.Platform
+      2.5.0, the line TrxReport above already pins. Test-only; it never reaches a Tracon package.
+    -->
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
+    <!--
       Playwright arayuz E2E testleri icin. Tarayici ikilisi NuGet paketiyle
       gelmez; test fixture'i eksikse kendisi indirir (bkz.
       tests/Tracon.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
