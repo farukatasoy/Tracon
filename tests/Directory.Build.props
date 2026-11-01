@@ -93,6 +93,15 @@
   </ItemGroup>
 
   <!--
+    A faulted task that the host drops without observing vanishes silently
+    (tests/Shared/UnobservedTasks). The guard subscribes before the first test and
+    fails the assembly at its end, so a lost background failure turns a run red.
+  -->
+  <ItemGroup Condition=" '$(IsTestHarnessProject)' != 'true' ">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/UnobservedTasks/*.cs" LinkBase="Shared/UnobservedTasks" />
+  </ItemGroup>
+
+  <!--
     Every multi-targeted project proves that each of its legs ran on
     the runtime it was built for. A leg rolled forward onto a newer runtime
     would pass every other test and prove nothing about its own framework.

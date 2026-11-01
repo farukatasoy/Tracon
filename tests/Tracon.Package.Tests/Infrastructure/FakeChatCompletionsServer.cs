@@ -138,7 +138,10 @@ internal sealed class FakeChatCompletionsServer : IAsyncDisposable
     {
         while (!_stop.IsCancellationRequested)
         {
-            var context = await _listener.GetContextAsync().WaitAsync(_stop.Token);
+            // No WaitAsync(_stop.Token) here: it would end the wait but abandon the accept
+            // task, and closing the listener would then fault that task unobserved. Closing
+            // the listener alone ends the pending accept, and DisposeAsync catches it.
+            var context = await _listener.GetContextAsync();
 
             // One request at a time is enough: the host sends one call per run.
             await HandleAsync(context);
