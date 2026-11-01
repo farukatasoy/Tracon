@@ -647,6 +647,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   refused call is told to retry at) was computed from the offset after the change and came out an hour early: still inside the
   old date. The instant is now checked against the zone's own conversion, the one the counter's date key uses. What a call is
   counted against was not affected; only the reported end of the period.
+- **A request without a JSON `Content-Type` answers `415`, not an empty `500`.** Thirty-three operations read their body by hand and let
+  the framework's "not a known JSON content type" exception out, so `curl -X POST .../api/agents` with no body at all, or with
+  `Content-Type: text/plain`, was a `500` that named nothing. They now answer the `415` that the definition import and the AG-UI
+  endpoint already gave, as `application/problem+json`; the two OpenAI-compatible routes (`/v1/chat/completions`, `/v1/responses`)
+  answer it in their own error shape. A body with the right content type but no content is still the `400` it was.
+- **A `null` inside a list or a map of a request body is a `400` that names the property.** The API already refused `"approvals": null`
+  for a field that is not nullable, but never looked inside a collection: `{"nodes": [null]}` on a workflow and `[null]` on the eval
+  cases reached the handler as a list holding a null and failed with a `500`. The rule is written once, from each property's nullable
+  annotation, so it covers every collection in every request: `string?` and `int?` elements still take a null.
+- **An eval check definition that cannot be read is a `400`.** A `checks` entry that is a number, an array or `null`, a `minLength`
+  that is not a whole number, and a `values` or `tools` list that holds anything but strings made the suite save fail with a `500`.
+- **A path segment that is only whitespace answers `404`.** Twenty-six operations (sessions, workflows, schedules, triggers, webhooks,
+  tenants' egress, tools and providers, MCP servers, conversations) handed it to a store whose argument guard refuses a blank name,
+  and the guard's exception was a `500`. Nothing is stored under a blank name; operations that already checked it keep their answer.
 - **A quota period ends at the right instant where a zone skips a whole date.** Kiribati (1994), Samoa and Tokelau (2011) moved across
   the date line and have no 1994-12-31 or 2011-12-30. The end of the daily period before the missing date was computed twenty hours
   early, because the search for the first instant of the next date gave up after four hours. It now looks as far as a missing

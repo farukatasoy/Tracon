@@ -21933,7 +21933,9 @@ schema does not require simply defaults to empty. Sending `{"message": "hello",
 "approvals": null}` is not the same thing: it states a value for a field whose
 contract has no null, and the API answers `400` rather than acting on it. A field
 that genuinely distinguishes "not provided" from "provided empty" is declared
-nullable in the schema and still accepts `null`.
+nullable in the schema and still accepts `null`. The same holds inside a list or a map:
+`{"nodes": [null]}` is a `400` when the schema's items are not nullable, and a list of
+`string | null` still takes its nulls.
 
 **Error text is English and is not translated.** The same failure has to read the same
 way in a log, a test, and a support ticket. The console translates its own labels and
@@ -21944,8 +21946,9 @@ shows server text as it is.
 | `400` | The request is malformed or fails validation |
 | `401` | Missing or invalid credentials |
 | `403` | Authenticated, but not allowed — including the loopback restriction |
-| `404` | Not found, or not yours |
+| `404` | Not found, or not yours. A path segment that is only whitespace is a name nobody can have saved, so it is `404` too |
 | `409` | Conflicting state — a name in use, a running experiment, a code-defined agent, a client-side tool that cannot be replayed |
+| `415` | The body has to be JSON and the request carried another `Content-Type`, or none (`Content-Type: application/json`) |
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, or knowledge |

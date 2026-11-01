@@ -126,6 +126,13 @@ internal sealed class EvalCheckRegistry
 
     private EvalCheck BuildCheck(JsonElement spec)
     {
+        // TryGetProperty throws InvalidOperationException on anything but an object, and a suite save with `[1]`,
+        // `[[]]` or `[null]` for its checks answered 500.
+        if (spec.ValueKind != JsonValueKind.Object)
+        {
+            throw new TraconException("Every check definition must be a JSON object.");
+        }
+
         if (!spec.TryGetProperty("kind", out var kindElement) || kindElement.ValueKind != JsonValueKind.String)
         {
             throw new TraconException("Every check definition must carry a 'kind' (string) field.");
@@ -182,7 +189,9 @@ internal sealed class EvalCheckRegistry
 
     private static int GetInt(JsonElement spec, string property, int fallback)
         => spec.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.Number
-            ? value.GetInt32()
+            ? value.TryGetInt32(out var number)
+                ? number
+                : throw new TraconException($"'{property}' must be a whole number that fits in 32 bits.")
             : fallback;
 
     private static bool GetBool(JsonElement spec, string property, bool fallback)
@@ -202,6 +211,8 @@ internal sealed class EvalCheckRegistry
             throw new TraconException($"Check definition must carry a '{property}' array.");
         }
 
-        return [.. value.EnumerateArray().Select(static element => element.GetString()!)];
+        return [.. value.EnumerateArray().Select(element => element.ValueKind == JsonValueKind.String
+            ? element.GetString()!
+            : throw new TraconException($"'{property}' must hold only strings."))];
     }
 }

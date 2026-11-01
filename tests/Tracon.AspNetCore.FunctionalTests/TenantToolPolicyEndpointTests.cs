@@ -108,7 +108,8 @@ public sealed class TenantToolPolicyEndpointTests
     {
         { """{"allowedTools":["get_weather",""]}""", "empty entry" },
         { """{"allowedTools":["   "]}""", "empty entry" },
-        { """{"grantedPermissions":[null]}""", "empty entry" },
+        // A null inside a list is refused while the body is read, before the endpoint looks at its entries, and says so.
+        { """{"grantedPermissions":[null]}""", "null element" },
         { """{"allowedTools":["get\u0001weather"]}""", "control character" },
         { """{"grantedPermissions":["orders\nread"]}""", "control character" },
         { """{"allowedTools":["get weather\r\nnext"]}""", "control character" },

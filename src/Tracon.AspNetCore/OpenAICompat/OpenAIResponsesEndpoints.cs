@@ -155,6 +155,14 @@ internal static class OpenAIResponsesEndpoints
             return drainRefusal;
         }
 
+        // The read below throws on a request without a JSON content type, and nothing above it catches that.
+        if (!httpContext.Request.HasJsonContentType())
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status415UnsupportedMediaType,
+                "The body must be JSON ('Content-Type: application/json').");
+        }
+
         JsonElement body;
 
         try

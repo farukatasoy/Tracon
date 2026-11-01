@@ -131,6 +131,12 @@ public static class TraconEndpointRouteBuilderExtensions
             storeProblemApp.Use(StoreUnavailableProblemMiddleware.InvokeAsync);
         }
 
+        // A route segment that is only whitespace is not found; a store's argument guard must not turn it into a 500.
+        if (endpoints is IApplicationBuilder blankRouteApp)
+        {
+            blankRouteApp.Use(BlankRouteValueProblemMiddleware.InvokeAsync);
+        }
+
         var idempotencyFilter = new IdempotencyFilter(
             services.GetRequiredService<IOptionsMonitor<TraconIdempotencyOptions>>());
 

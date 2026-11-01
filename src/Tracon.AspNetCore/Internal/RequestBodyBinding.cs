@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Http.Json;
@@ -129,6 +130,10 @@ internal static class RequestBodyBinding
 
         options.Converters.Add(new ExplainedEnumConverterFactory());
 
+        // A null inside a list or a map is not caught by RespectNullableAnnotations; see NullElementRule.
+        options.TypeInfoResolver = (source.TypeInfoResolver ?? new DefaultJsonTypeInfoResolver())
+            .WithAddedModifier(NullElementRule.Guard);
+
         return options;
     }
 
@@ -154,12 +159,22 @@ internal static class RequestBodyBinding
     /// On success, <c>Value</c> is populated and <c>Error</c> is <see langword="null"/>.
     /// If the body is empty or cannot be parsed, <c>Value</c> is <see langword="null"/>
     /// and <c>Error</c> carries a <c>400</c> <see cref="ProblemHttpResult"/> the
-    /// caller can return directly.
+    /// caller can return directly; a request that does not declare a JSON content type
+    /// gets a <c>415</c> one.
     /// </returns>
     public static async Task<(T? Value, ProblemHttpResult? Error)> ReadAsync<T>(
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        // 🚨 Before the read. ReadFromJsonAsync does not return a problem for a request that carries no JSON content
+        // type, it throws InvalidOperationException, and nothing above this method catches it: the caller who forgot a
+        // header got an empty 500. The framework's own [FromBody] binding answers 415 for the same request; so does
+        // ReadStrictAsync.
+        if (!httpContext.Request.HasJsonContentType())
+        {
+            return (default, NotJson());
+        }
+
         try
         {
             var value = await httpContext.Request
@@ -172,6 +187,11 @@ internal static class RequestBodyBinding
                     title: ProblemTitle,
                     detail: "The body cannot be empty.",
                     statusCode: StatusCodes.Status400BadRequest));
+            }
+
+            if (NullElementRule.FindInRoot(value) is { } nullElement)
+            {
+                return (default, NullElement(nullElement));
             }
 
             return (value, null);
@@ -219,10 +239,7 @@ internal static class RequestBodyBinding
 
         if (!httpContext.Request.HasJsonContentType())
         {
-            return (default, null, TypedResults.Problem(
-                title: "Unsupported media type",
-                detail: "The body must be JSON ('Content-Type: application/json').",
-                statusCode: StatusCodes.Status415UnsupportedMediaType));
+            return (default, null, NotJson());
         }
 
         if (httpContext.Request.ContentLength is { } declared && declared > maxBytes)
@@ -267,7 +284,14 @@ internal static class RequestBodyBinding
         {
             var value = JsonSerializer.Deserialize<T>(bytes, StrictBodyOptions.GetValue(applicationOptions, CreateStrictBodyOptions));
 
-            return value is null ? (default, null, EmptyBody()) : (value, bytes, null);
+            if (value is null)
+            {
+                return (default, null, EmptyBody());
+            }
+
+            return NullElementRule.FindInRoot(value) is { } nullElement
+                ? (default, null, NullElement(nullElement))
+                : (value, bytes, null);
         }
         catch (JsonException ex)
         {
@@ -277,6 +301,20 @@ internal static class RequestBodyBinding
                 statusCode: StatusCodes.Status400BadRequest));
         }
     }
+
+    /// <summary>The <c>415</c> a request gets whose content type is missing or is not JSON.</summary>
+    /// <returns>The problem to return.</returns>
+    internal static ProblemHttpResult NotJson()
+        => TypedResults.Problem(
+            title: "Unsupported media type",
+            detail: "The body must be JSON ('Content-Type: application/json').",
+            statusCode: StatusCodes.Status415UnsupportedMediaType);
+
+    private static ProblemHttpResult NullElement(string detail)
+        => TypedResults.Problem(
+            title: ProblemTitle,
+            detail: detail,
+            statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult TooLarge(long maxBytes)
         => TypedResults.Problem(
@@ -333,7 +371,9 @@ internal static class RequestBodyBinding
                 .ReadFromJsonAsync<T>(ReadOptions(httpContext), cancellationToken)
                 .ConfigureAwait(false);
 
-            return (value, null);
+            return NullElementRule.FindInRoot(value) is { } nullElement
+                ? (default, NullElement(nullElement))
+                : (value, null);
         }
         catch (JsonException ex)
         {

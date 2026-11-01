@@ -122,14 +122,18 @@ public sealed class OpenApiSnapshotTests
     }
 
 #pragma warning disable MEAI001
-    internal static async Task<string> GenerateAsync()
+    /// <summary>
+    /// Starts a host with every optional endpoint turned on: the surface the snapshot describes.
+    /// </summary>
+    /// <returns>The running host.</returns>
+    internal static async Task<TraconTestHost> StartFullSurfaceHostAsync()
     {
         // The document is generated with every optional endpoint turned
         // on. A default-off endpoint (like /api/diagnostics) is still part of the
         // surface a consumer sees once they enable it, and every generated artifact
         // (this document, the .NET and TypeScript clients, the http-api/ site pages)
         // is built from this one file.
-        await using var host = await TraconTestHost.StartAsync(
+        return await TraconTestHost.StartAsync(
             withOpenApi: true,
             configureEndpoints: options => options.EnableDiagnosticsEndpoint = true,
             // 🚨 The live voice routes are mapped only when UseLiveVoice() registered
@@ -150,6 +154,11 @@ public sealed class OpenApiSnapshotTests
                 });
                 services.AddSingleton<IImageGenerator, OpenApiImageGenerator>();
             });
+    }
+
+    internal static async Task<string> GenerateAsync()
+    {
+        await using var host = await StartFullSurfaceHostAsync();
 
         using var response = await host.Client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
 
