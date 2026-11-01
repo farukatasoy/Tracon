@@ -44,6 +44,7 @@ public sealed class ProductionProfileStartupTests
     [InlineData(TraconProductionRisk.UnverifiedTenantHeader)]
     [InlineData(TraconProductionRisk.UnlimitedTenantWorkflows)]
     [InlineData(TraconProductionRisk.UnkeyedAuditChain)]
+    [InlineData(TraconProductionRisk.UnauthenticatedLocalOperator)]
     public async Task One_permissive_decision_stops_the_host_and_is_named(TraconProductionRisk left)
     {
         // Every decision but one is answered, so the failure can only be about
@@ -80,6 +81,40 @@ public sealed class ProductionProfileStartupTests
             TestContext.Current.CancellationToken);
 
         response.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task An_authorization_policy_answers_the_unauthenticated_local_operator_decision()
+    {
+        // A token is one answer (AnswerAllExcept sets it); a policy is the other. The host maps its endpoints with a
+        // policy and no token, and starts.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, TraconProductionRisk.UnauthenticatedLocalOperator);
+                builder.Services.AddAuthorizationBuilder()
+                    .AddPolicy("callers", static policy => policy.RequireAssertion(static _ => true));
+                builder.RequireProductionProfile();
+            },
+            configureEndpoints: static options => options.RequireAuthorization("callers"));
+
+        (await host.Client.GetAsync("/tracon/api/meta", TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task The_unauthenticated_local_operator_decision_is_asked_with_its_setting_and_never_a_value()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, TraconProductionRisk.UnauthenticatedLocalOperator);
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain(nameof(TraconProductionRisk.UnauthenticatedLocalOperator));
+        exception.Message.ShouldContain("TraconEndpointOptions.AuthToken");
+        exception.Message.ShouldContain("Unix socket");
     }
 
     [Fact]
@@ -1086,6 +1121,11 @@ public sealed class ProductionProfileStartupTests
             case TraconProductionRisk.InstanceLocalMcpTokens:
                 // Asked only of a host that declared more than one instance, and this host declared one:
                 // nothing to answer. The tests that declare two answer them through AnswerInstanceShape.
+                break;
+
+            case TraconProductionRisk.UnauthenticatedLocalOperator:
+                // The endpoint options are built by MapTracon, so the answer travels to it through the host.
+                builder.Services.AddSingleton(new TestEndpointOptionsSetup(static options => options.AuthToken = "profile-test-token"));
                 break;
 
             default:

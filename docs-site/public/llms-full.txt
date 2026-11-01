@@ -11851,6 +11851,7 @@ repeat it:
 | `UnverifiedTenantHeader` | The tenant is read from a request header and no claim takes precedence, so a client names the tenant it acts as | Set `ClaimType` in `UseTenancy(...)`, or leave `AllowHeaderResolution` off |
 | `UnlimitedTenantWorkflows` | One tenant can take every workflow slot | `Tracon:Workflows:MaxConcurrentRunsPerTenant`. Any value the options validator accepts answers the decision; a value equal to `MaxConcurrentRuns` still lets one tenant take every slot, so size it |
 | `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Sign the audit chain with a key](/guides/audit-chain-key/) |
+| `UnauthenticatedLocalOperator` | No `AuthToken` and no authorization policy is configured, so a request with no credential is the local operator with full rights. A reverse proxy on a Unix socket that adds no forwarding header makes a remote caller look local | Set `TraconEndpointOptions.AuthToken`, or `RequireAuthorization(...)` with a policy that authenticates the caller. Accept it only when nothing but this machine can reach the endpoints. An API key does not answer it |
 | `InstanceLocalState` | `Tracon:Deployment:Instances` is above `1` and the store keeps its state in one process (memory, or a SQLite file), so each instance sees its own runs, sessions and job queue | `UsePostgreSql` or `UseSqlServer`, with one database that every instance reaches |
 | `UnreconciledRuns` | `Instances` is above `1` and run reconciliation is off, so a cancel that reaches the other instance answers `409` and a run whose instance died stays `Running` | `Tracon:RunReconciliation:Enabled` |
 | `UnelectedBackgroundWork` | `Instances` is above `1` and single-executor election is off, so every instance runs the periodic background work at the same time | `Tracon:SingletonExecution:Enabled` |
@@ -11877,9 +11878,9 @@ Some rows are not asked in every composition:
 - `UnkeyedAuditChain` is not asked while the audit log is Tracon's in-memory one: that chain lives in the process
   and goes with it, so no one writes to a table behind the host's back. A database audit log, or one you
   registered, is asked.
-- `UnregisteredRolePolicies` is known only once `MapTracon` has run, so it is asked of a
-  host that mapped the endpoints before it started. A host with no HTTP surface is not
-  asked it.
+- `UnregisteredRolePolicies` and `UnauthenticatedLocalOperator` are known only once `MapTracon`
+  has run, so they are asked of a host that mapped the endpoints before it started. A host with
+  no HTTP surface is not asked them.
 
 The startup failure names every open decision at once — the setting, what it is
 today, and how to answer it — so one restart clears all of them rather than one per
@@ -22731,7 +22732,7 @@ The set has grown since the first release that carried it, and each growth was a
 this way. The decisions added after the first six (tenant separation, session ownership,
 at-rest content protection, content inspection, request rate limiting and retention) are
 `UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
-`UnverifiedTenantHeader`, `UnlimitedTenantWorkflows` and `UnkeyedAuditChain`; `CHANGELOG.md` gives the reason for
+`UnverifiedTenantHeader`, `UnlimitedTenantWorkflows`, `UnkeyedAuditChain` and `UnauthenticatedLocalOperator`; `CHANGELOG.md` gives the reason for
 each.
 
 Five more exist only for a deployment that declares more than one instance with `Tracon:Deployment:Instances`:

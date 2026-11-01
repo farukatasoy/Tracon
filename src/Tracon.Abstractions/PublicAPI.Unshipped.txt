@@ -3843,6 +3843,7 @@ Tracon.TraconProductionRisk.InstanceLocalMcpTokens = 16 -> Tracon.TraconProducti
 Tracon.TraconProductionRisk.InstanceLocalRateLimit = 15 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.InstanceLocalState = 12 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.SingleTenant = 0 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnauthenticatedLocalOperator = 17 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnboundedRetention = 5 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UncheckedToolCalls = 7 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnelectedBackgroundWork = 14 -> Tracon.TraconProductionRisk

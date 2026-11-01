@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **Behavioural breaking change: `RequireProductionProfile()` asks one more decision, `UnauthenticatedLocalOperator`.** A host that calls it and maps the
+  endpoints with no `AuthToken` and no `RequireAuthorization(...)` policy stops at start until it sets one or accepts the risk by name. With neither, a request
+  that presents no credential is the local operator with full rights. That is right for a caller on the same machine; a reverse proxy that listens on a
+  Unix socket and adds no forwarding header makes every remote caller look local, because a connection of that kind has no remote address, and
+  nginx in its default form is such a proxy. An API key does not answer the decision: a request without one is still admitted. A host that does not call
+  `RequireProductionProfile()` changes nothing. Answer it with `TraconEndpointOptions.AuthToken` or a policy, or `profile.Accept(TraconProductionRisk.UnauthenticatedLocalOperator)`
+  when nothing but the machine can reach the endpoints.
+
 - **Four migrations changed in place, and a database that applied one of them before must be recreated.** `lower()` follows the locale
   of the database, and in a Turkish one `lower('OpenAI')` is `openaı` (dotless i). PostgreSQL `0038` and `0062` and SQL Server `0025`
   and `0050` folded names with it: on such a database `0038` and `0025` rewrote a tenant's provider binding to a name no agent

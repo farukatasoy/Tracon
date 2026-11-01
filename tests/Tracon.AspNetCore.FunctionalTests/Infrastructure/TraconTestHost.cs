@@ -152,7 +152,17 @@ internal sealed class TraconTestHost : IAsyncDisposable
 
         configureApp?.Invoke(app);
 
-        app.MapTracon(prefix, configureEndpoints);
+        var endpointSetups = app.Services.GetServices<TestEndpointOptionsSetup>().ToArray();
+
+        app.MapTracon(prefix, options =>
+        {
+            configureEndpoints?.Invoke(options);
+
+            foreach (var setup in endpointSetups)
+            {
+                setup.Apply(options);
+            }
+        });
         configureAfterMap?.Invoke(app);
 
         if (withOpenApi)

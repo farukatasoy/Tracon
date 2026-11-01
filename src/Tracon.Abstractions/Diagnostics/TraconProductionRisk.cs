@@ -134,4 +134,12 @@ public enum TraconProductionRisk
     /// instance obtained cannot be used. Accept it when no MCP server uses OAuth.
     /// </summary>
     InstanceLocalMcpTokens,
+
+    /// <summary>
+    /// No authentication method is configured (no <c>AuthToken</c>, no authorization policy), so a request that
+    /// presents no credential is treated as the local operator and has full rights. That holds for a caller on this
+    /// machine; a reverse proxy that listens on a Unix socket and adds no forwarding header makes every remote caller
+    /// look local, because such a connection has no remote address.
+    /// </summary>
+    UnauthenticatedLocalOperator,
 }

@@ -87,6 +87,9 @@ public static class TraconEndpointRouteBuilderExtensions
         // being asked a second time. Nothing reads it unless the host called RequireProductionProfile.
         services.GetService<LateProductionProfileChecks>()?.Add(new RolePolicyProfileCheck(roles));
 
+        // And whether an anonymous caller is still the local operator: the endpoint options exist only here.
+        services.GetService<LateProductionProfileChecks>()?.Add(new UnauthenticatedLocalOperatorProfileCheck(options));
+
         // Meta group: no authentication, no filter.
         var metaGroup = endpoints.MapGroup(normalizedPrefix).WithTags("Tracon");
         MetaEndpoints.Map(metaGroup, options, normalizedPrefix, roles);
