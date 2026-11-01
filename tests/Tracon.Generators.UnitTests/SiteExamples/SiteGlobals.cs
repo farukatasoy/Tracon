@@ -1,16 +1,15 @@
 #pragma warning disable IDE1006 // The pages write these names in lower case; a script reads a global by its spelling.
 #pragma warning disable CA1822, CA1024, MA0016
 
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.AspNetCore.Routing;
+using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Agents.AI;
 
 namespace Tracon.Generators.UnitTests.SiteExamples;
 
