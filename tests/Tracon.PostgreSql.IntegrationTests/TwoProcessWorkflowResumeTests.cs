@@ -109,7 +109,16 @@ public sealed class TwoProcessWorkflowResumeTests(PostgresFixture fixture) : IAs
                 $"job {job.Id} to finish",
                 LeaseDuration + WorkDuration + TimeSpan.FromSeconds(90)))!;
 
-            finished.Status.ShouldBe(JobStatus.Completed, finished.ErrorMessage);
+            var failure = finished.ErrorMessage;
+
+            if (finished.Status != JobStatus.Completed)
+            {
+                // The job's own message only says that its items failed; the items say why.
+                var items = await context.Jobs.ListItemsAsync(job.Id);
+                failure += " Items: " + string.Join("; ", items.Select(static item => $"{item.Status} (run {item.RunId}): {item.Error}"));
+            }
+
+            finished.Status.ShouldBe(JobStatus.Completed, failure);
             finished.Attempt.ShouldBe(2);
 
             var firstSteps = Entries(WorkerHarnessContract.FirstStepStage);

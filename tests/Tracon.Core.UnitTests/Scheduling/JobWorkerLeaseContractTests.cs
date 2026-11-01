@@ -1018,6 +1018,7 @@ public sealed class JobWorkerLeaseContractTests
         private readonly TaskCompletionSource _cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _calls;
+        private int _cancellations;
 
         public int Calls => Volatile.Read(ref _calls);
 
@@ -1044,8 +1045,13 @@ public sealed class JobWorkerLeaseContractTests
                 return;
             }
 
-            ReasonWhenCancelled = context.Signals!.Reason;
-            _cancelled.TrySetResult();
+            // The reason of the FIRST cancellation. An expired lease lets the worker take the job again, and
+            // that second call sees the worker stopping; it must not overwrite what the first one saw.
+            if (Interlocked.CompareExchange(ref _cancellations, 1, 0) == 0)
+            {
+                ReasonWhenCancelled = context.Signals!.Reason;
+                _cancelled.TrySetResult();
+            }
 
             if (!returnsNormally)
             {
