@@ -58,6 +58,8 @@ the caller's culture.
 ```csharp
 new AgentDefinition
 {
+    Name = "greeter",
+    Model = new ModelBinding { Provider = "openai", Model = "…" },
     Instructions = "You help {{customer}}. Use a {{tone}} tone.",
     Parameters =
     [
@@ -128,10 +130,10 @@ text at compile time:
 
 ```csharp
 // The block: any definition works, even one nobody runs directly.
-new AgentDefinition { Name = "house-rules", Instructions = "Always cite your source." }
+new AgentDefinition { Name = "house-rules", Model = new ModelBinding { Provider = "openai", Model = "…" }, Instructions = "Always cite your source." }
 
 // The reference:
-new AgentDefinition { Name = "support", SharedInstructionsName = "house-rules", Instructions = "Answer billing questions." }
+new AgentDefinition { Name = "support", Model = new ModelBinding { Provider = "openai", Model = "…" }, SharedInstructionsName = "house-rules", Instructions = "Answer billing questions." }
 ```
 
 Because it is saved through the same store as any other definition, a block gets
@@ -391,6 +393,7 @@ Five rules hold across the tree:
   new AgentDefinition
   {
       Name = "router",
+      Model = new ModelBinding { Provider = "openai", Model = "…" },
       CallableAgents = ["researcher"],
       SubAgents = new SubAgentSettings
       {
@@ -424,6 +427,7 @@ one tool, named after the agent, and one tool call runs the sub-agent and return
 new AgentDefinition
 {
     Name = "router",
+    Model = new ModelBinding { Provider = "openai", Model = "…" },
     CallableAgents = ["support"],
     SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
     // ...
@@ -487,6 +491,7 @@ callee it was tested with, give the entry a version:
 new AgentDefinition
 {
     Name = "writer",
+    Model = new ModelBinding { Provider = "openai", Model = "…" },
     CallableAgents =
     [
         new CallableAgentReference { Name = "researcher", Version = 3 },
@@ -552,6 +557,7 @@ every iteration in the run:
 new AgentDefinition
 {
     Name = "researcher",
+    Model = new ModelBinding { Provider = "openai", Model = "…" },
     Harness = new HarnessSettings
     {
         Loop = new LoopSettings

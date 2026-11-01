@@ -40,6 +40,7 @@ Then name it on the agent:
 tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
+    Model = new ModelBinding { Provider = "openai", Model = "…" },
     // …
     ToolNames = ["get_order_status"],
 });

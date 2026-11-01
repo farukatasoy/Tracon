@@ -1,13 +1,8 @@
 # Hand-written documentation blocks that cannot compile on their own, one per line:
 #   <page>#<digest of the block> | the first error
 # The list only shrinks. See SiteExampleCompilationTests.
-concepts/agents.md#3bb90988 | CS9035: Required member 'AgentDefinition.Name' must be set in the object initializer or attribute constructor.
-concepts/agents.md#6a29728f | CS1002: ; expected
+concepts/agents.md#fafc1511 | CS1002: ; expected
 concepts/agents.md#9d34c136 | CS0246: The type or namespace name 'HousePolicyProvider' could not be found (are you missing a using directive or an assembly reference?)
-concepts/agents.md#3ae8db35 | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
-concepts/agents.md#40923cb3 | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
-concepts/agents.md#09002cad | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
-concepts/agents.md#71b8d5ab | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
 concepts/agents.md#c027304f | CS1002: ; expected
 concepts/agents.md#41b32ee5 | CS0246: The type or namespace name 'ReviewerCriterion' could not be found (are you missing a using directive or an assembly reference?)
 concepts/agents.md#53a5fd0d | CS1002: ; expected
@@ -31,7 +26,6 @@ getting-started/persistence.md#94c67dc9 | CS0103: The name 'yourDataSource' does
 getting-started/security.md#f98594a5 | CS0103: The name 'options' does not exist in the current context
 getting-started/security.md#3fd7ea89 | CS0103: The name 'options' does not exist in the current context
 getting-started/tools.md#b61edd0a | CS1061: 'ITraconBuilder' does not contain a definition for 'AddGeneratedTools' and no accessible extension method 'AddGeneratedTools' accepting a first argument of type 'ITraconBuilder' could be found (are you missing a using directive or an assembly reference?)
-getting-started/tools.md#b464b40e | CS9035: Required member 'AgentDefinition.Model' must be set in the object initializer or attribute constructor.
 getting-started/tools.md#fcb3c47f | CS0103: The name 'GetOrderStatus' does not exist in the current context
 getting-started/tools.md#27af9d47 | CS1109: Extension methods must be defined in a top level static class; ContosoToolsExtensions is a nested class
 getting-started/tools.md#afed6a73 | CS0246: The type or namespace name 'IOrderRepository' could not be found (are you missing a using directive or an assembly reference?)
