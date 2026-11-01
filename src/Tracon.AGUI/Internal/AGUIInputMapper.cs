@@ -58,6 +58,16 @@ internal static class AGUIInputMapper
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        // SQL Server ignores trailing spaces in a key, the other stores do not: a thread named with an edge space would be
+        // one session on one store and another on the next (the same rule as the session id of the run endpoint).
+        if (char.IsWhiteSpace(input.ThreadId[0]) || char.IsWhiteSpace(input.ThreadId[^1]))
+        {
+            return Results.Problem(
+                title: "Thread identity has surrounding whitespace",
+                detail: "'threadId' cannot start or end with whitespace.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         // The protocol SDK's serializer does not reject a null list element, and the mapping below reads every element.
         // The management API refuses a null where its contract has none (RespectNullableAnnotations); so does this.
         foreach (var (name, hasNull) in new (string, bool)[]

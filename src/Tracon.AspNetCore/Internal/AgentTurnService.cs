@@ -73,6 +73,14 @@ internal static class AgentTurnService
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        if (request.SessionId is { } edgeSessionId && SessionIdLimits.HasEdgeWhitespace(edgeSessionId))
+        {
+            return Results.Problem(
+                title: "Session id has surrounding whitespace",
+                detail: "'sessionId' cannot start or end with whitespace.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         if (await RunAuthorizationGate
                 .CheckRunAsync(
                     services.GetService<IRunAuthorizationHandler>(),

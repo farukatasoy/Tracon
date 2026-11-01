@@ -155,6 +155,24 @@ public sealed class AGUIInputMappingTests
     }
 
     [Theory]
+    [InlineData(" thread")]
+    [InlineData("thread ")]
+    [InlineData("thread\t")]
+    public async Task A_thread_id_that_starts_or_ends_with_whitespace_is_a_400(string threadId)
+    {
+        // SQL Server ignores trailing spaces in a key and the other stores do not: the same thread would be two sessions or one.
+        await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
+
+        var response = await host.RunAsync(TestAgents.Echo, AGUIInputs.User(threadId, "hi"));
+
+        response.Status.ShouldBe(HttpStatusCode.BadRequest);
+        response.Problem.GetProperty("title").GetString().ShouldBe("Thread identity has surrounding whitespace");
+
+        var inside = await host.RunAsync(TestAgents.Echo, AGUIInputs.User("th read", "hi"));
+        inside.Status.ShouldBe(HttpStatusCode.OK, "whitespace inside the identity is not at its edge");
+    }
+
+    [Theory]
     [InlineData("{\"runId\":\"r\",\"messages\":[]}", "Thread required")]
     [InlineData("{\"threadId\":\"  \",\"runId\":\"r\",\"messages\":[]}", "Thread required")]
     [InlineData("{ not json", "Invalid request body")]

@@ -240,6 +240,13 @@ internal static class OpenAIResponsesEndpoints
                 $"'conversation' and 'previous_response_id' cannot exceed {SessionIdLimits.MaxLength} characters.");
         }
 
+        if (SessionIdLimits.HasEdgeWhitespace(saveId) || SessionIdLimits.HasEdgeWhitespace(loadId))
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status400BadRequest,
+                "'conversation' and 'previous_response_id' cannot start or end with whitespace.");
+        }
+
         // The attribution is checked before the run starts, as on the
         // agent run endpoint; this protocol's own error shape carries it.
         if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
