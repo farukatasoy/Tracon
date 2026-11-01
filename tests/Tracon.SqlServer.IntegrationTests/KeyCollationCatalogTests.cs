@@ -136,6 +136,26 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             .ShouldBeEmpty("one identity, one collation: every column of a session id compares ordinally");
     }
 
+    [Fact]
+    public async Task Every_column_that_names_a_request_or_a_parent_or_a_checkpoint_compares_ordinally()
+    {
+        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+
+        // Those columns carry an id that another column carries too (the parent of a checkpoint is the checkpoint_id of an
+        // earlier row), and no index makes them a key, so the test above never meets them. A comparison of the two stops with
+        // "Cannot resolve the collation conflict" the day somebody writes one.
+        var columns = await ColumnsAsync(
+            context,
+            "c.name IN (N'request_id', N'parent_id', N'checkpoint_id') AND c.collation_name IS NOT NULL");
+
+        columns.Count.ShouldBeGreaterThan(2, "the query has to find the columns it guards");
+        columns
+            .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
+            .Select(static column => $"{column.Name} ({column.Collation})")
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty("one identity, one collation: every column of a request, parent or checkpoint id compares ordinally");
+    }
+
     private static bool IsTenantId(KeyColumn key)
         => key.Name.EndsWith(".tenant_id", StringComparison.Ordinal);
 

@@ -16,15 +16,20 @@
 -- comparison itself ignores the case difference it is meant to find -- so the
 -- UPDATE would silently match no rows. A binary collation compares the actual
 -- characters.
+--
+-- 🚨 The same collation goes INSIDE every LOWER(). LOWER follows the collation of its argument, and in
+-- a Turkish database (Turkish_CI_AS) LOWER(N'OpenAI') is N'openaı' (dotless i): a name no agent
+-- definition says and no egress policy allows, written over the value the administrator saved.
+-- BIN2 folds the ASCII letters and nothing else.
 
 ;WITH duplicates AS (
     SELECT ROW_NUMBER() OVER (
-               PARTITION BY tenant_id, LOWER(provider_name)
+               PARTITION BY tenant_id, LOWER(provider_name COLLATE Latin1_General_BIN2)
                ORDER BY updated_at DESC, provider_name DESC) AS rank
       FROM {schema}.tenant_provider_bindings)
 DELETE FROM duplicates WHERE rank > 1;
 
 UPDATE {schema}.tenant_provider_bindings
-   SET provider_name = LOWER(provider_name)
+   SET provider_name = LOWER(provider_name COLLATE Latin1_General_BIN2)
  WHERE provider_name COLLATE Latin1_General_BIN2
-    <> LOWER(provider_name) COLLATE Latin1_General_BIN2;
+    <> LOWER(provider_name COLLATE Latin1_General_BIN2);

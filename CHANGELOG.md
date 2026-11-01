@@ -8,14 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **Four migrations changed in place, and a database that applied one of them before must be recreated.** `lower()` follows the locale
+  of the database, and in a Turkish one `lower('OpenAI')` is `openaı` (dotless i). PostgreSQL `0038` and `0062` and SQL Server `0025`
+  and `0050` folded names with it: on such a database `0038` and `0025` rewrote a tenant's provider binding to a name no agent
+  definition says (the tenant's own key then went unused without an error) and `0062` did not find a header written as `AUTHORIZATION`.
+  They now fold with the ASCII rules (`COLLATE "C"`, `COLLATE Latin1_General_BIN2`), whatever the database. A migration changes the
+  checksum the database recorded, so a database that applied one before fails the check at start. This is a release candidate
+  cost taken before `1.0.0-rc.1`, as `0059` was; a database created by this release is not affected. A new test reads every
+  migration and refuses a `lower()` or `upper()` without an ordinal collation.
+
 - **On SQL Server, the identifiers a client chooses are compared by their characters, letter case included. `Session-A` and `session-a` are two sessions,
   as they already were on PostgreSQL and SQLite.** SQL Server compared them by the collation of the database, and its default ignores
   case, so a second spelling replaced the first one's row without a sign (an upsert) and a read by either spelling returned the
   other's content. Migration `0059_ordinal_key_collation` gives `Latin1_General_BIN2` to the session id (`sessions.id` and the
   `session_id` of runs, attachments, pending approvals, responses, voice sessions and workflow checkpoints, requests and responses),
-  the idempotency key, the agent file path, the workflow checkpoint, request and claim ids, a run score's author, message id and name,
-  and the rate-limit partition key. No value changes and no row is merged: ids that were distinct stay distinct. SQL Server still
-  ignores trailing spaces in every collation, so `abc` and `abc ` remain one key there; the other stores keep them apart.
+  the idempotency key, the agent file path, the workflow checkpoint (its `checkpoint_id` and `parent_id`), request and claim ids
+  (including the request id of a pending approval), a run score's author, message id and name, and the rate-limit partition key. No value
+  changes and no row is merged: ids that were distinct stay distinct. SQL Server still ignores trailing spaces in every collation, so
+  `abc` and `abc ` remain one key there while the other stores keep them apart; to make the stores agree, the run endpoint, `/v1/responses`
+  and the AG-UI endpoint answer `400` to a session id that starts or ends with whitespace.
   What to do:
   - **Plan the upgrade window.** The migration is one command in one transaction that rebuilds the keys of 13 tables. While it
     runs those tables are closed to reads and writes, and they stay closed until the whole migration commits. Measured in an emulated

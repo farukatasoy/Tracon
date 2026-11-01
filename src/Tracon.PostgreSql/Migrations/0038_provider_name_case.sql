@@ -15,6 +15,11 @@
 -- value that is already lower-case is a no-op, which makes this safe to
 -- re-run.
 --
+-- 🚨 `COLLATE "C"` is load-bearing. `lower()` follows the locale of the database, and in a Turkish one
+-- `lower('OpenAI')` is `openaı` (dotless i): a name that no agent definition says and no egress policy
+-- allows, written over the value the administrator saved. "C" folds the ASCII letters and nothing else,
+-- on every database.
+--
 -- The DELETE ahead of the UPDATE resolves the only case the primary key
 -- cannot: PostgreSQL allowed BOTH "OpenAI" and "openai" to exist as separate
 -- rows, and lower-casing them would collide. The most recently written row of
@@ -24,9 +29,9 @@
 DELETE FROM {schema}.tenant_provider_bindings a
       USING {schema}.tenant_provider_bindings b
       WHERE a.tenant_id = b.tenant_id
-        AND lower(a.provider_name) = lower(b.provider_name)
+        AND lower(a.provider_name COLLATE "C") = lower(b.provider_name COLLATE "C")
         AND (a.updated_at, a.provider_name) < (b.updated_at, b.provider_name);
 
 UPDATE {schema}.tenant_provider_bindings
-   SET provider_name = lower(provider_name)
- WHERE provider_name <> lower(provider_name);
+   SET provider_name = lower(provider_name COLLATE "C")
+ WHERE provider_name COLLATE "C" <> lower(provider_name COLLATE "C");

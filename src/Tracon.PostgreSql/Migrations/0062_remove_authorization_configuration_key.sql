@@ -26,6 +26,6 @@ UPDATE {schema}.mcp_servers
    AND NOT EXISTS (
         SELECT 1
           FROM jsonb_object_keys(header_configuration_keys) AS existing_key
-         WHERE lower(existing_key) = 'authorization');
+         WHERE lower(existing_key COLLATE "C") = 'authorization');
 
 ALTER TABLE {schema}.mcp_servers DROP COLUMN IF EXISTS authorization_configuration_key;
