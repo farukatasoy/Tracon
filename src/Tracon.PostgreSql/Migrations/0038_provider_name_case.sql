@@ -16,7 +16,7 @@
 -- re-run.
 --
 -- 🚨 `COLLATE "C"` is load-bearing. `lower()` follows the locale of the database, and in a Turkish one
--- `lower('OpenAI')` is `openaı` (dotless i): a name that no agent definition says and no egress policy
+-- `lower('OpenAI')` ends in a dotless i (U+0131) instead of the i of `openai`: a name that no agent definition says and no egress policy
 -- allows, written over the value the administrator saved. "C" folds the ASCII letters and nothing else,
 -- on every database.
 --

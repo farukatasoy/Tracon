@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   when nothing but the machine can reach the endpoints.
 
 - **Four migrations changed in place, and a database that applied one of them before must be recreated.** `lower()` follows the locale
-  of the database, and in a Turkish one `lower('OpenAI')` is `openaı` (dotless i). PostgreSQL `0038` and `0062` and SQL Server `0025`
+  of the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131) instead of the i of `openai`. PostgreSQL `0038` and `0062` and SQL Server `0025`
   and `0050` folded names with it: on such a database `0038` and `0025` rewrote a tenant's provider binding to a name no agent
   definition says (the tenant's own key then went unused without an error) and `0062` did not find a header written as `AUTHORIZATION`.
   They now fold with the ASCII rules (`COLLATE "C"`, `COLLATE Latin1_General_BIN2`), whatever the database. A migration changes the

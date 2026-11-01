@@ -73,6 +73,16 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 $"must be between 0 and 1048576. Actual value: {recording.MaxPayloadLength}.");
         }
 
+        else if (recording.SinkTimeout != Timeout.InfiniteTimeSpan
+            && recording.SinkTimeout != TimeSpan.Zero
+            && !TimerPeriod.IsValid(recording.SinkTimeout))
+        {
+            // Zero and Timeout.InfiniteTimeSpan mean "wait for ever"; anything else arms a timer.
+            (failures ??= []).Add(TimerPeriod.Failure(
+                $"{nameof(TraconRunRecordingOptions)}.{nameof(TraconRunRecordingOptions.SinkTimeout)}",
+                recording.SinkTimeout));
+        }
+
         var deployment = options.Deployment;
 
         if (deployment is null)

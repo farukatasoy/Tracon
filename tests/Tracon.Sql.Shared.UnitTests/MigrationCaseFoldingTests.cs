@@ -8,9 +8,9 @@ namespace Tracon.SqlProviders.Tests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>lower('I')</c> is <c>i</c> in most databases and <c>ı</c> (dotless) in a database whose locale is Turkish.
+/// <c>lower('I')</c> is <c>i</c> in most databases and the dotless i (U+0131) in a database whose locale is Turkish.
 /// A migration that rewrites a value with it, or looks one up with it, then does something else on a Turkish
-/// database than anywhere else: <c>OpenAI</c> became <c>openaı</c>, and <c>AUTHORIZATION</c> was no longer found by
+/// database than anywhere else: <c>OpenAI</c> ended in a dotless i, and <c>AUTHORIZATION</c> was no longer found by
 /// <c>lower(key) = 'authorization'</c>. Every other test of this repository runs on a database that is not Turkish,
 /// so none of them can see it; this one reads the files.
 /// </para>
@@ -48,7 +48,7 @@ public sealed class MigrationCaseFoldingTests
         seen.ShouldBeGreaterThan(0, "the scan found no lower() or upper() at all, so it would pass on nothing");
 
         offenders.ShouldBeEmpty(
-            "lower() and upper() follow the locale of the database: on a Turkish database 'I' becomes 'ı'. " +
+            "lower() and upper() follow the locale of the database: on a Turkish database 'I' becomes the dotless i (U+0131). " +
             "Write COLLATE \"C\" (PostgreSQL) or COLLATE Latin1_General_BIN2 (SQL Server) inside the call");
     }
 

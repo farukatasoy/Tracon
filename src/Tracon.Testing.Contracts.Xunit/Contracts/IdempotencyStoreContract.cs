@@ -166,6 +166,21 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
             .State.ShouldBe(IdempotencyState.InProgress);
     }
 
+    /// <summary>
+    /// A consumer that wants no takeover can pass the largest time span there is. Subtracting it from a date would run off
+    /// the range of a date, so a store has to answer "in progress" for it rather than throw.
+    /// </summary>
+    [Fact]
+    public async Task A_timeout_longer_than_any_reservation_has_been_alive_takes_nothing_over_and_does_not_throw()
+    {
+        var first = Request(Tenant, Key());
+
+        await Store.ReserveAsync(first);
+
+        (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromDays(30), TimeSpan.MaxValue)))
+            .State.ShouldBe(IdempotencyState.InProgress);
+    }
+
     [Fact]
     public async Task A_completed_key_is_never_taken_over_however_old_it_is()
     {

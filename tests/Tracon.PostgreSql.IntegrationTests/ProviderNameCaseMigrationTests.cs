@@ -9,7 +9,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <remarks>
 /// <para>
 /// Rows are written under the schema before the migration and read back after it. On a database whose locale is Turkish
-/// (<c>TRACON_TEST_POSTGRES_ICU_LOCALE=tr-TR</c>) <c>lower('OpenAI')</c> is <c>openaı</c>, which no agent definition
+/// (<c>TRACON_TEST_POSTGRES_ICU_LOCALE=tr-TR</c>) <c>lower('OpenAI')</c> ends in a dotless i (U+0131) instead of the i of <c>openai</c>, a name no agent definition
 /// names and no egress policy allows; the binding of the tenant then goes unused without an error. Under any other
 /// locale this test passes before and after the fix, which is why the migration text is guarded separately by
 /// <c>MigrationCaseFoldingTests</c>.
@@ -51,7 +51,7 @@ public sealed class ProviderNameCaseMigrationTests(PostgresFixture fixture)
                 .ShouldBe(1, $"{tenant}/{name} should hold {key}");
         }
 
-        (await CountAsync(context, schemaName, "provider_name COLLATE \"C\" LIKE '%ı%'"))
+        (await CountAsync(context, schemaName, "provider_name COLLATE \"C\" LIKE '%' || chr(305) || '%'"))
             .ShouldBe(0, "no name may contain the dotless i a Turkish lower() writes");
     }
 

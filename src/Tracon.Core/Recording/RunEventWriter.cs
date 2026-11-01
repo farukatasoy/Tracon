@@ -490,7 +490,7 @@ public sealed class RunEventWriter
 
     /// <summary>Hands one event to one sink and waits for it no longer than <see cref="TraconRunRecordingOptions.SinkTimeout"/>.</summary>
     /// <remarks>
-    /// 🚨 The sink is called while the writer holds the append gate of the run, so a sink that never returns holds every
+    /// The sink is called while the writer holds the append gate of the run, so a sink that never returns holds every
     /// later event of the run. A sink that is late is dropped like one that throws, and its call is left to finish on its
     /// own: the sink gets the caller's token, not one of ours, because a source of ours that is disposed while the
     /// abandoned call still reads its token is the bug of every abandoned wait. What the abandoned call ends with is

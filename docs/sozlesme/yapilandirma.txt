@@ -44,6 +44,7 @@ Tracon:Health:BackgroundInterval
 Tracon:Health:CacheTtl
 Tracon:Idempotency:Enabled
 Tracon:Idempotency:MaxKeyLength
+Tracon:Idempotency:ReservationTimeout
 Tracon:Images:Enabled
 Tracon:Images:MaxImagesPerRequest
 Tracon:Images:Model
@@ -261,6 +262,7 @@ Tracon:RunRecording:RecordMessageDeltas
 Tracon:RunRecording:RecordReasoningDeltas
 Tracon:RunRecording:RecordRunInput
 Tracon:RunRecording:RecordToolPayloads
+Tracon:RunRecording:SinkTimeout
 Tracon:Scheduling:Enabled
 Tracon:Scheduling:HttpSchedulableHandlerKeys:*
 Tracon:Scheduling:LaneByHandlerKey:*

@@ -61,8 +61,8 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
             // first request that finds it old enough. The row does the choosing: of several requests that race for it, one
             // changes it and the others find it newer than their cutoff.
             if (request.ReservationTimeout is { } timeout
-                && timeout > TimeSpan.Zero
-                && await TakeOverAsync(request, timeout, cancellationToken).ConfigureAwait(false))
+                && TryGetCutoff(request.CreatedAt, timeout, out var cutoff)
+                && await TakeOverAsync(request, cutoff, cancellationToken).ConfigureAwait(false))
             {
                 return new IdempotencyReservation { State = IdempotencyState.Reserved };
             }
@@ -119,14 +119,33 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
-    private async ValueTask<bool> TakeOverAsync(IdempotencyRequest request, TimeSpan timeout, CancellationToken cancellationToken)
+    /// <summary>
+    /// The time a reservation has to be at or before to be taken over. A timeout that is zero, negative, or longer than the
+    /// time since the Unix epoch takes nothing over: no reservation is older than that, and subtracting it would run off the
+    /// range of a <see cref="DateTimeOffset"/> (a consumer can pass <see cref="TimeSpan.MaxValue"/> to mean "never").
+    /// </summary>
+    private static bool TryGetCutoff(DateTimeOffset now, TimeSpan timeout, out DateTimeOffset cutoff)
+    {
+        cutoff = default;
+
+        if (timeout <= TimeSpan.Zero || timeout >= now - DateTimeOffset.UnixEpoch)
+        {
+            return false;
+        }
+
+        cutoff = now - timeout;
+
+        return true;
+    }
+
+    private async ValueTask<bool> TakeOverAsync(IdempotencyRequest request, DateTimeOffset cutoff, CancellationToken cancellationToken)
     {
         var command = CreateCommand(_sql.TakeOverIdempotencyKey);
         DbHelpers.AddTenant(command, request.TenantId);
         DbHelpers.Add(command, "key", request.Key);
         Dialect.AddText(command, "fingerprint", request.Fingerprint);
         Dialect.AddTimestamp(command, "created_at", request.CreatedAt);
-        Dialect.AddTimestamp(command, "cutoff", request.CreatedAt - timeout);
+        Dialect.AddTimestamp(command, "cutoff", cutoff);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) == 1;
     }

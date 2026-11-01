@@ -18,7 +18,7 @@
 -- characters.
 --
 -- 🚨 The same collation goes INSIDE every LOWER(). LOWER follows the collation of its argument, and in
--- a Turkish database (Turkish_CI_AS) LOWER(N'OpenAI') is N'openaı' (dotless i): a name no agent
+-- a Turkish database (Turkish_CI_AS) LOWER(N'OpenAI') ends in a dotless i (U+0131) instead of the i of 'openai': a name no agent
 -- definition says and no egress policy allows, written over the value the administrator saved.
 -- BIN2 folds the ASCII letters and nothing else.
 

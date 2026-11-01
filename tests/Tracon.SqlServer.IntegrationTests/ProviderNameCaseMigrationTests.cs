@@ -10,7 +10,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// <para>
 /// Rows are written under the schema before the migration and read back after it. Under a Turkish collation
 /// (<c>TRACON_TEST_SQLSERVER_COLLATION=Turkish_CI_AS</c> with <c>TRACON_TEST_SQLSERVER_LCID=1055</c>) <c>LOWER(N'OpenAI')</c>
-/// is <c>openaı</c>, which no agent definition names and no egress policy allows. Under any other collation this test
+/// ends in a dotless i (U+0131) instead of the i of <c>openai</c>, a name no agent definition names and no egress policy allows. Under any other collation this test
 /// passes before and after the fix, which is why the migration text is guarded separately by
 /// <c>MigrationCaseFoldingTests</c>.
 /// </para>

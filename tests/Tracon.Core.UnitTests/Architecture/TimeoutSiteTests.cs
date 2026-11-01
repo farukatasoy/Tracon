@@ -52,6 +52,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Providers.Shared/ProviderHealthCheckCore.cs"] = "provider Timeout — the four provider validators (HTTP range, ProviderTimeoutValidationTests)",
         ["src/Tracon.Workflows/Internal/WorkflowRunner.cs"] = "TraconWorkflowOptions.RunTimeout / WorkflowDefinition.RunTimeout — TraconWorkflowOptionsValidator, WorkflowDefinitionValidator (save and compile), ceiling cut",
         ["src/Tracon.AspNetCore/Streaming/SseWriter.cs"] = "TraconEndpointOptions.StreamKeepAliveInterval — the property setter (TimerPeriod.IsValid); the delay is the part of it still to wait",
+        ["src/Tracon.Core/Recording/RunEventWriter.cs"] = "TraconRunRecordingOptions.SinkTimeout — TraconOptionsValidator (zero and Timeout.InfiniteTimeSpan wait for ever, anything else TimerPeriod.IsValid); the closing write's pause is the constant 250 ms CompletionRetryPause",
         ["src/Tracon.Core/Scheduling/JobOutcomeWriteRetry.cs"] = "constant 5 s ceiling (MaxDelay), cut to the lease window left",
         ["src/Tracon.Core/Scheduling/QueuedTurn.cs"] = "constant 5 s ceiling (RetryMaxDelay), cut to the lease window left",
         ["src/Tracon.Core/Tools/TimeoutAIFunction.cs"] = "per-tool timeout — constructor guard (TimerPeriod.IsValid)",

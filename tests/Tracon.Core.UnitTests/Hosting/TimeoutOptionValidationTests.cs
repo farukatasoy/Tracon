@@ -40,6 +40,26 @@ public sealed class TimeoutOptionValidationTests
     public void Approval_presentation_timeout_is_checked_at_startup(string value)
         => ShouldFailAtStartup("ApprovalPresentationTimeout", ("Tracon:Tools:ApprovalPresentationTimeout", value));
 
+    /// <summary>
+    /// The run event sink timeout is the one timeout here for which zero and "infinite" are meaningful: both wait for ever,
+    /// which is how a sink was always waited for. Anything else arms a timer and has to be one the timer takes.
+    /// </summary>
+    [Theory]
+    [InlineData("-00:00:02")]
+    [InlineData("-00:00:00.002")]
+    [InlineData("50.00:00:00")]
+    public void Run_event_sink_timeout_is_checked_at_startup(string value)
+        => ShouldFailAtStartup("SinkTimeout", ("Tracon:RunRecording:SinkTimeout", value));
+
+    [Theory]
+    [InlineData("00:00:00")]
+    [InlineData("-00:00:00.001")]
+    [InlineData("00:00:00.0010")]
+    [InlineData("00:00:30")]
+    [InlineData("49.00:00:00")]
+    public void Run_event_sink_timeout_starts_for_every_value_that_means_something(string value)
+        => ShouldStart(("Tracon:RunRecording:SinkTimeout", value));
+
     [Theory]
     [MemberData(nameof(RejectedTimeouts))]
     public void Validation_mcp_timeout_is_checked_at_startup(string value)

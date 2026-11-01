@@ -252,6 +252,7 @@ Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_of_anoth
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_older_than_the_timeout_is_taken_over_by_the_next_request() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_younger_than_the_timeout_is_still_in_progress() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_taken_over_reservation_belongs_to_the_taker_with_its_own_fingerprint() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_timeout_longer_than_any_reservation_has_been_alive_takes_nothing_over_and_does_not_throw() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_also_returns_the_stored_HTTP_headers() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_returns_an_empty_dictionary_when_there_are_NO_headers() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_returns_the_stored_response_with_the_same_fingerprint() -> System.Threading.Tasks.Task!

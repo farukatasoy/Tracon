@@ -40,7 +40,7 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
             if (existing.State == IdempotencyState.Reserved
                 && request.ReservationTimeout is { } timeout
                 && timeout > TimeSpan.Zero
-                && existing.CreatedAt <= request.CreatedAt - timeout)
+                && request.CreatedAt - existing.CreatedAt >= timeout)
             {
                 existing.Fingerprint = request.Fingerprint;
                 existing.CreatedAt = request.CreatedAt;
