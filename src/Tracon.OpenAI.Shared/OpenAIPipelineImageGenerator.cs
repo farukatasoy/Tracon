@@ -278,7 +278,7 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
     }
 
     private static long? Count(JsonElement element, string name)
-        => element.TryGetProperty(name, out var value) && value.TryGetInt64(out var count) ? count : null;
+        => element.TryGetProperty(name, out var value) && value.TryGetInt64(out var count) && count >= 0 ? count : null;
 
     private static string? Size(ImageGenerationOptions? options)
         => options?.ImageSize is { } size

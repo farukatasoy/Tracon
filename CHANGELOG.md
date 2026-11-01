@@ -647,6 +647,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   refused call is told to retry at) was computed from the offset after the change and came out an hour early: still inside the
   old date. The instant is now checked against the zone's own conversion, the one the counter's date key uses. What a call is
   counted against was not affected; only the reported end of the period.
+- **A token count below zero from a model provider is dropped, not priced.** A provider, a proxy in front of one, or a compatible server of
+  your own can report `-5` prompt tokens. The count was recorded as it came, and a price times a negative count is a negative cost,
+  which the quota, the budget and the cost total read as money handed back. It is now treated as not reported, the same state a provider
+  that sends no usage leaves; the embedding usage of a knowledge search and the token counts of an image generation ignore a negative
+  count too.
 - **A request without a JSON `Content-Type` answers `415`, not an empty `500`.** Thirty-three operations read their body by hand and let
   the framework's "not a known JSON content type" exception out, so `curl -X POST .../api/agents` with no body at all, or with
   `Content-Type: text/plain`, was a `500` that named nothing. They now answer the `415` that the definition import and the AG-UI

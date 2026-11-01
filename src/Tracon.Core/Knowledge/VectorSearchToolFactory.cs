@@ -71,7 +71,7 @@ internal static class VectorSearchToolFactory
             // The provider's own count of the query it embedded, with no cost. The embedding has no price
             // identity yet, so nothing here reaches the budget, the quota or the webhook total, which add
             // only an amount. The line is for the reader of the run record.
-            if (generated.Usage?.InputTokenCount is { } inputTokens)
+            if (generated.Usage?.InputTokenCount is { } inputTokens and >= 0)
             {
                 TraconToolUsage.Report(new ToolCallUsage
                 {

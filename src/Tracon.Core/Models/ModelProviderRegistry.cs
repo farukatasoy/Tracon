@@ -460,6 +460,10 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // bug thrown by a Tracon guard, cache, or attachment wrapper.
         chatClient = new ProviderFailureTaggingChatClient(chatClient);
 
+        // A token count below zero is not a measurement. Dropped here, right above the wire, so the limiter, the guard,
+        // the cache and every usage tracker above see the same counts and none of them prices a negative one.
+        chatClient = new UsageSanitizingChatClient(chatClient);
+
         // The concurrency limiter sits closest to the wire: it must see every
         // REAL network call, including every turn of the tool-call loop, not
         // just one call per agent turn — the same "does it need every call?"

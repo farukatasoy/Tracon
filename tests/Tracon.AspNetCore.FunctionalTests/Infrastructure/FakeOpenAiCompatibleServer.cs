@@ -92,6 +92,13 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     public bool ChatCompletionErrorHasOpenAiBody { get; set; }
 
     /// <summary>
+    /// Answers a <c>/v1/chat/completions</c> request itself, in whatever way a test needs: a status, a stream cut
+    /// short, a body that is not JSON. The request is already counted and its body kept; the handler writes the
+    /// response and the route does nothing more. Unset, the route answers as before.
+    /// </summary>
+    public Func<HttpContext, int, Task>? ChatCompletionOverride { get; set; }
+
+    /// <summary>
     /// The HTTP status code to return from <c>/v1/models</c>. Defaults to 200.
     /// </summary>
     public int ModelsStatusCode { get; set; } = StatusCodes.Status200OK;
@@ -121,6 +128,13 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
             server.ChatCompletionBodies.Add(await ReadBodyAsync(context).ConfigureAwait(false));
             server.ReceivedAuthorizationHeaders.Add(
                 context.Request.Headers.Authorization is { Count: > 0 } values ? values.ToString() : null);
+
+            if (server.ChatCompletionOverride is { } custom)
+            {
+                await custom(context, server.ChatCompletionCallCount).ConfigureAwait(false);
+
+                return Results.Empty;
+            }
 
             if (server.ChatCompletionStatusCode != StatusCodes.Status200OK)
             {
