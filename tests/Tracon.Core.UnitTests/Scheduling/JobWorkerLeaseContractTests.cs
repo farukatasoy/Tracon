@@ -403,13 +403,18 @@ public sealed class JobWorkerLeaseContractTests
     [Fact]
     public async Task A_transient_store_error_in_renewal_does_not_lose_the_lease()
     {
-        var jobs = new LeaseLossJobStore { Renewal = RenewalAnswer.ThrowOnce };
+        // 🚨 The clock is never advanced. The renewal timer still ticks in real time (a TimeProvider that does not
+        // override CreateTimer uses the system timer), but the time a lease may go unproven is read from this clock.
+        // On the real clock the margin was one renewal interval, 300 ms: a tick that a loaded machine delayed by that
+        // much made the worker drop a healthy lease, the renewals stopped at one, and the wait below ran out its 30 s.
+        var clock = new ManualTimeProvider();
+        var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.ThrowOnce };
         var handler = new StopsWhenCancelledHandler();
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
 
-        var jobId = await EnqueueAsync(jobs, maxAttempts: 1, DateTimeOffset.UtcNow);
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 1, clock.GetUtcNow());
 
-        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(900));
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(900), clock);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
         await handler.Started.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
@@ -934,7 +939,7 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     /// <summary>Counts the worker's lease-bound calls and answers its renewals, and optionally its writes, as a store that lost the lease would.</summary>
-    private sealed class LeaseLossJobStore : DelegatingJobStore
+    private sealed class LeaseLossJobStore(TimeProvider? clock = null) : DelegatingJobStore(clock)
     {
         private int _renewCalls;
         private int _refusedRenewals;
