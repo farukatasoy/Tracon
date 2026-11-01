@@ -131,7 +131,7 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
 
             if (result is null)
             {
-                await Task.Delay(Timeout.Infinite, _stop.Token);
+                await Task.Delay(Timeout.Infinite, _stop.Token); // delay: simulated
 
                 return;
             }
