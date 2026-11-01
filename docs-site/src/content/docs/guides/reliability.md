@@ -164,7 +164,9 @@ conversation state itself is not carried over. A tool call that already
 completed on an earlier link is not run a second time, though: every link in
 the chain shares one ledger for the turn, so if the fallback model asks the
 same question again, it gets the already-computed answer instead of running
-the tool's body a second time. This matters for a tool with a real side effect
+the tool's body a second time. The same question means the same tool with the
+same argument names and values, in any order; a different value, or the same
+number written another way, is a new question and runs. This matters for a tool with a real side effect
 (charging a payment, sending a webhook, deleting a record) — without it, a
 provider outage that happens right after such a tool call would silently run
 it twice. A read-only tool call is answered from the ledger the same way; the

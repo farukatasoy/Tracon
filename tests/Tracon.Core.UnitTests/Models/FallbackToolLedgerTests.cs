@@ -183,6 +183,38 @@ public sealed class FallbackToolLedgerTests
     }
 
     [Fact]
+    public async Task Fallback_reuses_a_tool_call_whose_arguments_arrive_in_another_order()
+    {
+        // The fallback model is another model: it lists the arguments of the same
+        // call in its own order. The charge ran on the primary link and must not run again.
+        var charges = 0;
+        var charge = AIFunctionFactory.Create(
+            (string customer, int amount) =>
+            {
+                charges++;
+
+                return $"{customer}:{amount}";
+            },
+            "charge");
+
+        var primaryArgs = new AIFunctionArguments(StringComparer.Ordinal) { ["customer"] = "acme", ["amount"] = 10 };
+        var fallbackArgs = new AIFunctionArguments(StringComparer.Ordinal) { ["amount"] = 10, ["customer"] = "acme" };
+
+        var primary = new ToolCallingChatClient([("charge", primaryArgs)], failAfterCalls: true);
+        var fallback = new ToolCallingChatClient([("charge", fallbackArgs)], failAfterCalls: false);
+
+        var client = new FallbackChatClient(
+            Binding("primary", "fallback"),
+            primary,
+            (_, _) => new ValueTask<IChatClient>(fallback));
+
+        var response = await client.GetResponseAsync(Messages, new ChatOptions { Tools = [charge] }, TestContext.Current.CancellationToken);
+
+        response.Text.ShouldContain("acme:10", Case.Sensitive);
+        charges.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task A_primary_that_never_falls_back_still_runs_a_repeated_identical_call_twice()
     {
         // Regression (found by independent audit): the primary link (index 0)

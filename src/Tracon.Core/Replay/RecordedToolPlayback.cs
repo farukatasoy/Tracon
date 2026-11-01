@@ -28,7 +28,10 @@ namespace Tracon;
 /// <see cref="FallbackChatClient"/> shares one ledger across every link of a
 /// fallback chain — the first link to actually run a tool records it, and
 /// the next link to ask the same question is answered from here instead of
-/// running the tool's body a second time.
+/// running the tool's body a second time. Such a ledger starts empty and only
+/// ever holds calls written by this process, so it compares the arguments by
+/// name and value in any order: two models rarely list the arguments of the
+/// same call in the same order, and a charge must not run twice for that.
 /// </para>
 /// <para>
 /// <strong>A wrapper never reads back its own write.</strong> Each call to
@@ -245,16 +248,31 @@ internal sealed class RecordedToolPlayback
     /// <summary>
     /// Converts the call arguments to the format used when they were recorded.
     /// </summary>
+    /// <param name="arguments">The call's arguments.</param>
+    /// <param name="anyOrder">
+    /// Whether to sort the arguments by name first. Only a ledger that holds no recorded
+    /// calls may: a recorded call's text keeps the order it was written in.
+    /// </param>
+    /// <returns>The text, or <see langword="null"/> when the call has no arguments.</returns>
     /// <remarks>
-    /// The format MUST be <strong>identical</strong> to
+    /// Unsorted, the format MUST be <strong>identical</strong> to
     /// <c>RunRecordingAgent.FormatArguments</c>; otherwise no call matches
     /// and every replay stops with <c>422</c>. Both places use manual,
     /// reflection-free formatting (AOT).
     /// </remarks>
-    private static string? FormatArguments(AIFunctionArguments arguments)
-        => arguments.Count == 0
-            ? null
-            : string.Join(", ", arguments.Select(static pair => $"{pair.Key}={pair.Value}"));
+    private static string? FormatArguments(AIFunctionArguments arguments, bool anyOrder)
+    {
+        if (arguments.Count == 0)
+        {
+            return null;
+        }
+
+        IEnumerable<KeyValuePair<string, object?>> pairs = anyOrder
+            ? arguments.OrderBy(static pair => pair.Key, StringComparer.Ordinal)
+            : arguments;
+
+        return string.Join(", ", pairs.Select(static pair => $"{pair.Key}={pair.Value}"));
+    }
 
     /// <summary>A player that never runs the wrapped tool's body.</summary>
     /// <remarks>
@@ -270,7 +288,7 @@ internal sealed class RecordedToolPlayback
         {
             ArgumentNullException.ThrowIfNull(arguments);
 
-            var formatted = FormatArguments(arguments);
+            var formatted = FormatArguments(arguments, anyOrder: playback._recordLiveCalls);
             var record = playback.Take(Name, formatted, asker: this);
 
             if (record is null)
