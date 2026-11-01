@@ -2515,6 +2515,24 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         withChildren.Select(static run => run.Id).ShouldBe([rootId, childId], ignoreOrder: true);
     }
 
+    /// <summary>
+    /// The session id on a run is the caller's: runs of ids that differ only in letter case belong to two
+    /// sessions. A store that folds case answers a query for one with the runs of both.
+    /// </summary>
+    [Fact]
+    public async Task Runs_of_session_ids_that_differ_only_in_case_are_listed_apart()
+    {
+        var upperRun = TraconId.NewId();
+        var lowerRun = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(upperRun) with { SessionId = "Session-A" });
+        await Store.StartRunAsync(TestData.Run(lowerRun) with { SessionId = "session-a" });
+
+        (await Store.QueryRunsAsync(new RunQuery { SessionId = "Session-A" })).ShouldHaveSingleItem().Id.ShouldBe(upperRun);
+        (await Store.QueryRunsAsync(new RunQuery { SessionId = "session-a" })).ShouldHaveSingleItem().Id.ShouldBe(lowerRun);
+        (await Store.QueryRunsAsync(new RunQuery { SessionId = "SESSION-A" })).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task Parent_filter_overrides_root_filter()
     {

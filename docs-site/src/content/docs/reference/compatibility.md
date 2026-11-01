@@ -109,7 +109,7 @@ tests. The registration and provider-specific configuration still change.
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
-| Identifiers a client chooses (session id, idempotency key, file path, checkpoint id, score author) | Exact | Exact | Exact: those columns use `Latin1_General_BIN2` whatever the collation of the database | Exact |
+| Identifiers a client chooses (session id, idempotency key, file path, checkpoint id, score author) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. Trailing spaces do not count (`abc` and `abc ` are one key) | Exact |
 | ORM | None | None | None | None |
 | AOT promise | Yes through Core | Yes | No promise | No |
 

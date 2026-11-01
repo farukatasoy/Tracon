@@ -8,24 +8,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
-- **On SQL Server, the identifiers a client chooses compare exactly, letter case included. `Session-A` and `session-a` are two sessions,
+- **On SQL Server, the identifiers a client chooses are compared by their characters, letter case included. `Session-A` and `session-a` are two sessions,
   as they already were on PostgreSQL and SQLite.** SQL Server compared them by the collation of the database, and its default ignores
   case, so a second spelling replaced the first one's row without a sign (an upsert) and a read by either spelling returned the
   other's content. Migration `0059_ordinal_key_collation` gives `Latin1_General_BIN2` to the session id (`sessions.id` and the
   `session_id` of runs, attachments, pending approvals, responses, voice sessions and workflow checkpoints, requests and responses),
   the idempotency key, the agent file path, the workflow checkpoint, request and claim ids, a run score's author, message id and name,
-  and the rate-limit partition key. No value changes and no row is merged: ids that were distinct stay distinct. What to do: apply the
-  migration before you start the new instances, as for any migration (an instance of the older release keeps working on the new
-  schema). It rebuilds the keys of those tables and locks each against schema changes while it runs, so plan the upgrade of a
-  database with a large `runs` table for a quiet hour. If your code, a client, or a stored reference spelled one identifier two ways and relied on SQL Server
-  treating them alike, it now reaches two records: write each identifier with one spelling. The names of definitions (agents,
-  workflows, skills, schedules and the like) still follow the collation of the database and still fold case on SQL Server. A custom
-  store must compare these identifiers exactly too: `SessionStoreContract.Ids_that_differ_only_in_case_are_two_sessions`,
+  and the rate-limit partition key. No value changes and no row is merged: ids that were distinct stay distinct. SQL Server still
+  ignores trailing spaces in every collation, so `abc` and `abc ` remain one key there; the other stores keep them apart.
+  What to do:
+  - **Plan the upgrade window.** The migration is one command in one transaction that rebuilds the keys of 13 tables. While it
+    runs those tables are closed to reads and writes, and they stay closed until the whole migration commits. Measured in an emulated
+    amd64 container on Apple Silicon, so slower than native: 14 s over 2.5 million rows (1.2 GB), 32 s over a database of 150 000
+    sessions with 8 KB of state each and a million runs (2 GB). `CommandTimeoutSeconds` defaults to 30 and bounds that one command: a
+    timeout rolls the migration back, and every start repeats it. Raise `Tracon:SqlServer:CommandTimeoutSeconds` (`0` is unlimited)
+    for the run that applies it, or apply it in your own deployment step (`AutoApplyMigrations = false`), and do it in a quiet hour.
+    Apply it before you start the new instances; an instance of the older release works on the migrated schema once it commits.
+  - **Check the SQL you wrote against these tables.** A comparison of one of these columns with a column of another collation
+    fails with "Cannot resolve the collation conflict" (error 468). That includes a join of `runs_v1.session_id` to a column of your
+    own: write `COLLATE Latin1_General_BIN2` on your side to keep the match exact, or `COLLATE DATABASE_DEFAULT` on the view's side to
+    ignore case again. The migration refreshes an existing `runs_v1`, so that its column reports the new collation.
+  - **Write each identifier with one spelling** if your code, a client or a stored reference spelled it two ways and relied on SQL
+    Server treating them alike: it now reaches two records. A list ordered by an agent file path or a score name now sorts by
+    code point, capitals before lowercase letters.
+  - The names of definitions (agents, workflows, skills, schedules and the like) still follow the collation of the database and still
+    fold case on SQL Server.
+
+  A custom store must compare these identifiers by their characters too. New contract tests, which a store that folds case fails:
+  `SessionStoreContract.Ids_that_differ_only_in_case_are_two_sessions`,
   `IdempotencyStoreContract.Keys_that_differ_only_in_case_are_two_reservations`,
   `AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files`,
   `WorkflowCheckpointStoreContract.Session_and_checkpoint_ids_that_differ_only_in_case_name_other_checkpoints`,
-  `RunScoreStoreContract.Author_message_and_name_that_differ_only_in_case_open_rows_of_their_own` and
-  `RateLimitCounterStoreContract.Partitions_that_differ_only_in_case_are_counted_apart` are new, and a store that folds case fails them.
+  `RunScoreStoreContract.Author_message_and_name_that_differ_only_in_case_open_rows_of_their_own`,
+  `RunStoreContract.Runs_of_session_ids_that_differ_only_in_case_are_listed_apart` and
+  `RateLimitCounterStoreContract.Partitions_that_differ_only_in_case_are_counted_apart`.
 
 - **The voice conversation socket asks an API key for the `RunsWrite` scope, and a socket that your authorization policy
   authenticates opens only from the installation's own origin or from `AllowedOrigins`.** The socket checked a key by hand

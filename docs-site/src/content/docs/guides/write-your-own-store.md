@@ -272,7 +272,7 @@ easy to miss in a custom store because everything else keeps passing without the
   but that is a backstop, not a substitute for the key. `ISessionStore` has no member that
   looks across tenants.
 
-- **An identifier is compared exactly, letter case included.** `Session-A` and `session-a` are
+- **An identifier is compared by its characters, letter case included.** `Session-A` and `session-a` are
   two sessions. The client chooses the identifier, so a store whose comparison ignores case
   (SQL Server's default collation, a case-insensitive Redis key scheme, a `LOWER()` index) writes
   the second session over the first one without a sign, and a read by either spelling returns
@@ -282,7 +282,9 @@ easy to miss in a custom store because everything else keeps passing without the
   (`AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files`), a workflow
   checkpoint and session id, a run score's author, message id and name, and a rate-limit
   partition key. Compare them ordinally; do not fold them to lower case, because the identifier
-  you return has to be the one that was written.
+  you return has to be the one that was written. The shipped SQL Server store does not tell
+  `abc` from `abc ` (that engine ignores trailing spaces in every collation); the contract does
+  not test it, and your store may keep the two apart.
 
 - **`SessionQuery.OwnerId` filters before `Skip`/`Take`.** The contract seeds five
   owned and five unowned sessions with the unowned ones newest, then asks for

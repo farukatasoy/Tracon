@@ -29,6 +29,8 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
 
     private const string LibraryName = "a name the library chooses in its own code";
 
+    private const string TraceId = "the trace id the runtime assigns, always in the lower-case hex it writes";
+
     private const string DefinitionName = "the name of a definition, which the database collation still folds";
 
     /// <summary>
@@ -45,7 +47,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
         ["tenants.slug"] = Folded,
         ["tenant_provider_bindings.provider_name"] = Folded,
         ["audit_log.prev_hash"] = Digest,
-        ["traces.trace_id"] = Digest,
+        ["traces.trace_id"] = TraceId,
         ["tool_approval_rules.arguments_hash"] = Digest,
         ["tool_approval_rules.conditions_hash"] = Digest,
         ["tool_approval_rules.source_fingerprint"] = Digest,
@@ -148,7 +150,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     /// <summary>The text columns of the schema that satisfy <paramref name="predicate"/>, as <c>table.column</c> and collation.</summary>
     private static async ValueTask<IReadOnlyList<KeyColumn>> ColumnsAsync(SqlServerTestContext context, string predicate)
     {
-        var rows = await context.ScalarAsync<string>(
+        var rows = await context.CatalogScalarAsync<string>(
             "SELECT STRING_AGG(CAST(t.name + N'.' + c.name + N' ' + c.collation_name AS nvarchar(max)), N';') " +
             "FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id " +
             $"WHERE SCHEMA_NAME(t.schema_id) = N'{context.SchemaName}' AND t.name <> N'__migrations' AND c.collation_name IS NOT NULL AND ({predicate});");

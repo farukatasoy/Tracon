@@ -1200,3 +1200,4 @@ Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Paths_that_differ_only_i
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Author_message_and_name_that_differ_only_in_case_open_rows_of_their_own() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RateLimitCounterStoreContract.Partitions_that_differ_only_in_case_are_counted_apart() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Session_and_checkpoint_ids_that_differ_only_in_case_name_other_checkpoints() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Runs_of_session_ids_that_differ_only_in_case_are_listed_apart() -> System.Threading.Tasks.Task!

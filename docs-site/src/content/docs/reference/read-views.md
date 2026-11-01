@@ -53,7 +53,7 @@ its database.
 | `run_id` | uuid / uniqueidentifier / text | |
 | `tenant_id` | text | Not filtered — see [It is not a tenant boundary](#it-is-not-a-tenant-boundary) |
 | `agent_name` | text | |
-| `session_id` | text | `NULL` for a run with no session |
+| `session_id` | text | `NULL` for a run with no session. On SQL Server it compares by code point (`Latin1_General_BIN2`), so a join to a column of another collation, such as one with your database's case-insensitive default, needs an explicit `COLLATE` on one side: `ON v.session_id = t.session_id COLLATE Latin1_General_BIN2` keeps the match exact, `ON v.session_id COLLATE DATABASE_DEFAULT = t.session_id` ignores case again |
 | `status` | smallint | The numeric `RunStatus` value; stable, never renumbered |
 | `status_name` | text | The `RunStatus` name (`"Completed"`, `"Failed"`, …) so you never hand-write the mapping |
 | `started_at`, `completed_at` | timestamp | UTC; `completed_at` is `NULL` while a run is in progress |

@@ -200,3 +200,16 @@ ALTER TABLE {schema}.rate_limit_counters ALTER COLUMN partition_key nvarchar(400
 
 IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = N'rate_limit_counters_pk' AND parent_object_id = OBJECT_ID(N'{schema}.rate_limit_counters'))
 ALTER TABLE {schema}.rate_limit_counters ADD CONSTRAINT rate_limit_counters_pk PRIMARY KEY (partition_key);
+
+-- ---------------------------------------------------------------------------
+-- runs_v1
+--
+-- A view that is not schema-bound keeps the collation its columns had when it was created, so after the
+-- change above runs_v1.session_id would still say the collation of the database. Refreshing it makes the
+-- metadata that tools and drivers read tell the truth. A query that compares the column with a column of
+-- another collation (a join on your own table) still needs COLLATE on one side; that is the same rule as
+-- for the tables.
+-- ---------------------------------------------------------------------------
+
+IF OBJECT_ID(N'{schema}.runs_v1', N'V') IS NOT NULL
+EXEC sp_refreshview N'{schema}.runs_v1';

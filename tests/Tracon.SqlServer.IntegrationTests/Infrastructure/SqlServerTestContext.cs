@@ -349,6 +349,19 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         return result is T value ? value : default;
     }
 
+    /// <summary>Runs raw SQL that reads the catalog (<c>sys.*</c>) and returns a single value.</summary>
+    /// <typeparam name="T">The expected type.</typeparam>
+    /// <param name="sql">The SQL to run.</param>
+    /// <returns>The first column of the first row.</returns>
+    /// <remarks>
+    /// 🚨 The test classes share one database and migrate their own schemas at the same time. A catalog read at the
+    /// default isolation takes shared locks on the metadata that those migrations are changing, and the two deadlock:
+    /// the read is the victim, now and then, and the test fails for a reason that has nothing to do with it. The schema
+    /// a test reads is its own and stands still, so reading uncommitted metadata cannot show it a half-done change.
+    /// </remarks>
+    public ValueTask<T?> CatalogScalarAsync<T>(string sql)
+        => ScalarAsync<T>("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; " + sql);
+
     /// <summary>Drops the test schema and everything in it.</summary>
     /// <returns>The completion task.</returns>
     /// <remarks>
