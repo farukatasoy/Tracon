@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -51,9 +52,12 @@ public sealed class NodeUsageStoreFailureTests
 
         host.Logs.AllText.ShouldContain("a non-token usage item could not be recorded", Case.Sensitive);
 
-        // The run's recording stopped at the failed write, as it does after any lost write:
-        // the row is not closed. The workflow's own result is the stream's end, read above.
-        (await RecordAsync(host, runId)).Status.ShouldBe(RunStatus.Running);
+        // The run's recording stopped at the failed write, as it does after any lost write: no later event reaches
+        // the store. The closing write is the exception, because a record left Running after the run has ended would
+        // stay so; it lands a moment after the stream's end (the writer pauses before it asks a store that failed).
+        await WaitUntil.TrueAsync(
+            async () => (await RecordAsync(host, runId)).Status == RunStatus.Completed,
+            "the run's record to be closed after the usage write was lost");
     }
 
     [Fact]

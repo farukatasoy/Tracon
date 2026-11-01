@@ -17,12 +17,14 @@ public sealed class TraconIdempotencyOptionsBindingTests
         {
             ["Tracon:Idempotency:Enabled"] = "false",
             ["Tracon:Idempotency:MaxKeyLength"] = "128",
+            ["Tracon:Idempotency:ReservationTimeout"] = "00:20:00",
         };
 
         var options = SectionBinding.Bind<TraconIdempotencyOptions>(values);
 
         options.Enabled.ShouldBeFalse();
         options.MaxKeyLength.ShouldBe(128);
+        options.ReservationTimeout.ShouldBe(TimeSpan.FromMinutes(20));
         OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Idempotency", options);
     }
 
@@ -33,5 +35,6 @@ public sealed class TraconIdempotencyOptionsBindingTests
 
         options.Enabled.ShouldBeTrue();
         options.MaxKeyLength.ShouldBe(255);
+        options.ReservationTimeout.ShouldBe(TimeSpan.FromHours(1));
     }
 }

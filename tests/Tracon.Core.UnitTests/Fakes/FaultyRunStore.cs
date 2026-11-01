@@ -62,7 +62,7 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
 
         if (HangCompletes)
         {
-            return new ValueTask(Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken));
+            return new ValueTask(Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)); // delay: simulated
         }
 
         if (FailCompletes)
