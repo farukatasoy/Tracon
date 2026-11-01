@@ -175,6 +175,17 @@ first step. `RunStoreContract` therefore asks that the **first** `MoveNextAsync`
 throws, including on a run with no events at all — the case a store that only checks
 the token between yields misses.
 
+## Text your engine cannot hold
+
+A model reply, a tool result, or a request body can carry the character U+0000, and
+PostgreSQL cannot store it in a `text` or `jsonb` value. The suite expects a store to
+accept it: keep it, or write U+FFFD in its place, but do not refuse the write and lose the
+event, the job, or the schedule. Tracon's own SQL stores write U+FFFD (in a JSON text, the
+escape `\u0000` becomes `\uFFFD`); the in-memory stores keep the value as it came.
+`RunStoreContract.An_event_whose_text_holds_a_NUL_character_is_stored`,
+`JobStoreContract.A_job_whose_payload_and_input_hold_a_NUL_character_is_stored` and
+`JobScheduleStoreContract.A_schedule_whose_payload_holds_a_NUL_character_is_stored` check it.
+
 ## What the suite does not check
 
 The same three things every store contract leaves to you, regardless of interface:

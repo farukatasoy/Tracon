@@ -730,7 +730,7 @@ internal abstract class SqlDialect
         var parameter = command.CreateParameter();
         parameter.ParameterName = name;
         parameter.DbType = type;
-        parameter.Value = value ?? DBNull.Value;
+        parameter.Value = (value is string text ? SqlText.WithoutNul(text) : value) ?? DBNull.Value;
         command.Parameters.Add(parameter);
 
         return parameter;

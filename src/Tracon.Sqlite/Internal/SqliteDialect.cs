@@ -314,11 +314,11 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     public override void AddJson(DbCommand command, string name, string? value)
-        => AddTyped(command, name, DbType.String, value);
+        => AddTyped(command, name, DbType.String, SqlText.InJson(value));
 
     /// <inheritdoc />
     public override void AddJsonb(DbCommand command, string name, string? value)
-        => AddTyped(command, name, DbType.String, value);
+        => AddTyped(command, name, DbType.String, SqlText.InJson(value));
 
     /// <inheritdoc />
     public override void AddTextArray(DbCommand command, string name, IReadOnlyList<string>? values)
@@ -328,9 +328,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             DbType.String,
             values is null
                 ? null
-                : JsonSerializer.Serialize(
+                : SqlText.InJson(JsonSerializer.Serialize(
                     values.ToArray(),
-                    TraconJsonContext.Default.StringArray));
+                    TraconJsonContext.Default.StringArray)));
 
     /// <inheritdoc />
     /// <remarks>

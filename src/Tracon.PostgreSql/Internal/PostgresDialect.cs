@@ -139,15 +139,15 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     public override void AddJson(DbCommand command, string name, string? value)
-        => AddNpgsql(command, name, NpgsqlDbType.Json, value);
+        => AddNpgsql(command, name, NpgsqlDbType.Json, SqlText.InJson(value));
 
     /// <inheritdoc />
     public override void AddJsonb(DbCommand command, string name, string? value)
-        => AddNpgsql(command, name, NpgsqlDbType.Jsonb, value);
+        => AddNpgsql(command, name, NpgsqlDbType.Jsonb, SqlText.InJson(value));
 
     /// <inheritdoc />
     public override void AddTextArray(DbCommand command, string name, IReadOnlyList<string>? values)
-        => AddNpgsql(command, name, NpgsqlDbType.Array | NpgsqlDbType.Text, values?.ToArray());
+        => AddNpgsql(command, name, NpgsqlDbType.Array | NpgsqlDbType.Text, values?.Select(static value => SqlText.WithoutNul(value)!).ToArray());
 
     /// <inheritdoc />
     public override void AddUuidArray(DbCommand command, string name, IReadOnlyList<Guid>? values)
@@ -228,7 +228,7 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     public override void AddText(DbCommand command, string name, string? value)
-        => AddNpgsql(command, name, NpgsqlDbType.Text, value);
+        => AddNpgsql(command, name, NpgsqlDbType.Text, SqlText.WithoutNul(value));
 
     /// <inheritdoc />
     public override void AddUuid(DbCommand command, string name, Guid? value)

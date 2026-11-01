@@ -137,4 +137,20 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
 
     private static DateTimeOffset PrecisionSafeUtcNow()
         => DateTimeOffset.FromUnixTimeMilliseconds(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+    /// <summary>
+    /// A NUL character in a schedule's payload does not fail the save.
+    /// </summary>
+    /// <remarks>
+    /// PostgreSQL cannot hold the escape <c>\u0000</c> in a <c>jsonb</c> value. A store may keep
+    /// it or write U+FFFD in its place; it must not refuse the schedule.
+    /// </remarks>
+    [Fact]
+    public async Task A_schedule_whose_payload_holds_a_NUL_character_is_stored()
+    {
+        await Store.SaveAsync(TestData.Schedule() with { Payload = TestData.State("[\"before\\u0000after\"]") });
+
+        var kept = (await Store.GetAsync("default", "night-report")).ShouldNotBeNull();
+        kept.Payload.EnumerateArray().Single().GetString().ShouldBeOneOf("before\0after", "before\uFFFDafter");
+    }
 }

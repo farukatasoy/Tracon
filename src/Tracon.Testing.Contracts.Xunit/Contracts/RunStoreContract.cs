@@ -3559,4 +3559,28 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         record.Status.ShouldBe(RunStatus.Failed);
         record.CancelRequestedAt.ShouldNotBeNull();
     }
+
+    /// <summary>
+    /// A NUL character in an event's text does not fail the write.
+    /// </summary>
+    /// <remarks>
+    /// PostgreSQL cannot hold U+0000 in a <c>text</c> value, and a model reply or a tool
+    /// result can carry one. A store may keep it or write U+FFFD in its place; it must not
+    /// refuse the event and lose it.
+    /// </remarks>
+    [Fact]
+    public async Task An_event_whose_text_holds_a_NUL_character_is_stored()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventAsync(TestData.Event(runId, 0) with { Text = "before\0after" });
+
+        await foreach (var runEvent in Store.ReadEventsAsync(runId))
+        {
+            runEvent.Text.ShouldBeOneOf("before\0after", "before\uFFFDafter");
+        }
+
+        (await Store.GetLastEventSequenceAsync(runId)).ShouldBe(0);
+    }
 }

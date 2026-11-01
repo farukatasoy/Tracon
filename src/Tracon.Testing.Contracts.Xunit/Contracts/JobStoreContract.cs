@@ -1011,4 +1011,25 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         => TestData.Job(tenantId, DateTimeOffset.UtcNow - TimeSpan.FromMinutes(age)) with { HandlerKey = handlerKey };
 
     private static string Owner() => $"worker-{Guid.NewGuid():N}";
+
+    /// <summary>
+    /// A NUL character in a job's payload or in an item's input does not fail the enqueue.
+    /// </summary>
+    /// <remarks>
+    /// PostgreSQL cannot hold U+0000 in a <c>text</c> value or in the escape <c>\u0000</c> of a
+    /// <c>jsonb</c> value; a request body can carry either. A store may keep it or write
+    /// U+FFFD in its place; it must not refuse the job.
+    /// </remarks>
+    [Fact]
+    public async Task A_job_whose_payload_and_input_hold_a_NUL_character_is_stored()
+    {
+        var job = await Store.EnqueueAsync(
+            TestData.Job() with { Payload = TestData.State("[\"before\\u0000after\"]") },
+            ["before\0after"]);
+
+        var kept = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+        kept.Payload.EnumerateArray().Single().GetString().ShouldBeOneOf("before\0after", "before\uFFFDafter");
+
+        (await Store.ListItemsAsync(job.Id)).ShouldHaveSingleItem().Input.ShouldBeOneOf("before\0after", "before\uFFFDafter");
+    }
 }

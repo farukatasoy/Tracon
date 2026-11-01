@@ -216,11 +216,11 @@ internal sealed class SqlServerDialect : SqlDialect
     /// here by construction</em>: the text is stored as-is.
     /// </remarks>
     public override void AddJson(DbCommand command, string name, string? value)
-        => AddTyped(command, name, DbType.String, value);
+        => AddTyped(command, name, DbType.String, SqlText.InJson(value));
 
     /// <inheritdoc />
     public override void AddJsonb(DbCommand command, string name, string? value)
-        => AddTyped(command, name, DbType.String, value);
+        => AddTyped(command, name, DbType.String, SqlText.InJson(value));
 
     /// <inheritdoc />
     public override void AddTextArray(DbCommand command, string name, IReadOnlyList<string>? values)
@@ -230,9 +230,9 @@ internal sealed class SqlServerDialect : SqlDialect
             DbType.String,
             values is null
                 ? null
-                : JsonSerializer.Serialize(
+                : SqlText.InJson(JsonSerializer.Serialize(
                     values.ToArray(),
-                    TraconJsonContext.Default.StringArray));
+                    TraconJsonContext.Default.StringArray)));
 
     /// <inheritdoc />
     public override void AddUuidArray(DbCommand command, string name, IReadOnlyList<Guid>? values)

@@ -607,6 +607,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A U+0000 character in a value no longer fails the write on PostgreSQL.** PostgreSQL cannot hold U+0000 in a `text` value
+  (`22021`) or the escape `\u0000` in a `jsonb` value (`22P05`), and SQL Server, SQLite and the in-memory stores accept
+  both, so a model reply, a tool result or a request body that carried one wrote fine on three stores and failed on
+  PostgreSQL: an event's text, a job's payload and item input, and a schedule's payload were refused (four of six writes
+  measured). Every SQL store now writes U+FFFD in its place, and in a JSON text the escape `\u0000` becomes `\uFFFD`; an
+  escaped backslash followed by the characters `u0000` is left alone. The in-memory stores keep the value as it came.
+  Three contract tests check that a store accepts it, keeping the value or replacing it:
+  `RunStoreContract.An_event_whose_text_holds_a_NUL_character_is_stored`,
+  `JobStoreContract.A_job_whose_payload_and_input_hold_a_NUL_character_is_stored` and
+  `JobScheduleStoreContract.A_schedule_whose_payload_holds_a_NUL_character_is_stored`. A custom store that refuses the
+  character fails them.
 - **A fallback chain's shared tool ledger recognises a call whose arguments arrive in another order.** The ledger keeps a tool
   call that completed on one link, so the next link does not run it again. It compared the arguments as text in the order the
   model wrote them, so a charge that ran on the primary link ran again when the fallback model listed `amount` before
