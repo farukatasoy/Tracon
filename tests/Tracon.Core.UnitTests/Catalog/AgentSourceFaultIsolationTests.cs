@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -71,6 +72,50 @@ public sealed class AgentSourceFaultIsolationTests
         exception.ErrorType.ShouldBe(TraconAgentSourceException.SourceFailedErrorType);
         exception.Message.ShouldNotContain("raw upstream failure");
         exception.InnerException.ShouldBeOfType<InvalidOperationException>();
+    }
+
+    // A store that cannot be reached is not a source that broke its contract. Wrapping the provider's exception
+    // in TraconAgentSourceException told the caller their agent was broken (a 400) when the database was down.
+
+    [Fact]
+    public async Task A_store_failure_inside_a_source_reaches_the_caller_as_the_store_failure_it_is()
+    {
+        var failure = new InjectedDbException();
+        var broken = new ThrowingSource("database", priority: 0, resolveException: failure);
+        var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
+
+        (await Should.ThrowAsync<DbException>(
+            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None)))
+            .ShouldBeSameAs(failure);
+    }
+
+    [Fact]
+    public async Task A_store_failure_inside_a_source_is_still_logged_and_counted_as_a_source_failure()
+    {
+        var broken = new ThrowingSource("database", priority: 0, resolveException: new InjectedDbException());
+        var logger = new SpyLogger();
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new TraconMetrics(meterFactory);
+        using var collector = new MetricCollector(meterFactory.Meter);
+        var catalog = new CompositeAgentCatalog([broken], [], logger, metrics);
+
+        await Should.ThrowAsync<DbException>(
+            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
+
+        collector.LongValues(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
+        logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Error && entry.Exception is DbException);
+    }
+
+    [Fact]
+    public async Task A_store_failure_inside_a_decorator_reaches_the_caller_as_the_store_failure_on_both_resolve_overloads()
+    {
+        var source = new HealthyVersionedSource("database", priority: 100, "beta", 1);
+        var catalog = new CompositeAgentCatalog([source], [new ThrowingDecorator(new InjectedDbException())], NullLogger<CompositeAgentCatalog>.Instance);
+
+        await Should.ThrowAsync<DbException>(
+            async () => await catalog.ResolveAsync("beta", culture: null, CancellationToken.None));
+        await Should.ThrowAsync<DbException>(
+            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None));
     }
 
     // A "real" cancellation is one whose token the CALLER cancelled. An
@@ -235,6 +280,14 @@ public sealed class AgentSourceFaultIsolationTests
 
             var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
             return new ValueTask<AIAgent?>(compiler.Compile(TestData.Definition(agentName2) with { Version = version }));
+        }
+    }
+
+    private sealed class InjectedDbException : DbException
+    {
+        public InjectedDbException()
+            : base("injected")
+        {
         }
     }
 

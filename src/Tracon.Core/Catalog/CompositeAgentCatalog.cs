@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Runtime.ExceptionServices;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
@@ -333,6 +334,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     /// normalized or otherwise-Tracon error.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <see cref="TraconException"/> (any subtype — <see cref="TraconAgentSourceException"/>
     /// itself, or a compilation error such as <c>TraconCompilationException</c> that
     /// <c>AgentDefinitionCompiler.CompileCachedAsync</c> raised while the source built the
@@ -342,12 +344,20 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     /// Re-wrapping it here would both lose that type and misreport an ordinary
     /// compilation problem as an "agent source failure" it is not. Only a genuinely raw,
     /// unexpected exception — the actual case source isolation exists to contain — gets wrapped.
+    /// </para>
+    /// <para>
+    /// A <see cref="DbException"/> is not wrapped either. It says the persistence store could not
+    /// answer (a tenant's provider binding or egress policy is read while the agent is compiled),
+    /// not that the source broke its contract; wrapped, the run endpoint reported it as <c>400 Agent
+    /// compilation failed</c> and the caller went to fix an agent that was fine. It is recorded like
+    /// any source failure and then reaches the caller as it is, where the host answers <c>503</c>.
+    /// </para>
     /// </remarks>
     private TraconAgentSourceException HandleSourceFailure(IAgentSource source, string operation, Exception exception)
     {
         RecordSourceFailure(source, operation, exception, LogLevel.Error);
 
-        if (exception is TraconException)
+        if (exception is TraconException or DbException)
         {
             // Always throws; the exception this method appears to return is never
             // actually reached in that case. Callers still write `throw

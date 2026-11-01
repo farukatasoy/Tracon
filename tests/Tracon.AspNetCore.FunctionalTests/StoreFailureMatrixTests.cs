@@ -26,9 +26,15 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// path cannot go unclassified.
 /// </para>
 /// <para>
-/// Two rows record an answer that is the wrong one, kept here so the table is true and a fix shows up as a changed row:
-/// a failing read of the tenant's provider binding or egress policy is reported as <c>400 Agent compilation failed</c>,
-/// which tells the caller their agent is broken when the store is.
+/// A row can also record an answer that is the wrong one, kept so the table stays true and a fix shows up as a changed
+/// row. There is none now: a failing read of the tenant's provider binding or egress policy used to be reported as
+/// <c>400 Agent compilation failed</c>, which tells the caller their agent is broken when the store is.
+/// </para>
+/// <para>
+/// <c>IExperimentStore.GetRunningAsync</c> answers 503 on purpose, and it is the one row where the run could have gone on.
+/// The lookup picks the version of the agent a session talks to; running on the current version when it fails would move a
+/// session to another version in the middle of a conversation and skew the experiment, and the database that failed the
+/// lookup is usually failing the other writes of the run as well.
 /// </para>
 /// </remarks>
 public sealed class StoreFailureMatrixTests
@@ -55,10 +61,10 @@ public sealed class StoreFailureMatrixTests
             ["IIdempotencyStore.CompleteAsync"] = HttpStatusCode.ServiceUnavailable,
             ["IExperimentStore.GetRunningAsync"] = HttpStatusCode.ServiceUnavailable,
 
-            // Wrong answers, recorded as they are: the agent source wraps any exception it did not recognize as "the agent
-            // could not be compiled", so a store that failed while the tenant's policy was read looks like a broken agent.
-            ["ITenantProviderBindingStore.GetAsync"] = HttpStatusCode.BadRequest,
-            ["ITenantEgressPolicyStore.GetAsync"] = HttpStatusCode.BadRequest,
+            // Read while the agent is compiled. The catalog wraps a source's failure as "the agent could not be compiled"
+            // (a 400), but a store that did not answer is not a source that broke: it passes through and the host answers 503.
+            ["ITenantProviderBindingStore.GetAsync"] = HttpStatusCode.ServiceUnavailable,
+            ["ITenantEgressPolicyStore.GetAsync"] = HttpStatusCode.ServiceUnavailable,
         };
 
     /// <summary>

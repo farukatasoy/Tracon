@@ -642,6 +642,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A store that is down while an agent is compiled answers `503`, not `400 Agent compilation failed`.** Reading a tenant's provider binding or egress
+  policy happens while the agent is compiled, and the catalog wrapped any exception it did not recognize as "the agent source failed". A
+  database error therefore told the caller their agent was broken, and the caller went to fix an agent that was fine. A `DbException` now
+  passes through the catalog unwrapped (it is still logged and counted on `tracon.agent_source.failures`), and the host answers `503` as it does for any
+  other store call. An exception that is not a database error is wrapped as before.
 - **One failed write of a run's record no longer leaves the run `running`.** Run recording gives up on its first store failure, and that
   included the closing write: a dropped connection or a deadlock victim on any event left the record unfinished after the caller had its
   answer, and only reconciliation (off by default, and five minutes late when on) ever closed it. The closing write is now tried again
