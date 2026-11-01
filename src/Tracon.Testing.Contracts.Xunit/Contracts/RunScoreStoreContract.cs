@@ -370,6 +370,28 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(2);
     }
 
+    /// <summary>
+    /// The author, the message id and the score name are the caller's. Each of them that differs only in
+    /// letter case opens a row of its own; a store that folds case rewrites the first row instead.
+    /// </summary>
+    [Fact]
+    public async Task Author_message_and_name_that_differ_only_in_case_open_rows_of_their_own()
+    {
+        var runId = TraconId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with { Author = "Alice", MessageId = "Msg-1", Name = "Quality" });
+        await Store.UpsertAsync(Score(runId) with { Author = "alice", MessageId = "Msg-1", Name = "Quality", Value = 0 });
+        await Store.UpsertAsync(Score(runId) with { Author = "Alice", MessageId = "msg-1", Name = "Quality", Value = 0 });
+        await Store.UpsertAsync(Score(runId) with { Author = "Alice", MessageId = "Msg-1", Name = "quality", Value = 0 });
+
+        (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(4);
+
+        // The same triple again is still the same row.
+        await Store.UpsertAsync(Score(runId) with { Author = "Alice", MessageId = "Msg-1", Name = "Quality", Value = 0.5 });
+
+        (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(4);
+    }
+
     [Fact]
     public async Task Different_messages_are_scored_independently()
     {

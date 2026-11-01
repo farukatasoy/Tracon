@@ -79,6 +79,25 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
         reservation.Response.ShouldBeNull();
     }
 
+    /// <summary>
+    /// The key is the client's: one that differs only in letter case is another reservation. A store that
+    /// folds case answers the second client with the first one's slot, and replays its response.
+    /// </summary>
+    [Fact]
+    public async Task Keys_that_differ_only_in_case_are_two_reservations()
+    {
+        var lower = Key();
+        var upper = lower.ToUpperInvariant();
+
+        (await Store.ReserveAsync(Request(Tenant, lower))).State.ShouldBe(IdempotencyState.Reserved);
+        (await Store.ReserveAsync(Request(Tenant, upper))).State.ShouldBe(IdempotencyState.Reserved);
+
+        await Store.CompleteAsync(Tenant, lower, Response(statusCode: 201));
+
+        (await Store.ReserveAsync(Request(Tenant, lower))).State.ShouldBe(IdempotencyState.Completed);
+        (await Store.ReserveAsync(Request(Tenant, upper))).State.ShouldBe(IdempotencyState.InProgress);
+    }
+
     [Fact]
     public async Task Key_in_progress_returns_InProgress_on_second_reservation()
     {

@@ -109,6 +109,7 @@ tests. The registration and provider-specific configuration still change.
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
+| Identifiers a client chooses (session id, idempotency key, file path, checkpoint id, score author) | Exact | Exact | Exact: those columns use `Latin1_General_BIN2` whatever the collation of the database | Exact |
 | ORM | None | None | None | None |
 | AOT promise | Yes through Core | Yes | No promise | No |
 
@@ -117,6 +118,10 @@ library opens more than one connection, so each bare in-memory connection would 
 different database. Use a shared URI such as
 `Data Source=file:tracon?mode=memory&cache=shared` when a SQLite in-memory test is
 required.
+
+On SQL Server, the names of definitions (agents, workflows, skills, schedules and similar) still follow the
+collation of the database, and the default collation ignores letter case: `Support` and `support` name one
+agent there and two on PostgreSQL and SQLite. Pick one spelling for every definition name if you run SQL Server.
 
 PostgreSQL knowledge search also needs an
 `IEmbeddingGenerator<string, Embedding<float>>`. The vector dimension becomes part of

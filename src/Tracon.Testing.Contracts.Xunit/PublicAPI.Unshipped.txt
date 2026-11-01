@@ -1194,3 +1194,9 @@ Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.A_schedule_whose_paylo
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Paging_through_sessions_with_the_same_update_time_returns_each_one_once() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentFileStoreContract.A_bracket_in_a_directory_or_a_glob_matches_itself_only() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Ids_that_differ_only_in_case_are_two_sessions() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Keys_that_differ_only_in_case_are_two_reservations() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Author_message_and_name_that_differ_only_in_case_open_rows_of_their_own() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RateLimitCounterStoreContract.Partitions_that_differ_only_in_case_are_counted_apart() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Session_and_checkpoint_ids_that_differ_only_in_case_name_other_checkpoints() -> System.Threading.Tasks.Task!

@@ -121,6 +121,29 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         loaded.UpdatedAt.ShouldBe(later, TimeSpan.FromMilliseconds(1));
     }
 
+    /// <summary>
+    /// The id is the caller's: an id that differs only in letter case is another session, as it is for an
+    /// ordinal comparison. A store that folds case merges the two and the second save overwrites the first
+    /// without a sign.
+    /// </summary>
+    [Fact]
+    public async Task Ids_that_differ_only_in_case_are_two_sessions()
+    {
+        await Store.SaveAsync(TestData.Session("Session-A") with { State = TestData.State("""{"who":"upper"}""") });
+        await Store.SaveAsync(TestData.Session("session-a") with { State = TestData.State("""{"who":"lower"}""") });
+
+        (await Store.GetAsync("Session-A")).ShouldNotBeNull().State.GetProperty("who").GetString().ShouldBe("upper");
+        (await Store.GetAsync("session-a")).ShouldNotBeNull().State.GetProperty("who").GetString().ShouldBe("lower");
+        (await Store.QueryAsync(new SessionQuery())).Count.ShouldBe(2);
+
+        // The create-if-absent path judges the id the same way.
+        (await Store.TryCreateAsync(TestData.Session("SESSION-A"))).ShouldBeTrue();
+
+        (await Store.DeleteAsync("Session-A")).ShouldBeTrue();
+        (await Store.GetAsync("session-a")).ShouldNotBeNull();
+        (await Store.GetAsync("SESSION-A")).ShouldNotBeNull();
+    }
+
     [Fact]
     public async Task Delete_removes_the_record()
     {

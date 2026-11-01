@@ -88,6 +88,22 @@ public abstract class RateLimitCounterStoreContract : StoreCancellationContract<
         (await Store.IncrementAsync(first, Window0)).Count.ShouldBe(3);
     }
 
+    /// <summary>
+    /// The partition key is opaque to the store: one that differs only in letter case is another counter.
+    /// </summary>
+    [Fact]
+    public async Task Partitions_that_differ_only_in_case_are_counted_apart()
+    {
+        var lower = Partition();
+        var upper = lower.ToUpperInvariant();
+
+        await Store.IncrementAsync(lower, Window0);
+        await Store.IncrementAsync(lower, Window0);
+
+        (await Store.IncrementAsync(upper, Window0)).Count.ShouldBe(1);
+        (await Store.IncrementAsync(lower, Window0)).Count.ShouldBe(3);
+    }
+
     [Fact]
     public async Task A_partition_key_is_compared_as_a_whole()
     {

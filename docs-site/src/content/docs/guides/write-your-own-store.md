@@ -259,8 +259,8 @@ Two more rules carry the
   `TouchHeartbeatAsync` still compiles and passes most scenarios, but a cancel that reached
   another instance is then never delivered; `RunStoreContract` checks both members.
 
-`ISessionStore`'s contract (`SessionStoreContract`) checks three rules. Two of them make
-per-user [session ownership](/concepts/sessions/#session-ownership) work, and all three are
+`ISessionStore`'s contract (`SessionStoreContract`) checks four rules. Two of them make
+per-user [session ownership](/concepts/sessions/#session-ownership) work, and all four are
 easy to miss in a custom store because everything else keeps passing without them:
 
 - **A session is keyed by the tenant and the identifier.** Two tenants can hold the same
@@ -271,6 +271,18 @@ easy to miss in a custom store because everything else keeps passing without the
   session instead. The endpoints refuse a record that carries another tenant's `TenantId`,
   but that is a backstop, not a substitute for the key. `ISessionStore` has no member that
   looks across tenants.
+
+- **An identifier is compared exactly, letter case included.** `Session-A` and `session-a` are
+  two sessions. The client chooses the identifier, so a store whose comparison ignores case
+  (SQL Server's default collation, a case-insensitive Redis key scheme, a `LOWER()` index) writes
+  the second session over the first one without a sign, and a read by either spelling returns
+  the other's state. `SessionStoreContract` saves both spellings and reads each back. The same
+  holds for every key a client chooses: an idempotency key
+  (`IdempotencyStoreContract.Keys_that_differ_only_in_case_are_two_reservations`), a file path
+  (`AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files`), a workflow
+  checkpoint and session id, a run score's author, message id and name, and a rate-limit
+  partition key. Compare them ordinally; do not fold them to lower case, because the identifier
+  you return has to be the one that was written.
 
 - **`SessionQuery.OwnerId` filters before `Skip`/`Take`.** The contract seeds five
   owned and five unowned sessions with the unowned ones newest, then asks for
@@ -368,7 +380,7 @@ Tracon owns the algorithm — it aligns the window, compares the count with `Per
 | An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. The contract checks it, so keep one record for each partition, as the sketch does, and not one key for each window |
 | A record outlives its window | A record that expires inside a window restarts the count and lifts the limit for the rest of that window. Tracon does not pass the window length, so choose an expiry longer than the longest `Window` you configure (the inbound trigger limit uses one minute) |
 | The call has a limit of its own | Tracon waits for the store, with the request's token only. A store that can hang (a network call) must bound its own wait, so the instance falls back to its own limit instead of waiting for the client to leave |
-| The partition key is opaque | Tracon builds it (`endpoint:tracon:tenant:acme`, `endpoint:agui:global`, `trigger:<id>`). Do not parse it, change it or cut it short |
+| The partition key is opaque | Tracon builds it (`endpoint:tracon:tenant:acme`, `endpoint:agui:global`, `trigger:<id>`). Do not parse it, change it, cut it short or fold its letter case: two keys that differ only in case are two counters |
 | A failure throws | Tracon catches it, counts it on `tracon.rate_limit.store_failures` and applies the instance's own limit for that request. Do not swallow it and return a count |
 
 Register the store with `services.AddSingleton<IRateLimitCounterStore, RedisRateLimitCounterStore>()`

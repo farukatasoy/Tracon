@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **On SQL Server, the identifiers a client chooses compare exactly, letter case included. `Session-A` and `session-a` are two sessions,
+  as they already were on PostgreSQL and SQLite.** SQL Server compared them by the collation of the database, and its default ignores
+  case, so a second spelling replaced the first one's row without a sign (an upsert) and a read by either spelling returned the
+  other's content. Migration `0059_ordinal_key_collation` gives `Latin1_General_BIN2` to the session id (`sessions.id` and the
+  `session_id` of runs, attachments, pending approvals, responses, voice sessions and workflow checkpoints, requests and responses),
+  the idempotency key, the agent file path, the workflow checkpoint, request and claim ids, a run score's author, message id and name,
+  and the rate-limit partition key. No value changes and no row is merged: ids that were distinct stay distinct. What to do: apply the
+  migration before you start the new instances, as for any migration (an instance of the older release keeps working on the new
+  schema). It rebuilds the keys of those tables and locks each against schema changes while it runs, so plan the upgrade of a
+  database with a large `runs` table for a quiet hour. If your code, a client, or a stored reference spelled one identifier two ways and relied on SQL Server
+  treating them alike, it now reaches two records: write each identifier with one spelling. The names of definitions (agents,
+  workflows, skills, schedules and the like) still follow the collation of the database and still fold case on SQL Server. A custom
+  store must compare these identifiers exactly too: `SessionStoreContract.Ids_that_differ_only_in_case_are_two_sessions`,
+  `IdempotencyStoreContract.Keys_that_differ_only_in_case_are_two_reservations`,
+  `AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files`,
+  `WorkflowCheckpointStoreContract.Session_and_checkpoint_ids_that_differ_only_in_case_name_other_checkpoints`,
+  `RunScoreStoreContract.Author_message_and_name_that_differ_only_in_case_open_rows_of_their_own` and
+  `RateLimitCounterStoreContract.Partitions_that_differ_only_in_case_are_counted_apart` are new, and a store that folds case fails them.
+
 - **The voice conversation socket asks an API key for the `RunsWrite` scope, and a socket that your authorization policy
   authenticates opens only from the installation's own origin or from `AllowedOrigins`.** The socket checked a key by hand
   and nothing else, so a key that could only read agents (`AgentsRead`) opened a conversation that runs them, although the

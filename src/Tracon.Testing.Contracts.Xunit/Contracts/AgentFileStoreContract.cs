@@ -87,6 +87,27 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         (await Store.SearchAsync("/", "invoice", recursive: true)).ShouldHaveSingleItem();
     }
 
+    /// <summary>
+    /// An agent writes the path; one that differs only in letter case is another file. A store that folds
+    /// case lets the second write replace the first file's content.
+    /// </summary>
+    [Fact]
+    public async Task Paths_that_differ_only_in_case_are_two_files()
+    {
+        Enter(TenantA);
+
+        await Store.WriteAsync("/Notes/Plan.md", "upper content");
+        await Store.WriteAsync("/notes/plan.md", "lower content");
+
+        (await Store.ReadAsync("/Notes/Plan.md")).ShouldBe("upper content");
+        (await Store.ReadAsync("/notes/plan.md")).ShouldBe("lower content");
+
+        await Store.DeleteAsync("/Notes/Plan.md");
+
+        (await Store.FileExistsAsync("/Notes/Plan.md")).ShouldBeFalse();
+        (await Store.ReadAsync("/notes/plan.md")).ShouldBe("lower content");
+    }
+
     [Fact]
     public async Task Creating_a_directory_does_not_produce_a_record()
     {

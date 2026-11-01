@@ -62,6 +62,28 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
         state.Value.GetProperty("stepNumber").GetInt32().ShouldBe(3);
     }
 
+    /// <summary>
+    /// The session id and the checkpoint id are the caller's. Ids that differ only in letter case are other
+    /// checkpoints of other sessions; a store that folds case reads one back for the other.
+    /// </summary>
+    [Fact]
+    public async Task Session_and_checkpoint_ids_that_differ_only_in_case_name_other_checkpoints()
+    {
+        await Store.CreateAsync(Record("tenant-a", "Session-1", "Checkpoint-1"));
+        await Store.CreateAsync(Record("tenant-a", "session-1", "Checkpoint-1"));
+        await Store.CreateAsync(Record("tenant-a", "Session-1", "checkpoint-1"));
+
+        (await Store.ListAsync("tenant-a", "Session-1")).Count.ShouldBe(2);
+        (await Store.ListAsync("tenant-a", "session-1")).Count.ShouldBe(1);
+        (await Store.ListAsync("tenant-a", "SESSION-1")).ShouldBeEmpty();
+
+        (await Store.ReadAsync("tenant-a", "session-1", "checkpoint-1")).ShouldBeNull();
+        (await Store.ReadAsync("tenant-a", "Session-1", "checkpoint-1")).ShouldNotBeNull();
+
+        (await Store.DeleteAsync("tenant-a", "Session-1")).ShouldBe(2);
+        (await Store.ListAsync("tenant-a", "session-1")).Count.ShouldBe(1);
+    }
+
     [Fact]
     public async Task Polymorphic_payload_is_read_back_with_KEY_ORDER_PRESERVED()
     {
