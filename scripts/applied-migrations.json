@@ -1,9 +1,9 @@
 {
   "baselineCommit": "8f62c2873eaa4a6eb6dc01b1cb7aab212c51176b",
   "sourceCommits": {
-    "src/Tracon.PostgreSql/Migrations/0038_provider_name_case.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
+    "src/Tracon.PostgreSql/Migrations/0038_provider_name_case.sql": "d78091a4c46b40a1ac8876b557fe0a02ec5eea3e",
     "src/Tracon.PostgreSql/Migrations/0062_remove_authorization_configuration_key.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
-    "src/Tracon.SqlServer/Migrations/0025_provider_name_case.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
+    "src/Tracon.SqlServer/Migrations/0025_provider_name_case.sql": "d78091a4c46b40a1ac8876b557fe0a02ec5eea3e",
     "src/Tracon.SqlServer/Migrations/0050_remove_authorization_configuration_key.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
     "src/Tracon.SqlServer/Migrations/0059_ordinal_key_collation.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c"
   }
