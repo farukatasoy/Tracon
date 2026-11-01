@@ -607,6 +607,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A quota period ends at the right instant in zones that change the clock at local midnight.** Paraguay, Chile and Greenland start
+  daylight saving time at midnight, so that midnight never shows on a clock. The end of the daily and monthly period (the instant a
+  refused call is told to retry at) was computed from the offset after the change and came out an hour early: still inside the
+  old date. The instant is now checked against the zone's own conversion, the one the counter's date key uses. What a call is
+  counted against was not affected; only the reported end of the period.
 - **The egress guard no longer lets a private address through when it is written as an IPv4-compatible IPv6 address ending in
   `.1`.** The guard decodes the IPv6 notations that carry an IPv4 address (mapped, compatible, translated, 6to4) and judges the
   decoded address. The compatible form skipped every address whose last byte is 1, which was meant only for `::1`, so

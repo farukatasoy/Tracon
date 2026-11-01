@@ -118,4 +118,35 @@ public sealed class QuotaPeriodCalculatorTests
         starts[QuotaPeriod.Daily].ShouldBe(new DateOnly(2026, 8, 17));
         starts[QuotaPeriod.Monthly].ShouldBe(new DateOnly(2026, 8, 1));
     }
+
+    /// <summary>
+    /// Where a rule moves the clock at local midnight, the date starts at the first instant the zone itself puts on it.
+    /// </summary>
+    /// <remarks>
+    /// Paraguay, Chile and Greenland start daylight saving time at local midnight, so that midnight never shows on a clock.
+    /// The offset-based estimate used the offset from after the move and landed an hour inside the previous date: the
+    /// period ended an hour early and a caller told to retry then was still refused. The oracle here is a minute-by-minute
+    /// scan with the zone's own conversion, so it shares no arithmetic with the code under test.
+    /// </remarks>
+    [Theory]
+    [InlineData("America/Asuncion", 2023, 10, 1)]
+    [InlineData("America/Santiago", 2023, 9, 3)]
+    [InlineData("America/Scoresbysund", 2023, 3, 26)]
+    [InlineData("America/Havana", 2026, 3, 8)]
+    [InlineData("Australia/Lord_Howe", 2026, 10, 4)]
+    [InlineData("America/New_York", 2026, 3, 8)]
+    public void The_first_instant_of_a_date_is_the_first_instant_the_zone_puts_on_it(string zoneId, int year, int month, int day)
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+        var date = new DateOnly(year, month, day);
+
+        var scan = new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.Zero).AddHours(-30);
+
+        while (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(scan, zone).DateTime) < date)
+        {
+            scan = scan.AddMinutes(1);
+        }
+
+        QuotaPeriodCalculator.ToUtcInstant(date, zone).ShouldBe(scan);
+    }
 }

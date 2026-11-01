@@ -106,8 +106,30 @@ internal static class QuotaPeriodCalculator
             ? timeZone.GetAmbiguousTimeOffsets(midnight).Max()
             : timeZone.GetUtcOffset(midnight);
 
-        return new DateTimeOffset(midnight, offset).ToUniversalTime();
+        var instant = new DateTimeOffset(midnight, offset).ToUniversalTime();
+
+        // The zone's own conversion is the authority on which date an instant is on, and GetPeriodStart asks it.
+        // Where a rule moves the clock at local midnight (Paraguay, Chile, Greenland), the offset above can be the one
+        // from after the move and the instant lands an hour inside the previous date. Walk to the first instant that
+        // is on the date; the loops stop at a few hours, the longest a rule moves a clock.
+        for (var step = 0; step < MaxAdjustSteps && DateOf(instant, timeZone) < date; step++)
+        {
+            instant = instant.AddMinutes(1);
+        }
+
+        for (var step = 0; step < MaxAdjustSteps && DateOf(instant.AddMinutes(-1), timeZone) >= date; step++)
+        {
+            instant = instant.AddMinutes(-1);
+        }
+
+        return instant;
     }
+
+    /// <summary>The longest, in minutes, the first instant of a date can be from the offset-based estimate.</summary>
+    private const int MaxAdjustSteps = 4 * 60;
+
+    private static DateOnly DateOf(DateTimeOffset instant, TimeZoneInfo timeZone)
+        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, timeZone).DateTime);
 
     /// <summary>Calculates the start of every period a rule set touches.</summary>
     /// <param name="instant">The instant.</param>
