@@ -199,6 +199,27 @@ internal static class SessionEndpoints
             return bindError;
         }
 
+        // The id the branch is opened under is the client's choice, like the session id of a run: it goes into the
+        // same column, so it has the same limits (the narrowest column, and no edge whitespace that SQL Server ignores).
+        if (bound!.NewSessionId is { } newSessionId)
+        {
+            if (newSessionId.Length > SessionIdLimits.MaxLength)
+            {
+                return TypedResults.Problem(
+                    title: "Session id too long",
+                    detail: $"'newSessionId' cannot exceed {SessionIdLimits.MaxLength} characters.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            if (SessionIdLimits.HasEdgeWhitespace(newSessionId))
+            {
+                return TypedResults.Problem(
+                    title: "Session id has surrounding whitespace",
+                    detail: "'newSessionId' cannot start or end with whitespace.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
         // 🚨 Checked BEFORE branching: a denial produces the SAME 404 title
         // and detail ConversationBranchService's own SessionNotFound outcome
         // does a few lines below, so a caller cannot tell "denied" from

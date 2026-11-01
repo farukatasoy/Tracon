@@ -46,6 +46,41 @@ public sealed class SessionIdWhitespaceTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// A branch opens a session under an id the client chooses, so it is a fourth way to create a session and takes the same
+    /// rule. Refused before anything is read, so the answer does not depend on the store (a branch is 501 without a database).
+    /// </summary>
+    [Theory]
+    [InlineData("abc ")]
+    [InlineData(" abc")]
+    [InlineData("abc\t")]
+    public async Task A_branch_whose_new_session_id_starts_or_ends_with_whitespace_is_a_400(string newSessionId)
+    {
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition()));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/sessions/source/branch", UriKind.Relative),
+            new SessionBranchRequest { NewSessionId = newSessionId },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString()!.ShouldContain("whitespace", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_branch_whose_new_session_id_is_over_the_column_is_a_400()
+    {
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition()));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/sessions/source/branch", UriKind.Relative),
+            new SessionBranchRequest { NewSessionId = new string('b', 201) },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString()!.ShouldContain("200", Case.Sensitive);
+    }
+
     [Theory]
     [InlineData("conversation", "abc ")]
     [InlineData("conversation", " abc")]
@@ -65,5 +100,23 @@ public sealed class SessionIdWhitespaceTests
         using var response = await host.Client.PostAsJsonAsync(Responses, body, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("whitespace", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Whitespace_inside_the_conversation_id_is_served_on_the_openai_compatible_endpoint()
+    {
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition()));
+
+        var body = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["model"] = "kod-agent",
+            ["input"] = "hello",
+            ["conversation"] = "my conversation",
+        };
+
+        using var response = await host.Client.PostAsJsonAsync(Responses, body, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 }

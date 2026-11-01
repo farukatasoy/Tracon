@@ -33,12 +33,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the idempotency key, the agent file path, the workflow checkpoint (its `checkpoint_id` and `parent_id`), request and claim ids
   (including the request id of a pending approval), a run score's author, message id and name, and the rate-limit partition key. No value
   changes and no row is merged: ids that were distinct stay distinct. SQL Server still ignores trailing spaces in every collation, so
-  `abc` and `abc ` remain one key there while the other stores keep them apart; to make the stores agree, the run endpoint, `/v1/responses`
-  and the AG-UI endpoint answer `400` to a session id that starts or ends with whitespace.
+  `abc` and `abc ` remain one key there while the other stores keep them apart; to make the stores agree on the ids that open a session, the
+  run endpoint, `/v1/responses`, the AG-UI endpoint and the branch endpoint (`newSessionId`) answer `400` to an id that starts or ends with
+  whitespace. An id that only labels a row (an attachment's `sessionId`, for one) is not checked.
   What to do:
   - **Plan the upgrade window.** The migration is one command in one transaction that rebuilds the keys of 13 tables. While it
     runs those tables are closed to reads and writes, and they stay closed until the whole migration commits. Measured in an emulated
-    amd64 container on Apple Silicon, so slower than native: 14 s over 2.5 million rows (1.2 GB), 32 s over a database of 150 000
+    amd64 container on Apple Silicon, so slower than native (before `workflow_checkpoints.parent_id` and `pending_approvals.request_id` joined the
+    migration; both tables hold small rows and were not measured again): 14 s over 2.5 million rows (1.2 GB), 32 s over a database of 150 000
     sessions with 8 KB of state each and a million runs (2 GB). `CommandTimeoutSeconds` defaults to 30 and bounds that one command: a
     timeout rolls the migration back, and every start repeats it. Raise `Tracon:SqlServer:CommandTimeoutSeconds` (`0` is unlimited)
     for the run that applies it, or apply it in your own deployment step (`AutoApplyMigrations = false`), and do it in a quiet hour.
