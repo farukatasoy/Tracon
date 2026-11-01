@@ -20,6 +20,11 @@
   -->
 
   <ItemGroup>
+    <!-- Test-only: property-based tests (CsCheck) over the text the SQL stores bind. -->
+    <PackageReference Include="CsCheck" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- A vector store that runs the filter it is given, for the conversation memory tests. -->
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
   </ItemGroup>
