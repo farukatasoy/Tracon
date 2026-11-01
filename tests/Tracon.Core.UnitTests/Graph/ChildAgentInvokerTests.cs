@@ -417,6 +417,46 @@ public sealed class ChildAgentInvokerTests
         exception.Message.ShouldContain("call depth limit was exceeded", Case.Sensitive);
     }
 
+    /// <summary>
+    /// A call that finishes in time leaves no timer and no registration behind, however many updates the child streams.
+    /// </summary>
+    /// <remarks>
+    /// Each wait raced the child against a timer for the whole wait limit and against the caller's token. The timer was
+    /// never cancelled when the child won, so a stream of N updates left N timers running until the limit, and N
+    /// registrations on the caller's token until the run ended.
+    /// </remarks>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_call_that_finishes_in_time_leaves_no_timer_running(bool streaming)
+    {
+        const int Updates = 200;
+
+        var clock = new CountingTimeProvider();
+        var chunks = Enumerable.Range(0, Updates)
+            .Select(static index => new ChatResponseUpdate(ChatRole.Assistant, $"part {index} "))
+            .ToArray();
+        var client = new FakeChatClient(
+            _ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "research result")),
+            chunks);
+
+        var (invoker, _) = CreateInvoker(
+            ChildRefusalMode.ToolResult,
+            client,
+            childDeadline: TimeSpan.FromSeconds(30),
+            waitTimeout: TimeSpan.FromSeconds(60),
+            hostsApproval: false,
+            timeProvider: clock);
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        await RunAsync(invoker, streaming);
+
+        clock.RunningTimers.ShouldBeLessThan(
+            5,
+            $"{clock.CreatedTimers} timers were created for one call and {clock.RunningTimers} were still running when it ended");
+    }
+
     private static async Task<string> RunAsync(ChildAgentInvoker invoker, bool streaming)
         => streaming ? await ReadStreamTextAsync(invoker) : (await invoker.RunAsync("run")).Text;
 
@@ -473,6 +513,16 @@ public sealed class ChildAgentInvokerTests
         TimeSpan? waitTimeout = null,
         bool hostsApproval = false,
         params AIFunction[] tools)
+        => CreateInvoker(refusalMode, client, childDeadline, waitTimeout, hostsApproval, timeProvider: null, tools);
+
+    private static (ChildAgentInvoker Invoker, InMemoryRunStore Store) CreateInvoker(
+        ChildRefusalMode refusalMode,
+        IChatClient? client,
+        TimeSpan? childDeadline,
+        TimeSpan? waitTimeout,
+        bool hostsApproval,
+        TimeProvider? timeProvider,
+        params AIFunction[] tools)
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var tenantContext = new FixedTenantContext();
@@ -507,7 +557,8 @@ public sealed class ChildAgentInvokerTests
             childDeadline: childDeadline ?? TimeSpan.FromSeconds(30),
             waitTimeout: waitTimeout ?? TimeSpan.FromSeconds(60),
             refusalMode: refusalMode,
-            hostsApproval: hostsApproval);
+            hostsApproval: hostsApproval,
+            timeProvider: timeProvider);
 
         return (invoker, store);
     }

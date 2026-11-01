@@ -268,11 +268,11 @@ internal sealed class OnlineEvalJobHandler(
             using var samplingSuppression = AmbientSamplingSuppressionScope.Begin();
             invocation = judge.JudgeAsync(judgeContext, budget.Token).AsTask();
 
-            var timeoutTask = Task.Delay(timeout, timeProvider ?? TimeProvider.System, CancellationToken.None);
-            var callerCancellation = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            var winner = await Task.WhenAny(invocation, timeoutTask, callerCancellation).ConfigureAwait(false);
+            var judgeFinished = await TaskRace
+                .FinishedFirstAsync(invocation, timeout, timeProvider ?? TimeProvider.System, cancellationToken)
+                .ConfigureAwait(false);
 
-            if (winner != invocation)
+            if (!judgeFinished)
             {
                 ObserveLateJudge(invocation, judge, judgeContext);
                 cancellationToken.ThrowIfCancellationRequested();

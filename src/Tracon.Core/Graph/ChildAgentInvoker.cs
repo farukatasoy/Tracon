@@ -253,17 +253,14 @@ public sealed class ChildAgentInvoker : AIAgent
         // Layer 2: a hard cutoff for the child that ignores the token
         // above. Raced with CancellationToken.None so a real elapsed timeout
         // is never confused with the caller's own cancellation below.
-        var waitTimeoutTask = Task.Delay(_waitTimeout, _timeProvider, CancellationToken.None);
-        var callerCancellation = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-
-        var winner = await Task.WhenAny(invocation, waitTimeoutTask, callerCancellation).ConfigureAwait(false);
+        var childFinished = await TaskRace.FinishedFirstAsync(invocation, _waitTimeout, _timeProvider, cancellationToken).ConfigureAwait(false);
 
         // A real caller cancellation racing callerCancellation ahead of
         // invocation is NOT a hard cutoff - invocation is about to cancel for
         // real too (its token is linked to the same cancellationToken). Falling
         // through lets the try/catch/finally below handle it exactly like any
         // other caller-canceled call, ChildRunCompleted included.
-        if (winner != invocation && !cancellationToken.IsCancellationRequested)
+        if (!childFinished && !cancellationToken.IsCancellationRequested)
         {
             // The child is abandoned running in the background; its eventual
             // result — success or failure — is discarded.
@@ -477,17 +474,17 @@ public sealed class ChildAgentInvoker : AIAgent
     {
         var moveNext = enumerator.MoveNextAsync().AsTask();
         var remaining = waitDeadline - _timeProvider.GetUtcNow();
-        var waitTimeoutTask = Task.Delay(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, _timeProvider, CancellationToken.None);
-        var callerCancellation = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
 
-        var winner = await Task.WhenAny(moveNext, waitTimeoutTask, callerCancellation).ConfigureAwait(false);
+        var stepFinished = await TaskRace
+            .FinishedFirstAsync(moveNext, remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, _timeProvider, cancellationToken)
+            .ConfigureAwait(false);
 
         // Same distinction as the non-streaming path: a real caller
         // cancellation racing ahead of moveNext is not a hard cutoff -
         // moveNext is about to cancel for real too. Falling through lets the
         // catch below (and the caller's normal finally) handle it like any
         // other caller-canceled call.
-        if (winner != moveNext && !cancellationToken.IsCancellationRequested)
+        if (!stepFinished && !cancellationToken.IsCancellationRequested)
         {
             return ChildStep.Abandoned(moveNext);
         }

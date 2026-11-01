@@ -607,6 +607,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A call to a callable agent no longer leaves a timer and a token registration behind for each update the child streams.**
+  The wait raced the child against a timer for the whole wait limit and against the caller's token, and never cancelled either
+  one when the child won. A child that streamed 200 updates left 200 timers running until the limit (201 created, 201 running
+  when the call ended, measured) and 200 registrations on the caller's token until the run ended. The online eval judge raced the
+  same way, once per judge. The loser is now cancelled as soon as one task wins.
 - **Two writes of one run's input that arrive at once no longer fail on SQL Server.** A second write of a run's input is ignored. The
   SQL Server statement checked "is there a row" and inserted in two steps without a lock, so two writers both found none, both
   inserted, and the loser failed with a duplicate key (24 writers at once: it failed every time). The lookup now holds an update
