@@ -1,6 +1,6 @@
 {
   "baselineCommit": "8f62c2873eaa4a6eb6dc01b1cb7aab212c51176b",
   "sourceCommits": {
-    "src/Tracon.SqlServer/Migrations/0059_ordinal_key_collation.sql": "f62c3d0d86892df9598303a7f5bc3190bb309f62"
+    "src/Tracon.SqlServer/Migrations/0059_ordinal_key_collation.sql": "f3f4ed6ef972206c5c35acf9ba06952cb89cad54"
   }
 }
