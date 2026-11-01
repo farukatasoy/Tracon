@@ -607,6 +607,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A list that is paged by offset returns each row once when several rows share the sort time.** The session, attachment, audit
+  log, job, eval run, webhook delivery, retention run and voice session lists were ordered by one time column. Rows that share
+  the time have no order of their own, and PostgreSQL may order them differently for the page that starts at 0 and the page that
+  starts at 7: a session was listed on two pages and another on none (45 sessions updated at one instant, pages of 7: it failed
+  every time). A batch that writes many rows at one instant is the ordinary way to get such a tie. The eight queries of each SQL
+  provider now sort by the time and then by `id`. The new contract test is
+  `SessionStoreContract.Paging_through_sessions_with_the_same_update_time_returns_each_one_once`.
 - **`tracon health`, `eval`, `export` and `import` warn when the token would travel over plain `http` to another machine.** A
   bearer token is a credential for the whole installation, and an `http://` address on another machine sends it where anyone
   on the path can read it. The command now says so on standard error and still runs, because a plain-http address inside a

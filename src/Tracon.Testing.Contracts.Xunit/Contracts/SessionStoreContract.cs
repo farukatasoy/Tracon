@@ -578,4 +578,44 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         (await Store.GetAsync("shared-id")).ShouldNotBeNull()
             .State.GetProperty("who").GetString().ShouldBe("a");
     }
+
+    /// <summary>
+    /// Paging through sessions that were all updated at the same instant returns each one once.
+    /// </summary>
+    /// <remarks>
+    /// The list is ordered by update time, and rows that share it have no order of their own: without a second sort
+    /// key the engine may order them differently for the page that starts at 0 and the page that starts at 7, so a
+    /// row is listed twice and another not at all. A batch that writes many sessions at one instant is the ordinary
+    /// way to get such a tie.
+    /// </remarks>
+    [Fact]
+    public async Task Paging_through_sessions_with_the_same_update_time_returns_each_one_once()
+    {
+        const int Total = 45;
+        const int PageSize = 7;
+
+        var instant = new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
+        var expected = new List<string>();
+
+        for (var index = 0; index < Total; index++)
+        {
+            var id = $"tie-{index:D3}";
+            expected.Add(id);
+
+            await Store.SaveAsync(TestData.Session(id) with { CreatedAt = instant, UpdatedAt = instant });
+        }
+
+        var seen = new List<string>();
+
+        for (var skip = 0; skip < Total + PageSize; skip += PageSize)
+        {
+            var page = await Store.QueryAsync(new SessionQuery { Skip = skip, Take = PageSize });
+
+            seen.AddRange(page.Select(static session => session.Id));
+        }
+
+        seen.Count.ShouldBe(Total, $"the pages listed {seen.Count} rows for {Total} sessions");
+        seen.Distinct(StringComparer.Ordinal).Count().ShouldBe(Total, "a session was listed on two pages");
+        seen.Order(StringComparer.Ordinal).ShouldBe(expected);
+    }
 }

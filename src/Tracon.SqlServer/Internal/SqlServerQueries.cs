@@ -335,7 +335,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@owner_id IS NULL OR owner_id = @owner_id)
               {TakeGuard}
-            ORDER BY updated_at DESC
+            ORDER BY updated_at DESC, id DESC
             {Paging}
             """;
 
@@ -1253,7 +1253,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id
               AND (@session_id IS NULL OR session_id = @session_id)
               {TakeGuard}
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             {Paging}
             """;
 
@@ -1337,7 +1337,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@started_after  IS NULL OR created_at > @started_after)
               AND (@started_before IS NULL OR created_at < @started_before)
               {TakeGuard}
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             OFFSET 0 ROWS FETCH NEXT (CASE WHEN @take < 1 THEN 1 ELSE @take END) ROWS ONLY;
             """;
 
@@ -1499,7 +1499,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@status      IS NULL OR status      = @status)
               AND (@schedule_id IS NULL OR schedule_id = @schedule_id)
               {TakeGuard}
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             {Paging}
             """;
 
@@ -1574,7 +1574,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE (@tenant_id IS NULL OR tenant_id = @tenant_id)
               AND (@suite_id  IS NULL OR suite_id  = @suite_id)
               {TakeGuard}
-            ORDER BY started_at DESC
+            ORDER BY started_at DESC, id DESC
             {Paging}
             """;
 
@@ -1708,7 +1708,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@subscription_id IS NULL OR subscription_id = @subscription_id)
               AND (@status          IS NULL OR status          = @status)
               {TakeGuard}
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             {Paging}
             """;
 
@@ -1764,7 +1764,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id
               AND (@target IS NULL OR target = @target)
               {TakeGuard}
-            ORDER BY started_at DESC
+            ORDER BY started_at DESC, id DESC
             {Paging}
             """;
         const string voiceSessionColumns =
@@ -1802,7 +1802,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@session_id IS NULL OR session_id = @session_id)
               {TakeGuard}
-            ORDER BY started_at DESC
+            ORDER BY started_at DESC, id DESC
             {Paging}
             """;
 
