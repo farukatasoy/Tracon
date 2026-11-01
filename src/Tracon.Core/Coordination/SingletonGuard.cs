@@ -38,7 +38,14 @@ internal sealed class SingletonGuard
     private readonly string _ownerId;
     private readonly ILogger? _logger;
 
+    private readonly TimeProvider _timeProvider;
+
     private volatile bool _holding;
+
+    // The timestamp at which the last acquire or renewal that the store confirmed STARTED. The store
+    // extends the lease from the moment it handles the call, which is no earlier than the start, so
+    // counting from the start never believes the lease lives longer than it does.
+    private long _confirmedAt;
 
     /// <summary>
     /// The shortest interval at which the lease is renewed. It keeps a very
@@ -65,6 +72,7 @@ internal sealed class SingletonGuard
     /// <param name="optionsMonitor">Single-executor selection settings.</param>
     /// <param name="leaseName">Cluster-wide unique name of the protected work.</param>
     /// <param name="logger">Logger to which lease-loss and error logs are written.</param>
+    /// <param name="timeProvider">The clock the lease is counted on; the system clock when omitted.</param>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="store"/>
     /// or
@@ -76,7 +84,8 @@ internal sealed class SingletonGuard
         ISingletonLeaseStore store,
         IOptionsMonitor<SingletonExecutionOptions> optionsMonitor,
         string leaseName,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(optionsMonitor);
@@ -86,6 +95,7 @@ internal sealed class SingletonGuard
         _optionsMonitor = optionsMonitor;
         _leaseName = leaseName;
         _logger = logger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         _ownerId = optionsMonitor.CurrentValue.OwnerId is { Length: > 0 } configured
             ? configured
@@ -97,7 +107,7 @@ internal sealed class SingletonGuard
     /// <see langword="true"/> when single-executor selection is disabled.
     /// Synchronous; the calling service can read this on every tick for free.
     /// </summary>
-    public bool IsHeld => !_optionsMonitor.CurrentValue.Enabled || _holding;
+    public bool IsHeld => !_optionsMonitor.CurrentValue.Enabled || (_holding && !LeaseElapsed());
 
     /// <summary>
     /// Starts the lease/renew loop. Returns immediately without issuing ANY
@@ -171,6 +181,7 @@ internal sealed class SingletonGuard
         try
         {
             var options = _optionsMonitor.CurrentValue;
+            var startedAt = _timeProvider.GetTimestamp();
 
             if (_holding)
             {
@@ -178,7 +189,11 @@ internal sealed class SingletonGuard
                     .RenewAsync(_leaseName, _ownerId, options.LeaseDuration, cancellationToken)
                     .ConfigureAwait(false);
 
-                if (!renewed)
+                if (renewed)
+                {
+                    Volatile.Write(ref _confirmedAt, startedAt);
+                }
+                else
                 {
                     _holding = false;
                     LogLost();
@@ -186,16 +201,36 @@ internal sealed class SingletonGuard
             }
             else
             {
-                _holding = await _store
+                var acquired = await _store
                     .TryAcquireAsync(_leaseName, _ownerId, options.LeaseDuration, cancellationToken)
                     .ConfigureAwait(false);
+
+                if (acquired)
+                {
+                    Volatile.Write(ref _confirmedAt, startedAt);
+                }
+
+                _holding = acquired;
             }
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             LogFailure(exception);
+
+            // One failed renewal is inside the margin a third of the lease leaves. A renewal that keeps
+            // failing past the whole lease is not: the store has handed the lease to someone else by now,
+            // and this instance must stop acting as the executor instead of waiting for a call that works.
+            if (_holding && LeaseElapsed())
+            {
+                _holding = false;
+                LogLost();
+            }
         }
     }
+
+    /// <summary>Gets whether the lease this instance last had confirmed has run out by its own duration.</summary>
+    private bool LeaseElapsed()
+        => _timeProvider.GetElapsedTime(Volatile.Read(ref _confirmedAt)) >= _optionsMonitor.CurrentValue.LeaseDuration;
 
     private void LogLost()
     {

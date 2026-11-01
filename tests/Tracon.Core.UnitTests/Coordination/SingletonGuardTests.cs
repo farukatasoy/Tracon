@@ -105,6 +105,72 @@ public sealed class SingletonGuardTests
         guard.IsHeld.ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task One_failed_renewal_does_not_give_the_lease_up()
+    {
+        var clock = new ManualTimeProvider();
+        var store = new CountingSingletonLeaseStore();
+        var guard = new SingletonGuard(store, Options(Held(TimeSpan.FromSeconds(30))), LeaseName, timeProvider: clock);
+
+        await guard.TickAsync(CancellationToken.None);
+
+        store.ThrowOnRenew = true;
+        clock.Advance(TimeSpan.FromSeconds(10));
+        await guard.TickAsync(CancellationToken.None);
+
+        guard.IsHeld.ShouldBeTrue("one renewal that failed is inside the margin the lease leaves");
+
+        store.ThrowOnRenew = false;
+        clock.Advance(TimeSpan.FromSeconds(10));
+        await guard.TickAsync(CancellationToken.None);
+
+        guard.IsHeld.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Renewals_that_keep_failing_past_the_whole_lease_give_it_up()
+    {
+        var clock = new ManualTimeProvider();
+        var store = new CountingSingletonLeaseStore();
+        var guard = new SingletonGuard(store, Options(Held(TimeSpan.FromSeconds(30))), LeaseName, timeProvider: clock);
+
+        await guard.TickAsync(CancellationToken.None);
+        guard.IsHeld.ShouldBeTrue();
+
+        // The store cannot be reached from now on; the lease is the other instance's after 30 seconds.
+        store.ThrowOnRenew = true;
+
+        for (var tick = 0; tick < 3; tick++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(10));
+            await guard.TickAsync(CancellationToken.None);
+        }
+
+        guard.IsHeld.ShouldBeFalse("this instance went on acting as the executor on a lease it could no longer prove");
+    }
+
+    [Fact]
+    public async Task A_renewal_that_never_returns_cannot_keep_the_lease_past_its_duration()
+    {
+        // The store call hangs, so no tick ends and none of the catch paths runs: the answer to
+        // "do I hold it" must come from the clock, not from the loop.
+        var clock = new ManualTimeProvider();
+        var store = new CountingSingletonLeaseStore();
+        var guard = new SingletonGuard(store, Options(Held(TimeSpan.FromSeconds(30))), LeaseName, timeProvider: clock);
+
+        await guard.TickAsync(CancellationToken.None);
+        guard.IsHeld.ShouldBeTrue();
+
+        clock.Advance(TimeSpan.FromSeconds(29));
+        guard.IsHeld.ShouldBeTrue();
+
+        clock.Advance(TimeSpan.FromSeconds(2));
+        guard.IsHeld.ShouldBeFalse();
+    }
+
+    private static SingletonExecutionOptions Held(TimeSpan leaseDuration)
+        => new() { Enabled = true, LeaseDuration = leaseDuration };
+
     private static StaticOptionsMonitor<SingletonExecutionOptions> Options(SingletonExecutionOptions value) => new(value);
 
     /// <summary>Fake lease store that tracks call counts and has configurable behavior.</summary>
@@ -121,6 +187,8 @@ public sealed class SingletonGuardTests
         public bool RenewResult { get; set; } = true;
 
         public bool ThrowOnAcquire { get; set; }
+
+        public bool ThrowOnRenew { get; set; }
 
         public ValueTask<bool> TryAcquireAsync(
             string name, string ownerId, TimeSpan duration, CancellationToken cancellationToken = default)
@@ -139,6 +207,11 @@ public sealed class SingletonGuardTests
             string name, string ownerId, TimeSpan duration, CancellationToken cancellationToken = default)
         {
             RenewCalls++;
+
+            if (ThrowOnRenew)
+            {
+                throw new InvalidOperationException("Test: intentional failure.");
+            }
 
             return new ValueTask<bool>(RenewResult);
         }
