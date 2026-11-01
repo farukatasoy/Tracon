@@ -56,6 +56,8 @@ internal static class EvalCommand
             throw new CliArgumentException("'--url' must be an absolute URL, for example http://localhost:5080/tracon.");
         }
 
+        CliTokenWarning.WarnWhenSentInClear(baseAddress, token);
+
         if (minPassRate is < 0 or > 1)
         {
             throw new CliArgumentException("'--min-pass-rate' must be between 0 and 1.");

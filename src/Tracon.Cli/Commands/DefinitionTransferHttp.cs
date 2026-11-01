@@ -34,6 +34,8 @@ internal static class DefinitionTransferHttp
             throw new CliArgumentException("'--url' must be an absolute URL, for example http://localhost:5080/tracon.");
         }
 
+        CliTokenWarning.WarnWhenSentInClear(baseAddress, token);
+
         var root = baseAddress.AbsoluteUri.EndsWith('/') ? baseAddress : new Uri(baseAddress.AbsoluteUri + "/", UriKind.Absolute);
 
         // 🚨 The budget the command owns is the one it enforces; HttpClient's own default would end a long

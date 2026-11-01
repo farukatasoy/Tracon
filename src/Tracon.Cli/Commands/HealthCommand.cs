@@ -25,6 +25,8 @@ internal static class HealthCommand
             throw new CliArgumentException("'--url' must be an absolute URL, for example http://localhost:5080/tracon.");
         }
 
+        CliTokenWarning.WarnWhenSentInClear(baseAddress, token);
+
         var services = new ServiceCollection();
         services.AddTraconClient(options =>
         {

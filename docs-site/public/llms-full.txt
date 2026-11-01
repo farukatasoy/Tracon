@@ -9973,6 +9973,11 @@ tracon --help
 secret on the command line would show up in shell history and process listings.
 Neither is ever read from a configuration file, and neither is ever printed back.
 
+A command that has a token and talks to a plain `http://` address on another machine
+(`health`, `eval`, `export`, `import`) warns on standard error that the token travels in the
+clear, and then runs. A loopback address (`localhost`, `127.0.0.1`) and an `https://` address
+do not warn. Use `https`, or a network you trust.
+
 `agent-skill` is the odd one out: it neither connects nor listens. It writes one
 file, `.claude/skills/tracon/SKILL.md`, under `--output` (default: the root of
 the repository you are in, which is where the build looks for it), and leaves an

@@ -607,6 +607,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`tracon health`, `eval`, `export` and `import` warn when the token would travel over plain `http` to another machine.** A
+  bearer token is a credential for the whole installation, and an `http://` address on another machine sends it where anyone
+  on the path can read it. The command now says so on standard error and still runs, because a plain-http address inside a
+  trusted network, or behind a proxy that ends TLS, can be a decision. Loopback and `https://` addresses do not warn, and the
+  token is never part of the message.
 - **A call to a callable agent no longer leaves a timer and a token registration behind for each update the child streams.**
   The wait raced the child against a timer for the whole wait limit and against the caller's token, and never cancelled either
   one when the child won. A child that streamed 200 updates left 200 timers running until the limit (201 created, 201 running
