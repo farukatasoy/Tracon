@@ -1,0 +1,151 @@
+name: OpenAPI fuzz
+
+# Fuzzes the OpenAPI document of the reference host (samples/Tracon.Api) with Schemathesis, once a week and on
+# demand. It is not part of the pull request gate: a run takes minutes per leg, the generators draw different
+# requests whenever Schemathesis is upgraded, and a finding here is an HTTP defect to triage, not a reason to hold a
+# change.
+#
+# Every leg runs the same command a developer runs on a laptop:
+#
+#   python3 scripts/openapi_fuzz.py --store <store> --leg <leg> --examples <n> --seed-data
+#
+# so a failing leg is replayed by copying the command from the job summary. Each leg uploads `summary.md`, a
+# `repro.txt` with one `curl` line per finding, and the host and Schemathesis logs. Schemathesis is pinned by hash in
+# scripts/openapi-fuzz-requirements.txt and installed into a virtual environment under artifacts/; it is not a
+# dependency of any package.
+#
+# What a leg fails on, and what it only reports, is written at the top of scripts/openapi_fuzz.py.
+
+on:
+  schedule:
+    # Monday, 03:17 UTC. An odd minute keeps the run off the top of the hour, when scheduled workflows queue longest.
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      examples:
+        description: "Examples per operation for the gating checks (the matrix default applies when empty)"
+        type: string
+        default: ''
+      seed:
+        description: "Schemathesis seed (empty keeps the script default, so a run repeats)"
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+# A second run waits for the first instead of racing it for the same runner pool.
+concurrency:
+  group: openapi-fuzz
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  CI: true
+  PYTHONUTF8: 1
+
+jobs:
+  fuzz:
+    name: Fuzz (${{ matrix.name }})
+    # The canonical repository only: the development repository and forks never run this job.
+    if: github.repository == 'farukatasoy/Tracon'
+    runs-on: ubuntu-latest
+    # Each limit is about twice the time the same job took on a busy laptop, rounded up: build 3 to 5 min, virtual
+    # environment 1 min, then the legs. Measured per job at 30 examples and scaled to the matrix value: roles 10 min per
+    # leg, scopes 7 min in all, SQLite 8 min, PostgreSQL 9 min, SQL Server 10 min (image already pulled). None of these
+    # is a runner measurement: re-measure after the first scheduled run and move the limit with it.
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The identity legs: every demonstration role, then one API key per scope, against the in-memory store.
+          - name: memory, every role
+            store: memory
+            legs: '--leg roles:all'
+            examples: 50
+            timeout: 90
+          - name: memory, every API key scope
+            store: memory
+            legs: '--leg scopes:each --gate-only'
+            examples: 6
+            timeout: 45
+          # The store legs: the admin role against each persistence provider.
+          - name: sqlite
+            store: sqlite
+            legs: '--leg role:admin'
+            examples: 50
+            timeout: 45
+          - name: postgres
+            store: postgres
+            legs: '--leg role:admin'
+            examples: 50
+            timeout: 60
+          - name: sqlserver
+            store: sqlserver
+            legs: '--leg role:admin'
+            examples: 50
+            timeout: 60
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # MinVer derives the version from git tags; the whole history is needed.
+          fetch-depth: 0
+
+      - name: Set up the .NET SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      # Schemathesis 4.32 needs Python 3.11 or later.
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache the NuGet packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      # The script builds the host (without the console, which needs Node.js and is not part of the HTTP surface),
+      # installs the pinned Schemathesis, starts the host and the store, seeds the host, runs the legs and stops
+      # everything it started. The inputs reach the shell through the environment, never through the command line text.
+      - name: Fuzz the OpenAPI document
+        env:
+          STORE: ${{ matrix.store }}
+          LEGS: ${{ matrix.legs }}
+          EXAMPLES: ${{ inputs.examples || matrix.examples }}
+          SEED: ${{ inputs.seed }}
+        run: |
+          set -eo pipefail
+          extra=()
+          if [ -n "$SEED" ]; then
+            extra+=(--seed "$SEED")
+          fi
+          # $LEGS is a short list of --leg options chosen in the matrix above, so it is split on spaces on purpose.
+          # shellcheck disable=SC2086
+          python3 scripts/openapi_fuzz.py --store "$STORE" $LEGS --examples "$EXAMPLES" --seed-data "${extra[@]}"
+
+      # Uploaded whether the leg passed or not: a green run still shows how far the requests got.
+      - name: Upload the leg reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: openapi-fuzz-${{ matrix.store }}-${{ strategy.job-index }}
+          path: |
+            artifacts/openapi-fuzz/summary.md
+            artifacts/openapi-fuzz/seed.json
+            artifacts/openapi-fuzz/host.log
+            artifacts/openapi-fuzz/*/repro.txt
+            artifacts/openapi-fuzz/*/*.log
+            artifacts/openapi-fuzz/*/stats.json
+          retention-days: 30
+          if-no-files-found: warn

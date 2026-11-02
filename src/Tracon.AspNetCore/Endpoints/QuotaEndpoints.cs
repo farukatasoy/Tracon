@@ -74,6 +74,13 @@ internal static class QuotaEndpoints
                 "the check happens before a run starts, and consumption is written after it finishes.");
     }
 
+    /// <summary>
+    /// The first cost limit no store can hold: the money columns are <c>numeric(20,10)</c> and <c>decimal(20,10)</c>,
+    /// ten digits before the point. A number at or above it is a numeric overflow in the store, which the host would
+    /// report as an unavailable store.
+    /// </summary>
+    private const decimal MaxCostExclusiveBound = 10_000_000_000m;
+
     private static async Task<Ok<IReadOnlyList<QuotaDefinition>>> ListAsync(
         [FromServices] IQuotaStore store,
         [FromServices] ITenantContext tenants,
@@ -114,6 +121,11 @@ internal static class QuotaEndpoints
         if (request.MaxRuns is < 0 || request.MaxTokens is < 0 || request.MaxCost is < 0)
         {
             return Invalid("Limit values cannot be negative.");
+        }
+
+        if (request.MaxCost >= MaxCostExclusiveBound)
+        {
+            return Invalid($"'maxCost' must be below {MaxCostExclusiveBound:N0}.");
         }
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();

@@ -54,7 +54,8 @@ internal static class GovernanceEndpoints
                     return OAuthCallbackPage("MCP OAuth is not registered.", success: false);
                 }
 
-                if (string.IsNullOrEmpty(state))
+                // Whitespace is no state either: the coordinator's argument guard throws for it, which was a 500.
+                if (string.IsNullOrWhiteSpace(state))
                 {
                     return OAuthCallbackPage("Invalid request: the state value is missing.", success: false);
                 }

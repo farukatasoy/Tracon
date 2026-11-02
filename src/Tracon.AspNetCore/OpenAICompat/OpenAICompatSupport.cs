@@ -39,7 +39,7 @@ internal static class OpenAICompatSupport
             metadata.ValueKind is JsonValueKind.Object &&
             metadata.TryGetProperty(EntityIdKey, out var entityId) &&
             entityId.ValueKind is JsonValueKind.String &&
-            entityId.GetString() is { Length: > 0 } fromMetadata)
+            entityId.GetString() is { } fromMetadata && !string.IsNullOrWhiteSpace(fromMetadata))
         {
             return fromMetadata;
         }
@@ -47,7 +47,7 @@ internal static class OpenAICompatSupport
         if (body.ValueKind is JsonValueKind.Object &&
             body.TryGetProperty("model", out var model) &&
             model.ValueKind is JsonValueKind.String &&
-            model.GetString() is { Length: > 0 } fromModel)
+            model.GetString() is { } fromModel && !string.IsNullOrWhiteSpace(fromModel))
         {
             return fromModel;
         }

@@ -244,7 +244,21 @@ internal static class SessionEndpoints
 
         var request = bound!;
 
-        var outcome = await branches.BranchAsync(sessionId, request, cancellationToken).ConfigureAwait(false);
+        SessionBranchOutcome outcome;
+
+        try
+        {
+            outcome = await branches.BranchAsync(sessionId, request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconException ex)
+        {
+            // Restoring the session resolves its agent, and a refused compile (a tenant provider binding whose key has
+            // no value, a provider the egress policy no longer allows) is the same 400 a run of that agent gets.
+            return TypedResults.Problem(
+                title: "Agent compilation failed",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
 
         if (outcome.Status != SessionBranchStatus.Branched)
         {

@@ -690,7 +690,23 @@ internal static class RunEndpoints
             }
         }
 
-        var preparation = await replays.PrepareAsync(runId, request, cancellationToken).ConfigureAwait(false);
+        RunReplayPreparation preparation;
+
+        try
+        {
+            preparation = await replays.PrepareAsync(runId, request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconException ex)
+        {
+            // Preparing a replay compiles the source run's agent, which can be refused: a tenant provider binding
+            // whose key has no value, an unknown tool. The agent run and the OpenAI-compatible endpoints answer 400
+            // "Agent compilation failed" for the same exception; the replay compiles through its own path and let
+            // it out as a 500.
+            return Results.Problem(
+                title: "Agent compilation failed",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
 
         if (preparation.Outcome != RunReplayOutcome.Ready)
         {

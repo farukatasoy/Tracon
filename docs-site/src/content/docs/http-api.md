@@ -170,7 +170,7 @@ shows server text as it is.
 
 | Status | Means |
 |---|---|
-| `400` | The request is malformed or fails validation |
+| `400` | The request is malformed or fails validation. A query parameter that names no member of its enum is `400` whether it is written as text or as a number (`?bucket=99`), and a value that is only whitespace is no value: a blank `model`, a blank OAuth `state` |
 | `401` | Missing or invalid credentials |
 | `403` | Authenticated, but not allowed — including the loopback restriction |
 | `404` | Not found, or not yours. A path segment that is only whitespace is a name nobody can have saved, so it is `404` too |

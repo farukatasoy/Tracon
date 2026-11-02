@@ -36,6 +36,25 @@ public sealed class EvalCheckDefinitionBodyTests
     }
 
     [Fact]
+    public async Task A_suite_saved_with_null_checks_has_no_checks_and_reads_back_as_the_empty_array()
+    {
+        // `null` saved on the in-memory, SQLite and PostgreSQL stores and was a CHECK (ISJSON) violation, reported as
+        // "the store is unavailable" (503), on SQL Server. The empty array is what "no checks" is everywhere else.
+        await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition("writer")));
+
+        using var content = new StringContent("""{"agentName":"writer","checks":null}""", Encoding.UTF8, "application/json");
+        using var saved = await host.Client.PutAsync(new Uri("/tracon/api/evals/nullchecks", UriKind.Relative), content);
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var read = await host.Client.GetAsync(new Uri("/tracon/api/evals/nullchecks", UriKind.Relative));
+        var suite = await TraconTestHost.ReadJsonAsync(read);
+
+        suite.GetProperty("checks").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Array);
+        suite.GetProperty("checks").GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
     public async Task A_well_formed_check_definition_is_still_saved()
     {
         await using var host = await TraconTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition("writer")));
