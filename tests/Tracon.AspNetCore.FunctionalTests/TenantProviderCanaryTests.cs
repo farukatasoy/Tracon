@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -129,36 +127,7 @@ public sealed class TenantProviderCanaryTests
     private static async Task<Evidence> DriveAsync(TempSqliteDatabase? database)
     {
         var seen = new StringBuilder();
-        var spans = new List<string>();
-        var measurements = new List<string>();
-
-        using var activities = new ActivityListener
-        {
-            ShouldListenTo = static _ => true,
-            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = activity =>
-            {
-                lock (spans)
-                {
-                    spans.Add(activity.DisplayName);
-                    spans.AddRange(activity.TagObjects.Select(static tag => $"{tag.Key}={tag.Value}"));
-                    spans.AddRange(activity.Baggage.Select(static item => $"{item.Key}={item.Value}"));
-                    spans.AddRange(activity.Events.SelectMany(static activityEvent => activityEvent.Tags.Select(static tag => $"{tag.Key}={tag.Value}")));
-                }
-            },
-        };
-
-        ActivitySource.AddActivityListener(activities);
-
-        using var meters = new MeterListener
-        {
-            InstrumentPublished = static (instrument, listener) => listener.EnableMeasurementEvents(instrument),
-        };
-
-        meters.SetMeasurementEventCallback<long>((_, _, tags, _) => Record(measurements, tags));
-        meters.SetMeasurementEventCallback<double>((_, _, tags, _) => Record(measurements, tags));
-        meters.SetMeasurementEventCallback<int>((_, _, tags, _) => Record(measurements, tags));
-        meters.Start();
+        using var probe = new LeakProbe();
 
         await using var provider = await CanaryProviderServer.StartAsync();
 
@@ -299,41 +268,17 @@ public sealed class TenantProviderCanaryTests
             }
         }
 
-        string[] spanTexts;
-        string[] measurementTexts;
-
-        lock (spans)
-        {
-            spanTexts = [.. spans];
-        }
-
-        lock (measurements)
-        {
-            measurementTexts = [.. measurements];
-        }
-
         var outputs = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["responses and records"] = seen.ToString(),
             ["log lines"] = string.Join('\n', host.Logs.Entries.Where(static entry => !entry.Contains(ProviderErrorSentence, StringComparison.Ordinal))),
-            ["span names, tags, baggage and events"] = string.Join('\n', spanTexts),
-            ["metric tags"] = string.Join('\n', measurementTexts),
+            ["span names, tags, baggage and events"] = probe.Spans,
+            ["metric tags"] = probe.Measurements,
         };
 
         var quotedByProvider = host.Logs.Entries.Count(static entry => entry.Contains(ProviderErrorSentence, StringComparison.Ordinal));
 
         return new Evidence(outputs, provider.ReceivedAuthorization.ToList(), provider.Requests, answered, quotedByProvider);
-    }
-
-    private static void Record(List<string> measurements, ReadOnlySpan<KeyValuePair<string, object?>> tags)
-    {
-        lock (measurements)
-        {
-            foreach (var tag in tags)
-            {
-                measurements.Add($"{tag.Key}={tag.Value}");
-            }
-        }
     }
 
     /// <summary>Sends one request as the tenant (or as the named one) and appends what came back.</summary>
