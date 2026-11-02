@@ -1,0 +1,1052 @@
+{
+ "version": "1.0.0-preview.6",
+ "tag": "v1.0.0-preview.6",
+ "providers": {
+  "sqlite": [
+   {
+    "id": 1,
+    "name": "0001_initial",
+    "checksum": "E56F3238EC4EB5A4D25DABFE3BAC2173DA5737E58606A01A97B256C5D64595A1",
+    "statements": "262993a0af95522695cee11daf00ce13032ea8ee6b1db1a87d3bbf00b15d17d0"
+   },
+   {
+    "id": 2,
+    "name": "0002_retention",
+    "checksum": "CC6041028D594ACDC492338E36C59EF46B2160ECDC0AE4855F92C15125A1D900",
+    "statements": "25a094d165a7032fbc898c2d760667615b862df006bcb265768e48db452507c0"
+   },
+   {
+    "id": 3,
+    "name": "0003_tool_usage",
+    "checksum": "DF56154195CDA1AB4BFEBB04707DADEE32563B4766E9E3DC92EC0A30F191005D",
+    "statements": "04e4311ba64dcc2df5057589b763e84f951241444633d0f55c1cf7ca98a9a017"
+   },
+   {
+    "id": 4,
+    "name": "0004_voice_sessions",
+    "checksum": "578F77BBF902D0E8770FA28DE7FC0E368A63C1A949C274FB82E4B0A18DFC925A",
+    "statements": "398e59b179ed98701f5d4ed4bcac8aec264cedacedad39e8b228774a792ee2b6"
+   },
+   {
+    "id": 5,
+    "name": "0005_run_scores",
+    "checksum": "329BE696CEB5A91D132F240510E8D78B541F5FDAC03705A23537BA2A1052E60D",
+    "statements": "5ef9ca388757568ec50589078166e5c05ab04055069962122c3f2acd2e834fdf"
+   },
+   {
+    "id": 6,
+    "name": "0006_sessions_tenant_key",
+    "checksum": "B547E7469AB13403B39F7C3349EEAFEA76692310BF30DF1545D669E9EFA6EF44",
+    "statements": "fdef1038817b4c76f6e449239ffbb70c552c182acd2eee49cda2dcc97e903832"
+   },
+   {
+    "id": 7,
+    "name": "0007_singleton_leases",
+    "checksum": "2CE7D95BC96A43011AFA9EF536B571508A55F7C8CF0EE5E0320D9BF7674BF4F2",
+    "statements": "0868e559047911d2448fe91958d99260bbee340d3ef505c25cf1f958ec4d830c"
+   },
+   {
+    "id": 8,
+    "name": "0008_idempotency_keys",
+    "checksum": "1970F64B8070B8C44F46EC55E14B8540D447E0C49E785E6D0899C805DAEBF79A",
+    "statements": "d114b454e9f839ef0a56ea2c86b49be9a87ddd9fd3d2a7c0bd76ee1614cf9bfd"
+   },
+   {
+    "id": 9,
+    "name": "0009_error_classification",
+    "checksum": "E4636594C0F013CD94E3F009BB2F5A9ED029411FA0041547A98FF9B20949C978",
+    "statements": "de25c495dfea3b87cc520a515b39d0a1a07153ede1550e5e92da70304dbbfa60"
+   },
+   {
+    "id": 10,
+    "name": "0010_eval_case_source",
+    "checksum": "695B22095122537BD91084B4AA7723C5329B0E92D6A90CB29CA72F06F9D0382C",
+    "statements": "f17d2b9a7a776c518f91fed7bf582908ce222c134cbde153e2c5fbd97b7763d4"
+   },
+   {
+    "id": 11,
+    "name": "0011_replay_and_branching",
+    "checksum": "BEB2A41BE26935A152726B1CCF59B8BE8735B7AA7811BE61705F85278D4E22A4",
+    "statements": "e6b4f55175606a0cc0e6ef0533cb5a28fcf01f187abe27a59eb7367c5d57f0c9"
+   },
+   {
+    "id": 12,
+    "name": "0012_api_keys",
+    "checksum": "7327E838A700A81EE948E9ED61616802DA17741C34337AC577E0DC58DF5929B1",
+    "statements": "9fece6653d87f37c3f6b412cee3625ab39307bf755a031781627c6f41c3ca3c0"
+   },
+   {
+    "id": 13,
+    "name": "0013_run_heartbeat",
+    "checksum": "89583741C0918EF94B38149D06F2D3BC2E603FE4BFFA17149D654E43D1019520",
+    "statements": "1510f60680e10dc6b31e9ee4db0a19847c16e3a7083f6826ee739eb816fe0ce4"
+   },
+   {
+    "id": 14,
+    "name": "0014_pending_approvals",
+    "checksum": "38BF03264957FDBFF9B45549A91A175ABA82C83A6381971D055F2993D7B4627E",
+    "statements": "73f165f8bea34164c7b6199e6f35fb977f247781f3ac5e6042c23611eea2dfc8"
+   },
+   {
+    "id": 15,
+    "name": "0015_experiment_canary",
+    "checksum": "E00C7755E425252DED8F997B416EA5A39231C065C39C263A3578DF9867AD23D1",
+    "statements": "7ace1d54d45bba47485ccba8772743c79c0c5c560be20c36498ccd17f0f4a61d"
+   },
+   {
+    "id": 16,
+    "name": "0016_idempotency_response_headers",
+    "checksum": "C4CF1C1EDA2F025ABA39C4EF4007D5B40A9756DD68D000EFB4F06E8CFC80A257",
+    "statements": "730bf70f15c87391022e01e52a94b4e46fea680e67f201160c57d9407b44c079"
+   },
+   {
+    "id": 17,
+    "name": "0017_approval_conditions",
+    "checksum": "8D3F5FE478315664EA9D37A67BBD90EE6BCAB83E773824E1CB1ECC3603CF3641",
+    "statements": "c0d731e067efcb6b0dd53b535f779b3779e358d1716ec29cf35d5f628e6c9a46"
+   },
+   {
+    "id": 18,
+    "name": "0018_audit_chain",
+    "checksum": "91DD70D7551CE463C83DD98B6371D2BAE56CDED035BA7C84D0F55A934D83D072",
+    "statements": "a1a431f071087073c98c9a3c5123d60a2aec4e6f9f4f0ff7e30962d40cd91860"
+   },
+   {
+    "id": 19,
+    "name": "0019_tenant_provider_bindings",
+    "checksum": "FF8F9264B02632F5E1F679674175467D0C5F0714028FAED16991C1AEA9A8D1B9",
+    "statements": "87fbf095ee77eecff1864cc981a245a82a3b8f812f0d161c765c320dfb431376"
+   },
+   {
+    "id": 20,
+    "name": "0020_inbound_triggers",
+    "checksum": "A2B9D3537597B076ADF33F75E8CCF014B1FF73C84BF92A8E0E91700EA0738EF5",
+    "statements": "d3dc220a37240d4b04410b7b9fc2195036c3f4dba96ae6f4c6ff21fc26c3d420"
+   },
+   {
+    "id": 21,
+    "name": "0021_run_attribution",
+    "checksum": "89965032F5780461E3422A8C8EE8ECCA5D03CFF0358B3EADEBD6DCB6128A61E2",
+    "statements": "d9023958e2b976c05418f5d7f06c574dd019a91dda2da2a7b691699bdf6362c5"
+   },
+   {
+    "id": 22,
+    "name": "0022_tool_governance",
+    "checksum": "6BAE5969FE3ED407C7F92A4A9D95390A4E7604F208610CA5672F952A487670E2",
+    "statements": "f7910bfcb37a8c31780bc33cb8fbedd4c2ccaa15b036974c071ad1e5aeba8a20"
+   },
+   {
+    "id": 23,
+    "name": "0023_eval_case_parameters",
+    "checksum": "BD904722291FFEDA8018E578CB37B78E0B454D3834A2D0D7A2659BBB280E1AFA",
+    "statements": "044319016fbfbc3969e84eab1c0e85c249197fa2e5c46e08bdc51a9a54299f64"
+   },
+   {
+    "id": 24,
+    "name": "0024_run_continuation",
+    "checksum": "D8B930F5942699706B5AC5F4ECD89DA040B925D29D07294F833521A6E62B5B32",
+    "statements": "f1721d7dab1a80910098b48b35f4fcb4baf73254055e69bce566d95800185a8e"
+   },
+   {
+    "id": 25,
+    "name": "0025_provider_name_case",
+    "checksum": "05A38B0867CBC808AC938985AD355D835C52C6D4EF980842A2F3CBB0E3881269",
+    "statements": "4a13aca898dbbab93bf32ca1a5686aa93e258397b8f2f08f8c4e017f133ee356"
+   },
+   {
+    "id": 26,
+    "name": "0026_session_version",
+    "checksum": "A85ADD3BF161961666955F59C42ADF6B47029258BB08E4EFC2DF42393F861EE6",
+    "statements": "3c49d0e10c30609efae1031a2538b5b3b1f65c40df4e7960b668a3c5bcf5bf8d"
+   },
+   {
+    "id": 27,
+    "name": "0027_persisted_payload_version",
+    "checksum": "1FA22C7E9C936E37537C75AEA41441FB747F4FD4ED3F18471442C747AD423544",
+    "statements": "8af11c1c5b8b4d50615715fccda0ad6e3ed8df69d2d708db51975920ec80642e"
+   },
+   {
+    "id": 28,
+    "name": "0028_job_lanes",
+    "checksum": "CB344AABF98C44D6BB7CD18665E3242DFE39CDD2D839C8E93C9DB42F85383C85",
+    "statements": "c7ad8e0201c02dde78470bcc9d1c3e45c72b3cc1e6ad55c04a3026428c9e9136"
+   },
+   {
+    "id": 29,
+    "name": "0029_price_snapshot",
+    "checksum": "B7F6EA31A839D8557796CB1B10E45435F1B084FCCA5C27EA016E89F5C1DEAB88",
+    "statements": "28476e0662eaea65d6ed66c6a34a1b6c1ba55902af64fad8d8484fe0340f33de"
+   },
+   {
+    "id": 30,
+    "name": "0030_job_handler_key",
+    "checksum": "CBE3047BED1785C5358564F33357C6B1671113CDD024C50C64AED23F328B0217",
+    "statements": "b0524962a81a82c295aabca7d610b26e8bd055b9ccf0e9c0dd85c31f1f13c1f4"
+   },
+   {
+    "id": 31,
+    "name": "0031_run_event_custom_type",
+    "checksum": "FC7842ED0364A3A5D2B9DF1A669D63E1C3BAEF246EA8A6A160E45C3E1C70C011",
+    "statements": "2130f025ceff222764dddd994d7497c5fb971f2f0f803330ea2ba2e4360a12d9"
+   },
+   {
+    "id": 32,
+    "name": "0032_pending_approval_presentation",
+    "checksum": "C27725CB6B9FDCF0DF399538BE3ED57B7E128376FCFDBCA0CB88C5F5E526C115",
+    "statements": "e16bb3e26da9c192321b0c700ef12f0dcc27d08ce0a53851ffbfc412c7b94a21"
+   },
+   {
+    "id": 33,
+    "name": "0033_quota_threshold_notifications",
+    "checksum": "0C5FA5438FF7ACE49EDB9ED4F8B8EDF06D75B954961C3FFC4BF22C16C12677C2",
+    "statements": "bc9f0e04838918550716a88072e88134bf0a35a0bf075e3acfce4222b8f35c12"
+   },
+   {
+    "id": 34,
+    "name": "0034_session_owner",
+    "checksum": "F81819CBF9A9B18E913D52A80E48651F67CD152C48AE2DCDA851E397C0ACADB2",
+    "statements": "542ef43f7aa572e9811c5b83e483e6bac66932db3647747ba3caaa9cb2f54264"
+   },
+   {
+    "id": 35,
+    "name": "0035_run_score_name_and_shape",
+    "checksum": "191946A2D35604CAA4F0232D8E43FD7FE1059F9F0B3D95DB82241245A44CC8ED",
+    "statements": "2a69dc2484fb27a0ac7d5fbd3146fd3dcc1206b50fd6c0cfa3bcd9a184d5a657"
+   },
+   {
+    "id": 36,
+    "name": "0036_run_scores_created_at_index",
+    "checksum": "97617E8F06662D714EC8F8EE55B16AADF038BFBF448D58A969167F56D93E8004",
+    "statements": "7a88af0665953363b1e4a10509e92cfb3fe76cd792cbbedcfea7b8c706e29a58"
+   },
+   {
+    "id": 37,
+    "name": "0037_voice_session_cost",
+    "checksum": "3EC68611565080E084B892EC31F2AC3BE7F22B5B9824EF640F2394C06B21B698",
+    "statements": "954e2699fe2004de9de4456ad4905e2bbe5fedc9683850d17f88aea06b7664ea"
+   },
+   {
+    "id": 38,
+    "name": "0038_run_score_evaluator_version",
+    "checksum": "CF34C29E73EEF0B8E070DD8DB3025EA3C8A8DEEA8CAC803A49AC07384A88AF5A",
+    "statements": "d42c77f5055679f9dbf7f888c594774b0b81d5c98207e4ae3a084e2390a03443"
+   },
+   {
+    "id": 39,
+    "name": "0039_tool_late_completion",
+    "checksum": "AE187D31D4EAFAD25C910838A9A0BB301F386383957E9AEBB51AA127E487EE1B",
+    "statements": "c2dce93d7e85d966e75b377da49d1a160496f8d34fce6cfd324a70b8cda23c44"
+   },
+   {
+    "id": 40,
+    "name": "0040_skill_script_grant_content_hash",
+    "checksum": "7F2C9E59E00B13E898176F8CCC21E250BF0228E49A6621CC9B5AD09E1871345E",
+    "statements": "888f780bd501fe1974aa6b14afcb4a5225d5522cc1471170407bbbf0efab4767"
+   },
+   {
+    "id": 41,
+    "name": "0041_header_configuration_keys",
+    "checksum": "CC4AF7488510B65893DF7A85EAF7E2F7B7BA7BA70F42DC7F0CAED8CB56C5EB60",
+    "statements": "1a117a049ec3547ca98cc3379dda554cde0fd22eb388b0b623fb6eeb5247e2b3"
+   },
+   {
+    "id": 42,
+    "name": "0042_approval_rule_source",
+    "checksum": "949ADF9A87DB409E18001D7F3885E811EA1934B779F2B24DF1ED182CC2AB55B2",
+    "statements": "cd0695f4710dda7a6a4813c858788f7f5290245b58d27e88698dcfd81252eea9"
+   },
+   {
+    "id": 43,
+    "name": "0043_run_input_parameters",
+    "checksum": "AF547DC6B5014213383C4C45201F7717FCB1297006B763117BE843A143A9D51C",
+    "statements": "13794b0ed2305cd1dc069679af98befef0def324abb214eb922b7fe4d5e10bfa"
+   },
+   {
+    "id": 44,
+    "name": "0044_job_max_duration",
+    "checksum": "E1821253E662D9D8A3EE18D26532AC12F7AE619E1EB8B670C788C2467E202045",
+    "statements": "69ee33e4b3aa627a5db850ae4d8fd1b858ea7125e4450d520404c74a7d1aae9e"
+   },
+   {
+    "id": 45,
+    "name": "0045_non_token_cost",
+    "checksum": "862E099310A48A8D9F9039A066ECFAB1FEF5EBCA6321697243C741FFBD94ADC8",
+    "statements": "ea939516bc13054e1148d4a1d7d198924f1893792f2ffbb17aad2e97216e6d45"
+   },
+   {
+    "id": 46,
+    "name": "0046_workflow_definition_versions",
+    "checksum": "7011F821F0D81FA61655ECDD66C94D446327294328499B35727EB778DA3FF7C5",
+    "statements": "08f8c0e334ae84ef10df2d2a225c55d38ad80f7c1a485955621faf5278efee1c"
+   },
+   {
+    "id": 47,
+    "name": "0047_workflow_responses",
+    "checksum": "DC13CBC46C7D56067226610396F553B53EA12AF75C9F0CEC156A39BC483273A9",
+    "statements": "f3ce01b90c4ef5e6a8e6cd3f0f90e528714a7aecd3a3bed581d20b7868a971ef"
+   },
+   {
+    "id": 48,
+    "name": "0048_workflow_requests",
+    "checksum": "C10F039879481B748DBEA0B81D05369C8013441B6BCE7000A282F8A8D068ED85",
+    "statements": "25e2598fb58f0559edc57e8d7675a4765fa9171bd98b01ed51563795280237a3"
+   },
+   {
+    "id": 49,
+    "name": "0049_remove_authorization_configuration_key",
+    "checksum": "7D74A582250E51591557FE7705FB192C2DBD43898028385E134B10AACC161B8D",
+    "statements": "374db0825a39b866371cbee836c3a3e9d3826bd104c1ccd459ee9f5c94ffa963"
+   },
+   {
+    "id": 50,
+    "name": "0050_eval_case_expected_tool_calls",
+    "checksum": "73896334744D99B0C2876DE9775413C5313585BB10ACF40993D2F1AC0D641798",
+    "statements": "5605923948a3ae7df7a11d9a9ffc728c47f5096b94c0e85f8727e3b54a8bf6fe"
+   },
+   {
+    "id": 51,
+    "name": "0051_agent_files_tenant_path_index",
+    "checksum": "708FC8B7B2C7F1C50F307D92E478E75AC525D34F4160B1F34E18E32741482DF7",
+    "statements": "0aac28cd6c2fc765f90498452ec1a3fcac45f32e357aa59958dd5354b21cf166"
+   },
+   {
+    "id": 52,
+    "name": "0052_agent_definition_version_counters",
+    "checksum": "569189C3A0FED77DAC29FDABD88CD240A6EF5781D88F5954315011B740BAA9B4",
+    "statements": "17b7ed22a182fc20bcbd9aabc9cc704d56ddf9ff6c1f9daa0a40364ae64713ae"
+   }
+  ],
+  "postgresql": [
+   {
+    "id": 1,
+    "name": "0001_initial",
+    "checksum": "16659329B8A6525B3A20133B832C973728F78FA23D564F21C780169BB7B1B12F",
+    "statements": "91345bc3ec2fa7581b879379f520e292d867bd9d95187258caf8f6ee929afab6"
+   },
+   {
+    "id": 2,
+    "name": "0002_observability",
+    "checksum": "E4533D22A4BA2ED07C857EE5242AED775F89BC418696FB10B9B47B2F05FD277C",
+    "statements": "8ba469a369c306952734eeaa7e9c860127e984918689adfc3d96966b2af92940"
+   },
+   {
+    "id": 3,
+    "name": "0003_agent_skills",
+    "checksum": "4EDFB9BCDE1DE83645957FD9535BD0C0EA2FAE83CB6DA3FE7AE0952A20782311",
+    "statements": "8b0899aa11e1a6e7f5e0b16d02f5308372d09161044aedd5a600658d4a2ab36e"
+   },
+   {
+    "id": 4,
+    "name": "0004_skill_scripts",
+    "checksum": "C4F0CBCA796F39DDD0650F3D3BE0E0621B6510B7084715C98C2EA470FC6DF330",
+    "statements": "99ff7a39f49c92a5e9dbc6903c8a5b0751286d8ccdf11c9f832588e9641b09da"
+   },
+   {
+    "id": 5,
+    "name": "0005_agent_call_graph",
+    "checksum": "F3A1B56EFA8BF6E1AC4A4B6B0A2B18E4D630E80DFB2F140E2C0E5D04C070B4F9",
+    "statements": "64472fa6afbafdf939b516fa4a5cec4f4340801490ef6f6f22df935e52d9b255"
+   },
+   {
+    "id": 6,
+    "name": "0006_attachments",
+    "checksum": "2FC9E1438F1B059E25E91A6CB9D38B37ACEE006A3C7751D96ABDCC24AF86C859",
+    "statements": "8896ad752c3c7843712a2780828920979f22a1a11ef9d4e34722560e5263ccc6"
+   },
+   {
+    "id": 7,
+    "name": "0007_workflows",
+    "checksum": "20D18DBBFAB4F568F1137E0A74946B44633A4200A37551F7BE2E747C3E8EE88C",
+    "statements": "726be9b2e955eb3d85d6c0dee116346a8b6fada52210577b41853f7bc1218226"
+   },
+   {
+    "id": 8,
+    "name": "0008_scheduling",
+    "checksum": "C140F91C418792D1ECEDF9E9F690CEAF26EEF4F47CA2056C3E44BE32A05C7A25",
+    "statements": "cce7f3495f94a8fc9332b0157a805092da7dd2fc035d79dd7e25a465d712a9ba"
+   },
+   {
+    "id": 9,
+    "name": "0009_eval",
+    "checksum": "7A46304408F32DD1EBC82A7E326101AC9A15927340B3FE1B9F43804EF4E3FEC6",
+    "statements": "f2858092b60409d3ed79d4ffb621409a4c22407de56013b7cf82cb286e8d3354"
+   },
+   {
+    "id": 10,
+    "name": "0010_experiments",
+    "checksum": "9AE62CF8B9F245B6D9118A45C2233F4CE69FE2F6FF449E221F959C8CA0F41CF3",
+    "statements": "c8704ed21a2ab11cc94866107ecdbc6593ebcd616e9cd82ef584820e5e491401"
+   },
+   {
+    "id": 11,
+    "name": "0011_run_costs",
+    "checksum": "308C5E415B93674A83B6150AF299DD26418D7233DD8E032A1E1A186BBEEFD122",
+    "statements": "ba0cd33d80cb8503b77c709aeb3aa9824bc3377461e4d397aa5f2e004cd39344"
+   },
+   {
+    "id": 12,
+    "name": "0012_quotas_and_webhooks",
+    "checksum": "63B2C7DCACD25D2E0DA7C9D11503420E96B595A703CE2244E366D6970AAC6C5C",
+    "statements": "1ebf8bda30b22371f57a504410885931093f17f4b9b20a133718ba099e3d821d"
+   },
+   {
+    "id": 13,
+    "name": "0013_mcp_oauth",
+    "checksum": "42E80BF310900818FB03CA7446B4D8863DF5E696C3BFB5F90A641E1C3C61A77B",
+    "statements": "24061b2ca57014bb87853a5f00980179a63c678ce0c5f566f7305b9bb0db47af"
+   },
+   {
+    "id": 14,
+    "name": "0014_retention",
+    "checksum": "BCDEA64244CAE60D2211417C3D0EAD2832BC31754B689015059A7568EB43DE43",
+    "statements": "d3a59ac77fca71968177e7820e585ca6ae0786ab15b6788bf90138a439d6d8a3"
+   },
+   {
+    "id": 15,
+    "name": "0015_tool_usage",
+    "checksum": "1A4C8E2990E34F32A1D67C8AC6286513D98373F7645E13EE53D61FD3A3FE1F34",
+    "statements": "02b78abbfef19430cca40ae34faa2654a086665e6c43765f2e5c2e517069f40a"
+   },
+   {
+    "id": 16,
+    "name": "0016_voice_sessions",
+    "checksum": "102B1BF8D1DDAFD27BF13B8B49751551D92DBB3719261F280F8D516B469D0494",
+    "statements": "732ea2c55d96f9cc3c0c47d9dd53c93c12b617dad359f55cb0f7be4f0bf9135a"
+   },
+   {
+    "id": 17,
+    "name": "0017_run_scores",
+    "checksum": "A6753EA3CEF64F14A1D1E081AC757C84A50EF0D48E04375C074B45A8377F60EF",
+    "statements": "7713c31dc5e4570c3bc92aa1d7e2bfc216ac0189c1007a21affa24dc8e31f7e1"
+   },
+   {
+    "id": 18,
+    "name": "0018_sessions_tenant_key",
+    "checksum": "EF574083E3993CB1127D9C3238B397A280F679BF09614DF43461F9CE0CDEE5DC",
+    "statements": "0c3ec75045bbf8713d0d928b4beebf22f8ba353bab2d720e50617058286777ec"
+   },
+   {
+    "id": 19,
+    "name": "0019_singleton_leases",
+    "checksum": "D8B3D448FFDE7BC2602E92ADA211AECF5D6D49447F0193C131123F5442D479F4",
+    "statements": "976de9e6a48f8139736d93ae2bf2a96ffa8ba3908471c57d80f77e40eee3f9ad"
+   },
+   {
+    "id": 20,
+    "name": "0020_idempotency_keys",
+    "checksum": "2A8C7A9C8D1EBB868C88E8F18135BD5EEE5DA1705B2E8B6D6CB42587DE2C12D5",
+    "statements": "7157cdb52ed6f8ccf11900e57033ac2c8c770df2d3ebca58c56cfb5f648848d6"
+   },
+   {
+    "id": 21,
+    "name": "0021_error_classification",
+    "checksum": "2F577D4F4692C13D646702C25244F9664B21E7D401D553722B58036794F827C0",
+    "statements": "26d1dbeda83c366ec5bd4e703fa7f1624ae7d270130c242f81f7af95bc69bef7"
+   },
+   {
+    "id": 22,
+    "name": "0022_eval_case_source",
+    "checksum": "6A8B8ADFE358BF57A170EFD373AAB1B76423722CFFD18EAFDE9EEFE861556414",
+    "statements": "b97947277f3b7805c6fb58aba95e38c00af3f6e10c27f8a41b4f21a050feb6a5"
+   },
+   {
+    "id": 23,
+    "name": "0023_replay_and_branching",
+    "checksum": "E2FA0BF7710E363775A92E768A41994D6FBA9D3355589CC606E2AAEFACFE9708",
+    "statements": "e51c4eb6a8f5ad4aee16be1e286b224a2e925e54bbb4a3a52ee96c2f3033ca51"
+   },
+   {
+    "id": 25,
+    "name": "0025_api_keys",
+    "checksum": "A27932FF6438806EB332370E105394B603D0656FE4766DA7B74844928FC4A2A5",
+    "statements": "191e7abb11b55bd374c14f301b8710146c0fda073156279815310415e5da62f4"
+   },
+   {
+    "id": 26,
+    "name": "0026_run_heartbeat",
+    "checksum": "F797FC3EECF9FE528F58707005EFBD90457950D5ADE16489A28D09BB08A84293",
+    "statements": "6485bd7045ae85ef6b8658b763feb70d355fab3cccc39aa55077f7d89b3c1e1b"
+   },
+   {
+    "id": 27,
+    "name": "0027_pending_approvals",
+    "checksum": "B7125CBAFF1AE20153F16389A51E5DBB358593EE9D357613B454F47B9333A1A9",
+    "statements": "39af219a48c487435b56dfa3d9318ed0ae1d8a269d3b8bd3e06bf7128755f68e"
+   },
+   {
+    "id": 28,
+    "name": "0028_experiment_canary",
+    "checksum": "7C6EFFB14DA3AE0F1821202773A307D1DAC90B4280392E994B68B02339EC32DB",
+    "statements": "dc23ecba2584fd95893e08dc88a58b900b3e7b75a29294ea7ec0001d2f7480b2"
+   },
+   {
+    "id": 29,
+    "name": "0029_idempotency_response_headers",
+    "checksum": "381AE38138FC5BCCE1A7A9888C3EB78FBA79DEED8EAA604E6239E57CB9F98234",
+    "statements": "9fb38e8f0d840501dd4399fa3592e5729a642a175f16b5d3d50d01d78bc510f3"
+   },
+   {
+    "id": 30,
+    "name": "0030_approval_conditions",
+    "checksum": "B0DAF82A972D6FFF10A7DAF966872241B42B9728B4419A8A6B77371055BB5AFD",
+    "statements": "478b0aa92a1d6fd64e44275b033950eb4d08a1d9b78812e97d82ab8334f8f430"
+   },
+   {
+    "id": 31,
+    "name": "0031_audit_chain",
+    "checksum": "087104AB36C60BA8B9FE32013FE9C3F2F8712CB5E1BA837D01A42021293DD229",
+    "statements": "5ec65635d42a15bc644031151f9df621ba60612acd57df042dd3568171e631e0"
+   },
+   {
+    "id": 32,
+    "name": "0032_tenant_provider_bindings",
+    "checksum": "9116FE1EA6A52BA731197196C5362DCAEE84D758A83E550C65CC25CEC3510BEB",
+    "statements": "979ea3fa2e98a74babbc330315b3bb143fb59c55f68a71dcdd579b24c754dad5"
+   },
+   {
+    "id": 33,
+    "name": "0033_inbound_triggers",
+    "checksum": "D7AD94867CDA4D59053F431F92CC445CD23A630D23DC1EFBC3782CEF3A7DCEC5",
+    "statements": "e925c5a7272563f824ff202ac7c3997b9d524269f103c76622918bbc4724dc93"
+   },
+   {
+    "id": 34,
+    "name": "0034_run_attribution",
+    "checksum": "7F505F991E053D29FA5DC557FEBDE7AE9BE7770071FD341A619ED35A1613FC65",
+    "statements": "8f6fd8e3bfc6ac905b2e1151151587d27caf3b512e4cdd5c282f1639214d4859"
+   },
+   {
+    "id": 35,
+    "name": "0035_tool_governance",
+    "checksum": "4DA35F01CDADB2ED4F9371428304F92A0F2E95E504C877CF0A606E9CCE61E801",
+    "statements": "f11e2cad5056e4676bb1fac8cd31a426389c0c542ee7441c238bdc31d78759a9"
+   },
+   {
+    "id": 36,
+    "name": "0036_eval_case_parameters",
+    "checksum": "2FBE8BB4FB6B4BC5E5285FF7D16BAEA3B82B049DBBC37B115DDECB01B2B75070",
+    "statements": "bb269df6ad9de49d5b147763ef300b97372e55013c04e25fc942ef7b8567af83"
+   },
+   {
+    "id": 37,
+    "name": "0037_run_continuation",
+    "checksum": "318EDFC8F9E157788313D0325D227018292C7EC9F78A707FBF72625722BA79FC",
+    "statements": "dc6a7ad99ab51e063bedbdc47aca58658bb2127f86f13bf91819320f361bcea9"
+   },
+   {
+    "id": 38,
+    "name": "0038_provider_name_case",
+    "checksum": "2DA852B208B94F1E7D587435D161C5BFDB47FEF81CE1B156CC42ACCB0D31FB6D",
+    "statements": "308e370d1065de0888436b217ebf9572093fc84c3c1f24363e95c39ecc194d07"
+   },
+   {
+    "id": 39,
+    "name": "0039_session_version",
+    "checksum": "53C762C4B2D18B9722BA1A5506DBC40881D87A752F0489994F10AADFA3AFC54C",
+    "statements": "14d1ff176b866f20bc6b7cf17d16b897ec122fe8e137755e3b954ca69c7b1d29"
+   },
+   {
+    "id": 40,
+    "name": "0040_persisted_payload_version",
+    "checksum": "1A8F25EF4BCA13C643B63B34E8CA3CD6145BB3B722ABC5E84CF932E0C842FBE0",
+    "statements": "e217026f64cc7714b4b842955ac33fb4b5d0f1f90c60069de1dbbc18dec3c7a8"
+   },
+   {
+    "id": 41,
+    "name": "0041_job_lanes",
+    "checksum": "9A38FFBD5865715F539DAA56C1C0E07B2027EF0A829F44634CF51648D345001B",
+    "statements": "14f5fe0991ca324f701e5c85fe925ec38a97aa1690f71af26630a2dd7696f31d"
+   },
+   {
+    "id": 42,
+    "name": "0042_price_snapshot",
+    "checksum": "6294B5D84F8883142A299460C4FD10DCD2DF4879456B4F10690678EBF9B90B80",
+    "statements": "4fba04b85021c8b831fa03a851e5f5c54e386e1a62b0c7860e34f778ef13ecec"
+   },
+   {
+    "id": 43,
+    "name": "0043_job_handler_key",
+    "checksum": "7AA2CBE321ED53563DD6DF57A21460D1087C88CE2B9D6B4F66856F794FAD603F",
+    "statements": "ced30541c138e970568ab2051e311cf66e3cd076f7b48f36f7ac0cd3ce26e824"
+   },
+   {
+    "id": 44,
+    "name": "0044_run_event_custom_type",
+    "checksum": "06897E63D51E744DBE46F1D34892AE7158683D0553EE393724D537EEA3A4F430",
+    "statements": "d68fa298320c3b85d29a81870ea42019e22457e744a510b10ea049506b023e70"
+   },
+   {
+    "id": 45,
+    "name": "0045_pending_approval_presentation",
+    "checksum": "0E650D45501DD50A7C9F52A286808095126952525E22FA4765CD7119CF5152EA",
+    "statements": "620a8c9c2c850161df370497abfcc2b63d5ac467dcd343bd7e6726a1c2243470"
+   },
+   {
+    "id": 46,
+    "name": "0046_quota_threshold_notifications",
+    "checksum": "392AEA7170D9BD04A6F88DBB5881C247AACC2949EA6C394AC2B2B8193902A30C",
+    "statements": "da7692538c4597a4d8129c54bcf1e76c86daa1daebf240459b1bd34aa0d01e50"
+   },
+   {
+    "id": 47,
+    "name": "0047_session_owner",
+    "checksum": "550AEDDD3CB06E3ABCCED81E0E4032085199216DB7978FB94CE265292098D072",
+    "statements": "9364edc40f1d5f1012eb93eb14a4ed26d9e78b37016186a0bd4aa4d678ffc9b1"
+   },
+   {
+    "id": 48,
+    "name": "0048_run_score_name_and_shape",
+    "checksum": "DBF054DEDD674934C66E7C5F2B85FBA40ECC4062D8348BE667DA883CB8458BFB",
+    "statements": "e05b10b6ae3a0846e4b570ae3e425b0e7ab76c0af2efd82c1a2dd08944649935"
+   },
+   {
+    "id": 49,
+    "name": "0049_run_scores_created_at_index",
+    "checksum": "E4C6824A40908E577BD383037EF8C4E6C958FA14F2A3ADF8C15C565FDE27AFDC",
+    "statements": "cb5204c3ec24e26cfe12821b54605dd84ec621870e3dc92e463c7d265c3a913d"
+   },
+   {
+    "id": 50,
+    "name": "0050_voice_session_cost",
+    "checksum": "E91F438F94D946E71FBE135C297B1EBEED0298399E5C748CC57C3E58D041328A",
+    "statements": "68c9f716c35a7d189f64b231a45468b7b621d15f964503493c5ec1d32a79b8aa"
+   },
+   {
+    "id": 51,
+    "name": "0051_run_score_evaluator_version",
+    "checksum": "1AC775CFDC381095E996E4CB8EA8B57A5A55230940E9A7A4EE5B60B4D7434F83",
+    "statements": "6faf2451615e2913cb8946226ec1de0ee54d85d576269d187d400bb8405dfb39"
+   },
+   {
+    "id": 52,
+    "name": "0052_tool_late_completion",
+    "checksum": "933BEBE97D3AD1B5A2AF2BA7612BF570BDED51615D392AE67FB7121A3C053990",
+    "statements": "5c43cb9774bbdec62cd3b7099e574ed193edd4b8f40b0dc6a9f29646e0b3fcf6"
+   },
+   {
+    "id": 53,
+    "name": "0053_skill_script_grant_content_hash",
+    "checksum": "8AC0E9AB6436DF33970EA5083DF8E7C9E0A32E6F4C293C56063A47B3A6FAE051",
+    "statements": "285df91a68d3425590dbdb84cf441751b5e7af0eb671ffb38f6cfa450004dd2a"
+   },
+   {
+    "id": 54,
+    "name": "0054_header_configuration_keys",
+    "checksum": "941692673452EEFB9D2E494B2B6516599F2036B94B3066086B18B6E9817B2468",
+    "statements": "3514cac5a70a650b15119aefe23c635ef4d8d8dd54c32b71b55c8a41d517d495"
+   },
+   {
+    "id": 55,
+    "name": "0055_approval_rule_source",
+    "checksum": "895CE6D9A02F7A46071F76477E3E13B6A93B5A2B65CF38B5D6630C60AE17D4D0",
+    "statements": "d0f844a1c9186535ddb7c0f87832855c1ad6a0f4fc58a179af85a678cbbfd8c3"
+   },
+   {
+    "id": 56,
+    "name": "0056_run_input_parameters",
+    "checksum": "DD31ADB970D88E3BD66C8B3AA835043A2D055634E5BC46DF1834B735FB9875ED",
+    "statements": "41e3dec624020a3eb44fd943507628c2ec6fa66e1b0ed62f88efda952f871298"
+   },
+   {
+    "id": 57,
+    "name": "0057_job_max_duration",
+    "checksum": "1B6A09DB2094C5A3D1042E31D9A93302EBEB345587D064CABE455C77AFF420BF",
+    "statements": "94d152baca69b4bdd58d02f351960cc516035c7db1eda78acb739826e6ab186c"
+   },
+   {
+    "id": 58,
+    "name": "0058_non_token_cost",
+    "checksum": "176548FE9D8336AC072390C14D00D7DF2B8DCA0525B93AFD5484EFDD825D1CF3",
+    "statements": "834c38920b00059795053de652d71287e725962fc779cadb6b4f0e6c618587f0"
+   },
+   {
+    "id": 59,
+    "name": "0059_workflow_definition_versions",
+    "checksum": "6F7BC095B0C4BFCF4792B65D1CCE399C20699635B33D848BA4BE406D9BD51A1C",
+    "statements": "2141a9687da81fbb6d0dc4b9e79b7d725c6595a0a338a5474ad367d3f7a8f8de"
+   },
+   {
+    "id": 60,
+    "name": "0060_workflow_responses",
+    "checksum": "66F767C5B19EBB2DDF639F0B07E9EACA075E51B51750EBF61F815DE8F1E9B218",
+    "statements": "3c2f765a5bd8e4f8419fb3e70889abf8977345fc002a7e508b33f3728a6a659c"
+   },
+   {
+    "id": 61,
+    "name": "0061_workflow_requests",
+    "checksum": "276FA986B1474CC60ADC473BB78B923D0F264A3CB53F980ADA838DE2C574AEC1",
+    "statements": "7a01a17e61b38fe9a940ba4a573353ce6a31e70ac600cd91433ba4e92d508edd"
+   },
+   {
+    "id": 62,
+    "name": "0062_remove_authorization_configuration_key",
+    "checksum": "1C76D9EC37EACEFCCFE057D96EE6F98861F34F9E61DAD321BAF8CBBDD6AEFAAA",
+    "statements": "bdcf8087aeab56475e8e15a7ed85abf0ad5773e50ed0714b20b01b3b27f98d51"
+   },
+   {
+    "id": 63,
+    "name": "0063_eval_case_expected_tool_calls",
+    "checksum": "6801725AA05EA4ED8B314E9AEDE12473FCDB5FEE68C9EBE446CACEA893DCCA81",
+    "statements": "c9a91701e6677c883816c6dd21c5d37f57da02e3a853b41afa2226ee519d0b43"
+   },
+   {
+    "id": 64,
+    "name": "0064_agent_files_tenant_path_index",
+    "checksum": "D4C04FF979EC6589F40C6E554E5927141D855FDB7757FF4BE19726A7C9C2CDB2",
+    "statements": "b7bf23df00f0379445210aa60f6df1e6ad13a721274405aac89c2f18fb5868dc"
+   },
+   {
+    "id": 65,
+    "name": "0065_agent_definition_version_counters",
+    "checksum": "23A51175E436EAE188EA23835ACDAA885CF7D5E5646C68779D8C07A4B7552903",
+    "statements": "c2e175f0dbce12a345b2d60402cec78ddc87e0bd1a9234e3c403ea72ec5fb089"
+   }
+  ],
+  "sqlserver": [
+   {
+    "id": 1,
+    "name": "0001_initial",
+    "checksum": "1589AA842C0857803E28BBD972BA87351F502333D6A87F2D14318DA98C04BF62",
+    "statements": "c0bf09cf2ad7ab3cb0bff9ab231eaa33b287c8268b064670499105e561cef3ba"
+   },
+   {
+    "id": 2,
+    "name": "0002_retention",
+    "checksum": "C5336F91373CC9A36FF6F900EC3A3D20B58463EE712F437F66E3A925FEA08325",
+    "statements": "fda5e59820d5471eb39bc3484848061b60575f041db17e0b592ad33069f2c7d1"
+   },
+   {
+    "id": 3,
+    "name": "0003_tool_usage",
+    "checksum": "78DF8CB75C72AFA78EB942C9DFA223B15C9DC36184776FE9DC379E74BD5CA4FF",
+    "statements": "19138c9e9f7900e13445487b1a80ff8a034d01e8cfe492c298373ab23c247ead"
+   },
+   {
+    "id": 4,
+    "name": "0004_voice_sessions",
+    "checksum": "9719CDD93FF14CC9356C7194789858B8A98B14142948614E6CC9D54DFC7FFC38",
+    "statements": "09795edc0fff5d87a5ad4489860c49580e561cef61dad9dafeded9202e5dc7c0"
+   },
+   {
+    "id": 5,
+    "name": "0005_run_scores",
+    "checksum": "30CC5F9DC454D3CAC9DBBFCF25E7829C4F57A0D01FBF30562415259712F3E173",
+    "statements": "fb35c2cc29af34e3fda47e8aff8a6d89f812791a7876cfe6637eeb3f0a361a37"
+   },
+   {
+    "id": 6,
+    "name": "0006_sessions_tenant_key",
+    "checksum": "8C69502BCE02031F5FECA74C7458D7AE644162520C2282446BA12B49C8869067",
+    "statements": "46e621748fe19ff5cb881dd4f37a4ca6fc99a9a6fd2757e814652dbee91a7a94"
+   },
+   {
+    "id": 7,
+    "name": "0007_singleton_leases",
+    "checksum": "ECB75997E6A49DAD6E66EE9A55EE7FDE15EF50C22CCBA67DFD851A34D8ABCC41",
+    "statements": "5cd133af308e4671b1af9e740c5116934e8c675922d5c5c87ae0da03b19ffbcd"
+   },
+   {
+    "id": 8,
+    "name": "0008_idempotency_keys",
+    "checksum": "589553E22F43F9DA3B32412B635AEF5B42B275EC09C7A812ABAFFFF1768DAC67",
+    "statements": "8f362c80c28c439361b793ba5f45ac806cb26790f60e7af691a4bafe8a070689"
+   },
+   {
+    "id": 9,
+    "name": "0009_error_classification",
+    "checksum": "11D41F70B679C5865CCE5807577E6D3CC1142A9CF2B39DD19B8BB9DCB2C82411",
+    "statements": "f1ad8199c800121c865f4c8d83760689fc526770049661d2cb6297b91e61817d"
+   },
+   {
+    "id": 10,
+    "name": "0010_eval_case_source",
+    "checksum": "18BFDBA34DEB42BEC622A4534FB1B582D024C5CA3C5D927A3D40A15244624B05",
+    "statements": "143b140471eafeffe8a5affd257eb277f316739ddbd00cadd3e7bbd1995bbbc9"
+   },
+   {
+    "id": 11,
+    "name": "0011_replay_and_branching",
+    "checksum": "F1DDD0E14B1AF948EE82303AFB93910386C5752CD17E86C9A42B4F1EE92D4737",
+    "statements": "0bf8e3ef0fffec4b560b4eed5378bff655aab933a7a4aba35b35ebbc548ce610"
+   },
+   {
+    "id": 12,
+    "name": "0012_api_keys",
+    "checksum": "93A2E4BF14A813CCC8CBA37343A6FBD3CA2020AEB2562591B1D035E0CAEA4BF4",
+    "statements": "695a29b7444783452608bae6270f955ed4fb95915974f328b77e8bd73bcd6b47"
+   },
+   {
+    "id": 13,
+    "name": "0013_run_heartbeat",
+    "checksum": "6EC31F02C38D61446AF4236578CCC75E33A71105B36E1949C067C17644F1D61D",
+    "statements": "0dfd7d2739a6f8ca7462d9ec6aa698c343a007063d740a1b038973735ca8fb59"
+   },
+   {
+    "id": 14,
+    "name": "0014_pending_approvals",
+    "checksum": "86C230F8F634EAA2E5B357399734A015AF259EFDF941A441E7360F4451AC494F",
+    "statements": "2ee0c054bacd45b4e826710d6865147ae6b6069bf5cba17623e88908dba9256e"
+   },
+   {
+    "id": 15,
+    "name": "0015_experiment_canary",
+    "checksum": "625A6DD3B71FE3B7976333226A030DE0900E2B4CD8CD42E32D06C08FF592F5E3",
+    "statements": "4ae061f2115b4175efd9a69b1da415c1700f9062ccbeca4d3318dc06380a8eb4"
+   },
+   {
+    "id": 16,
+    "name": "0016_idempotency_response_headers",
+    "checksum": "C4A5660106263D09538864756600582759844FE3F03B9898DC0B4341BB4794FE",
+    "statements": "a3e9828bcb7cc945644b0df37d13e30d011710f43fd150e52fbecc9698bc325c"
+   },
+   {
+    "id": 17,
+    "name": "0017_approval_conditions",
+    "checksum": "0F1238AD437600D1FEDBB926917CC493D35DB8F42002F94CE980F89B2F855614",
+    "statements": "a9f84e4c1618f601349195f293cd65c121acec18c92c8595ad8f3435fc06a539"
+   },
+   {
+    "id": 18,
+    "name": "0018_audit_chain",
+    "checksum": "265E1E3EC91AAD8AAF869A39C0B9B895A771234FA61ED37BB6A613834DB3C178",
+    "statements": "4b718bb1cd439df6332823581963e8a29a59f3913664bab004b2db43a12df215"
+   },
+   {
+    "id": 19,
+    "name": "0019_tenant_provider_bindings",
+    "checksum": "5F611DFB23AC9033C64F87260004F3FAA32C1981C56CB088DDA8187E45852308",
+    "statements": "311a8e9d219162e12e4c49ab6bb33ac6e749745e332c57145e061bfc7973dccf"
+   },
+   {
+    "id": 20,
+    "name": "0020_inbound_triggers",
+    "checksum": "083E4EC883D680352E33D4871B3A1FB95ABED13F88005CCB3C8966199EA8CA8C",
+    "statements": "75b90e163f6bea2b459e00f2536890f44f57cf5b22cf24bd2fc096b87adf4154"
+   },
+   {
+    "id": 21,
+    "name": "0021_run_attribution",
+    "checksum": "4C0C9B79EDBA543974B39823E91D808D76C178549A14F4A372BA3A9D088F1252",
+    "statements": "c7157b5de791f5778751381f1129d48617e1a7ab414b55a103982cd7404343f5"
+   },
+   {
+    "id": 22,
+    "name": "0022_tool_governance",
+    "checksum": "51AD1BF76BF31D534CC0B0FDAC6BC230C48180EFBEAB89A6CFAB5FE19F5ABAD7",
+    "statements": "e209fc74ed10553c8861d8bc69b749a8d781830f0eec342d57cd5a093e927b07"
+   },
+   {
+    "id": 23,
+    "name": "0023_eval_case_parameters",
+    "checksum": "8181701DDB42CE1FE966A466ECA9DFC02917B5C45B3FC0297A2E6749F5252AA4",
+    "statements": "95c95e941fa0d381005feca6939603275a24f5e7561f3a05e8336eff0997813c"
+   },
+   {
+    "id": 24,
+    "name": "0024_run_continuation",
+    "checksum": "460CB5DCFC4075741B14F26D96950FD1F92121E9634E843249E290D805E9AC78",
+    "statements": "0aef371a7397830e96088e11cd68538807e428a9f8b6456ff455e5bb72e63951"
+   },
+   {
+    "id": 25,
+    "name": "0025_provider_name_case",
+    "checksum": "F5E555D52B25529DAE42E3BC108EAB30AD44EE7F5DD1ABCDD895EFA88C6CC611",
+    "statements": "80f61d7dceb1847803eeb17f9f47a1f067d5d34a69b27f2f1d12a9b84826d263"
+   },
+   {
+    "id": 26,
+    "name": "0026_session_version",
+    "checksum": "BFE20FD565CA3933D604D41273CC6F1B0ED50BF40D0CA27DD7E44CFB1263E581",
+    "statements": "f566ff475f5a731d3758a2c17ba38210eed9ac533fce29cdc636b1c414745513"
+   },
+   {
+    "id": 27,
+    "name": "0027_persisted_payload_version",
+    "checksum": "3AB1FF548BC77759A2FE52A91D6D2F3DB8164B52F2506E4BA47BFFE7D5A2393C",
+    "statements": "1a978dc31ef2d59d5997d175154999a5350fc038874e841488d248c18dd4c4fc"
+   },
+   {
+    "id": 28,
+    "name": "0028_job_lanes",
+    "checksum": "F1BA6B8E1A5E8752C7800D3B9F9D58F9CE13DBFE9B3627CFBCE7FD9018631312",
+    "statements": "bf82278a320e2c4a17f9dfae1f6187d55c5d17d8d4f217b0b61dab7b6f7d2013"
+   },
+   {
+    "id": 29,
+    "name": "0029_price_snapshot",
+    "checksum": "63B21B0609AA0B25715FBDA5DD231F58CAC95128E8D34FFA803926A1B3674EE9",
+    "statements": "f7708d23d1e27be3e42522f5b7ac35d7bdac8af1304dd3539d14678f885b06e7"
+   },
+   {
+    "id": 30,
+    "name": "0030_job_handler_key",
+    "checksum": "4313B98D5583E14D8BD995567597C2AD202E29C78387FF4DFE2626518963CA37",
+    "statements": "b3fb25b62ca6dcbdb13e912af5a5078e44fbba1dcd4e3f80d31e33ef465da49c"
+   },
+   {
+    "id": 31,
+    "name": "0031_run_event_custom_type",
+    "checksum": "F41FC056B1929D40A424C10B4F0C680ACF696BE745378F90215E05B7E1EAA1B2",
+    "statements": "9be6e3ad3b67e203dfac9227492967dd90baf02a376ebb5b03b985b6e8320383"
+   },
+   {
+    "id": 32,
+    "name": "0032_pending_approval_presentation",
+    "checksum": "28D58E3233FE827B9C0692813DE731C29EC06A9DF57B09509F9F3BDBE7493B70",
+    "statements": "9284086c143b72e486f4d5a327ac159a28b4567180a9035df7fab460e3eb75de"
+   },
+   {
+    "id": 33,
+    "name": "0033_quota_threshold_notifications",
+    "checksum": "6E50BAA2F0B3E3F0EC6ECE0671F4A7527595C9BEA241AD62BA955A786648364A",
+    "statements": "6f9540076460aad55ab4cface4553337638270f731715afe9aa5529bb25a741b"
+   },
+   {
+    "id": 34,
+    "name": "0034_session_owner",
+    "checksum": "F5B6B0619D36264F1B4B2B2A467FCB72424DE8A84104336C4CF77F737A5E62D7",
+    "statements": "fee1265abcf76ec529dfa8ac9f5bf19593adafacf22d5953f1cf3e5ee48ab63d"
+   },
+   {
+    "id": 35,
+    "name": "0035_run_score_name_and_shape",
+    "checksum": "68220295748BA795260872783198CFF0BDC1BBDDF4E0AFA00D1430174D9592C2",
+    "statements": "72068c85b8d7e96d4045a65109b5e13a2b35548e6c61281400b269cfd95155c6"
+   },
+   {
+    "id": 36,
+    "name": "0036_run_scores_created_at_index",
+    "checksum": "3D519D911245188668E90F8F3873D821E1A322153DE450C256517C9B4094E15A",
+    "statements": "5bbf451e08b41fbb8228e5f444b67351a5ff13e3734ffba87833d50bf0d34964"
+   },
+   {
+    "id": 37,
+    "name": "0037_run_score_message_key",
+    "checksum": "490C60335343066215A18C366CA02CAA2AFB9A2F3F054CE863DC81632C2AB186",
+    "statements": "697a4be89ce23e0556e2ca117185d66878e7933d7fc295b2f72475de0c39a640"
+   },
+   {
+    "id": 38,
+    "name": "0038_voice_session_cost",
+    "checksum": "40986B4FAE9BABCF6F48027C81FE269B02B48E4E50B9930667D006731FA4025B",
+    "statements": "42dfbaa73e1e08a8c8b3068169c1888d3574317d8b6fcd0e9d2c72a20587497a"
+   },
+   {
+    "id": 39,
+    "name": "0039_run_score_evaluator_version",
+    "checksum": "6A8BC03215E30A768209576005580693C1ED42D3BA28D7D638D4A6112EAA23EE",
+    "statements": "7ffead4c0fbec9d9bcdfe9786540dcdcc43c3a8d9f46f6420d1d96e51c526bb4"
+   },
+   {
+    "id": 40,
+    "name": "0040_tool_late_completion",
+    "checksum": "2E3591278829469DE9B1219C97B2B368819BDB6C892A14BBBC7FF31B51F9F10D",
+    "statements": "6bbdfae1a20f078808af403a97d29982c56909042525935c2035aaa269f37645"
+   },
+   {
+    "id": 41,
+    "name": "0041_skill_script_grant_content_hash",
+    "checksum": "F8CD180D8EEF09B6DB93ABBDF69EE8B726197A0016ED2F3D2C565DACA8171C76",
+    "statements": "852e155bce8f84942827dff5083b21afd5a46c451bef2fe3d10c7440f16c64fd"
+   },
+   {
+    "id": 42,
+    "name": "0042_header_configuration_keys",
+    "checksum": "446BF8BA068832436266445FAEC059CD14C2C64FDF9931C262A8359182A26FE3",
+    "statements": "3010f1f5a0a886e8a1d7bf803dd3814bb70f8ab00a46e8ff693500334772db1f"
+   },
+   {
+    "id": 43,
+    "name": "0043_approval_rule_source",
+    "checksum": "BD876550F1D1202EE6D5E76300C41C8F8347C680CD7AA424B99033CF19BC1C3E",
+    "statements": "3e844d796afa4f815f68f842c0955b531d2fe44e5c942123a07637e547fadb8d"
+   },
+   {
+    "id": 44,
+    "name": "0044_run_input_parameters",
+    "checksum": "DC6D47EC1F20C20434E753C4C18EBABC27C334D931AAF7E9E7F6D0652E9914B0",
+    "statements": "ee6b91f211ab978131341e4a8d88c3c169db125cb1e2d262b6e844005d2dadd5"
+   },
+   {
+    "id": 45,
+    "name": "0045_job_max_duration",
+    "checksum": "941651B00684521D048CD9B02F6013F84A37480EA3BA77F083D3DC568DCC4312",
+    "statements": "f9d584ad15a55bae08f0a1a876972757db7e6903d1033993e4cc5234b6b67ff8"
+   },
+   {
+    "id": 46,
+    "name": "0046_non_token_cost",
+    "checksum": "93AFE051C406FB9C16667593D5B15CBFA6003A2466B18F7B5F9A6405F495F438",
+    "statements": "a46dff85c5c70f7cc5a6bad5fbaa87dd79e7ad750486cb7bb2fb519984bbcfee"
+   },
+   {
+    "id": 47,
+    "name": "0047_workflow_definition_versions",
+    "checksum": "0F16A9749986DDE3CCB67205370BC1ACD6E5FAAC14BDE34C90ABED6E126F9BF4",
+    "statements": "89b4ede4b53b76b3364e4620eb1a7fe1962d540b3ede2c430e1af2ce0eaba688"
+   },
+   {
+    "id": 48,
+    "name": "0048_workflow_responses",
+    "checksum": "78DDB5B407F39BE388A6DC7DAD256C6F007F58D2B73A0C53863E65CF8EAE2CF6",
+    "statements": "0fa672e40c9dca56328d986407597b0f2fb1c9ee6831f64f49910525405003e3"
+   },
+   {
+    "id": 49,
+    "name": "0049_workflow_requests",
+    "checksum": "8B37F1384C672D42E1B2779A258706BE15DB183CDB3E4C7075398DFB749366FC",
+    "statements": "5575a92bc3fc48877c624d10d9a41362de6e369b97dadbb8cedf4387e31f7398"
+   },
+   {
+    "id": 50,
+    "name": "0050_remove_authorization_configuration_key",
+    "checksum": "63ABD9EAE0A174B85A7D27BE5AADC84B7A6EF0CAEFCC319687E078336ABC2106",
+    "statements": "6343838a3ab17231b0302d66e197759b09c2ba80cc028141dfd4ad90f249731a"
+   },
+   {
+    "id": 51,
+    "name": "0051_eval_case_expected_tool_calls",
+    "checksum": "E45D73B8350F6F463231FC14925483AF01FBD7AEA39A644030668F07743000E1",
+    "statements": "accf99c0c114164ca623bb3e30798785ec625fcd8d9bdc8ae7ceee410dc24b87"
+   },
+   {
+    "id": 52,
+    "name": "0052_agent_files_tenant_path_index",
+    "checksum": "BC0FEABEE58B132F586DCF87E3A44D4D38045DF845FA5DAC5B81B0F66D5846FA",
+    "statements": "058f3c0fdcd4f22ba1d6048e1cb874bae94618303ac4eefcce5bc128a277de44"
+   },
+   {
+    "id": 53,
+    "name": "0053_agent_definition_version_counters",
+    "checksum": "1E787EDCF51144FBF7C162EA3E4AD91D9BF11F10F0D0285B270991DD15C087DC",
+    "statements": "c8754b1383d1bc2796169ec95f3acc7c79388199887f02dfe99aee535a5ed87a"
+   }
+  ]
+ },
+ "exemptions": [
+  {
+   "provider": "postgresql",
+   "name": "0038_provider_name_case",
+   "statements": "711554289d071ea1756cffd3f270f741fe8160e2ba248a1f57844a94fe711adc",
+   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database folds OpenAI to openai"
+  },
+  {
+   "provider": "postgresql",
+   "name": "0062_remove_authorization_configuration_key",
+   "statements": "374e20e2b2e4dda5041820bf9e15d5d2038295eb76cbbbc0ba4867b1ac0a079e",
+   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database finds AUTHORIZATION"
+  },
+  {
+   "provider": "sqlserver",
+   "name": "0025_provider_name_case",
+   "statements": "897487c7ba260173e5c207fa2b65e4c8c31b19379f17bed561800b4e82506fb8",
+   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database folds OpenAI to openai"
+  },
+  {
+   "provider": "sqlserver",
+   "name": "0050_remove_authorization_configuration_key",
+   "statements": "6fdcf1b7e41e118e21b6bf1659bf7855ef403eab1e2c13fa980cff9ed944b91b",
+   "reason": "lower() names the ordinal collation inside the dynamic statement as well; the result on a database that is not Turkish is the same"
+  }
+ ]
+}

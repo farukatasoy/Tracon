@@ -29,4 +29,14 @@
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
   </ItemGroup>
 
+  <!--
+    The upgrade gate: the database of the last release, with a row in every table, moved to the migrations of the tree. The
+    same source and the same rows run against every SQL provider.
+  -->
+  <ItemGroup>
+    <Compile Include="../Shared/Upgrade/*.cs" LinkBase="Shared/Upgrade" />
+    <EmbeddedResource Include="../Shared/Upgrade/UpgradeSeed.json" LogicalName="UpgradeSeed.json" LinkBase="Shared/Upgrade" />
+    <EmbeddedResource Include="../Shared/Upgrade/UpgradeBaseline.json" LogicalName="UpgradeBaseline.json" LinkBase="Shared/Upgrade" />
+  </ItemGroup>
+
 </Project>

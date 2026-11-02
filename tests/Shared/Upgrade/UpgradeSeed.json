@@ -1,0 +1,1868 @@
+{
+ "tenant": "default",
+ "tables": {
+  "tenants": [
+   {
+    "id": "g:tenant-acme",
+    "slug": "acme",
+    "display_name": "Acme Corp",
+    "created_at": "ts:2026-03-01T10:00:00.000000Z"
+   },
+   {
+    "id": "g:tenant-default",
+    "slug": "default",
+    "display_name": "Default",
+    "created_at": "ts:2026-03-01T10:00:00.000000Z"
+   }
+  ],
+  "agent_definitions": [
+   {
+    "id": "g:agent-support",
+    "tenant_id": "default",
+    "name": "support-agent",
+    "version": 3,
+    "definition": {
+     "displayName": "Support Agent",
+     "description": "Answers support questions",
+     "instructions": "You are a careful support agent. Answer in the language of the user.",
+     "model": {
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "temperature": 0.2,
+      "maxOutputTokens": 2048,
+      "allowConcurrentToolCalls": true
+     },
+     "toolNames": [
+      "lookup_order",
+      "send_email"
+     ],
+     "skillNames": [
+      "refund-policy"
+     ],
+     "callableAgentNames": [
+      "planner"
+     ],
+     "metadata": {
+      "team": "support",
+      "tier": 2
+     }
+    },
+    "created_at": "ts:2026-03-01T10:01:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:30:00.000000Z"
+   },
+   {
+    "id": "g:agent-planner",
+    "tenant_id": "default",
+    "name": "planner",
+    "version": 1,
+    "definition": {
+     "displayName": "Planner",
+     "instructions": "Plan the steps.",
+     "model": {
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4",
+      "toolLoop": {
+       "allowConcurrentToolCalls": false
+      }
+     },
+     "toolNames": [],
+     "skillNames": []
+    },
+    "created_at": "ts:2026-03-01T10:02:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:02:00.000000Z"
+   },
+   {
+    "id": "g:agent-support-acme",
+    "tenant_id": "acme",
+    "name": "support-agent",
+    "version": 1,
+    "definition": {
+     "displayName": "Planner",
+     "instructions": "Plan the steps.",
+     "model": {
+      "provider": "Anthropic",
+      "model": "claude-sonnet-4",
+      "toolLoop": {
+       "allowConcurrentToolCalls": false
+      }
+     },
+     "toolNames": [],
+     "skillNames": []
+    },
+    "created_at": "ts:2026-03-01T10:03:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:03:00.000000Z"
+   }
+  ],
+  "agent_definition_versions": [
+   {
+    "id": "g:agent-support-v1",
+    "agent_id": "g:agent-support",
+    "version": 1,
+    "definition": {
+     "displayName": "Support Agent",
+     "description": "Answers support questions",
+     "instructions": "You are a careful support agent. Answer in the language of the user.",
+     "model": {
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "temperature": 0.2,
+      "maxOutputTokens": 2048,
+      "allowConcurrentToolCalls": true
+     },
+     "toolNames": [
+      "lookup_order",
+      "send_email"
+     ],
+     "skillNames": [
+      "refund-policy"
+     ],
+     "callableAgentNames": [
+      "planner"
+     ],
+     "metadata": {
+      "team": "support",
+      "tier": 2
+     }
+    },
+    "created_by": "alice",
+    "created_at": "ts:2026-03-01T10:01:00.000000Z"
+   },
+   {
+    "id": "g:agent-support-v2",
+    "agent_id": "g:agent-support",
+    "version": 2,
+    "definition": {
+     "displayName": "Support Agent",
+     "description": "Answers support questions",
+     "instructions": "You are a careful support agent. Answer in the language of the user.",
+     "model": {
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "temperature": 0.2,
+      "maxOutputTokens": 2048,
+      "allowConcurrentToolCalls": true
+     },
+     "toolNames": [
+      "lookup_order",
+      "send_email"
+     ],
+     "skillNames": [
+      "refund-policy"
+     ],
+     "callableAgentNames": [
+      "planner"
+     ],
+     "metadata": {
+      "team": "support",
+      "tier": 2
+     }
+    },
+    "created_by": "alice",
+    "created_at": "ts:2026-03-01T10:02:00.000000Z"
+   },
+   {
+    "id": "g:agent-support-v3",
+    "agent_id": "g:agent-support",
+    "version": 3,
+    "definition": {
+     "displayName": "Support Agent",
+     "description": "Answers support questions",
+     "instructions": "You are a careful support agent. Answer in the language of the user.",
+     "model": {
+      "provider": "OpenAI",
+      "model": "gpt-5",
+      "temperature": 0.2,
+      "maxOutputTokens": 2048,
+      "allowConcurrentToolCalls": true
+     },
+     "toolNames": [
+      "lookup_order",
+      "send_email"
+     ],
+     "skillNames": [
+      "refund-policy"
+     ],
+     "callableAgentNames": [
+      "planner"
+     ],
+     "metadata": {
+      "team": "support",
+      "tier": 2
+     }
+    },
+    "created_by": "alice",
+    "created_at": "ts:2026-03-01T10:03:00.000000Z"
+   }
+  ],
+  "agent_definition_version_counters": [
+   {
+    "tenant_id": "default",
+    "name": "support-agent",
+    "last_version": 3,
+    "updated_at": "ts:2026-03-01T10:30:00.000000Z"
+   },
+   {
+    "tenant_id": "default",
+    "name": "planner",
+    "last_version": 1,
+    "updated_at": "ts:2026-03-01T10:02:00.000000Z"
+   }
+  ],
+  "sessions": [
+   {
+    "id": "session-alpha",
+    "tenant_id": "default",
+    "agent_name": "support-agent",
+    "state": {
+     "stateBag": {
+      "topic": "refund",
+      "turns": 4
+     },
+     "conversationId": null
+    },
+    "schema_version": 1,
+    "state_schema_version": 1,
+    "created_at": "ts:2026-03-01T10:05:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:20:00.000000Z",
+    "version": 7,
+    "state_maf_version": "1.0.0",
+    "owner_id": "alice"
+   },
+   {
+    "id": "Session-Beta",
+    "tenant_id": "default",
+    "agent_name": "planner",
+    "state": {
+     "stateBag": {
+      "topic": "refund",
+      "turns": 4
+     },
+     "conversationId": null
+    },
+    "schema_version": 1,
+    "state_schema_version": 1,
+    "created_at": "ts:2026-03-01T10:06:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:21:00.000000Z",
+    "version": 1,
+    "state_maf_version": null,
+    "owner_id": null
+   },
+   {
+    "id": "session-acme",
+    "tenant_id": "acme",
+    "agent_name": "support-agent",
+    "state": {
+     "stateBag": {
+      "topic": "refund",
+      "turns": 4
+     },
+     "conversationId": null
+    },
+    "schema_version": 1,
+    "state_schema_version": 1,
+    "created_at": "ts:2026-03-01T10:07:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:22:00.000000Z",
+    "version": 2,
+    "state_maf_version": "1.0.0",
+    "owner_id": "carol"
+   }
+  ],
+  "conversations": [
+   {
+    "id": "g:conv-1",
+    "tenant_id": "default",
+    "agent_name": "support-agent",
+    "metadata": {
+     "channel": "web"
+    },
+    "created_at": "ts:2026-03-01T10:08:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:09:00.000000Z",
+    "parent_conversation_id": null,
+    "branch_from_seq": null
+   },
+   {
+    "id": "g:conv-branch",
+    "tenant_id": "default",
+    "agent_name": "support-agent",
+    "metadata": {
+     "channel": "web"
+    },
+    "created_at": "ts:2026-03-01T10:10:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:11:00.000000Z",
+    "parent_conversation_id": "g:conv-1",
+    "branch_from_seq": 1
+   }
+  ],
+  "conversation_items": [
+   {
+    "id": "g:conv-1-item-1",
+    "conversation_id": "g:conv-1",
+    "seq": 1,
+    "item": {
+     "role": "user",
+     "contents": [
+      {
+       "$type": "text",
+       "text": "Where is my order?"
+      }
+     ]
+    },
+    "created_at": "ts:2026-03-01T10:08:00.000000Z"
+   },
+   {
+    "id": "g:conv-1-item-2",
+    "conversation_id": "g:conv-1",
+    "seq": 2,
+    "item": {
+     "role": "assistant",
+     "contents": [
+      {
+       "$type": "text",
+       "text": "It ships tomorrow."
+      }
+     ]
+    },
+    "created_at": "ts:2026-03-01T10:09:00.000000Z"
+   }
+  ],
+  "responses": [
+   {
+    "id": "g:response-1",
+    "conversation_id": "g:conv-1",
+    "session_id": "session-alpha",
+    "payload": {
+     "id": "resp_seed_1",
+     "object": "response",
+     "status": "completed",
+     "output": []
+    },
+    "created_at": "ts:2026-03-01T10:09:00.000000Z"
+   }
+  ],
+  "experiments": [
+   {
+    "id": "g:exp-1",
+    "tenant_id": "default",
+    "name": "refund-wording",
+    "agent_name": "support-agent",
+    "variants": [
+     {
+      "name": "control",
+      "version": 2,
+      "weight": 50
+     },
+     {
+      "name": "candidate",
+      "version": 3,
+      "weight": 50
+     }
+    ],
+    "status": 1,
+    "assignment_key": "user",
+    "started_at": "ts:2026-03-01T10:12:00.000000Z",
+    "ended_at": null,
+    "updated_at": "ts:2026-03-01T10:12:00.000000Z",
+    "canary_policy": {
+     "canaryVariant": "candidate",
+     "maxErrorRateDelta": 0.2,
+     "minSampleSize": 10,
+     "rampSteps": [
+      10,
+      50,
+      100
+     ],
+     "rampInterval": "00:10:00"
+    },
+    "rollback_reason": null
+   },
+   {
+    "id": "g:exp-2",
+    "tenant_id": "default",
+    "name": "draft-experiment",
+    "agent_name": "planner",
+    "variants": [
+     {
+      "name": "control",
+      "version": 2,
+      "weight": 50
+     },
+     {
+      "name": "candidate",
+      "version": 3,
+      "weight": 50
+     }
+    ],
+    "status": 0,
+    "assignment_key": null,
+    "started_at": null,
+    "ended_at": null,
+    "updated_at": "ts:2026-03-01T10:13:00.000000Z",
+    "canary_policy": null,
+    "rollback_reason": null
+   },
+   {
+    "id": "g:exp-3",
+    "tenant_id": "default",
+    "name": "stopped-experiment",
+    "agent_name": "planner",
+    "variants": [
+     {
+      "name": "control",
+      "version": 2,
+      "weight": 50
+     },
+     {
+      "name": "candidate",
+      "version": 3,
+      "weight": 50
+     }
+    ],
+    "status": 2,
+    "assignment_key": "session",
+    "started_at": "ts:2026-03-01T10:12:00.000000Z",
+    "ended_at": "ts:2026-03-01T10:13:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:13:00.000000Z",
+    "canary_policy": null,
+    "rollback_reason": "error rate above the limit"
+   }
+  ],
+  "runs": [
+   {
+    "id": "g:run-completed",
+    "agent_name": "support-agent",
+    "session_id": "session-alpha",
+    "status": 1,
+    "started_at": "ts:2026-03-01T10:14:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:15:00.000000Z",
+    "input_tokens": 1200,
+    "output_tokens": 300,
+    "total_tokens": 1500,
+    "event_count": 4,
+    "error_type": null,
+    "error_message": null,
+    "model_id": "gpt-5",
+    "parent_run_id": null,
+    "root_run_id": "g:run-completed",
+    "workflow_name": null,
+    "agent_version": 3,
+    "experiment_id": "g:exp-1",
+    "variant": "candidate",
+    "input_cost": "d:0.0150000000",
+    "output_cost": "d:0.0090000000",
+    "cost_currency": "USD",
+    "pricing_source": 0,
+    "error_class": null,
+    "error_fingerprint": null,
+    "replay_of_run_id": null,
+    "heartbeat_at": "ts:2026-03-01T10:15:00.000000Z",
+    "user_id": "alice",
+    "labels": {
+     "team": "support"
+    },
+    "cached_input_tokens": 200,
+    "reasoning_tokens": 50,
+    "audio_input_tokens": 0,
+    "audio_output_tokens": 0,
+    "cached_input_cost": "d:0.0005000000",
+    "continued_from_run_id": null,
+    "model_provider": "OpenAI",
+    "input_price_per_mtok": "d:1.2500000000",
+    "output_price_per_mtok": "d:10.0000000000",
+    "cached_input_price_per_mtok": "d:0.1250000000",
+    "non_token_cost": "d:0.0020000000",
+    "non_token_currency": "USD",
+    "non_token_estimated": true,
+    "non_token_unsummed": false,
+    "cache_write_input_tokens": 100,
+    "cache_write_long_input_tokens": 0,
+    "cache_write_cost": "d:0.0003000000",
+    "cache_write_price_per_mtok": "d:3.7500000000",
+    "cache_write_long_price_per_mtok": "d:6.0000000000",
+    "cancel_requested_at": null,
+    "tenant_id": "default",
+    "is_streaming": false,
+    "depth": 0,
+    "kind": 0
+   },
+   {
+    "id": "g:run-failed",
+    "agent_name": "support-agent",
+    "session_id": "session-alpha",
+    "status": 2,
+    "started_at": "ts:2026-03-01T10:16:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:17:00.000000Z",
+    "input_tokens": 40,
+    "output_tokens": 0,
+    "total_tokens": 40,
+    "event_count": 2,
+    "error_type": "ProviderException",
+    "error_message": "upstream 503",
+    "model_id": "gpt-5",
+    "parent_run_id": null,
+    "root_run_id": "g:run-failed",
+    "workflow_name": null,
+    "agent_version": 2,
+    "experiment_id": null,
+    "variant": null,
+    "input_cost": "d:0.0000500000",
+    "output_cost": "d:0",
+    "cost_currency": "USD",
+    "pricing_source": 1,
+    "error_class": 2,
+    "error_fingerprint": "a1b2c3d4",
+    "replay_of_run_id": "g:run-completed",
+    "heartbeat_at": null,
+    "user_id": null,
+    "labels": null,
+    "cached_input_tokens": null,
+    "reasoning_tokens": null,
+    "audio_input_tokens": null,
+    "audio_output_tokens": null,
+    "cached_input_cost": null,
+    "continued_from_run_id": null,
+    "model_provider": "OpenAI",
+    "input_price_per_mtok": null,
+    "output_price_per_mtok": null,
+    "cached_input_price_per_mtok": null,
+    "non_token_cost": null,
+    "non_token_currency": null,
+    "non_token_estimated": false,
+    "non_token_unsummed": false,
+    "cache_write_input_tokens": null,
+    "cache_write_long_input_tokens": null,
+    "cache_write_cost": null,
+    "cache_write_price_per_mtok": null,
+    "cache_write_long_price_per_mtok": null,
+    "cancel_requested_at": "ts:2026-03-01T10:17:00.000000Z",
+    "tenant_id": "default",
+    "is_streaming": false,
+    "depth": 0,
+    "kind": 0
+   },
+   {
+    "id": "g:run-child",
+    "agent_name": "planner",
+    "session_id": null,
+    "status": 0,
+    "started_at": "ts:2026-03-01T10:18:00.000000Z",
+    "completed_at": null,
+    "input_tokens": null,
+    "output_tokens": null,
+    "total_tokens": null,
+    "event_count": 1,
+    "error_type": null,
+    "error_message": null,
+    "model_id": null,
+    "parent_run_id": "g:run-completed",
+    "root_run_id": "g:run-completed",
+    "workflow_name": null,
+    "agent_version": 1,
+    "experiment_id": null,
+    "variant": null,
+    "input_cost": null,
+    "output_cost": null,
+    "cost_currency": null,
+    "pricing_source": null,
+    "error_class": null,
+    "error_fingerprint": null,
+    "replay_of_run_id": null,
+    "heartbeat_at": "ts:2026-03-01T10:18:00.000000Z",
+    "user_id": "bob",
+    "labels": {},
+    "cached_input_tokens": null,
+    "reasoning_tokens": null,
+    "audio_input_tokens": null,
+    "audio_output_tokens": null,
+    "cached_input_cost": null,
+    "continued_from_run_id": "g:run-failed",
+    "model_provider": null,
+    "input_price_per_mtok": null,
+    "output_price_per_mtok": null,
+    "cached_input_price_per_mtok": null,
+    "non_token_cost": null,
+    "non_token_currency": null,
+    "non_token_estimated": false,
+    "non_token_unsummed": false,
+    "cache_write_input_tokens": null,
+    "cache_write_long_input_tokens": null,
+    "cache_write_cost": null,
+    "cache_write_price_per_mtok": null,
+    "cache_write_long_price_per_mtok": null,
+    "cancel_requested_at": null,
+    "tenant_id": "default",
+    "is_streaming": false,
+    "depth": 1,
+    "kind": 0
+   },
+   {
+    "id": "g:run-workflow",
+    "agent_name": "review-flow",
+    "session_id": "Session-Beta",
+    "status": 4,
+    "started_at": "ts:2026-03-01T10:19:00.000000Z",
+    "completed_at": null,
+    "input_tokens": 10,
+    "output_tokens": 5,
+    "total_tokens": 15,
+    "event_count": 3,
+    "error_type": null,
+    "error_message": null,
+    "model_id": null,
+    "parent_run_id": null,
+    "root_run_id": "g:run-workflow",
+    "workflow_name": "review-flow",
+    "agent_version": null,
+    "experiment_id": null,
+    "variant": null,
+    "input_cost": null,
+    "output_cost": null,
+    "cost_currency": null,
+    "pricing_source": null,
+    "error_class": null,
+    "error_fingerprint": null,
+    "replay_of_run_id": null,
+    "heartbeat_at": "ts:2026-03-01T10:19:00.000000Z",
+    "user_id": null,
+    "labels": null,
+    "cached_input_tokens": null,
+    "reasoning_tokens": null,
+    "audio_input_tokens": null,
+    "audio_output_tokens": null,
+    "cached_input_cost": null,
+    "continued_from_run_id": null,
+    "model_provider": null,
+    "input_price_per_mtok": null,
+    "output_price_per_mtok": null,
+    "cached_input_price_per_mtok": null,
+    "non_token_cost": null,
+    "non_token_currency": null,
+    "non_token_estimated": false,
+    "non_token_unsummed": false,
+    "cache_write_input_tokens": null,
+    "cache_write_long_input_tokens": null,
+    "cache_write_cost": null,
+    "cache_write_price_per_mtok": null,
+    "cache_write_long_price_per_mtok": null,
+    "cancel_requested_at": null,
+    "tenant_id": "default",
+    "is_streaming": false,
+    "depth": 0,
+    "kind": 1
+   }
+  ],
+  "run_events": [
+   {
+    "run_id": "g:run-completed",
+    "seq": 1,
+    "type": 0,
+    "text": null,
+    "tool_name": null,
+    "tool_call_id": null,
+    "payload": null,
+    "created_at": "ts:2026-03-01T10:14:00.000000Z",
+    "custom_type": null
+   },
+   {
+    "run_id": "g:run-completed",
+    "seq": 2,
+    "type": 3,
+    "text": null,
+    "tool_name": "lookup_order",
+    "tool_call_id": "call_1",
+    "payload": {
+     "arguments": {
+      "orderId": "A-100"
+     }
+    },
+    "created_at": "ts:2026-03-01T10:14:00.100000Z",
+    "custom_type": null
+   },
+   {
+    "run_id": "g:run-completed",
+    "seq": 3,
+    "type": 2,
+    "text": "Your order ships tomorrow.",
+    "tool_name": null,
+    "tool_call_id": null,
+    "payload": null,
+    "created_at": "ts:2026-03-01T10:14:00.200000Z",
+    "custom_type": null
+   },
+   {
+    "run_id": "g:run-completed",
+    "seq": 4,
+    "type": 6,
+    "text": null,
+    "tool_name": null,
+    "tool_call_id": null,
+    "payload": {
+     "totalTokens": 1500
+    },
+    "created_at": "ts:2026-03-01T10:15:00.000000Z",
+    "custom_type": "support.audit"
+   },
+   {
+    "run_id": "g:run-workflow",
+    "seq": 1,
+    "type": 18,
+    "text": null,
+    "tool_name": null,
+    "tool_call_id": null,
+    "payload": {
+     "requestId": "req-1",
+     "portId": "review",
+     "data": {
+      "question": "approve?"
+     }
+    },
+    "created_at": "ts:2026-03-01T10:19:00.000000Z",
+    "custom_type": null
+   }
+  ],
+  "run_inputs": [
+   {
+    "run_id": "g:run-completed",
+    "tenant_id": "default",
+    "messages": [
+     {
+      "role": "user",
+      "contents": [
+       {
+        "$type": "text",
+        "text": "Where is my order A-100?"
+       }
+      ]
+     }
+    ],
+    "created_at": "ts:2026-03-01T10:14:00.000000Z",
+    "parameters": {
+     "locale": "en"
+    }
+   },
+   {
+    "run_id": "g:run-failed",
+    "tenant_id": "default",
+    "messages": [
+     {
+      "role": "user",
+      "contents": [
+       {
+        "$type": "text",
+        "text": "Hello"
+       }
+      ]
+     }
+    ],
+    "created_at": "ts:2026-03-01T10:16:00.000000Z",
+    "parameters": null
+   }
+  ],
+  "run_non_token_usage": [
+   {
+    "id": "g:nt-1",
+    "run_id": "g:run-completed",
+    "node_name": "search",
+    "unit": "request",
+    "quantity": "d:3",
+    "cost": "d:0.0020000000",
+    "currency": "USD",
+    "estimated": true,
+    "provider": "Bing",
+    "model": "bing-v7",
+    "created_at": "ts:2026-03-01T10:14:00.000000Z"
+   }
+  ],
+  "tool_invocations": [
+   {
+    "id": "g:ti-1",
+    "run_id": "g:run-completed",
+    "tool_name": "lookup_order",
+    "tool_call_id": "call_1",
+    "source": "code",
+    "arguments": {
+     "orderId": "A-100"
+    },
+    "result": {
+     "status": "shipped"
+    },
+    "duration_ms": 120,
+    "error": null,
+    "created_at": "ts:2026-03-01T10:14:00.100000Z",
+    "usage_unit": "request",
+    "usage_quantity": "d:1",
+    "usage_estimated": false,
+    "cost": "d:0.0010000000",
+    "cost_currency": "USD",
+    "authorization_denied": false,
+    "timed_out": false,
+    "late_completed_at": null,
+    "usage_provider": "orders-api",
+    "usage_model": "orders-v2"
+   },
+   {
+    "id": "g:ti-2",
+    "run_id": "g:run-completed",
+    "tool_name": "send_email",
+    "tool_call_id": "call_2",
+    "source": "mcp",
+    "arguments": {
+     "to": "a@example.com"
+    },
+    "result": null,
+    "duration_ms": null,
+    "error": "timed out",
+    "created_at": "ts:2026-03-01T10:14:00.300000Z",
+    "usage_unit": null,
+    "usage_quantity": null,
+    "usage_estimated": null,
+    "cost": null,
+    "cost_currency": null,
+    "authorization_denied": false,
+    "timed_out": true,
+    "late_completed_at": "ts:2026-03-01T10:16:00.000000Z",
+    "usage_provider": null,
+    "usage_model": null
+   }
+  ],
+  "traces": [
+   {
+    "id": "g:trace-1",
+    "tenant_id": "default",
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "run_id": "g:run-completed",
+    "started_at": "ts:2026-03-01T10:14:00.000000Z",
+    "ended_at": "ts:2026-03-01T10:15:00.000000Z"
+   }
+  ],
+  "spans": [
+   {
+    "id": "g:span-1",
+    "trace_id": "g:trace-1",
+    "parent_span_id": null,
+    "name": "agent.run",
+    "kind": 0,
+    "started_at": "ts:2026-03-01T10:14:00.000000Z",
+    "ended_at": "ts:2026-03-01T10:15:00.000000Z",
+    "attributes": {
+     "agent": "support-agent",
+     "tokens": "1500"
+    },
+    "status": 1,
+    "span_id": "00f067aa0ba902b7"
+   },
+   {
+    "id": "g:span-2",
+    "trace_id": "g:trace-1",
+    "parent_span_id": "g:span-1",
+    "name": "tool.lookup_order",
+    "kind": 2,
+    "started_at": "ts:2026-03-01T10:14:00.100000Z",
+    "ended_at": "ts:2026-03-01T10:14:00.220000Z",
+    "attributes": null,
+    "status": 0,
+    "span_id": "b9c7c989f97918e1"
+   }
+  ],
+  "run_scores": [
+   {
+    "id": "g:score-1",
+    "tenant_id": "default",
+    "run_id": "g:run-completed",
+    "message_id": "msg-1",
+    "kind": 2,
+    "comment": "great",
+    "source": "user",
+    "author": "alice",
+    "created_at": "ts:2026-03-01T10:15:00.000000Z",
+    "name": "quality",
+    "text_value": null,
+    "value": 4,
+    "evaluator_version": null
+   },
+   {
+    "id": "g:score-2",
+    "tenant_id": "default",
+    "run_id": "g:run-completed",
+    "message_id": null,
+    "kind": 4,
+    "comment": null,
+    "source": "judge",
+    "author": "judge:tone",
+    "created_at": "ts:2026-03-01T10:15:00.000000Z",
+    "name": "tone",
+    "text_value": "polite",
+    "value": 0,
+    "evaluator_version": "tone@2"
+   }
+  ],
+  "tool_approval_rules": [
+   {
+    "id": "g:rule-1",
+    "tenant_id": "default",
+    "agent_name": "support-agent",
+    "tool_name": "send_email",
+    "arguments_hash": null,
+    "created_by": "alice",
+    "created_at": "ts:2026-03-01T10:20:00.000000Z",
+    "argument_conditions": [
+     {
+      "path": "to",
+      "operator": 0,
+      "value": "a@example.com"
+     }
+    ],
+    "conditions_hash": "abc123",
+    "source_fingerprint": "fp-1"
+   },
+   {
+    "id": "g:rule-2",
+    "tenant_id": "default",
+    "agent_name": null,
+    "tool_name": "lookup_order",
+    "arguments_hash": "9f86d081884c7d659a2feaa0c55ad015",
+    "created_by": null,
+    "created_at": "ts:2026-03-01T10:20:00.000000Z",
+    "argument_conditions": null,
+    "conditions_hash": null,
+    "source_fingerprint": null
+   }
+  ],
+  "pending_approvals": [
+   {
+    "id": "g:approval-1",
+    "tenant_id": "default",
+    "run_id": "g:run-completed",
+    "session_id": "session-alpha",
+    "request_id": "req-approval-1",
+    "tool_name": "send_email",
+    "arguments": {
+     "to": "a@example.com"
+    },
+    "status": 0,
+    "decided_by": null,
+    "decided_at": null,
+    "expires_at": "ts:2026-03-01T12:00:00.000000Z",
+    "created_at": "ts:2026-03-01T10:20:00.000000Z",
+    "presentation": {
+     "entityType": "agent",
+     "entityId": "support-agent",
+     "entityName": "Support Agent",
+     "message": "Send an email to a@example.com"
+    }
+   },
+   {
+    "id": "g:approval-2",
+    "tenant_id": "default",
+    "run_id": "g:run-completed",
+    "session_id": "session-alpha",
+    "request_id": "req-approval-2",
+    "tool_name": "lookup_order",
+    "arguments": null,
+    "status": 1,
+    "decided_by": "bob",
+    "decided_at": "ts:2026-03-01T10:25:00.000000Z",
+    "expires_at": "ts:2026-03-01T12:00:00.000000Z",
+    "created_at": "ts:2026-03-01T10:21:00.000000Z",
+    "presentation": null
+   }
+  ],
+  "mcp_servers": [
+   {
+    "id": "g:mcp-1",
+    "tenant_id": "default",
+    "name": "Docs-Server",
+    "description": "docs",
+    "endpoint": "https://mcp.example.com/mcp",
+    "transport": 0,
+    "headers": {},
+    "enabled": true,
+    "requires_approval": false,
+    "created_at": "ts:2026-03-01T10:21:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:21:00.000000Z",
+    "oauth_enabled": false,
+    "oauth_client_id": null,
+    "oauth_client_secret_configuration_key": null,
+    "oauth_scopes": null,
+    "oauth_authorization_mode": 0,
+    "authorization_configuration_key": "Tracon:McpSecrets:Docs",
+    "header_configuration_keys": {
+     "X-Api-Key": "Tracon:McpSecrets:DocsKey"
+    }
+   },
+   {
+    "id": "g:mcp-oauth",
+    "tenant_id": "default",
+    "name": "oauth-server",
+    "description": null,
+    "endpoint": "https://mcp.example.com/oauth",
+    "transport": 1,
+    "headers": {},
+    "enabled": true,
+    "requires_approval": true,
+    "created_at": "ts:2026-03-01T10:22:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:22:00.000000Z",
+    "oauth_enabled": true,
+    "oauth_client_id": "client-1",
+    "oauth_client_secret_configuration_key": "Tracon:McpSecrets:OAuthClient",
+    "oauth_scopes": "read write",
+    "oauth_authorization_mode": 0,
+    "authorization_configuration_key": null,
+    "header_configuration_keys": {}
+   }
+  ],
+  "agent_skills": [
+   {
+    "id": "g:skill-1",
+    "tenant_id": "default",
+    "name": "refund-policy",
+    "description": "Refund rules",
+    "instructions": "Refund within 30 days.",
+    "compatibility": "claude-code",
+    "license": "MIT",
+    "allowed_tools": "lookup_order",
+    "metadata": {
+     "owner": "support"
+    },
+    "enabled": true,
+    "version": 2,
+    "created_at": "ts:2026-03-01T10:23:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:24:00.000000Z"
+   }
+  ],
+  "agent_skill_resources": [
+   {
+    "id": "g:skill-res-1",
+    "skill_id": "g:skill-1",
+    "name": "policy.md",
+    "description": "policy",
+    "media_type": "text/markdown",
+    "content": "# Policy",
+    "created_at": "ts:2026-03-01T10:23:00.000000Z"
+   }
+  ],
+  "agent_skill_scripts": [
+   {
+    "id": "g:skill-script-1",
+    "skill_id": "g:skill-1",
+    "name": "calc",
+    "description": "calc",
+    "extension": ".py",
+    "content": "print(1)",
+    "parameters_schema": {
+     "type": "object"
+    },
+    "created_at": "ts:2026-03-01T10:23:00.000000Z",
+    "origin": 0
+   }
+  ],
+  "skill_script_grants": [
+   {
+    "id": "g:grant-1",
+    "tenant_id": "default",
+    "skill_name": "refund-policy",
+    "script_name": "calc",
+    "granted_by": "alice",
+    "granted_at": "ts:2026-03-01T10:24:00.000000Z",
+    "expires_at": null,
+    "revoked_at": null,
+    "content_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+   },
+   {
+    "id": "g:grant-2",
+    "tenant_id": "default",
+    "skill_name": "refund-policy",
+    "script_name": null,
+    "granted_by": "alice",
+    "granted_at": "ts:2026-03-01T10:24:00.000000Z",
+    "expires_at": "ts:2026-03-01T11:00:00.000000Z",
+    "revoked_at": "ts:2026-03-01T10:30:00.000000Z",
+    "content_hash": null
+   }
+  ],
+  "workflows": [
+   {
+    "id": "g:wf-1",
+    "tenant_id": "default",
+    "name": "review-flow",
+    "version": 2,
+    "definition": {
+     "displayName": "Review flow",
+     "description": "Drafts, then reviews",
+     "kind": "Sequential",
+     "agentNames": [
+      "support-agent",
+      "planner"
+     ],
+     "nodes": [
+      {
+       "name": "support-agent",
+       "kind": "Agent"
+      },
+      {
+       "name": "planner",
+       "kind": "Agent",
+       "agentVersion": 1
+      }
+     ],
+     "maxIterations": 3,
+     "requirePlanApproval": false,
+     "parameters": [],
+     "runTimeout": "00:05:00"
+    },
+    "created_at": "ts:2026-03-01T10:25:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:26:00.000000Z"
+   }
+  ],
+  "workflow_definition_versions": [
+   {
+    "tenant_id": "default",
+    "name": "review-flow",
+    "version": 1,
+    "definition": {
+     "displayName": "Review flow",
+     "description": "Drafts, then reviews",
+     "kind": "Sequential",
+     "agentNames": [
+      "support-agent",
+      "planner"
+     ],
+     "nodes": [
+      {
+       "name": "support-agent",
+       "kind": "Agent"
+      },
+      {
+       "name": "planner",
+       "kind": "Agent",
+       "agentVersion": 1
+      }
+     ],
+     "maxIterations": 3,
+     "requirePlanApproval": false,
+     "parameters": [],
+     "runTimeout": "00:05:00"
+    },
+    "created_at": "ts:2026-03-01T10:25:00.000000Z"
+   },
+   {
+    "tenant_id": "default",
+    "name": "review-flow",
+    "version": 2,
+    "definition": {
+     "displayName": "Review flow",
+     "description": "Drafts, then reviews",
+     "kind": "Sequential",
+     "agentNames": [
+      "support-agent",
+      "planner"
+     ],
+     "nodes": [
+      {
+       "name": "support-agent",
+       "kind": "Agent"
+      },
+      {
+       "name": "planner",
+       "kind": "Agent",
+       "agentVersion": 1
+      }
+     ],
+     "maxIterations": 3,
+     "requirePlanApproval": false,
+     "parameters": [],
+     "runTimeout": "00:05:00"
+    },
+    "created_at": "ts:2026-03-01T10:26:00.000000Z"
+   }
+  ],
+  "workflow_checkpoints": [
+   {
+    "id": "g:cp-1",
+    "tenant_id": "default",
+    "session_id": "Session-Beta",
+    "checkpoint_id": "Checkpoint-A",
+    "parent_id": null,
+    "run_id": "g:run-workflow",
+    "state": {
+     "superStep": 1,
+     "executors": {}
+    },
+    "created_at": "ts:2026-03-01T10:19:00.000000Z",
+    "state_schema_version": 1,
+    "state_maf_version": "1.0.0"
+   },
+   {
+    "id": "g:cp-2",
+    "tenant_id": "default",
+    "session_id": "Session-Beta",
+    "checkpoint_id": "checkpoint-b",
+    "parent_id": "Checkpoint-A",
+    "run_id": "g:run-workflow",
+    "state": {
+     "superStep": 2,
+     "executors": {}
+    },
+    "created_at": "ts:2026-03-01T10:20:00.000000Z",
+    "state_schema_version": 1,
+    "state_maf_version": null
+   }
+  ],
+  "workflow_requests": [
+   {
+    "run_id": "g:run-workflow",
+    "request_id": "req-1",
+    "tenant_id": "default",
+    "session_id": "Session-Beta",
+    "workflow_name": "review-flow",
+    "port_id": "review",
+    "event_seq": 1,
+    "requested_at": "ts:2026-03-01T10:19:00.000000Z",
+    "expires_at": "ts:2026-03-01T13:20:00.000000Z",
+    "status": 0,
+    "answered_at": null,
+    "last_response_run_id": null,
+    "closed_at": null
+   },
+   {
+    "run_id": "g:run-workflow",
+    "request_id": "req-2",
+    "tenant_id": "default",
+    "session_id": "Session-Beta",
+    "workflow_name": "review-flow",
+    "port_id": "review",
+    "event_seq": 2,
+    "requested_at": "ts:2026-03-01T10:19:00.600000Z",
+    "expires_at": null,
+    "status": 1,
+    "answered_at": "ts:2026-03-01T10:19:00.800000Z",
+    "last_response_run_id": "g:run-child",
+    "closed_at": "ts:2026-03-01T10:19:00.900000Z"
+   }
+  ],
+  "workflow_responses": [
+   {
+    "response_run_id": "g:run-child",
+    "tenant_id": "default",
+    "source_run_id": "g:run-workflow",
+    "session_id": "Session-Beta",
+    "request_id": "req-1",
+    "claim_scope": "user:alice",
+    "answer_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    "status": 0,
+    "responded_by": "alice",
+    "responded_at": "ts:2026-03-01T10:19:00.500000Z"
+   }
+  ],
+  "job_schedules": [
+   {
+    "id": "g:sched-1",
+    "tenant_id": "default",
+    "name": "nightly-report",
+    "target_name": "support-agent",
+    "cron": "0 2 * * *",
+    "time_zone": "Europe/Istanbul",
+    "payload": {
+     "input": "daily summary"
+    },
+    "enabled": true,
+    "next_run_at": "ts:2026-03-01T20:00:00.000000Z",
+    "last_run_at": "ts:2026-03-01T10:00:00.000000Z",
+    "created_by": "alice",
+    "created_at": "ts:2026-03-01T10:27:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:27:00.000000Z",
+    "lane": "default",
+    "handler_key": "tracon.agent-run",
+    "kind": 5
+   }
+  ],
+  "jobs": [
+   {
+    "id": "g:job-1",
+    "tenant_id": "default",
+    "schedule_id": "g:sched-1",
+    "target_name": "support-agent",
+    "status": 3,
+    "payload": {
+     "input": "daily summary"
+    },
+    "total_items": 2,
+    "done_items": 2,
+    "failed_items": 0,
+    "attempt": 1,
+    "lease_owner": null,
+    "lease_until": null,
+    "scheduled_for": "ts:2026-03-01T10:28:00.000000Z",
+    "started_at": "ts:2026-03-01T10:28:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:29:00.000000Z",
+    "error_message": null,
+    "created_at": "ts:2026-03-01T10:28:00.000000Z",
+    "max_attempts": 3,
+    "lane": "default",
+    "handler_key": "tracon.agent-batch",
+    "max_duration_ms": 60000,
+    "kind": 0
+   },
+   {
+    "id": "g:job-2",
+    "tenant_id": "default",
+    "schedule_id": null,
+    "target_name": "review-flow",
+    "status": 1,
+    "payload": {
+     "input": "x"
+    },
+    "total_items": 0,
+    "done_items": 0,
+    "failed_items": 0,
+    "attempt": 0,
+    "lease_owner": "node-1",
+    "lease_until": "ts:2026-03-01T15:00:00.000000Z",
+    "scheduled_for": "ts:2026-03-01T10:29:00.000000Z",
+    "started_at": null,
+    "completed_at": null,
+    "error_message": null,
+    "created_at": "ts:2026-03-01T10:29:00.000000Z",
+    "max_attempts": null,
+    "lane": "slow",
+    "handler_key": "tracon.workflow",
+    "max_duration_ms": null,
+    "kind": 1
+   },
+   {
+    "id": "g:job-3",
+    "tenant_id": "default",
+    "schedule_id": null,
+    "target_name": "support-agent",
+    "status": 4,
+    "payload": {
+     "input": "y"
+    },
+    "total_items": 1,
+    "done_items": 0,
+    "failed_items": 1,
+    "attempt": 3,
+    "lease_owner": null,
+    "lease_until": null,
+    "scheduled_for": "ts:2026-03-01T10:30:00.000000Z",
+    "started_at": "ts:2026-03-01T10:30:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:31:00.000000Z",
+    "error_message": "handler failed after three attempts",
+    "created_at": "ts:2026-03-01T10:30:00.000000Z",
+    "max_attempts": 3,
+    "lane": "default",
+    "handler_key": "tracon.agent-run",
+    "max_duration_ms": null,
+    "kind": 5
+   }
+  ],
+  "job_items": [
+   {
+    "id": "g:job-item-1",
+    "job_id": "g:job-1",
+    "seq": 1,
+    "input": {
+     "message": "a"
+    },
+    "run_id": "g:run-completed",
+    "status": 1,
+    "error": null
+   },
+   {
+    "id": "g:job-item-2",
+    "job_id": "g:job-1",
+    "seq": 2,
+    "input": {
+     "message": "b"
+    },
+    "run_id": null,
+    "status": 2,
+    "error": "boom"
+   }
+  ],
+  "eval_suites": [
+   {
+    "id": "g:suite-1",
+    "tenant_id": "default",
+    "name": "refund-suite",
+    "description": "refunds",
+    "agent_name": "support-agent",
+    "checks": [
+     {
+      "kind": "contains",
+      "value": "refund"
+     }
+    ],
+    "created_at": "ts:2026-03-01T10:30:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:30:00.000000Z"
+   }
+  ],
+  "eval_cases": [
+   {
+    "id": "g:case-1",
+    "suite_id": "g:suite-1",
+    "seq": 1,
+    "query": "Can I get a refund?",
+    "expected_output": "Yes",
+    "expected_tools": {
+     "$a": [
+      "lookup_order"
+     ]
+    },
+    "context": "order A-100",
+    "source_run_id": "g:run-failed",
+    "source_kind": 0,
+    "promoted_at": "ts:2026-03-01T10:31:00.000000Z",
+    "parameters": {
+     "locale": "en"
+    },
+    "expected_tool_calls": [
+     {
+      "name": "lookup_order",
+      "arguments": {
+       "orderId": "A-100"
+      }
+     }
+    ]
+   },
+   {
+    "id": "g:case-2",
+    "suite_id": "g:suite-1",
+    "seq": 2,
+    "query": "Hi",
+    "expected_output": null,
+    "expected_tools": null,
+    "context": null,
+    "source_run_id": null,
+    "source_kind": null,
+    "promoted_at": null,
+    "parameters": null,
+    "expected_tool_calls": null
+   }
+  ],
+  "eval_runs": [
+   {
+    "id": "g:eval-run-1",
+    "tenant_id": "default",
+    "suite_id": "g:suite-1",
+    "job_id": "g:job-1",
+    "agent_version": 3,
+    "model_id": "gpt-5",
+    "status": 2,
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "input_tokens": 100,
+    "output_tokens": 40,
+    "started_at": "ts:2026-03-01T10:32:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:33:00.000000Z"
+   }
+  ],
+  "eval_case_results": [
+   {
+    "id": "g:eval-result-1",
+    "eval_run_id": "g:eval-run-1",
+    "case_id": "g:case-1",
+    "run_id": "g:run-completed",
+    "passed": true,
+    "output": "Yes, within 30 days.",
+    "scores": {
+     "contains": 1.0
+    },
+    "failure_reason": null
+   },
+   {
+    "id": "g:eval-result-2",
+    "eval_run_id": "g:eval-run-1",
+    "case_id": "g:case-2",
+    "run_id": null,
+    "passed": false,
+    "output": null,
+    "scores": {},
+    "failure_reason": "no output"
+   }
+  ],
+  "quotas": [
+   {
+    "id": "g:quota-1",
+    "tenant_id": "default",
+    "agent_name": "support-agent",
+    "period": 1,
+    "max_runs": 1000,
+    "max_tokens": 5000000,
+    "max_cost": "d:50.0000000000",
+    "enabled": true,
+    "created_at": "ts:2026-03-01T10:34:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:34:00.000000Z"
+   },
+   {
+    "id": "g:quota-all",
+    "tenant_id": "default",
+    "agent_name": null,
+    "period": 0,
+    "max_runs": null,
+    "max_tokens": null,
+    "max_cost": null,
+    "enabled": false,
+    "created_at": "ts:2026-03-01T10:34:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:34:00.000000Z"
+   }
+  ],
+  "quota_usage": [
+   {
+    "tenant_id": "default",
+    "agent_name": "support-agent",
+    "period": 1,
+    "period_start": "2026-03-01",
+    "runs": 2,
+    "tokens": 1540,
+    "cost": "d:0.0240000000",
+    "updated_at": "ts:2026-03-01T10:15:00.000000Z"
+   }
+  ],
+  "webhook_subscriptions": [
+   {
+    "id": "g:hook-1",
+    "tenant_id": "default",
+    "name": "Run-Events",
+    "url": "https://hooks.example.com/tracon",
+    "events": {
+     "$a": [
+      "run.completed",
+      "run.failed"
+     ]
+    },
+    "secret_configuration_key": "Tracon:Webhooks:Secret",
+    "headers": {},
+    "enabled": true,
+    "consecutive_failures": 1,
+    "created_at": "ts:2026-03-01T10:35:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:35:00.000000Z",
+    "header_configuration_keys": {
+     "X-Token": "Tracon:Webhooks:Token"
+    }
+   }
+  ],
+  "webhook_deliveries": [
+   {
+    "id": "g:delivery-1",
+    "subscription_id": "g:hook-1",
+    "tenant_id": "default",
+    "event_type": "run.completed",
+    "payload": {
+     "runId": "r1",
+     "status": "completed"
+    },
+    "status": 1,
+    "attempt": 1,
+    "response_code": 200,
+    "error": null,
+    "created_at": "ts:2026-03-01T10:36:00.000000Z",
+    "delivered_at": "ts:2026-03-01T10:36:00.500000Z"
+   },
+   {
+    "id": "g:delivery-2",
+    "subscription_id": "g:hook-1",
+    "tenant_id": "default",
+    "event_type": "run.failed",
+    "payload": {
+     "runId": "r2"
+    },
+    "status": 2,
+    "attempt": 3,
+    "response_code": 500,
+    "error": "server error",
+    "created_at": "ts:2026-03-01T10:37:00.000000Z",
+    "delivered_at": null
+   }
+  ],
+  "api_keys": [
+   {
+    "id": "g:key-1",
+    "tenant_id": "default",
+    "name": "ci-key",
+    "key_hash": "x:426b76133f373ad1dac93ee131491ce650776751e9009b0c513b8ae9bfe94047",
+    "key_prefix": "trc_seed1",
+    "scopes": {
+     "$a": [
+      "RunsRead",
+      "AgentsRead"
+     ]
+    },
+    "expires_at": "ts:2026-03-08T08:40:00.000000Z",
+    "revoked_at": null,
+    "last_used_at": "ts:2026-03-01T10:40:00.000000Z",
+    "created_at": "ts:2026-03-01T10:38:00.000000Z"
+   },
+   {
+    "id": "g:key-2",
+    "tenant_id": "default",
+    "name": "old-key",
+    "key_hash": "x:f1c6def54fad0203bfa2ecf4e23868119323c1559bf2f02c4b41e21d82156d76",
+    "key_prefix": "trc_seed2",
+    "scopes": {
+     "$a": [
+      "PlatformAdmin"
+     ]
+    },
+    "expires_at": null,
+    "revoked_at": "ts:2026-03-01T10:41:00.000000Z",
+    "last_used_at": null,
+    "created_at": "ts:2026-03-01T10:38:00.000000Z"
+   }
+  ],
+  "tenant_provider_bindings": [
+   {
+    "tenant_id": "default",
+    "provider_name": "openai",
+    "api_key_configuration_name": "Tracon:Tenants:default:OpenAI:ApiKey",
+    "endpoint": null,
+    "updated_at": "ts:2026-03-01T10:39:00.000000Z"
+   },
+   {
+    "tenant_id": "default",
+    "provider_name": "anthropic",
+    "api_key_configuration_name": "Tracon:Tenants:default:Anthropic:ApiKey",
+    "endpoint": "https://api.anthropic.example.com",
+    "updated_at": "ts:2026-03-01T10:39:00.000000Z"
+   }
+  ],
+  "tenant_egress_policies": [
+   {
+    "tenant_id": "default",
+    "allowed_providers": {
+     "$a": [
+      "openai",
+      "anthropic"
+     ]
+    },
+    "updated_at": "ts:2026-03-01T10:39:00.000000Z"
+   }
+  ],
+  "tenant_tool_policies": [
+   {
+    "tenant_id": "default",
+    "allowed_tools": {
+     "$a": [
+      "lookup_order",
+      "send_email"
+     ]
+    },
+    "granted_permissions": {
+     "$a": [
+      "orders.read"
+     ]
+    },
+    "updated_at": "ts:2026-03-01T10:39:00.000000Z"
+   }
+  ],
+  "inbound_triggers": [
+   {
+    "id": "g:trigger-1",
+    "tenant_id": "default",
+    "name": "Github-Push",
+    "target_kind": 0,
+    "target_name": "support-agent",
+    "signing_secret_configuration_name": "Tracon:Triggers:GithubSecret",
+    "payload_mode": 1,
+    "payload_path": "$.head_commit.message",
+    "enabled": true,
+    "created_at": "ts:2026-03-01T10:42:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:42:00.000000Z"
+   }
+  ],
+  "agent_files": [
+   {
+    "id": "g:file-1",
+    "tenant_id": "default",
+    "agent_name": "support-agent",
+    "path": "/Notes/Plan.md",
+    "content": "# Plan",
+    "created_at": "ts:2026-03-01T10:43:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:43:00.000000Z"
+   }
+  ],
+  "attachments": [
+   {
+    "id": "g:attachment-1",
+    "tenant_id": "default",
+    "session_id": "session-alpha",
+    "run_id": "g:run-completed",
+    "file_name": "invoice.pdf",
+    "media_type": "application/pdf",
+    "byte_size": 4,
+    "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "content": "x:25504446",
+    "external_uri": null,
+    "created_by": "alice",
+    "created_at": "ts:2026-03-01T10:44:00.000000Z"
+   },
+   {
+    "id": "g:attachment-external",
+    "tenant_id": "default",
+    "session_id": null,
+    "run_id": null,
+    "file_name": "big.zip",
+    "media_type": "application/zip",
+    "byte_size": 1048576,
+    "sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+    "content": null,
+    "external_uri": "s3://tracon-seed/big.zip",
+    "created_by": null,
+    "created_at": "ts:2026-03-01T10:44:00.000000Z"
+   }
+  ],
+  "voice_sessions": [
+   {
+    "id": "g:voice-1",
+    "tenant_id": "default",
+    "session_id": "session-alpha",
+    "agent_name": "support-agent",
+    "started_at": "ts:2026-03-01T10:45:00.000000Z",
+    "ended_at": "ts:2026-03-01T10:46:00.000000Z",
+    "turns": 3,
+    "input_seconds": "d:42.500",
+    "output_chars": 900,
+    "end_reason": 0,
+    "created_by": "alice",
+    "provider": "OpenAI",
+    "model": "gpt-realtime",
+    "live_seconds": "d:60.000",
+    "duration_cost": "d:0.0100000000",
+    "character_cost": "d:0.0020000000",
+    "currency": "USD"
+   }
+  ],
+  "idempotency_keys": [
+   {
+    "tenant_id": "default",
+    "key": "Key-One",
+    "fingerprint": "fp-abc",
+    "state": 2,
+    "status_code": 200,
+    "content_type": "application/json",
+    "body": "{\"ok\":true}",
+    "run_id": "g:run-completed",
+    "created_at": "ts:2026-03-01T10:47:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:47:00.500000Z",
+    "headers": {
+     "Location": "/runs/1"
+    }
+   },
+   {
+    "tenant_id": "default",
+    "key": "key-one",
+    "fingerprint": "fp-def",
+    "state": 1,
+    "status_code": null,
+    "content_type": null,
+    "body": null,
+    "run_id": null,
+    "created_at": "ts:2026-03-01T10:48:00.000000Z",
+    "completed_at": null,
+    "headers": null
+   }
+  ],
+  "retention_policies": [
+   {
+    "id": "g:retention-1",
+    "tenant_id": "default",
+    "target": "run_events",
+    "max_age_days": 90,
+    "max_rows": null,
+    "archive": true,
+    "enabled": true,
+    "created_at": "ts:2026-03-01T10:49:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:49:00.000000Z"
+   },
+   {
+    "id": "g:retention-2",
+    "tenant_id": "default",
+    "target": "sessions",
+    "max_age_days": null,
+    "max_rows": 1000,
+    "archive": false,
+    "enabled": false,
+    "created_at": "ts:2026-03-01T10:49:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:49:00.000000Z"
+   }
+  ],
+  "retention_runs": [
+   {
+    "id": "g:retention-run-2",
+    "tenant_id": "default",
+    "target": "sessions",
+    "deleted_rows": 0,
+    "archived_rows": 0,
+    "started_at": "ts:2026-03-01T10:50:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:50:00.000000Z",
+    "error": "disk full"
+   },
+   {
+    "id": "g:retention-run-1",
+    "tenant_id": "default",
+    "target": "run_events",
+    "deleted_rows": 10,
+    "archived_rows": 10,
+    "started_at": "ts:2026-03-01T10:50:00.000000Z",
+    "completed_at": "ts:2026-03-01T10:51:00.000000Z",
+    "error": null
+   }
+  ],
+  "singleton_leases": [
+   {
+    "name": "retention",
+    "owner_id": "node-1",
+    "expires_at": "ts:2099-01-01T00:00:00.000000Z",
+    "updated_at": "ts:2026-03-01T10:52:00.000000Z"
+   }
+  ],
+  "rate_limit_counters": [
+   {
+    "partition_key": "endpoint:Tracon:tenant:Default",
+    "window_start": "ts:2026-03-01T10:53:00.000000Z",
+    "permit_count": 3
+   }
+  ],
+  "audit_log": [
+   {
+    "id": "g:audit-1",
+    "tenant_id": "default",
+    "actor": "alice",
+    "action": "create",
+    "entity": "agent:support-agent",
+    "before": null,
+    "after": "{\"version\":1}",
+    "created_at": "ts:2026-03-01T10:54:00.000000Z",
+    "prev_hash": null,
+    "hash": "f77a6a2a5de2a558cc03e06f596245bba4486c7335e660efcb0d070fcf0021ff",
+    "key_id": null
+   },
+   {
+    "id": "g:audit-2",
+    "tenant_id": "default",
+    "actor": "alice",
+    "action": "update",
+    "entity": "agent:support-agent",
+    "before": "{\"version\":1}",
+    "after": "{\"version\":2}",
+    "created_at": "ts:2026-03-01T10:55:00.000000Z",
+    "prev_hash": "f77a6a2a5de2a558cc03e06f596245bba4486c7335e660efcb0d070fcf0021ff",
+    "hash": "a0cdb159d43259d6802712736347decc50d54d8eeb38967c03ee40c72800532b",
+    "key_id": null
+   },
+   {
+    "id": "g:audit-3",
+    "tenant_id": "default",
+    "actor": "bob",
+    "action": "delete",
+    "entity": "mcp:Docs-Server",
+    "before": "{\"enabled\":true}",
+    "after": null,
+    "created_at": "ts:2026-03-01T10:56:00.000000Z",
+    "prev_hash": "a0cdb159d43259d6802712736347decc50d54d8eeb38967c03ee40c72800532b",
+    "hash": "435e274caf2809908542005b7b55eb8d527d5ab86e5747c6a355fa614e2b9dbb",
+    "key_id": null
+   }
+  ]
+ }
+}
