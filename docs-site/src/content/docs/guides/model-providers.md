@@ -852,7 +852,7 @@ provider is called.
 
 `Preflight.Enabled` is off by default: a wrong estimate stops a run that
 would have succeeded, and that risk needs an explicit opt-in.
-`ReserveRatio` (default `0.2`) sets aside a share of the window for the answer;
+`ReserveRatio` (default `0.2`, from `0` to `1`) sets aside a share of the window for the answer;
 a prompt estimated above the remaining budget returns `400` with the counted
 and allowed token numbers, and no provider is contacted.
 

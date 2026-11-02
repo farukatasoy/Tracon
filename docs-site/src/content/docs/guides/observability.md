@@ -394,7 +394,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 |---|---:|---|
 | `Observability.Enabled` | `true` | Controls the MAF telemetry decorator and internal span collector; run recording remains separate |
 | `PersistSpans` | `true` | Writes sampled spans to the Tracon trace store |
-| `SuccessSampleRatio` | `0.1` | `0` persists no successful trace; `1` persists all successful traces |
+| `SuccessSampleRatio` | `0.1` | `0` persists no successful trace; `1` persists all successful traces; a value outside 0 to 1 (`10` for ten percent) stops the host at start |
 | `AlwaysPersistFailures` | `true` | Keeps failed traces independent of the success sample |
 | `MaxSpansPerRun` | `200` | Bounds the in-memory trace buffer; excess spans are dropped |
 | `RecordSensitiveData` | `false` | The store keeps no content from a span: prompt, message and completion text, system instructions, tool arguments and results, and workflow executor input and output. Token counts stay |

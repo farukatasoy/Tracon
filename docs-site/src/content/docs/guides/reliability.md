@@ -192,7 +192,7 @@ this setting exists to prevent.
 
 | Setting | Default | Effect |
 |---|---:|---|
-| `ModelConcurrency.MaxConcurrentCallsPerProvider` | `null` (unlimited) | `null` matches today's behavior; the hot path allocates nothing extra |
+| `ModelConcurrency.MaxConcurrentCallsPerProvider` | `null` (unlimited) | `null` matches today's behavior; the hot path allocates nothing extra. A number must be at least `1`: `0` does not mean unlimited, and the host refuses to start with it |
 
 ## Make supported HTTP submissions idempotent
 
