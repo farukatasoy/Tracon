@@ -53,8 +53,8 @@ atexit.register(_flush)
 @schemathesis.hook
 def before_call(context, case, kwargs):  # noqa: ANN001
     if _API_KEY:
-        headers = kwargs.setdefault("headers", {})
-        headers["Authorization"] = f"Bearer {_API_KEY}"
+        # `kwargs` are the transport's own arguments and already carry `headers` from the case; the case is the place.
+        case.headers = {**(case.headers or {}), "Authorization": f"Bearer {_API_KEY}"}
 
 
 @schemathesis.hook
@@ -98,4 +98,4 @@ def after_call(context, case, response):  # noqa: ANN001
 def after_validate(context, case, response, results):  # noqa: ANN001
     with _LOCK:
         for result in results:
-            _STATS.record_check(result.name, case.operation.label, result.status.name.lower())
+            _STATS.record_check(result.name, case.operation.label, result.status.name.lower(), response.status_code)

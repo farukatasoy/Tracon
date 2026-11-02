@@ -104,10 +104,15 @@ class CoverageTests(unittest.TestCase):
         stats.record_response("GET /x", 404)
         stats.record_check("not_a_server_error", "GET /x", "success")
 
+        stats.record_check("status_code_conformance", "GET /x", "failure", 409)
+        stats.record_check("status_code_conformance", "GET /y", "failure", 409)
+        stats.record_check("status_code_conformance", "GET /y", "success", 200)
+
         data = stats.to_json()
 
+        self.assertEqual(data["failureStatuses"], {"status_code_conformance": {"409": 2}})
         self.assertEqual(data["responses"], {"GET /x": {"200": 2, "404": 1}})
-        self.assertEqual(data["checks"], {"not_a_server_error": {"GET /x": {"success": 1}}})
+        self.assertEqual(data["checks"]["not_a_server_error"], {"GET /x": {"success": 1}})
 
 
 class LogParsingTests(unittest.TestCase):
@@ -124,6 +129,11 @@ class LogParsingTests(unittest.TestCase):
         groups = openapi_fuzz.parse_failure_groups(self.LOG)
 
         self.assertEqual(groups, {"ST101 Server error": 8, "ST103 Undocumented status code": 161})
+
+    def test_operations_that_could_not_be_tested_are_a_finding_not_silence(self):
+        log = "Test Phases:\n  \U0001f6ab Coverage\n\nErrors:\n  \U0001f6ab Runtime Error: 181\n\nTest cases:\n  12576 generated, 12576 errored\n"
+
+        self.assertEqual(openapi_fuzz.parse_failure_groups(log), {"error: Runtime Error": 181})
 
     def test_the_generated_case_count_is_read(self):
         self.assertEqual(openapi_fuzz.parse_test_cases(self.LOG), 23935)
@@ -167,6 +177,35 @@ class RoleBoundaryTests(unittest.TestCase):
 
         self.assertEqual(openapi_fuzz.role_violations("operator", stats), [])
         self.assertEqual(openapi_fuzz.role_violations("admin", stats), [])
+
+
+class ScopeBoundaryTests(unittest.TestCase):
+    def test_a_read_scope_key_that_wrote_is_named_with_its_scope(self):
+        stats = {"responses": {"POST /tracon/api/agents/{name}/run": {"200": 3}, "GET /tracon/api/agents": {"200": 9}}}
+
+        found = openapi_fuzz.scope_violations(("RunsRead",), stats)
+
+        self.assertEqual(len(found), 1)
+        self.assertIn("a key with only RunsRead", found[0])
+        self.assertIn("POST /tracon/api/agents/{name}/run", found[0])
+
+    def test_a_key_with_any_write_scope_has_no_read_only_expectation(self):
+        stats = {"responses": {"POST /tracon/api/agents/{name}/run": {"200": 3}}}
+
+        self.assertEqual(openapi_fuzz.scope_violations(("RunsWrite",), stats), [])
+        self.assertEqual(openapi_fuzz.scope_violations(("RunsRead", "RunsWrite"), stats), [])
+        self.assertEqual(openapi_fuzz.scope_violations((), stats), [])
+
+
+class AcceptedAnswerCountTests(unittest.TestCase):
+    def test_every_entry_is_listed_with_its_count_and_an_unexercised_one_is_a_visible_zero(self):
+        stats = {"responses": {"GET /tracon/api/voice/voices": {"501": 4, "404": 1}}}
+
+        counts = openapi_fuzz.accepted_answer_counts(stats)
+
+        self.assertEqual(len(counts), len(openapi_fuzz.ACCEPTED_ANSWERS))
+        self.assertEqual(counts["GET /tracon/api/voice/voices -> 501"], 4)
+        self.assertEqual(counts["POST /tracon/api/voice/speak -> 501"], 0)
 
 
 class SeedTests(unittest.TestCase):
@@ -393,10 +432,12 @@ class PolicyFileTests(unittest.TestCase):
         coverage = openapi_fuzz.summarize_coverage({"responses": {"GET /x": {"404": 1}}})
         result = openapi_fuzz.LegResult(leg, {}, {"gate: ST101 Server error": 2}, {"gate": 1}, coverage, 5, True, [])
 
-        text = openapi_fuzz.format_summary(settings, [result], {"GET /v": 3}, [])
+        result.accepted = {"GET /v -> 501": 3}
+
+        text = openapi_fuzz.format_summary(settings, [result], [])
 
         self.assertIn("| `role-reader` | FAIL | 2 gating, 0 reported |", text)
-        self.assertIn("- GET /v: 3", text)
+        self.assertIn("- GET /v -> 501: 3", text)
 
 
 if __name__ == "__main__":

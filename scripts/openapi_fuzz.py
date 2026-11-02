@@ -62,7 +62,6 @@ SCHEMATHESIS_VERSION = "4.32.7"
 
 DEFAULT_SEED = 20261101
 DEFAULT_EXAMPLES = 100
-SEEDED_EXAMPLES = 100
 
 API_PREFIX = "/tracon/api"
 ROLE_HEADER = "X-Tracon-Demo-Role"
@@ -118,6 +117,20 @@ def accepts_answer(method: str, template: str, status: int) -> bool:
     return ACCEPTED_ANSWERS.get((method.upper(), template)) == status
 
 
+def accepted_answer_counts(stats: Mapping[str, Any]) -> dict[str, int]:
+    """How often each listed operation gave its accepted answer, zero included.
+
+    A zero is the point: the entry was not exercised in this run, either because the store or the seed makes the
+    operation answer something else, or because the entry is stale.
+    """
+    responses: Mapping[str, Mapping[str, int]] = stats.get("responses", {})
+
+    return {
+        f"{method} {template} -> {status}": responses.get(f"{method} {template}", {}).get(str(status), 0)
+        for (method, template), status in ACCEPTED_ANSWERS.items()
+    }
+
+
 # What a role may NOT do, read from the answers the leg collected. The roles are nested (reader inside operator inside
 # admin), so a lower role answered with 2xx on something above it is an authorization gap that no 5xx would show.
 # Only the two ends are checked here, where the expectation needs no list of which endpoint is admin-only:
@@ -163,6 +176,21 @@ def role_violations(role: str, stats: Mapping[str, Any]) -> list[str]:
             found.append(f"{operation} answered {succeeded} to the {role} leg")
 
     return found
+
+
+def scope_violations(scopes: Sequence[str], stats: Mapping[str, Any]) -> list[str]:
+    """Writes that answered 2xx to a key whose only scopes are read scopes.
+
+    A key narrows the admin role, so a key with `RunsRead` alone must read and nothing else. The names of the read
+    scopes end in `Read`; the same few posts that only compute or search are allowed as for the reader role.
+    """
+    if not scopes or not all(scope.endswith("Read") for scope in scopes):
+        return []
+
+    return [
+        violation.replace("the reader leg", f"a key with only {'+'.join(scopes)}")
+        for violation in role_violations("reader", stats)
+    ]
 
 
 STORES = ("memory", "sqlite", "postgres", "sqlserver")
@@ -274,18 +302,23 @@ class RunStats:
     def __init__(self) -> None:
         self.responses: dict[str, dict[str, int]] = {}
         self.checks: dict[str, dict[str, dict[str, int]]] = {}
+        self.failure_statuses: dict[str, dict[str, int]] = {}
 
     def record_response(self, operation: str, status: int) -> None:
         counts = self.responses.setdefault(operation, {})
         key = str(status)
         counts[key] = counts.get(key, 0) + 1
 
-    def record_check(self, check: str, operation: str, outcome: str) -> None:
+    def record_check(self, check: str, operation: str, outcome: str, status: int | None = None) -> None:
         per_operation = self.checks.setdefault(check, {}).setdefault(operation, {})
         per_operation[outcome] = per_operation.get(outcome, 0) + 1
 
+        if outcome == "failure" and status is not None:
+            by_status = self.failure_statuses.setdefault(check, {})
+            by_status[str(status)] = by_status.get(str(status), 0) + 1
+
     def to_json(self) -> dict[str, Any]:
-        return {"responses": self.responses, "checks": self.checks}
+        return {"responses": self.responses, "checks": self.checks, "failureStatuses": self.failure_statuses}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -362,13 +395,24 @@ def check_failures(stats: Mapping[str, Any]) -> dict[str, int]:
 
 _TEST_CASES = re.compile(r"(\d+) generated, (?:(\d+) found (\d+) unique failures?|(\d+) passed)")
 _FAILURE_LINE = re.compile(r"^\s*❌\s+(ST\d+)\s+(.+?):\s+(\d+)\s*$", re.MULTILINE)
+_ERROR_LINE = re.compile(r"^\s*🚫\s+(.+?):\s+(\d+)\s*$", re.MULTILINE)
 _CURL_LINE = re.compile(r"^\s{4}(curl .+)$", re.MULTILINE)
 _OPERATION_HEADER = re.compile(r"^_{3,} (.+?) _{3,}$", re.MULTILINE)
 
 
 def parse_failure_groups(log: str) -> dict[str, int]:
-    """Failure groups of the Schemathesis summary, for example `{"ST101 Server error": 3}`."""
-    return {f"{code} {title}": int(count) for code, title, count in _FAILURE_LINE.findall(log)}
+    """Failure groups of the Schemathesis summary, for example `{"ST101 Server error": 3}`.
+
+    Operations that could not be tested at all ("Runtime Error: 181") are listed too, under their own title: a run in
+    which nothing was tested is a failed run, never a quiet one.
+    """
+    groups = {f"{code} {title}": int(count) for code, title, count in _FAILURE_LINE.findall(log)}
+
+    for title, count in _ERROR_LINE.findall(log):
+        if not title.startswith("Stateful"):
+            groups[f"error: {title}"] = int(count)
+
+    return groups
 
 
 def parse_test_cases(log: str) -> int:
@@ -458,6 +502,15 @@ GOOD_BODIES: Mapping[tuple[str, str], Any] = {
     ("POST", "/tracon/api/agents"): {**_AGENT_BODY, "name": "fuzz-created-{n}"},
     ("PUT", "/tracon/api/agents/{name}"): _AGENT_BODY,
     ("POST", "/tracon/api/agents/validate"): {**_AGENT_BODY, "name": "fuzz-validated"},
+    ("POST", "/tracon/agui/{agentName}"): {
+        "threadId": "fuzz-thread",
+        "runId": "fuzz-run",
+        "messages": [{"id": "fuzz-message", "role": "user", "content": "hello"}],
+        "tools": [],
+        "context": [],
+        "state": {},
+        "forwardedProps": {},
+    },
     ("POST", "/tracon/api/agents/{name}/run"): {"message": "hello"},
     ("POST", "/tracon/api/agents/{name}/estimate"): {"message": "hello"},
     ("POST", "/tracon/api/api-keys"): {"name": "fuzz-created-{n}", "scopes": ["RunsRead"]},
@@ -896,6 +949,21 @@ class Seeder:
                     self.plan.add("run", run_id)
                     started += 1
 
+            # A queued run of the human-review workflow stops at its review step and waits there: a pending request for
+            # the routes that list, answer and resume it, and a run that is still alive for the ones that cancel it.
+            if any(item["name"] == "review-and-revise" for item in listed):
+                status, payload = self.call(
+                    "POST",
+                    f"{API_PREFIX}/workflows/review-and-revise/run",
+                    {"message": "write the episode", "parameters": {"productionId": "fuzz"}},
+                    headers={"Prefer": "respond-async"},
+                )
+
+                if status == 202 and isinstance(payload, dict) and payload.get("runId"):
+                    self.plan.add("workflow-run", payload["runId"])
+                    self.plan.add("run", payload["runId"])
+                    started += 1
+
             return f"{len(names)} workflows, {started} runs started"
 
         self.step("workflows", workflows)
@@ -1264,6 +1332,8 @@ class LegResult:
     gate_failed: bool
     notes: list[str]
     violations: list[str] = dataclasses.field(default_factory=list)
+    failure_statuses: dict[str, dict[str, int]] = dataclasses.field(default_factory=dict)
+    accepted: dict[str, int] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1405,10 +1475,11 @@ def run_leg(settings: Settings, leg: Leg, seed_file: pathlib.Path | None) -> Leg
     for check, count in counted.items():
         passes[check] = count
 
-    violations = role_violations(leg.role, stats) if not leg.scopes else []
+    violations = scope_violations(leg.scopes, stats) if leg.scopes else role_violations(leg.role, stats)
     gate_failed = (
         exit_codes.get("gate", 0) != 0
         or any(code not in (0, 1) for code in exit_codes.values())
+        or any(": error: " in key for key in failures)
         or bool(violations)
     )
     write_repro(directory, settings, leg, seed_file is not None)
@@ -1423,6 +1494,8 @@ def run_leg(settings: Settings, leg: Leg, seed_file: pathlib.Path | None) -> Leg
         gate_failed=gate_failed,
         notes=notes,
         violations=violations,
+        failure_statuses=dict(stats.get("failureStatuses", {})),
+        accepted=accepted_answer_counts(stats),
     )
 
 
@@ -1437,6 +1510,11 @@ def _merge(target: RunStats, current: Mapping[str, Any]) -> None:
             for outcome, count in outcomes.items():
                 bucket = target.checks.setdefault(check, {}).setdefault(operation, {})
                 bucket[outcome] = bucket.get(outcome, 0) + count
+
+    for check, by_status in current.get("failureStatuses", {}).items():
+        for status, count in by_status.items():
+            bucket = target.failure_statuses.setdefault(check, {})
+            bucket[status] = bucket.get(status, 0) + count
 
 
 def write_repro(directory: pathlib.Path, settings: Settings, leg: Leg, seeded: bool) -> None:
@@ -1475,7 +1553,7 @@ def write_repro(directory: pathlib.Path, settings: Settings, leg: Leg, seeded: b
 # --------------------------------------------------------------------------
 
 
-def format_summary(settings: Settings, results: Sequence[LegResult], accepted_501: Mapping[str, int], seed_steps: Sequence[Mapping[str, Any]]) -> str:
+def format_summary(settings: Settings, results: Sequence[LegResult], seed_steps: Sequence[Mapping[str, Any]]) -> str:
     """Markdown summary, also written to the job summary of a workflow run."""
     rows = [
         f"## OpenAPI fuzz: store `{settings.store}`, seed {settings.seed}, {settings.examples} examples per operation",
@@ -1497,16 +1575,29 @@ def format_summary(settings: Settings, results: Sequence[LegResult], accepted_50
         )
 
     for result in results:
-        if result.failures:
+        if result.failures or result.violations or result.failure_statuses:
             rows += ["", f"### `{result.leg.name}` findings"]
             rows += [f"- {key}: {count}" for key, count in sorted(result.failures.items())]
+
+        if result.failure_statuses:
+            rows += [
+                f"- {check} failures by received status: "
+                + ", ".join(f"{status} x{count}" for status, count in sorted(by_status.items()))
+                for check, by_status in sorted(result.failure_statuses.items())
+            ]
 
         rows += [f"- role boundary: {violation}" for violation in result.violations]
         rows += [f"- note: {note}" for note in result.notes]
 
-    if accepted_501:
-        rows += ["", "### Accepted 501 answers (capability not registered or upstream unreachable, listed in ACCEPTED_ANSWERS)"]
-        rows += [f"- {operation}: {count}" for operation, count in sorted(accepted_501.items())]
+    accepted: dict[str, int] = {}
+
+    for result in results:
+        for entry, count in result.accepted.items():
+            accepted[entry] = accepted.get(entry, 0) + count
+
+    if accepted:
+        rows += ["", "### Accepted answers (a capability the host does not register, or the unreachable MCP server the seed registers)"]
+        rows += [f"- {entry}: {count}" for entry, count in sorted(accepted.items())]
 
     if seed_steps:
         failed = [step for step in seed_steps if not step["ok"]]
@@ -1536,21 +1627,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--report-checks", help="override the reported checks, comma-separated ('' for none)")
     parser.add_argument("--gate-only", action="store_true", help="skip the reported checks; the leg runs the gating checks only")
     parser.add_argument("--seed-data", action="store_true", help="seed the host through its HTTP API and draw path parameters and bodies from it")
+    parser.add_argument("--allow-seed-failures", action="store_true", help="run the legs even when a seed step failed")
     parser.add_argument("--no-build", action="store_true", help="use the host already built under artifacts/")
     parser.add_argument("--with-ui", action="store_true", help="build the console too (needs Node.js); the default leaves it out")
     parser.add_argument("--serve", action="store_true", help="start the host, print its address, and wait for Ctrl+C instead of running legs")
     parser.add_argument("--output", type=pathlib.Path, default=DEFAULT_OUTPUT, help="directory for the environment, logs and reports")
     return parser
-
-
-def parse_accepted_501(output: pathlib.Path, results: Sequence[LegResult]) -> dict[str, int]:
-    seen: dict[str, int] = {}
-
-    for result in results:
-        for operation, count in result.coverage.status_501.items():
-            seen[operation] = seen.get(operation, 0) + count
-
-    return seen
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1588,6 +1670,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             for step in plan.steps:
                 print(f"  seed {'ok  ' if step['ok'] else 'FAIL'} {step['step']}: {step['detail']}")
+
+            broken = [step["step"] for step in plan.steps if not step["ok"]]
+
+            if broken and not args.allow_seed_failures:
+                raise FuzzError(
+                    f"The seed failed at: {', '.join(broken)}. A leg on a half-filled host measures the missing data, "
+                    "not the host; fix the cause or pass --allow-seed-failures to run anyway."
+                )
 
         if args.serve:
             print(f"export HOST={host.base_url}   # then: curl -H '{ROLE_HEADER}: admin' $HOST{API_PREFIX}/agents")
@@ -1642,7 +1732,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         store.stop()
 
-    summary = format_summary(settings, results, parse_accepted_501(output, results), seed_steps)
+    summary = format_summary(settings, results, seed_steps)
     (output / "summary.md").write_text(summary, encoding="utf-8")
     print()
     print(summary)
