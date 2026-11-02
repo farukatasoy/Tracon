@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Tracon.SqlProviders.Tests;
 
@@ -22,10 +21,6 @@ namespace Tracon.SqlProviders.Tests;
 /// </remarks>
 public sealed class MigrationCaseFoldingTests
 {
-    private static readonly Regex FoldingCall = new(@"\b(?:lower|upper)\s*\(", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
-
-    private static readonly Regex OrdinalCollation = new(@"\bCOLLATE\s+(?:""C""|""POSIX""|\w+_BIN2?\b)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
-
     [Fact]
     public void Every_lower_and_upper_in_a_migration_names_an_ordinal_collation()
     {
@@ -34,13 +29,13 @@ public sealed class MigrationCaseFoldingTests
 
         foreach (var (provider, name, sql) in MigrationFiles())
         {
-            foreach (var call in FoldingCalls(StripComments(sql)))
+            foreach (var call in SqlCaseFoldingScanner.Scan(sql, bracketIdentifiers: IsSqlServer(provider)))
             {
                 seen++;
 
-                if (!OrdinalCollation.IsMatch(call))
+                if (!call.NamesOrdinalCollation)
                 {
-                    offenders.Add($"{provider}/{name}: {call}");
+                    offenders.Add($"{provider}/{name}: {call.Text}");
                 }
             }
         }
@@ -49,44 +44,33 @@ public sealed class MigrationCaseFoldingTests
 
         offenders.ShouldBeEmpty(
             "lower() and upper() follow the locale of the database: on a Turkish database 'I' becomes the dotless i (U+0131). " +
-            "Write COLLATE \"C\" (PostgreSQL) or COLLATE Latin1_General_BIN2 (SQL Server) inside the call");
+            "End the argument with COLLATE \"C\" (PostgreSQL) or COLLATE Latin1_General_BIN2 (SQL Server), inside the call");
     }
 
-    [Theory]
-    [InlineData("SELECT lower(a COLLATE \"C\") FROM t", 0)]
-    [InlineData("SELECT lower(a) FROM t", 1)]
-    [InlineData("WHERE LOWER(x.[key] COLLATE Latin1_General_BIN2) = N'a'", 0)]
-    [InlineData("WHERE UPPER(f(x)) = 'A'", 1)]
-    [InlineData("-- lower(a) would be flagged\nSELECT 1", 0)]
-    public void The_scan_tells_a_collated_call_from_a_bare_one(string sql, int bare)
-        => FoldingCalls(StripComments(sql)).Count(static call => !OrdinalCollation.IsMatch(call)).ShouldBe(bare);
-
-    /// <summary>Each call with its whole argument list, nested parentheses included.</summary>
-    private static IEnumerable<string> FoldingCalls(string sql)
+    /// <summary>
+    /// SQL Server compiles a batch up front, so migration 0050 runs the statement that reads a column it is about to drop
+    /// as a string. The call inside that string is a call like any other; a scan that blanks string literals would lose it
+    /// and the migration would pass for the wrong reason.
+    /// </summary>
+    [Fact]
+    public void The_lower_call_a_migration_runs_as_dynamic_sql_is_found_and_names_its_collation()
     {
-        foreach (Match match in FoldingCall.Matches(sql))
-        {
-            var depth = 0;
-            var end = match.Index + match.Length - 1;
+        var (_, _, sql) = MigrationFiles().Single(static file =>
+            file.Name.Contains("0050_remove_authorization_configuration_key", StringComparison.Ordinal)
+            && IsSqlServer(file.Provider));
 
-            for (; end < sql.Length; end++)
-            {
-                if (sql[end] == '(')
-                {
-                    depth++;
-                }
-                else if (sql[end] == ')' && --depth == 0)
-                {
-                    break;
-                }
-            }
+        var call = SqlCaseFoldingScanner.Scan(sql, bracketIdentifiers: true).ShouldHaveSingleItem();
 
-            yield return sql[match.Index..Math.Min(end + 1, sql.Length)];
-        }
+        call.InDynamicSql.ShouldBeTrue();
+        call.NamesOrdinalCollation.ShouldBeTrue();
+
+        // And it is the collation that makes it pass: without it the same migration is an offender.
+        SqlCaseFoldingScanner
+            .Scan(sql.Replace(" COLLATE Latin1_General_BIN2", string.Empty, StringComparison.Ordinal), bracketIdentifiers: true)
+            .ShouldHaveSingleItem().NamesOrdinalCollation.ShouldBeFalse();
     }
 
-    private static string StripComments(string sql)
-        => Regex.Replace(sql, @"--[^\r\n]*", string.Empty, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
+    private static bool IsSqlServer(string provider) => string.Equals(provider, "SqlServer", StringComparison.Ordinal);
 
     private static IEnumerable<(string Provider, string Name, string Sql)> MigrationFiles()
     {
