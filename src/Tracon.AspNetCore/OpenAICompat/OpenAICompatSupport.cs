@@ -63,6 +63,16 @@ internal static class OpenAICompatSupport
            body.TryGetProperty("stream", out var stream) &&
            stream.ValueKind is JsonValueKind.True;
 
+    /// <summary>Reads <c>stream_options.include_usage</c>: whether the client asked for a last chunk that carries the usage.</summary>
+    /// <param name="body">The request body.</param>
+    /// <returns><see langword="true"/> only when the field is the JSON value <c>true</c>.</returns>
+    public static bool ReadIncludeUsage(JsonElement body)
+        => body.ValueKind is JsonValueKind.Object &&
+           body.TryGetProperty("stream_options", out var options) &&
+           options.ValueKind is JsonValueKind.Object &&
+           options.TryGetProperty("include_usage", out var include) &&
+           include.ValueKind is JsonValueKind.True;
+
     /// <summary>
     /// Produces an OpenAI-shaped error response.
     /// </summary>

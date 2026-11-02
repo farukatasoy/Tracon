@@ -316,7 +316,7 @@ internal static class OpenAIResponsesEndpoints
 
         if (OpenAICompatSupport.ReadStreamFlag(body))
         {
-            return new ResponsesStream(agent, sessionStore, runRequest, session, responseId, saveId);
+            return new ResponsesStream(agent, sessionStore, runRequest, session, responseId, saveId, agentName);
         }
 
         try
@@ -330,7 +330,7 @@ internal static class OpenAIResponsesEndpoints
             var responseJson = OpenAIResponses.WriteResponse(response, responseId, runRequest.ConversationId);
 
             return Results.Json(
-                PatchResponse(responseJson, response.Messages, response.FinishReason),
+                PatchResponse(responseJson, response.Messages, response.FinishReason, agentName),
                 statusCode: StatusCodes.Status200OK);
         }
         // 🚨 A provider timeout arrives as an OperationCanceledException while
@@ -404,23 +404,25 @@ internal static class OpenAIResponsesEndpoints
     /// <param name="responseJson">The body <c>OpenAIResponses.WriteResponse</c> wrote.</param>
     /// <param name="messages">The messages of the run's response.</param>
     /// <param name="finishReason">The finish reason of the answer's final model call.</param>
+    /// <param name="model">The model name the answer carries: the agent the request selected.</param>
     /// <returns>The same body when there is nothing to patch; the patched body otherwise.</returns>
     /// <remarks>
     /// The status follows <see cref="OpenAICompatSupport.ToResponsesIncompleteReason"/> (see
     /// <see cref="ResponsesIncompleteness"/>). A response pending approval ended on its tool call, whose finish
     /// reason is never a cut-off, so it keeps <c>completed</c>.
     /// </remarks>
-    private static JsonElement PatchResponse(JsonElement responseJson, IEnumerable<ChatMessage> messages, ChatFinishReason? finishReason)
+    private static JsonElement PatchResponse(JsonElement responseJson, IEnumerable<ChatMessage> messages, ChatFinishReason? finishReason, string model)
     {
         var pending = PendingApprovalCalls(messages);
         var incompleteReason = OpenAICompatSupport.ToResponsesIncompleteReason(finishReason);
 
-        if (pending is null && incompleteReason is null)
+        var root = JsonNode.Parse(responseJson.GetRawText())!.AsObject();
+        var modelAdded = ResponsesIncompleteness.AddModel(root, model);
+
+        if (pending is null && incompleteReason is null && !modelAdded)
         {
             return responseJson;
         }
-
-        var root = JsonNode.Parse(responseJson.GetRawText())!.AsObject();
 
         if (pending is not null)
         {
@@ -539,7 +541,8 @@ internal static class OpenAIResponsesEndpoints
         OpenAIResponsesRunRequest request,
         AgentSession session,
         string responseId,
-        string saveId) : IResult
+        string saveId,
+        string model) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -563,7 +566,7 @@ internal static class OpenAIResponsesEndpoints
 
                 // MAF never reads the finish reason; the rewriter marks the closing frames of an incomplete
                 // answer and passes every other frame through as the same string.
-                var rewriter = new ResponsesStreamRewriter();
+                var rewriter = new ResponsesStreamRewriter(model);
 
                 var frames = OpenAIResponses.WriteResponseStreamAsync(
                     rewriter.Observe(updates, cancellationToken),

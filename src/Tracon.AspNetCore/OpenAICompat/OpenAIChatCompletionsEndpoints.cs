@@ -265,7 +265,14 @@ internal static class OpenAIChatCompletionsEndpoints
 
         if (OpenAICompatSupport.ReadStreamFlag(body))
         {
-            return new ChatCompletionsStream(agent, messages, completionId, agentName, runId, tenantContext.TenantId);
+            return new ChatCompletionsStream(
+                agent,
+                messages,
+                completionId,
+                agentName,
+                runId,
+                tenantContext.TenantId,
+                OpenAICompatSupport.ReadIncludeUsage(body));
         }
 
         try
@@ -372,7 +379,8 @@ internal static class OpenAIChatCompletionsEndpoints
         string completionId,
         string model,
         Guid runId,
-        string tenantId) : IResult
+        string tenantId,
+        bool includeUsage) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -398,6 +406,7 @@ internal static class OpenAIChatCompletionsEndpoints
                     new TraconRunOptions { RunId = runId },
                     cancellationToken);
                 List<string>? pending = null;
+                UsageDetails? usage = null;
 
                 // The LAST reported reason is the answer's: the tool loop streams a tool
                 // turn's update with that turn's own reason before the next turn
@@ -414,6 +423,14 @@ internal static class OpenAIChatCompletionsEndpoints
                     if (update.FinishReason is { } reported)
                     {
                         finishReason = reported;
+                    }
+
+                    if (includeUsage)
+                    {
+                        foreach (var content in update.Contents.OfType<UsageContent>())
+                        {
+                            (usage ??= new UsageDetails()).Add(content.Details);
+                        }
                     }
 
                     if (update.Text is { Length: > 0 } text)
@@ -444,6 +461,18 @@ internal static class OpenAIChatCompletionsEndpoints
                     OpenAICompatSupport.ToChatFinishReason(finishReason),
                     created,
                     cancellationToken).ConfigureAwait(false);
+
+                // stream_options.include_usage asks for one more chunk after the finish chunk: no choices, the usage
+                // of the whole run. A client that asked and gets none has no token count for the stream.
+                if (includeUsage)
+                {
+                    var totals = ToUsage(usage) ?? new ChatUsage(0, 0, 0);
+                    var usageChunk = new ChatUsageChunk(completionId, ObjectChunk, created, model, [], totals);
+
+                    await writer.WriteRawAsync(
+                        $"data: {JsonSerializer.Serialize(usageChunk, OpenAICompatSupport.JsonOptions)}\n\n",
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 // The OpenAI stream ends with this fixed marker; SDKs expect it.
                 await writer.WriteRawAsync("data: [DONE]\n\n", cancellationToken).ConfigureAwait(false);
@@ -533,6 +562,14 @@ internal static class OpenAIChatCompletionsEndpoints
         [property: JsonPropertyName("created")] long Created,
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("choices")] IReadOnlyList<ChatChunkChoice> Choices);
+
+    private sealed record ChatUsageChunk(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("object")] string Object,
+        [property: JsonPropertyName("created")] long Created,
+        [property: JsonPropertyName("model")] string Model,
+        [property: JsonPropertyName("choices")] IReadOnlyList<ChatChunkChoice> Choices,
+        [property: JsonPropertyName("usage")] ChatUsage Usage);
 
     private sealed record ChatChunkChoice(
         [property: JsonPropertyName("index")] int Index,
