@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -76,6 +77,74 @@ class ProfileValidationTests(unittest.TestCase):
         self.assertTrue(any("scenarios" in p for p in problems))
 
 
+def ramp(**overrides):
+    base = {
+        "stages": [
+            {"tenants": 2, "runsPerNewTenant": 2, "holdSeconds": 30},
+            {"tenants": 20, "runsPerNewTenant": 2, "holdSeconds": 30},
+        ],
+        "idleSeconds": 10,
+    }
+    base.update(overrides)
+    return base
+
+
+class TenantRampValidationTests(unittest.TestCase):
+    def test_a_ramp_is_the_bound_so_a_profile_needs_no_duration(self):
+        self.assertEqual(
+            capacity.validate_profile(profile(runsPerTenant=0, measureSeconds=0, tenantRamp=ramp())), [])
+
+    def test_a_ramp_and_a_duration_are_two_bounds_and_refused(self):
+        problems = capacity.validate_profile(profile(runsPerTenant=0, measureSeconds=60, tenantRamp=ramp()))
+        self.assertTrue(any("tenantRamp sınırın kendisidir" in p for p in problems))
+
+    def test_stages_must_climb(self):
+        stages = [{"tenants": 20}, {"tenants": 20}]
+        problems = capacity.validate_profile(profile(runsPerTenant=0, tenantRamp=ramp(stages=stages)))
+        self.assertTrue(any("stages[1].tenants" in p for p in problems))
+
+    def test_a_ramp_without_stages_is_refused(self):
+        problems = capacity.validate_profile(profile(runsPerTenant=0, tenantRamp=ramp(stages=[])))
+        self.assertTrue(any("stages boş" in p for p in problems))
+
+    def test_a_negative_hold_is_refused(self):
+        stages = [{"tenants": 2, "holdSeconds": -1}]
+        problems = capacity.validate_profile(profile(runsPerTenant=0, tenantRamp=ramp(stages=stages)))
+        self.assertTrue(any("holdSeconds" in p for p in problems))
+
+    def test_a_ramp_does_not_combine_with_another_axis(self):
+        problems = capacity.validate_profile(
+            profile(runsPerTenant=0, tenantRamp=ramp(), arrivalRates=[5]))
+        self.assertTrue(any("tek başına ölçülür" in p for p in problems))
+
+    def test_the_host_only_tag_setting_does_not_reach_the_driver(self):
+        sent = capacity.driver_ramp(ramp(tenantTag=True))
+        self.assertNotIn("tenantTag", sent)
+        self.assertIn("stages", sent)
+        self.assertIsNone(capacity.driver_ramp(None))
+
+
+class ReusableFeedTests(unittest.TestCase):
+    def test_a_publishable_version_cannot_reuse_a_feed_even_when_the_package_is_there(self):
+        with tempfile.TemporaryDirectory() as directory:
+            feed = pathlib.Path(directory)
+            (feed / "Tracon.1.0.0-preview.1.nupkg").write_bytes(b"")
+
+            with self.assertRaises(capacity.CapacityError):
+                capacity.reusable_feed("1.0.0-preview.1", feed)
+
+    def test_a_dirty_version_reuses_a_feed_that_holds_its_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            feed = pathlib.Path(directory)
+            (feed / "Tracon.0.0.0-dirty.x.nupkg").write_bytes(b"")
+
+            self.assertEqual(capacity.reusable_feed("0.0.0-dirty.x", feed), feed.resolve())
+
+    def test_a_dirty_version_needs_the_package_to_be_in_the_feed(self):
+        with self.assertRaises(capacity.CapacityError):
+            capacity.reusable_feed("0.0.0-dirty.x", pathlib.Path("/nonexistent-feed"))
+
+
 class ShippedProfileTests(unittest.TestCase):
     """Repo'nun kendi profilleri de kapıdan geçer."""
 
@@ -96,6 +165,21 @@ class ShippedProfileTests(unittest.TestCase):
         soak = capacity.load_profile("soak")
         self.assertEqual(soak["concurrency"], [8])
         self.assertEqual(soak["measureSeconds"], 1800)
+
+    def test_the_tenant_ramp_climbs_to_ten_thousand_and_ends_with_an_idle_stretch(self):
+        shipped = capacity.load_profile("tenant-ramp")
+        stages = shipped["tenantRamp"]["stages"]
+        self.assertEqual([s["tenants"] for s in stages], [2, 20, 200, 2000, 10000])
+        self.assertGreater(shipped["tenantRamp"]["idleSeconds"], 0)
+        self.assertEqual(shipped["measureSeconds"], 0)
+
+    def test_the_short_tenant_ramp_has_three_stages_and_fits_five_minutes_of_load(self):
+        short = capacity.load_profile("tenant-ramp-short")
+        stages = short["tenantRamp"]["stages"]
+        self.assertLessEqual(len(stages), 3)
+        planned = (short["warmupSeconds"] + short["tenantRamp"]["idleSeconds"]
+                   + sum(s["holdSeconds"] for s in stages))
+        self.assertLessEqual(planned, 6 * 60)
 
     def test_the_nodes_profile_measures_one_and_two_hosts_at_one_fixed_load(self):
         nodes = capacity.load_profile("nodes")

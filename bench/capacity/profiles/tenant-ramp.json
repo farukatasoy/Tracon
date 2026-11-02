@@ -1,0 +1,56 @@
+{
+  "name": "tenant-ramp",
+  "description": "Whether the host's footprint follows time, runs or the number of tenants. The load is spread over 2, 20, 200, 2000 and 10000 tenants, with a plateau after each step and an idle stretch at the end. Anything that rises inside a plateau follows time or runs; the step between plateaus is what the added tenants cost. This is a measurement of one machine, one database and one synthetic workload, not a guarantee.",
+  "scenarios": [
+    "buffered",
+    "streaming",
+    "queued"
+  ],
+  "scenarioGrouping": "mixed",
+  "concurrency": [
+    8
+  ],
+  "seedShapes": [
+    "empty"
+  ],
+  "repeats": 1,
+  "warmupSeconds": 60,
+  "measureSeconds": 0,
+  "runsPerTenant": 0,
+  "tenantRamp": {
+    "tenantPrefix": "ramp-",
+    "stages": [
+      { "tenants": 2, "runsPerNewTenant": 3, "holdSeconds": 120 },
+      { "tenants": 20, "runsPerNewTenant": 2, "holdSeconds": 120 },
+      { "tenants": 200, "runsPerNewTenant": 2, "holdSeconds": 180 },
+      { "tenants": 2000, "runsPerNewTenant": 2, "holdSeconds": 240 },
+      { "tenants": 10000, "runsPerNewTenant": 2, "holdSeconds": 300 }
+    ],
+    "idleSeconds": 90,
+    "collectIntervalSeconds": 10,
+    "bucketSeconds": 10,
+    "tenantTag": false
+  },
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 200,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 4294967296,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 5368709120,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "requestTimeoutSeconds": 120,
+  "drainTimeoutSeconds": 300,
+  "maxConcurrentJobs": 8,
+  "maxPoolSize": 100,
+  "resourceSampleIntervalSeconds": 1,
+  "seedRuns": 0
+}
