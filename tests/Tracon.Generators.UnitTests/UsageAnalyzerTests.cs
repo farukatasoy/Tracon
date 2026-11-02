@@ -114,6 +114,70 @@ public sealed class UsageAnalyzerTests
         diagnostics.ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// <c>ToolCallUsage.Provider</c> is a label for the reader of a usage record ("the provider that did the work"), not
+    /// a model binding. A tool that reports the images it generated through OpenAI writes <c>"openai"</c> there, often in
+    /// a library that never registers a provider, and the rule used to read it as an agent's model binding.
+    /// </summary>
+    [Fact]
+    public async Task TRC0102_is_silent_for_a_provider_name_on_a_tool_usage_record()
+    {
+        var source = $$"""
+            {{Wiring}}
+
+            public static class ImageTools
+            {
+                public static ToolCallUsage Report() => new()
+                {
+                    Unit = ToolUsageUnits.Images,
+                    Quantity = 1m,
+                    Provider = "openai",
+                    Model = "gpt-image-1",
+                };
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// The narrowing to the types that bind a model must not drop the fallback chain, which names a provider just as the
+    /// primary binding does.
+    /// </summary>
+    [Fact]
+    public async Task TRC0102_reports_a_fallback_link_that_names_a_provider_that_is_never_registered()
+    {
+        var source = $$"""
+            {{Wiring}}
+
+            public static class Agents
+            {
+                public static AgentDefinition Support() => new()
+                {
+                    Name = "support",
+                    Model = new ModelBinding
+                    {
+                        Provider = "custom-gateway",
+                        Model = "primary",
+                        Fallbacks = [new ModelFallback { Provider = "anthropic", Model = "claude-sonnet-4-5" }],
+                    },
+                };
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        var reported = diagnostics.ShouldHaveSingleItem();
+        reported.Id.ShouldBe("TRC0102");
+        reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("anthropic");
+    }
+
     [Fact]
     public async Task TRC0102_is_silent_when_a_custom_provider_answers_for_the_name()
     {
