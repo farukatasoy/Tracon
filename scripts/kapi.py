@@ -453,6 +453,42 @@ def context7_version_drift(root: pathlib.Path = ROOT) -> list[str]:
     return []
 
 
+UPGRADE_BASELINE_MANIFEST = pathlib.Path("tests", "Shared", "Upgrade", "UpgradeBaseline.json")
+
+
+def upgrade_baseline_drift(root: pathlib.Path = ROOT) -> list[str]:
+    """The upgrade gate's baseline must be the latest release.
+
+    The gate builds the database of the last release and moves it to today's migrations. Its
+    manifest names that release; a release cut that leaves the manifest behind keeps proving the
+    upgrade from a version consumers no longer run. No manifest, no check.
+    """
+    manifest_path = root / UPGRADE_BASELINE_MANIFEST
+    if not manifest_path.is_file():
+        return []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exception:
+        return [f"{UPGRADE_BASELINE_MANIFEST} okunamadı: {exception}"]
+
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    if not isinstance(version, str) or not version:
+        return [f"{UPGRADE_BASELINE_MANIFEST}: `version` yok"]
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import changelog
+
+    changelog_path = root / "CHANGELOG.md"
+    latest = changelog.latest_released_version(
+        changelog_path.read_text(encoding="utf-8")) if changelog_path.is_file() else None
+    if latest is None:
+        return [f"{UPGRADE_BASELINE_MANIFEST}: CHANGELOG.md tarihli bir sürüm bölümü taşımıyor; taban doğrulanamadı"]
+    if version != latest:
+        return [f"{UPGRADE_BASELINE_MANIFEST}: taban {version}; CHANGELOG.md son yayını {latest}. "
+                f"`python3 scripts/upgrade_baseline.py --yaz` tabanı etiketten yeniden yazar"]
+    return []
+
+
 def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     """Run the synchronization-copy, secret, migration-integrity, doc-reference, public-surface and Context7-version scans."""
     copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
@@ -462,10 +498,12 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
     public_surface = public_surface_violations(root)
     context7 = context7_version_drift(root)
+    upgrade_baseline = upgrade_baseline_drift(root)
     if foreign_anchor:
         print(f"Tarama: ⚠️ uygulanmış migration bütünlüğü bu depoda doğrulanamadı: {APPLIED_MIGRATION_MANIFEST} "
               f"tabanı ({foreign_anchor[:12]}) bu deponun geçmişinde yok. Doğrulama, tabanı taşıyan depoda koşar.")
-    if not copies and not secrets and not migrations and not stale_docs and not public_surface and not context7:
+    if (not copies and not secrets and not migrations and not stale_docs and not public_surface and not context7
+            and not upgrade_baseline):
         print("Tarama: ✅ temiz"
               + (f" ({synthetic} işaretli sentetik credential atlandı)" if synthetic else ""))
         return 0
@@ -498,6 +536,10 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     if context7:
         print("Tarama: ❌ Context7 sürüm kayması — yayın kesimi `context7.json` etiketini de günceller")
         for violation in context7:
+            print(f"  {violation}")
+    if upgrade_baseline:
+        print("Tarama: ❌ yükseltme kapısının tabanı son yayından geride — yayın kesimi tabanı da ilerletir")
+        for violation in upgrade_baseline:
             print(f"  {violation}")
     return 1
 
@@ -829,6 +871,15 @@ PROVIDER_TEST_PROJECTS: tuple[str, ...] = (
     "Tracon.Anthropic.UnitTests",
     "Tracon.Google.UnitTests",
     "Tracon.Azure.UnitTests",
+)
+
+# tests/Shared/Upgrade yukseltme kapisinin kaynagidir; uc SQL saglayicisinin entegrasyon projesine
+# ve (veri dosyalari icin) Sql.Shared.UnitTests'e baglanir.
+UPGRADE_GATE_TEST_PROJECTS: tuple[str, ...] = (
+    "Tracon.Sqlite.IntegrationTests",
+    "Tracon.PostgreSql.IntegrationTests",
+    "Tracon.SqlServer.IntegrationTests",
+    "Tracon.Sql.Shared.UnitTests",
 )
 
 TEST_PROJECTS: dict[str, tuple[str, ...]] = {
@@ -1177,6 +1228,9 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
             continue
         if path.startswith("tests/Shared/TargetFramework/"):
             projects.update(multi_target_test_projects())
+            continue
+        if path.startswith("tests/Shared/Upgrade/"):
+            projects.update(UPGRADE_GATE_TEST_PROJECTS)
             continue
         if path.startswith("tests/Shared/"):
             needs_full = True

@@ -369,6 +369,52 @@ class KapiTestleri(unittest.TestCase):
 
             self.assertEqual(len(kapi.context7_version_drift(root)), 1)
 
+    # Yukseltme kapisinin tabani son yayin olmali: kapi son yayinin veritabanini bugunun migration'larina tasir.
+
+    def _taban_koku(self, directory: str, manifest: object, changelog_text: str | None) -> pathlib.Path:
+        root = pathlib.Path(directory)
+        target = root / kapi.UPGRADE_BASELINE_MANIFEST
+        target.parent.mkdir(parents=True)
+        target.write_text(manifest if isinstance(manifest, str) else json.dumps(manifest), encoding="utf-8")
+        if changelog_text is not None:
+            (root / "CHANGELOG.md").write_text(changelog_text, encoding="utf-8")
+        return root
+
+    def test_yukseltme_tabani_son_yayinla_ayniysa_temiz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._taban_koku(directory, {"version": "1.0.0-preview.6"}, self._CHANGELOG)
+
+            self.assertEqual(kapi.upgrade_baseline_drift(root), [])
+
+    def test_yukseltme_tabani_son_yayindan_geride_kalirsa_kirar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._taban_koku(directory, {"version": "1.0.0-preview.5"}, self._CHANGELOG)
+
+            found = kapi.upgrade_baseline_drift(root)
+
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("1.0.0-preview.5", found[0])
+        self.assertIn("1.0.0-preview.6", found[0])
+
+    def test_yukseltme_tabani_bozuk_ya_da_surumsuzse_kirar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._taban_koku(directory, "{ bozuk", self._CHANGELOG)
+            self.assertEqual(len(kapi.upgrade_baseline_drift(root)), 1)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._taban_koku(directory, {"tag": "v1"}, self._CHANGELOG)
+            self.assertEqual(len(kapi.upgrade_baseline_drift(root)), 1)
+
+    def test_yukseltme_tabani_tarihli_yayin_yoksa_kirar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._taban_koku(directory, {"version": "1.0.0-preview.6"}, "## [Unreleased]\n")
+
+            self.assertEqual(len(kapi.upgrade_baseline_drift(root)), 1)
+
+    def test_yukseltme_tabani_repoda_son_yayindir(self):
+        # SINIF KAPISI: bu repoda gercek olan denetim.
+        self.assertEqual(kapi.upgrade_baseline_drift(), [])
+
     def test_context7_tarihli_yayin_yoksa_kirar(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._context7_koku(
@@ -429,6 +475,14 @@ class KapiTestleri(unittest.TestCase):
             projects, full = kapi.affected_test_projects([path])
 
             for project in kapi.PROVIDER_TEST_PROJECTS:
+                self.assertIn(project, projects, path)
+            self.assertFalse(full, path)
+
+    def test_yukseltme_kapisinin_paylasimli_kaynagi_dort_projeyi_secer_tam_kosuma_dusmez(self):
+        for path in ("tests/Shared/Upgrade/UpgradeSeed.json", "tests/Shared/Upgrade/UpgradeProbes.cs"):
+            projects, full = kapi.affected_test_projects([path])
+
+            for project in kapi.UPGRADE_GATE_TEST_PROJECTS:
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
