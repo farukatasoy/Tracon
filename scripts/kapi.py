@@ -187,6 +187,8 @@ class Extension:
     """Checks that run right after `tarama`; the argument is the `kapanis --taban` commit."""
     sync_roots: tuple[str, ...] = ()
     doc_reference_roots: tuple[str, ...] = ()
+    ci_remote: str = "origin"
+    """The git remote whose CI run `uzak-durum` reads. A repository that mirrors its code elsewhere names the mirror."""
 
 
 PUBLIC = Extension()
@@ -1421,6 +1423,9 @@ def closing_commands(
         *generation_commands(extension),
         Command(("python3", extension.program, "tarama")),
         *extension.after_scan(base),
+        # Reads the remote: the last release tag's packages and the last CI run. Early and cheap (a few
+        # seconds), because a half-published release is the kind of red no local step can show.
+        Command(("python3", extension.program, "uzak-durum")),
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
         # A cached restore is a no-op and never re-runs the NuGet audit, so
         # an advisory published after the last restore stayed invisible here while
@@ -2663,6 +2668,60 @@ def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> in
         return 1
 
 
+def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> int:
+    """Reads what only the remote knows: did the last release tag reach nuget.org, and what did the last CI run say.
+
+    Fails only for a proven gap: nuget.org answered and a package the release tag should have pushed is not
+    there. Everything the run cannot read (no network, no `gh`) is a warning, so a closing run offline still
+    finishes, and a red CI run is a warning because the branch may be mid-repair.
+    """
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import breaking_changes
+    import remote_state
+
+    exit_code = 0
+
+    try:
+        version = breaking_changes.resolve_baseline(root)
+    except breaking_changes.BaselineError as exception:
+        print(f"⚠️ Son yayın etiketi çözülemedi; nuget.org denetimi atlandı: {exception}")
+        version = None
+
+    if version is not None:
+        # The set the tag held, not the working tree's: a project added since is not part of that release.
+        package_ids = remote_state.packable_ids_at(root, f"{breaking_changes.TAG_PREFIX}{version}")
+
+        if not package_ids:
+            print(f"⚠️ v{version} etiketinin ağacı okunamadı; paket kümesi çalışma ağacından alındı.")
+            package_ids = packable_project_ids(root)
+
+        state = remote_state.release_state(package_ids, version)
+
+        if state.missing:
+            print(f"❌ v{version} etiketi var ama {len(state.missing)} paket nuget.org'da yok: {', '.join(state.missing)}")
+            print("   Etiket koşumu yarım kalmış olabilir; ilgili Actions koşumuna bak. Etiket taşınmaz: düzeltme bir sonraki numarayla çıkar.")
+            exit_code = 1
+
+        if state.unreachable:
+            print(f"⚠️ nuget.org'a ulaşılamadı ({len(state.unreachable)}/{len(package_ids)} paket okunamadı); yayın denetimi eksik.")
+
+        if not state.missing and not state.unreachable:
+            print(f"✅ v{version}: {state.published} paketin tamamı nuget.org'da")
+
+    ci = remote_state.ci_state(root, ci_remote)
+
+    if ci is None:
+        print(f"ℹ️ '{ci_remote}' için karar vermiş bir CI koşumu okunamadı (gh yok, oturum ya da erişim yok, ağ yok ya da hepsi atlanmış).")
+    elif ci.is_red:
+        print(f"⚠️ '{ci_remote}' son CI koşumu kırmızı ({ci.conclusion}, {ci.sha}): {ci.url}")
+    elif ci.status == "completed" and ci.conclusion == "success":
+        print(f"✅ '{ci_remote}' son CI koşumu yeşil ({ci.sha})")
+    else:
+        print(f"ℹ️ '{ci_remote}' son CI koşumu henüz karar vermedi: {ci.status} {ci.conclusion}".rstrip() + f" ({ci.sha})")
+
+    return exit_code
+
+
 def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--komutlari-bas", action="store_true", help="komutları çalıştırmadan listele")
@@ -2670,6 +2729,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
 
     subparsers.add_parser("tarama", help="sync kopyası, secret, migration, bayat doküman, kanıtsız public yüzey ve Context7 sürüm etiketi taraması")
     subparsers.add_parser("uret", help="üretilen dosyaları yeniden üret: agent haritası + doküman indeksleri")
+    subparsers.add_parser("uzak-durum", help="son yayın etiketinin paketleri nuget.org'da mı ve son CI koşumu ne dedi (yalnız okur)")
     ic_dongu = subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
     ic_dongu.add_argument(
         "--taban", default="HEAD",
@@ -2756,6 +2816,11 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
                 and not require_test_runtimes(test_target_frameworks()):
             return 1
         return run_commands("kapanis", commands, dry_run=args.komutlari_bas)
+    if args.stage == "uzak-durum":
+        if args.komutlari_bas:
+            print("(ağ) api.nuget.org flat container + `gh run list` -> son yayın etiketi ve son CI koşumu")
+            return 0
+        return remote_state_check(ci_remote=extension.ci_remote)
     if args.stage == "performans":
         if args.komutlari_bas:
             print("$ dotnet run -c Release --project bench/Tracon.Benchmarks -- --filter * --exporters json")
@@ -2797,7 +2862,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
 
     if args.komutlari_bas:
         return run_commands("kapanis", closing_commands("<taban>", extension=extension), dry_run=True)
-    parser.error("bir aşama belirtin: tarama, uret, ic-dongu, kapanis, performans, test, yayin, paketle veya paket-dogrula")
+    parser.error("bir aşama belirtin: tarama, uret, uzak-durum, ic-dongu, kapanis, performans, test, yayin, paketle veya paket-dogrula")
     return 2
 
 
