@@ -80,6 +80,20 @@ if (CapacityEnvironment.TenantTag)
     builder.Services.Configure<TraconOptions>(options => options.Observability.IncludeTenantTag = true);
 }
 
+// Off in the product. On, the endpoint filter keeps a partition per tenant in this process; the limit is set so high
+// that nothing is ever refused, because the question is what the limiter keeps, not what it does to a caller.
+if (CapacityEnvironment.RateLimitInstance)
+{
+    builder.Services.Configure<TraconRateLimitOptions>(options =>
+    {
+        options.Enabled = true;
+        options.PermitLimit = 1_000_000;
+        options.Window = TimeSpan.FromMinutes(1);
+        options.Scope = RateLimitScope.Instance;
+        options.Partition = RateLimitPartitionKind.Tenant;
+    });
+}
+
 // A diagnosis, not a configuration to measure under: with the product's own telemetry off, whatever a soak still
 // finds growing is not the telemetry path.
 if (CapacityEnvironment.ObservabilityOff)

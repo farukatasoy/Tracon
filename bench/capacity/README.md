@@ -190,7 +190,10 @@ connection count from `pg_stat_activity`.
 `Tracon.CapacityDriver footprint --cell <cell directory>`. Every plateau row carries the **floor**: the smallest growth
 that would have counted. A flat row is "no growth above the floor", and a short plateau has a high floor.
 `tenant-ramp-short` is the five-minute development form; it proves the apparatus can be red and says nothing about
-slow leaks.
+slow leaks. `tenant-ramp-features` is a ten-minute ramp to 4 000 tenants for a feature the host leaves off:
+`TRACON_CAPACITY_RATE_LIMIT=instance` turns the per-tenant endpoint limiter on with a limit nothing reaches, and
+`TRACON_CAPACITY_TENANT_TAG=1` (through the profile's `tenantTag`) turns the per-tenant metric tag on. A rise that is one
+jump, level before and after, is written as a note and is never red.
 
 Two conveniences help while developing the apparatus (neither is read by anything shipped):
 

@@ -58,6 +58,7 @@ public static class CapacityApparatus
                 ["inFlightRuns"] = CapacityRunLedger.InFlight,
                 ["openTenancy"] = CapacityEnvironment.OpenTenants,
                 ["tenantTag"] = CapacityEnvironment.TenantTag,
+                ["rateLimitEnabled"] = services.GetRequiredService<IOptions<TraconRateLimitOptions>>().Value.Enabled,
                 ["observabilityEnabled"] = services.GetRequiredService<IOptions<TraconOptions>>().Value.Observability.Enabled,
 
                 // 🚨 The pool value above is the one this process was told to

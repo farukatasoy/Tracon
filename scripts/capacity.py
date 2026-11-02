@@ -1028,7 +1028,7 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
             "responseCacheEnabled": "false",
             "recordingEnabled": "true",
             "retentionEnabled": "false",
-            "rateLimitEnabled": "false",
+            "rateLimitEnabled": str(os.environ.get("TRACON_CAPACITY_RATE_LIMIT", "off").lower() == "instance").lower(),
             "msbuildExtraArguments": " ".join(extra_msbuild_arguments()) or "none",
             "observability": os.environ.get("TRACON_CAPACITY_OBSERVABILITY", "on"),
             "openTenancy": str(profile.get("tenantRamp") is not None).lower(),

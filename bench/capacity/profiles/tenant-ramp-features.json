@@ -1,0 +1,54 @@
+{
+  "name": "tenant-ramp-features",
+  "description": "A ten-minute tenant ramp (2, 200, 4000 tenants) for a feature the host leaves off by default. The host environment names the feature (TRACON_CAPACITY_RATE_LIMIT=instance turns the per-tenant endpoint limiter on with a limit nothing reaches; TRACON_CAPACITY_TENANT_TAG turns the per-tenant metric tag on). Compare its levels with the same stages of a run without the feature; the plateaus are short, so only a cost of a few kilobytes a tenant shows. A development profile, not a measurement.",
+  "scenarios": [
+    "buffered",
+    "streaming",
+    "queued"
+  ],
+  "scenarioGrouping": "mixed",
+  "concurrency": [
+    8
+  ],
+  "seedShapes": [
+    "empty"
+  ],
+  "repeats": 1,
+  "warmupSeconds": 30,
+  "measureSeconds": 0,
+  "runsPerTenant": 0,
+  "tenantRamp": {
+    "tenantPrefix": "ramp-",
+    "stages": [
+      { "tenants": 2, "runsPerNewTenant": 3, "holdSeconds": 60 },
+      { "tenants": 200, "runsPerNewTenant": 2, "holdSeconds": 60 },
+      { "tenants": 4000, "runsPerNewTenant": 2, "holdSeconds": 90 }
+    ],
+    "idleSeconds": 40,
+    "collectIntervalSeconds": 5,
+    "bucketSeconds": 5,
+    "tenantTag": false
+  },
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 200,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 2147483648,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 2147483648,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "requestTimeoutSeconds": 120,
+  "drainTimeoutSeconds": 120,
+  "maxConcurrentJobs": 8,
+  "maxPoolSize": 100,
+  "resourceSampleIntervalSeconds": 1,
+  "seedRuns": 0
+}

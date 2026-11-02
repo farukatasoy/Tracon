@@ -168,6 +168,13 @@ public static class FootprintVerdict
     /// Surfaced in the report, never red.
     /// </summary>
     public const string Transient = "transient";
+
+    /// <summary>
+    /// The metric moved once, by more than the floor, and was level before and after: a pool opening three more
+    /// connections, a buffer doubling. A leak is a slope and shows in both halves of a plateau; a jump shows in one.
+    /// Surfaced in the report, never red.
+    /// </summary>
+    public const string Jump = "jump";
 }
 
 /// <summary>How one metric moved inside one plateau.</summary>
@@ -488,6 +495,10 @@ public static class FootprintAnalysis
             {
                 analysis.Notes.Add(line + "; it did not keep rising in the next plateau, so it is set aside as a warm-up");
             }
+            else if (string.Equals(trend.Verdict, FootprintVerdict.Jump, StringComparison.Ordinal))
+            {
+                analysis.Notes.Add(line + "; the rise is one jump, level before and after, not a slope in both halves of the plateau, so it is set aside");
+            }
         }
 
         for (var index = 1; index < holds.Count; index++)
@@ -678,8 +689,24 @@ public static class FootprintAnalysis
             && trend.Growth >= trend.Floor
             && trend.LastThird - trend.FirstThird >= trend.Floor / 2;
 
-        trend.Verdict = drifts ? FootprintVerdict.Red : FootprintVerdict.Green;
+        // A slope is there in both halves of the window; a single jump is in one of them. Each half must carry at
+        // least a quarter of the floor on its own, or the rise is one step that the rank test, which counts a step
+        // as a trend, cannot tell from a leak.
+        var gradual = drifts && HalfGrowth(times, values, 0, values.Count / 2) >= trend.Floor / 4
+            && HalfGrowth(times, values, values.Count / 2, values.Count) >= trend.Floor / 4;
+
+        trend.Verdict = !drifts
+            ? FootprintVerdict.Green
+            : gradual ? FootprintVerdict.Red : FootprintVerdict.Jump;
         return trend;
+    }
+
+    private static double HalfGrowth(List<double> times, List<double> values, int from, int to)
+    {
+        var x = times.Skip(from).Take(to - from).ToList();
+        var y = values.Skip(from).Take(to - from).ToList();
+
+        return x.Count < 2 ? 0 : TrendStatistics.TheilSen(x, y) * (x[^1] - x[0]);
     }
 
     private static List<(double Time, double Value)> Bucket(

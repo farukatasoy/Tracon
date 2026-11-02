@@ -387,6 +387,32 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
+    public void A_single_jump_inside_the_last_plateau_is_a_note_and_not_a_leak_while_a_slope_of_the_same_size_is_red()
+    {
+        var fine = new FootprintAnalysisOptions { BucketSeconds = 2 };
+
+        // 40 MiB at the middle of the last plateau, level before and after: a pool or a buffer finding its size.
+        // The rank test counts this as a trend and Theil-Sen is positive, so only the two-halves check separates it.
+        var jump = Fixture.Build((metric, time, _, _) => string.Equals(metric, "host.workingSetBytes", StringComparison.Ordinal) ? 400 * MiB + (time >= 171 ? 40 * MiB : 0) : null);
+        var jumped = FootprintAnalysis.Analyse("cell", jump.Samples, jump.Ramp, fine)
+            .Metrics.Single(static m => string.Equals(m.Name, "host.workingSetBytes", StringComparison.Ordinal));
+
+        jumped.Trends.Last().Verdict.ShouldBe(FootprintVerdict.Jump);
+        jumped.Verdict.ShouldBe(FootprintVerdict.Green);
+        jumped.Notes.ShouldContain(n => n.Contains("one jump", StringComparison.Ordinal));
+
+        // The same 40 MiB spread over the last plateau as a slope is a leak.
+        var slope = Fixture.Build((metric, time, _, stage) => string.Equals(metric, "host.workingSetBytes", StringComparison.Ordinal)
+            ? 400 * MiB + (stage == 2 ? (time - Fixture.Stage2HoldStart) * (40.0 / 60) * MiB : 0)
+            : null);
+        var sloped = FootprintAnalysis.Analyse("cell", slope.Samples, slope.Ramp, fine)
+            .Metrics.Single(static m => string.Equals(m.Name, "host.workingSetBytes", StringComparison.Ordinal));
+
+        sloped.Trends.Last().Verdict.ShouldBe(FootprintVerdict.Red);
+        sloped.Verdict.ShouldBe(FootprintVerdict.Red);
+    }
+
+    [Fact]
     public void A_meter_per_tenant_is_a_cost_and_a_meter_per_run_is_a_leak()
     {
         // One announcement per tenant: the cost of the tenants, flat inside every plateau, not red.
