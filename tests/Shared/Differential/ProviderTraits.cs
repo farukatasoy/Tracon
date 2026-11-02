@@ -107,41 +107,17 @@ internal sealed record ProviderTraits
     public int? CostDecimals { get; init; }
 
     /// <summary>
-    /// Gets how many significant digits a cost survives a round trip with, or <see langword="null"/> when it survives whole.
+    /// Gets how far a cost read back may be from the exact sum, relative to the sum (and at least one unit), or zero when
+    /// it must be exact.
     /// </summary>
     /// <remarks>
     /// OPEN FINDING, kept visible here until it is fixed: two SQLite cost columns (<c>cached_input_cost</c> and
-    /// <c>non_token_cost</c>) were declared <c>NUMERIC</c>, so SQLite turns the text the driver writes into a
-    /// double. 999999999.999999 reads back as 999999999.99999905. The cost property stays inside this many digits for
-    /// that provider; with the trait off it fails on SQLite.
-    /// </remarks>
-    public int? CostSignificantDigits { get; init; }
-
-    /// <summary>
-    /// Gets how far an aggregated cost total may be from the exact sum, relative to the sum (at least one unit), or zero when the total must be exact.
-    /// </summary>
-    /// <remarks>
-    /// OPEN FINDING, kept visible here until it is fixed: SQLite adds the cost columns as doubles, so a total of
-    /// 6865.1708977361 reads 6865.1708977361004. The cost columns written one by one and the PostgreSQL and SQL Server
+    /// <c>non_token_cost</c>) were declared <c>NUMERIC</c>, so SQLite turns the text the driver writes into a double and
+    /// back (0.0009909446 reads back as 0.0009909446000000001), and the aggregate adds the columns as doubles (a total of
+    /// 6865.1708977361 reads 6865.1708977361004). The cost written to the other columns and the PostgreSQL and SQL Server
     /// totals are exact.
     /// </remarks>
-    public decimal AggregateCostRelativeTolerance { get; init; }
-
-    /// <summary>Brings an amount inside the digits the store keeps exactly.</summary>
-    /// <param name="amount">The amount.</param>
-    /// <returns>The amount rounded to <see cref="CostSignificantDigits"/> significant digits, or as given.</returns>
-    public decimal? Representable(decimal? amount)
-    {
-        if (amount is not { } value || value == 0m || CostSignificantDigits is not { } digits)
-        {
-            return amount;
-        }
-
-        var magnitude = (int)Math.Floor(Math.Log10((double)Math.Abs(value))) + 1;
-        var places = Math.Clamp(digits - magnitude, 0, 28);
-
-        return decimal.Round(value, places, MidpointRounding.AwayFromZero);
-    }
+    public decimal CostRelativeTolerance { get; init; }
 
     /// <summary>Applies the store's text rule to a value.</summary>
     /// <param name="value">The text as the caller wrote it.</param>

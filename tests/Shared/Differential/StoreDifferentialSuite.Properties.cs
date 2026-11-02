@@ -160,12 +160,8 @@ public abstract partial class StoreDifferentialSuite
                 var expected = 0m;
                 var anyTotal = false;
 
-                foreach (var (rawInput, rawOutput, rawCached, rawWrite, label) in costs)
+                foreach (var (input, output, cached, write, label) in costs)
                 {
-                    var input = stores.Traits.Representable(rawInput);
-                    var output = stores.Traits.Representable(rawOutput);
-                    var cached = stores.Traits.Representable(rawCached);
-                    var write = stores.Traits.Representable(rawWrite);
                     var id = Guid.NewGuid();
                     await store.StartRunAsync(new RunStartInfo { RunId = id, AgentName = "agent", StartedAt = PagingOrigin, ModelId = "model" });
                     await store.CompleteRunAsync(new RunCompletion
@@ -184,7 +180,7 @@ public abstract partial class StoreDifferentialSuite
 
                     var read = (await store.GetRunAsync(id))!.Cost;
                     read.ShouldNotBeNull();
-                    (read.Total() ?? 0m).ShouldBe(sum, $"the run's own cost total, parts {input}/{output}/{cached}/{write}");
+                    (read.Total() ?? 0m).ShouldBe(sum, stores.Traits.CostRelativeTolerance * Math.Max(1m, Math.Abs(sum)), $"the run's own cost total, parts {input}/{output}/{cached}/{write}");
                 }
 
                 var statistics = await store.GetStatisticsAsync(new RunStatisticsQuery());
@@ -195,7 +191,7 @@ public abstract partial class StoreDifferentialSuite
                 if (anyTotal)
                 {
                     statistics.TotalCost.ShouldNotBeNull();
-                    statistics.TotalCost.Value.ShouldBe(expected, stores.Traits.AggregateCostRelativeTolerance * Math.Max(1m, Math.Abs(expected)), "the total cost of all runs");
+                    statistics.TotalCost.Value.ShouldBe(expected, stores.Traits.CostRelativeTolerance * Math.Max(1m, Math.Abs(expected)), "the total cost of all runs");
                 }
             },
             seed: DifferentialSettings.Seed,
