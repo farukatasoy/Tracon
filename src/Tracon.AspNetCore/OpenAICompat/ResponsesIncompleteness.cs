@@ -64,6 +64,26 @@ internal static class ResponsesIncompleteness
         return true;
     }
 
+    /// <summary>Gives a response object the <c>model</c> field OpenAI's API always carries.</summary>
+    /// <param name="response">The <c>response</c> object MAF wrote.</param>
+    /// <param name="model">The model name: the agent the request selected, the same name Chat Completions answers with.</param>
+    /// <returns><see langword="true"/> when the field was missing and was added.</returns>
+    /// <remarks>
+    /// MAF's writer leaves <c>model</c> out, so an OpenAI client that reads <c>response.model</c> got
+    /// <c>null</c>. A value MAF writes itself, should a later version do so, is left alone.
+    /// </remarks>
+    internal static bool AddModel(JsonObject response, string model)
+    {
+        if (response["model"] is not null)
+        {
+            return false;
+        }
+
+        response["model"] = model;
+
+        return true;
+    }
+
     /// <summary>Marks an output item as incomplete when it is <c>completed</c>.</summary>
     /// <param name="item">The item.</param>
     /// <returns><see langword="true"/> when the item changed.</returns>
@@ -101,7 +121,12 @@ internal static class ResponsesIncompleteness
 /// an earlier item (text before a tool call) is closed while updates still arrive (measured,
 /// 1.26.0-alpha.261023.1). So the frames written after the source ended are the ones that belong to the
 /// answer that was cut, and by then the last finish reason is known. A frame written earlier is never
-/// touched, and neither is any frame of a complete answer: those pass through as the same string, unparsed.
+/// touched for the status, and neither is any frame of a complete answer.
+/// </para>
+/// <para>
+/// <strong>The model field.</strong> When the endpoint passes a model name, the three frames that carry the whole
+/// response object (<c>response.created</c>, <c>response.in_progress</c>, the closing one) get the <c>model</c>
+/// field MAF leaves out. Every other frame passes through as the same string, unparsed.
 /// </para>
 /// <para>
 /// <strong>What changes.</strong> The closing message item becomes <c>incomplete</c>, and
@@ -120,9 +145,11 @@ internal static class ResponsesIncompleteness
 /// </para>
 /// <para>One instance serves one response; it is not shared.</para>
 /// </remarks>
-internal sealed class ResponsesStreamRewriter
+internal sealed class ResponsesStreamRewriter(string? model = null)
 {
     private const string DataPrefix = "data: ";
+    private const string CreatedLine = "event: response.created\n";
+    private const string InProgressLine = "event: response.in_progress\n";
     private const string ItemDoneLine = "event: response.output_item.done\n";
     private const string CompletedLine = "event: response.completed\n";
     private const string IncompleteLine = "event: response.incomplete\n";
@@ -171,6 +198,21 @@ internal sealed class ResponsesStreamRewriter
     /// <returns>The same string, or the rewritten frame.</returns>
     internal string Patch(string frame)
     {
+        // The frames that carry the whole response object get the model field; every other frame passes through
+        // as the same string.
+        if (model is not null)
+        {
+            foreach (var line in ResponseCarryingLines)
+            {
+                if (frame.StartsWith(line, StringComparison.Ordinal) && (_reason is null || !string.Equals(line, CompletedLine, StringComparison.Ordinal)))
+                {
+                    frame = WithModel(frame, line, model);
+
+                    break;
+                }
+            }
+        }
+
         if (_reason is not { } reason)
         {
             return frame;
@@ -195,6 +237,20 @@ internal sealed class ResponsesStreamRewriter
         return frame;
     }
 
+    private static readonly string[] ResponseCarryingLines = [CreatedLine, InProgressLine, CompletedLine];
+
+    private static string WithModel(string frame, string eventLine, string model)
+    {
+        if (!TryReadData(frame, eventLine.Length, out var body, out var dataEnd)
+            || body["response"] is not JsonObject response
+            || !ResponsesIncompleteness.AddModel(response, model))
+        {
+            return frame;
+        }
+
+        return string.Concat(eventLine, DataPrefix, body.ToJsonString(), frame.AsSpan(dataEnd));
+    }
+
     private static string RewriteClosingItem(string frame)
     {
         // Best effort: the terminal frame carries the response-level truth, so an item frame this type
@@ -216,6 +272,11 @@ internal sealed class ResponsesStreamRewriter
             || body["response"] is not JsonObject response)
         {
             return frame;
+        }
+
+        if (model is not null)
+        {
+            ResponsesIncompleteness.AddModel(response, model);
         }
 
         if (!ResponsesIncompleteness.Mark(response, reason))

@@ -203,7 +203,9 @@ one the request sets: `temperature`, `top_p`, `max_tokens`, `max_completion_toke
 `top_logprobs`, `modalities`, `audio`, and `web_search_options`. A value that asks for the
 default passes: `n: 1`, `response_format: {"type": "text"}`, `logprobs: false`, an empty
 `tools` list, `modalities: ["text"]`, or `null`. Fields that carry no setting the agent uses
-(`user`, `store`, `metadata`, `stream_options`) pass too. `/v1/responses` refuses its own
+(`user`, `store`, `metadata`, `stream_options`) pass too; on a stream,
+`stream_options.include_usage: true` adds one last chunk with an empty `choices` list and the
+run's usage, before `[DONE]`. `/v1/responses` refuses its own
 setting fields (`temperature`, `top_p`, `max_output_tokens`, `instructions`, `tools`,
 `tool_choice`) the same way. To change a setting, change the agent.
 

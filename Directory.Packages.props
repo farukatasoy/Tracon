@@ -276,6 +276,17 @@
     <PackageVersion Include="AGUI.Abstractions" Version="1.0.1" />
   </ItemGroup>
 
+  <!--
+    AG-UI protocol'un resmi .NET istemcisi (ayni yayinci, ayni 1.0.1 hatti). YALNIZ test projesine girer
+    (tests/Tracon.AGUI.FunctionalTests): sevk edilen hicbir paket buna bagimli degildir. Gerekce: sunucu testleri
+    olayi protocol SDK'sinin serilestiricisiyle okur; bu istemci ise tel bicimini kendi ayristiricisiyle okur ve
+    olay dizisini kendi durum makinesinden gecirir (RUN_STARTED ... RUN_FINISHED), yani tuketicinin gordugunu gorur.
+    Bagimliliklari AGUI.Formatting 1.0.1 ve Microsoft.Extensions.AI (10.6.0; Tracon 10.11.0'da).
+  -->
+  <ItemGroup Label="AG-UI istemcisi (yalnizca test)">
+    <PackageVersion Include="AGUI.Client" Version="1.0.1" />
+  </ItemGroup>
+
   <ItemGroup Label="Analyzer'lar (PrivateAssets=all)">
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.303" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />

@@ -84,7 +84,7 @@ internal sealed class SseWriter : IAsyncDisposable
 
         response.StatusCode = StatusCodes.Status200OK;
         response.ContentType = "text/event-stream";
-        response.Headers.CacheControl = "no-cache,no-store";
+        response.Headers.CacheControl = "no-cache,no-store,no-transform";
         response.Headers.Pragma = "no-cache";
         response.Headers.ContentEncoding = "identity";
 
@@ -257,8 +257,13 @@ internal sealed class SseWriter : IAsyncDisposable
 
         var raw = request.Headers["Last-Event-ID"].ToString();
 
-        return long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lastId) && lastId >= 0
-            ? lastId + 1
-            : 0;
+        if (!long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var lastId) || lastId < 0)
+        {
+            return 0;
+        }
+
+        // The largest id has no next one. Adding to it would wrap to the smallest long, which reads as "from the
+        // beginning" and replays the whole run to a client that said it had seen everything.
+        return lastId == long.MaxValue ? long.MaxValue : lastId + 1;
     }
 }
