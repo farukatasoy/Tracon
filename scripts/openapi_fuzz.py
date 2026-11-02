@@ -613,14 +613,17 @@ def choose_seed(
     method: str,
     template: str,
     path_parameters: Mapping[str, Any] | None,
+    variation: Any = None,
 ) -> SeedChoice:
     """Decides, from the case alone, whether to swap in seeded values.
 
     The decision is a function of the generated case, never of a random source, so a failing
-    case that Schemathesis shrinks or replays is rebuilt the same way.
+    case that Schemathesis shrinks or replays is rebuilt the same way. `variation` is whatever else
+    the generator drew (the query and the body): an operation with no path parameter would
+    otherwise hash to the same number for every case and be seeded always or never.
     """
     verb = method.upper()
-    digest = stable_hash([verb, template, path_parameters or {}])
+    digest = stable_hash([verb, template, path_parameters or {}, variation])
     kinds = pool_kinds_for(template)
     merged: dict[str, Any] | None = None
 

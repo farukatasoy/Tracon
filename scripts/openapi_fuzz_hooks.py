@@ -68,6 +68,7 @@ def map_case(context, case):  # noqa: ANN001
         method=operation.method,
         template=operation.path,
         path_parameters=case.path_parameters,
+        variation=[case.query, case.body if isinstance(case.body, (dict, list, str, int, float, bool, type(None))) else None],
     )
 
     if choice.path_parameters is not None:

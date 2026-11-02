@@ -271,6 +271,15 @@ class SeedTests(unittest.TestCase):
 
             self.assertIsNone(choice.path_parameters)
 
+    def test_an_operation_without_path_parameters_is_seeded_for_some_cases_and_not_others(self):
+        # Hashing only the route would give such an operation one number for every case: seeded always, or never.
+        decisions = {
+            openapi_fuzz.choose_seed(self.plan, method="POST", template="/tracon/api/agents", path_parameters={}, variation=[{}, {"name": f"n{i}"}]).has_body
+            for i in range(200)
+        }
+
+        self.assertEqual(decisions, {True, False})
+
     def test_a_route_without_a_rule_is_never_changed(self):
         choice = openapi_fuzz.choose_seed(self.plan, method="GET", template="/tracon/api/stats", path_parameters={})
 
