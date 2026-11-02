@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -18,18 +19,29 @@ internal sealed class LookupMcpServer : IAsyncDisposable
     /// <summary>The URI of the resource a server started with a resource declares.</summary>
     public const string ResourceUri = "lookup://answer";
 
+    private static readonly System.Text.Json.JsonElement FillerSchema =
+        System.Text.Json.JsonDocument.Parse("""{"type":"object","properties":{}}""").RootElement.Clone();
+
     private readonly WebApplication _app;
     private readonly StrongBox<int> _calls;
     private readonly StrongBox<int> _resourceReads;
+    private readonly StrongBox<int> _cancelledCalls;
     private readonly ListingControl _listing;
     private int _disposed;
 
-    private LookupMcpServer(WebApplication app, Uri endpoint, StrongBox<int> calls, StrongBox<int> resourceReads, ListingControl listing)
+    private LookupMcpServer(
+        WebApplication app,
+        Uri endpoint,
+        StrongBox<int> calls,
+        StrongBox<int> resourceReads,
+        StrongBox<int> cancelledCalls,
+        ListingControl listing)
     {
         _app = app;
         Endpoint = endpoint;
         _calls = calls;
         _resourceReads = resourceReads;
+        _cancelledCalls = cancelledCalls;
         _listing = listing;
     }
 
@@ -50,11 +62,34 @@ internal sealed class LookupMcpServer : IAsyncDisposable
         set => Volatile.Write(ref _listing.Description, value);
     }
 
+    /// <summary>
+    /// How many tools besides <c>lookup</c> <c>tools/list</c> reports. They are never called; they make the list long.
+    /// </summary>
+    public int FillerTools
+    {
+        get => Volatile.Read(ref _listing.FillerTools);
+        set => Volatile.Write(ref _listing.FillerTools, value);
+    }
+
+    /// <summary>
+    /// What a <c>lookup</c> call does instead of returning the text given at start: the text to return, or a wait that
+    /// ends when the client cancels. <see langword="null"/> keeps the text given at start.
+    /// </summary>
+    /// <remarks>The token is the one the MCP server cancels when the client sends a cancellation for the call.</remarks>
+    public Func<CancellationToken, Task<string>>? CallHandler
+    {
+        get => Volatile.Read(ref _listing.CallHandler);
+        set => Volatile.Write(ref _listing.CallHandler, value);
+    }
+
     /// <summary>The MCP endpoint address.</summary>
     public Uri Endpoint { get; }
 
     /// <summary>How many <c>lookup</c> calls reached this server.</summary>
     public int Calls => Volatile.Read(ref _calls.Value);
+
+    /// <summary>How many <c>lookup</c> calls the client cancelled before they returned.</summary>
+    public int CancelledCalls => Volatile.Read(ref _cancelledCalls.Value);
 
     /// <summary>How many reads of <see cref="ResourceUri"/> reached this server.</summary>
     public int ResourceReads => Volatile.Read(ref _resourceReads.Value);
@@ -67,6 +102,7 @@ internal sealed class LookupMcpServer : IAsyncDisposable
     {
         var calls = new StrongBox<int>();
         var resourceReads = new StrongBox<int>();
+        var cancelledCalls = new StrongBox<int>();
         var listing = new ListingControl();
 
         var builder = WebApplication.CreateSlimBuilder();
@@ -75,11 +111,25 @@ internal sealed class LookupMcpServer : IAsyncDisposable
         var mcp = builder.Services.AddMcpServer()
             .WithHttpTransport()
             .WithTools([McpServerTool.Create(
-                [Description("Looks the value up.")] () =>
+                [Description("Looks the value up.")] async (CancellationToken cancellationToken) =>
                 {
                     Interlocked.Increment(ref calls.Value);
 
-                    return answer;
+                    if (Volatile.Read(ref listing.CallHandler) is not { } handler)
+                    {
+                        return answer;
+                    }
+
+                    try
+                    {
+                        return await handler(cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Interlocked.Increment(ref cancelledCalls.Value);
+
+                        throw;
+                    }
                 },
                 new McpServerToolCreateOptions { Name = "lookup" })])
             .WithRequestFilters(filters => filters.AddListToolsFilter(next => async (request, cancellationToken) =>
@@ -97,6 +147,16 @@ internal sealed class LookupMcpServer : IAsyncDisposable
                     {
                         tool.Description = description;
                     }
+                }
+
+                for (var index = 0; index < Volatile.Read(ref listing.FillerTools); index++)
+                {
+                    result.Tools.Add(new Tool
+                    {
+                        Name = $"filler_{index}",
+                        Description = "A tool that is listed and never called.",
+                        InputSchema = FillerSchema,
+                    });
                 }
 
                 return result;
@@ -121,7 +181,7 @@ internal sealed class LookupMcpServer : IAsyncDisposable
 
         var address = app.Urls.First().TrimEnd('/');
 
-        return new LookupMcpServer(app, new Uri($"{address}/mcp"), calls, resourceReads, listing);
+        return new LookupMcpServer(app, new Uri($"{address}/mcp"), calls, resourceReads, cancelledCalls, listing);
     }
 
     /// <summary>Stops the server. A test may stop it early; the second call does nothing.</summary>
@@ -137,11 +197,15 @@ internal sealed class LookupMcpServer : IAsyncDisposable
         await _app.DisposeAsync();
     }
 
-    /// <summary>What the <c>tools/list</c> filter reads; shared with the running server.</summary>
+    /// <summary>What the <c>tools/list</c> filter and the <c>lookup</c> tool read; shared with the running server.</summary>
     private sealed class ListingControl
     {
         public bool Fail;
 
         public string? Description;
+
+        public int FillerTools;
+
+        public Func<CancellationToken, Task<string>>? CallHandler;
     }
 }
