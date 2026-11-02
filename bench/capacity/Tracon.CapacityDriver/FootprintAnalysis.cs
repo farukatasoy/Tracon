@@ -151,6 +151,12 @@ public static class FootprintVerdict
 
     /// <summary>There was not enough data to judge. Never read as green.</summary>
     public const string Inconclusive = "inconclusive";
+
+    /// <summary>
+    /// The metric rose and then did not keep rising once the load and the tenants went on: a warm-up, not a leak.
+    /// Surfaced in the report, never red.
+    /// </summary>
+    public const string Transient = "transient";
 }
 
 /// <summary>How one metric moved inside one plateau.</summary>
@@ -253,6 +259,9 @@ public sealed class MetricAnalysis
 
     /// <summary>Why, one entry per finding.</summary>
     public List<string> Reasons { get; set; } = [];
+
+    /// <summary>What rose and then stopped, so a reader can see a warm-up was seen and set aside, not missed.</summary>
+    public List<string> Notes { get; set; } = [];
 
     /// <summary>The level at each plateau, in stage order.</summary>
     public List<double?> Levels { get; set; } = [];
@@ -450,20 +459,35 @@ public static class FootprintAnalysis
             {
                 conclusive++;
             }
+        }
+
+        ConfirmDrift(analysis);
+
+        foreach (var trend in analysis.Trends)
+        {
+            var line = string.Create(
+                CultureInfo.InvariantCulture,
+                $"stage {trend.Stage} ({trend.Tenants} tenants): grew {Format(metric.Kind, trend.Growth)}{PerRequest(metric.Kind, trend)} inside a plateau with the tenants fixed (tau {trend.Tau:0.00}, p {trend.PValue:0.0000}, floor {Format(metric.Kind, trend.Floor)})");
 
             if (string.Equals(trend.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
             {
-                analysis.Reasons.Add(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"stage {hold.Stage} ({hold.Tenants} tenants): grew {Format(metric.Kind, trend.Growth)}{PerRequest(metric.Kind, trend)} inside a plateau with the tenants fixed (tau {trend.Tau:0.00}, p {trend.PValue:0.0000}, floor {Format(metric.Kind, trend.Floor)})"));
+                analysis.Reasons.Add(line);
+            }
+            else if (string.Equals(trend.Verdict, FootprintVerdict.Transient, StringComparison.Ordinal))
+            {
+                analysis.Notes.Add(line + "; it did not keep rising in the next plateau, so it is set aside as a warm-up");
             }
         }
 
         for (var index = 1; index < holds.Count; index++)
         {
-            var step = Step(analysis, holds, index, metric.Kind, options);
-            analysis.Steps.Add(step);
+            analysis.Steps.Add(Step(analysis, holds, index, metric.Kind, options));
+        }
 
+        ConfirmSteps(analysis);
+
+        foreach (var step in analysis.Steps)
+        {
             if (!string.Equals(step.Verdict, FootprintVerdict.Inconclusive, StringComparison.Ordinal))
             {
                 conclusive++;
@@ -472,6 +496,10 @@ public static class FootprintAnalysis
             if (string.Equals(step.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
             {
                 analysis.Reasons.Add($"stage {step.ToStage}: {step.Note}");
+            }
+            else if (string.Equals(step.Verdict, FootprintVerdict.Transient, StringComparison.Ordinal))
+            {
+                analysis.Notes.Add($"stage {step.ToStage}: {step.Note}");
             }
         }
 
@@ -511,6 +539,61 @@ public static class FootprintAnalysis
             : everyPlateauJudged && conclusive > 0 ? FootprintVerdict.Green : FootprintVerdict.Inconclusive;
 
         return analysis;
+    }
+
+    // A leak follows time or runs, and time and runs go on into the next plateau. A rise that is there in one plateau
+    // and gone in the next, at the same load, did not follow either: it was the process settling. A plateau that is
+    // last, or whose successor could not be judged, cannot be set aside this way and stays red.
+    private static void ConfirmDrift(MetricAnalysis analysis)
+    {
+        var drifted = analysis.Trends
+            .Select(static t => string.Equals(t.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
+            .ToList();
+
+        for (var index = 0; index < analysis.Trends.Count - 1; index++)
+        {
+            var next = analysis.Trends[index + 1];
+
+            if (drifted[index] && !drifted[index + 1]
+                && !string.Equals(next.Verdict, FootprintVerdict.Inconclusive, StringComparison.Ordinal))
+            {
+                analysis.Trends[index].Verdict = FootprintVerdict.Transient;
+            }
+        }
+    }
+
+    // The same argument for the steps. A count that rose between two plateaus because tenants joined must rise again,
+    // and by more, when ten times as many join. If a later step that added at least as many tenants shows no rise, the
+    // early rise was the process warming up (a thread pool finding its size, a pool opening its connections).
+    private static void ConfirmSteps(MetricAnalysis analysis)
+    {
+        if (analysis.Kind != MetricKind.Count)
+        {
+            return;
+        }
+
+        for (var index = 0; index < analysis.Steps.Count; index++)
+        {
+            var step = analysis.Steps[index];
+
+            if (!string.Equals(step.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var refuting = analysis.Steps.Skip(index + 1).FirstOrDefault(later =>
+                later.AddedTenants >= step.AddedTenants
+                && string.Equals(later.Verdict, FootprintVerdict.Green, StringComparison.Ordinal)
+                && later.Delta < later.Floor);
+
+            if (refuting is not null)
+            {
+                step.Verdict = FootprintVerdict.Transient;
+                step.Note += string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"; the step to stage {refuting.ToStage} added {refuting.AddedTenants} tenants and showed no rise, so this is set aside as a warm-up, not a resource per tenant");
+            }
+        }
     }
 
     private static string PerRequest(MetricKind kind, StageTrend trend)

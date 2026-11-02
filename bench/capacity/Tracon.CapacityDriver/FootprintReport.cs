@@ -167,8 +167,13 @@ public static class FootprintReport
         foreach (var metric in shown)
         {
             var why = metric.Reasons.Count == 0
-                ? (string.Equals(metric.Verdict, FootprintVerdict.Inconclusive, StringComparison.Ordinal) ? "not enough points in any plateau" : "")
+                ? (string.Equals(metric.Verdict, FootprintVerdict.Inconclusive, StringComparison.Ordinal) ? "not enough points in a plateau" : "")
                 : string.Join("; ", metric.Reasons);
+
+            if (metric.Notes.Count > 0)
+            {
+                why = (why.Length == 0 ? "" : why + ". ") + "Set aside: " + string.Join("; ", metric.Notes);
+            }
 
             text.AppendLine(CultureInfo.InvariantCulture, $"| {metric.Label} | {metric.Verdict} | {why.Replace("|", "/", StringComparison.Ordinal)} |");
         }

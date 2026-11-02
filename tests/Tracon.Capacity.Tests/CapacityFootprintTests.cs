@@ -299,10 +299,11 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
-    public void A_leak_in_one_plateau_only_is_red_for_that_plateau_and_green_for_the_others()
+    public void A_rise_that_is_gone_in_the_next_plateau_is_a_warm_up_and_is_never_red()
     {
-        // Leaks 0.8 MiB/s only while stage 1's tenants are fixed.
-        var run = Fixture.Build((metric, time, tenants, stage) => string.Equals(metric, "host.workingSetBytes", StringComparison.Ordinal)
+        // Rises 0.8 MiB/s while stage 1's tenants are fixed, then is flat again in stage 2 at the same load: it did
+        // not follow time or runs, which went on, so it is set aside and reported as a note.
+        var run = Fixture.Build((metric, time, _, stage) => string.Equals(metric, "host.workingSetBytes", StringComparison.Ordinal)
             ? 400 * MiB + (stage == 1 ? (time - Fixture.Stage1HoldStart) * 0.8 * MiB : 0)
             : null);
 
@@ -310,7 +311,38 @@ public sealed class CapacityFootprintTests
         var rss = analysis.Metrics.Single(static m => string.Equals(m.Name, "host.workingSetBytes", StringComparison.Ordinal));
 
         rss.Trends.Select(static t => t.Verdict).ShouldBe(
-            [FootprintVerdict.Green, FootprintVerdict.Red, FootprintVerdict.Green]);
+            [FootprintVerdict.Green, FootprintVerdict.Transient, FootprintVerdict.Green]);
+        rss.Verdict.ShouldBe(FootprintVerdict.Green);
+        rss.Notes.ShouldContain(n => n.Contains("warm-up", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_rise_in_the_last_plateau_cannot_be_set_aside_and_is_red()
+    {
+        var run = Fixture.Build((metric, time, _, stage) => string.Equals(metric, "host.workingSetBytes", StringComparison.Ordinal)
+            ? 400 * MiB + (stage == 2 ? (time - Fixture.Stage2HoldStart) * 0.8 * MiB : 0)
+            : null);
+
+        var analysis = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options);
+        var rss = analysis.Metrics.Single(static m => string.Equals(m.Name, "host.workingSetBytes", StringComparison.Ordinal));
+
+        rss.Trends.Select(static t => t.Verdict).ShouldBe(
+            [FootprintVerdict.Green, FootprintVerdict.Green, FootprintVerdict.Red]);
+        rss.Verdict.ShouldBe(FootprintVerdict.Red);
+    }
+
+    [Fact]
+    public void A_count_that_rises_at_low_cardinality_and_stays_flat_at_ten_times_the_tenants_is_a_warm_up()
+    {
+        // A thread pool finding its size: 10 -> 14 between stage 0 and stage 1, then 14 at 200 tenants.
+        var run = Fixture.Build((metric, _, _, stage) => string.Equals(metric, "host.osThreads", StringComparison.Ordinal) ? (stage == 0 ? 10 : 14) : null);
+
+        var analysis = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options);
+        var threads = analysis.Metrics.Single(static m => string.Equals(m.Name, "host.osThreads", StringComparison.Ordinal));
+
+        threads.Steps.Select(static s => s.Verdict).ShouldBe([FootprintVerdict.Transient, FootprintVerdict.Green]);
+        threads.Verdict.ShouldBe(FootprintVerdict.Green);
+        threads.Notes.ShouldContain(n => n.Contains("not a resource per tenant", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -455,6 +487,7 @@ public sealed class CapacityFootprintTests
     {
         // Stage k: ramp 5 s, plateau 60 s. Idle 20 s at the end.
         public const double Stage1HoldStart = 70;
+        public const double Stage2HoldStart = 135;
 
         public static (List<FootprintSample> Samples, RampRecord Ramp) Build(
             Func<string, double, int, int, double?> reading,
