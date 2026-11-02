@@ -33,7 +33,10 @@ public sealed class McpDiscoveryLoopTests
         // 1 second at a 100 ms interval is about 10 attempts; a tight loop makes thousands.
         var before = plan.Total;
         await Task.Delay(1000, TestContext.Current.CancellationToken); // delay: negative
-        (plan.Total - before).ShouldBeLessThan(40, "the loop read the server list far more often than its interval allows");
+        (plan.Total - before).ShouldBeLessThan(
+            40,
+            "the loop read the server list far more often than its interval allows: "
+            + string.Join(", ", plan.Calls.GroupBy(static name => name, StringComparer.Ordinal).Select(static group => $"{group.Key} x{group.Count()}")));
 
         await service.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }
