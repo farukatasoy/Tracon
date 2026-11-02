@@ -31,7 +31,7 @@ namespace Tracon.Samples.FileRunStore;
 public sealed class JsonFileRunStore : IRunStore
 {
     private readonly string _filePath;
-    private readonly ITenantContext _tenantContext;
+    private readonly CanonicalTenantContext _tenantContext;
     private readonly Lock _gate = new();
 
     private Dictionary<Guid, RunRecord> _runs = new();
