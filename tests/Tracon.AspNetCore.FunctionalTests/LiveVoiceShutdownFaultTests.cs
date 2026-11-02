@@ -65,12 +65,12 @@ public sealed class LiveVoiceShutdownFaultTests
         var second = await OpenAsync(host, provider, "voice-shutdown-b");
         await ActivateAsync(host, provider, second);
 
-        var registry = host.Services.GetRequiredService<LiveVoiceSessionRegistry>();
+        var shutdown = new LiveVoiceShutdownService(host.Services.GetRequiredService<LiveVoiceSessionRegistry>());
 
         // The shutdown reports the failure or swallows it; what it may not do is leave a session unrecorded.
         try
         {
-            await registry.ShutdownAsync();
+            await shutdown.StopAsync(TestContext.Current.CancellationToken);
         }
         catch (IOException)
         {

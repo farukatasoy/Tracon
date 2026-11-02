@@ -34,6 +34,7 @@ public sealed class HostedTickLoopTests
         nameof(ApprovalExpirationService),
         nameof(ModelProviderHealthBackgroundService),
         nameof(JobQueueDepthObserver),
+        nameof(QuotaUsageObserver),
     ];
 
     [Theory]
@@ -265,6 +266,35 @@ public sealed class HostedTickLoopTests
                         nameof(IJobStore.GetQueueDepthAsync),
 
                         // A gauge reads once when it starts, then once per tick.
+                        startCalls: 1,
+                        disposables);
+                }
+
+            case nameof(QuotaUsageObserver):
+                {
+                    var meterFactory = new TestMeterFactory();
+                    disposables.Add(meterFactory);
+
+                    return new Loop(
+                        new QuotaUsageObserver(
+                            new InMemoryQuotaStore(),
+                            FaultProxy<ITenantStore>.Create(new InMemoryTenantStore(), plan),
+                            new StaticOptionsMonitor<TraconOptions>(new TraconOptions
+                            {
+                                Observability = new TraconObservabilityOptions
+                                {
+                                    EnableQuotaUsageGauge = true,
+                                    QuotaUsageRefreshInterval = Interval,
+                                },
+                            }),
+                            new StaticOptionsMonitor<TraconQuotaOptions>(new TraconQuotaOptions()),
+                            gate,
+                            meterFactory,
+                            clock,
+                            NullLogger<QuotaUsageObserver>.Instance),
+                        clock,
+                        plan,
+                        nameof(ITenantStore.ListAsync),
                         startCalls: 1,
                         disposables);
                 }

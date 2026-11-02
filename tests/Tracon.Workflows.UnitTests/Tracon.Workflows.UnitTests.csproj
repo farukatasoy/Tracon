@@ -7,6 +7,8 @@
   <!-- The due-time clock of the timeout tests, shared with the job worker's tests: linked, not copied. -->
   <ItemGroup>
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
+    <!-- Wraps an interface so a test can count, hook, fail or cancel at its Nth call. -->
+    <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
   </ItemGroup>
 
   <ItemGroup>

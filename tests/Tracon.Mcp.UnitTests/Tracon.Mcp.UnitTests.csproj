@@ -5,6 +5,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Wraps an interface so a test can count, hook, fail or cancel at its Nth call. -->
+    <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- In-memory configuration provider for the settings-binding-from-configuration tests. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
