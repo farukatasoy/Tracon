@@ -696,6 +696,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A workflow run that was answered no longer ends without its output now and then.** After a human answer the run set the answer going and then asked the framework for the status of the run
+  to decide whether to watch it again. The work the answer released can be over within a millisecond, and then the status said the run was idle and the output event, which the framework had
+  already queued, was never read: the run was recorded as completed with no output (about one answer in a hundred under load). The runner now watches again when the run is idle and nothing
+  was read since the answer. Measured against the framework alone, with no Tracon code, before the change.
 - **One schedule the job worker cannot dispatch no longer stops the schedules behind it.** The worker walks the due schedules of every tenant in one
   list, a store gives that list in no particular order, and an exception thrown for one row left the loop, so every row behind it waited for
   the next tick and, when the row failed the same way each time, for as long as it stayed. The failure is now caught per row, logged with the

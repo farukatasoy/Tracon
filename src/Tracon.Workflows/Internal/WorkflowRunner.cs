@@ -1548,6 +1548,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             while (true)
             {
                 var responded = false;
+
+                // Whether this enumerator read any event AFTER the last answer it delivered. See the reopen decision below.
+                var readSinceResponse = false;
                 var enumerator = run
                     .WatchStreamAsync(blockOnPendingRequest: false, linked.Token)
                     .GetAsyncEnumerator(linked.Token);
@@ -1615,6 +1618,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             break;
                         }
 
+                        readSinceResponse = true;
+
                         if (workflowEvent is SuperStepStartedEvent && ++superSteps > settings.MaxSuperSteps)
                         {
                             await CancelAsync(run, linked.Token).ConfigureAwait(false);
@@ -1648,6 +1653,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             if (delivery.Delivered)
                             {
                                 responded = true;
+                                readSinceResponse = false;
 
                                 await RecordDeliveryAsync(execution).ConfigureAwait(false);
 
@@ -1755,8 +1761,24 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 // the moment MAF rewords it.
                 var statusBeforeReopen = await run.GetStatusAsync(CancellationToken.None).ConfigureAwait(false);
 
-                if (statusBeforeReopen is not Microsoft.Agents.AI.Workflows.RunStatus.PendingRequests
-                    and not Microsoft.Agents.AI.Workflows.RunStatus.Running)
+                // 🚨 An IDLE status is not proof that nothing is left to read. Measured (2026-11-02, with
+                // Microsoft Agent Framework 1.26.0 and no Tracon code at all): an enumerator that ends right
+                // after the answer was sent has read nothing since, because it ended at the halt that was
+                // written BEFORE the answer. The work the answer set going then runs on the framework's own
+                // loop and, when it is short, is over before the status is read here, so the status is Idle.
+                // The earlier rule broke out on Idle and left the output event unread in the framework's
+                // channel: the run was recorded as completed with no output (1 in 1 700 runs of the
+                // functional tests; a one-millisecond await between the send and this read lost 98 % of
+                // them). A reopened enumerator drains that channel, so the output comes back.
+                //
+                // Idle after events WERE read since the answer is the end of the work the enumerator watched,
+                // so that case still stops, and so does a run the framework reports as ended (the Magentic
+                // case above). Pending requests and a running graph reopen as before.
+                var reopen = statusBeforeReopen is Microsoft.Agents.AI.Workflows.RunStatus.PendingRequests
+                        or Microsoft.Agents.AI.Workflows.RunStatus.Running
+                    || (statusBeforeReopen is Microsoft.Agents.AI.Workflows.RunStatus.Idle && !readSinceResponse);
+
+                if (!reopen)
                 {
                     break;
                 }

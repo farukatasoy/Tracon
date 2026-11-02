@@ -224,6 +224,32 @@ public sealed class WorkflowResponseOwnershipTests
     }
 
     [Fact]
+    public async Task An_answer_whose_delivery_takes_a_moment_to_record_still_carries_the_workflow_output()
+    {
+        // 🚨 The answer is sent, the work it releases is a function node that ends within a millisecond, and
+        // only then does the runner read the status of the run. Without a pause between the two, the read
+        // lost the race now and then (about one answer in a hundred under load) and the run ended completed
+        // with no output. A delivery record that takes a moment makes the order certain: with the earlier
+        // rule every one of these answers lost its output.
+        var delay = TimeSpan.FromMilliseconds(40);
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(configureServices: services =>
+            services.AddSingleton<IWorkflowResponseStore>(provider => new SlowDeliveryStore(
+                new InMemoryWorkflowResponseStore(provider.GetRequiredService<ITenantContext>()), delay)));
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+            var (runId, frames) = await AnswerUntilAppliedAsync(host, sourceId, requestId);
+
+            frames.ShouldContain(
+                static frame => frame.Event == "event" && frame.Data.Contains("\"WorkflowOutput\"", StringComparison.Ordinal),
+                $"attempt {attempt}: the answer was applied and the run ended without its output");
+            (await host.WaitForTerminalRunAsync(runId)).Status.ShouldBe(RunStatus.Completed);
+        }
+    }
+
+    [Fact]
     public async Task A_repeat_while_the_queued_answers_job_is_unfinished_follows_the_job_instead_of_starting_a_second_owner()
     {
         // Independent audit 🔴2: the queued answer's first attempt was stopped (a graceful
@@ -981,6 +1007,31 @@ public sealed class WorkflowResponseOwnershipTests
             public ValueTask<WorkflowResponseRecord?> GetAsync(Guid responseRunId, CancellationToken cancellationToken = default)
                 => inner.GetAsync(responseRunId, cancellationToken);
         }
+    }
+
+    /// <summary>A response store whose delivery record takes a set time to write.</summary>
+    private sealed class SlowDeliveryStore(IWorkflowResponseStore inner, TimeSpan delay) : IWorkflowResponseStore
+    {
+        public ValueTask<WorkflowResponseClaim> AddAsync(WorkflowResponseRecord record, CancellationToken cancellationToken = default)
+            => inner.AddAsync(record, cancellationToken);
+
+        public ValueTask<WorkflowResponseRecord?> FindClaimAsync(string claimScope, string requestId, CancellationToken cancellationToken = default)
+            => inner.FindClaimAsync(claimScope, requestId, cancellationToken);
+
+        public ValueTask<bool> ReplaceAsync(Guid abandonedResponseRunId, WorkflowResponseRecord replacement, CancellationToken cancellationToken = default)
+            => inner.ReplaceAsync(abandonedResponseRunId, replacement, cancellationToken);
+
+        public async ValueTask MarkDeliveredAsync(Guid responseRunId, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(delay, CancellationToken.None);
+            await inner.MarkDeliveredAsync(responseRunId, cancellationToken);
+        }
+
+        public ValueTask<IReadOnlyList<WorkflowResponseRecord>> ListBySourceRunAsync(Guid sourceRunId, CancellationToken cancellationToken = default)
+            => inner.ListBySourceRunAsync(sourceRunId, cancellationToken);
+
+        public ValueTask<WorkflowResponseRecord?> GetAsync(Guid responseRunId, CancellationToken cancellationToken = default)
+            => inner.GetAsync(responseRunId, cancellationToken);
     }
 
     /// <summary>A fault that stands for a process that stopped in the middle of a request.</summary>
