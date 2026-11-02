@@ -34,6 +34,12 @@ namespace Tracon;
 /// filter's InvokeAsync runs, but buffering keeps the stream rewindable.
 /// </para>
 /// <para>
+/// <strong>Only a JSON body is read.</strong> A body without a JSON content type is
+/// refused with <c>415</c> or ignored by every endpoint behind this filter, and the
+/// JSON body limit does not cover it; copying it into memory would cost the request
+/// whatever the server accepts. See <see cref="ReadsBody"/>.
+/// </para>
+/// <para>
 /// <strong>Streaming endpoints.</strong> A stored response must be
 /// replayable, and an SSE stream is not: buffering one would hold a long
 /// workflow run in memory and replay a frozen copy of it. An endpoint that only
@@ -207,59 +213,124 @@ internal sealed class IdempotencyFilter : IEndpointFilter
     }
 
     /// <summary>
+    /// Whether the filter reads the body of <paramref name="request"/> to fingerprint it: only a JSON body, the one kind
+    /// every endpoint behind the filter reads and the one <see cref="RequestBodyLimitMiddleware"/> bounds.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    /// <returns><see langword="true"/> when the request declares a JSON content type.</returns>
+    /// <remarks>
+    /// A body without a JSON content type is refused with <c>415</c> by the endpoint, or, on the endpoints that take an
+    /// optional body, ignored. Copying it into memory would only make the request cost what the server accepts (30 MB on
+    /// Kestrel) for nothing, because the JSON limit does not apply to it. The request is then fingerprinted as the
+    /// bodyless request it is to the endpoint. The buffering middleware asks the same question, so a body that is not read
+    /// is not buffered either.
+    /// </remarks>
+    internal static bool ReadsBody(HttpRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return request.HasJsonContentType();
+    }
+
+    /// <summary>
     /// Reads the raw body and extracts the streaming flag and the fingerprint; after
     /// reading, the body is left readable from the start (for downstream binding/reading).
     /// </summary>
+    /// <remarks>
+    /// The body is copied once: the buffer is sized from the declared length (up to the endpoint's JSON limit), the
+    /// fingerprint is computed from it in place, and the streaming flag is read from it without another copy.
+    /// </remarks>
     private static async ValueTask<(bool IsStreaming, string Fingerprint)> InspectBodyAsync(
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var request = httpContext.Request;
 
-        byte[] bytes;
-
-        if (request.Body.CanSeek)
-        {
-            request.Body.Position = 0;
-        }
-
-        using (var buffer = new MemoryStream())
-        {
-            await request.Body.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-            bytes = buffer.ToArray();
-        }
-
-        if (request.Body.CanSeek)
-        {
-            request.Body.Position = 0;
-        }
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(Encoding.UTF8.GetBytes(request.Method + "\n" + request.Path + "\n"));
 
         var isStreaming = false;
 
-        if (bytes.Length > 0)
+        if (ReadsBody(request))
         {
-            try
+            if (request.Body.CanSeek)
             {
-                using var document = JsonDocument.Parse(bytes);
-
-                isStreaming = document.RootElement.ValueKind == JsonValueKind.Object &&
-                              document.RootElement.TryGetProperty("stream", out var streamFlag) &&
-                              streamFlag.ValueKind == JsonValueKind.True;
+                request.Body.Position = 0;
             }
-            catch (JsonException)
+
+            using var buffer = new MemoryStream(CapacityHint(httpContext));
+            await request.Body.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+
+            if (request.Body.CanSeek)
             {
-                // Invalid JSON: the streaming flag is ignored; the lower layer runs
-                // its own validation and returns the appropriate error.
+                request.Body.Position = 0;
+            }
+
+            if (buffer.Length > 0 && buffer.TryGetBuffer(out var bytes))
+            {
+                hash.AppendData(bytes);
+                isStreaming = IsStreamRequested(bytes.AsSpan());
             }
         }
 
-        var prefix = Encoding.UTF8.GetBytes(request.Method + "\n" + request.Path + "\n");
-        var combined = new byte[prefix.Length + bytes.Length];
-        prefix.CopyTo(combined, 0);
-        bytes.CopyTo(combined, prefix.Length);
+        return (isStreaming, Convert.ToHexStringLower(hash.GetHashAndReset()));
+    }
 
-        var hash = SHA256.HashData(combined);
+    /// <summary>
+    /// Whether the top level of <paramref name="json"/> is an object whose <c>stream</c> property is <c>true</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Read with a forward-only reader and not parsed into a document: a document keeps an index about as long as the
+    /// body itself (measured: a second copy of an 8 MiB body) to answer one question about one property.
+    /// </para>
+    /// <para>
+    /// The answer is the one the document gave. The last of two equal names wins, an escaped name counts, a nested property
+    /// does not, and a body that is not valid JSON as a whole is never streaming: the reader goes on to the end so the lower
+    /// layer, which validates the body, is the one to refuse it.
+    /// </para>
+    /// </remarks>
+    private static bool IsStreamRequested(ReadOnlySpan<byte> json)
+    {
+        var reader = new Utf8JsonReader(json);
 
-        return (isStreaming, Convert.ToHexString(hash).ToLowerInvariant());
+        try
+        {
+            if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+            {
+                return false;
+            }
+
+            var streaming = false;
+
+            while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
+            {
+                var isStream = reader.ValueTextEquals("stream"u8);
+
+                reader.Read();
+                streaming = isStream ? reader.TokenType == JsonTokenType.True : streaming;
+                reader.Skip();
+            }
+
+            // Past the closing brace: anything but the end of the data throws.
+            return reader.TokenType == JsonTokenType.EndObject && !reader.Read() && streaming;
+        }
+        catch (JsonException)
+        {
+            // Invalid JSON: the streaming flag is ignored; the lower layer runs
+            // its own validation and returns the appropriate error.
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The size to start the body buffer at: the declared length, so the copy does not grow the buffer by doubling, but
+    /// never more than the endpoint's JSON limit — a length the caller states is not trusted past it.
+    /// </summary>
+    private static int CapacityHint(HttpContext httpContext)
+    {
+        var ceiling = httpContext.GetEndpoint()?.Metadata.GetMetadata<JsonBodyLimitMetadata>()?.MaxBytes ?? 0;
+
+        return (int)Math.Clamp(Math.Min(httpContext.Request.ContentLength ?? 0, ceiling), 0, Array.MaxLength);
     }
 }

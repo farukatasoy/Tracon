@@ -113,12 +113,13 @@ public static class TraconEndpointRouteBuilderExtensions
         // BEFORE the filter's InvokeAsync (by minimal API's automatic binding
         // on some endpoints), reading the raw bytes afterward is only possible
         // if they were buffered BEFOREHAND. For a request that does NOT carry
-        // the header, this middleware does nothing (no silent cost).
+        // the header, this middleware does nothing (no silent cost). Nor does it for a body the filter will not read.
         if (endpoints is IApplicationBuilder idempotencyApp)
         {
             idempotencyApp.Use(static (httpContext, next) =>
             {
-                if (httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName))
+                if (httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName)
+                    && IdempotencyFilter.ReadsBody(httpContext.Request))
                 {
                     httpContext.Request.EnableBuffering();
                 }
