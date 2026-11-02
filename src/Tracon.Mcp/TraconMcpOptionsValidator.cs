@@ -42,6 +42,15 @@ internal sealed class TraconMcpOptionsValidator : IValidateOptions<TraconMcpOpti
                 options.ConnectionTimeout));
         }
 
+        // A limit of zero or less refuses every response, the handshake included, and the server reads as unreachable
+        // with no word of the limit.
+        if (options.MaxResponseBytes < 1)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconMcpOptions)}.{nameof(TraconMcpOptions.MaxResponseBytes)} must be at least 1. " +
+                $"Actual value: {options.MaxResponseBytes}.");
+        }
+
         // Compared with the age of the last good listing; it arms no timer.
         if (options.StaleToolRetention < TimeSpan.Zero)
         {

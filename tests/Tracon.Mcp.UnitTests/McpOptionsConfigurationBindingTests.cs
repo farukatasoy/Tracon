@@ -25,6 +25,9 @@ public sealed class McpOptionsConfigurationBindingTests
             ["Tracon:Mcp:RefreshInterval"] = "00:10:00",
             ["Tracon:Mcp:ConnectionTimeout"] = "00:00:45",
             ["Tracon:Mcp:MaxToolsPerServer"] = "7",
+            ["Tracon:Mcp:MaxResponseBytes"] = "2097152",
+            ["Tracon:Mcp:MaxResourcesPerServer"] = "11",
+            ["Tracon:Mcp:MaxPromptsPerServer"] = "13",
             ["Tracon:Mcp:MaxResourceBytesPerResource"] = "1024",
             ["Tracon:Mcp:MaxResourceBytesTotal"] = "4096",
             ["Tracon:Mcp:OAuthCallbackBaseUri"] = "https://myapp.example.com/",
@@ -36,6 +39,9 @@ public sealed class McpOptionsConfigurationBindingTests
         options.RefreshInterval.ShouldBe(TimeSpan.FromMinutes(10));
         options.ConnectionTimeout.ShouldBe(TimeSpan.FromSeconds(45));
         options.MaxToolsPerServer.ShouldBe(7);
+        options.MaxResponseBytes.ShouldBe(2097152);
+        options.MaxResourcesPerServer.ShouldBe(11);
+        options.MaxPromptsPerServer.ShouldBe(13);
         options.MaxResourceBytesPerResource.ShouldBe(1024);
         options.MaxResourceBytesTotal.ShouldBe(4096);
         options.OAuthCallbackBaseUri.ShouldBe(new Uri("https://myapp.example.com/"));
@@ -54,6 +60,9 @@ public sealed class McpOptionsConfigurationBindingTests
         options.RefreshInterval.ShouldBe(defaults.RefreshInterval);
         options.ConnectionTimeout.ShouldBe(defaults.ConnectionTimeout);
         options.MaxToolsPerServer.ShouldBe(defaults.MaxToolsPerServer);
+        options.MaxResponseBytes.ShouldBe(defaults.MaxResponseBytes);
+        options.MaxResourcesPerServer.ShouldBe(defaults.MaxResourcesPerServer);
+        options.MaxPromptsPerServer.ShouldBe(defaults.MaxPromptsPerServer);
         options.MaxResourceBytesPerResource.ShouldBe(defaults.MaxResourceBytesPerResource);
         options.MaxResourceBytesTotal.ShouldBe(defaults.MaxResourceBytesTotal);
         options.OAuthCallbackBaseUri.ShouldBeNull();

@@ -18,9 +18,12 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _serve;
 
-    private ScriptedMcpServer(Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> script)
+    private readonly string _capabilities;
+
+    private ScriptedMcpServer(Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> script, string capabilities)
     {
         Script = script;
+        _capabilities = capabilities;
 
         // HttpListener cannot bind port 0; a probe finds a free one, as the fake servers of the other test projects do.
         using var probe = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
@@ -51,8 +54,12 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
 
     /// <summary>Starts a server.</summary>
     /// <param name="script">The answer to each non-handshake method.</param>
+    /// <param name="capabilities">The <c>capabilities</c> object the handshake declares; tools only by default.</param>
     /// <returns>The running server.</returns>
-    public static ScriptedMcpServer Start(Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> script) => new(script);
+    public static ScriptedMcpServer Start(
+        Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> script,
+        string capabilities = "{\"tools\":{}}")
+        => new(script, capabilities);
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
@@ -141,10 +148,10 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
             // The client in use opens with server/discover (the stateless handshake of the 2026 revision); an older one
             // with initialize. Both are answered the way a working server answers them.
             var result = string.Equals(method, "server/discover", StringComparison.Ordinal)
-                ? "{\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"scripted\",\"version\":\"1\"}}"
+                ? "{\"supportedVersions\":[\"2026-07-28\"],\"capabilities\":" + _capabilities + ",\"serverInfo\":{\"name\":\"scripted\",\"version\":\"1\"}}"
                 : string.Equals(method, "initialize", StringComparison.Ordinal)
                 ? "{\"protocolVersion\":" + (message!["params"]?["protocolVersion"]?.ToJsonString() ?? "\"2025-06-18\"")
-                    + ",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"scripted\",\"version\":\"1\"}}"
+                    + ",\"capabilities\":" + _capabilities + ",\"serverInfo\":{\"name\":\"scripted\",\"version\":\"1\"}}"
                 : await Script(method, message!["params"], id, _stop.Token);
 
             if (result is null)

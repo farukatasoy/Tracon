@@ -13,6 +13,12 @@ Tracon.TraconMcpOptions.MaxResourceBytesPerResource.get -> int
 Tracon.TraconMcpOptions.MaxResourceBytesPerResource.set -> void
 Tracon.TraconMcpOptions.MaxResourceBytesTotal.get -> int
 Tracon.TraconMcpOptions.MaxResourceBytesTotal.set -> void
+Tracon.TraconMcpOptions.MaxPromptsPerServer.get -> int
+Tracon.TraconMcpOptions.MaxPromptsPerServer.set -> void
+Tracon.TraconMcpOptions.MaxResponseBytes.get -> int
+Tracon.TraconMcpOptions.MaxResponseBytes.set -> void
+Tracon.TraconMcpOptions.MaxResourcesPerServer.get -> int
+Tracon.TraconMcpOptions.MaxResourcesPerServer.set -> void
 Tracon.TraconMcpOptions.MaxToolsPerServer.get -> int
 Tracon.TraconMcpOptions.MaxToolsPerServer.set -> void
 Tracon.TraconMcpOptions.OAuthCallbackBaseUri.get -> System.Uri?

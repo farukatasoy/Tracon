@@ -77,7 +77,19 @@ internal sealed class McpPromptClient : IMcpPromptClient
                 return new McpPromptListResult { Status = McpOperationStatus.CapabilityUnsupported };
             }
 
-            var prompts = await client.ListPromptsAsync(options: null, cancellationToken).ConfigureAwait(false);
+            var limit = _options.Value.MaxPromptsPerServer;
+            var (prompts, exceeded) = await McpPaging
+                .TakeAsync(McpPaging.PromptsAsync(client, cancellationToken), limit)
+                .ConfigureAwait(false);
+
+            if (exceeded)
+            {
+                _logger.LogWarning(
+                    "MCP server '{ServerName}' declared more than {Limit} prompts; the excess is not listed. " +
+                    "The limit is changed with Tracon:Mcp:MaxPromptsPerServer.",
+                    serverName,
+                    limit);
+            }
 
             return new McpPromptListResult
             {
@@ -146,13 +158,13 @@ internal sealed class McpPromptClient : IMcpPromptClient
         }
     }
 
-    private static McpPromptSummary Project(McpClientPrompt prompt)
+    private static McpPromptSummary Project(Prompt prompt)
         => new()
         {
             Name = prompt.Name,
             Title = prompt.Title,
             Description = prompt.Description,
-            Arguments = (prompt.ProtocolPrompt.Arguments ?? [])
+            Arguments = (prompt.Arguments ?? [])
                 .Select(static argument => new McpPromptArgumentSummary
                 {
                     Name = argument.Name,

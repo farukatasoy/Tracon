@@ -171,7 +171,7 @@ internal sealed class McpConnection : IAsyncDisposable
                 keySpace,
                 tokenCache,
                 logger);
-            var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory);
+            var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory, options.MaxResponseBytes);
 
             // Declaring the handler is what makes the SDK announce the elicitation capability (form mode
             // only: Tracon asks for fields, it does not open addresses). A server that never asks costs
@@ -309,10 +309,7 @@ internal sealed class McpConnection : IAsyncDisposable
                 : await ListToolsAsync(options, logger, timeout.Token).ConfigureAwait(false);
 
             DeclaredResourceCache = SupportsResources
-                ? [
-                    .. (await _client.ListResourcesAsync(options: null, timeout.Token).ConfigureAwait(false))
-                        .Select(static resource => resource.ProtocolResource),
-                  ]
+                ? await ListResourcesAsync(options, logger, timeout.Token).ConfigureAwait(false)
                 : [];
 
             if (DeclaredResourceCache.Count > 0)
@@ -357,10 +354,6 @@ internal sealed class McpConnection : IAsyncDisposable
             return McpCatalogRefresh.Failed;
         }
     }
-
-    /// <summary>Retrieves the server's prompt list.</summary>
-    public async ValueTask<IList<McpClientPrompt>> ListPromptsAsync(CancellationToken cancellationToken)
-        => await _client.ListPromptsAsync(options: null, cancellationToken).ConfigureAwait(false);
 
     /// <summary>Resolves a prompt's content with arguments.</summary>
     public async ValueTask<GetPromptResult> GetPromptAsync(
@@ -603,9 +596,10 @@ internal sealed class McpConnection : IAsyncDisposable
     /// <para>
     /// The SDK's <c>ListToolsAsync(RequestOptions)</c> collects every page before it returns, so a server that kept
     /// handing out a next cursor filled memory (3 GB in ten seconds) before the limit was ever looked at. The pages are
-    /// read here one at a time instead, and the read ends with the first tool past the limit: the cursor is not followed
-    /// further and the rest of the list is never held. A single page is still read whole; only the number of pages is
-    /// bounded, and the connection timeout bounds the time a server that sends nothing but unusable tools can take.
+    /// read here one at a time instead (<see cref="McpPaging"/>), and the read ends with the first tool past the limit: the
+    /// cursor is not followed further and the rest of the list is never held. A single page is still read whole; only the
+    /// number of pages is bounded, and the connection timeout bounds the time a server that sends nothing but unusable
+    /// tools can take.
     /// </para>
     /// <para>
     /// The collecting overload also does two things for the transport that its page-level sibling does not: it fills the
@@ -622,64 +616,52 @@ internal sealed class McpConnection : IAsyncDisposable
     {
         var registrations = new List<TraconToolRegistration>();
         var listed = new HashSet<string>(StringComparer.Ordinal);
-        var request = new ListToolsRequestParams();
-        var full = false;
 
-        do
+        await foreach (var tool in McpPaging.ToolsAsync(_client, cancellationToken).ConfigureAwait(false))
         {
-            var page = await _client.ListToolsAsync(request, cancellationToken).ConfigureAwait(false);
-
-            foreach (var tool in page.Tools)
+            if (registrations.Count >= options.MaxToolsPerServer)
             {
-                if (registrations.Count >= options.MaxToolsPerServer)
-                {
-                    logger.LogWarning(
-                        "MCP server '{ServerName}' exceeded the {Limit} tool limit; the excess is being dropped. " +
-                        "The limit is changed with Tracon:Mcp:MaxToolsPerServer.",
-                        _serverName,
-                        options.MaxToolsPerServer);
-
-                    full = true;
-
-                    break;
-                }
-
-                if (McpToolNaming.TryQualify(_serverName, tool.Name) is not { } qualified)
-                {
-                    logger.LogWarning(
-                        "Tool '{ToolName}' of MCP server '{ServerName}' was skipped: the name may contain only " +
-                        "letters, digits, underscores, and hyphens.",
-                        tool.Name,
-                        _serverName);
-
-                    continue;
-                }
-
-                try
-                {
-                    _client.AddKnownTools([tool]);
-                }
-                catch (ArgumentException)
-                {
-                    // The tool's x-mcp-header annotations are not valid. The client has logged which and why.
-                    continue;
-                }
-
-                _cachedToolNames.Add(tool.Name);
-                listed.Add(tool.Name);
-
-                // The remote tool definition lives on the server, not in code,
-                // and the server can change it at any time. This is why
-                // approval defaults to required.
-                registrations.Add(CreateRegistration(
-                    new McpElicitingTool(new McpClientTool(_client, tool, serializerOptions: null).WithName(qualified), _serverName),
+                logger.LogWarning(
+                    "MCP server '{ServerName}' exceeded the {Limit} tool limit; the excess is being dropped. " +
+                    "The limit is changed with Tracon:Mcp:MaxToolsPerServer.",
                     _serverName,
-                    _requiresApproval));
+                    options.MaxToolsPerServer);
+
+                break;
             }
 
-            request.Cursor = full ? null : page.NextCursor;
+            if (McpToolNaming.TryQualify(_serverName, tool.Name) is not { } qualified)
+            {
+                logger.LogWarning(
+                    "Tool '{ToolName}' of MCP server '{ServerName}' was skipped: the name may contain only " +
+                    "letters, digits, underscores, and hyphens.",
+                    tool.Name,
+                    _serverName);
+
+                continue;
+            }
+
+            try
+            {
+                _client.AddKnownTools([tool]);
+            }
+            catch (ArgumentException)
+            {
+                // The tool's x-mcp-header annotations are not valid. The client has logged which and why.
+                continue;
+            }
+
+            _cachedToolNames.Add(tool.Name);
+            listed.Add(tool.Name);
+
+            // The remote tool definition lives on the server, not in code,
+            // and the server can change it at any time. This is why
+            // approval defaults to required.
+            registrations.Add(CreateRegistration(
+                new McpElicitingTool(new McpClientTool(_client, tool, serializerOptions: null).WithName(qualified), _serverName),
+                _serverName,
+                _requiresApproval));
         }
-        while (request.Cursor is not null);
 
         // Only a list that was read to its end (or to the limit) says which tools are gone; a read that failed half-way
         // leaves the entries of the list it replaces in place, as the tools it keeps still call through them.
@@ -692,6 +674,32 @@ internal sealed class McpConnection : IAsyncDisposable
         }
 
         return registrations;
+    }
+
+    /// <summary>Reads the server's resource list page by page and stops at <see cref="TraconMcpOptions.MaxResourcesPerServer"/>.</summary>
+    /// <param name="options">The MCP options; the resource limit.</param>
+    /// <param name="logger">Where a dropped resource is reported.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The resources that were kept.</returns>
+    private async ValueTask<List<Resource>> ListResourcesAsync(
+        TraconMcpOptions options,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var (kept, exceeded) = await McpPaging
+            .TakeAsync(McpPaging.ResourcesAsync(_client, cancellationToken), options.MaxResourcesPerServer)
+            .ConfigureAwait(false);
+
+        if (exceeded)
+        {
+            logger.LogWarning(
+                "MCP server '{ServerName}' declared more than {Limit} resources; the excess is being dropped. " +
+                "The limit is changed with Tracon:Mcp:MaxResourcesPerServer.",
+                _serverName,
+                options.MaxResourcesPerServer);
+        }
+
+        return kept;
     }
 
     private sealed class CachedResource

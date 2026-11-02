@@ -2,10 +2,8 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 
 namespace Tracon.Mcp.UnitTests;
 
@@ -322,7 +320,7 @@ public sealed class McpServerMisbehaviorTests
             var catalog = new McpToolCatalog(
                 servers,
                 new InMemoryTenantStore(),
-                new EmptyConfiguration(),
+                new EmptyMcpConfiguration(),
                 Options.Create(new TraconOptions()),
                 Options.Create(new TraconMcpOptions { ConnectionTimeout = ConnectionTimeout }),
                 NullLoggerFactory.Instance,
@@ -341,20 +339,5 @@ public sealed class McpServerMisbehaviorTests
             await Catalog.DisposeAsync();
             await _healthy.DisposeAsync();
         }
-    }
-
-    private sealed class EmptyConfiguration : IConfiguration
-    {
-        public string? this[string key]
-        {
-            get => null;
-            set => throw new NotSupportedException();
-        }
-
-        public IEnumerable<IConfigurationSection> GetChildren() => [];
-
-        public IChangeToken GetReloadToken() => new CancellationChangeToken(CancellationToken.None);
-
-        public IConfigurationSection GetSection(string key) => throw new NotSupportedException();
     }
 }

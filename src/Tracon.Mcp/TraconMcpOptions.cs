@@ -57,6 +57,48 @@ public sealed class TraconMcpOptions
     public int MaxToolsPerServer { get; set; } = 100;
 
     /// <summary>
+    /// The largest response, in bytes, a server may send. A larger response fails the call.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The SDK reads a response to its end and builds the whole message from it: a 20 MB tool result cost about 500 MB of
+    /// memory before <see cref="TraconToolOptions.DefaultMaxOutputBytes"/> could trim it. A <c>text/event-stream</c> response is
+    /// counted per event, since the stream a client keeps open for notifications has no end. A body that declares a larger
+    /// length is refused without being read.
+    /// </para>
+    /// <para>
+    /// Applies to a connection when it is opened, so a changed value reaches the next refresh that reconnects. Must be at
+    /// least 1; tool results are trimmed to <see cref="TraconToolOptions.DefaultMaxOutputBytes"/> (1 MiB by default) after
+    /// they arrive, so a limit below that trims nothing the server was allowed to send.
+    /// </para>
+    /// </remarks>
+    public int MaxResponseBytes { get; set; } = 16 * 1024 * 1024;
+
+    /// <summary>
+    /// The maximum number of resources accepted from a single server. Resources
+    /// beyond this limit are dropped and a warning is logged.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The list is read page by page and the read stops at the first resource past the
+    /// limit, so a server that never ends its list cannot fill memory. Only a declared
+    /// resource can be read, so a resource past the limit is refused as not declared.
+    /// A value below one keeps no resource.
+    /// </para>
+    /// </remarks>
+    public int MaxResourcesPerServer { get; set; } = 1000;
+
+    /// <summary>
+    /// The maximum number of prompts accepted from a single server. Prompts beyond
+    /// this limit are dropped and a warning is logged.
+    /// </summary>
+    /// <remarks>
+    /// The list is read page by page and the read stops at the first prompt past the
+    /// limit. A value below one keeps no prompt.
+    /// </remarks>
+    public int MaxPromptsPerServer { get; set; } = 100;
+
+    /// <summary>
     /// In Mode A (<see cref="AgentDefinition.McpResourceUris"/>), the maximum
     /// number of bytes added to the context from a single resource. Content
     /// beyond this limit is trimmed.

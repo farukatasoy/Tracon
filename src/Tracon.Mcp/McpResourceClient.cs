@@ -71,7 +71,19 @@ internal sealed class McpResourceClient : IMcpResourceClient
                 return new McpResourceListResult { Status = McpOperationStatus.CapabilityUnsupported };
             }
 
-            var resources = await client.ListResourcesAsync(options: null, cancellationToken).ConfigureAwait(false);
+            var limit = _options.Value.MaxResourcesPerServer;
+            var (resources, exceeded) = await McpPaging
+                .TakeAsync(McpPaging.ResourcesAsync(client, cancellationToken), limit)
+                .ConfigureAwait(false);
+
+            if (exceeded)
+            {
+                _logger.LogWarning(
+                    "MCP server '{ServerName}' declared more than {Limit} resources; the excess is not listed. " +
+                    "The limit is changed with Tracon:Mcp:MaxResourcesPerServer.",
+                    serverName,
+                    limit);
+            }
 
             return new McpResourceListResult
             {
@@ -112,9 +124,28 @@ internal sealed class McpResourceClient : IMcpResourceClient
                 return (McpOperationStatus.CapabilityUnsupported, null);
             }
 
-            var declared = await client.ListResourcesAsync(options: null, cancellationToken).ConfigureAwait(false);
+            // Only the first MaxResourcesPerServer resources count as declared, the same set the catalog keeps, and the
+            // search ends at the resource it finds: the cursor is followed no further than the answer needs.
+            var declared = false;
+            var examined = 0;
+            var limit = _options.Value.MaxResourcesPerServer;
 
-            if (!declared.Any(resource => string.Equals(resource.Uri, uri, StringComparison.Ordinal)))
+            await foreach (var resource in McpPaging.ResourcesAsync(client, cancellationToken).ConfigureAwait(false))
+            {
+                if (examined++ >= limit)
+                {
+                    break;
+                }
+
+                if (string.Equals(resource.Uri, uri, StringComparison.Ordinal))
+                {
+                    declared = true;
+
+                    break;
+                }
+            }
+
+            if (!declared)
             {
                 return (McpOperationStatus.UriNotDeclared, null);
             }
@@ -156,7 +187,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
             _keySpace,
             cancellationToken);
 
-    private static McpResourceSummary Project(McpClientResource resource)
+    private static McpResourceSummary Project(Resource resource)
         => new()
         {
             Uri = resource.Uri,

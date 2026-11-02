@@ -389,7 +389,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
                 },
             };
 
-            var transport = McpTransportFactory.CreateTransport(transportOptions, _egressGuard, _loggerFactory);
+            var transport = McpTransportFactory.CreateTransport(transportOptions, _egressGuard, _loggerFactory, _options.Value.MaxResponseBytes);
 
             // A reasonable upper bound for the administrator to grant consent on the provider.
             using var timeout = new CancellationTokenSource(AuthorizationWindow);

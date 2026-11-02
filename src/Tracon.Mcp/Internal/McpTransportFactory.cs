@@ -37,6 +37,7 @@ internal static class McpTransportFactory
     /// <param name="transportOptions">The transport options.</param>
     /// <param name="guard">The configured guard, or <see langword="null"/> to use the strict one.</param>
     /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="maxResponseBytes">The largest response the server may send (<see cref="TraconMcpOptions.MaxResponseBytes"/>).</param>
     /// <returns>The transport. It owns the <see cref="HttpClient"/> and disposes it.</returns>
     /// <remarks>
     /// <para>
@@ -55,10 +56,16 @@ internal static class McpTransportFactory
     public static HttpClientTransport CreateTransport(
         HttpClientTransportOptions transportOptions,
         EgressSocketGuard? guard,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        int maxResponseBytes)
         => new(
             transportOptions,
-            (guard ?? StrictGuard).CreateHttpClient(ResponseTimeout),
+            new HttpClient(
+                new McpResponseLimitHandler(maxResponseBytes) { InnerHandler = (guard ?? StrictGuard).CreateHandler() },
+                disposeHandler: true)
+            {
+                Timeout = ResponseTimeout,
+            },
             loggerFactory,
             ownsHttpClient: true);
 

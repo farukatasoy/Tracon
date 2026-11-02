@@ -52,7 +52,7 @@ internal static class McpShortLivedConnection
             keySpace,
             tokenCache,
             logger);
-        var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory);
+        var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory, options.MaxResponseBytes);
 
         using var timeout = new CancellationTokenSource(options.ConnectionTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);

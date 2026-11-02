@@ -226,6 +226,21 @@ public static class TraconMcpBuilderExtensions
             static (o, v) => o.MaxToolsPerServer = v);
 
         read.Int32(
+            nameof(TraconMcpOptions.MaxResponseBytes),
+            static o => o.MaxResponseBytes,
+            static (o, v) => o.MaxResponseBytes = v);
+
+        read.Int32(
+            nameof(TraconMcpOptions.MaxResourcesPerServer),
+            static o => o.MaxResourcesPerServer,
+            static (o, v) => o.MaxResourcesPerServer = v);
+
+        read.Int32(
+            nameof(TraconMcpOptions.MaxPromptsPerServer),
+            static o => o.MaxPromptsPerServer,
+            static (o, v) => o.MaxPromptsPerServer = v);
+
+        read.Int32(
             nameof(TraconMcpOptions.MaxResourceBytesPerResource),
             static o => o.MaxResourceBytesPerResource,
             static (o, v) => o.MaxResourceBytesPerResource = v);
