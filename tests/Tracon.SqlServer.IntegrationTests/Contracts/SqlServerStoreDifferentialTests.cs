@@ -1,0 +1,36 @@
+using Tracon.SqlServer.IntegrationTests.Infrastructure;
+using Tracon.Tests.Differential;
+
+namespace Tracon.SqlServer.IntegrationTests.Contracts;
+
+/// <summary>Runs the differential suite against the SQL Server stores.</summary>
+public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schema)
+    : StoreDifferentialSuite, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override long Iterations => 60;
+
+    /// <inheritdoc />
+    internal override async ValueTask<DifferentialStores> CreateStoresAsync()
+    {
+        await schema.ResetAsync();
+
+        return new DifferentialStores
+        {
+            Traits = new ProviderTraits
+            {
+                Name = "SQL Server",
+                NulBecomesReplacementCharacter = true,
+                ReadEchoesRequestedKey = true,
+                CreateEchoesInputText = true,
+                CostDecimals = 10,
+                OwnerFilterIgnoresCase = true,
+            },
+            Tenant = schema.Tenant,
+            Sessions = schema.Context.Sessions,
+            Runs = schema.Context.Runs,
+            Idempotency = schema.Context.IdempotencyKeys,
+            ApiKeys = schema.Context.ApiKeys,
+        };
+    }
+}

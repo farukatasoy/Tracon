@@ -51,6 +51,8 @@
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
     <!-- A vector store that runs the filter it is given, for the conversation memory tests. -->
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
+    <!-- The differential suite: the same generated sequences and model run in every store test project. -->
+    <Compile Include="../Shared/Differential/*.cs" LinkBase="Shared/Differential" />
   </ItemGroup>
 
   <ItemGroup>
