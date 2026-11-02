@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -132,7 +133,8 @@ public sealed class OpenApiSnapshotTests
     internal static async Task<TraconTestHost> StartFullSurfaceHostAsync(
         Action<IServiceCollection>? configureMoreServices = null,
         Action<TraconEndpointOptions>? configureMoreEndpoints = null,
-        Action<ITraconBuilder>? configureMoreTracon = null)
+        Action<ITraconBuilder>? configureMoreTracon = null,
+        Action<WebApplication>? configureAfterMap = null)
     {
         // The document is generated with every optional endpoint turned
         // on. A default-off endpoint (like /api/diagnostics) is still part of the
@@ -141,6 +143,7 @@ public sealed class OpenApiSnapshotTests
         // is built from this one file.
         return await TraconTestHost.StartAsync(
             withOpenApi: true,
+            configureAfterMap: configureAfterMap,
             configureEndpoints: options =>
             {
                 options.EnableDiagnosticsEndpoint = true;

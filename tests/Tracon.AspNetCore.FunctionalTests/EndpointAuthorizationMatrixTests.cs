@@ -38,7 +38,7 @@ public sealed partial class EndpointAuthorizationMatrixTests
     /// <summary>The tenant every request belongs to unless a test says otherwise.</summary>
     private const string OwnTenant = "default";
 
-    private const string RoleHeader = "X-Test-Role";
+    internal const string RoleHeader = "X-Test-Role";
 
     private const string Json = "application/json";
 
@@ -410,7 +410,7 @@ public sealed partial class EndpointAuthorizationMatrixTests
     }
 
     /// <summary>Authenticates every request as a user whose only role is the one the test header names.</summary>
-    private sealed class RoleHeaderAuthenticationHandler(
+    internal sealed class RoleHeaderAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)

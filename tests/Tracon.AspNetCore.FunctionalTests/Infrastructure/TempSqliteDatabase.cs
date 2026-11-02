@@ -36,6 +36,28 @@ internal sealed class TempSqliteDatabase : IDisposable
     /// <summary>Gets the connection string <c>UseSqlite</c> is given.</summary>
     public string ConnectionString => $"Data Source={Path}";
 
+    /// <summary>
+    /// Reads every byte of the database file and of the files beside it (the write-ahead log, the shared-memory file, the
+    /// journal), including the bytes a connection that is still open has not folded into the main file yet.
+    /// </summary>
+    /// <returns>The bytes of every file, one after the other.</returns>
+    public byte[] ReadAllBytes()
+    {
+        var directory = System.IO.Path.GetDirectoryName(Path)!;
+        var fileName = System.IO.Path.GetFileName(Path);
+        using var all = new MemoryStream();
+
+        foreach (var path in Directory.EnumerateFiles(directory, fileName + "*"))
+        {
+            // The host may hold the file open; Windows refuses a plain read unless writers are allowed to share.
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+            stream.CopyTo(all);
+        }
+
+        return all.ToArray();
+    }
+
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();

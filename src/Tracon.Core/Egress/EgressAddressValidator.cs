@@ -16,6 +16,16 @@ internal readonly record struct EgressAddressVerdict(
     string? Reason,
     IPAddress[]? ResolvedAddresses);
 
+/// <summary>Resolves a host name to the addresses a connection would be opened to.</summary>
+/// <param name="host">The host name.</param>
+/// <param name="cancellationToken">The cancellation token.</param>
+/// <returns>Every address the name resolves to.</returns>
+/// <remarks>
+/// Production resolves through the operating system. The delegate exists so a test can answer differently on a second
+/// question than on the first, which is what a DNS rebinding attacker does and what no real resolver can be told to do.
+/// </remarks>
+internal delegate ValueTask<IPAddress[]> EgressHostResolver(string host, CancellationToken cancellationToken);
+
 /// <summary>
 /// The single place that decides whether an outbound target address is safe.
 /// </summary>
@@ -266,10 +276,23 @@ internal static class EgressAddressValidator
     /// attacker publish a name that resolves to one public and one private
     /// address, and reach the private one on the next attempt.
     /// </remarks>
-    public static async ValueTask<EgressAddressVerdict> ResolveAndValidateAsync(
+    public static ValueTask<EgressAddressVerdict> ResolveAndValidateAsync(
         string host,
         EgressAddressPolicy policy,
         CancellationToken cancellationToken = default)
+        => ResolveAndValidateAsync(host, policy, resolver: null, cancellationToken);
+
+    /// <summary>Resolves a host name through <paramref name="resolver"/> and validates every address it resolves to.</summary>
+    /// <param name="host">The host name or IP literal.</param>
+    /// <param name="policy">The rules of the calling surface.</param>
+    /// <param name="resolver">Answers the lookup; <see langword="null"/> asks the operating system.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The verdict, carrying every resolved address when allowed.</returns>
+    public static async ValueTask<EgressAddressVerdict> ResolveAndValidateAsync(
+        string host,
+        EgressAddressPolicy policy,
+        EgressHostResolver? resolver,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(host))
         {
@@ -286,7 +309,9 @@ internal static class EgressAddressValidator
         {
             try
             {
-                addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+                addresses = resolver is null
+                    ? await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false)
+                    : await resolver(host, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is SocketException or ArgumentException)
             {
