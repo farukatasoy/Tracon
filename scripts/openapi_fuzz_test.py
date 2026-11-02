@@ -73,6 +73,14 @@ class CoverageTests(unittest.TestCase):
         }
     }
 
+    def test_the_405_of_a_method_probe_does_not_hide_an_operation_that_only_ever_saw_a_404_or_a_refusal(self):
+        stats = {"responses": {"GET /a": {"404": 7, "405": 14}, "GET /b": {"403": 3, "405": 14}, "GET /c": {"200": 1, "405": 14}}}
+
+        coverage = openapi_fuzz.summarize_coverage(stats)
+
+        self.assertEqual(coverage.only_not_found, ("GET /a",))
+        self.assertEqual(coverage.only_refused, ("GET /b",))
+
     def test_operations_that_only_ever_saw_a_404_are_counted_apart(self):
         coverage = openapi_fuzz.summarize_coverage(self.STATS)
 

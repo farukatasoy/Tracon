@@ -53,7 +53,10 @@ jobs:
     # The canonical repository only: the development repository and forks never run this job.
     if: github.repository == 'farukatasoy/Tracon'
     runs-on: ubuntu-latest
-    # Measured on a laptop and then doubled and rounded up: build 3 min, venv 1 min, then the legs below.
+    # Each limit is about twice the time the same job took on a busy laptop, rounded up: build 3 to 5 min, virtual
+    # environment 1 min, then the legs. Measured per job at 30 examples and scaled to the matrix value: roles 10 min per
+    # leg, scopes 7 min in all, SQLite 8 min, PostgreSQL 9 min, SQL Server 10 min (image already pulled). None of these
+    # is a runner measurement: re-measure after the first scheduled run and move the limit with it.
     timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
@@ -64,12 +67,12 @@ jobs:
             store: memory
             legs: '--leg roles:all'
             examples: 50
-            timeout: 60
+            timeout: 90
           - name: memory, every API key scope
             store: memory
             legs: '--leg scopes:each --gate-only'
             examples: 6
-            timeout: 90
+            timeout: 45
           # The store legs: the admin role against each persistence provider.
           - name: sqlite
             store: sqlite

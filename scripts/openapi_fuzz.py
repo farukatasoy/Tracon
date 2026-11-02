@@ -341,6 +341,9 @@ def summarize_coverage(stats: Mapping[str, Any]) -> Coverage:
     its resource tells nothing about the code behind it. `only_refused` holds operations that saw
     only 401 or 403 (the identity of the leg is not allowed there). `never_succeeded` holds those
     that never saw a 2xx.
+
+    A 405 does not count against either list: Schemathesis sends every operation the HTTP methods
+    it does not define, and those probes answer 405 whatever the operation does with a real request.
     """
     responses: Mapping[str, Mapping[str, int]] = stats.get("responses", {})
     totals: dict[str, int] = {}
@@ -357,10 +360,12 @@ def summarize_coverage(stats: Mapping[str, Any]) -> Coverage:
         for code, count in counts.items():
             totals[code] = totals.get(code, 0) + count
 
-        if codes == {"404"}:
+        real = codes - {"405"}
+
+        if real == {"404"}:
             not_found.append(operation)
 
-        if codes and codes <= {"401", "403"}:
+        if real and real <= {"401", "403"}:
             refused.append(operation)
 
         if not any(code.startswith("2") for code in codes):
