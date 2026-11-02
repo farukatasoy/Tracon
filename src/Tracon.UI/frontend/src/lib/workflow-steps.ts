@@ -195,7 +195,8 @@ export function hasInvalidSettings(steps: readonly Step[]): boolean {
 
 export type TimeoutParse = { ok: true; value: string | null } | { ok: false };
 
-const TIMESPAN = /^(?:(\d+)\.)?(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,7}))?$/;
+// The server reads [days.]hh:mm:ss and refuses an hour above 23 (a number the framework would take for days).
+const TIMESPAN = /^(?:(\d+)\.)?([01]?\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.(\d{1,7}))?$/;
 const SECONDS = /^\d+(?:\.\d{1,3})?$/;
 
 /**

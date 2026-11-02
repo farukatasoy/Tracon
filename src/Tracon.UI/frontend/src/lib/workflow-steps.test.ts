@@ -278,6 +278,17 @@ describe('step timeouts', () => {
     expect(parseTimeout('2.5555')).toEqual({ ok: false });
   });
 
+  it('refuses an hour above 23, a minute or second above 59, which the server refuses too', () => {
+    expect(parseTimeout('23:59:59')).toEqual({ ok: true, value: '23:59:59' });
+    expect(parseTimeout('1.23:59:59')).toEqual({ ok: true, value: '1.23:59:59' });
+
+    expect(parseTimeout('24:00:00')).toEqual({ ok: false });
+    expect(parseTimeout('48:00:00')).toEqual({ ok: false });
+    expect(parseTimeout('99:00:00')).toEqual({ ok: false });
+    expect(parseTimeout('00:60:00')).toEqual({ ok: false });
+    expect(parseTimeout('00:00:60')).toEqual({ ok: false });
+  });
+
   it('builds no request from a timeout it cannot read, and holds the save back', () => {
     expect(hasInvalidTimeouts([agent('a', 'soon')])).toBe(true);
     expect(hasInvalidTimeouts([agent('a', '30'), fn('tts', '', '')])).toBe(false);
