@@ -682,6 +682,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **One schedule the job worker cannot dispatch no longer stops the schedules behind it.** The worker walks the due schedules of every tenant in one
+  list, a store gives that list in no particular order, and an exception thrown for one row left the loop, so every row behind it waited for
+  the next tick and, when the row failed the same way each time, for as long as it stayed. The failure is now caught per row, logged with the
+  schedule's name, and the other due schedules dispatch. A cron expression that never fires was the one way to reach this and `CronExpression`
+  already refuses it; the row-level catch is what keeps any other failure from coming back as the same outage.
+- **The script concurrency limiter no longer keeps an entry for every tenant identifier it has seen.** The per-tenant slot was created on first use and
+  never removed, so the memory it held grew with the number of distinct tenant identifiers. With header-based tenancy and no
+  `AllowedTenants` list, a caller chooses the identifier. A tenant is now tracked only while a script of it holds or waits for a slot.
 - **The MCP OAuth authorization flow no longer carries the request that started it.** The flow keeps running after the request answers, for as long as the
   administrator takes to consent, and it was started inside the request. Its tenant, audit actor and trace therefore stayed attached to a callback of the
   SDK long after the request ended. It now starts on a clean execution context, as the connection to an MCP server already did.

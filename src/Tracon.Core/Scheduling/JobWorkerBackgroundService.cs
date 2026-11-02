@@ -1348,59 +1348,78 @@ internal sealed class JobWorkerBackgroundService(
 
         foreach (var schedule in due)
         {
-            if (schedule.NextRunAt is not { } nextRunAt || schedule.Cron is not { Length: > 0 } cron)
-            {
-                continue;
-            }
-
-            DateTimeOffset newNextRunAt;
-
+            // 🚨 The catch is PER ROW. The due list spans every tenant and a store gives it in no particular
+            // order, so one row the worker cannot advance, with the failure thrown out of the loop, kept every row
+            // behind it from dispatching on every tick: another tenant's schedules stopped for as long as the row
+            // stayed. A row that fails costs that row its tick and nothing else.
             try
             {
-                var timeZone = TimeZoneInfo.FindSystemTimeZoneById(schedule.TimeZone);
-                newNextRunAt = CronExpression.Parse(cron).GetNextOccurrence(now, timeZone);
+                await DispatchScheduleAsync(schedule, now, stoppingToken).ConfigureAwait(false);
             }
-            catch (Exception exception) when (
-                exception is FormatException or TimeZoneNotFoundException or InvalidTimeZoneException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
-                    logger.LogWarning(exception, "Schedule '{Name}' could not be resolved; skipping this tick.", schedule.Name);
+                    logger.LogWarning(exception, "Schedule '{Name}' failed to dispatch; the other due schedules are unaffected.", schedule.Name);
                 }
-
-                continue;
             }
-
-            // Another instance may have claimed the same schedule at the same
-            // time; the job is only created if this instance's claim wins.
-            var claimed = await scheduleStore
-                .TryClaimNextRunAsync(schedule.Id, nextRunAt, newNextRunAt, now, stoppingToken)
-                .ConfigureAwait(false);
-
-            if (!claimed)
-            {
-                continue;
-            }
-
-            await jobStore.EnqueueAsync(
-                new JobRecord
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = schedule.TenantId,
-                    ScheduleId = schedule.Id,
-                    HandlerKey = schedule.HandlerKey,
-                    Lane = schedule.Lane,
-                    TargetName = schedule.TargetName,
-                    Status = JobStatus.Pending,
-                    Payload = schedule.Payload,
-                    ScheduledFor = nextRunAt,
-                    CreatedAt = now,
-                },
-                // The schedule's payload is copied as written; an attribution
-                // envelope in it travels to the handler with the job.
-                JobPayload.Read(schedule.HandlerKey, schedule.Payload).Items,
-                stoppingToken).ConfigureAwait(false);
         }
+    }
+
+    private async Task DispatchScheduleAsync(JobSchedule schedule, DateTimeOffset now, CancellationToken stoppingToken)
+    {
+        if (schedule.NextRunAt is not { } nextRunAt || schedule.Cron is not { Length: > 0 } cron)
+        {
+            return;
+        }
+
+        DateTimeOffset newNextRunAt;
+
+        try
+        {
+            var timeZone = TimeZoneInfo.FindSystemTimeZoneById(schedule.TimeZone);
+            newNextRunAt = CronExpression.Parse(cron).GetNextOccurrence(now, timeZone);
+        }
+        catch (Exception exception) when (
+            exception is FormatException or TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "Schedule '{Name}' could not be resolved; skipping this tick.", schedule.Name);
+            }
+
+            return;
+        }
+
+        // Another instance may have claimed the same schedule at the same
+        // time; the job is only created if this instance's claim wins.
+        var claimed = await scheduleStore
+            .TryClaimNextRunAsync(schedule.Id, nextRunAt, newNextRunAt, now, stoppingToken)
+            .ConfigureAwait(false);
+
+        if (!claimed)
+        {
+            return;
+        }
+
+        await jobStore.EnqueueAsync(
+            new JobRecord
+            {
+                Id = TraconId.NewId(),
+                TenantId = schedule.TenantId,
+                ScheduleId = schedule.Id,
+                HandlerKey = schedule.HandlerKey,
+                Lane = schedule.Lane,
+                TargetName = schedule.TargetName,
+                Status = JobStatus.Pending,
+                Payload = schedule.Payload,
+                ScheduledFor = nextRunAt,
+                CreatedAt = now,
+            },
+            // The schedule's payload is copied as written; an attribution
+            // envelope in it travels to the handler with the job.
+            JobPayload.Read(schedule.HandlerKey, schedule.Payload).Items,
+            stoppingToken).ConfigureAwait(false);
     }
 
     private LeaseRenewal StartLeaseRenewal(
