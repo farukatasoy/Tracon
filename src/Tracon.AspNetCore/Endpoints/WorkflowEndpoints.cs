@@ -545,7 +545,7 @@ internal static class WorkflowEndpoints
         [FromServices] IWorkflowDefinitionStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IWorkflowFunctionCatalog? functions,
-        [FromServices] IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
+        [FromServices] IWorkflowRunLimits? runLimits,
         [FromServices] IAgentCatalog agents,
         [FromServices] IAgentDefinitionStore agentDefinitions,
         CancellationToken cancellationToken)
@@ -564,7 +564,7 @@ internal static class WorkflowEndpoints
         var definition = request.ToDefinition(name);
 
         if (await WorkflowDefinitionWriteRules.ValidateDefinitionAsync(
-                definition, functions, runTimeoutPolicy, agents, agentDefinitions, because: null, cancellationToken)
+                definition, functions, runLimits, agents, agentDefinitions, because: null, cancellationToken)
             .ConfigureAwait(false) is { } problem)
         {
             return problem.ToProblem();
@@ -628,7 +628,7 @@ internal static class WorkflowEndpoints
         [FromServices] IWorkflowDefinitionStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IWorkflowFunctionCatalog? functions,
-        [FromServices] IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
+        [FromServices] IWorkflowRunLimits? runLimits,
         [FromServices] IAgentCatalog agents,
         [FromServices] IAgentDefinitionStore agentDefinitions,
         [FromServices] IWorkflowRunner? runner,
@@ -676,7 +676,7 @@ internal static class WorkflowEndpoints
         if (await WorkflowDefinitionWriteRules.ValidateDefinitionAsync(
                 target,
                 functions,
-                runTimeoutPolicy,
+                runLimits,
                 agents,
                 agentDefinitions,
                 because: $"Version {request.Version} of workflow '{name}' cannot be restored as it is.",

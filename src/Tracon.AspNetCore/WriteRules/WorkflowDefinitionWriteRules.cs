@@ -16,7 +16,7 @@ internal static class WorkflowDefinitionWriteRules
     /// </summary>
     /// <param name="definition">The definition about to be written.</param>
     /// <param name="functions">The function registry; <see langword="null"/> when the engine is not registered.</param>
-    /// <param name="runTimeoutPolicy">The host's run timeout settings; <see langword="null"/> without the engine.</param>
+    /// <param name="runLimits">The host's run limits; <see langword="null"/> without the engine.</param>
     /// <param name="agents">The agent catalog.</param>
     /// <param name="agentDefinitions">The store that keeps stored agents' versions.</param>
     /// <param name="because">
@@ -34,7 +34,7 @@ internal static class WorkflowDefinitionWriteRules
     public static async ValueTask<WriteRuleFinding?> ValidateDefinitionAsync(
         WorkflowDefinition definition,
         IWorkflowFunctionCatalog? functions,
-        IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
+        IWorkflowRunLimits? runLimits,
         IAgentCatalog agents,
         IAgentDefinitionStore agentDefinitions,
         string? because,
@@ -55,10 +55,18 @@ internal static class WorkflowDefinitionWriteRules
         // The ceiling is the host's setting, read through the engine's seam.
         // Without the engine there is no ceiling to read and nothing to run the value;
         // the range was checked above.
-        if (runTimeoutPolicy is not null &&
-            WorkflowDefinitionValidator.RunTimeoutCeilingProblem(definition, runTimeoutPolicy.RunTimeout, runTimeoutPolicy.MaxRunTimeout) is { } ceilingProblem)
+        if (runLimits is not null &&
+            WorkflowDefinitionValidator.RunTimeoutCeilingProblem(definition, runLimits.RunTimeout, runLimits.MaxRunTimeout) is { } ceilingProblem)
         {
             return Invalid(because, ceilingProblem);
+        }
+
+        // The limit on super-steps is the host's setting too. A chain longer than it can never finish; saving it would
+        // only move the failure to every run.
+        if (runLimits is not null &&
+            WorkflowDefinitionValidator.StepCountProblem(definition, runLimits.MaxSuperSteps) is { } stepCountProblem)
+        {
+            return Invalid(because, stepCountProblem);
         }
 
         // A function node's name IS checked at save time, unlike an agent

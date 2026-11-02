@@ -131,7 +131,7 @@ internal sealed class DefinitionImportPlanner
     private readonly AgentDefinitionValidator _validator;
     private readonly IWorkflowDefinitionStore _workflows;
     private readonly IWorkflowFunctionCatalog? _functions;
-    private readonly IWorkflowRunTimeoutPolicy? _runTimeoutPolicy;
+    private readonly IWorkflowRunLimits? _runLimits;
     private readonly IAgentSkillStore _skills;
     private readonly AgentSkillCatalog _skillCatalog;
     private readonly TraconOptions _options;
@@ -147,7 +147,7 @@ internal sealed class DefinitionImportPlanner
     /// <param name="validator">The agent validator.</param>
     /// <param name="workflows">The workflow store.</param>
     /// <param name="functions">The workflow function registry; <see langword="null"/> when no engine is registered.</param>
-    /// <param name="runTimeoutPolicy">The workflow run timeout policy; <see langword="null"/> without the engine.</param>
+    /// <param name="runLimits">The workflow run limits; <see langword="null"/> without the engine.</param>
     /// <param name="skills">The skill store.</param>
     /// <param name="skillCatalog">The skill catalog.</param>
     /// <param name="options">The core options.</param>
@@ -163,7 +163,7 @@ internal sealed class DefinitionImportPlanner
         AgentDefinitionValidator validator,
         IWorkflowDefinitionStore workflows,
         IWorkflowFunctionCatalog? functions,
-        IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
+        IWorkflowRunLimits? runLimits,
         IAgentSkillStore skills,
         AgentSkillCatalog skillCatalog,
         TraconOptions options,
@@ -191,7 +191,7 @@ internal sealed class DefinitionImportPlanner
         _validator = validator;
         _workflows = workflows;
         _functions = functions;
-        _runTimeoutPolicy = runTimeoutPolicy;
+        _runLimits = runLimits;
         _skills = skills;
         _skillCatalog = skillCatalog;
         _options = options;
@@ -906,7 +906,7 @@ internal sealed class DefinitionImportPlanner
             }
 
             if (await WorkflowDefinitionWriteRules
-                    .ValidateDefinitionAsync(candidate, _functions, _runTimeoutPolicy, catalog, store, because: null, cancellationToken)
+                    .ValidateDefinitionAsync(candidate, _functions, _runLimits, catalog, store, because: null, cancellationToken)
                     .ConfigureAwait(false) is { } finding)
             {
                 item.Reject(finding);

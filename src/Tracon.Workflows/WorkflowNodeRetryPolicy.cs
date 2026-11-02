@@ -28,6 +28,14 @@ namespace Tracon;
 /// <c>IRunErrorClassifier</c> cannot override this rule.
 /// </para>
 /// <para>
+/// A database failure (a <c>DbException</c>, a connection-pool timeout), from Tracon's store or from the node's own
+/// code, is not a class of its own here. It is retried only when the classifier reads it as transient, as any other error is: with the built-in
+/// classifier a store that timed out is retried and a connection the server reset is not. That is deliberate. The node's
+/// code can write before the failure reaches it, to the store or to anything else, and running it again repeats the
+/// write. A node that is safe to repeat retries inside its own body, or throws an exception the registered
+/// <c>IRunErrorClassifier</c> calls transient.
+/// </para>
+/// <para>
 /// The retry loop runs entirely INSIDE the node's own call — Microsoft
 /// Agent Framework calls the node's handler once per routed message and
 /// sees only its final outcome. A retried attempt is therefore invisible to

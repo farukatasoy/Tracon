@@ -268,6 +268,11 @@ public sealed class WorkflowNodeRetryTests
     /// a timeout and is retried; one it has no rule for is not. That is the answer the wrapped failure got too, kept as
     /// a row so a classifier rule for stores shows up as a changed one.
     /// </summary>
+    /// <remarks>
+    /// The rule is chosen, not left over: a node can write before the store fails, and running it again would repeat the
+    /// write. A store failure is therefore not a class the retry adds to the classifier's. Changing it changes what a node
+    /// with a side effect does on a database fault.
+    /// </remarks>
     [Theory]
     [InlineData("Timeout expired.  The timeout period elapsed prior to obtaining a connection from the pool.", 3)]
     [InlineData("Connection was reset by the server.", 1)]

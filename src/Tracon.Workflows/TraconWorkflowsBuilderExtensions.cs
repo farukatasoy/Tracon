@@ -101,7 +101,7 @@ public static class TraconWorkflowsBuilderExtensions
 
         // The save checks a definition's run timeout against the host's
         // ceiling through this seam, for the same reason.
-        services.TryAddSingleton<IWorkflowRunTimeoutPolicy, TraconWorkflowRunTimeoutPolicy>();
+        services.TryAddSingleton<IWorkflowRunLimits, TraconWorkflowRunLimits>();
 
         // The job worker (Tracon.Core) leases queued workflow jobs under a per-tenant ceiling it
         // cannot read from this package's options, so it asks through this seam. Registered here and nowhere

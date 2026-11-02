@@ -585,6 +585,51 @@ internal static class WorkflowDefinitionValidator
               $"'Tracon:Workflows:MaxRunTimeout' ({ceiling}).";
     }
 
+    /// <summary>
+    /// Refuses a sequential chain that has more steps than a run may take.
+    /// </summary>
+    /// <param name="definition">The definition.</param>
+    /// <param name="maxSuperSteps"><c>Tracon:Workflows:MaxSuperSteps</c>.</param>
+    /// <returns>User-facing error text; <see langword="null"/> when the chain can finish.</returns>
+    /// <remarks>
+    /// <para>
+    /// A chain takes one super-step for each of its steps (measured on MAF 1.26, for any mix of agent and function
+    /// nodes). A chain written as a plain list of agent names takes one more: the builder behind it adds a node that
+    /// collects the output. A chain that needs more super-steps than the limit used to be saved, and every run of it
+    /// ended <c>Failed</c> at the limit (a chain of 2 000 steps took 11 to 23 seconds to get there). The limit is a
+    /// setting of the host, so a definition saved under a higher limit meets the runner's own check when it runs.
+    /// </para>
+    /// <para>
+    /// Only <see cref="WorkflowKind.Sequential"/> grows with the number of steps. The other patterns reach the limit
+    /// through the conversation they hold, not through the length of their list, and no count says that in advance.
+    /// </para>
+    /// </remarks>
+    public static string? StepCountProblem(WorkflowDefinition definition, int maxSuperSteps)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.Kind != WorkflowKind.Sequential)
+        {
+            return null;
+        }
+
+        var listsNodes = definition.Nodes.Count > 0;
+        var steps = listsNodes ? definition.Nodes.Count : definition.AgentNames.Count;
+        var collector = listsNodes ? 0 : 1;
+        var needed = steps + collector;
+
+        if (needed <= maxSuperSteps)
+        {
+            return null;
+        }
+
+        return $"Workflow '{definition.Name}' chains {steps} steps, and a run takes {needed} super-steps for them" +
+               (collector == 0 ? "." : " (one for each step and one to collect the output).") +
+               $" The host allows {maxSuperSteps} ('Tracon:Workflows:MaxSuperSteps'), so every run would be stopped before " +
+               $"the end of the chain. Shorten the chain to at most {maxSuperSteps - collector} steps, split it into two workflows, " +
+               "or raise the limit.";
+    }
+
     /// <summary>Gets the longest run timeout a definition may set.</summary>
     /// <param name="installationRunTimeout"><c>Tracon:Workflows:RunTimeout</c>.</param>
     /// <param name="maxRunTimeout"><c>Tracon:Workflows:MaxRunTimeout</c>; <see langword="null"/> when not set.</param>

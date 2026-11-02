@@ -189,7 +189,7 @@ public sealed class WorkflowFunctionTimeoutValidationTests
 
         provider.GetRequiredService<IStartupValidator>().Validate();
 
-        var policy = provider.GetRequiredService<IWorkflowRunTimeoutPolicy>();
+        var policy = provider.GetRequiredService<IWorkflowRunLimits>();
 
         policy.RunTimeout.ShouldBe(TimeSpan.FromMinutes(10));
         policy.MaxRunTimeout.ShouldBe(TimeSpan.FromHours(1));
@@ -201,7 +201,7 @@ public sealed class WorkflowFunctionTimeoutValidationTests
         using var provider = Build();
 
         provider.GetRequiredService<IStartupValidator>().Validate();
-        provider.GetRequiredService<IWorkflowRunTimeoutPolicy>().MaxRunTimeout.ShouldBeNull();
+        provider.GetRequiredService<IWorkflowRunLimits>().MaxRunTimeout.ShouldBeNull();
     }
 
     private static ServiceProvider Build(params (string Key, string Value)[] settings)

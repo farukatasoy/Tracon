@@ -153,10 +153,17 @@ public sealed class TraconWorkflowOptions
     /// Gets or sets the maximum number of super-steps a single run may process.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This is the only structural guard against an infinite loop. In the
     /// Handoff and GroupChat patterns the model decides when to hand off; a
     /// poorly written instruction can make two agents hand off to each other
     /// forever.
+    /// </para>
+    /// <para>
+    /// A sequential chain takes one super-step for each of its steps, one more when it is written as a plain list of
+    /// agent names, so a chain that needs more than this can never finish. Saving such a workflow through the HTTP
+    /// API is refused with a <c>400</c> that names the longest chain that fits.
+    /// </para>
     /// </remarks>
     public int MaxSuperSteps { get; set; } = 100;
 

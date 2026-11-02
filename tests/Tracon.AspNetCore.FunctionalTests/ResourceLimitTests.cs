@@ -19,13 +19,14 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// The bounds are loose on purpose (ten times what was measured on a developer machine); they catch a case
 /// that stops being bounded, not one that gets 20% slower. The sizes are the smaller of the two measured
-/// sizes: a workflow of 200 agent steps (a run of 2 000 took about 14 seconds, because the graph is
-/// rebuilt at every run) and 2 000 tools (5 000 took about 1.5 seconds to compile and put 690 KB of tool
-/// definitions into every model request).
+/// sizes: a workflow of 90 agent steps, the longest chain the default super-step limit lets through (a chain of 2 000
+/// used to be saved and took 11 to 23 seconds to fail; it is refused at the save now), and 2 000 tools (5 000 took about
+/// 1.5 seconds to compile and put 690 KB of tool definitions into every model request).
 /// </para>
 /// <para>
-/// What these tests do NOT assert is a limit: none of the four sizes is refused with a 4xx today, and the
-/// model request and the session state grow with their input.
+/// What these tests do NOT assert is a limit on the tools and the session: none of those sizes is refused with a 4xx
+/// today, and the model request and the session state grow with their input. The length of a sequential chain is
+/// limited (<c>WorkflowStepCountSaveTests</c>).
 /// </para>
 /// </remarks>
 public sealed class ResourceLimitTests
@@ -35,7 +36,8 @@ public sealed class ResourceLimitTests
     [Fact]
     public async Task A_workflow_with_more_agent_steps_than_the_child_run_budget_is_saved_and_its_run_ends_failed_at_the_budget()
     {
-        const int Steps = 200;
+        // The most the default super-step limit (100) lets a chain of nodes have is 100; 90 leaves no doubt about the edge.
+        const int Steps = 90;
 
         await using var host = await TraconTestHost.StartAsync(builder =>
         {
@@ -63,7 +65,7 @@ public sealed class ResourceLimitTests
         var runs = await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 10_000 });
         var root = runs.Single(static run => run.ParentRunId is null);
 
-        // The tree budget stops the chain at the 26th step; without it the run would go on to the super-step limit.
+        // The tree budget stops the chain at the 26th step; without it the run would go on to the end of the chain.
         root.Status.ShouldBe(RunStatus.Failed);
         root.Error.ShouldNotBeNull().Type.ShouldBe("run_budget_exceeded");
         runs.Count(static run => run.ParentRunId is not null).ShouldBe(host.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<TraconOptions>>().Value.AgentGraph.MaxTotalRuns);

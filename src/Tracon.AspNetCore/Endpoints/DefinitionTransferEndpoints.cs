@@ -231,7 +231,7 @@ internal static class DefinitionTransferEndpoints
                 services.GetRequiredService<AgentDefinitionValidator>(),
                 services.GetRequiredService<IWorkflowDefinitionStore>(),
                 services.GetService<IWorkflowFunctionCatalog>(),
-                services.GetService<IWorkflowRunTimeoutPolicy>(),
+                services.GetService<IWorkflowRunLimits>(),
                 services.GetRequiredService<IAgentSkillStore>(),
                 services.GetRequiredService<AgentSkillCatalog>(),
                 services.GetRequiredService<IOptions<TraconOptions>>().Value,
