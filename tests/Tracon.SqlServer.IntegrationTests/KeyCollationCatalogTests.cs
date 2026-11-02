@@ -148,9 +148,10 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
         var columns = await ColumnsAsync(
             context,
             "c.collation_name IS NOT NULL AND (c.name IN (N'agent_name', N'workflow_name', N'skill_name', N'script_name', N'target_name', N'tool_name') " +
+            "OR (t.name = N'audit_log' AND c.name = N'entity') " +
             "OR (c.name = N'name' AND t.name IN (" + string.Join(", ", DefinitionTables.Select(static table => $"N'{table}'")) + ")))");
 
-        columns.Count.ShouldBeGreaterThan(30, "the query has to find the name columns it guards");
+        columns.Count.ShouldBeGreaterThan(33, "the query has to find the name columns it guards");
         columns
             .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
             .Select(static column => $"{column.Name} ({column.Collation})")

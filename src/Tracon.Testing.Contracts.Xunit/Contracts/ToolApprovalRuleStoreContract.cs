@@ -281,6 +281,14 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
         => await Store.DeleteAsync(tenantId, (string)key);
 
+    /// <summary>
+    /// The name is the client's: names that differ only in letter case are two servers. A store that folds
+    /// case merges them, and the second save replaces the first without a sign.
+    /// </summary>
+    [Fact]
+    public Task Names_that_differ_only_in_case_are_two_servers()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task Saved_server_is_read_back()
     {

@@ -52,7 +52,9 @@ public sealed class DefinitionNameUpgradeTests(SqlServerFixture fixture)
         ("skill_script_grants", "skill_name"), ("tool_approval_rules", "agent_name"), ("tool_approval_rules", "tool_name"),
         ("agent_files", "agent_name"), ("runs", "agent_name"), ("runs", "workflow_name"), ("sessions", "agent_name"),
         ("voice_sessions", "agent_name"), ("workflow_requests", "workflow_name"), ("pending_approvals", "tool_name"),
-        ("tool_invocations", "tool_name"), ("run_events", "tool_name"),
+        ("tool_invocations", "tool_name"), ("run_events", "tool_name"), ("agent_skill_resources", "name"), ("agent_skill_scripts", "name"),
+        ("mcp_servers", "name"), ("webhook_subscriptions", "name"), ("skill_script_grants", "script_name"), ("conversations", "agent_name"),
+        ("jobs", "target_name"), ("audit_log", "entity"),
     ];
 
     [Fact]
@@ -293,7 +295,34 @@ public sealed class DefinitionNameUpgradeTests(SqlServerFixture fixture)
             Name = "Invoice-Review",
             Description = "Invoice review.",
             Instructions = "Check every invoice.",
+            Resources = [new AgentSkillResourceDefinition { Name = "Policy.md", Content = "policy" }],
+            Scripts = [new AgentSkillScriptDefinition { Name = "Run-It", Extension = ".py", Content = "print(1)" }],
         });
+
+        await context.McpServers.SaveAsync(new McpServerDefinition
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Tenant,
+            Name = "Github-Mcp",
+            Description = "Sample server.",
+            Endpoint = new Uri("https://example.test/mcp"),
+            Enabled = true,
+        });
+
+        await context.Webhooks.SaveSubscriptionAsync(new WebhookSubscription
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Tenant,
+            Name = "Orders-Hook",
+            Url = "https://example.com/hook",
+            Events = ["run.completed"],
+            Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            Enabled = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        await context.Jobs.EnqueueAsync(TestData.Job(Tenant) with { TargetName = "Writer" }, ["item-1"]);
 
         await context.Evals.SaveSuiteAsync(TestData.EvalSuite(Tenant, "Suite-A"));
 
@@ -344,7 +373,7 @@ public sealed class DefinitionNameUpgradeTests(SqlServerFixture fixture)
         {
             TenantId = Tenant,
             SkillName = "Invoice-Review",
-            ScriptName = null,
+            ScriptName = "Run-It",
             GrantedBy = "admin@example.com",
             GrantedAt = now,
         });
@@ -382,6 +411,10 @@ public sealed class DefinitionNameUpgradeTests(SqlServerFixture fixture)
             $"VALUES (NEWID(), N'{Tenant}', '{SeedRunId}', N'Session-1', N'Req-1', N'Get_Order', 0, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());",
             $"INSERT INTO {schema}.voice_sessions (id, tenant_id, session_id, agent_name, started_at) " +
             $"VALUES (NEWID(), N'{Tenant}', N'Session-1', N'Writer', SYSDATETIMEOFFSET());",
+            $"INSERT INTO {schema}.conversations (id, tenant_id, agent_name, created_at, updated_at) " +
+            $"VALUES (NEWID(), N'{Tenant}', N'Writer', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());",
+            $"INSERT INTO {schema}.audit_log (id, tenant_id, action, entity, created_at) " +
+            $"VALUES (NEWID(), N'{Tenant}', N'save', N'agent:Writer', SYSDATETIMEOFFSET());",
             $"INSERT INTO {schema}.workflow_requests (run_id, request_id, tenant_id, session_id, workflow_name, port_id, event_seq, requested_at, status) " +
             $"VALUES ('{SeedRunId}', N'Req-1', N'{Tenant}', N'Session-1', N'Review-Flow', N'port', 1, SYSDATETIMEOFFSET(), 0);",
         ];

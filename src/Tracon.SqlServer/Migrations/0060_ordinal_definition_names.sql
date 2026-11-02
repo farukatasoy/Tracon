@@ -16,7 +16,8 @@
 -- rules, experiments, files). SQL Server refuses to compare two columns of different collations ("Cannot
 -- resolve the collation conflict"), and a filter on the one column left case-insensitive would still list
 -- the runs of two agents as one. Every column that holds the name of an agent, a workflow, a skill, a skill
--- script or a tool changes together, and so does the target a schedule, a job or a trigger names.
+-- script or a tool changes together, and so do the target a schedule, a job or a trigger names and the entity an audit
+-- entry names (it carries the name of a definition, such as "agent:Support", and the audit list filters on it).
 --
 -- Left as they are, on purpose: the labels a run or a span carries for itself (a workflow node, a span name,
 -- a score name that an earlier migration already moved), the names of providers and tenants (the library
@@ -276,6 +277,12 @@ ALTER TABLE {schema}.tool_approval_rules ALTER COLUMN tool_name nvarchar(200) CO
 
 IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = N'tool_approval_rules_scope_uq' AND parent_object_id = OBJECT_ID(N'{schema}.tool_approval_rules'))
 ALTER TABLE {schema}.tool_approval_rules ADD CONSTRAINT tool_approval_rules_scope_uq UNIQUE (tenant_id, agent_name, tool_name, arguments_hash, conditions_hash, source_fingerprint);
+
+-- ---------------------------------------------------------------------------
+-- audit_log
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE {schema}.audit_log ALTER COLUMN entity nvarchar(200) COLLATE Latin1_General_BIN2 NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- runs

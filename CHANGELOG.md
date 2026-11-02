@@ -14,8 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sessions and the statistics of the two agents were listed and counted as one. Migration `0060_ordinal_definition_names` gives `Latin1_General_BIN2` to the name of every
   definition (agents and their version counters, workflows and their versions, skills with their resources and scripts, eval suites, experiments, inbound triggers,
   schedules, MCP servers, webhook subscriptions) and to every column that repeats an agent, workflow, skill, script or tool name: runs, sessions, conversations, voice
-  sessions, workflow requests, quotas and their usage, approval rules and pending approvals, tool invocations, run events, agent files, and the target a job, a schedule or a
-  trigger names. No value changes and no row is merged: names that were distinct stay distinct. Left alone: provider and tenant names (the library folds those to lower
+  sessions, workflow requests, quotas and their usage, approval rules and pending approvals, tool invocations, run events, agent files, the target a job, a schedule or a
+  trigger names, and the `entity` of an audit entry (`agent:Support`, which the audit list filters on). No value changes and no row is merged: names that were distinct stay distinct. Left alone: provider and tenant names (the library folds those to lower
   case before it stores them), handler and lane names, and the labels a span or a workflow node carries.
   What to do:
   - **Plan the upgrade window.** The migration is one command in one transaction and each table it rebuilds is closed to reads and writes until the whole
@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     or `COLLATE DATABASE_DEFAULT` on the view's side to ignore case again. The migration refreshes an existing `runs_v1`. A list ordered by a name now sorts by code point,
     capitals before lowercase letters.
   - SQL Server still ignores trailing spaces in every collation, so `Support` and `Support ` remain one name there.
+  - **Drop what you built over these columns before the migration, and build it again after.** An index, a statistic, a schema-bound view, a foreign key or a computed column of your own over one of the columns above stops the migration (`ALTER COLUMN` refuses a column something depends on): the host does not start while `AutoApplyMigrations` is on. Tracon's own objects are rebuilt by the migration.
 
   A custom store must compare these names by their characters too. New contract tests, which a store that folds case fails:
   `AgentDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions`, `WorkflowDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions`,
@@ -37,7 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `ExperimentStoreContract.Names_that_differ_only_in_case_are_two_experiments`, `InboundTriggerStoreContract.Names_that_differ_only_in_case_are_two_triggers`,
   `JobScheduleStoreContract.Names_that_differ_only_in_case_are_two_schedules`, `WebhookStoreContract.Names_that_differ_only_in_case_are_two_subscriptions`,
   `QuotaStoreContract.Agent_names_that_differ_only_in_case_are_two_quotas`, `ToolApprovalRuleStoreContract.Tool_names_that_differ_only_in_case_are_two_rules`,
-  `SkillScriptGrantContract.Skill_names_that_differ_only_in_case_are_two_grants`, `ToolInvocationContract.Tool_names_that_differ_only_in_case_are_two_tools_in_the_usage`,
+  `SkillScriptGrantContract.Skill_names_that_differ_only_in_case_are_two_grants`, `McpServerStoreContract.Names_that_differ_only_in_case_are_two_servers`, `ToolInvocationContract.Tool_names_that_differ_only_in_case_are_two_tools_in_the_usage`,
   `RunStoreContract.Runs_of_agent_names_that_differ_only_in_case_are_listed_and_counted_apart` and
   `SessionStoreContract.Sessions_of_agent_names_that_differ_only_in_case_are_listed_apart`. `TenantIsolationContract` gains the protected helper
   `AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync` they share.
@@ -730,6 +731,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A provider's `Retry-After` above 60 seconds is no longer obeyed.** The client libraries behind OpenAI, OpenAI-compatible, Azure OpenAI and Anthropic waited as long as the header said, with no ceiling: a day-long value held the run until the caller gave up, and a value past about 49 days or a far-future HTTP date made the retry loop fail with `ArgumentOutOfRangeException` instead of the 429. Such a header is now ignored and the client's ordinary backoff applies, so the run fails with the provider's 429 or falls back to the next model. A delay of 60 seconds or less is obeyed as before.
 - **A workflow run that was answered no longer ends without its output now and then.** After a human answer the run set the answer going and then asked the framework for the status of the run
   to decide whether to watch it again. The work the answer released can be over within a millisecond, and then the status said the run was idle and the output event, which the framework had
   already queued, was never read: the run was recorded as completed with no output (about one answer in a hundred under load). The runner now watches again when the run is idle and nothing

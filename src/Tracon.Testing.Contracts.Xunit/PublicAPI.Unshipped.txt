@@ -1229,3 +1229,4 @@ Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Tool_names_that_d
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Tool_names_that_differ_only_in_case_are_two_tools_in_the_usage() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Names_that_differ_only_in_case_are_two_subscriptions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.Names_that_differ_only_in_case_are_two_servers() -> System.Threading.Tasks.Task!

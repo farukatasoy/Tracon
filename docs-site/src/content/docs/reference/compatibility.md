@@ -120,7 +120,7 @@ different database. Use a shared URI such as
 required.
 
 On SQL Server the names of definitions (agents, workflows, skills, schedules and similar), and every column that repeats one
-(the agent of a run or a session, the tool of an invocation), use `Latin1_General_BIN2` too: `Support` and `support` are two agents on
+(the agent of a run or a session, the tool of an invocation, the entity of an audit entry), use `Latin1_General_BIN2` too: `Support` and `support` are two agents on
 every store, and a request that spells a name differently from the definition answers `404`. A query of your own that joins one of these
 columns to a column of another collation fails with "Cannot resolve the collation conflict"; write `COLLATE Latin1_General_BIN2` on your side.
 SQL Server ignores trailing spaces in any collation, so `Support` and `Support ` are one name there.

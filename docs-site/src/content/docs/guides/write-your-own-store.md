@@ -281,7 +281,9 @@ easy to miss in a custom store because everything else keeps passing without the
   (`IdempotencyStoreContract.Keys_that_differ_only_in_case_are_two_reservations`), a file path
   (`AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files`), a workflow
   checkpoint and session id, a run score's author, message id and name, and a rate-limit
-  partition key. Compare them ordinally; do not fold them to lower case, because the identifier
+  partition key. So does the name of a definition: an agent, a workflow, a skill, a schedule and
+  the other definitions each have a contract test that saves `Support` and `support` and expects
+  two records, and so does the agent name on a run or a session. Compare them ordinally; do not fold them to lower case, because the identifier
   you return has to be the one that was written. The shipped SQL Server store does not tell
   `abc` from `abc ` (that engine ignores trailing spaces in every collation); the contract does
   not test it, and your store may keep the two apart.
