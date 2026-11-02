@@ -102,16 +102,26 @@ public sealed class TraconToolOptions
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Gets or sets the default byte limit for a tool result. <see langword="null"/> means
-    /// unlimited, which is the default: an upgrade never silently cuts output.
+    /// Gets or sets the default byte limit for a tool result. The default is 1 MiB
+    /// (1048576 bytes); <see langword="null"/> means unlimited.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Used when a tool's own registration does not set
     /// <see cref="ToolDescriptor.MaxOutputBytes"/>. Bounding output inside the
     /// tool's own body is always better; this is the installation-wide last
     /// defence for the day that bound is forgotten.
+    /// </para>
+    /// <para>
+    /// A result over the limit is trimmed into an envelope and a
+    /// <see cref="RunEventType.ToolOutputTruncated"/> event is written. The limit is not a
+    /// formality: a result reaches the model, the run record and the session state in full, and
+    /// a 20 MB result from a tool server cost about 1.6 GB of memory. Set a larger value for a
+    /// tool that must return more, or <see langword="null"/> in code to remove the limit; a
+    /// configuration key cannot be <see langword="null"/>, so write a large number there.
+    /// </para>
     /// </remarks>
-    public int? DefaultMaxOutputBytes { get; set; }
+    public int? DefaultMaxOutputBytes { get; set; } = 1024 * 1024;
 
     /// <summary>
     /// Gets or sets the longest an <see cref="IToolApprovalPresenter"/> may run before an

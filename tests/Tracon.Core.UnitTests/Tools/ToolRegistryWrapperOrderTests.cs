@@ -164,6 +164,57 @@ public sealed class ToolRegistryWrapperOrderTests
     }
 
     [Fact]
+    public async Task A_result_over_one_mebibyte_is_trimmed_when_nobody_configured_a_limit()
+    {
+        var registration = new TraconToolRegistration(
+            AIFunctionFactory.Create(() => new string('a', 2 * 1024 * 1024), "big_report"));
+
+        var result = await InvokeWithDefaultAsync(registration, configure: null);
+
+        Encoding.UTF8.GetByteCount((string)result!).ShouldBeLessThanOrEqualTo(1024 * 1024);
+        ((string)result!).ShouldContain("\"truncated\"");
+    }
+
+    [Fact]
+    public async Task A_result_over_one_mebibyte_passes_whole_when_the_installation_removes_the_limit()
+    {
+        var registration = new TraconToolRegistration(
+            AIFunctionFactory.Create(() => new string('a', 2 * 1024 * 1024), "big_report"));
+
+        var result = await InvokeWithDefaultAsync(registration, static options => options.Tools.DefaultMaxOutputBytes = null);
+
+        // The result is the tool's JSON text, quotes included; what matters is that nothing was dropped.
+        ((string)result!).Length.ShouldBeGreaterThanOrEqualTo(2 * 1024 * 1024);
+        ((string)result!).ShouldNotContain("\"truncated\"");
+    }
+
+    private static async Task<object?> InvokeWithDefaultAsync(TraconToolRegistration registration, Action<TraconOptions>? configure)
+    {
+        var services = new ServiceCollection();
+        var options = services.AddOptions<TraconOptions>();
+
+        if (configure is not null)
+        {
+            options.Configure(configure);
+        }
+
+        var registry = new ToolRegistry(
+            [registration],
+            new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
+            NoOpToolArgumentsValidator.Instance,
+            services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<TraconOptions>>(),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
+
+        registry.TryGet(registration.Function.Name, out var tool).ShouldBeTrue();
+
+        return await ((AIFunction)tool!).InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public async Task A_registration_level_output_limit_overrides_the_installation_default()
     {
         // Same precedence rule as Timeout: the tool's own registration wins.

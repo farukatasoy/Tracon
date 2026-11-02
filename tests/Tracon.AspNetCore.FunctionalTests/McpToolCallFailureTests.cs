@@ -20,10 +20,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// is answered at once.
 /// </para>
 /// <para>
-/// A result of megabytes is another matter. With no limit set (the default, so that an upgrade never cuts output) a result
-/// of 20 MB reached the model request whole, and the run's tool-call record and the session state held it whole as well;
-/// only the run's events were cut (8 KB each). With <see cref="TraconToolOptions.DefaultMaxOutputBytes"/> set, the result
-/// is trimmed before any of the three. This class holds that second half; the first is a decision about the default.
+/// A result of megabytes is another matter. With no limit a result of 20 MB reached the model request whole, and the run's
+/// tool-call record and the session state held it whole as well (about 1.6 GB of memory); only the run's events were cut
+/// (8 KB each). <see cref="TraconToolOptions.DefaultMaxOutputBytes"/> trims the result before any of the three, and it is
+/// 1 MiB unless the installation says otherwise, so a server nobody configured a limit for is bounded too.
 /// </para>
 /// </remarks>
 public sealed class McpToolCallFailureTests
@@ -162,6 +162,42 @@ public sealed class McpToolCallFailureTests
         }
 
         truncated.ShouldBe(1, "the run says that it cut the result");
+    }
+
+    [Fact]
+    public async Task A_result_of_megabytes_is_trimmed_by_the_default_limit_when_nobody_set_one()
+    {
+        var big = new string('x', 4 * 1024 * 1024);
+
+        await using var server = await LookupMcpServer.StartAsync("fine");
+        var model = NewModel();
+        await using var host = await StartAsync(model, configure: null);
+        await SaveServerAsync(host, server.Endpoint);
+
+        server.CallHandler = _ => Task.FromResult(big);
+        model.CallsTool(ToolName);
+
+        using var bound = BoundedToken();
+        using var response = await PostRunAsync(host, "default-limit", bound.Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var run = await SingleRunAsync(host, "default-limit");
+        var store = host.Services.GetRequiredService<IRunStore>();
+
+        run.Status.ShouldBe(RunStatus.Completed);
+
+        var resultSeenByModel = model.Requests[^1].Messages
+            .SelectMany(static message => message.Contents)
+            .OfType<Microsoft.Extensions.AI.FunctionResultContent>()
+            .Single()
+            .Result?.ToString();
+
+        resultSeenByModel.ShouldNotBeNull().Length.ShouldBeLessThanOrEqualTo(new TraconToolOptions().DefaultMaxOutputBytes!.Value);
+
+        var invocation = (await store.ListToolInvocationsAsync(run.Id, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+        invocation.Result.ShouldNotBeNull().Length.ShouldBeLessThanOrEqualTo(new TraconToolOptions().DefaultMaxOutputBytes!.Value);
     }
 
     private static async Task<string> HangUntilCancelledAsync(CancellationToken cancellationToken)
