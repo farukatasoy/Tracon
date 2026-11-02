@@ -92,7 +92,7 @@ public sealed class StrictConsumerMatrixTests(TemplateFixture fixture)
     public async Task A_path_with_a_space_and_Turkish_letters_builds_and_receives_the_files_the_build_writes(NormalizationForm form)
     {
         using var directory = new TempDirectory();
-        var projectDirectory = Path.Combine(directory.Path, "Çağrı Ö".Normalize(form), "proje");
+        var projectDirectory = Path.Combine(directory.Path, "\u00C7a\u011Fr\u0131 \u00D6".Normalize(form), "project");
         Directory.CreateDirectory(projectDirectory);
 
         await StrictConsumerProject.WriteAsync(

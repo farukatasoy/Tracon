@@ -157,7 +157,9 @@ internal static class CorpusRunner
             .Where(static diagnostic => diagnostic.Id is "AD0001" or "AD0002")
             .Select(static diagnostic => diagnostic.ToString()));
 
+        // The tool generator's own diagnostics (TRC0001-TRC0012) come from the generator run, not from the analyzer.
         var findings = diagnostics
+            .Concat(generatorDiagnostics)
             .Where(static diagnostic => diagnostic.Id.StartsWith("TRC", StringComparison.Ordinal))
             .Select(static diagnostic =>
             {
