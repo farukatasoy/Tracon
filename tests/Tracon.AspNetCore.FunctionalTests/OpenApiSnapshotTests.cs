@@ -125,8 +125,14 @@ public sealed class OpenApiSnapshotTests
     /// <summary>
     /// Starts a host with every optional endpoint turned on: the surface the snapshot describes.
     /// </summary>
+    /// <param name="configureMoreServices">Adds services on top of the surface, such as authorization policies.</param>
+    /// <param name="configureMoreEndpoints">Adjusts the endpoint options on top of the surface, such as a static token.</param>
+    /// <param name="configureMoreTracon">Adjusts the builder on top of the surface, such as tenancy.</param>
     /// <returns>The running host.</returns>
-    internal static async Task<TraconTestHost> StartFullSurfaceHostAsync()
+    internal static async Task<TraconTestHost> StartFullSurfaceHostAsync(
+        Action<IServiceCollection>? configureMoreServices = null,
+        Action<TraconEndpointOptions>? configureMoreEndpoints = null,
+        Action<ITraconBuilder>? configureMoreTracon = null)
     {
         // The document is generated with every optional endpoint turned
         // on. A default-off endpoint (like /api/diagnostics) is still part of the
@@ -135,16 +141,24 @@ public sealed class OpenApiSnapshotTests
         // is built from this one file.
         return await TraconTestHost.StartAsync(
             withOpenApi: true,
-            configureEndpoints: options => options.EnableDiagnosticsEndpoint = true,
+            configureEndpoints: options =>
+            {
+                options.EnableDiagnosticsEndpoint = true;
+                configureMoreEndpoints?.Invoke(options);
+            },
             // 🚨 The live voice routes are mapped only when UseLiveVoice() registered
             // the layer, so the document would silently omit three endpoints — and
             // with them the .NET client, the TypeScript client and the http-api/
             // site pages, all of which are generated from this one file.
-            configureTracon: static builder => builder
-                .UseOpenAI(options => options.ApiKey = "openapi-placeholder-key")
-                .UseOpenAILive()
-                .UseLiveVoice(),
-            configureServices: static services =>
+            configureTracon: builder =>
+            {
+                builder
+                    .UseOpenAI(options => options.ApiKey = "openapi-placeholder-key")
+                    .UseOpenAILive()
+                    .UseLiveVoice();
+                configureMoreTracon?.Invoke(builder);
+            },
+            configureServices: services =>
             {
                 services.Configure<TraconImageOptions>(options =>
                 {
@@ -153,6 +167,7 @@ public sealed class OpenApiSnapshotTests
                     options.Model = "image-1";
                 });
                 services.AddSingleton<IImageGenerator, OpenApiImageGenerator>();
+                configureMoreServices?.Invoke(services);
             });
     }
 

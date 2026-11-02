@@ -525,6 +525,7 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Event_fields_round_trip() -> S
 Tracon.Testing.Contracts.Storage.RunStoreContract.Events_are_read_in_sequence_order() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Every_cost_total_includes_the_cache_charge() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_that_reports_only_a_cache_write_count_still_produces_a_usage_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Paging_through_runs_that_started_at_the_same_instant_lists_each_run_once() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Statistics_total_the_cache_writes_of_every_run_beside_the_input_total() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_write_charge_round_trips_with_its_unit_prices_and_counts_toward_every_total() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_write_counters_round_trip_and_stay_null_when_they_were_never_reported() -> System.Threading.Tasks.Task!

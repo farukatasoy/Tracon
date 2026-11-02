@@ -3601,4 +3601,48 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         (await Store.GetLastEventSequenceAsync(runId)).ShouldBe(0);
     }
+
+    /// <summary>
+    /// Pages over runs that started at the same instant list every run once, in the same order each time.
+    /// </summary>
+    /// <remarks>
+    /// A page is a skip and a take over a sorted list. When the sort key is the start time alone, runs that share
+    /// one have no fixed order: the database may hand them back differently on two reads, so a run lands on two
+    /// pages or on none. A batch of runs started in one tick shares a timestamp, so this is the common case, not an
+    /// edge.
+    /// </remarks>
+    [Fact]
+    public async Task Paging_through_runs_that_started_at_the_same_instant_lists_each_run_once()
+    {
+        var agent = $"paging-{TraconId.NewId():N}";
+        var startedAt = new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero);
+        var expected = new List<Guid>();
+
+        for (var i = 0; i < 17; i++)
+        {
+            var runId = TraconId.NewId();
+            expected.Add(runId);
+            await Store.StartRunAsync(TestData.Run(runId, agent) with { StartedAt = startedAt });
+        }
+
+        async Task<List<Guid>> PageThroughAsync()
+        {
+            var seen = new List<Guid>();
+
+            for (var skip = 0; skip < expected.Count + 6; skip += 4)
+            {
+                var page = await Store.QueryRunsAsync(new RunQuery { AgentName = agent, Skip = skip, Take = 4 });
+                seen.AddRange(page.Select(static run => run.Id));
+            }
+
+            return seen;
+        }
+
+        var first = await PageThroughAsync();
+        var second = await PageThroughAsync();
+
+        first.Count.ShouldBe(expected.Count, "a run was listed twice or not at all");
+        first.ShouldBe(expected, ignoreOrder: true);
+        second.ShouldBe(first, "the same pages in a different order on the second read");
+    }
 }
