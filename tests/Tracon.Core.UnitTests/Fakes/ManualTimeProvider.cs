@@ -26,6 +26,13 @@ internal sealed class ManualTimeProvider : TimeProvider
 
     public override long GetTimestamp() => _timestamp;
 
+    /// <summary>
+    /// Steps only the wall clock, in either direction, as a time sync correction or a resumed virtual machine does:
+    /// no time passes on the monotonic clock.
+    /// </summary>
+    /// <param name="amount">How far to step the wall clock.</param>
+    public void StepWallClock(TimeSpan amount) => _now += amount;
+
     /// <summary>Moves both clocks forward. A negative amount moves only the wall clock.</summary>
     /// <param name="amount">How far to move.</param>
     public void Advance(TimeSpan amount)

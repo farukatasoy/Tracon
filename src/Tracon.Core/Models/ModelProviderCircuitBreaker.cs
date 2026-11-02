@@ -100,7 +100,7 @@ internal sealed class ModelProviderCircuitBreaker
                 return;
             }
 
-            var elapsed = _timeProvider.GetUtcNow() - current.OpenedAt;
+            var elapsed = _timeProvider.GetElapsedTime(current.OpenedTimestamp);
 
             if (elapsed < breakDuration)
             {
@@ -110,7 +110,7 @@ internal sealed class ModelProviderCircuitBreaker
                     $"Will retry in {(breakDuration - elapsed).TotalSeconds:F0}s.")
                 {
                     ProviderName = providerName,
-                    RetryAfter = current.OpenedAt + breakDuration,
+                    RetryAfter = _timeProvider.GetUtcNow() + (breakDuration - elapsed),
                 };
             }
 
@@ -165,7 +165,7 @@ internal sealed class ModelProviderCircuitBreaker
                 var reopened = new CircuitBreakerState(
                     CircuitPhase.Open,
                     current.ConsecutiveFailures + 1,
-                    _timeProvider.GetUtcNow());
+                    _timeProvider.GetTimestamp());
 
                 if (_states.TryUpdate(new CircuitKey(providerName, credentialScope), reopened, current))
                 {
@@ -178,7 +178,7 @@ internal sealed class ModelProviderCircuitBreaker
             var failures = current.ConsecutiveFailures + 1;
 
             var next = failures >= threshold
-                ? new CircuitBreakerState(CircuitPhase.Open, failures, _timeProvider.GetUtcNow())
+                ? new CircuitBreakerState(CircuitPhase.Open, failures, _timeProvider.GetTimestamp())
                 : new CircuitBreakerState(CircuitPhase.Closed, failures, default);
 
             if (_states.TryUpdate(new CircuitKey(providerName, credentialScope), next, current))
@@ -208,7 +208,7 @@ internal sealed class ModelProviderCircuitBreaker
         }
 
         var breakDuration = _optionsMonitor.CurrentValue.CircuitBreaker.BreakDuration;
-        var elapsed = _timeProvider.GetUtcNow() - state.OpenedAt;
+        var elapsed = _timeProvider.GetElapsedTime(state.OpenedTimestamp);
 
         if (elapsed >= breakDuration)
         {
@@ -242,7 +242,9 @@ internal sealed class ModelProviderCircuitBreaker
         HalfOpen,
     }
 
-    private sealed record CircuitBreakerState(CircuitPhase Phase, int ConsecutiveFailures, DateTimeOffset OpenedAt)
+    // The moment the circuit opened is a monotonic timestamp: a break is a duration, and a wall clock that is
+    // stepped while the circuit is open must neither hold it open for the step nor close it early.
+    private sealed record CircuitBreakerState(CircuitPhase Phase, int ConsecutiveFailures, long OpenedTimestamp)
     {
         public static readonly CircuitBreakerState Initial = new(CircuitPhase.Closed, 0, default);
     }
