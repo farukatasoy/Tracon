@@ -852,6 +852,10 @@ provider is called.
 
 `Preflight.Enabled` is off by default: a wrong estimate stops a run that
 would have succeeded, and that risk needs an explicit opt-in.
+A long session is sent to the model whole: a session of 20 000 messages put 1.4 MB into every request.
+Tracon sets no byte limit of its own on a request, because a byte count knows nothing of the model's
+window and would be too tight for one model and too loose for the next. The pre-flight check and
+[compaction](/concepts/agents/) bound it by the window; turn them on for sessions that grow.
 `ReserveRatio` (default `0.2`, from `0` to `1`) sets aside a share of the window for the answer;
 a prompt estimated above the remaining budget returns `400` with the counted
 and allowed token numbers, and no provider is contacted.

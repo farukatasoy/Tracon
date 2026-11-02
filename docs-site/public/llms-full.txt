@@ -4243,6 +4243,15 @@ never break the JSON the model reads:
 shortened answer would lead the model to a confident, wrong conclusion. A result that
 already fits is returned exactly as the tool produced it, never wrapped.
 
+### How many tools an agent may carry
+
+Every tool's definition goes into every model request: 5 000 tools put about 690 KB of definitions
+into each one, and OpenAI refuses a request with more than 128. An agent carries at most
+`Tools.MaxToolsPerAgent` tools (128 by default); one over the limit does not compile, and the error names
+the count and the option. The count is what the model would be sent: the tools the definition selects,
+the vector search tool and the sub-agent tools of the `Tool` call mode. Raise the option for a provider
+that accepts more, or give the agent fewer tools and let it call other agents.
+
 ### Concurrent tool calls
 
 By default, when a model turn calls several independent tools at once, Tracon
@@ -14564,6 +14573,10 @@ provider is called.
 
 `Preflight.Enabled` is off by default: a wrong estimate stops a run that
 would have succeeded, and that risk needs an explicit opt-in.
+A long session is sent to the model whole: a session of 20 000 messages put 1.4 MB into every request.
+Tracon sets no byte limit of its own on a request, because a byte count knows nothing of the model's
+window and would be too tight for one model and too loose for the next. The pre-flight check and
+[compaction](/concepts/agents/) bound it by the window; turn them on for sessions that grow.
 `ReserveRatio` (default `0.2`, from `0` to `1`) sets aside a share of the window for the answer;
 a prompt estimated above the remaining budget returns `400` with the counted
 and allowed token numbers, and no provider is contacted.
@@ -23002,6 +23015,7 @@ script.
 | `UtilityModel` | `null` | Optional model binding for compaction summarization. `Provider` and `Model` are both required, or no binding is built. A `Temperature`, `TopP` or `MaxOutputTokens` that is not a number stops the host at startup; an empty one means the provider default |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `1048576` (1 MiB) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes. A longer result is trimmed into an envelope. Code can set `null` for no limit; a configuration key cannot, so write a large number there |
+| `Tools:MaxToolsPerAgent` | `128` | Most tools one agent may carry (the selected ones, the vector search tool and the sub-agent tools). An agent over it does not compile and the error names this key. Must be at least 1 |
 | `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/tools/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
 
 Non-positive graph token, cost, or run limits remove that limit. See

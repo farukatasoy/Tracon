@@ -306,6 +306,15 @@ never break the JSON the model reads:
 shortened answer would lead the model to a confident, wrong conclusion. A result that
 already fits is returned exactly as the tool produced it, never wrapped.
 
+### How many tools an agent may carry
+
+Every tool's definition goes into every model request: 5 000 tools put about 690 KB of definitions
+into each one, and OpenAI refuses a request with more than 128. An agent carries at most
+`Tools.MaxToolsPerAgent` tools (128 by default); one over the limit does not compile, and the error names
+the count and the option. The count is what the model would be sent: the tools the definition selects,
+the vector search tool and the sub-agent tools of the `Tool` call mode. Raise the option for a provider
+that accepts more, or give the agent fewer tools and let it call other agents.
+
 ### Concurrent tool calls
 
 By default, when a model turn calls several independent tools at once, Tracon

@@ -144,6 +144,7 @@ script.
 | `UtilityModel` | `null` | Optional model binding for compaction summarization. `Provider` and `Model` are both required, or no binding is built. A `Temperature`, `TopP` or `MaxOutputTokens` that is not a number stops the host at startup; an empty one means the provider default |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `1048576` (1 MiB) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes. A longer result is trimmed into an envelope. Code can set `null` for no limit; a configuration key cannot, so write a large number there |
+| `Tools:MaxToolsPerAgent` | `128` | Most tools one agent may carry (the selected ones, the vector search tool and the sub-agent tools). An agent over it does not compile and the error names this key. Must be at least 1 |
 | `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/tools/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
 
 Non-positive graph token, cost, or run limits remove that limit. See
