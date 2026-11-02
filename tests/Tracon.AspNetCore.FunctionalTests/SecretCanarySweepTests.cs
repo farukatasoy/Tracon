@@ -241,7 +241,7 @@ public sealed class SecretCanarySweepTests
         }
     }
 
-    private static HttpRequestMessage Authorized(HttpMethod method, string url, string? bearer)
+    internal static HttpRequestMessage Authorized(HttpMethod method, string url, string? bearer)
     {
         var request = new HttpRequestMessage(method, new Uri(url, UriKind.Relative));
 
@@ -253,8 +253,15 @@ public sealed class SecretCanarySweepTests
         return request;
     }
 
-    /// <summary>Sends the request and appends the status line, the headers and the body (a stream is read for its headers only).</summary>
-    private static async Task<HttpStatusCode> SendAsync(TraconTestHost host, HttpRequestMessage request, StringBuilder seen)
+    /// <summary>
+    /// Sends the request and appends the status line, the headers and the body (a stream is read for its headers only,
+    /// unless <paramref name="readEventStreams"/> says the stream ends by itself).
+    /// </summary>
+    internal static async Task<HttpStatusCode> SendAsync(
+        TraconTestHost host,
+        HttpRequestMessage request,
+        StringBuilder seen,
+        bool readEventStreams = false)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(10));
@@ -265,7 +272,7 @@ public sealed class SecretCanarySweepTests
 
             seen.AppendLine(CultureInfo.InvariantCulture, $"{(int)reply.StatusCode} {reply.Headers} {reply.Content.Headers}");
 
-            if (reply.Content.Headers.ContentType?.MediaType is not "text/event-stream")
+            if (readEventStreams || reply.Content.Headers.ContentType?.MediaType is not "text/event-stream")
             {
                 seen.AppendLine(await reply.Content.ReadAsStringAsync(timeout.Token));
             }
