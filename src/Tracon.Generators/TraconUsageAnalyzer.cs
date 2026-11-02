@@ -221,7 +221,10 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
                 DescribeSecretTarget(literal, type)));
         }
 
-        if (creation.Initializer is null)
+        // Only a type that BINDS a model to a provider names one. Other Tracon types carry a property called Provider
+        // as a label (a tool's usage record says which provider did the work), and reading that as a binding reported
+        // a provider the application never needed to register.
+        if (creation.Initializer is null || !IsModelProviderBinding(type))
         {
             return;
         }
@@ -755,6 +758,16 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
 
     private static bool IsTraconSymbol(ISymbol symbol)
         => symbol.ContainingAssembly?.Name.StartsWith(TraconAssemblyPrefix, StringComparison.Ordinal) == true;
+
+    /// <summary>
+    /// Whether a Tracon type binds a model to a provider by name: the agent's binding and one link of its fallback chain.
+    /// </summary>
+    /// <remarks>
+    /// By full name, the way the ambient-scope rules recognise their types. Other types with a <c>Provider</c> property
+    /// (a tool's usage record, a speech request) use the word as a label and must not count.
+    /// </remarks>
+    private static bool IsModelProviderBinding(INamedTypeSymbol type)
+        => FullName(type) is "Tracon.ModelBinding" or "Tracon.ModelFallback";
 
     private static string GetFileName(string path)
     {

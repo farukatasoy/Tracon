@@ -117,7 +117,7 @@ internal static class AnalyzerTestHelper
     /// Supplies the <c>build_property.*</c> entries that the SDK writes into a
     /// generated .editorconfig from <c>CompilerVisibleProperty</c> items.
     /// </summary>
-    private sealed class InMemoryOptionsProvider((string Key, string Value)[] properties) : AnalyzerConfigOptionsProvider
+    internal sealed class InMemoryOptionsProvider((string Key, string Value)[] properties) : AnalyzerConfigOptionsProvider
     {
         public override AnalyzerConfigOptions GlobalOptions { get; } = new InMemoryOptions(properties);
 
@@ -135,7 +135,7 @@ internal static class AnalyzerTestHelper
         }
     }
 
-    private sealed class InMemoryAdditionalText(string path, string text) : AdditionalText
+    internal sealed class InMemoryAdditionalText(string path, string text) : AdditionalText
     {
         public override string Path { get; } = path;
 
