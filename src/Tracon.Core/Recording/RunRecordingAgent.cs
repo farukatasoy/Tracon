@@ -586,48 +586,60 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             }
         }
 
-        var pendingInputs = PendingToolInputs(start.Scope);
-
-        var streamingStatus = pendingApproval is not null
-            ? RunStatus.Failed
-            : pendingApprovalWaits
-                ? RunStatus.AwaitingApproval
-                : pendingInputs.Count > 0
-                    ? RunStatus.AwaitingInput
-                    : RunStatus.Completed;
-
-        string? closingPayload = null;
-
-        if (streamingStatus == RunStatus.AwaitingApproval)
+        // 🚨 The closing steps run after the last frame left, outside the try above, with the CALLER's token. A caller
+        // that goes away in that window (a client disconnect at the end of the stream) cancels that token, the store
+        // refuses the closing write, and the run stayed Running with its span open: the buffered path closes such a
+        // run Canceled in its catch, and so does this one now.
+        try
         {
-            var approvalMessages = new[] { new ChatMessage(ChatRole.Assistant, approvalContents ?? []) };
-            var pendingRequests = ChildRunApproval.CollectRequests(approvalMessages);
-            var presentations = await ResolvePresentationsAsync(pendingRequests, scope, cancellationToken)
-                .ConfigureAwait(false);
+            var pendingInputs = PendingToolInputs(start.Scope);
 
-            closingPayload = BuildAwaitingApprovalPayload(pendingRequests, presentations);
+            var streamingStatus = pendingApproval is not null
+                ? RunStatus.Failed
+                : pendingApprovalWaits
+                    ? RunStatus.AwaitingApproval
+                    : pendingInputs.Count > 0
+                        ? RunStatus.AwaitingInput
+                        : RunStatus.Completed;
 
-            await InvokeBeforePendingApprovalAsync(options, approvalMessages, presentations, cancellationToken)
-                .ConfigureAwait(false);
+            string? closingPayload = null;
 
-            // The same rule as the buffered path: both are announced, the status stays AwaitingApproval.
-            await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
-                .ConfigureAwait(false);
+            if (streamingStatus == RunStatus.AwaitingApproval)
+            {
+                var approvalMessages = new[] { new ChatMessage(ChatRole.Assistant, approvalContents ?? []) };
+                var pendingRequests = ChildRunApproval.CollectRequests(approvalMessages);
+                var presentations = await ResolvePresentationsAsync(pendingRequests, scope, cancellationToken)
+                    .ConfigureAwait(false);
+
+                closingPayload = BuildAwaitingApprovalPayload(pendingRequests, presentations);
+
+                await InvokeBeforePendingApprovalAsync(options, approvalMessages, presentations, cancellationToken)
+                    .ConfigureAwait(false);
+
+                // The same rule as the buffered path: both are announced, the status stays AwaitingApproval.
+                await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else if (streamingStatus == RunStatus.AwaitingInput)
+            {
+                closingPayload = BuildAwaitingToolInputPayload(pendingInputs);
+
+                await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await CompleteAsync(
+                scope,
+                streamingStatus,
+                ToRunUsage(usage),
+                pendingApproval is null ? null : ApprovalError(pendingApproval),
+                cancellationToken,
+                closingEventPayload: closingPayload).ConfigureAwait(false);
         }
-        else if (streamingStatus == RunStatus.AwaitingInput)
+        catch (OperationCanceledException) when (cancellationSource.IsCancellationRequested)
         {
-            closingPayload = BuildAwaitingToolInputPayload(pendingInputs);
-
-            await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
-                .ConfigureAwait(false);
+            await CompleteAsync(scope, RunStatus.Canceled, ToRunUsage(usage), null, CancellationToken.None).ConfigureAwait(false);
+            throw;
         }
-
-        await CompleteAsync(
-            scope,
-            streamingStatus,
-            ToRunUsage(usage),
-            pendingApproval is null ? null : ApprovalError(pendingApproval),
-            cancellationToken,
-            closingEventPayload: closingPayload).ConfigureAwait(false);
     }
 }
