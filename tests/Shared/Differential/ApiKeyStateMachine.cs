@@ -37,6 +37,8 @@ internal sealed class ApiKeyStateMachine : StateMachine<ApiKeyPlan, ApiKeyStep>
 {
     private const int SlotCount = 6;
 
+    private const int RaceKeyCount = 3;
+
     private static readonly DateTimeOffset?[] Expiries =
     [
         null,
@@ -68,6 +70,28 @@ internal sealed class ApiKeyStateMachine : StateMachine<ApiKeyPlan, ApiKeyStep>
 
     /// <inheritdoc />
     public override IReadOnlyList<ApiKeyStep> Steps(ApiKeyPlan plan) => plan.Steps;
+
+    /// <inheritdoc />
+    public override IReadOnlyList<ApiKeyStep> RaceSteps(ApiKeyPlan plan)
+    {
+        // The keys are created first, one after the other; the tasks then revoke, touch and read them. Creating keys from
+        // several tasks would make the slot a later step names depend on which create finished first.
+        var creates = plan.Steps.OfType<CreateKeyStep>().Take(RaceKeyCount).ToList();
+
+        while (creates.Count < RaceKeyCount)
+        {
+            creates.Add(new CreateKeyStep(creates.Count % 3, 0, [ApiKeyScope.RunsRead], null));
+        }
+
+        return [.. creates, .. plan.Steps.Where(static step => step is not CreateKeyStep)];
+    }
+
+    /// <inheritdoc />
+    public override int? RaceSetupLength(ApiKeyPlan plan) => RaceKeyCount;
+
+    /// <inheritdoc />
+    public override IReadOnlyList<ApiKeyStep> Snapshot(ApiKeyPlan plan)
+        => [.. Enumerable.Range(0, plan.Universe.Tenants.Length).Select(static tenant => (ApiKeyStep)new ListKeysStep(tenant)), .. Enumerable.Range(0, RaceKeyCount).Select(static slot => (ApiKeyStep)new FindKeyStep(slot))];
 
     /// <inheritdoc />
     public override IStepModel<ApiKeyStep> NewModel(ApiKeyPlan plan, ProviderTraits traits) => new ApiKeyModel(plan.Universe, traits);

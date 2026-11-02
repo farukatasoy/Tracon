@@ -13,7 +13,17 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
     /// <inheritdoc />
     internal override async ValueTask<DifferentialStores> CreateStoresAsync()
     {
-        await schema.ResetAsync();
+        try
+        {
+            await schema.ResetAsync();
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            // On a server started with a Turkish language the first pooled connection can come back from its reset with
+            // a login error ("the reset results in a different state than the initial login"). The pool drops that
+            // connection, so the second attempt opens a new one.
+            await schema.ResetAsync();
+        }
 
         return new DifferentialStores
         {
@@ -24,7 +34,7 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
                 ReadEchoesRequestedKey = true,
                 CreateEchoesInputText = true,
                 CostDecimals = 10,
-                OwnerFilterIgnoresCase = true,
+                IdentityFilterIgnoresCase = true,
             },
             Tenant = schema.Tenant,
             Sessions = schema.Context.Sessions,

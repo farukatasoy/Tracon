@@ -125,13 +125,14 @@ internal static class BoundaryValues
     /// </summary>
     /// <param name="count">The size of the pool.</param>
     /// <param name="maxLength">The longest identifier.</param>
+    /// <param name="withoutLetterI">Whether to leave out i and I, which a Turkish collation does not treat as letter-case twins.</param>
     /// <returns>The generator.</returns>
-    public static Gen<string[]> AsciiIdentifierPool(int count, int maxLength)
+    public static Gen<string[]> AsciiIdentifierPool(int count, int maxLength, bool withoutLetterI = false)
         => Pool(
             count,
             Gen.Frequency(
-                (6, Gen.String[Gen.Char[TenantCharacters + "|"], 1, 12]),
-                (1, Gen.String[Gen.Char[TenantCharacters], 1, maxLength])),
+                (6, Gen.String[Gen.Char[(TenantCharacters + "|").Where(c => !withoutLetterI || c is not ('i' or 'I')).Aggregate(string.Empty, static (text, c) => text + c)], 1, 12]),
+                (1, Gen.String[Gen.Char[TenantCharacters.Where(c => !withoutLetterI || c is not ('i' or 'I')).Aggregate(string.Empty, static (text, c) => text + c)], 1, maxLength])),
             static identifier =>
             {
                 var candidates = new[] { identifier.ToUpperInvariant(), identifier.ToLowerInvariant(), Swap(identifier) }

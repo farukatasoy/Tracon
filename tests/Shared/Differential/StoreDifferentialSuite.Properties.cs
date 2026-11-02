@@ -204,6 +204,59 @@ public abstract partial class StoreDifferentialSuite
             print: static costs => string.Join(" | ", costs.Select(static c => $"{c.input}/{c.output}/{c.cached}/{c.write} {c.label}")));
     }
 
+    /// <summary>
+    /// Reserves a key that another request holds while that request releases it, many times over, and checks that no
+    /// reservation fails: each one reserves the key or finds it in progress.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// A failed request releases its key while its retry is reserving the same one. A store that tells the two apart by
+    /// the conflict of an insert must cope with the row being gone when it reads it back.
+    /// </remarks>
+    [Fact]
+    public async Task A_reservation_that_races_a_release_of_the_same_key_does_not_fail()
+    {
+        var stores = await CreateStoresAsync();
+        var store = DifferentialStores.Require(stores.Idempotency);
+        var scope = DifferentialScope.Next();
+        var tenant = scope.Wrap("reserve-release");
+        var rounds = (int)Math.Min(400, DifferentialSettings.Iterations(Iterations) * 2);
+
+        for (var round = 0; round < rounds; round++)
+        {
+            var key = "key-" + round.ToString(CultureInfo.InvariantCulture);
+            var heldAt = PagingOrigin.AddSeconds(round);
+
+            (await store.ReserveAsync(new IdempotencyRequest { TenantId = tenant, Key = key, Fingerprint = "a", CreatedAt = heldAt }))
+                .State.ShouldBe(IdempotencyState.Reserved);
+
+            var gate = new TaskCompletionSource();
+            var reservers = Enumerable.Range(0, 6).Select(index => Task.Run(async () =>
+            {
+                await gate.Task;
+
+                return await store.ReserveAsync(new IdempotencyRequest { TenantId = tenant, Key = key, Fingerprint = "a", CreatedAt = heldAt.AddMilliseconds(index + 1) });
+            })).ToList();
+            var releaser = Task.Run(async () =>
+            {
+                await gate.Task;
+                await store.ReleaseAsync(tenant, key);
+            });
+
+            gate.SetResult();
+            await releaser;
+            var results = await Task.WhenAll(reservers);
+
+            foreach (var result in results)
+            {
+                result.State.ShouldBeOneOf(IdempotencyState.Reserved, IdempotencyState.InProgress);
+            }
+
+            // The key was free for at most one of them: the first insert after the release wins and the rest find it in progress.
+            results.Count(static result => result.State == IdempotencyState.Reserved).ShouldBeLessThanOrEqualTo(1);
+        }
+    }
+
     private static void AssertWholeList(int count, int pageSize, List<string> ids, List<long> keys)
     {
         ids.Count.ShouldBe(count, $"the whole list holds every record (page size {pageSize})");

@@ -39,7 +39,7 @@ internal sealed class DifferentialMismatchException(string message) : Exception(
 /// <summary>One family of generated sequences: its generator, its model and its driver.</summary>
 /// <typeparam name="TPlan">The generated value: the universe of keys and the steps over it.</typeparam>
 /// <typeparam name="TStep">The step type.</typeparam>
-internal abstract class StateMachine<TPlan, TStep>
+internal abstract partial class StateMachine<TPlan, TStep>
 {
     /// <summary>Gets the name used in failure messages.</summary>
     public abstract string Name { get; }

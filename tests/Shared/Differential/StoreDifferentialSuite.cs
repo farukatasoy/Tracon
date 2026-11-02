@@ -24,6 +24,36 @@ public abstract partial class StoreDifferentialSuite
     /// <returns>The stores of the provider.</returns>
     internal abstract ValueTask<DifferentialStores> CreateStoresAsync();
 
+    /// <summary>
+    /// Runs session writers at the same time and checks that some serial order of the model explains every result: one
+    /// create wins, one update from a version wins, a save never loses to a stale write.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Session_store_races_have_a_serial_explanation()
+        => await new SessionStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
+
+    /// <summary>
+    /// Runs idempotency reservations, completions and releases at the same time and checks that some serial order of the
+    /// model explains every result: only one reservation of a free key wins.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Idempotency_store_races_have_a_serial_explanation()
+        => await new IdempotencyStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
+
+    /// <summary>
+    /// Runs API key revocations and uses at the same time and checks that some serial order of the model explains every
+    /// result: of two revocations of one key only one reports it.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task ApiKey_store_races_have_a_serial_explanation()
+        => await new ApiKeyStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
+
+    /// <summary>Gets how many times each generated race runs; a race that fails once in many is found by running it again.</summary>
+    protected virtual int RaceRepeats => 4;
+
     /// <summary>Checks the run store against the model.</summary>
     /// <returns>The completion task.</returns>
     [Fact]

@@ -134,7 +134,7 @@ internal sealed class RunStateMachine : StateMachine<RunPlan, RunStep>
             from tenants in BoundaryValues.TenantPool(3)
             from home in Gen.Int[0, 2].Array[3]
             from agents in BoundaryValues.Pool(3, BoundaryValues.Trimmed(200), 200)
-            from users in BoundaryValues.Pool(3, BoundaryValues.Trimmed(200), 200)
+            from users in traits.IdentityFilterIgnoresCase ? BoundaryValues.AsciiIdentifierPool(3, 200, withoutLetterI: true) : BoundaryValues.Pool(3, BoundaryValues.Trimmed(200), 200)
             from sessions in BoundaryValues.Pool(2, BoundaryValues.Trimmed(200), 200)
             from labels in labelSet.Array[3]
             from models in BoundaryValues.Trimmed(100).Array[2]
@@ -544,7 +544,7 @@ internal sealed class RunModel(RunUniverse universe, ProviderTraits traits) : IS
             .Where(pair => string.Equals(pair.Value.Tenant, tenant, StringComparison.Ordinal))
             .Where(pair => agent is null || string.Equals(pair.Value.Agent, agent, StringComparison.Ordinal))
             .Where(pair => s.Status is null || pair.Value.Status == s.Status)
-            .Where(pair => user is null || string.Equals(pair.Value.User, user, StringComparison.Ordinal))
+            .Where(pair => user is null || string.Equals(pair.Value.User, user, traits.IdentityFilterIgnoresCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             .Where(pair => session is null || string.Equals(pair.Value.Session, session, StringComparison.Ordinal))
             .Where(pair => after is null || pair.Value.Started > after)
             .Where(pair => LabelMatches(pair.Value.Labels, s))

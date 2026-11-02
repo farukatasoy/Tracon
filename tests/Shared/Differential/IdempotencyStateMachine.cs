@@ -107,6 +107,20 @@ internal sealed class IdempotencyStateMachine : StateMachine<IdempotencyPlan, Id
     public override IReadOnlyList<IdempotencyStep> Steps(IdempotencyPlan plan) => plan.Steps;
 
     /// <inheritdoc />
+    public override IReadOnlyList<IdempotencyStep> Snapshot(IdempotencyPlan plan)
+    {
+        // A reservation that finds a free key takes it, and the model does the same, so reserving every key once reads
+        // back which of them are held, completed or free.
+        var reservedAt = new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        return
+        [
+            .. Enumerable.Range(0, plan.Universe.Tenants.Length).SelectMany(
+                tenant => Enumerable.Range(0, plan.Universe.Keys.Length).Select(key => (IdempotencyStep)new ReserveStep(tenant, key, 0, reservedAt, null))),
+        ];
+    }
+
+    /// <inheritdoc />
     public override IStepModel<IdempotencyStep> NewModel(IdempotencyPlan plan, ProviderTraits traits) => new IdempotencyModel(plan.Universe, traits);
 
     /// <inheritdoc />
