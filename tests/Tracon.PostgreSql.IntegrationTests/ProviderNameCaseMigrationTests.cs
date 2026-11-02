@@ -55,6 +55,35 @@ public sealed class ProviderNameCaseMigrationTests(PostgresFixture fixture)
             .ShouldBe(0, "no name may contain the dotless i a Turkish lower() writes");
     }
 
+    /// <summary>
+    /// Two spellings of one provider written at the same instant: the survivor is the one whose name sorts last by its
+    /// characters, whatever the sort order of the database.
+    /// </summary>
+    /// <remarks>
+    /// The migration keeps the row with the later <c>updated_at</c>, and for equal timestamps the one whose name is larger.
+    /// Compared with the database's own rules, "larger" is a locale's opinion: <c>openai</c> sorts before <c>OpenAI</c> in
+    /// en_US and after it in "C", so the same pair lost a different row on a database set up differently, and the binding
+    /// of the tenant held another credential. By the characters, <c>openai</c> (0x6F) is larger than <c>OpenAI</c> (0x4F)
+    /// everywhere. The image's default locale is not "C", so this fails there when the comparison is left to the database.
+    /// </remarks>
+    [Fact]
+    public async Task Two_spellings_written_at_the_same_instant_leave_the_row_that_sorts_last_by_its_characters()
+    {
+        var schemaName = PostgresTestContext.NewSchemaName();
+        await using var context = PostgresTestContext.Create(fixture, schemaName, enableKnowledge: false);
+
+        await ApplyThroughAsync(context, schemaName, MigrationId - 1);
+
+        await InsertAsync(context, schemaName, "default", "OpenAI", "key-upper", "2026-01-01");
+        await InsertAsync(context, schemaName, "default", "openai", "key-lower", "2026-01-01");
+
+        (await context.Migrations.ApplyAsync()).ShouldBeGreaterThan(0);
+
+        (await CountAsync(context, schemaName, "tenant_id = 'default'")).ShouldBe(1);
+        (await CountAsync(context, schemaName, "provider_name COLLATE \"C\" = 'openai' AND api_key_configuration_name = 'key-lower'"))
+            .ShouldBe(1, "'openai' is larger than 'OpenAI' by its characters, so its row is the one that stays");
+    }
+
     private static async Task<long> CountAsync(PostgresTestContext context, string schemaName, string predicate)
         => await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {schemaName}.tenant_provider_bindings WHERE {predicate};");
 
