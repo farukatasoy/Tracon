@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **Behavioural breaking change: a JSON request body longer than 8 MiB answers `413`.** Nothing bounded a body before: a 32 MB `message` was read,
+  parsed, recorded with its run and echoed, about thirty times its size in memory at once, and only the server's own limit (30 MB on Kestrel,
+  written nowhere) stood in front of it. `TraconEndpointOptions.MaxJsonBodyBytes` now bounds every JSON body under the endpoints, 8 MiB by default,
+  counted as the bytes arrive so a chunked body, or one whose length lies, stops at it too. The OpenAI-compatible routes answer in their own error
+  shape. A file upload keeps its own limit and the MCP, A2A and AG-UI endpoints are not under it. A client that sends a larger JSON body (the
+  definition import takes up to 8 MiB by its own limit and is unaffected at the default) raises the option; set a reverse proxy's limit no higher.
+
+- **Behavioural breaking change: `RequireProductionProfile()` asks one more decision, `UnenforcedQuotaOnStoreFailure`.** With quota enforcement on and
+  `Tracon:Quotas:AllowOnStoreFailure` at its default of `true`, a run goes ahead when the quota store fails, so a tenant with a spending
+  ceiling goes past it for as long as the database is down. That default is deliberate (an outage that stops every run is its own failure), but it was the
+  one fail-open default the profile did not name. A host that calls `RequireProductionProfile()` stops at start until it sets
+  `Tracon:Quotas:AllowOnStoreFailure` to `false` or accepts the risk by name with `profile.Accept(TraconProductionRisk.UnenforcedQuotaOnStoreFailure)`.
+  A host with `Tracon:Quotas:Enabled` off is not asked, and a host that does not call `RequireProductionProfile()` changes nothing.
+
 - **Behavioural breaking change: `RequireProductionProfile()` asks one more decision, `UnauthenticatedLocalOperator`.** A host that calls it and maps the
   endpoints with no `AuthToken` and no `RequireAuthorization(...)` policy stops at start until it sets one or accepts the risk by name. With neither, a request
   that presents no credential is the local operator with full rights. That is right for a caller on the same machine; a reverse proxy that listens on a
