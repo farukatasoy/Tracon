@@ -61,6 +61,37 @@ public sealed class FreeFormJsonContractTests
     }
 
     /// <summary>
+    /// The literal JSON <c>null</c> is no more storable than "no JSON at all": SQL Server's <c>ISJSON(N'null')</c> is <c>0</c>.
+    /// </summary>
+    /// <remarks>
+    /// The documented reason for the empty array is exactly this, yet only <see cref="JsonValueKind.Undefined"/> was
+    /// normalized: <c>PUT /api/evals/{name}</c> with <c>"checks": null</c> saved on the in-memory, SQLite and PostgreSQL
+    /// stores and answered 503 "store unavailable" on SQL Server (a CHECK constraint violation).
+    /// </remarks>
+    [Fact]
+    public void An_optional_free_form_json_property_set_to_json_null_is_stored_as_the_empty_array()
+    {
+        var offenders = new List<string>();
+        var jsonNull = JsonDocument.Parse("null").RootElement.Clone();
+
+        foreach (var (type, property) in OptionalFreeFormJsonProperties())
+        {
+            var instance = RuntimeHelpers.GetUninitializedObject(type);
+            property.SetValue(instance, jsonNull);
+            var stored = (JsonElement)property.GetValue(instance)!;
+
+            if (stored.ValueKind != JsonValueKind.Array || stored.GetArrayLength() != 0)
+            {
+                offenders.Add($"{type.FullName}.{property.Name}");
+            }
+        }
+
+        offenders.ShouldBeEmpty(
+            "These optional JsonElement properties keep a JSON null, which SQL Server's CHECK (ISJSON(...) = 1) rejects: " +
+            string.Join(", ", offenders));
+    }
+
+    /// <summary>
     /// The same rule for a property that is never set at all: its <c>init</c>
     /// accessor never runs, so normalizing there does not reach it.
     /// </summary>

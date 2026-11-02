@@ -39,10 +39,10 @@ internal static class FreeFormJson
 
     /// <summary>
     /// Returns the value, or the empty JSON array when the value carries no
-    /// JSON at all.
+    /// JSON at all or is the literal JSON <c>null</c>.
     /// </summary>
     /// <param name="value">The value a caller supplied, possibly unset.</param>
-    /// <returns>A value whose kind is never <see cref="JsonValueKind.Undefined"/>.</returns>
+    /// <returns>A value whose kind is never <see cref="JsonValueKind.Undefined"/> or <see cref="JsonValueKind.Null"/>.</returns>
     internal static JsonElement OrEmpty(JsonElement value)
-        => value.ValueKind == JsonValueKind.Undefined ? Empty : value;
+        => value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? Empty : value;
 }
