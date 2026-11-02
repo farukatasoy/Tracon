@@ -215,6 +215,16 @@ recovered: its earlier numbers were never kept, so its counter starts at the hig
 holds now. The table has no foreign key to `agent_definitions` and no agent content: deleting
 an agent keeps the number, and saving the name again continues the numbering
 ([Versions](/concepts/agents/#versions)).
+
+The `ordinal_definition_names` migration (`0060`, SQL Server only) keeps every value and changes
+how SQL Server compares them: the name of each definition, and every column that repeats an agent,
+workflow, skill or tool name, takes `Latin1_General_BIN2`, so `Support` and `support` are two
+agents there as on the other providers. It drops and rebuilds the unique keys over those columns in
+one transaction, and each table it touches is closed to reads and writes until the whole migration
+commits. Measured in an emulated container on Apple Silicon: 1.3 s over 100 000 runs, 5.1 s over a
+million runs with two million events. The default `CommandTimeoutSeconds` of 30 covers that; raise
+it for the run that applies the migration if your storage is slower
+([Compatibility](/reference/compatibility/)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
