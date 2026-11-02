@@ -50,7 +50,43 @@ public sealed class McpServerMisbehaviorTests
 
         elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(20), $"listing 3000 tools took {elapsed}");
         HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
-        outcome.ToolCount.ShouldBeGreaterThan(0);
+
+        // The limit per server is the default of the option (100), and the healthy server's one tool is on top of it. The
+        // whole list is read and parsed before the limit applies: this holds what reaches the registry, not what was read.
+        var limit = new TraconMcpOptions().MaxToolsPerServer;
+
+        outcome.ToolCount.ShouldBe(limit + 1);
+        tools.Count(static name => name.StartsWith("broken_", StringComparison.Ordinal)).ShouldBe(limit);
+    }
+
+    [Fact]
+    public async Task A_server_whose_tool_list_never_ends_costs_one_connection_timeout_and_the_healthy_server_keeps_its_tool()
+    {
+        // One tool per page and a cursor after every page: the list has no last page.
+        var pages = 0;
+
+        await using var broken = ScriptedMcpServer.Start((method, _, _, _) =>
+        {
+            if (!string.Equals(method, "tools/list", StringComparison.Ordinal))
+            {
+                return Task.FromResult<string?>("{}");
+            }
+
+            var page = Interlocked.Increment(ref pages);
+
+            return Task.FromResult<string?>(
+                "{\"tools\":[{\"name\":\"tool_" + page + "\",\"description\":\"d\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}],\"nextCursor\":\"page-" + page + "\"}");
+        });
+
+        var (outcome, elapsed, tools) = await RefreshAsync(broken);
+
+        // A list that does not end is an unreachable server, not a refresh that never ends. The wait is the time limit
+        // for connecting and listing; nothing else bounds what the pages read in that time cost.
+        outcome.HadUnreachableServers.ShouldBeTrue("a list with no last page is a server that cannot be listed");
+        elapsed.ShouldBeLessThan(ConnectionTimeout * 4, $"the refresh read pages for {elapsed}");
+        Volatile.Read(ref pages).ShouldBeGreaterThan(1, "the server was never asked for a second page, so the list did not end");
+        HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
+        tools.ShouldNotContain(static name => name.StartsWith("broken_", StringComparison.Ordinal));
     }
 
     [Theory]
