@@ -64,6 +64,12 @@ internal static class ImageEndpoints
 
         var request = bound!;
 
+        // The id only labels the attachments, but it goes into the same 200-character column as a session's own.
+        if (SessionIdLimits.Check(request.SessionId, "sessionId") is { } sessionIdProblem)
+        {
+            return sessionIdProblem;
+        }
+
         if (string.IsNullOrWhiteSpace(request.Prompt))
         {
             return TypedResults.Problem(

@@ -69,6 +69,39 @@ public sealed class ImageEndpointTests
         (await download.Content.ReadAsByteArrayAsync()).ShouldBe(Png());
     }
 
+    [Theory]
+    [InlineData("abc ", "whitespace")]
+    [InlineData(" abc", "whitespace")]
+    [InlineData("abc\t", "whitespace")]
+    [InlineData("201-characters", "200")]
+    public async Task Endpoint_rejects_a_session_id_the_run_endpoint_would_refuse_before_calling_the_provider(string sessionId, string rule)
+    {
+        // The id only labels the attachment, but it goes into the same 200-character column and meets the same trailing
+        // space SQL Server ignores (see SessionIdOnLabelledEntriesTests).
+        var generator = new StubImageGenerator();
+        await using var host = await StartWithImagesAsync(generator);
+
+        var id = string.Equals(sessionId, "201-characters", StringComparison.Ordinal) ? new string('s', 201) : sessionId;
+        using var response = await host.Client.PostAsJsonAsync(GenerateUri, new { prompt = "a lighthouse", sessionId = id });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString()!.ShouldContain(rule, Case.Sensitive);
+        generator.LastRequest.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Endpoint_accepts_a_session_id_at_the_limit()
+    {
+        var generator = new StubImageGenerator();
+        await using var host = await StartWithImagesAsync(generator);
+
+        using var response = await host.Client.PostAsJsonAsync(
+            GenerateUri,
+            new { prompt = "a lighthouse", sessionId = new string('s', 200) });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     [Fact]
     public async Task Endpoint_rejects_an_empty_prompt_before_calling_the_provider()
     {

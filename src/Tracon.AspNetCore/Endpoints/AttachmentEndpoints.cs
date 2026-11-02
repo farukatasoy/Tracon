@@ -104,6 +104,12 @@ internal static class AttachmentEndpoints
         [FromServices] IRunAttributionContext? attributionContext,
         CancellationToken cancellationToken)
     {
+        // The id only labels the attachment, but it goes into the same 200-character column as a session's own.
+        if (SessionIdLimits.Check(sessionId, "sessionId") is { } sessionIdProblem)
+        {
+            return sessionIdProblem;
+        }
+
         // 🚨 An upload addresses no existing resource, so a denial is 403, not
         // the 404 the single-attachment endpoints give: there is no identity to
         // hide behind a "not found". No run exists yet either, so RunId is null
@@ -222,6 +228,12 @@ internal static class AttachmentEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        // SQL Server ignores a trailing space in the comparison, so 'abc ' would list the attachments of 'abc'.
+        if (SessionIdLimits.Check(sessionId, "sessionId") is { } sessionIdProblem)
+        {
+            return sessionIdProblem;
+        }
+
         // A denied list is REJECTED (403), never silently filtered: filtering
         // rows out server-side would break the skip/take paging contract.
         if (await RunAuthorizationGate

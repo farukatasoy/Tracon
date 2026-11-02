@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+
 namespace Tracon;
 
 /// <summary>The size limits of a session identifier a client chooses.</summary>
@@ -23,5 +26,35 @@ internal static class SessionIdLimits
         ArgumentNullException.ThrowIfNull(identifier);
 
         return identifier.Length > 0 && (char.IsWhiteSpace(identifier[0]) || char.IsWhiteSpace(identifier[^1]));
+    }
+
+    /// <summary>
+    /// Checks an identifier the client chose against both rules, for an entry that only carries it (an attachment, a speech
+    /// clip, a generated image) and so never reaches the checks of the endpoints that open a session.
+    /// </summary>
+    /// <param name="identifier">The identifier the client sent, if any.</param>
+    /// <param name="field">The name of the field or parameter it came in, for the message.</param>
+    /// <returns>The <c>400</c> to answer with, or <see langword="null"/> when the identifier is acceptable or absent.</returns>
+    public static ProblemHttpResult? Check(string? identifier, string field)
+    {
+        if (identifier is null)
+        {
+            return null;
+        }
+
+        if (identifier.Length > MaxLength)
+        {
+            return TypedResults.Problem(
+                title: "Session id too long",
+                detail: $"'{field}' cannot exceed {MaxLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return HasEdgeWhitespace(identifier)
+            ? TypedResults.Problem(
+                title: "Session id has surrounding whitespace",
+                detail: $"'{field}' cannot start or end with whitespace.",
+                statusCode: StatusCodes.Status400BadRequest)
+            : null;
     }
 }

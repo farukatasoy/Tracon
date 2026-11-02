@@ -146,6 +146,12 @@ internal static class VoiceEndpoints
 
         var request = bound!;
 
+        // The id only labels the clip's attachment, but it goes into the same 200-character column as a session's own.
+        if (SessionIdLimits.Check(request.SessionId, "sessionId") is { } sessionIdProblem)
+        {
+            return sessionIdProblem;
+        }
+
         if (string.IsNullOrWhiteSpace(request.Text))
         {
             return TypedResults.Problem(
