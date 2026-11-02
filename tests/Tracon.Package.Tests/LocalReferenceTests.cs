@@ -264,6 +264,125 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
     }
 
     /// <summary>
+    /// In a git worktree <c>.git</c> is a file that points elsewhere, not a directory with a <c>config</c> in it. The
+    /// instructions file still belongs at the root of the worktree: that is where a coding agent started there looks.
+    /// </summary>
+    [Fact]
+    public async Task The_agents_file_goes_to_the_root_of_a_git_worktree()
+    {
+        using var directory = new TempDirectory();
+        var main = Path.Combine(directory.Path, "main");
+        Directory.CreateDirectory(main);
+        await InitialiseRepositoryAsync(main);
+
+        // A worktree branches from a commit, and a fresh repository has none.
+        var commit = await ProcessRunner.RunAsync(
+            "git",
+            "-c user.name=test -c user.email=test@example.invalid commit --allow-empty -m initial",
+            main,
+            TimeSpan.FromMinutes(1));
+        commit.ExitCode.ShouldBe(0, commit.Combined);
+
+        var worktree = Path.Combine(directory.Path, "worktree");
+        var add = await ProcessRunner.RunAsync("git", $"worktree add --detach \"{worktree}\"", main, TimeSpan.FromMinutes(1));
+        add.ExitCode.ShouldBe(0, add.Combined);
+        File.Exists(Path.Combine(worktree, ".git")).ShouldBeTrue("A worktree's .git is expected to be a file.");
+
+        var projectDirectory = await CreateConsumerAsync(worktree, writeAgentsFile: true);
+
+        var build = await BuildAsync(projectDirectory);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+        File.Exists(Path.Combine(worktree, "AGENTS.md")).ShouldBeTrue(build.Combined);
+        File.Exists(Path.Combine(projectDirectory, "AGENTS.md")).ShouldBeFalse("The file was written beside the project, not at the worktree root.\n" + build.Combined);
+    }
+
+    /// <summary>
+    /// The build hands the consumer's own instructions files to the analyzer whenever they exist, and a compiler that is
+    /// given something it cannot open as an additional file stops with an error. A directory that carries the name of
+    /// one of them is not a file, so it is left out.
+    /// </summary>
+    /// <param name="relativePath">The path of the file the analyzer reads, relative to the repository root.</param>
+    [Theory]
+    [InlineData("AGENTS.md")]
+    [InlineData(".claude/skills/tracon/SKILL.md")]
+    public async Task A_directory_named_like_a_file_the_analyzer_reads_does_not_break_the_build(string relativePath)
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(directory.Path);
+
+        Directory.CreateDirectory(Path.Combine(directory.Path, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+
+        var build = await BuildAsync(projectDirectory);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+    }
+
+    /// <summary>
+    /// A link that points nowhere cannot be told from a file by the build (File.Exists is true for it), and the compiler
+    /// stops with an error when the analyzer's input is missing. The switch that turns the usage diagnostics off is the
+    /// way out for a consumer with one, and it works because the compiler never opens the files when every rule of the
+    /// analyzer is suppressed. Measured, not designed: this pins the way out so that a change in the build or the
+    /// compiler that closes it is noticed.
+    /// </summary>
+    [Fact]
+    public async Task The_usage_switch_is_a_way_out_for_a_link_that_points_nowhere()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Creating a symbolic link needs a privilege on Windows.");
+
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(
+            directory.Path,
+            properties: "<TraconUsageDiagnostics>false</TraconUsageDiagnostics>");
+
+        File.CreateSymbolicLink(Path.Combine(directory.Path, "AGENTS.md"), Path.Combine(directory.Path, "missing-target.md"));
+
+        var build = await BuildAsync(projectDirectory);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+    }
+
+    /// <summary>
+    /// A copy that cannot succeed fails once and moves on: it does not retry.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// MSBuild's <c>Copy</c> task retries a failed copy ten times, a second apart, and logs a warning for each. In a
+    /// read-only checkout (an ordinary CI mount, and the very case the target says it survives) that is ten seconds
+    /// added to every build of every project, and ten warnings that a consumer who treats warnings as errors sees as a
+    /// failed build. The file is a convenience; nothing is gained by waiting for it.
+    /// </para>
+    /// <para>
+    /// The repository root is a regular file here, so <c>AGENTS.md</c> can neither exist nor be created under it. That
+    /// fails the same copy on every platform and for every user, which a permission bit does not: root ignores it, and
+    /// the test cannot tell the two apart.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task A_copy_that_cannot_succeed_is_not_retried()
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(directory.Path, writeAgentsFile: true);
+
+        var notADirectory = Path.Combine(directory.Path, "not-a-directory");
+        await File.WriteAllTextAsync(notADirectory, string.Empty, TestContext.Current.CancellationToken);
+
+        var build = await ProcessRunner.RunAsync(
+            "dotnet",
+            $"build -c Release -p:_TraconRepositoryRoot=\"{notADirectory}\"",
+            projectDirectory,
+            BuildTimeout);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+        build.Combined.ShouldContain("MSB3021", customMessage: "The copy was expected to fail and warn once.\n" + build.Combined);
+        build.Combined.ShouldNotContain("MSB3026", Case.Sensitive, "The copy was retried.\n" + build.Combined);
+        build.Combined.ShouldNotContain("MSB3027", Case.Sensitive, "The copy exhausted its retries.\n" + build.Combined);
+    }
+
+    /// <summary>
     /// Two projects that reference DIFFERENT Tracon packages - the ordinary
     /// web-host-plus-worker split - each get their own answer.
     /// </summary>
