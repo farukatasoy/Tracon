@@ -20,6 +20,8 @@ namespace Tracon.Generators.UnitTests.Corpus;
 /// trees on a machine, set <c>TRACON_ANALYZER_CORPUS_DIRS</c> (a path-separator list of directories; one unit per
 /// project directory) or <c>TRACON_ANALYZER_CORPUS_PER_FILE</c> (the same, one compilation per file) and run
 /// <see cref="Report"/>; <c>TRACON_ANALYZER_CORPUS_REPORT</c> names the file it writes.
+/// <c>TRACON_ANALYZER_CORPUS_EXAMPLES</c> adds the package's shipped <c>&lt;example&gt;</c> blocks, and
+/// <c>TRACON_ANALYZER_CORPUS_SKIP_REPOSITORY</c> leaves the repository's own trees out.
 /// </para>
 /// </remarks>
 public sealed class AnalyzerCorpusTests
@@ -29,6 +31,8 @@ public sealed class AnalyzerCorpusTests
     private const string PerFileVariable = "TRACON_ANALYZER_CORPUS_PER_FILE";
 
     private const string SkipRepositoryVariable = "TRACON_ANALYZER_CORPUS_SKIP_REPOSITORY";
+
+    private const string ExamplesVariable = "TRACON_ANALYZER_CORPUS_EXAMPLES";
 
     private const string ReportVariable = "TRACON_ANALYZER_CORPUS_REPORT";
 
@@ -114,13 +118,43 @@ public sealed class AnalyzerCorpusTests
                 .Select(static unit => (unit, false)));
         }
 
-        var reports = new List<UnitReport>();
+        // The shipped <example> blocks are consumer-shaped code written by the package's authors, one block per unit.
+        var exampleDirectory = string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ExamplesVariable))
+            ? null
+            : Directory.CreateTempSubdirectory("tracon-example-corpus-");
 
-        foreach (var (unit, shipped) in units)
+        try
         {
-            reports.Add(await CorpusRunner.AnalyzeAsync(unit, shipped, AdditionalFiles(), countSemanticErrors: true, TestContext.Current.CancellationToken));
-        }
+            if (exampleDirectory is not null)
+            {
+                var number = 0;
 
+                foreach (var block in ExampleExtractor.ExtractAll(RepositoryRoot).Where(static block => !string.Equals(block.Language, "json", StringComparison.Ordinal)))
+                {
+                    var path = Path.Combine(exampleDirectory.FullName, string.Create(CultureInfo.InvariantCulture, $"example-{number++:D3}.cs"));
+
+                    await File.WriteAllTextAsync(path, "// " + block.Origin + Environment.NewLine + ExamplePrelude.Wrap(block.Code), TestContext.Current.CancellationToken);
+                    units.Add((new CorpusUnit(Path.GetFileName(path), exampleDirectory.FullName, [path]), false));
+                }
+            }
+
+            var reports = new List<UnitReport>();
+
+            foreach (var (unit, shipped) in units)
+            {
+                reports.Add(await CorpusRunner.AnalyzeAsync(unit, shipped, AdditionalFiles(), countSemanticErrors: true, TestContext.Current.CancellationToken));
+            }
+
+            await WriteReportAsync(reports);
+        }
+        finally
+        {
+            exampleDirectory?.Delete(recursive: true);
+        }
+    }
+
+    private static async Task WriteReportAsync(List<UnitReport> reports)
+    {
         var report = new StringBuilder();
         report.AppendLine("unit\tfiles\tlines\tparse_ms\tgenerator_ms\tanalyzer_ms\tanalyzer_actions_ms\tactions\tfindings\tfailures\tsemantic_errors");
 
