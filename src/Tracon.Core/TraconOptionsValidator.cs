@@ -151,6 +151,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
 
         ValidateGaugeRefresh(options.Observability, ref failures);
+        ValidateFractionsAndLimits(options, ref failures);
 
         var skills = options.Skills;
 
@@ -168,11 +169,9 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                     $"must be at least 1. Actual value: {skills.MaxSkillsPerAgent}.");
             }
 
-            if (skills.MaxInstructionsLength < 1 || skills.MaxResourceContentLength < 1 || skills.MaxResourcesPerSkill < 1)
-            {
-                (failures ??= []).Add(
-                $"{nameof(TraconSkillOptions)} limits must be greater than zero.");
-            }
+            AddWhenBelowOne(skills.MaxInstructionsLength, nameof(TraconSkillOptions), nameof(TraconSkillOptions.MaxInstructionsLength), ref failures);
+            AddWhenBelowOne(skills.MaxResourceContentLength, nameof(TraconSkillOptions), nameof(TraconSkillOptions.MaxResourceContentLength), ref failures);
+            AddWhenBelowOne(skills.MaxResourcesPerSkill, nameof(TraconSkillOptions), nameof(TraconSkillOptions.MaxResourcesPerSkill), ref failures);
 
             ValidateScripts(skills.Scripts, ref failures);
         }
@@ -294,6 +293,51 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
     }
 
+    /// <summary>
+    /// Validates the fractions and the one limit that is read through a clamp. A value that is read by comparison
+    /// is never an error where it is used, so a fraction written as a percent (<c>10</c> for ten percent) or a
+    /// <c>NaN</c> would apply a different setting without a word.
+    /// </summary>
+    private static void ValidateFractionsAndLimits(TraconOptions options, ref List<string>? failures)
+    {
+        if (options.Observability is { } observability && !IsFraction(observability.SuccessSampleRatio))
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.SuccessSampleRatio)} " +
+                $"must be a fraction from 0 to 1 (0.1 keeps one successful run in ten). Actual value: {Format(observability.SuccessSampleRatio)}.");
+        }
+
+        if (options.Preflight is { } preflight && !IsFraction(preflight.ReserveRatio))
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconPreflightOptions)}.{nameof(TraconPreflightOptions.ReserveRatio)} " +
+                $"must be a fraction from 0 to 1. Actual value: {Format(preflight.ReserveRatio)}.");
+        }
+
+        // null is "no limit". A number below one used to be raised to one where it is read, so 0 limited every
+        // provider to a single call while the operator may have meant no limit.
+        if (options.ModelConcurrency is { MaxConcurrentCallsPerProvider: < 1 and var concurrency })
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconModelConcurrencyOptions)}.{nameof(TraconModelConcurrencyOptions.MaxConcurrentCallsPerProvider)} " +
+                $"must be at least 1 when supplied; leave it out for no limit. Actual value: {concurrency}.");
+        }
+    }
+
+    private static bool IsFraction(double value)
+        => value is >= 0.0 and <= 1.0;
+
+    private static string Format(double value)
+        => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static void AddWhenBelowOne(long value, string typeName, string memberName, ref List<string>? failures)
+    {
+        if (value < 1)
+        {
+            (failures ??= []).Add($"{typeName}.{memberName} must be at least 1. Actual value: {value}.");
+        }
+    }
+
     /// <summary>Validates script-execution options.</summary>
     /// <remarks>
     /// This validation is a security gate. Script execution enabled with
@@ -344,17 +388,12 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 $"script executor. Actual value: {scripts.Timeout}.");
         }
 
-        if (scripts.MaxOutputBytes < 1 || scripts.MaxArgumentBytes < 1 || scripts.MaxScriptContentLength < 1)
-        {
-            (failures ??= []).Add(
-                $"{nameof(TraconSkillScriptOptions)} size limits must be greater than zero.");
-        }
-
-        if (scripts.MaxScriptsPerSkill < 1 || scripts.MaxConcurrentPerTenant < 1 || scripts.MaxConcurrentTotal < 1)
-        {
-            (failures ??= []).Add(
-                $"{nameof(TraconSkillScriptOptions)} count limits must be at least 1.");
-        }
+        AddWhenBelowOne(scripts.MaxOutputBytes, nameof(TraconSkillScriptOptions), nameof(TraconSkillScriptOptions.MaxOutputBytes), ref failures);
+        AddWhenBelowOne(scripts.MaxArgumentBytes, nameof(TraconSkillScriptOptions), nameof(TraconSkillScriptOptions.MaxArgumentBytes), ref failures);
+        AddWhenBelowOne(scripts.MaxScriptContentLength, nameof(TraconSkillScriptOptions), nameof(TraconSkillScriptOptions.MaxScriptContentLength), ref failures);
+        AddWhenBelowOne(scripts.MaxScriptsPerSkill, nameof(TraconSkillScriptOptions), nameof(TraconSkillScriptOptions.MaxScriptsPerSkill), ref failures);
+        AddWhenBelowOne(scripts.MaxConcurrentPerTenant, nameof(TraconSkillScriptOptions), nameof(TraconSkillScriptOptions.MaxConcurrentPerTenant), ref failures);
+        AddWhenBelowOne(scripts.MaxConcurrentTotal, nameof(TraconSkillScriptOptions), nameof(TraconSkillScriptOptions.MaxConcurrentTotal), ref failures);
 
         if (scripts.MaxConcurrentPerTenant > scripts.MaxConcurrentTotal)
         {

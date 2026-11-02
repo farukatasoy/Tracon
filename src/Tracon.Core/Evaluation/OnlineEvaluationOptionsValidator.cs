@@ -18,7 +18,8 @@ internal sealed class OnlineEvaluationOptionsValidator : IValidateOptions<Online
 
         List<string>? failures = null;
 
-        if (options.SampleRate is < 0.0 or > 1.0)
+        // Written as the negation of the range: NaN is neither below 0 nor above 1.
+        if (!(options.SampleRate is >= 0.0 and <= 1.0))
         {
             (failures ??= []).Add(
                 $"{nameof(OnlineEvaluationOptions)}.{nameof(OnlineEvaluationOptions.SampleRate)} " +

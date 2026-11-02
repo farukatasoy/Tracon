@@ -707,7 +707,8 @@ public sealed class TraconObservabilityOptions
 
     /// <summary>
     /// Gets or sets the fraction from 0 to 1 of successful run spans to persist.
-    /// Defaults to 0.1, or one tenth.
+    /// Defaults to 0.1, or one tenth. A value outside 0 to 1, or not a number, stops
+    /// the application at start: 10 for ten percent would persist everything.
     /// </summary>
     /// <remarks>
     /// Persisting every span bottlenecks the database at high volume. Failed runs

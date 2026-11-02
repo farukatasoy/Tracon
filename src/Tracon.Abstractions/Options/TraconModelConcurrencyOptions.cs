@@ -20,7 +20,8 @@ public sealed class TraconModelConcurrencyOptions
 {
     /// <summary>
     /// Gets or sets the maximum concurrent outgoing calls allowed per
-    /// provider. <see langword="null"/> means unlimited.
+    /// provider. <see langword="null"/> means unlimited. A number must be at least 1; the
+    /// application refuses to start with 0 or less, which would otherwise read as no limit.
     /// </summary>
     public int? MaxConcurrentCallsPerProvider { get; set; }
 }

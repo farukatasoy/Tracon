@@ -27,7 +27,8 @@ public sealed class TraconPreflightOptions
 
     /// <summary>
     /// Gets or sets the share of the context window kept free for the answer,
-    /// from 0 to 1. Defaults to 0.2 (20%).
+    /// from 0 to 1. Defaults to 0.2 (20%). A value outside 0 to 1, or not a number,
+    /// stops the application at start.
     /// </summary>
     /// <remarks>
     /// A fixed token count would need updating for every new model; a ratio

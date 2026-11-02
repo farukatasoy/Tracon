@@ -35,6 +35,22 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
                 $"must be at least 1. Actual value: {options.MaxResponseBytes}.");
         }
 
+        // The delivery counts the headers it adds and stops when the count EQUALS the limit, so a negative
+        // limit never stops it, while the endpoint compares with greater-than and refuses every subscription.
+        if (options.MaxExtraHeaders < 0)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.MaxExtraHeaders)} " +
+                $"must not be negative (0 allows no extra header). Actual value: {options.MaxExtraHeaders}.");
+        }
+
+        if (options.SignatureTolerance < TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.SignatureTolerance)} " +
+                $"must not be negative. Actual value: {options.SignatureTolerance}.");
+        }
+
         if (options.DisableAfterConsecutiveFailures < 1)
         {
             (failures ??= []).Add(

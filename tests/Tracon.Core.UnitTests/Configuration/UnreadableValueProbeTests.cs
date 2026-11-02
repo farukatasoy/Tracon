@@ -1,6 +1,3 @@
-using System.Collections;
-using System.Reflection;
-using Microsoft.Extensions.Configuration;
 
 namespace Tracon.Core.UnitTests.Configuration;
 
@@ -36,23 +33,10 @@ public sealed class UnreadableValueProbeTests
         ["Tracon:Skills:Scripts:AllowStoredScripts"] = "a security boundary: configuration must not widen the executable surface",
     };
 
-    private static readonly Action<ITraconBuilder, IConfigurationSection> ComposeLiveVoice =
-        static (builder, section) => builder.UseLiveVoice(section.GetSection("Voice:Live"));
-
-    private static readonly Action<ITraconBuilder, IConfigurationSection> ComposeVoiceConversation =
-        static (builder, section) => builder.UseVoiceConversation(section.GetSection("Voice:Conversation"));
-
     [Fact]
     public void Every_scalar_of_every_section_stops_the_host_when_its_text_cannot_be_read()
     {
-        var probes = new List<Probe>();
-
-        foreach (var type in SectionTypes())
-        {
-            var sectionName = (string)type.GetField("SectionName", BindingFlags.Public | BindingFlags.Static)!.GetRawConstantValue()!;
-
-            Collect(Activator.CreateInstance(type)!, sectionName, type.Name, ComposeFor(type), probes);
-        }
+        var probes = ReadScalars();
 
         // A scan that found little would pass for the wrong reason.
         probes.Count.ShouldBeGreaterThan(150);
@@ -91,14 +75,7 @@ public sealed class UnreadableValueProbeTests
     [Fact]
     public void Every_exemption_names_a_real_scalar()
     {
-        var keys = new List<Probe>();
-
-        foreach (var type in SectionTypes())
-        {
-            var sectionName = (string)type.GetField("SectionName", BindingFlags.Public | BindingFlags.Static)!.GetRawConstantValue()!;
-
-            Collect(Activator.CreateInstance(type)!, sectionName, type.Name, ComposeFor(type), keys);
-        }
+        var keys = ReadScalars();
 
         foreach (var exempt in NotBoundOnPurpose.Keys)
         {
@@ -106,79 +83,6 @@ public sealed class UnreadableValueProbeTests
         }
     }
 
-    private static Action<ITraconBuilder, IConfigurationSection>? ComposeFor(Type type)
-        => type == typeof(VoiceLiveOptions)
-            ? ComposeLiveVoice
-            : type == typeof(VoiceConversationOptions) ? ComposeVoiceConversation : null;
-
-    private static IEnumerable<Type> SectionTypes()
-        => new[] { typeof(TraconOptions).Assembly, typeof(TraconSchedulingOptions).Assembly }
-            .SelectMany(static assembly => assembly.GetTypes())
-            .Where(static type => type is { IsClass: true, IsPublic: true, IsAbstract: false })
-            .Where(static type => type.GetField("SectionName", BindingFlags.Public | BindingFlags.Static)
-                is { IsLiteral: true } field
-                && field.GetRawConstantValue() is string name
-                && name.StartsWith("Tracon", StringComparison.Ordinal))
-            .Where(static type => type.GetConstructor(Type.EmptyTypes) is not null)
-            .Distinct();
-
-    private static void Collect(
-        object instance,
-        string path,
-        string display,
-        Action<ITraconBuilder, IConfigurationSection>? compose,
-        List<Probe> probes)
-    {
-        foreach (var property in instance.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            if (property.GetIndexParameters().Length > 0 || property.GetMethod is not { IsPublic: true })
-            {
-                continue;
-            }
-
-            var key = $"{path}:{property.Name}";
-            var member = $"{display}.{property.Name}";
-
-            if (IsReadScalar(property.PropertyType))
-            {
-                if (property.SetMethod is { IsPublic: true })
-                {
-                    probes.Add(new Probe(key, member, compose));
-                }
-
-                continue;
-            }
-
-            if (typeof(IEnumerable).IsAssignableFrom(property.PropertyType) || !IsNestedOptions(property.PropertyType))
-            {
-                continue;
-            }
-
-            if (property.GetValue(instance) is { } nested)
-            {
-                Collect(nested, key, member, compose, probes);
-            }
-        }
-    }
-
-    private static bool IsReadScalar(Type type)
-    {
-        var underlying = Nullable.GetUnderlyingType(type) ?? type;
-
-        return underlying == typeof(bool)
-            || underlying == typeof(int)
-            || underlying == typeof(long)
-            || underlying == typeof(float)
-            || underlying == typeof(double)
-            || underlying == typeof(decimal)
-            || underlying == typeof(TimeSpan)
-            || underlying.IsEnum;
-    }
-
-    private static bool IsNestedOptions(Type type)
-        => type.IsClass
-            && string.Equals(type.Namespace, "Tracon", StringComparison.Ordinal)
-            && type.Name.EndsWith("Options", StringComparison.Ordinal);
-
-    private sealed record Probe(string Key, string Display, Action<ITraconBuilder, IConfigurationSection>? Compose);
+    private static List<OptionScalar> ReadScalars()
+        => OptionScalarCatalog.All().Where(static scalar => scalar.IsReadScalar).ToList();
 }

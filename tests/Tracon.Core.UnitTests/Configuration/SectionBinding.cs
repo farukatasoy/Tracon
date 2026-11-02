@@ -72,7 +72,11 @@ internal static class SectionBinding
         provider.GetRequiredService<IStartupValidator>().Validate();
     }
 
-    private static ServiceProvider Build(
+    /// <summary>Composes the container without running any validation.</summary>
+    /// <param name="values">The configuration.</param>
+    /// <param name="compose">The rest of the Tracon chain.</param>
+    /// <returns>The container; the caller disposes it.</returns>
+    public static ServiceProvider Build(
         IReadOnlyDictionary<string, string?> values,
         Action<ITraconBuilder, IConfigurationSection>? compose)
     {

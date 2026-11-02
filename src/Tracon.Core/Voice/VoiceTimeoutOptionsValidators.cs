@@ -38,7 +38,34 @@ internal sealed class VoiceLiveOptionsValidator : IValidateOptions<VoiceLiveOpti
                 $"{nameof(VoiceLiveOptions)}.{nameof(VoiceLiveOptions.DelegationMode)} is {(int)options.DelegationMode}, which is not a delegation mode. The only mode is '{nameof(LiveVoiceDelegationMode.Client)}'.");
         }
 
+        // Both are compared with the age of a session, so a value of zero or less ends every session at its first check.
+        AddWhenNotPositive(options.MaxSessionDuration, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.MaxSessionDuration), ref failures);
+        AddWhenNotPositive(options.PendingSessionTimeout, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.PendingSessionTimeout), ref failures);
+
+        // A limit of zero refuses the work; a negative one is not a count and is read as one that refuses it too.
+        AddWhenNegative(options.MaxAppendsPerDelegation, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.MaxAppendsPerDelegation), ref failures);
+        AddWhenNegative(options.MaxConcurrentDelegations, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.MaxConcurrentDelegations), ref failures);
+        AddWhenNegative(options.MaxConcurrentSessionsPerTenant, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.MaxConcurrentSessionsPerTenant), ref failures);
+        AddWhenNegative(options.MaxLedgerEntriesPerDelegation, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.MaxLedgerEntriesPerDelegation), ref failures);
+        AddWhenNegative(options.MaxTranscriptLedgerCharacters, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.MaxTranscriptLedgerCharacters), ref failures);
+
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    internal static void AddWhenNotPositive(TimeSpan value, string typeName, string memberName, ref List<string>? failures)
+    {
+        if (value <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add($"{typeName}.{memberName} must be greater than zero. Actual value: {value}.");
+        }
+    }
+
+    internal static void AddWhenNegative(int value, string typeName, string memberName, ref List<string>? failures)
+    {
+        if (value < 0)
+        {
+            (failures ??= []).Add($"{typeName}.{memberName} must not be negative (0 refuses the work). Actual value: {value}.");
+        }
     }
 }
 
@@ -72,6 +99,25 @@ internal sealed class VoiceConversationOptionsValidator : IValidateOptions<Voice
                 $"{nameof(VoiceConversationOptions)}.{nameof(VoiceConversationOptions.MaxConnectionDuration)}",
                 options.MaxConnectionDuration));
         }
+
+        // The sample rate goes into the header of the audio the transcription provider receives.
+        if (options.InputSampleRate < 1)
+        {
+            (failures ??= []).Add(
+                $"{nameof(VoiceConversationOptions)}.{nameof(VoiceConversationOptions.InputSampleRate)} " +
+                $"must be at least 1. Actual value: {options.InputSampleRate}.");
+        }
+
+        // Compared with the length of an utterance: zero or less closes every utterance when it opens.
+        VoiceLiveOptionsValidator.AddWhenNotPositive(
+            options.MaxUtteranceDuration, nameof(VoiceConversationOptions), nameof(VoiceConversationOptions.MaxUtteranceDuration), ref failures);
+
+        VoiceLiveOptionsValidator.AddWhenNegative(
+            options.MaxConcurrentConnectionsPerTenant, nameof(VoiceConversationOptions), nameof(VoiceConversationOptions.MaxConcurrentConnectionsPerTenant), ref failures);
+        VoiceLiveOptionsValidator.AddWhenNegative(
+            options.MaxSpokenCharactersPerTurn, nameof(VoiceConversationOptions), nameof(VoiceConversationOptions.MaxSpokenCharactersPerTurn), ref failures);
+        VoiceLiveOptionsValidator.AddWhenNegative(
+            options.MaxUtteranceBytes, nameof(VoiceConversationOptions), nameof(VoiceConversationOptions.MaxUtteranceBytes), ref failures);
 
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }

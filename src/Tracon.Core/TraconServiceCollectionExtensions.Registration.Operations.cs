@@ -244,6 +244,12 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconWebhookOptions>, TraconWebhookOptionsValidator>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconIdempotencyOptions>, TraconIdempotencyOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconAsyncRunOptions>, TraconAsyncRunOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconKnowledgeOptions>, TraconKnowledgeOptionsValidator>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconRateLimitOptions>, TraconRateLimitOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconRetentionOptions>, TraconRetentionOptionsValidator>());
