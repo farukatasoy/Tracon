@@ -31,17 +31,10 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
 
     private const string TraceId = "the trace id the runtime assigns, always in the lower-case hex it writes";
 
-    private const string DefinitionName = "the name of a definition, which the database collation still folds";
-
     /// <summary>
     /// The key columns that may keep the collation of the database, each with the reason. Tenant ids are matched
     /// by column name in every table (<see cref="IsTenantId"/>).
     /// </summary>
-    /// <remarks>
-    /// The <see cref="DefinitionName"/> entries are a known gap, not a verdict: an agent called <c>Support</c> and
-    /// one called <c>support</c> are one definition on SQL Server and two elsewhere. Changing them drags every
-    /// column that repeats the name (runs, sessions, quotas) with it, so they leave in a change of their own.
-    /// </remarks>
     private static readonly Dictionary<string, string> Allowed = new(StringComparer.Ordinal)
     {
         ["tenants.slug"] = Folded,
@@ -53,28 +46,15 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
         ["tool_approval_rules.source_fingerprint"] = Digest,
         ["singleton_leases.name"] = LibraryName,
         ["retention_policies.target"] = LibraryName,
-        ["agent_definition_version_counters.name"] = DefinitionName,
-        ["agent_definitions.name"] = DefinitionName,
-        ["agent_files.agent_name"] = DefinitionName,
-        ["agent_skill_resources.name"] = DefinitionName,
-        ["agent_skill_scripts.name"] = DefinitionName,
-        ["agent_skills.name"] = DefinitionName,
-        ["eval_suites.name"] = DefinitionName,
-        ["experiments.agent_name"] = DefinitionName,
-        ["experiments.name"] = DefinitionName,
-        ["inbound_triggers.name"] = DefinitionName,
-        ["job_schedules.name"] = DefinitionName,
-        ["mcp_servers.name"] = DefinitionName,
-        ["quota_usage.agent_name"] = DefinitionName,
-        ["quotas.agent_name"] = DefinitionName,
-        ["skill_script_grants.script_name"] = DefinitionName,
-        ["skill_script_grants.skill_name"] = DefinitionName,
-        ["tool_approval_rules.agent_name"] = DefinitionName,
-        ["tool_approval_rules.tool_name"] = DefinitionName,
-        ["webhook_subscriptions.name"] = DefinitionName,
-        ["workflow_definition_versions.name"] = DefinitionName,
-        ["workflows.name"] = DefinitionName,
     };
+
+    /// <summary>The tables whose <c>name</c> column is the name of a definition a client chooses.</summary>
+    private static readonly string[] DefinitionTables =
+    [
+        "agent_definitions", "agent_definition_version_counters", "workflows", "workflow_definition_versions", "agent_skills",
+        "agent_skill_resources", "agent_skill_scripts", "eval_suites", "experiments", "inbound_triggers", "job_schedules",
+        "mcp_servers", "webhook_subscriptions",
+    ];
 
     [Fact]
     public async Task Every_text_key_column_compares_ordinally_or_is_listed_with_its_reason()
@@ -154,6 +134,44 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             .Select(static column => $"{column.Name} ({column.Collation})")
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty("one identity, one collation: every column of a request, parent or checkpoint id compares ordinally");
+    }
+
+    [Fact]
+    public async Task Every_column_that_carries_a_definition_name_compares_ordinally()
+    {
+        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+
+        // The name of an agent lives in its definition and again in every table that records what ran under it. A column of
+        // another collation makes two definitions that differ only in letter case one in a filter or a group, and stops a
+        // comparison with the definition's own column ("Cannot resolve the collation conflict"). The pattern finds a column a
+        // later migration adds under one of these names, so the family cannot grow a member the check does not see.
+        var columns = await ColumnsAsync(
+            context,
+            "c.collation_name IS NOT NULL AND (c.name IN (N'agent_name', N'workflow_name', N'skill_name', N'script_name', N'target_name', N'tool_name') " +
+            "OR (c.name = N'name' AND t.name IN (" + string.Join(", ", DefinitionTables.Select(static table => $"N'{table}'")) + ")))");
+
+        columns.Count.ShouldBeGreaterThan(30, "the query has to find the name columns it guards");
+        columns
+            .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
+            .Select(static column => $"{column.Name} ({column.Collation})")
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty("one identity, one collation: every column that holds the name of a definition compares ordinally");
+    }
+
+    [Fact]
+    public async Task The_label_columns_that_stay_out_of_the_family_are_not_taken_for_names()
+    {
+        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+
+        // A node label, a span name, a score name and a key label are written by the library or by the model and never compared
+        // with the name of a definition. The list says which columns the test above does NOT guard, so the next reader does not
+        // add them to the family by accident, and a rename that moves one of them into the guarded set shows here first.
+        var labels = await ColumnsAsync(
+            context,
+            "c.collation_name IS NOT NULL AND ((t.name = N'run_non_token_usage' AND c.name = N'node_name') " +
+            "OR (t.name = N'spans' AND c.name = N'name') OR (t.name = N'api_keys' AND c.name = N'name'))");
+
+        labels.Count.ShouldBe(3, "a label column was renamed or moved: decide again whether it belongs to the family");
     }
 
     private static bool IsTenantId(KeyColumn key)

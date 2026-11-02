@@ -54,6 +54,14 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
             [QuotaPeriod.Monthly] = new(2026, 8, 1),
         };
 
+    /// <summary>
+    /// The name is the client's: names that differ only in letter case are two records. A store that folds
+    /// case merges them, and the second save replaces the first without a sign.
+    /// </summary>
+    [Fact]
+    public Task Agent_names_that_differ_only_in_case_are_two_quotas()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task Saved_rule_is_read_back()
     {

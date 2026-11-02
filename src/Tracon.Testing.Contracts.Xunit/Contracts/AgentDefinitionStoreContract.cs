@@ -58,6 +58,14 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         return await Store.DeleteAsync((string)key);
     }
 
+    /// <summary>
+    /// The name is the client's: names that differ only in letter case are two records. A store that folds
+    /// case merges them, and the second save replaces the first without a sign.
+    /// </summary>
+    [Fact]
+    public Task Names_that_differ_only_in_case_are_two_definitions()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task SaveAsync_increments_version_and_keeps_history()
     {

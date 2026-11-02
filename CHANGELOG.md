@@ -8,6 +8,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **On SQL Server, the names of definitions are compared by their characters, letter case included. `Support` and `support` are two agents, as they already
+  were on PostgreSQL and SQLite.** SQL Server compared them by the collation of the database, and its default ignores case, so saving `support` after `Support`
+  replaced the first row without a sign (every definition is written by an upsert), a read by either spelling returned the other's content, and the runs, the
+  sessions and the statistics of the two agents were listed and counted as one. Migration `0060_ordinal_definition_names` gives `Latin1_General_BIN2` to the name of every
+  definition (agents and their version counters, workflows and their versions, skills with their resources and scripts, eval suites, experiments, inbound triggers,
+  schedules, MCP servers, webhook subscriptions) and to every column that repeats an agent, workflow, skill, script or tool name: runs, sessions, conversations, voice
+  sessions, workflow requests, quotas and their usage, approval rules and pending approvals, tool invocations, run events, agent files, and the target a job, a schedule or a
+  trigger names. No value changes and no row is merged: names that were distinct stay distinct. Left alone: provider and tenant names (the library folds those to lower
+  case before it stores them), handler and lane names, and the labels a span or a workflow node carries.
+  What to do:
+  - **Plan the upgrade window.** The migration is one command in one transaction and each table it rebuilds is closed to reads and writes until the whole
+    migration commits. Measured in an emulated amd64 container on Apple Silicon (slower than native): 1.3 s over 100 000 runs (with 200 000 run events), and 5.1 s over
+    a million runs with 2 million run events, half a million tool invocations and 100 000 sessions of 8 KB each (3.6 s of it the three indexes of `runs`). That is
+    inside the default `CommandTimeoutSeconds` of 30; raise it for the run that applies the migration if your storage is slower, or apply it in your own deployment step
+    (`AutoApplyMigrations = false`). Apply it before you start the new instances.
+  - **A request that spells a name differently from the definition no longer finds it.** `/api/agents/support/run` for an agent saved as `Support` ran it on SQL Server and
+    answers `404` now, as it does on the other stores. Call every definition by the spelling it was saved with.
+  - **Check the SQL you wrote against these tables.** A comparison of one of these columns with a column of another collation fails with "Cannot resolve the collation
+    conflict" (error 468). That includes a join of `runs_v1.agent_name` to a column of your own: write `COLLATE Latin1_General_BIN2` on your side to keep the match exact,
+    or `COLLATE DATABASE_DEFAULT` on the view's side to ignore case again. The migration refreshes an existing `runs_v1`. A list ordered by a name now sorts by code point,
+    capitals before lowercase letters.
+  - SQL Server still ignores trailing spaces in every collation, so `Support` and `Support ` remain one name there.
+
+  A custom store must compare these names by their characters too. New contract tests, which a store that folds case fails:
+  `AgentDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions`, `WorkflowDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions`,
+  `AgentSkillStoreContract.Names_that_differ_only_in_case_are_two_skills`, `EvalStoreContract.Names_that_differ_only_in_case_are_two_suites`,
+  `ExperimentStoreContract.Names_that_differ_only_in_case_are_two_experiments`, `InboundTriggerStoreContract.Names_that_differ_only_in_case_are_two_triggers`,
+  `JobScheduleStoreContract.Names_that_differ_only_in_case_are_two_schedules`, `WebhookStoreContract.Names_that_differ_only_in_case_are_two_subscriptions`,
+  `QuotaStoreContract.Agent_names_that_differ_only_in_case_are_two_quotas`, `ToolApprovalRuleStoreContract.Tool_names_that_differ_only_in_case_are_two_rules`,
+  `SkillScriptGrantContract.Skill_names_that_differ_only_in_case_are_two_grants`, `ToolInvocationContract.Tool_names_that_differ_only_in_case_are_two_tools_in_the_usage`,
+  `RunStoreContract.Runs_of_agent_names_that_differ_only_in_case_are_listed_and_counted_apart` and
+  `SessionStoreContract.Sessions_of_agent_names_that_differ_only_in_case_are_listed_apart`. `TenantIsolationContract` gains the protected helper
+  `AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync` they share.
+
 - **Behavioural breaking change: a JSON request body longer than 8 MiB answers `413`.** Nothing bounded a body before: a 32 MB `message` was read,
   parsed, recorded with its run and echoed, about thirty times its size in memory at once, and only the server's own limit (30 MB on Kestrel,
   written nowhere) stood in front of it. `TraconEndpointOptions.MaxJsonBodyBytes` now bounds every JSON body under the endpoints, 8 MiB by default,
@@ -66,8 +100,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **Write each identifier with one spelling** if your code, a client or a stored reference spelled it two ways and relied on SQL
     Server treating them alike: it now reaches two records. A list ordered by an agent file path or a score name now sorts by
     code point, capitals before lowercase letters.
-  - The names of definitions (agents, workflows, skills, schedules and the like) still follow the collation of the database and still
-    fold case on SQL Server.
+  - The names of definitions (agents, workflows, skills, schedules and the like) kept the collation of the database in this change; the entry above
+    ("the names of definitions are compared by their characters") moves them too.
 
   A custom store must compare these identifiers by their characters too. New contract tests, which a store that folds case fails:
   `SessionStoreContract.Ids_that_differ_only_in_case_are_two_sessions`,

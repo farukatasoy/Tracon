@@ -30,6 +30,14 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
 
     private const string TenantId = "default";
 
+    /// <summary>
+    /// The name is the client's: names that differ only in letter case are two records. A store that folds
+    /// case merges them, and the second save replaces the first without a sign.
+    /// </summary>
+    [Fact]
+    public Task Names_that_differ_only_in_case_are_two_experiments()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task Save_and_get_round_trips()
     {

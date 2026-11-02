@@ -24,6 +24,14 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
         => await Store.DeleteSuiteAsync(tenantId, (string)key);
 
+    /// <summary>
+    /// The name is the client's: names that differ only in letter case are two records. A store that folds
+    /// case merges them, and the second save replaces the first without a sign.
+    /// </summary>
+    [Fact]
+    public Task Names_that_differ_only_in_case_are_two_suites()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task SaveSuiteAsync_assigns_an_id_to_a_new_suite()
     {

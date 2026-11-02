@@ -30,6 +30,14 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
         => await Store.RevokeAsync(tenantId, (string)key, scriptName: null);
 
+    /// <summary>
+    /// The name is the client's: names that differ only in letter case are two records. A store that folds
+    /// case merges them, and the second save replaces the first without a sign.
+    /// </summary>
+    [Fact]
+    public Task Skill_names_that_differ_only_in_case_are_two_grants()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task Skill_wide_grant_covers_every_script()
     {

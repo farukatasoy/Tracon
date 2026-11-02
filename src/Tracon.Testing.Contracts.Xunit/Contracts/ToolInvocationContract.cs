@@ -59,6 +59,14 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
     // The run the cancellation write records its invocation against.
     private readonly Guid _cancellationRunId = TraconId.NewId();
 
+    /// <summary>
+    /// The tool name on an invocation is the model's: names that differ only in letter case are two tools in
+    /// the usage summary. A store that folds case adds the calls of both to one line.
+    /// </summary>
+    [Fact]
+    public Task Tool_names_that_differ_only_in_case_are_two_tools_in_the_usage()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task Invocation_fields_round_trip()
     {

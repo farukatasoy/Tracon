@@ -2533,6 +2533,33 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.QueryRunsAsync(new RunQuery { SessionId = "SESSION-A" })).ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// The agent name on a run is the caller's: runs of names that differ only in letter case belong to two
+    /// agents. A store that folds case answers a query for one with the runs of both and counts them as one
+    /// agent in the statistics.
+    /// </summary>
+    [Fact]
+    public async Task Runs_of_agent_names_that_differ_only_in_case_are_listed_and_counted_apart()
+    {
+        var upperRun = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(upperRun, "Support"));
+        await Store.StartRunAsync(TestData.Run(TraconId.NewId(), "support"));
+        await Store.StartRunAsync(TestData.Run(TraconId.NewId(), "support"));
+
+        (await Store.QueryRunsAsync(new RunQuery { AgentName = "Support" })).ShouldHaveSingleItem().Id.ShouldBe(upperRun);
+        (await Store.QueryRunsAsync(new RunQuery { AgentName = "support" })).Count.ShouldBe(2);
+        (await Store.QueryRunsAsync(new RunQuery { AgentName = "SUPPORT" })).ShouldBeEmpty();
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        var runsByAgent = statistics.ByAgent.ToDictionary(static agent => agent.AgentName, static agent => agent.TotalRuns, StringComparer.Ordinal);
+
+        runsByAgent.Count.ShouldBe(2);
+        runsByAgent["Support"].ShouldBe(1);
+        runsByAgent["support"].ShouldBe(2);
+    }
+
     [Fact]
     public async Task Parent_filter_overrides_root_filter()
     {

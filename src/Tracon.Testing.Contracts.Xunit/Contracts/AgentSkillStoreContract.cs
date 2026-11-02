@@ -28,6 +28,14 @@ public abstract class AgentSkillStoreContract : TenantIsolationContract<IAgentSk
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
         => await Store.DeleteAsync(tenantId, (string)key);
 
+    /// <summary>
+    /// The name is the client's: names that differ only in letter case are two records. A store that folds
+    /// case merges them, and the second save replaces the first without a sign.
+    /// </summary>
+    [Fact]
+    public Task Names_that_differ_only_in_case_are_two_skills()
+        => AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync();
+
     [Fact]
     public async Task Saved_skill_is_read_back()
     {

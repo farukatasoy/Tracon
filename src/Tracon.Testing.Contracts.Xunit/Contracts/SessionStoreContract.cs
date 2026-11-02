@@ -144,6 +144,22 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         (await Store.GetAsync("SESSION-A")).ShouldNotBeNull();
     }
 
+    /// <summary>
+    /// The agent name on a session is the caller's: sessions of names that differ only in letter case belong
+    /// to two agents. A store that folds case lists the sessions of both under either name.
+    /// </summary>
+    [Fact]
+    public async Task Sessions_of_agent_names_that_differ_only_in_case_are_listed_apart()
+    {
+        await Store.SaveAsync(TestData.Session("upper") with { AgentName = "Support" });
+        await Store.SaveAsync(TestData.Session("lower-1") with { AgentName = "support" });
+        await Store.SaveAsync(TestData.Session("lower-2") with { AgentName = "support" });
+
+        (await Store.QueryAsync(new SessionQuery { AgentName = "Support" })).ShouldHaveSingleItem().Id.ShouldBe("upper");
+        (await Store.QueryAsync(new SessionQuery { AgentName = "support" })).Count.ShouldBe(2);
+        (await Store.QueryAsync(new SessionQuery { AgentName = "SUPPORT" })).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task Delete_removes_the_record()
     {

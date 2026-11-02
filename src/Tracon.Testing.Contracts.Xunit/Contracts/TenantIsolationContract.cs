@@ -231,4 +231,45 @@ public abstract class TenantIsolationContract<TStore> : StoreCancellationContrac
         (await CountAsync(TenantA, token)).ShouldBe(1);
         (await CountAsync(TenantB, token)).ShouldBe(1);
     }
+
+    /// <summary>
+    /// Asks a store whose records the caller names whether two names that differ only in letter case are two
+    /// records, as they are for an ordinal comparison.
+    /// </summary>
+    /// <returns>A task that completes when the check is done.</returns>
+    /// <remarks>
+    /// <para>
+    /// A derived contract whose name is chosen by the client calls this from a test of its own. A store that
+    /// folds case merges the two records: the second save replaces the first without a sign, and a read by
+    /// either spelling returns the content of the other.
+    /// </para>
+    /// <para>
+    /// The check counts the records after the first save and again after the second, so a contract whose
+    /// <see cref="SeedAsync"/> writes more than one row per name still gets the exact answer.
+    /// </para>
+    /// </remarks>
+    protected async Task AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync()
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        var upper = await SeedAsync(TenantA, "Support", token);
+        var afterOne = await CountAsync(TenantA, token);
+
+        var lower = await SeedAsync(TenantA, "support", token);
+
+        afterOne.ShouldBeGreaterThan(0, "the first save left nothing to count");
+        (await CountAsync(TenantA, token)).ShouldBe(
+            afterOne * 2,
+            "a name that differs only in letter case is another record; the store folded the two into one");
+        (await ExistsAsync(TenantA, upper)).ShouldBeTrue("the record saved under the capitalised name is gone");
+        (await ExistsAsync(TenantA, lower)).ShouldBeTrue("the record saved under the lower-case name is gone");
+
+        if (await TryDeleteAsync(TenantA, upper) is not { } deleted)
+        {
+            return;
+        }
+
+        deleted.ShouldBeTrue("the capitalised name could not be deleted");
+        (await ExistsAsync(TenantA, lower)).ShouldBeTrue("deleting one spelling removed the other");
+    }
 }
