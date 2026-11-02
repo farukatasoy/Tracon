@@ -22,6 +22,16 @@ public static class CapacityEnvironment
     /// <summary>The variable that turns the tenant tag on the run, cost and job metrics on.</summary>
     public const string TenantTagVariable = "TRACON_CAPACITY_TENANT_TAG";
 
+    /// <summary>The variable that turns Tracon's own spans and metrics off (<c>off</c>); anything else leaves them on, as the product ships.</summary>
+    public const string ObservabilityVariable = "TRACON_CAPACITY_OBSERVABILITY";
+
+    /// <summary>
+    /// Whether Tracon's observability is switched off for this run. A diagnosis, not a configuration to measure
+    /// under: it separates what the telemetry path keeps from what the rest of the host keeps.
+    /// </summary>
+    public static bool ObservabilityOff
+        => string.Equals(Environment.GetEnvironmentVariable(ObservabilityVariable), "off", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Whether any well-formed tenant id is accepted. Off, the host admits only the two tenants of the
     /// ordinary profiles; on, it behaves as a host with an empty allow list, which is the shape a tenant ramp needs.

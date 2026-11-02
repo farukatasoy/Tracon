@@ -145,7 +145,7 @@ public sealed class HostProbe
                     {
                         if (entry.Value.ValueKind == JsonValueKind.Number)
                         {
-                            values[property.Name + "." + entry.Name] = entry.Value.GetDouble();
+                            values["host." + property.Name + "." + entry.Name] = entry.Value.GetDouble();
                         }
                     }
 

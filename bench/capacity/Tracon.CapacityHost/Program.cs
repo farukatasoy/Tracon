@@ -80,6 +80,13 @@ if (CapacityEnvironment.TenantTag)
     builder.Services.Configure<TraconOptions>(options => options.Observability.IncludeTenantTag = true);
 }
 
+// A diagnosis, not a configuration to measure under: with the product's own telemetry off, whatever a soak still
+// finds growing is not the telemetry path.
+if (CapacityEnvironment.ObservabilityOff)
+{
+    builder.Services.Configure<TraconOptions>(options => options.Observability.Enabled = false);
+}
+
 tracon
     .AddModelProvider(new CapacityModelProvider(settings.Workload, counters, executions, settings.Name))
     .AddTool(probe.CreateFunction())

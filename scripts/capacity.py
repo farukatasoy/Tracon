@@ -1030,6 +1030,7 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
             "retentionEnabled": "false",
             "rateLimitEnabled": "false",
             "msbuildExtraArguments": " ".join(extra_msbuild_arguments()) or "none",
+            "observability": os.environ.get("TRACON_CAPACITY_OBSERVABILITY", "on"),
             "openTenancy": str(profile.get("tenantRamp") is not None).lower(),
             "tenantTag": str(bool((profile.get("tenantRamp") or {}).get("tenantTag", False))).lower(),
             "tenantRamp": json.dumps(profile.get("tenantRamp")) if profile.get("tenantRamp") else "none",

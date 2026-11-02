@@ -27,10 +27,18 @@ public sealed class MeterSeriesCounter : IDisposable
     private readonly MeterListener _listener = new();
     private readonly ConcurrentDictionary<string, InstrumentSeries> _series = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, UpDownTotal> _upDown = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, long> _publications = new(StringComparer.Ordinal);
 
     private MeterSeriesCounter()
     {
-        _listener.InstrumentPublished = (instrument, listener) => listener.EnableMeasurementEvents(instrument);
+        _listener.InstrumentPublished = (instrument, listener) =>
+        {
+            // One call per instrument OBJECT: a process that makes its meters once is told about each of them once,
+            // and one that makes a meter per run is told again for every run. The series count cannot see that, because
+            // two meters with the same name and the same tags are one series.
+            _publications.AddOrUpdate(instrument.Meter.Name + "/" + instrument.Name, 1, static (_, count) => count + 1);
+            listener.EnableMeasurementEvents(instrument);
+        };
         _listener.SetMeasurementEventCallback<byte>((i, v, t, _) => Record(i, v, t));
         _listener.SetMeasurementEventCallback<short>((i, v, t, _) => Record(i, v, t));
         _listener.SetMeasurementEventCallback<int>((i, v, t, _) => Record(i, v, t));
@@ -67,6 +75,14 @@ public sealed class MeterSeriesCounter : IDisposable
             return total;
         }
     }
+
+    /// <summary>How many times any instrument has been announced to the listener, repeats included.</summary>
+    public long Publications => _publications.Values.Sum();
+
+    /// <summary>The instruments that were announced more than once, with how many times: a meter made again and again.</summary>
+    /// <returns>A snapshot keyed by meter and instrument name.</returns>
+    public Dictionary<string, long> RepeatedPublications()
+        => _publications.Where(static pair => pair.Value > 1).ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
 
     /// <summary>Whether any instrument reached <see cref="SeriesCapPerInstrument"/>.</summary>
     public bool Saturated => _series.Values.Any(static s => s.Saturated);

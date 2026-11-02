@@ -45,6 +45,7 @@ public static class FootprintCatalog
         new("host.ledgerInFlight", "Runs in flight (host ledger)", MetricKind.Count),
         new("host.meterSeries", "Metric series (all instruments)", MetricKind.Count),
         new("host.meterInstruments", "Metric instruments that published", MetricKind.Count),
+        new("host.meterPublications", "Instrument announcements (a meter made again counts again)", MetricKind.Count),
         new("host.loadedAssemblies", "Loaded assemblies", MetricKind.Count),
         new("pg.connections", "PostgreSQL client connections", MetricKind.Count),
         new("pg.idleInTransaction", "PostgreSQL idle in transaction", MetricKind.Count),
@@ -70,9 +71,14 @@ public static class FootprintCatalog
             return new FootprintMetric(name, "Series of " + name[SeriesPrefix.Length..], MetricKind.Count);
         }
 
-        if (name.StartsWith("upDown.", StringComparison.Ordinal))
+        if (name.StartsWith("host.upDownTotals.", StringComparison.Ordinal))
         {
-            return new FootprintMetric(name, "Up-down counter " + name["upDown.".Length..], MetricKind.Count);
+            return new FootprintMetric(name, "Up-down counter " + name["host.upDownTotals.".Length..], MetricKind.Count);
+        }
+
+        if (name.StartsWith("host.meterRepeatedPublications.", StringComparison.Ordinal))
+        {
+            return new FootprintMetric(name, "Announcements of " + name["host.meterRepeatedPublications.".Length..], MetricKind.Count);
         }
 
         return null;

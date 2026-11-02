@@ -83,6 +83,8 @@ public static class CapacityDiagnostics
             ["meterInstruments"] = meters?.Instruments,
             ["meterSeries"] = meters?.SeriesTotal,
             ["meterSaturated"] = meters?.Saturated,
+            ["meterPublications"] = meters?.Publications,
+            ["meterRepeatedPublications"] = meters?.RepeatedPublications(),
             ["meterSeriesByInstrument"] = meters?.SeriesByInstrument(),
             ["upDownTotals"] = meters?.UpDownTotals(),
         };
