@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -25,7 +26,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// switch off and on, because many validators check a value only while its feature is on.
 /// </para>
 /// </remarks>
-public sealed class ConfigurationPermutationTests
+public sealed partial class ConfigurationPermutationTests
 {
     private static readonly string[] CultureNames = ["tr-TR", "de-DE"];
 
@@ -251,7 +252,7 @@ public sealed class ConfigurationPermutationTests
         {
             var enabled = FeatureOn(scalar);
 
-            foreach (var (text, documented) in new[] { ("-1", NegativeIsDocumented), ("0", ZeroIsDocumented) })
+            foreach (var (text, documented) in new[] { (NegativeText(scalar), NegativeIsDocumented), (ZeroText(scalar), ZeroIsDocumented) })
             {
                 if (documented.ContainsKey(scalar.Key))
                 {
@@ -277,7 +278,7 @@ public sealed class ConfigurationPermutationTests
     {
         var failures = new List<string>();
 
-        foreach (var (documented, text) in new[] { (ZeroIsDocumented, "0"), (NegativeIsDocumented, "-1") })
+        foreach (var (documented, isZero) in new[] { (ZeroIsDocumented, true), (NegativeIsDocumented, false) })
         {
             foreach (var (key, reason) in documented)
             {
@@ -285,10 +286,12 @@ public sealed class ConfigurationPermutationTests
 
                 if (scalar is null)
                 {
-                    failures.Add($"'{key}' is listed with a meaning for {text}, but no scalar has that key.");
+                    failures.Add($"'{key}' is listed with a meaning for {(isZero ? "zero" : "a negative value")}, but no scalar has that key.");
 
                     continue;
                 }
+
+                var text = isZero ? ZeroText(scalar) : NegativeText(scalar);
 
                 if (Run(scalar, text, FeatureOn(scalar), culture: null).Kind != OutcomeKind.Bound)
                 {
@@ -408,6 +411,12 @@ public sealed class ConfigurationPermutationTests
                 ? FractionCultureTexts
                 : scalar.ScalarType == typeof(TimeSpan) ? TimeSpanCultureTexts : [];
 
+    /// <summary>Zero as the scalar writes it: a time span is a clock, where a bare <c>0</c> is not readable.</summary>
+    private static string ZeroText(OptionScalar scalar) => scalar.ScalarType == typeof(TimeSpan) ? "00:00:00" : "0";
+
+    /// <summary>A negative value as the scalar writes it.</summary>
+    private static string NegativeText(OptionScalar scalar) => scalar.ScalarType == typeof(TimeSpan) ? "-00:00:01" : "-1";
+
     private static IEnumerable<string> TextsFor(OptionScalar scalar)
     {
         var type = scalar.ScalarType;
@@ -452,6 +461,11 @@ public sealed class ConfigurationPermutationTests
             yield return "1:00:00:00:00";
             yield return "30";
             yield return "24:00:00";
+            yield return "00:00:00";
+            yield return "00:00:30";
+            yield return "0:00:30";
+            yield return "1.00:00:00";
+            yield return "-00:00:01";
         }
     }
 
@@ -530,7 +544,11 @@ public sealed class ConfigurationPermutationTests
 
         if (type == typeof(TimeSpan))
         {
-            return TimeSpan.TryParse(text, invariant, out var value) ? Format(value) : null;
+            // The documented shape is the clock: a bare number is not days and hours do not pass 23, which
+            // TimeSpan.TryParse alone would read as days. Checked by pattern here so the reader is not its own oracle.
+            var clock = text.Trim();
+
+            return TimeSpanShape().IsMatch(clock) && TimeSpan.TryParse(clock, invariant, out var value) ? Format(value) : null;
         }
 
         if (type.IsEnum && Enum.TryParse(type, text, ignoreCase: true, out var member))
@@ -554,6 +572,9 @@ public sealed class ConfigurationPermutationTests
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "null",
         };
+
+    [GeneratedRegex("^-?(?:[0-9]{1,8}\\.)?(?:[01]?[0-9]|2[0-3]):[0-5]?[0-9]:[0-5]?[0-9](?:\\.[0-9]{1,7})?$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex TimeSpanShape();
 
     private static string Show(string text) => text.Length == 0 ? "''" : $"'{text}'";
 

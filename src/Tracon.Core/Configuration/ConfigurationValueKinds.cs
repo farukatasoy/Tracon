@@ -31,12 +31,24 @@ internal static class ConfigurationValueKinds
 
     internal const string BooleanExpectation = "true or false";
 
-    internal const string TimeSpanExpectation = "a time span such as 00:00:30";
+    internal const string TimeSpanExpectation =
+        "a time span written [days.]hh:mm:ss, such as 00:00:30 or 2.00:00:00 (hours run from 0 to 23; a bare number is not accepted)";
 
     internal const string AbsoluteUriExpectation = "an absolute address such as https://example.com/";
 
     private const NumberStyles DecimalStyles =
         NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
+
+    /// <summary>
+    /// The shapes of a time span: a count of days needs its dot, and the clock is always hours, minutes and seconds.
+    /// </summary>
+    private static readonly string[] TimeSpanFormats =
+    [
+        @"d\.h\:m\:s",
+        @"d\.h\:m\:s\.FFFFFFF",
+        @"h\:m\:s",
+        @"h\:m\:s\.FFFFFFF",
+    ];
 
     internal static bool TryInt32(string text, out int value)
         => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
@@ -56,8 +68,38 @@ internal static class ConfigurationValueKinds
     internal static bool TryBoolean(string text, out bool value)
         => bool.TryParse(text, out value);
 
+    /// <summary>
+    /// Reads <c>[days.]hh:mm:ss[.fffffff]</c>, with an optional leading <c>-</c>.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="TimeSpan.TryParse(string, IFormatProvider, out TimeSpan)"/> reads a bare number as DAYS and a
+    /// clock whose hours pass 23 as days too: <c>Tools:DefaultTimeout=30</c> was thirty days, <c>48:00:00</c>
+    /// forty-eight, and the validators let both through. Every shape that is not the clock is refused, so a
+    /// number that meant seconds fails at start instead of waiting a month.
+    /// </remarks>
+    /// <param name="text">The text.</param>
+    /// <param name="value">The time span.</param>
+    /// <returns>Whether the text is readable.</returns>
     internal static bool TryTimeSpan(string text, out TimeSpan value)
-        => TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out value);
+    {
+        value = default;
+
+        var written = text.AsSpan().Trim();
+        var negative = written is ['-', ..];
+        var clock = negative ? written[1..] : written;
+
+        // The format's fraction digits are optional, and with them a lone trailing dot.
+        if (clock.IsEmpty
+            || clock[^1] == '.'
+            || !TimeSpan.TryParseExact(clock, TimeSpanFormats, CultureInfo.InvariantCulture, TimeSpanStyles.None, out var magnitude))
+        {
+            return false;
+        }
+
+        value = negative ? -magnitude : magnitude;
+
+        return true;
+    }
 
     internal static bool TryAbsoluteUri(string text, [NotNullWhen(true)] out Uri? value)
         => Uri.TryCreate(text, UriKind.Absolute, out value);

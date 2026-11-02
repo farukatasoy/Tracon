@@ -42,7 +42,7 @@ public sealed class OpenAILiveUnreadableConfigurationTests
         var failure = Provider.FailsAtStartup((nameof(OpenAILiveOptions.Timeout), "30s"));
 
         failure.Message.ShouldContain(
-            "Tracon:Providers:OpenAI:Live:Timeout is '30s', which is not a time span such as 00:00:30. " +
+            "Tracon:Providers:OpenAI:Live:Timeout is '30s', which is not a time span written [days.]hh:mm:ss, such as 00:00:30 or 2.00:00:00 (hours run from 0 to 23; a bare number is not accepted). " +
             "Write a valid value, or remove the key to keep the default.");
     }
 
