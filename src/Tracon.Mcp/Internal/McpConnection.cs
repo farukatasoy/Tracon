@@ -21,6 +21,9 @@ internal sealed class McpConnection : IAsyncDisposable
     private static long _lastGeneration;
 
     private readonly McpClient _client;
+
+    // The names of the tools the client's tool cache holds on this connection's behalf (ListToolsAsync).
+    private readonly HashSet<string> _cachedToolNames = new(StringComparer.Ordinal);
     private readonly string _serverName;
     private readonly bool _requiresApproval;
 
@@ -301,11 +304,9 @@ internal sealed class McpConnection : IAsyncDisposable
             // The capability check is mandatory: if the server does not
             // declare tools, the request is never sent at all
             // ("Verified API").
-            var discoveredTools = ServerCapabilities.Tools is null
+            var toolRegistrations = ServerCapabilities.Tools is null
                 ? []
-                : await _client.ListToolsAsync(options: null, timeout.Token).ConfigureAwait(false);
-
-            var toolRegistrations = Project(discoveredTools, options, logger);
+                : await ListToolsAsync(options, logger, timeout.Token).ConfigureAwait(false);
 
             DeclaredResourceCache = SupportsResources
                 ? [
@@ -591,44 +592,103 @@ internal sealed class McpConnection : IAsyncDisposable
         };
     }
 
-    private List<TraconToolRegistration> Project(
-        IList<McpClientTool> discovered,
+    /// <summary>
+    /// Reads the server's tool list page by page and stops when <see cref="TraconMcpOptions.MaxToolsPerServer"/> is full.
+    /// </summary>
+    /// <param name="options">The MCP options; the tool limit.</param>
+    /// <param name="logger">Where a dropped tool is reported.</param>
+    /// <param name="cancellationToken">The cancellation token; the connection timeout reaches the read through it.</param>
+    /// <returns>The registrations of the tools that were kept.</returns>
+    /// <remarks>
+    /// <para>
+    /// The SDK's <c>ListToolsAsync(RequestOptions)</c> collects every page before it returns, so a server that kept
+    /// handing out a next cursor filled memory (3 GB in ten seconds) before the limit was ever looked at. The pages are
+    /// read here one at a time instead, and the read ends with the first tool past the limit: the cursor is not followed
+    /// further and the rest of the list is never held. A single page is still read whole; only the number of pages is
+    /// bounded, and the connection timeout bounds the time a server that sends nothing but unusable tools can take.
+    /// </para>
+    /// <para>
+    /// The collecting overload also does two things for the transport that its page-level sibling does not: it fills the
+    /// client's tool cache, which is how a <c>tools/call</c> finds the <c>x-mcp-header</c> annotations of its tool and
+    /// sends their <c>Mcp-Param-*</c> headers, and it leaves out a tool whose annotations are not valid. Both are done
+    /// here with <see cref="McpClient.AddKnownTools"/>, one tool at a time so that a single bad tool does not take the rest
+    /// with it, and the entries of tools that left the list are removed once a list has been read to its end.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<List<TraconToolRegistration>> ListToolsAsync(
         TraconMcpOptions options,
-        ILogger logger)
+        ILogger logger,
+        CancellationToken cancellationToken)
     {
-        var registrations = new List<TraconToolRegistration>(discovered.Count);
+        var registrations = new List<TraconToolRegistration>();
+        var listed = new HashSet<string>(StringComparer.Ordinal);
+        var request = new ListToolsRequestParams();
+        var full = false;
 
-        foreach (var tool in discovered)
+        do
         {
-            if (registrations.Count >= options.MaxToolsPerServer)
+            var page = await _client.ListToolsAsync(request, cancellationToken).ConfigureAwait(false);
+
+            foreach (var tool in page.Tools)
             {
-                logger.LogWarning(
-                    "MCP server '{ServerName}' exceeded the {Limit} tool limit; the excess is being dropped. " +
-                    "The limit is changed with Tracon:Mcp:MaxToolsPerServer.",
+                if (registrations.Count >= options.MaxToolsPerServer)
+                {
+                    logger.LogWarning(
+                        "MCP server '{ServerName}' exceeded the {Limit} tool limit; the excess is being dropped. " +
+                        "The limit is changed with Tracon:Mcp:MaxToolsPerServer.",
+                        _serverName,
+                        options.MaxToolsPerServer);
+
+                    full = true;
+
+                    break;
+                }
+
+                if (McpToolNaming.TryQualify(_serverName, tool.Name) is not { } qualified)
+                {
+                    logger.LogWarning(
+                        "Tool '{ToolName}' of MCP server '{ServerName}' was skipped: the name may contain only " +
+                        "letters, digits, underscores, and hyphens.",
+                        tool.Name,
+                        _serverName);
+
+                    continue;
+                }
+
+                try
+                {
+                    _client.AddKnownTools([tool]);
+                }
+                catch (ArgumentException)
+                {
+                    // The tool's x-mcp-header annotations are not valid. The client has logged which and why.
+                    continue;
+                }
+
+                _cachedToolNames.Add(tool.Name);
+                listed.Add(tool.Name);
+
+                // The remote tool definition lives on the server, not in code,
+                // and the server can change it at any time. This is why
+                // approval defaults to required.
+                registrations.Add(CreateRegistration(
+                    new McpElicitingTool(new McpClientTool(_client, tool, serializerOptions: null).WithName(qualified), _serverName),
                     _serverName,
-                    options.MaxToolsPerServer);
-
-                break;
+                    _requiresApproval));
             }
 
-            if (McpToolNaming.TryQualify(_serverName, tool.Name) is not { } qualified)
-            {
-                logger.LogWarning(
-                    "Tool '{ToolName}' of MCP server '{ServerName}' was skipped: the name may contain only " +
-                    "letters, digits, underscores, and hyphens.",
-                    tool.Name,
-                    _serverName);
+            request.Cursor = full ? null : page.NextCursor;
+        }
+        while (request.Cursor is not null);
 
-                continue;
-            }
+        // Only a list that was read to its end (or to the limit) says which tools are gone; a read that failed half-way
+        // leaves the entries of the list it replaces in place, as the tools it keeps still call through them.
+        var gone = _cachedToolNames.Where(name => !listed.Contains(name)).ToArray();
 
-            // The remote tool definition lives on the server, not in code,
-            // and the server can change it at any time. This is why
-            // approval defaults to required.
-            registrations.Add(CreateRegistration(
-                new McpElicitingTool(tool.WithName(qualified), _serverName),
-                _serverName,
-                _requiresApproval));
+        if (gone.Length > 0)
+        {
+            _client.RemoveKnownTools(gone);
+            _cachedToolNames.ExceptWith(gone);
         }
 
         return registrations;

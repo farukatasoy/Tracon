@@ -46,6 +46,9 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
     /// <summary>The methods received, in order.</summary>
     public List<string> Methods { get; } = [];
 
+    /// <summary>The HTTP headers each request came with, in order, next to its JSON-RPC method.</summary>
+    public List<(string Method, IReadOnlyDictionary<string, string> Headers)> Requests { get; } = [];
+
     /// <summary>Starts a server.</summary>
     /// <param name="script">The answer to each non-handshake method.</param>
     /// <returns>The running server.</returns>
@@ -109,6 +112,21 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
             lock (Methods)
             {
                 Methods.Add(method);
+            }
+
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var name in context.Request.Headers.AllKeys)
+            {
+                if (name is not null)
+                {
+                    headers[name] = context.Request.Headers[name] ?? string.Empty;
+                }
+            }
+
+            lock (Requests)
+            {
+                Requests.Add((method, headers));
             }
 
             if (id is null)
