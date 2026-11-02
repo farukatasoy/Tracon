@@ -31,6 +31,7 @@ namespace Tracon;
 internal sealed class EgressSocketGuard
 {
     private readonly Func<EgressAddressPolicy> _policyAccessor;
+    private readonly EgressHostResolver? _resolver;
 
     /// <summary>Creates a guard that reads its policy from the shared egress options.</summary>
     /// <param name="options">The egress options.</param>
@@ -57,6 +58,22 @@ internal sealed class EgressSocketGuard
         _policyAccessor = policyAccessor;
     }
 
+    /// <summary>Creates a guard that resolves host names through <paramref name="resolver"/> instead of the operating system.</summary>
+    /// <param name="policyAccessor">Returns the policy in force. Called once per connection.</param>
+    /// <param name="resolver">Answers every name lookup the guard makes.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="policyAccessor"/> or <paramref name="resolver"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// For a test that has to answer a second question differently from the first. The guard asks once per connection and
+    /// connects to what it was told; this is how that is shown.
+    /// </remarks>
+    internal EgressSocketGuard(Func<EgressAddressPolicy> policyAccessor, EgressHostResolver resolver)
+        : this(policyAccessor)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+
+        _resolver = resolver;
+    }
+
     /// <summary>The delegate to hand to <see cref="SocketsHttpHandler.ConnectCallback"/>.</summary>
     /// <param name="context">The connection context the handler supplies.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -69,7 +86,7 @@ internal sealed class EgressSocketGuard
         ArgumentNullException.ThrowIfNull(context);
 
         var verdict = await EgressAddressValidator
-            .ResolveAndValidateAsync(context.DnsEndPoint.Host, _policyAccessor(), cancellationToken)
+            .ResolveAndValidateAsync(context.DnsEndPoint.Host, _policyAccessor(), _resolver, cancellationToken)
             .ConfigureAwait(false);
 
         if (!verdict.IsAllowed)
@@ -111,7 +128,7 @@ internal sealed class EgressSocketGuard
         ArgumentNullException.ThrowIfNull(target);
 
         var verdict = await EgressAddressValidator
-            .ResolveAndValidateAsync(target.Host, _policyAccessor(), cancellationToken)
+            .ResolveAndValidateAsync(target.Host, _policyAccessor(), _resolver, cancellationToken)
             .ConfigureAwait(false);
 
         if (!verdict.IsAllowed)
