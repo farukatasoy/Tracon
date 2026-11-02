@@ -29,8 +29,12 @@ public sealed class ConfigurationPermutationTests
 {
     private static readonly string[] CultureNames = ["tr-TR", "de-DE"];
 
-    /// <summary>Texts a comma-decimal culture would read differently from the invariant one.</summary>
-    private static readonly string[] CultureSensitiveTexts = ["0,5", "1,5", "1.5", "1.000,5", "1,000"];
+    /// <summary>Texts a comma-decimal culture would read differently from the invariant one, by the type that reads them.</summary>
+    private static readonly string[] WholeNumberCultureTexts = ["0,5", "1,000"];
+
+    private static readonly string[] FractionCultureTexts = ["0,5", "1.5", "1.000,5", "1,000"];
+
+    private static readonly string[] TimeSpanCultureTexts = ["0,5", "00:00:30,5", "00:00:30.5"];
 
     /// <summary>
     /// Scalars whose text is NOT read from configuration on purpose, each with the reason. The probe skips them.
@@ -130,6 +134,13 @@ public sealed class ConfigurationPermutationTests
     [Fact]
     public void Every_text_either_binds_what_the_invariant_reading_says_or_stops_the_host_naming_the_key()
     {
+        Warm(
+            from scalar in Scalars.Value
+            where !NotBoundOnPurpose.ContainsKey(scalar.Key)
+            from enabled in Variants(scalar)
+            from text in TextsFor(scalar).Prepend(string.Empty)
+            select new CaseKey(scalar.Key, text, enabled, Culture: null));
+
         var failures = new List<string>();
 
         foreach (var scalar in Scalars.Value.Where(static scalar => !NotBoundOnPurpose.ContainsKey(scalar.Key)))
@@ -176,11 +187,18 @@ public sealed class ConfigurationPermutationTests
     [Fact]
     public void The_reading_does_not_depend_on_the_culture_of_the_thread()
     {
+        Warm(
+            from scalar in Scalars.Value
+            where !NotBoundOnPurpose.ContainsKey(scalar.Key)
+            from text in CultureTextsFor(scalar)
+            from culture in CultureNames.Prepend(null)
+            select new CaseKey(scalar.Key, text, Enabled: false, culture));
+
         var failures = new List<string>();
 
-        foreach (var scalar in Scalars.Value.Where(static scalar => scalar.IsReadScalar && !NotBoundOnPurpose.ContainsKey(scalar.Key)))
+        foreach (var scalar in Scalars.Value.Where(static scalar => !NotBoundOnPurpose.ContainsKey(scalar.Key)))
         {
-            foreach (var text in CultureSensitiveTexts.Concat(TextsFor(scalar).Where(static text => text.Contains(':', StringComparison.Ordinal))))
+            foreach (var text in CultureTextsFor(scalar))
             {
                 var invariant = Run(scalar, text, enabled: false, culture: null);
 
@@ -382,6 +400,14 @@ public sealed class ConfigurationPermutationTests
         }
     }
 
+    /// <summary>The texts whose reading could depend on the culture: a number or a time span, not a switch, a name or text.</summary>
+    private static string[] CultureTextsFor(OptionScalar scalar)
+        => scalar.ScalarType == typeof(int) || scalar.ScalarType == typeof(long)
+            ? WholeNumberCultureTexts
+            : scalar.ScalarType == typeof(double) || scalar.ScalarType == typeof(float) || scalar.ScalarType == typeof(decimal)
+                ? FractionCultureTexts
+                : scalar.ScalarType == typeof(TimeSpan) ? TimeSpanCultureTexts : [];
+
     private static IEnumerable<string> TextsFor(OptionScalar scalar)
     {
         var type = scalar.ScalarType;
@@ -530,6 +556,17 @@ public sealed class ConfigurationPermutationTests
         };
 
     private static string Show(string text) => text.Length == 0 ? "''" : $"'{text}'";
+
+    /// <summary>Runs the cases on all cores and keeps their outcomes, so that the loops of a test only read them.</summary>
+    private static void Warm(IEnumerable<CaseKey> cases)
+    {
+        var byKey = Scalars.Value.ToDictionary(static scalar => scalar.Key, StringComparer.Ordinal);
+
+        Parallel.ForEach(
+            cases,
+            new ParallelOptions { MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8) },
+            key => Run(byKey[key.Key], key.Text, key.Enabled, key.Culture));
+    }
 
     private static Outcome Run(OptionScalar scalar, string text, bool enabled, string? culture)
         => Outcomes.GetOrAdd(new CaseKey(scalar.Key, text, enabled, culture), _ => Execute(scalar, text, enabled, culture));

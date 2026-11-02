@@ -282,7 +282,7 @@ public sealed class ResourceLimitTests
                 ChatOptions? options = null,
                 CancellationToken cancellationToken = default)
             {
-                await Task.Delay(delay, cancellationToken);
+                await Task.Delay(delay, cancellationToken); // delay: simulated
 
                 return new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"));
             }
@@ -292,7 +292,7 @@ public sealed class ResourceLimitTests
                 ChatOptions? options = null,
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
-                await Task.Delay(delay, cancellationToken);
+                await Task.Delay(delay, cancellationToken); // delay: simulated
 
                 yield return new ChatResponseUpdate(ChatRole.Assistant, "ok");
             }
