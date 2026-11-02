@@ -5160,6 +5160,11 @@ shows each registered timeout.
 { "name": "render-audio", "kind": "Function", "timeout": "00:05:00" }
 ```
 
+A time span in a request body is written `[days.]hh:mm:ss`, as in the schema. A bare number
+(`"30"`) and an hour above 23 (`"48:00:00"`) are a `400` that names the field; .NET would read
+`"30"` as thirty days. This holds for every time span in a body (`runTimeout`, `requestTimeout`
+and the others).
+
 - When the timeout passes, the token the handler was given is cancelled and the run
   ends `Failed` with the error type `workflow_function_timeout` (class `Timeout`),
   which names the node and the limit. No later node runs. Match the type with
@@ -23601,6 +23606,9 @@ resolved. See
 | `StaleToolRetention` | 15 minutes |
 | `ConnectionTimeout` | 30 seconds |
 | `MaxToolsPerServer` | `100`; the tool list is read page by page and the read stops at the first tool past the limit |
+| `MaxResourcesPerServer` | `1000`; the resource list is read the same way. A resource past the limit is not declared, so it cannot be read |
+| `MaxPromptsPerServer` | `100`; the prompt list is read the same way |
+| `MaxResponseBytes` | `16777216` (16 MiB); a larger response fails the call. A stream of events is counted per event. Applies when a connection is opened. Must be at least 1 |
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |
@@ -29007,9 +29015,17 @@ Code tools keep priority over a remote tool with the same name. MCP tools also r
 approval by default.
 
 A server with more tools than `Tracon:Mcp:MaxToolsPerServer` keeps its first tools and the
-log says so: the client stops reading pages at the first tool past the limit, so a server
+log says so (the resource and prompt lists have `MaxResourcesPerServer` and `MaxPromptsPerServer`): the client stops reading pages at the first tool past the limit, so a server
 that never ends its list does not fill memory. A tool whose `x-mcp-header` annotation is
 not valid is left out and the log names the reason.
+
+### An MCP call fails with "response is larger than the limit"
+
+The server answered with more than `Tracon:Mcp:MaxResponseBytes` (16 MiB). The client reads a
+response whole before it can trim it, so a 20 MB tool result cost about 500 MB of memory. Make
+the tool return less, or raise the limit; the result is still trimmed to
+`Tools:DefaultMaxOutputBytes` (1 MiB) afterwards. A stream of events is counted per event, not in
+total. The limit applies when a connection is opened.
 
 ### MCP OAuth says "not found or has expired" after consent
 

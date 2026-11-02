@@ -385,6 +385,11 @@ shows each registered timeout.
 { "name": "render-audio", "kind": "Function", "timeout": "00:05:00" }
 ```
 
+A time span in a request body is written `[days.]hh:mm:ss`, as in the schema. A bare number
+(`"30"`) and an hour above 23 (`"48:00:00"`) are a `400` that names the field; .NET would read
+`"30"` as thirty days. This holds for every time span in a body (`runTimeout`, `requestTimeout`
+and the others).
+
 - When the timeout passes, the token the handler was given is cancelled and the run
   ends `Failed` with the error type `workflow_function_timeout` (class `Timeout`),
   which names the node and the limit. No later node runs. Match the type with

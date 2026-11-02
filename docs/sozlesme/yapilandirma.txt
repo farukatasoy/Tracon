@@ -63,8 +63,11 @@ Tracon:MaxParameterValueLength
 Tracon:Mcp:AllowedConfigurationPrefix
 Tracon:Mcp:ConnectionTimeout
 Tracon:Mcp:Enabled
+Tracon:Mcp:MaxPromptsPerServer
 Tracon:Mcp:MaxResourceBytesPerResource
 Tracon:Mcp:MaxResourceBytesTotal
+Tracon:Mcp:MaxResourcesPerServer
+Tracon:Mcp:MaxResponseBytes
 Tracon:Mcp:MaxToolsPerServer
 Tracon:Mcp:OAuthCallbackBaseUri
 Tracon:Mcp:OAuthTokenSlidingLifetime

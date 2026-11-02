@@ -748,6 +748,9 @@ resolved. See
 | `StaleToolRetention` | 15 minutes |
 | `ConnectionTimeout` | 30 seconds |
 | `MaxToolsPerServer` | `100`; the tool list is read page by page and the read stops at the first tool past the limit |
+| `MaxResourcesPerServer` | `1000`; the resource list is read the same way. A resource past the limit is not declared, so it cannot be read |
+| `MaxPromptsPerServer` | `100`; the prompt list is read the same way |
+| `MaxResponseBytes` | `16777216` (16 MiB); a larger response fails the call. A stream of events is counted per event. Applies when a connection is opened. Must be at least 1 |
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |

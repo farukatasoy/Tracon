@@ -448,9 +448,17 @@ Code tools keep priority over a remote tool with the same name. MCP tools also r
 approval by default.
 
 A server with more tools than `Tracon:Mcp:MaxToolsPerServer` keeps its first tools and the
-log says so: the client stops reading pages at the first tool past the limit, so a server
+log says so (the resource and prompt lists have `MaxResourcesPerServer` and `MaxPromptsPerServer`): the client stops reading pages at the first tool past the limit, so a server
 that never ends its list does not fill memory. A tool whose `x-mcp-header` annotation is
 not valid is left out and the log names the reason.
+
+### An MCP call fails with "response is larger than the limit"
+
+The server answered with more than `Tracon:Mcp:MaxResponseBytes` (16 MiB). The client reads a
+response whole before it can trim it, so a 20 MB tool result cost about 500 MB of memory. Make
+the tool return less, or raise the limit; the result is still trimmed to
+`Tools:DefaultMaxOutputBytes` (1 MiB) afterwards. A stream of events is counted per event, not in
+total. The limit applies when a connection is opened.
 
 ### MCP OAuth says "not found or has expired" after consent
 
