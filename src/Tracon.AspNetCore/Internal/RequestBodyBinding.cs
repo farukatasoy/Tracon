@@ -114,6 +114,10 @@ internal static class RequestBodyBinding
     /// it and keeps winning, which is the same rule the store registrations
     /// follow — the consumer's registration always wins.
     /// </para>
+    /// <para>
+    /// <see cref="ClockTimeSpanConverter"/> is appended the same way: a time span in a body is the clock
+    /// <c>[days.]hh:mm:ss</c>, not the framework's reading of <c>"30"</c> as thirty days.
+    /// </para>
     /// </remarks>
     private static JsonSerializerOptions ReadOptions(HttpContext httpContext)
     {
@@ -129,6 +133,7 @@ internal static class RequestBodyBinding
         var options = new JsonSerializerOptions(source) { RespectNullableAnnotations = true };
 
         options.Converters.Add(new ExplainedEnumConverterFactory());
+        options.Converters.Add(new ClockTimeSpanConverter());
 
         // A null inside a list or a map is not caught by RespectNullableAnnotations; see NullElementRule.
         options.TypeInfoResolver = (source.TypeInfoResolver ?? new DefaultJsonTypeInfoResolver())
