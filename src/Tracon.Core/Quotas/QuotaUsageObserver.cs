@@ -130,54 +130,85 @@ internal sealed class QuotaUsageObserver : CachedGaugeSource<QuotaUsageObserver.
 
         foreach (var tenant in tenants)
         {
-            var definitions = await _quotaStore.ListAsync(tenant.Slug, cancellationToken).ConfigureAwait(false);
-
-            if (definitions.Count == 0)
+            // 🚨 One tenant at a time, each in its own try. The list spans every tenant, so a tenant whose rules
+            // cannot be read must cost the gauge that tenant's series and not the series of the tenants behind it:
+            // thrown out of the loop, the failure kept the whole cache at its last value for as long as the tenant
+            // stayed broken. The failing tenant keeps the samples it had.
+            try
             {
-                continue;
+                await ReadTenantAsync(tenant, timeZone, now, samples, cancellationToken).ConfigureAwait(false);
             }
-
-            var usage = await _quotaStore
-                .GetUsageAsync(
-                    new QuotaUsageQuery
-                    {
-                        TenantId = tenant.Slug,
-                        PeriodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(now, timeZone),
-                    },
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            foreach (var definition in definitions)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
-                if (!definition.Enabled)
+                samples.AddRange(Snapshot().Where(sample => string.Equals(sample.TenantId, tenant.Slug, StringComparison.Ordinal)));
+
+                if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
                 {
-                    continue;
-                }
-
-                // A tenant-wide rule reads the counter with an empty name;
-                // a rule scoped to an agent reads its own agent's counter
-                // (same contract as QuotaEnforcer.Evaluate).
-                var scope = definition.AgentName ?? string.Empty;
-                var periodStart = QuotaPeriodCalculator.GetPeriodStart(now, definition.Period, timeZone);
-
-                var current = usage.FirstOrDefault(record =>
-                    string.Equals(record.AgentName, scope, StringComparison.Ordinal)
-                    && record.Period == definition.Period
-                    && record.PeriodStart == periodStart);
-
-                if (current is null)
-                {
-                    continue;
-                }
-
-                foreach (var (metric, limit, used) in QuotaEnforcer.EnumerateLimits(definition, current))
-                {
-                    samples.Add(new QuotaGaugeSample(tenant.Slug, scope, definition.Period, metric, used, limit));
+                    _logger.LogWarning(exception, "Could not read the quota usage of tenant '{Tenant}'; keeping its previous value.", tenant.Slug);
                 }
             }
         }
 
         return samples;
+    }
+
+    private async ValueTask ReadTenantAsync(
+        TenantDescriptor tenant,
+        TimeZoneInfo timeZone,
+        DateTimeOffset now,
+        List<QuotaGaugeSample> samples,
+        CancellationToken cancellationToken)
+    {
+        var definitions = await _quotaStore.ListAsync(tenant.Slug, cancellationToken).ConfigureAwait(false);
+
+        if (definitions.Count == 0)
+        {
+            return;
+        }
+
+        var usage = await _quotaStore
+            .GetUsageAsync(
+                new QuotaUsageQuery
+                {
+                    TenantId = tenant.Slug,
+                    PeriodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(now, timeZone),
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        // Collected apart, so a tenant that fails half way adds nothing half read.
+        var read = new List<QuotaGaugeSample>();
+
+        foreach (var definition in definitions)
+        {
+            if (!definition.Enabled)
+            {
+                continue;
+            }
+
+            // A tenant-wide rule reads the counter with an empty name;
+            // a rule scoped to an agent reads its own agent's counter
+            // (same contract as QuotaEnforcer.Evaluate).
+            var scope = definition.AgentName ?? string.Empty;
+            var periodStart = QuotaPeriodCalculator.GetPeriodStart(now, definition.Period, timeZone);
+
+            var current = usage.FirstOrDefault(record =>
+                string.Equals(record.AgentName, scope, StringComparison.Ordinal)
+                && record.Period == definition.Period
+                && record.PeriodStart == periodStart);
+
+            if (current is null)
+            {
+                continue;
+            }
+
+            foreach (var (metric, limit, used) in QuotaEnforcer.EnumerateLimits(definition, current))
+            {
+                read.Add(new QuotaGaugeSample(tenant.Slug, scope, definition.Period, metric, used, limit));
+            }
+        }
+
+        samples.AddRange(read);
     }
 
     /// <inheritdoc />

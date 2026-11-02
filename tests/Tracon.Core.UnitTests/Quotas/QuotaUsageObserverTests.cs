@@ -70,6 +70,42 @@ public sealed class QuotaUsageObserverTests
             && query.PeriodStarts[QuotaPeriod.Monthly] == new DateOnly(2026, 8, 1));
     }
 
+    /// <summary>
+    /// The refresh walks every tenant in one list. A tenant whose rules cannot be read costs the gauge that tenant's
+    /// series; thrown out of the loop, the failure kept every tenant behind it at its last value for as long as the
+    /// tenant stayed broken (and published nothing at all before the first good refresh).
+    /// </summary>
+    [Fact]
+    public async Task A_tenant_whose_quota_rules_cannot_be_read_does_not_stop_the_gauge_of_the_tenants_after_it()
+    {
+        var clock = new TriggerableTimeProvider(Start);
+        var (inner, tenants) = await SeedAsync(clock, maxRuns: 100);
+        await RecordUsageAsync(inner, clock, runs: 3);
+
+        // The tenant list is sorted by slug, so this one is read first.
+        await tenants.SaveAsync(new TenantDescriptor { Id = TraconId.NewId(), Slug = "aaa-broken", DisplayName = "Broken" });
+
+        var plan = new FaultPlan
+        {
+            Fail = static call => string.Equals(call.Method, nameof(IQuotaStore.ListAsync), StringComparison.Ordinal)
+                && string.Equals(call.Arguments[0] as string, "aaa-broken", StringComparison.Ordinal)
+                    ? new IOException("the quota store cannot read this tenant")
+                    : null,
+        };
+
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(FaultProxy<IQuotaStore>.Create(inner, plan), tenants, enabled: true, meterFactory, clock);
+        using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
+
+        plan.CountOf(nameof(IQuotaStore.ListAsync)).ShouldBeGreaterThanOrEqualTo(2, "both tenants must have been tried");
+
+        var usage = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName);
+
+        usage.ShouldContain(measurement => Metric(measurement) == QuotaMetric.Runs && measurement.Value == 3.0);
+    }
+
     [Fact]
     public async Task Value_matches_the_quota_record_when_enabled()
     {
