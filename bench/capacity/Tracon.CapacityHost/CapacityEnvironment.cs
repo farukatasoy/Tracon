@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Tracon.CapacityHost;
 
-/// <summary>The two scheduling knobs the profile sets on the host process.</summary>
+/// <summary>The knobs the profile sets on the host process through its environment.</summary>
 /// <remarks>
 /// Separate from <see cref="CapacitySettings"/> because the scheduling callback
 /// runs before the settings object is available to it, and because these two
@@ -15,6 +15,23 @@ public static class CapacityEnvironment
 
     /// <summary>The variable that sets how many jobs one process runs at once.</summary>
     public const string MaxConcurrentJobsVariable = "TRACON_CAPACITY_MAX_JOBS";
+
+    /// <summary>The variable that opens tenancy to any well-formed tenant id instead of the two fixed ones.</summary>
+    public const string OpenTenantsVariable = "TRACON_CAPACITY_OPEN_TENANTS";
+
+    /// <summary>The variable that turns the tenant tag on the run, cost and job metrics on.</summary>
+    public const string TenantTagVariable = "TRACON_CAPACITY_TENANT_TAG";
+
+    /// <summary>
+    /// Whether any well-formed tenant id is accepted. Off, the host admits only the two tenants of the
+    /// ordinary profiles; on, it behaves as a host with an empty allow list, which is the shape a tenant ramp needs.
+    /// </summary>
+    public static bool OpenTenants
+        => string.Equals(Environment.GetEnvironmentVariable(OpenTenantsVariable), "1", StringComparison.Ordinal);
+
+    /// <summary>Whether the per-tenant tag on Tracon's own metrics is on (off by default in the product).</summary>
+    public static bool TenantTag
+        => string.Equals(Environment.GetEnvironmentVariable(TenantTagVariable), "1", StringComparison.Ordinal);
 
     /// <summary>
     /// Whether the worker axis is being measured. When it is, the API host does

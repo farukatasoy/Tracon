@@ -28,7 +28,8 @@ public static class CapacityApparatus
     /// <param name="app">The application.</param>
     /// <param name="settings">What this process was started with.</param>
     /// <param name="counters">The host's counters.</param>
-    public static void Map(WebApplication app, CapacitySettings settings, CapacityCounters counters)
+    /// <param name="meters">The series counter, or <see langword="null"/> when the host does not run one.</param>
+    public static void Map(WebApplication app, CapacitySettings settings, CapacityCounters counters, MeterSeriesCounter? meters = null)
     {
         ArgumentNullException.ThrowIfNull(app);
         ArgumentNullException.ThrowIfNull(settings);
@@ -55,6 +56,8 @@ public static class CapacityApparatus
                 ["traconVersion"] = TraconVersion(),
                 ["runtimeVersion"] = Environment.Version.ToString(),
                 ["inFlightRuns"] = CapacityRunLedger.InFlight,
+                ["openTenancy"] = CapacityEnvironment.OpenTenants,
+                ["tenantTag"] = CapacityEnvironment.TenantTag,
 
                 // 🚨 The pool value above is the one this process was told to
                 // use; the one below is what the connection string actually
@@ -77,6 +80,14 @@ public static class CapacityApparatus
                 // measurement.
                 ["unavailable"] = Array.Empty<string>(),
             }));
+
+        // 🚨 collect pauses the process for a full collection; observe makes every observable instrument read
+        // whatever it reads (a database, for some). The driver asks for both on a slow cadence only.
+        app.MapGet(CapacityContract.DiagnosticsRoute, (HttpRequest request) => Results.Json(
+            CapacityDiagnostics.Snapshot(
+                meters,
+                collect: request.Query.ContainsKey("collect"),
+                observe: request.Query.ContainsKey("observe"))));
 
         app.MapPost(CapacityContract.ResetRoute, () =>
         {

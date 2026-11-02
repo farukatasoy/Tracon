@@ -28,6 +28,9 @@ public static class CapacityContract
     /// <summary>The apparatus endpoint that reports the host's effective settings.</summary>
     public const string SettingsRoute = ApparatusPrefix + "/settings";
 
+    /// <summary>The apparatus endpoint that reports the host process's own footprint: memory, threads, timers, descriptors, metric series.</summary>
+    public const string DiagnosticsRoute = ApparatusPrefix + "/diagnostics";
+
     /// <summary>The apparatus endpoint that resets the host's own counters between phases.</summary>
     public const string ResetRoute = ApparatusPrefix + "/reset";
 
