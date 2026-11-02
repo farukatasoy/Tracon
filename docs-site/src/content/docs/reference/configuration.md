@@ -37,10 +37,12 @@ Write a valid value, or remove the key to keep the default.
 ```
 
 Tracon does not skip such a key and keep the default. Several defaults are the loose
-side: `10MB` instead of a number would leave tool output unbounded, `nope` or `yes`
-instead of `false` or `true` would leave a protection or a limit as it was. A number is
-a whole number or a decimal written with `.`, a flag is `true` or `false`, a duration
-is a time span such as `00:00:30`, and an enum is one of its member names. A plain enum
+side: `nope` or `yes` instead of `false` or `true` would leave a protection or a limit as
+it was. A number is a whole number or a decimal written with `.`, a flag is `true` or
+`false`, a duration is a time span written `[days.]hh:mm:ss`, and an enum is one of its
+member names. A duration is a clock: `00:00:30` is thirty seconds and `2.00:00:00` is two
+days. A bare number (`30`) and an hour above 23 (`48:00:00`) are refused, because .NET would
+read them as days and a limit meant as seconds would become a month. A plain enum
 takes one member: `Tenant,Global` is refused, and so is a number that names no member.
 `Voice:Endpoint`, `Providers:OpenAI:Live:Endpoint` and `Mcp:OAuthCallbackBaseUri` take an
 absolute address such as `https://gateway.example.com/v1/`; `gateway.example.com/v1` is
@@ -141,7 +143,7 @@ script.
 | `AgentGraph:WaitTimeout` | `ChildDeadline` plus 30 seconds | Hard cutoff for a call that ignores cancellation. Must be greater than `ChildDeadline`; when unset it follows it |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization. `Provider` and `Model` are both required, or no binding is built. A `Temperature`, `TopP` or `MaxOutputTokens` that is not a number stops the host at startup; an empty one means the provider default |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
-| `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
+| `Tools:DefaultMaxOutputBytes` | `1048576` (1 MiB) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes. A longer result is trimmed into an envelope. Code can set `null` for no limit; a configuration key cannot, so write a large number there |
 | `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/tools/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
 
 Non-positive graph token, cost, or run limits remove that limit. See
@@ -745,7 +747,7 @@ resolved. See
 | `RefreshInterval` | 5 minutes |
 | `StaleToolRetention` | 15 minutes |
 | `ConnectionTimeout` | 30 seconds |
-| `MaxToolsPerServer` | `100` |
+| `MaxToolsPerServer` | `100`; the tool list is read page by page and the read stops at the first tool past the limit |
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |
@@ -787,7 +789,7 @@ tracon.UseMcp(
 | `MaxConcurrentRunsPerTenant` | `null`; no per-tenant limit. When set, from `1` to `MaxConcurrentRuns` |
 | `RunTimeout` | 10 minutes |
 | `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
-| `MaxSuperSteps` | `100` |
+| `MaxSuperSteps` | `100`; a sequential chain that needs more super-steps than this is refused when it is saved |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
 | `RequestExpirationScanInterval` | 1 minute |

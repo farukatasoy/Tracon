@@ -4220,8 +4220,12 @@ services.AddSingleton(new TraconToolRegistration(
 services.Configure<TraconOptions>(o => o.Tools.DefaultMaxOutputBytes = 4096);
 ```
 
-No change is required to keep today's behavior: the default is unlimited, and a tool
-that never sets a limit is never touched.
+The default is 1 MiB (1048576 bytes), so a tool that never sets a limit is bounded too: a
+result reaches the model request, the run's tool-call record and the session state whole,
+and a 20 MB result from an MCP server cost about 1.6 GB of memory. A tool that must
+return more sets its own `MaxOutputBytes` or raises the default. `DefaultMaxOutputBytes = null`
+removes the limit in code; a configuration key cannot be `null`, so write a large number
+there. An MCP client still reads the server's whole answer before the limit trims it.
 
 Bounding a tool's output inside its own body is always better — the tool knows its
 data, this only counts bytes. Treat the limit as the last line of defense for the day
@@ -5116,7 +5120,16 @@ provider the tenant's rules refuse (`tenant_provider_refused`), or a structured
 answer cut off at the output limit. The type decides, not the message, which names
 the tenant and its providers. A definition that does not compile keeps its retries:
 it can fail because a loop criterion or a provider client could not be created for
-the moment. The retry loop
+the moment.
+
+A failed database call inside a node is not retried on its own account. A `DbException` or a
+connection-pool timeout is retried only when the classifier reads it as transient, like any other
+error: with the built-in classifier a store that timed out is retried and a connection the server
+reset is not. The node's code may have written before the failure reached it, and running it again
+would repeat that write. A node that is safe to repeat can retry inside its own body, or throw an
+exception your `IRunErrorClassifier` calls transient.
+
+The retry loop
 runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
@@ -5515,6 +5528,12 @@ stays optional on purpose.
 | `Handoff` | One agent starts and hands off when needed — the **model** decides |
 | `GroupChat` | A manager distributes turns among participants |
 | `Magentic` | A manager plans, tracks progress, and replans; a manager agent is required |
+
+A `Sequential` chain is as long as a run may be. It takes one super-step for each of its steps
+(one more when it is written as `agentNames`), and `Tracon:Workflows:MaxSuperSteps` (100) stops
+a run that passes it, so a save of a chain that needs more is a `400` that names the longest one
+that fits. Shorten the chain, split it into two workflows, or raise the limit. The other
+patterns are not counted by the length of their list.
 
 `MaxIterations` bounds the turn count for `GroupChat` and `Magentic`, and the turns a
 `Handoff` agent goes on with by itself. A loop of handoffs has its own limit,
@@ -22871,10 +22890,12 @@ Write a valid value, or remove the key to keep the default.
 ```
 
 Tracon does not skip such a key and keep the default. Several defaults are the loose
-side: `10MB` instead of a number would leave tool output unbounded, `nope` or `yes`
-instead of `false` or `true` would leave a protection or a limit as it was. A number is
-a whole number or a decimal written with `.`, a flag is `true` or `false`, a duration
-is a time span such as `00:00:30`, and an enum is one of its member names. A plain enum
+side: `nope` or `yes` instead of `false` or `true` would leave a protection or a limit as
+it was. A number is a whole number or a decimal written with `.`, a flag is `true` or
+`false`, a duration is a time span written `[days.]hh:mm:ss`, and an enum is one of its
+member names. A duration is a clock: `00:00:30` is thirty seconds and `2.00:00:00` is two
+days. A bare number (`30`) and an hour above 23 (`48:00:00`) are refused, because .NET would
+read them as days and a limit meant as seconds would become a month. A plain enum
 takes one member: `Tenant,Global` is refused, and so is a number that names no member.
 `Voice:Endpoint`, `Providers:OpenAI:Live:Endpoint` and `Mcp:OAuthCallbackBaseUri` take an
 absolute address such as `https://gateway.example.com/v1/`; `gateway.example.com/v1` is
@@ -22975,7 +22996,7 @@ script.
 | `AgentGraph:WaitTimeout` | `ChildDeadline` plus 30 seconds | Hard cutoff for a call that ignores cancellation. Must be greater than `ChildDeadline`; when unset it follows it |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization. `Provider` and `Model` are both required, or no binding is built. A `Temperature`, `TopP` or `MaxOutputTokens` that is not a number stops the host at startup; an empty one means the provider default |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
-| `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
+| `Tools:DefaultMaxOutputBytes` | `1048576` (1 MiB) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes. A longer result is trimmed into an envelope. Code can set `null` for no limit; a configuration key cannot, so write a large number there |
 | `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/tools/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
 
 Non-positive graph token, cost, or run limits remove that limit. See
@@ -23579,7 +23600,7 @@ resolved. See
 | `RefreshInterval` | 5 minutes |
 | `StaleToolRetention` | 15 minutes |
 | `ConnectionTimeout` | 30 seconds |
-| `MaxToolsPerServer` | `100` |
+| `MaxToolsPerServer` | `100`; the tool list is read page by page and the read stops at the first tool past the limit |
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |
@@ -23621,7 +23642,7 @@ tracon.UseMcp(
 | `MaxConcurrentRunsPerTenant` | `null`; no per-tenant limit. When set, from `1` to `MaxConcurrentRuns` |
 | `RunTimeout` | 10 minutes |
 | `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
-| `MaxSuperSteps` | `100` |
+| `MaxSuperSteps` | `100`; a sequential chain that needs more super-steps than this is refused when it is saved |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
 | `RequestExpirationScanInterval` | 1 minute |
@@ -28648,6 +28669,8 @@ Common causes include:
 - Azure registration with no resource endpoint;
 - script execution enabled without the isolation acknowledgement;
 - a non-positive timeout, lease, size, or concurrency limit;
+- a time span written as a bare number (`30`) or with hours above 23 (`48:00:00`); write
+  it `[days.]hh:mm:ss`, such as `00:00:30` or `2.00:00:00`;
 - an unknown provider-specific key in `ModelBinding.ProviderSettings`;
 - bare SQLite `Data Source=:memory:`.
 
@@ -28983,6 +29006,11 @@ tool-count limit, and the latest refresh result.
 Code tools keep priority over a remote tool with the same name. MCP tools also require
 approval by default.
 
+A server with more tools than `Tracon:Mcp:MaxToolsPerServer` keeps its first tools and the
+log says so: the client stops reading pages at the first tool past the limit, so a server
+that never ends its list does not fill memory. A tool whose `x-mcp-header` annotation is
+not valid is left out and the log names the reason.
+
 ### MCP OAuth says "not found or has expired" after consent
 
 If more than one instance serves the application, the provider's redirect may have reached an instance that did
@@ -29093,6 +29121,15 @@ tenant trust boundary in host code.
 That is a security boundary. Define executable tools in code, register them, and then
 assign their names to database agents in the console. A stored skill script is a
 different feature with separate isolation and grant gates.
+
+### `MapTracon` throws when I map it under a path
+
+`MapTracon` must be called on the application itself, not on a route group
+(`app.MapGroup("/ops").MapTracon()`) and not inside `UseEndpoints(...)`. It adds
+middleware to the application pipeline (the request body limit, the `Idempotency-Key`
+buffering, CORS, problem replies, WebSockets), which a group does not have. Pass the
+path as the prefix instead: `app.MapTracon("/ops/tracon")`. `MapTraconMcpServer()`,
+`MapTraconA2A()` and `MapTraconAGUI()` are called on the application too.
 
 ### A deep link returns the app but not the expected data
 

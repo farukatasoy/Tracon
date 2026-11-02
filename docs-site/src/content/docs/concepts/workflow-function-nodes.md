@@ -345,7 +345,16 @@ provider the tenant's rules refuse (`tenant_provider_refused`), or a structured
 answer cut off at the output limit. The type decides, not the message, which names
 the tenant and its providers. A definition that does not compile keeps its retries:
 it can fail because a loop criterion or a provider client could not be created for
-the moment. The retry loop
+the moment.
+
+A failed database call inside a node is not retried on its own account. A `DbException` or a
+connection-pool timeout is retried only when the classifier reads it as transient, like any other
+error: with the built-in classifier a store that timed out is retried and a connection the server
+reset is not. The node's code may have written before the failure reached it, and running it again
+would repeat that write. A node that is safe to repeat can retry inside its own body, or throw an
+exception your `IRunErrorClassifier` calls transient.
+
+The retry loop
 runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third

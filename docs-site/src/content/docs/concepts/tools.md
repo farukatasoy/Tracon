@@ -283,8 +283,12 @@ services.AddSingleton(new TraconToolRegistration(
 services.Configure<TraconOptions>(o => o.Tools.DefaultMaxOutputBytes = 4096);
 ```
 
-No change is required to keep today's behavior: the default is unlimited, and a tool
-that never sets a limit is never touched.
+The default is 1 MiB (1048576 bytes), so a tool that never sets a limit is bounded too: a
+result reaches the model request, the run's tool-call record and the session state whole,
+and a 20 MB result from an MCP server cost about 1.6 GB of memory. A tool that must
+return more sets its own `MaxOutputBytes` or raises the default. `DefaultMaxOutputBytes = null`
+removes the limit in code; a configuration key cannot be `null`, so write a large number
+there. An MCP client still reads the server's whole answer before the limit trims it.
 
 Bounding a tool's output inside its own body is always better — the tool knows its
 data, this only counts bytes. Treat the limit as the last line of defense for the day

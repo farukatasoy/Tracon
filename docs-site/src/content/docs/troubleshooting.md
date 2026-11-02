@@ -110,6 +110,8 @@ Common causes include:
 - Azure registration with no resource endpoint;
 - script execution enabled without the isolation acknowledgement;
 - a non-positive timeout, lease, size, or concurrency limit;
+- a time span written as a bare number (`30`) or with hours above 23 (`48:00:00`); write
+  it `[days.]hh:mm:ss`, such as `00:00:30` or `2.00:00:00`;
 - an unknown provider-specific key in `ModelBinding.ProviderSettings`;
 - bare SQLite `Data Source=:memory:`.
 
@@ -445,6 +447,11 @@ tool-count limit, and the latest refresh result.
 Code tools keep priority over a remote tool with the same name. MCP tools also require
 approval by default.
 
+A server with more tools than `Tracon:Mcp:MaxToolsPerServer` keeps its first tools and the
+log says so: the client stops reading pages at the first tool past the limit, so a server
+that never ends its list does not fill memory. A tool whose `x-mcp-header` annotation is
+not valid is left out and the log names the reason.
+
 ### MCP OAuth says "not found or has expired" after consent
 
 If more than one instance serves the application, the provider's redirect may have reached an instance that did
@@ -555,6 +562,15 @@ tenant trust boundary in host code.
 That is a security boundary. Define executable tools in code, register them, and then
 assign their names to database agents in the console. A stored skill script is a
 different feature with separate isolation and grant gates.
+
+### `MapTracon` throws when I map it under a path
+
+`MapTracon` must be called on the application itself, not on a route group
+(`app.MapGroup("/ops").MapTracon()`) and not inside `UseEndpoints(...)`. It adds
+middleware to the application pipeline (the request body limit, the `Idempotency-Key`
+buffering, CORS, problem replies, WebSockets), which a group does not have. Pass the
+path as the prefix instead: `app.MapTracon("/ops/tracon")`. `MapTraconMcpServer()`,
+`MapTraconA2A()` and `MapTraconAGUI()` are called on the application too.
 
 ### A deep link returns the app but not the expected data
 

@@ -67,6 +67,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `RequireProductionProfile()` changes nothing. Answer it with `TraconEndpointOptions.AuthToken` or a policy, or `profile.Accept(TraconProductionRisk.UnauthenticatedLocalOperator)`
   when nothing but the machine can reach the endpoints.
 
+- **Behavioural breaking change: `MapTracon` throws on anything that is not the application, and a time span in configuration must be a clock.**
+  - `MapTracon` on `app.MapGroup(...)` (or inside `UseEndpoints(...)`) used to succeed and leave the surface half built: the request body limit, the `Idempotency-Key`
+    buffering, the CORS answer, the mapping of a malformed body and of an unreachable store to their problem replies and the WebSocket middleware are added to the
+    application's pipeline, which a group does not have, so a request with an `Idempotency-Key` failed with `400 Invalid request body` and a body past
+    `MaxJsonBodyBytes` was read. It throws an `ArgumentException` now, naming the fix: call it on the application and pass the path as the `prefix` argument
+    (`app.MapTracon("/ops/tracon")`). `MapTraconMcpServer`, `MapTraconA2A` and `MapTraconAGUI` on a group say that they need the application, where they used to ask
+    for `MapTracon` that had already run.
+  - A time span key (37 options, such as `Tracon:Tools:DefaultTimeout`) is read as `[days.]hh:mm:ss`, with an optional fraction and sign: `00:00:30`, `1.00:00:00`,
+    `00:00:00.250`. A bare number and an hour above 23 are refused at start and the message names the key. `TimeSpan.TryParse` read `30` as thirty days and `48:00:00`
+    as forty-eight, so a `Tools:DefaultTimeout=30` meant to be seconds was a tool call that could run for a month, and `00:30` was thirty minutes. A key that already
+    holds a clock (`00:00:30`, `0:00:30`, `2.12:00:00`) reads as before. The `timeout`, `runTimeout` and `requestTimeout` fields of the HTTP API are not changed by this.
+
+- **Behavioural breaking change: a tool result over 1 MiB is trimmed unless you say otherwise.** `Tracon:Tools:DefaultMaxOutputBytes` defaulted to unlimited so that an
+  upgrade never cut output, but a result reaches the model request, the run's tool-call record and the session state whole: a 20 MB result from an MCP server cost about
+  1.6 GB of memory. The default is 1 048 576 bytes now. A longer result is replaced by the same JSON envelope any over-limit result gets (`{"truncated": true,
+  "omittedBytes": …, "content": …}`), a `ToolOutputTruncated` event is written, and a tool's own `MaxOutputBytes` still wins. A tool that must return more raises the value,
+  or sets `DefaultMaxOutputBytes = null` in code for the old behaviour (a configuration key cannot be `null`: write a large number there). The MCP client still reads a
+  server's whole answer before the limit trims it.
+
+- **Behavioural breaking change: `PUT /api/workflows/{name}` refuses a sequential chain that no run could finish.** A chain takes one super-step for each of its steps
+  (one more when it is written as `agentNames`), and `Tracon:Workflows:MaxSuperSteps` is 100. A chain of 2 000 steps was saved with a `200` and every run of it ended
+  `Failed` at the limit after 11 to 23 seconds; it is a `400` that names the longest chain that fits now. The rollback of a workflow and the definition import apply the same
+  rule. A workflow written in code is not checked when it is registered. Shorten the chain, split it into two workflows, or raise `MaxSuperSteps`. The other patterns are not
+  counted: they reach the limit through the conversation they hold.
+
 - **Four migrations changed in place, and a database that applied one of them before must be recreated.** `lower()` follows the locale
   of the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131) instead of the i of `openai`. PostgreSQL `0038` and `0062` and SQL Server `0025`
   and `0050` folded names with it: on such a database `0038` and `0025` rewrote a tenant's provider binding to a name no agent
@@ -734,6 +759,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Options with a fraction or a limit stop the host at start when the value cannot mean what it says.** `Observability:SuccessSampleRatio`, `Preflight:ReserveRatio` and `OnlineEvaluation:SampleRate` refuse a value outside 0 to 1 and NaN (`10` used to persist every span); `ModelConcurrency:MaxConcurrentCallsPerProvider` below 1 is refused instead of being raised to 1, so a `0` meant as "no limit" no longer serialises every provider. Limits that had no range rule now name the key and stop the host: Knowledge (chunk size and overlap, dimensions, results; they used to fail at the first upload), Idempotency, AsyncRun (a `MaxAttempts` of 0 failed every queued run without running it), Approvals, Webhooks (a negative `SignatureTolerance`, `MaxExtraHeaders`), the Voice limits and durations, and `Workflows:MaxSuperSteps` below 1 (every run stopped at step 1 with a message about a loop that did not exist). The Skills limit messages name the key. Checked under the invariant, tr-TR and de-DE cultures: the binder reads numbers invariantly, so `0,5` is refused in every culture and never read as 5.
+- **The tool list of an MCP server is read page by page and stops at `Tracon:Mcp:MaxToolsPerServer`.** The client collected every page before the limit was looked at, so a server that kept handing out a next cursor filled memory until the connection timeout (3 GB in ten seconds) and a list of 30 000 tools held 112 MB for a refresh that kept 100. The read stops at the first tool past the limit, logs the same warning and keeps the first tools; a server that sends nothing but tools nobody can use still costs one connection timeout. A single page is still read whole. A tool with a header annotation (`x-mcp-header`) that is not valid is left out, as before, and a call still sends the `Mcp-Param-*` headers its list declared.
 - **An `Idempotency-Key` request no longer copies a body that declares no JSON content type.** The idempotency filter read and copied every keyed body about five times before the endpoint refused or ignored it (a 29 MB body with no `Content-Type` cost 151.8 MB; the routing already answers `415` for a wrong type, but not for none). It now reads only a JSON body, bounded by `MaxJsonBodyBytes`, and copies it once (a 7.9 MB keyed JSON body cost 39 MB, now 8 MB). The fingerprint is unchanged.
 - **A store that cannot answer is `503` whatever the driver calls it.** A connection pool that ran dry (SqlClient raises `InvalidOperationException`) or a connect that timed out (`TimeoutException`) was wrapped by the agent catalog as `400 Agent compilation failed` and answered `500` elsewhere; one shared check (a `DbException`, a timeout, an exhausted pool) now maps every store failure to `503`. The callers of the catalog (jobs, workflows, A2A, MCP) see the raw exception, as they already did for a `DbException`; a queued run whose first attempt hits one is retried.
 - **An attachment upload or list, a speech clip and a generated image answer `400` to a `sessionId` longer than 200 characters or with surrounding whitespace**, as the run endpoint does. A 201-character id was a `500` on SQL Server.

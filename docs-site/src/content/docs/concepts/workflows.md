@@ -29,6 +29,12 @@ stays optional on purpose.
 | `GroupChat` | A manager distributes turns among participants |
 | `Magentic` | A manager plans, tracks progress, and replans; a manager agent is required |
 
+A `Sequential` chain is as long as a run may be. It takes one super-step for each of its steps
+(one more when it is written as `agentNames`), and `Tracon:Workflows:MaxSuperSteps` (100) stops
+a run that passes it, so a save of a chain that needs more is a `400` that names the longest one
+that fits. Shorten the chain, split it into two workflows, or raise the limit. The other
+patterns are not counted by the length of their list.
+
 `MaxIterations` bounds the turn count for `GroupChat` and `Magentic`, and the turns a
 `Handoff` agent goes on with by itself. A loop of handoffs has its own limit,
 `MaxHandoffs` (see [Who hands off to whom](#who-hands-off-to-whom)). Each
