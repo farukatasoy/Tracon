@@ -100,6 +100,15 @@ public static class TraconEndpointRouteBuilderExtensions
         // CORS response.
         TraconCorsMiddleware.Map(endpoints, options, normalizedPrefix);
 
+        // A JSON body longer than MaxJsonBodyBytes is refused with 413 before any reader holds it. 🚨 It is registered
+        // BEFORE the idempotency buffering below, so the buffer wraps the counting stream and not the other way round:
+        // the counting stream cannot seek, and the idempotency filter rewinds the body it read only when it can. Wrapped
+        // the wrong way round, every request that carried an Idempotency-Key reached its endpoint with an empty body.
+        if (endpoints is IApplicationBuilder bodyLimitApp)
+        {
+            bodyLimitApp.Use(RequestBodyLimitMiddleware.InvokeAsync);
+        }
+
         // Idempotency-Key support. Because the body can be consumed
         // BEFORE the filter's InvokeAsync (by minimal API's automatic binding
         // on some endpoints), reading the raw bytes afterward is only possible
@@ -155,6 +164,7 @@ public static class TraconEndpointRouteBuilderExtensions
         // Every SSE stream under the group keeps itself alive at this cadence;
         // SseWriter reads it from the endpoint.
         group.WithMetadata(new SseKeepAliveMetadata(options.StreamKeepAliveInterval));
+        group.WithMetadata(new JsonBodyLimitMetadata(options.MaxJsonBodyBytes, normalizedPrefix + "/v1/"));
         group.AddEndpointFilter(new TraconEndpointFilter(options));
 
         // Rate limiting. The filter is always added but is OFF BY

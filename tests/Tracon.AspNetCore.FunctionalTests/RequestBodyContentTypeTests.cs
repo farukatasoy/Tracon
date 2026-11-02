@@ -123,7 +123,7 @@ public sealed class RequestBodyContentTypeTests
     /// it says integer, a word otherwise. A route that cannot match answers 404, which would make the probe pass
     /// without ever reaching the body.
     /// </summary>
-    private static string FillRoute(string template, JsonElement pathItem, JsonElement operation)
+    internal static string FillRoute(string template, JsonElement pathItem, JsonElement operation)
     {
         var route = template;
 

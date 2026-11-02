@@ -884,6 +884,7 @@ configuration section.
 | `MapOpenAIConversations` | `true` |
 | `RunEventPollInterval` | 250 ms |
 | `StreamKeepAliveInterval` | 15 seconds |
+| `MaxJsonBodyBytes` | 8 MiB |
 | `AllowedOrigins` | empty (no CORS header sent) |
 
 ```csharp
@@ -912,6 +913,13 @@ stream for a dead connection and closes it, and a closed connection cancels the
 run. Keep the value below the shortest idle timeout between the server and its
 readers - a reverse proxy's read timeout - and below 30 seconds while the
 console is in use.
+
+`MaxJsonBodyBytes` is the longest JSON request body the endpoints read; a longer one answers `413`
+before any endpoint holds it. A body is read whole, parsed, recorded with its run and echoed, which costs about
+thirty times its size in memory at once, and the only other limit was the server's own (30 MB on Kestrel). It counts
+bytes as they arrive, so a body sent chunked, or with a length that lies, stops at it too. It covers every JSON body
+under the endpoints, the definition import included; a file upload keeps its own limit, and the MCP, A2A and AG-UI
+endpoints are not under it. Set a reverse proxy's body limit no higher.
 
 Do not enable remote access without a token, API key, or authorization policy: with
 none of them configured, an anonymous remote request receives `401`, and an anonymous

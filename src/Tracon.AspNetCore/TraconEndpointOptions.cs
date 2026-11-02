@@ -142,6 +142,38 @@ public sealed class TraconEndpointOptions
     internal static readonly TimeSpan DefaultStreamKeepAliveInterval = TimeSpan.FromSeconds(15);
 
     /// <summary>
+    /// Gets or sets the longest JSON request body, in bytes, that the endpoints accept. A longer body answers
+    /// <c>413</c>. The default is 8 MiB.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A body is read whole, parsed, recorded with its run and echoed, which costs about thirty times its size in memory
+    /// at once. Nothing bounded it before this limit; only the server's own (30 MB on Kestrel) did. The limit counts
+    /// bytes as they arrive, so a body that lies about its length, or is sent chunked, stops at it too.
+    /// </para>
+    /// <para>
+    /// It applies to every JSON body under the endpoints, the definition import included. A file upload keeps its own
+    /// limit, and the MCP, A2A and AG-UI endpoints are not under it. A reverse proxy in front should set its own limit
+    /// no higher than this one.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The value is below one byte.</exception>
+    public long MaxJsonBodyBytes
+    {
+        get;
+
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+
+            field = value;
+        }
+    } = DefaultMaxJsonBodyBytes;
+
+    /// <summary>The default of <see cref="MaxJsonBodyBytes"/>.</summary>
+    internal const long DefaultMaxJsonBodyBytes = 8L * 1024 * 1024;
+
+    /// <summary>
     /// Attaches the endpoints to an ASP.NET Core authorization policy.
     /// </summary>
     /// <param name="policyName">Name of the policy to apply.</param>

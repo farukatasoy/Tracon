@@ -175,6 +175,7 @@ shows server text as it is.
 | `403` | Authenticated, but not allowed — including the loopback restriction |
 | `404` | Not found, or not yours. A path segment that is only whitespace is a name nobody can have saved, so it is `404` too |
 | `409` | Conflicting state — a name in use, a running experiment, a code-defined agent, a client-side tool that cannot be replayed |
+| `413` | The JSON body is longer than `TraconEndpointOptions.MaxJsonBodyBytes` (8 MiB by default). It is counted as it arrives, so a body sent chunked or with a wrong length stops there too |
 | `415` | The body has to be JSON and the request carried another `Content-Type`, or none (`Content-Type: application/json`) |
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |

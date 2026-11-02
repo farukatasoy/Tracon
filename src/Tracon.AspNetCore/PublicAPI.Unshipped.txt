@@ -146,6 +146,8 @@ Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
 Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.set -> void
 Tracon.TraconEndpointOptions.MapOpenAIConversations.get -> bool
 Tracon.TraconEndpointOptions.MapOpenAIConversations.set -> void
+Tracon.TraconEndpointOptions.MaxJsonBodyBytes.get -> long
+Tracon.TraconEndpointOptions.MaxJsonBodyBytes.set -> void
 Tracon.TraconEndpointOptions.RequireAuthorization(string! policyName) -> void
 Tracon.TraconEndpointOptions.RequireRolePolicies.get -> bool
 Tracon.TraconEndpointOptions.RequireRolePolicies.set -> void
