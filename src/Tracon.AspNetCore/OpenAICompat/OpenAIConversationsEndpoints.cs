@@ -473,11 +473,14 @@ internal static class OpenAIConversationsEndpoints
         return result.Count == 0 ? null : result;
     }
 
+    // The responses of this surface are written without their null members, but the published schema marks every
+    // member of these two records required (a nullable one is required and nullable), and a client generated from the
+    // document reads an absent member as a violation. The members that can be null are written even then.
     private sealed record ConversationResource(
         [property: JsonPropertyName("id")] string Id,
         [property: JsonPropertyName("object")] string Object,
         [property: JsonPropertyName("created_at")] long CreatedAt,
-        [property: JsonPropertyName("metadata")] IReadOnlyDictionary<string, string>? Metadata);
+        [property: JsonPropertyName("metadata"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] IReadOnlyDictionary<string, string>? Metadata);
 
     private sealed record DeletedResource(
         [property: JsonPropertyName("id")] string Id,
@@ -487,8 +490,8 @@ internal static class OpenAIConversationsEndpoints
     private sealed record ItemListResource(
         [property: JsonPropertyName("object")] string Object,
         [property: JsonPropertyName("data")] IReadOnlyList<ItemResource> Data,
-        [property: JsonPropertyName("first_id")] string? FirstId,
-        [property: JsonPropertyName("last_id")] string? LastId,
+        [property: JsonPropertyName("first_id"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? FirstId,
+        [property: JsonPropertyName("last_id"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? LastId,
         [property: JsonPropertyName("has_more")] bool HasMore);
 
     internal sealed record ItemResource(

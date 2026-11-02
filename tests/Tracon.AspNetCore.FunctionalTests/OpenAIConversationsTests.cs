@@ -52,6 +52,49 @@ public sealed class OpenAIConversationsTests
     }
 
     [Fact]
+    public async Task Every_member_the_published_document_requires_is_on_the_wire_even_when_it_is_null()
+    {
+        // The responses of this surface are written without their null members (the compatible clients read an absent
+        // member as null), but the published document marks a member 'required' whenever the response type declares
+        // it, and a client generated from the document trusts that. A conversation with no metadata and a list with no
+        // items are the two answers that carry a null.
+        await using var host = await TraconTestHost.StartAsync(withOpenApi: true);
+
+        using var created = await host.Client.PostAsJsonAsync(Conversations, new { });
+        var conversation = await TraconTestHost.ReadJsonAsync(created);
+        var conversationId = conversation.GetProperty("id").GetString()!;
+
+        using var retrieved = await host.Client.GetAsync(new Uri($"/tracon/v1/conversations/{conversationId}", UriKind.Relative));
+        using var items = await host.Client.GetAsync(new Uri($"/tracon/v1/conversations/{conversationId}/items", UriKind.Relative));
+
+        using var documentResponse = await host.Client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
+        var document = await TraconTestHost.ReadJsonAsync(documentResponse);
+
+        var cases = new (string Operation, string Path, JsonElement Body)[]
+        {
+            ("post", "/tracon/v1/conversations", conversation),
+            ("get", "/tracon/v1/conversations/{conversationId}", await TraconTestHost.ReadJsonAsync(retrieved)),
+            ("get", "/tracon/v1/conversations/{conversationId}/items", await TraconTestHost.ReadJsonAsync(items)),
+        };
+
+        foreach (var (operation, path, body) in cases)
+        {
+            var schemaRef = document.GetProperty("paths").GetProperty(path).GetProperty(operation)
+                .GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json")
+                .GetProperty("schema").GetProperty("$ref").GetString()!;
+            var required = document.GetProperty("components").GetProperty("schemas").GetProperty(schemaRef.Split('/')[^1])
+                .GetProperty("required").EnumerateArray().Select(static name => name.GetString()!).ToArray();
+
+            required.ShouldNotBeEmpty();
+
+            foreach (var member in required)
+            {
+                body.TryGetProperty(member, out _).ShouldBeTrue($"{operation.ToUpperInvariant()} {path} omits '{member}', which its published schema requires.");
+            }
+        }
+    }
+
+    [Fact]
     public async Task Created_id_can_be_used_in_a_responses_call()
     {
         // SDK's documented flow: create -> responses.create(conversation=id)

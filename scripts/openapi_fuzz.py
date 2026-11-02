@@ -28,6 +28,7 @@ dependency of a shipped package.
 from __future__ import annotations
 
 import argparse
+import base64
 import dataclasses
 import hashlib
 import json
@@ -115,6 +116,53 @@ ACCEPTED_ANSWERS: Mapping[tuple[str, str], int] = {
 def accepts_answer(method: str, template: str, status: int) -> bool:
     """Whether a server status from this operation is one the run accepts."""
     return ACCEPTED_ANSWERS.get((method.upper(), template)) == status
+
+
+# What a role may NOT do, read from the answers the leg collected. The roles are nested (reader inside operator inside
+# admin), so a lower role answered with 2xx on something above it is an authorization gap that no 5xx would show.
+# Only the two ends are checked here, where the expectation needs no list of which endpoint is admin-only:
+#   * the reader reads: a 2xx on anything but GET is a gap, except the posts that only compute or search;
+#   * the anonymous caller (no role header) is refused everywhere except the routes that are open on purpose.
+READER_MAY_POST = (
+    "POST /tracon/api/agents/{name}/estimate",  # prices a run without starting one
+    "POST /tracon/api/knowledge/{collection}/search",  # reads and writes nothing
+    "POST /tracon/a2a/",  # the external surface answers to its own scope and the loopback rule, not to a role
+)
+ANONYMOUS_MAY_REACH = (
+    "GET /tracon/api/meta",  # the console learns the authentication method here, before it can ask for anything
+    "GET /tracon/api/mcp-servers/{name}/oauth/callback",  # the provider's redirect carries no role
+    "GET /tracon/a2a/",  # the agent card
+    "POST /tracon/a2a/",  # see above: loopback is the local operator
+)
+
+
+def role_violations(role: str, stats: Mapping[str, Any]) -> list[str]:
+    """Operations that answered 2xx to a role that must not get it, with the statuses seen."""
+    responses: Mapping[str, Mapping[str, int]] = stats.get("responses", {})
+    found: list[str] = []
+
+    for operation, counts in sorted(responses.items()):
+        if not any(code.startswith("2") for code in counts):
+            continue
+
+        method = operation.split(" ", 1)[0]
+        allowed: tuple[str, ...]
+
+        if role == "reader":
+            if method == "GET":
+                continue
+
+            allowed = READER_MAY_POST
+        elif role == "anonymous":
+            allowed = ANONYMOUS_MAY_REACH
+        else:
+            continue
+
+        if not any(operation.startswith(prefix) for prefix in allowed):
+            succeeded = {code: count for code, count in counts.items() if code.startswith("2")}
+            found.append(f"{operation} answered {succeeded} to the {role} leg")
+
+    return found
 
 
 STORES = ("memory", "sqlite", "postgres", "sqlserver")
@@ -1056,6 +1104,16 @@ def fetch_json(url: str, headers: Mapping[str, str] | None = None) -> Any:
 # --------------------------------------------------------------------------
 
 
+def content_protection_key() -> dict[str, str]:
+    """A throwaway key for the sample's content protection.
+
+    The sample turns content protection on, and a SQL store then needs the raw key its configuration names; the
+    in-memory store does not. Without it every agent run answers 502 and an attachment upload 500, so the leg would
+    measure the missing key and not the store. The key lives in the host's environment for one run and nowhere else.
+    """
+    return {"Tracon__ContentProtection__RawKeys__sample": base64.b64encode(secrets.token_bytes(32)).decode("ascii")}
+
+
 class Store:
     """The persistence of a run: nothing to start for `memory` and `sqlite`, a container otherwise."""
 
@@ -1077,7 +1135,7 @@ class Store:
             for suffix in ("", "-wal", "-shm"):
                 pathlib.Path(str(database) + suffix).unlink(missing_ok=True)
 
-            return {"Tracon__Sqlite__ConnectionString": f"Data Source={database}"}
+            return {"Tracon__Sqlite__ConnectionString": f"Data Source={database}", **content_protection_key()}
 
         key = "Tracon__PostgreSql__ConnectionString" if self.kind == "postgres" else "Tracon__SqlServer__ConnectionString"
 
@@ -1087,9 +1145,9 @@ class Store:
             if not value:
                 raise FuzzError(f"--database-env names {self.external}, which is empty or unset.")
 
-            return {key: value}
+            return {key: value, **content_protection_key()}
 
-        return {key: self._start_container()}
+        return {key: self._start_container(), **content_protection_key()}
 
     def _start_container(self) -> str:
         if shutil.which("docker") is None:
@@ -1181,6 +1239,7 @@ class LegResult:
     test_cases: int
     gate_failed: bool
     notes: list[str]
+    violations: list[str] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1322,9 +1381,11 @@ def run_leg(settings: Settings, leg: Leg, seed_file: pathlib.Path | None) -> Leg
     for check, count in counted.items():
         passes[check] = count
 
+    violations = role_violations(leg.role, stats) if not leg.scopes else []
     gate_failed = (
         exit_codes.get("gate", 0) != 0
         or any(code not in (0, 1) for code in exit_codes.values())
+        or bool(violations)
     )
     write_repro(directory, settings, leg, seed_file is not None)
 
@@ -1337,6 +1398,7 @@ def run_leg(settings: Settings, leg: Leg, seed_file: pathlib.Path | None) -> Leg
         test_cases=test_cases,
         gate_failed=gate_failed,
         notes=notes,
+        violations=violations,
     )
 
 
@@ -1415,6 +1477,7 @@ def format_summary(settings: Settings, results: Sequence[LegResult], accepted_50
             rows += ["", f"### `{result.leg.name}` findings"]
             rows += [f"- {key}: {count}" for key, count in sorted(result.failures.items())]
 
+        rows += [f"- role boundary: {violation}" for violation in result.violations]
         rows += [f"- note: {note}" for note in result.notes]
 
     if accepted_501:

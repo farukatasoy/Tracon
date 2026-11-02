@@ -138,6 +138,37 @@ class LogParsingTests(unittest.TestCase):
         self.assertNotIn("5399", lines[0])
 
 
+class RoleBoundaryTests(unittest.TestCase):
+    def test_a_reader_that_read_and_estimated_is_clean(self):
+        stats = {"responses": {"GET /tracon/api/agents": {"200": 5}, "POST /tracon/api/agents/{name}/estimate": {"200": 2, "400": 3}}}
+
+        self.assertEqual(openapi_fuzz.role_violations("reader", stats), [])
+
+    def test_a_reader_that_wrote_is_a_gap_the_gate_names(self):
+        stats = {"responses": {"POST /tracon/api/approvals/rules": {"200": 1, "403": 9}, "DELETE /tracon/api/agents/{name}": {"204": 1}}}
+
+        found = openapi_fuzz.role_violations("reader", stats)
+
+        self.assertEqual(len(found), 2)
+        self.assertIn("POST /tracon/api/approvals/rules answered {'200': 1} to the reader leg", found)
+
+    def test_an_operation_that_only_ever_refused_the_reader_is_clean(self):
+        self.assertEqual(openapi_fuzz.role_violations("reader", {"responses": {"POST /tracon/api/agents": {"403": 12}}}), [])
+
+    def test_the_anonymous_leg_reaches_only_the_open_routes(self):
+        open_routes = {"responses": {"GET /tracon/api/meta": {"200": 6}, "GET /tracon/a2a/summarizer/.well-known/agent-card.json": {"200": 1}}}
+        closed_route = {"responses": {"GET /tracon/api/agents": {"200": 1}}}
+
+        self.assertEqual(openapi_fuzz.role_violations("anonymous", open_routes), [])
+        self.assertEqual(len(openapi_fuzz.role_violations("anonymous", closed_route)), 1)
+
+    def test_operator_admin_and_key_legs_have_no_role_expectation_here(self):
+        stats = {"responses": {"POST /tracon/api/agents": {"200": 1}}}
+
+        self.assertEqual(openapi_fuzz.role_violations("operator", stats), [])
+        self.assertEqual(openapi_fuzz.role_violations("admin", stats), [])
+
+
 class SeedTests(unittest.TestCase):
     def setUp(self):
         self.plan = openapi_fuzz.SeedPlan()
@@ -273,6 +304,21 @@ class EnvironmentTests(unittest.TestCase):
 
     def test_the_memory_store_adds_nothing_to_the_host_environment(self):
         self.assertEqual(openapi_fuzz.Store("memory", pathlib.Path("."), None).start(), {})
+
+    def test_a_sql_store_gets_a_content_protection_key_the_memory_store_does_not_need(self):
+        import base64
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder:
+            environment = openapi_fuzz.Store("sqlite", pathlib.Path(folder), None).start()
+
+        self.assertEqual(len(base64.b64decode(environment["Tracon__ContentProtection__RawKeys__sample"])), 32)
+        self.assertIn("Tracon__Sqlite__ConnectionString", environment)
+        self.assertNotEqual(
+            environment["Tracon__ContentProtection__RawKeys__sample"],
+            openapi_fuzz.content_protection_key()["Tracon__ContentProtection__RawKeys__sample"],
+            "each run draws its own key",
+        )
 
 
 class PolicyFileTests(unittest.TestCase):
