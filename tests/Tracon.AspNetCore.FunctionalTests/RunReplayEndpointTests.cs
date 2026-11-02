@@ -132,6 +132,34 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
+    public async Task A_replay_of_an_agent_that_cannot_be_compiled_is_a_400_like_a_run_of_it()
+    {
+        // The agent run, the OpenAI-compatible endpoints and the AG-UI endpoint answer 400 "Agent compilation failed"
+        // when the tenant's provider binding names a configuration key that has no value. The replay compiles the
+        // same definition through its own path and let the same exception out as a 500.
+        await using var host = await TraconTestHost.StartAsync(ConfigureAgent);
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "hello")]);
+
+        await host.Services.GetRequiredService<ITenantProviderBindingStore>().UpsertAsync(
+            new TenantProviderBinding
+            {
+                TenantId = host.Services.GetRequiredService<ITenantContext>().TenantId,
+                ProviderName = TestData.Model().Provider,
+                ApiKeyConfigurationName = "Tracon:ProviderKeys:replay-missing",
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            TestContext.Current.CancellationToken);
+
+        using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "NoTools" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+
+        var problem = await TraconTestHost.ReadJsonAsync(response);
+        problem.GetProperty("title").GetString().ShouldBe("Agent compilation failed");
+        (problem.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("Tracon:ProviderKeys:replay-missing");
+    }
+
+    [Fact]
     public async Task NO_tool_actually_runs_in_ReplayTools_mode()
     {
         ReplayProbeTools.Reset();
