@@ -1113,7 +1113,8 @@ def free_port() -> int:
 class Host:
     """The reference host as a child process."""
 
-    def __init__(self, store_environment: Mapping[str, str], log_path: pathlib.Path) -> None:
+    def __init__(self, store_environment: Mapping[str, str], log_path: pathlib.Path, directory: pathlib.Path = SAMPLE_OUTPUT) -> None:
+        self.directory = directory
         self.port = free_port()
         self.base_url = f"http://127.0.0.1:{self.port}"
         self.log_path = log_path
@@ -1136,18 +1137,18 @@ class Host:
         self.process: subprocess.Popen[bytes] | None = None
 
     def start(self) -> None:
-        dll = SAMPLE_OUTPUT / "Tracon.Api.dll"
+        dll = self.directory / "Tracon.Api.dll"
 
         if not dll.exists():
             raise FuzzError(f"{dll} does not exist; run without --no-build first.")
 
         log = self.log_path.open("wb")
         self.process = subprocess.Popen(  # noqa: S603
-            ["dotnet", str(dll), "--contentRoot", str(SAMPLE_OUTPUT), "--urls", self.base_url],
+            ["dotnet", str(dll), "--contentRoot", str(self.directory), "--urls", self.base_url],
             env=self.environment,
             stdout=log,
             stderr=subprocess.STDOUT,
-            cwd=SAMPLE_OUTPUT,
+            cwd=self.directory,
         )
         deadline = time.monotonic() + HOST_READY_SECONDS
 
@@ -1632,6 +1633,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed-data", action="store_true", help="seed the host through its HTTP API and draw path parameters and bodies from it")
     parser.add_argument("--allow-seed-failures", action="store_true", help="run the legs even when a seed step failed")
     parser.add_argument("--no-build", action="store_true", help="use the host already built under artifacts/")
+    parser.add_argument("--host-dir", type=pathlib.Path, metavar="DIR", help="run the host built into this directory (the folder holding Tracon.Api.dll) and build nothing")
     parser.add_argument("--with-ui", action="store_true", help="build the console too (needs Node.js); the default leaves it out")
     parser.add_argument("--serve", action="store_true", help="start the host, print its address, and wait for Ctrl+C instead of running legs")
     parser.add_argument("--output", type=pathlib.Path, default=DEFAULT_OUTPUT, help="directory for the environment, logs and reports")
@@ -1653,11 +1655,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         schemathesis = ensure_venv(output / "venv")
 
-        if not args.no_build:
+        if not args.no_build and args.host_dir is None:
             build_host(args.with_ui)
 
         environment = store.start()
-        host = Host(environment, output / "host.log")
+        host = Host(environment, output / "host.log", args.host_dir.resolve() if args.host_dir else SAMPLE_OUTPUT)
         host.start()
         print(f"Host ready at {host.base_url} (store {args.store}, image {store.image or 'none'}).")
 
