@@ -206,6 +206,25 @@ public sealed class McpOAuthCrossInstanceTests
         cache.Writes.ShouldBe(0);
     }
 
+    [Theory]
+    [InlineData("%20")]
+    [InlineData("%0C")]
+    [InlineData("%C2%A0")]
+    public async Task A_state_made_only_of_whitespace_is_a_failure_page_not_a_server_error(string state)
+    {
+        // The endpoint refused an empty state but let a blank one reach the coordinator, whose guard throws for it.
+        var cache = new SharedCache();
+        await using var pair = await StartPairAsync(cache);
+
+        using var response = await pair.A.Client.GetAsync(new Uri(
+            $"/tracon/api/mcp-servers/{OAuthFlowClient.ServerName}/oauth/callback?code=abc&state={state}",
+            UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldContain("the state value is missing", Case.Sensitive);
+        cache.Writes.ShouldBe(0);
+    }
+
     /// <summary>
     /// 🚨 The callback endpoint is anonymous and writes to a cache every instance shares. A value that is too
     /// long, or not shaped like a state, reaches no write, and the real flow survives the attempt.

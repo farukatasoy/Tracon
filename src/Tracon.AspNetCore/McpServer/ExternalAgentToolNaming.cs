@@ -28,7 +28,9 @@ internal static class ExternalAgentToolNaming
     {
         var expectedPrefix = toolNamePrefix + "_";
 
-        if (toolName.StartsWith(expectedPrefix, StringComparison.Ordinal) && toolName.Length > expectedPrefix.Length)
+        // A name of whitespace only names no agent, and the catalog's argument guard throws for it.
+        if (toolName.StartsWith(expectedPrefix, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(toolName[expectedPrefix.Length..]))
         {
             agentName = toolName[expectedPrefix.Length..];
             return true;
