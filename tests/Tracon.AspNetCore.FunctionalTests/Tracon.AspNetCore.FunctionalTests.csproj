@@ -65,6 +65,8 @@
     <!-- The committed snapshots of the surfaces that are not .NET API. -->
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
     <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
+    <!-- Wraps an interface so a test can count, hook, fail or cancel at its Nth call. -->
+    <Compile Include="../Shared/Faults/FaultProxy.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,8 +24,11 @@ internal sealed class ModelProviderHealthBackgroundService(
     IOptionsMonitor<TraconOptions> optionsMonitor,
     ISingletonLeaseStore leaseStore,
     IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
-    ILogger<ModelProviderHealthBackgroundService>? logger = null) : BackgroundService
+    ILogger<ModelProviderHealthBackgroundService>? logger = null,
+    TimeProvider? timeProvider = null) : BackgroundService
 {
+    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -36,10 +39,10 @@ internal sealed class ModelProviderHealthBackgroundService(
 
         // Singleton execution selection: when disabled by default,
         // guard.IsHeld is always true and RunAsync returns without querying the store.
-        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "model-provider-health", logger);
+        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "model-provider-health", logger, _clock);
         var guardTask = guard.RunAsync(stoppingToken);
 
-        using var timer = new PeriodicTimer(interval);
+        using var timer = new PeriodicTimer(interval, _clock);
 
         try
         {

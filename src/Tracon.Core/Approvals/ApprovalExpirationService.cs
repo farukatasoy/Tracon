@@ -53,10 +53,10 @@ internal sealed class ApprovalExpirationService(
             return;
         }
 
-        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "approval-expiration", logger);
+        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "approval-expiration", logger, _clock);
         var guardTask = guard.RunAsync(stoppingToken);
 
-        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.ScanInterval);
+        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.ScanInterval, _clock);
 
         try
         {

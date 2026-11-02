@@ -114,9 +114,16 @@ internal sealed class LiveVoiceSessionRegistry : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(host);
 
-        await host.CloseAsync(reason).ConfigureAwait(false);
-
-        Release(host);
+        try
+        {
+            await host.CloseAsync(reason).ConfigureAwait(false);
+        }
+        finally
+        {
+            // A close that threw still ended the session (the host marks itself closed first); keeping its
+            // slot would hold the tenant at the limit for as long as the process lives.
+            Release(host);
+        }
     }
 
     /// <summary>Closes every session, for a server shutdown.</summary>
@@ -125,9 +132,18 @@ internal sealed class LiveVoiceSessionRegistry : IAsyncDisposable
     {
         await _stopping.CancelAsync().ConfigureAwait(false);
 
+        // One session at a time, each in its own try: a session whose close throws must not decide
+        // whether the sessions after it are closed and their records written.
         foreach (var host in _sessions.Values)
         {
-            await CloseAsync(host, VoiceSessionEndReason.ServerShutdown).ConfigureAwait(false);
+            try
+            {
+                await CloseAsync(host, VoiceSessionEndReason.ServerShutdown).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(exception, "The live voice session {Id} could not be closed at shutdown.", host.Id);
+            }
         }
     }
 

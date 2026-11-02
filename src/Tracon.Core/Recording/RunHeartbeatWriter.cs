@@ -64,7 +64,7 @@ internal sealed class RunHeartbeatWriter(
             return;
         }
 
-        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.HeartbeatInterval);
+        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.HeartbeatInterval, _clock);
 
         try
         {

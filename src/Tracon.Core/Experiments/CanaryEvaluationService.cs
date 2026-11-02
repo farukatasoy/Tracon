@@ -63,10 +63,10 @@ internal sealed class CanaryEvaluationService(
             return;
         }
 
-        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "canary-evaluation", logger);
+        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "canary-evaluation", logger, _clock);
         var guardTask = guard.RunAsync(stoppingToken);
 
-        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.ScanInterval);
+        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.ScanInterval, _clock);
 
         try
         {

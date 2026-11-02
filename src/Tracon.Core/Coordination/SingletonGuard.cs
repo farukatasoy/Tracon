@@ -126,7 +126,7 @@ internal sealed class SingletonGuard
 
         var renewInterval = ComputeRenewInterval(_optionsMonitor.CurrentValue.LeaseDuration);
 
-        using var timer = new PeriodicTimer(renewInterval);
+        using var timer = new PeriodicTimer(renewInterval, _timeProvider);
 
         try
         {

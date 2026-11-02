@@ -66,10 +66,10 @@ internal sealed class RunReconciliationService(
         // Single-executor selection: when disabled (the default),
         // guard.IsHeld is always true and RunAsync returns immediately without
         // issuing any query to the store.
-        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "run-reconciliation", logger);
+        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "run-reconciliation", logger, _clock);
         var guardTask = guard.RunAsync(stoppingToken);
 
-        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.ScanInterval);
+        using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.ScanInterval, _clock);
 
         try
         {
@@ -110,9 +110,22 @@ internal sealed class RunReconciliationService(
                     staleBefore);
             }
 
+            // 🚨 One run at a time, each in its own try. The claim above already closed every one of these rows,
+            // so a run this loop skips is not orphaned any more and no later scan looks at it: an exception
+            // from one run's continuation must not decide the fate of the runs claimed after it.
             foreach (var record in claimed)
             {
-                await TryContinueAsync(record, stoppingToken).ConfigureAwait(false);
+                try
+                {
+                    await TryContinueAsync(record, stoppingToken).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+                {
+                    if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                    {
+                        logger.LogWarning(exception, "Could not decide the continuation of orphaned run {RunId}.", record.Id);
+                    }
+                }
             }
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))

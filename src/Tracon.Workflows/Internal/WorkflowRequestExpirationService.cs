@@ -98,7 +98,7 @@ internal sealed class WorkflowRequestExpirationService(
             return;
         }
 
-        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "workflow-request-expiration", logger);
+        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "workflow-request-expiration", logger, _clock);
         var guardTask = guard.RunAsync(stoppingToken);
 
         using var timer = new PeriodicTimer(optionsMonitor.CurrentValue.RequestExpirationScanInterval, _clock);

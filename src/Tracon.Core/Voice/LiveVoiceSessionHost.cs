@@ -263,7 +263,20 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
                 await StopDelegationsAsync().ConfigureAwait(false);
             }
 
-            await FlushHistoryAsync().ConfigureAwait(false);
+            try
+            {
+                await FlushHistoryAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                // 🚨 The history is the lesser loss. A store that fails with an exception the history writer
+                // does not name (an I/O or a provider exception) used to leave here, and the record below,
+                // the only trace a session that produced cost leaves, was never written.
+                _logger.LogWarning(
+                    exception,
+                    "The transcript of live voice session {SessionId} could not be written to its history.",
+                    _request.SessionId);
+            }
 
             // 🚨 The record is written on EVERY path, a provider failure included.
             // A session that produced cost and left no trace is the worst outcome
