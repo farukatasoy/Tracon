@@ -387,6 +387,33 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
+    public void A_meter_per_tenant_is_a_cost_and_a_meter_per_run_is_a_leak()
+    {
+        // One announcement per tenant: the cost of the tenants, flat inside every plateau, not red.
+        var perTenant = Fixture.Build((metric, _, tenants, _) => string.Equals(metric, "host.meterPublications", StringComparison.Ordinal) ? 150 + tenants : null);
+        var tenantCost = FootprintAnalysis.Analyse("cell", perTenant.Samples, perTenant.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "host.meterPublications", StringComparison.Ordinal));
+
+        tenantCost.Kind.ShouldBe(MetricKind.Objects);
+        tenantCost.Verdict.ShouldBe(FootprintVerdict.Green);
+        tenantCost.Steps.Last().PerTenant.ShouldBe(1.0, 0.01);
+
+        // One announcement per second inside every plateau, with the tenants fixed: a meter made per run.
+        var perRun = Fixture.Build((metric, time, _, _) => string.Equals(metric, "host.meterPublications", StringComparison.Ordinal) ? 150 + time : null);
+        var runCost = FootprintAnalysis.Analyse("cell", perRun.Samples, perRun.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "host.meterPublications", StringComparison.Ordinal));
+
+        runCost.Verdict.ShouldBe(FootprintVerdict.Red);
+    }
+
+    [Fact]
+    public void Framework_pool_gauges_are_written_down_and_judged_by_nobody()
+    {
+        FootprintCatalog.Find("host.upDownTotals.Microsoft.AspNetCore.MemoryPool/aspnetcore.memory_pool.pooled").ShouldBeNull();
+        FootprintCatalog.Find("host.meterRepeatedPublications.Tracon/gen_ai.client.token.usage").ShouldNotBeNull().Kind.ShouldBe(MetricKind.Objects);
+    }
+
+    [Fact]
     public void A_plateau_with_too_few_points_is_inconclusive_and_never_green()
     {
         // Collected every 25 s inside a 60 s plateau: two points, fewer than the six a verdict needs.
@@ -532,7 +559,7 @@ public sealed class CapacityFootprintTests
                 foreach (var name in new[]
                 {
                     "host.workingSetBytes", "host.osThreads", "host.activeTimers", "host.openDescriptors",
-                    "pg.connections", "host.liveHeapBytes",
+                    "pg.connections", "host.liveHeapBytes", "host.meterPublications",
                 })
                 {
                     if (string.Equals(name, "host.liveHeapBytes", StringComparison.Ordinal) && !sample.Collected)

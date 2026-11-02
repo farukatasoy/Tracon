@@ -14,6 +14,12 @@ public enum MetricKind
 
     /// <summary>A count of something the process holds: threads, timers, descriptors, connections, series. It should be flat.</summary>
     Count,
+
+    /// <summary>
+    /// A count of objects that cost memory the way bytes do: one per tenant is a cost, one per run is a leak, and a
+    /// cost per tenant that climbs is super-linear. Judged like <see cref="Bytes"/>, with the floors of <see cref="Count"/>.
+    /// </summary>
+    Objects,
 }
 
 /// <summary>One thing the host or the database reports about the host's footprint.</summary>
@@ -45,7 +51,7 @@ public static class FootprintCatalog
         new("host.ledgerInFlight", "Runs in flight (host ledger)", MetricKind.Count),
         new("host.meterSeries", "Metric series (all instruments)", MetricKind.Count),
         new("host.meterInstruments", "Metric instruments that published", MetricKind.Count),
-        new("host.meterPublications", "Instrument announcements (a meter made again counts again)", MetricKind.Count),
+        new("host.meterPublications", "Instrument announcements (a meter made again counts again)", MetricKind.Objects),
         new("host.loadedAssemblies", "Loaded assemblies", MetricKind.Count),
         new("pg.connections", "PostgreSQL client connections", MetricKind.Count),
         new("pg.idleInTransaction", "PostgreSQL idle in transaction", MetricKind.Count),
@@ -71,14 +77,13 @@ public static class FootprintCatalog
             return new FootprintMetric(name, "Series of " + name[SeriesPrefix.Length..], MetricKind.Count);
         }
 
-        if (name.StartsWith("host.upDownTotals.", StringComparison.Ordinal))
-        {
-            return new FootprintMetric(name, "Up-down counter " + name["host.upDownTotals.".Length..], MetricKind.Count);
-        }
+        // The up-down totals the host reports (framework pool sizes, active requests) are written to the CSV and judged
+        // by nobody: a memory pool's pooled bytes rise with concurrency, not with tenants, and a rule that called that
+        // a leak would be wrong more often than right. Connections and descriptors are judged on their own readings.
 
         if (name.StartsWith("host.meterRepeatedPublications.", StringComparison.Ordinal))
         {
-            return new FootprintMetric(name, "Announcements of " + name["host.meterRepeatedPublications.".Length..], MetricKind.Count);
+            return new FootprintMetric(name, "Announcements of " + name["host.meterRepeatedPublications.".Length..], MetricKind.Objects);
         }
 
         return null;
@@ -791,7 +796,7 @@ public static class FootprintAnalysis
     /// <returns>For bytes, a binary-prefixed size; for counts, a plain number.</returns>
     public static string Format(MetricKind kind, double value)
     {
-        if (kind == MetricKind.Count)
+        if (kind is MetricKind.Count or MetricKind.Objects)
         {
             return value.ToString("0.###", CultureInfo.InvariantCulture);
         }
