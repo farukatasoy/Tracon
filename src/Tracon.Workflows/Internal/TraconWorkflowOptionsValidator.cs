@@ -47,6 +47,15 @@ internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowReg
                 $" when {nameof(TraconWorkflowOptions.Enabled)} is on"));
         }
 
+        // The runner stops a run when its super-step count passes this limit, so a limit below one stops every run
+        // at its first step with a message about a loop that does not exist.
+        if (options.Enabled && options.MaxSuperSteps < 1)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxSuperSteps)} must be at least 1 " +
+                $"when {nameof(TraconWorkflowOptions.Enabled)} is on. Actual value: {options.MaxSuperSteps}.");
+        }
+
         // The per-tenant limit is a share of the process limit, so it cannot be larger than it. The
         // runner takes at least one shared slot (Math.Max), and the comparison reads it the same way.
         if (options.MaxConcurrentRunsPerTenant is { } perTenant)
