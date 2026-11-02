@@ -77,6 +77,8 @@ internal sealed class SqlExperimentStore : IExperimentStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Maintenance work: the canary evaluator sweeps the running canaries of EVERY tenant in one pass, so the query carries no tenant_id by design. The interface documents the same thing; the method used to sit on the coverage list instead, which skipped the written justification.")]
     public async ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectRunningExperimentsWithCanary);
