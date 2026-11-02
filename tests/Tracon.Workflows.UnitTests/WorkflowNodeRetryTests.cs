@@ -262,6 +262,24 @@ public sealed class WorkflowNodeRetryTests
         attempts.ShouldBe(3);
     }
 
+    /// <summary>
+    /// The agent catalog hands a node the store failure as it is (it no longer wraps it as a source failure), so the
+    /// node's retry reads the provider's own exception. The built-in classifier reads the text: a store that timed out is
+    /// a timeout and is retried; one it has no rule for is not. That is the answer the wrapped failure got too, kept as
+    /// a row so a classifier rule for stores shows up as a changed one.
+    /// </summary>
+    [Theory]
+    [InlineData("Timeout expired.  The timeout period elapsed prior to obtaining a connection from the pool.", 3)]
+    [InlineData("Connection was reset by the server.", 1)]
+    public async Task A_store_failure_in_a_node_is_retried_as_far_as_the_built_in_classifier_reads_it_as_transient(string message, int attempts)
+    {
+        var failure = new InjectedStoreException(message);
+
+        (await CountAttemptsAsync(failure, new DefaultRunErrorClassifier())).ShouldBe(attempts);
+    }
+
+    private sealed class InjectedStoreException(string message) : System.Data.Common.DbException(message);
+
     private static async Task<int> CountAttemptsAsync(Exception failure, IRunErrorClassifier classifier)
     {
         var attempts = 0;

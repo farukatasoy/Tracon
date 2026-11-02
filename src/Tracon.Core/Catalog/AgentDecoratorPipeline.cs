@@ -55,12 +55,14 @@ public static class AgentDecoratorPipeline
     /// </summary>
     private static TraconAgentSourceException Wrap(AgentDescriptor descriptor, Exception exception)
     {
-        if (exception is TraconException)
+        if (exception is TraconException || StoreFailure.Is(exception))
         {
             // Already a safe, normalized error (see the identical rationale on
             // CompositeAgentCatalog.HandleSourceFailure) - re-wrapping it would
             // both lose its specific type and misreport it as a decorator
-            // failure it is not.
+            // failure it is not. A store that did not answer is the same: the
+            // caller would fix a decorator that was fine, and the host answers
+            // 503 for it.
             ExceptionDispatchInfo.Capture(exception).Throw();
         }
 

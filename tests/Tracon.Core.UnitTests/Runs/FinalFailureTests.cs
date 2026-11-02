@@ -90,4 +90,31 @@ public sealed class FinalFailureTests
 
         FinalFailure.IsFinal(failure).ShouldBeFalse();
     }
+
+    /// <summary>
+    /// A store that did not answer reaches the callers of the agent catalog as it is (not wrapped as a source failure),
+    /// and keeps the retries the wrapped failure had: the next attempt may find the store back.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(StoreFailures))]
+    public void A_store_failure_is_not_final(Exception failure)
+    {
+        StoreFailure.Is(failure).ShouldBeTrue();
+        FinalFailure.IsFinal(failure).ShouldBeFalse();
+    }
+
+    public static TheoryData<Exception> StoreFailures => new()
+    {
+        new InjectedStoreException(),
+        new TimeoutException("Timeout attempting to open the connection."),
+        new InvalidOperationException("Timeout expired.  The timeout period elapsed prior to obtaining a connection from the pool."),
+    };
+
+    private sealed class InjectedStoreException : System.Data.Common.DbException
+    {
+        public InjectedStoreException()
+            : base("injected")
+        {
+        }
+    }
 }

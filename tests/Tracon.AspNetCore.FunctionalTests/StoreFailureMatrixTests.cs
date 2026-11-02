@@ -75,6 +75,34 @@ public sealed class StoreFailureMatrixTests
 
     public static TheoryData<string> Members() => [.. Answers.Keys];
 
+    /// <summary>
+    /// The other ways a store fails without a provider exception: the pool that ran dry (SqlClient throws an
+    /// <see cref="InvalidOperationException"/>) and the connect that timed out. The host answers 503 for all of them.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, Func<Exception>> OtherStoreFaults =
+        new Dictionary<string, Func<Exception>>(StringComparer.Ordinal)
+        {
+            ["pool exhausted"] = static () => new InvalidOperationException(
+                "Timeout expired.  The timeout period elapsed prior to obtaining a connection from the pool.  " +
+                "This may have occurred because all pooled connections were in use and max pool size was reached."),
+            ["connect timeout"] = static () => new TimeoutException("Timeout attempting to open the connection."),
+        };
+
+    public static TheoryData<string, string> MembersAndOtherFaults()
+    {
+        var data = new TheoryData<string, string>();
+
+        foreach (var member in Answers.Keys)
+        {
+            foreach (var fault in OtherStoreFaults.Keys)
+            {
+                data.Add(member, fault);
+            }
+        }
+
+        return data;
+    }
+
     [Fact]
     public async Task Every_store_member_a_plain_run_calls_has_a_recorded_answer()
     {
@@ -123,6 +151,29 @@ public sealed class StoreFailureMatrixTests
     }
 
     /// <summary>
+    /// The table holds for every way a store can fail, not only for the provider's own exception: the catalog used to wrap
+    /// a pool that ran dry or a connect that timed out as "the agent could not be compiled" (a 400), and the host answered
+    /// a 500 to the rest.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(MembersAndOtherFaults))]
+    public async Task One_failing_store_call_has_the_recorded_answer_whatever_exception_the_store_throws(string member, string fault)
+    {
+        var (service, name) = Resolve(member);
+        var expected = Answers[member];
+
+        foreach (var afterCommit in ModesFor(service, name))
+        {
+            await using var host = await StartFailingAsync(service, name, afterCommit, OtherStoreFaults[fault]);
+
+            var mode = afterCommit ? "after the write" : "before the write";
+            var status = await PostAsync(host);
+
+            status.ShouldBe(expected, $"{member} failing {mode} with a {fault}");
+        }
+    }
+
+    /// <summary>
     /// The answer is the caller's half. The record is the other half: a run that was answered must not stay
     /// <c>Running</c> because one write of its record failed once. A lost event costs the stream after it; the closing
     /// write is tried again, so the record still ends.
@@ -154,10 +205,10 @@ public sealed class StoreFailureMatrixTests
         }
     }
 
-    private static Task<TraconTestHost> StartFailingAsync(Type service, string member, bool afterCommit)
+    private static Task<TraconTestHost> StartFailingAsync(Type service, string member, bool afterCommit, Func<Exception>? otherFault = null)
         => StartAsync(builder =>
         {
-            var fault = (Func<Exception>)(static () => new InjectedDbException());
+            var fault = otherFault ?? (static () => new InjectedDbException());
             var inject = typeof(FaultInjection)
                 .GetMethod(afterCommit ? nameof(FaultInjection.ThrowAfter) : nameof(FaultInjection.ThrowFrom))!
                 .MakeGenericMethod(service);

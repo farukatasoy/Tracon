@@ -8,9 +8,9 @@ using Microsoft.Extensions.Logging;
 namespace Tracon;
 
 /// <summary>
-/// Turns a persistence failure — the provider's own <see cref="DbException"/> —
-/// into a <c>503</c> <c>ProblemDetails</c> that says WHY the store could not
-/// answer, instead of letting a raw provider exception reach the consumer's
+/// Turns a persistence failure — the provider's own <see cref="DbException"/>, a pool that ran dry, a connect that
+/// timed out (see <see cref="StoreFailure"/>) — into a <c>503</c> <c>ProblemDetails</c> that says WHY the store could
+/// not answer, instead of letting a raw provider exception reach the consumer's
 /// global handler as a bodyless <c>500</c>.
 /// </summary>
 /// <remarks>
@@ -57,8 +57,9 @@ internal static class StoreUnavailableProblemMiddleware
         {
             await next(httpContext).ConfigureAwait(false);
         }
-        catch (DbException exception) when (
+        catch (Exception exception) when (
             !httpContext.Response.HasStarted &&
+            StoreFailure.Is(exception) &&
             IsTraconEndpoint(httpContext))
         {
             // 🚨 The provider's message names the schema and the statement. It
@@ -111,7 +112,7 @@ internal static class StoreUnavailableProblemMiddleware
                         "AutoApplyMigrations enabled. Retrying this request will not help until then.");
                 }
             }
-            catch (DbException)
+            catch (Exception exception) when (StoreFailure.Is(exception))
             {
                 // Falls through to the unreachable answer below.
             }

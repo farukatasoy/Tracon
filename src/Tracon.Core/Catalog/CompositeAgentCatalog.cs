@@ -346,18 +346,20 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     /// unexpected exception — the actual case source isolation exists to contain — gets wrapped.
     /// </para>
     /// <para>
-    /// A <see cref="DbException"/> is not wrapped either. It says the persistence store could not
+    /// A store failure (<see cref="StoreFailure.Is"/>: a provider's <see cref="DbException"/>, a pool that ran
+    /// dry, a connect that timed out) is not wrapped either. It says the persistence store could not
     /// answer (a tenant's provider binding or egress policy is read while the agent is compiled),
     /// not that the source broke its contract; wrapped, the run endpoint reported it as <c>400 Agent
     /// compilation failed</c> and the caller went to fix an agent that was fine. It is recorded like
     /// any source failure and then reaches the caller as it is, where the host answers <c>503</c>.
+    /// The host asks the same question, so the two cannot disagree about which failures those are.
     /// </para>
     /// </remarks>
     private TraconAgentSourceException HandleSourceFailure(IAgentSource source, string operation, Exception exception)
     {
         RecordSourceFailure(source, operation, exception, LogLevel.Error);
 
-        if (exception is TraconException or DbException)
+        if (exception is TraconException || StoreFailure.Is(exception))
         {
             // Always throws; the exception this method appears to return is never
             // actually reached in that case. Callers still write `throw

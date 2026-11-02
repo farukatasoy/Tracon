@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -137,7 +136,7 @@ internal static class ExternalSurfaceGuard
         }
 
         bool hasExternalInvokeKey;
-        DbException? storeFailure = null;
+        Exception? storeFailure = null;
 
         try
         {
@@ -147,7 +146,7 @@ internal static class ExternalSurfaceGuard
                 .GetAwaiter()
                 .GetResult();
         }
-        catch (DbException exception)
+        catch (Exception exception) when (StoreFailure.Is(exception))
         {
             // A store that cannot answer cannot prove a key exists, so the guard
             // reaches its own conclusion rather than letting the provider's

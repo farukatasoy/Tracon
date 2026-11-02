@@ -150,6 +150,32 @@ public sealed class DatabaseNotReadyDiagnosticsTests
         thrown.Message.ShouldContain("external:invoke");
     }
 
+    [Theory]
+    [InlineData("connect timeout")]
+    [InlineData("pool exhausted")]
+    public async Task The_remote_access_guard_names_its_rule_for_every_kind_of_store_failure(string fault)
+    {
+        // The guard let only a provider exception through to its own message, so a connect that timed out, or a pool that
+        // ran dry, stopped the host with the driver's text and not the rule.
+        Exception Fault() => string.Equals(fault, "connect timeout", StringComparison.Ordinal)
+            ? new TimeoutException("Timeout attempting to open the connection.")
+            : new InvalidOperationException("Timeout expired.  The timeout period elapsed prior to obtaining a connection from the pool.");
+
+        var thrown = await Should.ThrowAsync<InvalidOperationException>(async () =>
+        {
+            await using var host = await TraconTestHost.StartAsync(
+                configureServices: services => services.Replace(
+                    ServiceDescriptor.Singleton<IApiKeyStore>(new UnavailableApiKeyStore(Fault))),
+                configureTracon: static builder => builder
+                    .AddAgent(TestData.Definition())
+                    .UseMcpServer(),
+                configureEndpoints: static options => options.AllowRemoteAccess = true,
+                configureAfterMap: static app => app.MapTraconMcpServer());
+        });
+
+        thrown.Message.ShouldContain("external:invoke");
+    }
+
     private static Task<TraconTestHost> StartAsync(ISqlPersistenceDiagnostics? diagnostics = null)
         => TraconTestHost.StartAsync(
             configureServices: services =>
@@ -205,7 +231,7 @@ public sealed class DatabaseNotReadyDiagnosticsTests
     private sealed class MissingRelationException(string message) : DbException(message);
 
     /// <summary>A key store that cannot answer, the way a never-migrated schema cannot.</summary>
-    private sealed class UnavailableApiKeyStore : IApiKeyStore
+    private sealed class UnavailableApiKeyStore(Func<Exception>? fault = null) : IApiKeyStore
     {
         public ValueTask<ApiKeyCreationResult> CreateAsync(ApiKeyDraft draft, CancellationToken cancellationToken = default)
             => throw Missing();
@@ -225,7 +251,7 @@ public sealed class DatabaseNotReadyDiagnosticsTests
         public ValueTask<bool> HasActiveScopeAsync(ApiKeyScope scope, CancellationToken cancellationToken = default)
             => throw Missing();
 
-        private static MissingRelationException Missing()
-            => new("no such table: tracon_api_keys");
+        private Exception Missing()
+            => fault?.Invoke() ?? new MissingRelationException("no such table: tracon_api_keys");
     }
 }

@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.Core.UnitTests.Fakes;
@@ -87,6 +88,84 @@ public sealed class AgentSourceFaultIsolationTests
         (await Should.ThrowAsync<DbException>(
             async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None)))
             .ShouldBeSameAs(failure);
+    }
+
+    // The store can fail without a provider exception: a pool that ran dry throws InvalidOperationException (SqlClient)
+    // and a connect that timed out throws TimeoutException. The host answers 503 for all of them or none; the catalog
+    // decides which one the host ever sees.
+
+    public static TheoryData<Exception> StoreFailuresThatAreNotProviderExceptions => new()
+    {
+        new TimeoutException("Timeout attempting to open the connection."),
+        new InvalidOperationException(
+            "Timeout expired.  The timeout period elapsed prior to obtaining a connection from the pool.  " +
+            "This may have occurred because all pooled connections were in use and max pool size was reached."),
+    };
+
+    [Theory]
+    [MemberData(nameof(StoreFailuresThatAreNotProviderExceptions))]
+    public async Task Every_kind_of_store_failure_inside_a_source_reaches_the_caller_as_it_is(Exception failure)
+    {
+        var broken = new ThrowingSource("database", priority: 0, resolveException: failure);
+        var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
+
+        (await Should.ThrowAsync<Exception>(
+            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None)))
+            .ShouldBeSameAs(failure);
+    }
+
+    [Theory]
+    [MemberData(nameof(StoreFailuresThatAreNotProviderExceptions))]
+    public async Task Every_kind_of_store_failure_inside_a_decorator_reaches_the_caller_as_it_is_on_both_resolve_overloads(Exception failure)
+    {
+        var source = new HealthyVersionedSource("database", priority: 100, "beta", 1);
+        var catalog = new CompositeAgentCatalog([source], [new ThrowingDecorator(failure)], NullLogger<CompositeAgentCatalog>.Instance);
+
+        (await Should.ThrowAsync<Exception>(
+            async () => await catalog.ResolveAsync("beta", culture: null, CancellationToken.None))).ShouldBeSameAs(failure);
+        (await Should.ThrowAsync<Exception>(
+            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None))).ShouldBeSameAs(failure);
+    }
+
+    public static TheoryData<Exception> AllStoreFailures => new()
+    {
+        new InjectedDbException(),
+        new TimeoutException("Timeout attempting to open the connection."),
+        new InvalidOperationException("Timeout expired.  The timeout period elapsed prior to obtaining a connection from the pool."),
+    };
+
+    [Theory]
+    [MemberData(nameof(AllStoreFailures))]
+    public void A_store_failure_inside_a_decorator_applied_by_hand_reaches_the_caller_as_it_is(Exception failure)
+    {
+        // A parameterized run, a replay and an eval apply the decorators with the pipeline and never see the catalog.
+        var agent = new FakeChatClient().AsAIAgent();
+        var descriptor = new AgentDescriptor { Name = "alpha", Origin = AgentDefinitionOrigin.Code, SourceName = "code" };
+
+        Should.Throw<Exception>(() => AgentDecoratorPipeline.Apply(agent, descriptor, [new ThrowingDecorator(failure)]))
+            .ShouldBeSameAs(failure);
+    }
+
+    [Fact]
+    public void A_failure_that_is_not_a_store_failure_inside_a_decorator_applied_by_hand_is_still_wrapped()
+    {
+        var agent = new FakeChatClient().AsAIAgent();
+        var descriptor = new AgentDescriptor { Name = "alpha", Origin = AgentDefinitionOrigin.Code, SourceName = "code" };
+
+        Should.Throw<TraconAgentSourceException>(
+            () => AgentDecoratorPipeline.Apply(agent, descriptor, [new ThrowingDecorator(new InvalidOperationException("raw"))]));
+    }
+
+    [Theory]
+    [InlineData("The connection is closed.")]
+    [InlineData("raw upstream failure")]
+    public async Task An_invalid_operation_that_is_not_about_the_connection_pool_is_still_wrapped(string message)
+    {
+        var broken = new ThrowingSource("broken", priority: 0, resolveException: new InvalidOperationException(message));
+        var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
+
+        await Should.ThrowAsync<TraconAgentSourceException>(
+            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
     }
 
     [Fact]
