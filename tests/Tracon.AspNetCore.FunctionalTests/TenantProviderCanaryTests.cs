@@ -52,7 +52,7 @@ public sealed class TenantProviderCanaryTests
 
     /// <summary>
     /// The sentence the refusing provider puts in front of the credential it quotes. Several loggers (the chat telemetry
-    /// client, the registry's failure log, the run recorder, the agent endpoint) write a provider's failure with the
+    /// client, the run recorder, the agent endpoint) write a provider's failure with the
     /// exception object itself, inner exceptions included, and the exception carries the provider's error text. A
     /// provider that quotes the credential back therefore puts it into those lines. That is an open decision, not a pass:
     /// see the report of the run that added this test. The lines are set aside by this sentence, not by logger, so a
