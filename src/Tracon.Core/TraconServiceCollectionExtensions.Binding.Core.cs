@@ -41,6 +41,11 @@ public static partial class TraconServiceCollectionExtensions
             static o => o.DefaultMaxOutputBytes,
             static (o, v) => o.DefaultMaxOutputBytes = v);
 
+        read.Int32(
+            nameof(TraconToolOptions.MaxToolsPerAgent),
+            static o => o.MaxToolsPerAgent,
+            static (o, v) => o.MaxToolsPerAgent = v);
+
         read.Boolean(
             nameof(TraconToolOptions.AllowUnverifiedToolRegistry),
             static o => o.AllowUnverifiedToolRegistry,

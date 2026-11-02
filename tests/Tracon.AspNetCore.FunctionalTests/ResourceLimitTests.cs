@@ -20,13 +20,13 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The bounds are loose on purpose (ten times what was measured on a developer machine); they catch a case
 /// that stops being bounded, not one that gets 20% slower. The sizes are the smaller of the two measured
 /// sizes: a workflow of 90 agent steps, the longest chain the default super-step limit lets through (a chain of 2 000
-/// used to be saved and took 11 to 23 seconds to fail; it is refused at the save now), and 2 000 tools (5 000 took about
-/// 1.5 seconds to compile and put 690 KB of tool definitions into every model request).
+/// used to be saved and took 11 to 23 seconds to fail; it is refused at the save now), and 128 tools, the most an agent may
+/// carry (5 000 took about 1.5 seconds to compile and put 690 KB of tool definitions into every model request; an agent over
+/// the limit does not compile).
 /// </para>
 /// <para>
-/// What these tests do NOT assert is a limit on the tools and the session: none of those sizes is refused with a 4xx
-/// today, and the model request and the session state grow with their input. The length of a sequential chain is
-/// limited (<c>WorkflowStepCountSaveTests</c>).
+/// What these tests do NOT assert is a limit on the session: a long one is sent to the model whole and its state grows with
+/// every turn, which the context-window preflight and compaction bound when a host turns them on.
 /// </para>
 /// </remarks>
 public sealed class ResourceLimitTests
@@ -72,9 +72,9 @@ public sealed class ResourceLimitTests
     }
 
     [Fact]
-    public async Task An_agent_with_two_thousand_tools_compiles_and_runs_in_bounded_time_and_the_model_gets_all_of_them()
+    public async Task An_agent_with_as_many_tools_as_the_limit_allows_compiles_and_runs_in_bounded_time_and_the_model_gets_all_of_them()
     {
-        const int Count = 2_000;
+        const int Count = TraconToolOptions.DefaultMaxToolsPerAgent;
 
         var provider = new FakeModelProvider("probe").WithModel(new ModelDescriptor { Name = "probe-1" }).RespondsWith("ok");
         var names = Enumerable.Range(0, Count).Select(static index => $"tool_{index}").ToArray();
@@ -109,6 +109,44 @@ public sealed class ResourceLimitTests
         watch.Restart();
         (await RunAsync(host, "many-tools", sessionId: null)).ShouldBe(HttpStatusCode.OK);
         watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task An_agent_with_more_tools_than_the_limit_does_not_compile_and_the_error_names_the_option()
+    {
+        const int Count = TraconToolOptions.DefaultMaxToolsPerAgent + 1;
+
+        var provider = new FakeModelProvider("probe").WithModel(new ModelDescriptor { Name = "probe-1" }).RespondsWith("ok");
+        var names = Enumerable.Range(0, Count).Select(static index => $"tool_{index}").ToArray();
+
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+
+            foreach (var name in names)
+            {
+                builder.AddTool(AIFunctionFactory.Create((string query) => query, name, $"The tool called {name}. It returns its argument."));
+            }
+
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = "too-many-tools",
+                Model = new ModelBinding { Provider = "probe", Model = "probe-1" },
+                Instructions = "Reply briefly.",
+                ToolNames = names,
+                Origin = AgentDefinitionOrigin.Code,
+            });
+        });
+
+        using var response = await host.Client.PostAsJsonAsync(
+            "/tracon/api/agents/too-many-tools/run",
+            new AgentRunRequest { Message = "hello" });
+        var body = await response.Content.ReadAsStringAsync();
+
+        response.IsSuccessStatusCode.ShouldBeFalse(body);
+        body.ShouldContain("Tracon:Tools:MaxToolsPerAgent");
+        body.ShouldContain($"{Count} tools");
+        provider.Requests.ShouldBeEmpty("no model was called for an agent that did not compile");
     }
 
     [Fact]

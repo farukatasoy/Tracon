@@ -123,6 +123,22 @@ public sealed class TraconToolOptions
     /// </remarks>
     public int? DefaultMaxOutputBytes { get; set; } = 1024 * 1024;
 
+    /// <summary>The default of <see cref="MaxToolsPerAgent"/>: 128, the most tools OpenAI accepts in one request.</summary>
+    public const int DefaultMaxToolsPerAgent = 128;
+
+    /// <summary>
+    /// Gets or sets the most tools one agent may carry. The default is 128.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every tool's definition goes into every model request: 5 000 tools put about 690 KB of definitions into each one,
+    /// and OpenAI refuses a request with more than 128. An agent over the limit does not compile, and the error names
+    /// this option. The count is what the model would be sent: the tools the definition selects, the vector search tool
+    /// and the sub-agent tools. Raise it for a provider that accepts more. Must be at least 1.
+    /// </para>
+    /// </remarks>
+    public int MaxToolsPerAgent { get; set; } = DefaultMaxToolsPerAgent;
+
     /// <summary>
     /// Gets or sets the longest an <see cref="IToolApprovalPresenter"/> may run before an
     /// approval request is published without its presentation.

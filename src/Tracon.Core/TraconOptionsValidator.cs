@@ -217,6 +217,14 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                     tools.ApprovalPresentationTimeout));
             }
 
+            // Zero or less would refuse every agent that carries a tool, with an error about a count nobody wrote.
+            if (tools.MaxToolsPerAgent < 1)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(TraconToolOptions)}.{nameof(TraconToolOptions.MaxToolsPerAgent)} must be at least 1. " +
+                    $"Actual value: {tools.MaxToolsPerAgent}.");
+            }
+
             if (tools.DefaultMaxOutputBytes is { } maxOutputBytes && maxOutputBytes < TruncatingAIFunction.MinimumEnvelopeBytes)
             {
                 (failures ??= []).Add(

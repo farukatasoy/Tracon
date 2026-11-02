@@ -113,6 +113,26 @@ public sealed partial class AgentDefinitionCompiler
     /// a tool the agent already has.
     /// </summary>
     /// <exception cref="TraconCompilationException">A tool of the agent is named <c>search_conversation_memory</c>.</exception>
+    /// <summary>Stops the compilation of an agent that carries more tools than <see cref="TraconToolOptions.MaxToolsPerAgent"/>.</summary>
+    /// <param name="definition">The definition.</param>
+    /// <param name="count">The tools the model would be sent: the selected ones, the vector search tool and the sub-agent tools.</param>
+    /// <exception cref="TraconCompilationException">The agent carries too many tools.</exception>
+    private void ThrowOnTooManyTools(AgentDefinition definition, int count)
+    {
+        if (count <= _maxToolsPerAgent)
+        {
+            return;
+        }
+
+        throw new TraconCompilationException(
+            $"Agent '{definition.Name}' carries {count} tools, more than the {_maxToolsPerAgent} an agent may carry. " +
+            "Every tool's definition goes into every model request, and some providers refuse a request with more than 128. " +
+            "Select fewer tools, or raise 'Tracon:Tools:MaxToolsPerAgent' for a provider that accepts more.")
+        {
+            AgentName = definition.Name,
+        };
+    }
+
     private static void ThrowOnConversationMemoryToolConflict(AgentDefinition definition, List<AITool> tools)
     {
         if (definition.Memory is not { EnableConversationMemory: true, ConversationMemorySearch: ConversationMemorySearch.OnDemand })

@@ -389,7 +389,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetServices<IAgentExtension>(),
             // The hosted tools a host added with AddHostedTool. Empty when none was
             // added, and a definition that selects a name then fails to compile as an unknown tool.
-            provider.GetRequiredService<HostedToolRegistry>()));
+            provider.GetRequiredService<HostedToolRegistry>(),
+            provider.GetRequiredService<IOptions<TraconOptions>>().Value.Tools.MaxToolsPerAgent));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface: document upload,

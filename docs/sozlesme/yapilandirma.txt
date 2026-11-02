@@ -318,6 +318,7 @@ Tracon:Tools:AllowUnverifiedToolRegistry
 Tracon:Tools:ApprovalPresentationTimeout
 Tracon:Tools:DefaultMaxOutputBytes
 Tracon:Tools:DefaultTimeout
+Tracon:Tools:MaxToolsPerAgent
 Tracon:Tools:RequireTenantPolicy
 Tracon:UtilityModel:MaxOutputTokens
 Tracon:UtilityModel:Model

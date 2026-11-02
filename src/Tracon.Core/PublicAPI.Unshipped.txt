@@ -595,6 +595,9 @@ Tracon.TraconToolOptions.DefaultMaxOutputBytes.get -> int?
 Tracon.TraconToolOptions.DefaultMaxOutputBytes.set -> void
 Tracon.TraconToolOptions.DefaultTimeout.get -> System.TimeSpan
 Tracon.TraconToolOptions.DefaultTimeout.set -> void
+Tracon.TraconToolOptions.MaxToolsPerAgent.get -> int
+Tracon.TraconToolOptions.MaxToolsPerAgent.set -> void
+const Tracon.TraconToolOptions.DefaultMaxToolsPerAgent = 128 -> int
 Tracon.TraconToolOptions.RequireTenantPolicy.get -> bool
 Tracon.TraconToolOptions.RequireTenantPolicy.set -> void
 Tracon.TraconToolOptions.TraconToolOptions() -> void

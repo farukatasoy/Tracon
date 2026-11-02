@@ -66,6 +66,7 @@ public sealed partial class AgentDefinitionCompiler
     private readonly ITenantEgressPolicyStore? _tenantEgressPolicies;
     private readonly AgentExtensionRegistry _agentExtensions;
     private readonly HostedToolRegistry _hostedTools;
+    private readonly int _maxToolsPerAgent;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
@@ -167,6 +168,9 @@ public sealed partial class AgentDefinitionCompiler
     /// selects one gets the tool its factory builds for the tenant; the factory runs only when such an
     /// agent is compiled. When <see langword="null"/>, no hosted tool is registered.
     /// </param>
+    /// <param name="maxToolsPerAgent">
+    /// The most tools one agent may carry (<see cref="TraconToolOptions.MaxToolsPerAgent"/>); an agent over it does not compile.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     internal AgentDefinitionCompiler(
@@ -192,7 +196,8 @@ public sealed partial class AgentDefinitionCompiler
         ModelRunJudgeOptions? judgeOptions = null,
         ITenantEgressPolicyStore? tenantEgressPolicies = null,
         IEnumerable<IAgentExtension>? agentExtensions = null,
-        HostedToolRegistry? hostedTools = null)
+        HostedToolRegistry? hostedTools = null,
+        int maxToolsPerAgent = TraconToolOptions.DefaultMaxToolsPerAgent)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -223,6 +228,7 @@ public sealed partial class AgentDefinitionCompiler
         _tenantEgressPolicies = tenantEgressPolicies;
         _agentExtensions = agentExtensions is null ? AgentExtensionRegistry.Empty : new AgentExtensionRegistry(agentExtensions);
         _hostedTools = hostedTools ?? HostedToolRegistry.Empty;
+        _maxToolsPerAgent = maxToolsPerAgent;
     }
 
     /// <summary>
@@ -708,6 +714,7 @@ public sealed partial class AgentDefinitionCompiler
             backgroundAgents = null;
         }
 
+        ThrowOnTooManyTools(definition, tools.Count);
         ThrowOnConversationMemoryToolConflict(definition, tools);
         ThrowOnWorkspaceToolConflict(definition, tools);
 
