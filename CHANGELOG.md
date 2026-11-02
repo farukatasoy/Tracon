@@ -464,6 +464,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A custom `IAuditLog` must hash the entry it stores.** New contract tests, which a store that hashes the text as the caller wrote it fails: `AuditLogContract.A_chain_written_under_another_letter_case_verifies` and `AuditLogContract.A_chain_with_a_NUL_character_in_an_entry_verifies`. What to do: fold the tenant with `AmbientTenantScope.Normalize` and apply whatever rewrite your store makes to a field (a NUL character, for one) before you compute the hash, not after.
 
+- **Two requests the in-memory and SQLite stores used to take are refused with `400`.** `PUT /api/quotas` with a `maxCost` of 10 000 000 000 or more (the money columns of the other stores cannot hold it), and `?bucket=` with a number that names no bucket.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
@@ -798,6 +800,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`?bucket=` with a number that names no member answers `400` instead of `500`.** `GET /api/evaluation/scores/summary` and `GET /api/stats/timeseries` accepted `?bucket=99` (the binder takes any integer for an enum) and a store `switch` threw once any row existed.
+- **`POST /api/runs/{runId}/replay` and `POST /api/sessions/{id}/branch` answer `400 Agent compilation failed` when the agent cannot be compiled** (a tenant provider binding whose configuration key has no value, an egress policy that no longer allows the provider), as running the agent does. Both answered `500`.
+- **`PUT /api/quotas` refuses a `maxCost` of 10 000 000 000 or more with `400`.** The money columns hold ten digits before the point; PostgreSQL and SQL Server answered `503 store unavailable`, the in-memory and SQLite stores kept the value.
+- **A free-form JSON field set to `null` is stored as `[]`** (`EvalSuite.Checks`, job and schedule payloads, case scores). SQL Server's `ISJSON(N'null')` is `0`, so `PUT /api/evals/{name}` with `"checks": null` answered `503` there.
+- **The OpenAI-compatible conversation responses always carry `metadata`, `first_id` and `last_id`** (`null` when empty), as the published schema requires.
+- **A blank (whitespace-only) `model`, `metadata.entity_id`, OAuth callback `state` or MCP tool name is refused like an empty one.** `{"model": " "}` on `/v1/chat/completions` and `/v1/responses` and `?state=%0C` on the MCP OAuth callback answered `500`.
 - **A streamed agent run whose caller leaves right after the last frame is closed `Canceled`**, not left `Running` with its trace open. The closing writes of a streamed run ran after the last frame with the caller's own token; a client that disconnected in that window made the store refuse the write. The buffered path already closed such a run `Canceled`.
 - **Orphan run reconciliation no longer drops the continuation of the runs claimed after a run whose continuation failed.** The claim had already closed every row, so a run the loop skipped was not orphaned any more and no later scan looked at it.
 - **A live voice session whose history store fails still writes its session record, and a shutdown closes every open voice session.** A history write that failed with an exception the writer does not name skipped the record, the only trace a session that produced cost leaves; one session whose close threw stopped the shutdown loop, and kept its slot at the tenant's limit for the life of the process.
