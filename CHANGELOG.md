@@ -41,7 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `SkillScriptGrantContract.Skill_names_that_differ_only_in_case_are_two_grants`, `McpServerStoreContract.Names_that_differ_only_in_case_are_two_servers`, `ToolInvocationContract.Tool_names_that_differ_only_in_case_are_two_tools_in_the_usage`,
   `RunStoreContract.Runs_of_agent_names_that_differ_only_in_case_are_listed_and_counted_apart` and
   `SessionStoreContract.Sessions_of_agent_names_that_differ_only_in_case_are_listed_apart`. `TenantIsolationContract` gains the protected helper
-  `AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync` they share.
+  `TenantIsolationContract.AssertNamesThatDifferOnlyInCaseAreSeparateRecordsAsync`, which they share.
+
+  A store must also page runs that started at the same instant without repeating or skipping one (`RunStoreContract.Paging_through_runs_that_started_at_the_same_instant_lists_each_run_once`): break a tie on the timestamp with the run id.
 
 - **Behavioural breaking change: a JSON request body longer than 8 MiB answers `413`.** Nothing bounded a body before: a 32 MB `message` was read,
   parsed, recorded with its run and echoed, about thirty times its size in memory at once, and only the server's own limit (30 MB on Kestrel,
