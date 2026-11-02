@@ -1,0 +1,41 @@
+using Tracon.Core.UnitTests.Fakes;
+
+namespace Tracon.Core.UnitTests.Coordination;
+
+/// <summary>
+/// PROBE, not a gate: measures what two single-executor guards believe when the clock the lease STORE reads is stepped
+/// forward past the lease while the owner's own monotonic clock did not move. The SQL stores stamp a lease with the
+/// writing node's wall clock and compare it with the reading node's wall clock, so a node whose clock runs ahead (skew
+/// or a step) sees a live lease as expired and takes it.
+/// </summary>
+public sealed class LeaseStealUnderClockStepProbe
+{
+    [Fact]
+    public async Task A_store_clock_stepped_past_the_lease_lets_a_second_guard_take_it_while_the_owner_still_holds_it()
+    {
+        var ownerClock = new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var storeClock = new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var store = new InMemorySingletonLeaseStore(storeClock);
+        var options = new StaticOptionsMonitor<SingletonExecutionOptions>(new SingletonExecutionOptions
+        {
+            Enabled = true,
+            LeaseDuration = TimeSpan.FromSeconds(30),
+        });
+
+        var owner = new SingletonGuard(store, options, "probe", timeProvider: ownerClock);
+        var other = new SingletonGuard(store, options, "probe", timeProvider: new ManualTimeProvider());
+
+        await owner.TickAsync(TestContext.Current.CancellationToken);
+        await other.TickAsync(TestContext.Current.CancellationToken);
+
+        owner.IsHeld.ShouldBeTrue();
+        other.IsHeld.ShouldBeFalse("the lease is live on every clock");
+
+        // The clock the store reads goes an hour ahead (as a node whose clock runs an hour fast would read it).
+        storeClock.StepWallClock(TimeSpan.FromHours(1));
+        await other.TickAsync(TestContext.Current.CancellationToken);
+
+        // Measured: both believe they are the executor until the owner's next renewal fails.
+        (owner.IsHeld && other.IsHeld).ShouldBeTrue();
+    }
+}

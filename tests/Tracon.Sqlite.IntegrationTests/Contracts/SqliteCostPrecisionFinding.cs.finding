@@ -1,0 +1,51 @@
+using Tracon.Sqlite.IntegrationTests.Infrastructure;
+using Tracon.Testing.Contracts.Storage;
+
+namespace Tracon.Sqlite.IntegrationTests.Contracts;
+
+// FAILING PROBE, NOT COMMITTED. Rename to .cs to run it; it is red on SQLite today.
+// cached_input_cost and non_token_cost were declared NUMERIC, so SQLite turns the text the driver writes into a double.
+public sealed class SqliteCostPrecisionFindingTests(SqliteSchemaFixture schema) : IClassFixture<SqliteSchemaFixture>
+{
+    [Fact]
+    public async Task A_cached_input_cost_reads_back_as_it_was_written()
+    {
+        await schema.ResetAsync();
+        var runs = schema.Context.Runs;
+        var id = Guid.NewGuid();
+
+        await runs.StartRunAsync(new RunStartInfo { RunId = id, AgentName = "agent", StartedAt = DateTimeOffset.UtcNow });
+        await runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = id,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Cost = new RunCost { CachedInputCost = 999999999.999999m, Currency = "USD", Source = PricingSource.Catalog },
+        });
+
+        (await runs.GetRunAsync(id))!.Cost!.CachedInputCost.ShouldBe(999999999.999999m);
+    }
+
+    [Fact]
+    public async Task The_total_cost_of_several_runs_is_the_exact_sum()
+    {
+        await schema.ResetAsync();
+        var runs = schema.Context.Runs;
+
+        foreach (var amount in new[] { 6765.18m, 99.99m, 0.0008977361m })
+        {
+            var id = Guid.NewGuid();
+            await runs.StartRunAsync(new RunStartInfo { RunId = id, AgentName = "agent", StartedAt = DateTimeOffset.UtcNow, ModelId = "model" });
+            await runs.CompleteRunAsync(new RunCompletion
+            {
+                RunId = id,
+                Status = RunStatus.Completed,
+                CompletedAt = DateTimeOffset.UtcNow,
+                Usage = new RunUsage { InputTokens = 1, OutputTokens = 1, TotalTokens = 2 },
+                Cost = new RunCost { InputCost = amount, Currency = "USD", Source = PricingSource.Catalog },
+            });
+        }
+
+        (await runs.GetStatisticsAsync(new RunStatisticsQuery())).TotalCost.ShouldBe(6865.1708977361m);
+    }
+}

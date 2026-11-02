@@ -1,0 +1,59 @@
+using Tracon.SqlServer.IntegrationTests.Infrastructure;
+using Tracon.Testing.Contracts.Storage;
+
+namespace Tracon.SqlServer.IntegrationTests.Contracts;
+
+// FAILING PROBE, NOT COMMITTED. Rename to .cs to run it; it is red on SQL Server today.
+// Three identity columns are compared with the database collation (case-insensitive, and accent-equivalent for
+// composed and decomposed forms) while the other stores compare them ordinally.
+public sealed class SqlServerIdentityCaseFindingTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
+{
+    [Fact]
+    public async Task A_session_listing_for_one_owner_does_not_return_the_sessions_of_an_owner_that_differs_in_letter_case()
+    {
+        await schema.ResetAsync();
+        schema.Tenant.TenantId = "probe-owner";
+        var sessions = schema.Context.Sessions;
+
+        await sessions.SaveAsync(new SessionRecord
+        {
+            Id = "s1",
+            AgentName = "agent",
+            State = System.Text.Json.JsonDocument.Parse("{}").RootElement.Clone(),
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            OwnerId = "Bs7",
+        });
+
+        (await sessions.QueryAsync(new SessionQuery { OwnerId = "bS7" })).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_run_listing_for_one_user_does_not_return_the_runs_of_a_user_that_differs_in_letter_case()
+    {
+        await schema.ResetAsync();
+        schema.Tenant.TenantId = "probe-user";
+        var runs = schema.Context.Runs;
+
+        await runs.StartRunAsync(new RunStartInfo { RunId = Guid.NewGuid(), AgentName = "agent", StartedAt = DateTimeOffset.UtcNow, UserId = "Alice" });
+
+        (await runs.QueryRunsAsync(new RunQuery { UserId = "alice" })).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Two_tenants_whose_identifiers_differ_only_in_a_composed_or_decomposed_accent_do_not_share_reservations()
+    {
+        await schema.ResetAsync();
+        var store = schema.Context.IdempotencyKeys;
+        var composed = "probe-" + char.ConvertFromUtf32(0x00E9);
+        var decomposed = "probe-e" + char.ConvertFromUtf32(0x0301);
+        var at = DateTimeOffset.UtcNow;
+
+        (await store.ReserveAsync(new IdempotencyRequest { TenantId = composed, Key = "k", Fingerprint = "a", CreatedAt = at }))
+            .State.ShouldBe(IdempotencyState.Reserved);
+
+        // The tenant identifier of the HTTP surface is ASCII only, so this needs a custom tenant context or a direct store call.
+        (await store.ReserveAsync(new IdempotencyRequest { TenantId = decomposed, Key = "k", Fingerprint = "a", CreatedAt = at }))
+            .State.ShouldBe(IdempotencyState.Reserved);
+    }
+}
