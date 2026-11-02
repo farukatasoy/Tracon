@@ -38,6 +38,13 @@
     <PackageReference Include="Testcontainers.MsSql" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Test-only: the differential suite generates its sequences with CsCheck. -->
+    <PackageReference Include="CsCheck" />
+    <!-- The differential suite: the same generated sequences and model run in every store test project. -->
+    <Compile Include="../Shared/Differential/*.cs" LinkBase="Shared/Differential" />
+  </ItemGroup>
+
   <!--
     TenantCoverageTests.cs lives directly in this project, not
     under the contract package: it reflects over Tracon.Sql.Shared's

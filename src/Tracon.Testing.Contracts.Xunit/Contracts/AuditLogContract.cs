@@ -183,6 +183,36 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         result.EntriesChecked.ShouldBe(1, "the null-tenant chain walk must scope to tenant A alone, not every tenant's entries.");
     }
 
+    [Fact]
+    public async Task A_chain_written_under_another_letter_case_verifies()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        for (var index = 0; index < 3; index++)
+        {
+            await Log.WriteAsync(Entry(TenantA.ToUpperInvariant(), "agent.update", "agent:mine") with { CreatedAt = DateTimeOffset.UtcNow.AddSeconds(index) });
+        }
+
+        var result = await Log.VerifyChainAsync(new AuditChainQuery { TenantId = TenantA });
+
+        result.Status.ShouldBe(AuditChainStatus.Valid, "a tenant spelled in another letter case is the same tenant, and so is its chain");
+        result.EntriesChecked.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_chain_with_a_NUL_character_in_an_entry_verifies()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        await Log.WriteAsync(Entry(TenantA, "agent.update", "agent:with\0nul") with { Actor = "user\0one", After = """{"name":"a\u0000b"}""" });
+        await Log.WriteAsync(Entry(TenantA, "agent.update", "agent:plain"));
+
+        var result = await Log.VerifyChainAsync(new AuditChainQuery { TenantId = TenantA });
+
+        result.Status.ShouldBe(AuditChainStatus.Valid, "a store that rewrites a character must hash the rewritten text");
+        result.EntriesChecked.ShouldBe(2);
+    }
+
     // --- Raw-storage tamper hooks ---
     // IAuditLog has (deliberately, "there is no delete or edit endpoint, and
     // there will not be one") no way to alter or remove a written entry, so

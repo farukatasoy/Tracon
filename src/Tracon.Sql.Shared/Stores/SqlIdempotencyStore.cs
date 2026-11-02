@@ -34,15 +34,38 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         _sql = context.Sql;
     }
 
+    private const int MaxReserveAttempts = 5;
+
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The row that made the insert conflict can be gone when it is read: the request that held it released the key
+    /// (a failed request does) between the two statements. The reservation then starts again, so a retry that arrives
+    /// while the first attempt is failing reserves the key instead of failing with the conflict it lost.
+    /// </remarks>
     public async ValueTask<IdempotencyReservation> ReserveAsync(
         IdempotencyRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        for (var attempt = 0; attempt < MaxReserveAttempts; attempt++)
+        {
+            if (await TryReserveOnceAsync(request, cancellationToken).ConfigureAwait(false) is { } reservation)
+            {
+                return reservation;
+            }
+        }
+
+        throw new TraconException(
+            $"Reservation for idempotency key '{request.Key}' conflicted with a record that was gone each time it was read.");
+    }
+
+    private async ValueTask<IdempotencyReservation?> TryReserveOnceAsync(
+        IdempotencyRequest request,
+        CancellationToken cancellationToken)
+    {
         var command = CreateCommand(_sql.InsertIdempotencyKey);
         DbHelpers.AddTenant(command, request.TenantId);
         DbHelpers.Add(command, "key", request.Key);
@@ -67,9 +90,13 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
                 return new IdempotencyReservation { State = IdempotencyState.Reserved };
             }
 
-            var existing = await ReadAsync(request.TenantId, request.Key, cancellationToken).ConfigureAwait(false)
-                ?? throw new TraconException(
-                    $"Reservation for idempotency key '{request.Key}' conflicted but the record could not be read.", ex);
+            var existing = await ReadAsync(request.TenantId, request.Key, cancellationToken).ConfigureAwait(false);
+
+            if (existing is null)
+            {
+                // Released between the conflict and the read: the key is free, so the caller reserves it afresh.
+                return null;
+            }
 
             if (existing.State != IdempotencyState.Completed)
             {

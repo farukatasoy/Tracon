@@ -54,4 +54,11 @@
     <EmbeddedResource Include="../Shared/Upgrade/UpgradeBaseline.json" LogicalName="UpgradeBaseline.json" LinkBase="Shared/Upgrade" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Test-only: the differential suite generates its sequences with CsCheck. -->
+    <PackageReference Include="CsCheck" />
+    <!-- The differential suite: the same generated sequences and model run in every store test project. -->
+    <Compile Include="../Shared/Differential/*.cs" LinkBase="Shared/Differential" />
+  </ItemGroup>
+
 </Project>

@@ -34,11 +34,14 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
     {
         ArgumentNullException.ThrowIfNull(draft);
 
-        var generated = ApiKeyGenerator.Generate(draft.TenantId);
+        // The record returned to the caller carries the tenant in the form the row holds (AddTenant folds it): a
+        // spelling the caller wrote in another letter case must not come back unchanged from here and folded from List.
+        var tenantId = AmbientTenantScope.Normalize(draft.TenantId);
+        var generated = ApiKeyGenerator.Generate(tenantId);
         var record = new ApiKeyRecord
         {
             Id = TraconId.NewId(),
-            TenantId = draft.TenantId,
+            TenantId = tenantId,
             Name = draft.Name,
             KeyPrefix = generated.KeyPrefix,
             Scopes = draft.Scopes,

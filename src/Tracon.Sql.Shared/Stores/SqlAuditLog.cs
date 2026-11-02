@@ -99,6 +99,19 @@ internal sealed class SqlAuditLog : IAuditLog
     {
         ArgumentNullException.ThrowIfNull(entry);
 
+        // 🚨 The hash is computed over exactly what the row will hold. The tenant is folded and U+0000 replaced by the
+        // binders below; hashing the text as the caller wrote it made a chain written under another letter case, or
+        // with a NUL in a field, fail its own verification (which hashes what it reads back).
+        entry = entry with
+        {
+            TenantId = AmbientTenantScope.Normalize(entry.TenantId),
+            Actor = SqlText.WithoutNul(entry.Actor),
+            Action = SqlText.WithoutNul(entry.Action)!,
+            Entity = SqlText.WithoutNul(entry.Entity)!,
+            Before = SqlText.InJson(entry.Before),
+            After = SqlText.InJson(entry.After),
+        };
+
         var id = entry.Id == Guid.Empty ? TraconId.NewId() : entry.Id;
 
         // 🚨 Truncated ONCE, up front, and this same value is both hashed AND

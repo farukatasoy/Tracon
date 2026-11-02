@@ -66,7 +66,9 @@ internal sealed class SqlRunStore : IRunStore
             WorkflowName = info.WorkflowName,
             Status = info.Status,
             StartedAt = info.StartedAt,
-            TenantId = info.TenantId ?? _tenantContext.TenantId,
+            // The record returned to the caller carries the tenant in the form the row holds (AddTenant folds it below); a
+            // start written under another letter case must not come back with that spelling.
+            TenantId = AmbientTenantScope.Normalize(info.TenantId ?? _tenantContext.TenantId),
             UserId = info.UserId,
             Labels = info.Labels is { Count: > 0 } ? info.Labels : null,
             SessionId = info.SessionId,

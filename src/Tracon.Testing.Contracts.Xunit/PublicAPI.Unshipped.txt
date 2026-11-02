@@ -154,6 +154,8 @@ Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Record_metadata_is_stor
 Tracon.Testing.Contracts.Storage.AttachmentStoreContract.Session_based_delete_does_not_delete_the_others_attachments() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract
 Tracon.Testing.Contracts.Storage.AuditLogContract.A_chain_signed_by_two_keys_verifies_after_rotation() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.A_chain_written_under_another_letter_case_verifies() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.A_chain_with_a_NUL_character_in_an_entry_verifies() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.A_keyed_chain_verifies_as_valid() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Action_and_entity_filter_works() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.AuditLogContract() -> void
