@@ -107,6 +107,12 @@ public sealed class CellSpec
     /// <summary>Whether run retention was on while the cell ran; storage numbers mean something else when it is.</summary>
     public bool RetentionEnabled { get; set; }
 
+    /// <summary>
+    /// A tenant ramp, or <see langword="null"/> for the two fixed tenants. When set the ramp is the cell's bound, so
+    /// <see cref="MeasureSeconds"/> and <see cref="RunsPerTenant"/> stay zero.
+    /// </summary>
+    public TenantRampSpec? TenantRamp { get; set; }
+
     /// <summary>The seed a randomized workload was drawn from, or <see langword="null"/> for the deterministic default.</summary>
     public int? WorkloadSeed { get; set; }
 
@@ -192,14 +198,31 @@ public sealed class CellSpec
             problems.Add("runsPerTenant cannot be negative");
         }
 
-        if (MeasureSeconds <= 0 && RunsPerTenant <= 0)
+        if (TenantRamp is { } ramp)
         {
-            problems.Add("a cell needs a bound: either measureSeconds or runsPerTenant must be greater than zero");
-        }
+            if (MeasureSeconds > 0 || RunsPerTenant > 0)
+            {
+                problems.Add("a tenant ramp is the cell's bound; measureSeconds and runsPerTenant must be zero");
+            }
 
-        if (MeasureSeconds > 0 && RunsPerTenant > 0)
+            if (ArrivalRatePerSecond is not null || WorkerCount is not null || ApiHostCount is not null)
+            {
+                problems.Add("a tenant ramp is measured on its own; it cannot be combined with the arrival, worker or host axes");
+            }
+
+            problems.AddRange(ramp.Validate());
+        }
+        else
         {
-            problems.Add("measureSeconds and runsPerTenant are two different bounds; give exactly one");
+            if (MeasureSeconds <= 0 && RunsPerTenant <= 0)
+            {
+                problems.Add("a cell needs a bound: either measureSeconds or runsPerTenant must be greater than zero");
+            }
+
+            if (MeasureSeconds > 0 && RunsPerTenant > 0)
+            {
+                problems.Add("measureSeconds and runsPerTenant are two different bounds; give exactly one");
+            }
         }
 
         if (DrainTimeoutSeconds <= 0)
@@ -416,4 +439,7 @@ public static class CapacityScenario
 [JsonSerializable(typeof(RequestSample))]
 [JsonSerializable(typeof(ResourceSample))]
 [JsonSerializable(typeof(RunManifest))]
+[JsonSerializable(typeof(FootprintSample))]
+[JsonSerializable(typeof(RampRecord))]
+[JsonSerializable(typeof(FootprintAnalysisResult))]
 public sealed partial class CapacityJson : JsonSerializerContext;

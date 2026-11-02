@@ -7,6 +7,7 @@
 //
 //   Tracon.CapacityDriver cell   --spec <cell.json>
 //   Tracon.CapacityDriver report --run  <run directory>
+//   Tracon.CapacityDriver footprint --cell <cell directory>
 //
 // 🚨 The database connection is read from TRACON_CAPACITY_CONNECTION, never
 // from an argument: a process argument is visible in a process listing.
@@ -28,6 +29,8 @@ try
             return await RunCellAsync(Argument(args, "--spec")).ConfigureAwait(false);
         case "report":
             return RunReport(Argument(args, "--run"));
+        case "footprint":
+            return RunFootprint(Argument(args, "--cell"));
         default:
             Console.Error.WriteLine($"unknown command '{args[0]}'");
             return 2;
@@ -130,9 +133,43 @@ static int RunReport(string runDirectory)
 
     var summary = ReportBuilder.Build(runDirectory);
 
+    foreach (var cellFile in Directory.EnumerateFiles(runDirectory, "cell.json", SearchOption.AllDirectories))
+    {
+        if (Path.GetDirectoryName(cellFile) is { } cellDirectory && FootprintReport.Exists(cellDirectory))
+        {
+            var footprint = FootprintReport.Write(cellDirectory);
+            Console.WriteLine(string.Create(
+                CultureInfo.InvariantCulture,
+                $"footprint {Path.GetFileName(cellDirectory)}: {footprint.Verdict} ({footprint.Metrics.Count(static m => string.Equals(m.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))} red of {footprint.Metrics.Count} metrics)"));
+        }
+    }
+
     Console.WriteLine(string.Create(
         CultureInfo.InvariantCulture,
         $"{summary.Cells} cell(s): {summary.CompleteCells} complete, {summary.IncompleteCells} incomplete, {summary.InvalidCells} invalid"));
 
     return summary.InvalidCells > 0 ? 1 : 0;
+}
+
+static int RunFootprint(string cellDirectory)
+{
+    if (!FootprintReport.Exists(cellDirectory))
+    {
+        Console.Error.WriteLine($"'{cellDirectory}' holds no footprint (footprint.jsonl and ramp.json).");
+        return 2;
+    }
+
+    var footprint = FootprintReport.Write(cellDirectory);
+    var red = footprint.Metrics.Where(static m => string.Equals(m.Verdict, FootprintVerdict.Red, StringComparison.Ordinal)).ToList();
+
+    Console.WriteLine(string.Create(
+        CultureInfo.InvariantCulture,
+        $"footprint {footprint.CellId}: {footprint.Verdict}; {red.Count} red of {footprint.Metrics.Count} metrics; {footprint.Samples} samples, {footprint.Gaps} with a gap"));
+
+    foreach (var metric in red)
+    {
+        Console.WriteLine($"  red: {metric.Label}: {string.Join("; ", metric.Reasons)}");
+    }
+
+    return string.Equals(footprint.Verdict, FootprintVerdict.Red, StringComparison.Ordinal) ? 1 : 0;
 }

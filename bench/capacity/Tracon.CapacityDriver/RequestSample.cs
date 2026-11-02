@@ -19,6 +19,9 @@ public sealed class RequestSample
     /// <summary>Which synthetic tenant it belonged to.</summary>
     public string Tenant { get; set; } = "";
 
+    /// <summary>The tenant ramp's stage the request belonged to, when the cell is a ramp.</summary>
+    public int? Stage { get; set; }
+
     /// <summary>The correlation value carried through request, tool argument and answer.</summary>
     public string Correlation { get; set; } = "";
 
