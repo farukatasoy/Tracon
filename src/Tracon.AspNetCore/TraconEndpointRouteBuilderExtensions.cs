@@ -19,7 +19,9 @@ public static class TraconEndpointRouteBuilderExtensions
     /// Connects the Tracon management API and the OpenAI-compatible run
     /// endpoints.
     /// </summary>
-    /// <param name="endpoints">The application's routing builder.</param>
+    /// <param name="endpoints">
+    /// The application itself (a <c>WebApplication</c> or any <see cref="IApplicationBuilder"/>), not a route group.
+    /// </param>
     /// <param name="prefix">Path prefix. Default is <c>/tracon</c>.</param>
     /// <param name="configure">Hook that mutates access and streaming settings.</param>
     /// <returns>
@@ -27,7 +29,10 @@ public static class TraconEndpointRouteBuilderExtensions
     /// added <strong>only</strong> applies to the protected endpoints.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="endpoints"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="prefix"/> is empty.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="prefix"/> is empty, or <paramref name="endpoints"/> is not an
+    /// <see cref="IApplicationBuilder"/> (a <c>MapGroup(...)</c> result or the builder passed to <c>UseEndpoints</c>).
+    /// </exception>
     /// <exception cref="InvalidOperationException">
     /// <c>AddTracon()</c> has not been called.
     /// </exception>
@@ -37,6 +42,14 @@ public static class TraconEndpointRouteBuilderExtensions
     /// without authentication; it is needed for the UI to learn which
     /// authentication method to use and returns no sensitive data. Every other
     /// endpoint passes through the three-layer protection.
+    /// </para>
+    /// <para>
+    /// Call it on the application, and pass the path as <paramref name="prefix"/> to mount it under one. The surface
+    /// is more than routes: the request body limit, the <c>Idempotency-Key</c> buffering, the CORS answer, the
+    /// mapping of a malformed body and of an unreachable store to their problem replies, and the WebSocket
+    /// middleware are added to the application's pipeline, which a route group cannot hold. On a group the
+    /// endpoints would still answer, without those, and every request with an <c>Idempotency-Key</c> would fail
+    /// with <c>400</c>; the call is refused instead.
     /// </para>
     /// <para>
     /// The returned builder represents <strong>only the protected group</strong>.
@@ -61,6 +74,17 @@ public static class TraconEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
+
+        if (endpoints is not IApplicationBuilder app)
+        {
+            throw new ArgumentException(
+                "MapTracon must be called on the application itself (for example app.MapTracon(\"/tracon\")), not on " +
+                "a route group or inside UseEndpoints(...). It adds middleware to the application pipeline (request " +
+                "body limit, Idempotency-Key buffering, CORS, problem mapping, WebSockets); a route group has no " +
+                "pipeline, so its endpoints would run without them. To mount Tracon under a path, pass the path as " +
+                "the prefix argument.",
+                nameof(endpoints));
+        }
 
         var options = new TraconEndpointOptions();
         configure?.Invoke(options);
@@ -104,51 +128,36 @@ public static class TraconEndpointRouteBuilderExtensions
         // BEFORE the idempotency buffering below, so the buffer wraps the counting stream and not the other way round:
         // the counting stream cannot seek, and the idempotency filter rewinds the body it read only when it can. Wrapped
         // the wrong way round, every request that carried an Idempotency-Key reached its endpoint with an empty body.
-        if (endpoints is IApplicationBuilder bodyLimitApp)
-        {
-            bodyLimitApp.Use(RequestBodyLimitMiddleware.InvokeAsync);
-        }
+        app.Use(RequestBodyLimitMiddleware.InvokeAsync);
 
         // Idempotency-Key support. Because the body can be consumed
         // BEFORE the filter's InvokeAsync (by minimal API's automatic binding
         // on some endpoints), reading the raw bytes afterward is only possible
         // if they were buffered BEFOREHAND. For a request that does NOT carry
         // the header, this middleware does nothing (no silent cost). Nor does it for a body the filter will not read.
-        if (endpoints is IApplicationBuilder idempotencyApp)
+        app.Use(static (httpContext, next) =>
         {
-            idempotencyApp.Use(static (httpContext, next) =>
+            if (httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName)
+                && IdempotencyFilter.ReadsBody(httpContext.Request))
             {
-                if (httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName)
-                    && IdempotencyFilter.ReadsBody(httpContext.Request))
-                {
-                    httpContext.Request.EnableBuffering();
-                }
+                httpContext.Request.EnableBuffering();
+            }
 
-                return next(httpContext);
-            });
-        }
+            return next(httpContext);
+        });
 
         // When body binding hits a JsonException it
         // must fall into this library's own 400 contract, not a generic 500 —
         // see JsonBindingProblemMiddleware.
-        if (endpoints is IApplicationBuilder jsonProblemApp)
-        {
-            jsonProblemApp.Use(JsonBindingProblemMiddleware.InvokeAsync);
-        }
+        app.Use(JsonBindingProblemMiddleware.InvokeAsync);
 
         // A store that cannot answer must say so. Attached OUTSIDE
         // the binding mapping above so that it also covers a DbException thrown
         // while that middleware is unwinding.
-        if (endpoints is IApplicationBuilder storeProblemApp)
-        {
-            storeProblemApp.Use(StoreUnavailableProblemMiddleware.InvokeAsync);
-        }
+        app.Use(StoreUnavailableProblemMiddleware.InvokeAsync);
 
         // A route segment that is only whitespace is not found; a store's argument guard must not turn it into a 500.
-        if (endpoints is IApplicationBuilder blankRouteApp)
-        {
-            blankRouteApp.Use(BlankRouteValueProblemMiddleware.InvokeAsync);
-        }
+        app.Use(BlankRouteValueProblemMiddleware.InvokeAsync);
 
         var idempotencyFilter = new IdempotencyFilter(
             services.GetRequiredService<IOptionsMonitor<TraconIdempotencyOptions>>());
@@ -253,20 +262,12 @@ public static class TraconEndpointRouteBuilderExtensions
         // NOT POSSIBLE (the app is already Build()-ed); IApplicationBuilder.Properties
         // is therefore used for shared state — an extension called later on
         // the same `app` can read this instance back.
-        StoreSharedEndpointOptions(endpoints, options);
+        app.Properties[SharedEndpointOptionsKey] = options;
 
         return group;
     }
 
     private const string SharedEndpointOptionsKey = "Tracon.SharedEndpointOptions";
-
-    private static void StoreSharedEndpointOptions(IEndpointRouteBuilder endpoints, TraconEndpointOptions options)
-    {
-        if (endpoints is IApplicationBuilder app)
-        {
-            app.Properties[SharedEndpointOptionsKey] = options;
-        }
-    }
 
     /// <summary>
     /// Reads back the access settings registered by <c>MapTracon</c>. The
@@ -285,9 +286,14 @@ public static class TraconEndpointRouteBuilderExtensions
             return options;
         }
 
+        // A route group is not the application, so the options MapTracon stored on the application are out of its
+        // reach however early MapTracon ran; telling the caller to call MapTracon first would send them in circles.
         throw new InvalidOperationException(
-            $"app.MapTracon(...) must be called before exposing {protocol}. " +
-            "Access protection (loopback, bearer token, authorization policy) is inherited from there.");
+            endpoints is IApplicationBuilder
+                ? $"app.MapTracon(...) must be called before exposing {protocol}. " +
+                  "Access protection (loopback, bearer token, authorization policy) is inherited from there."
+                : $"{protocol} must be exposed from the application itself, not from a route group or from inside " +
+                  "UseEndpoints(...): the access protection it inherits from app.MapTracon(...) is stored on the application.");
     }
 
     /// <summary>
