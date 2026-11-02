@@ -181,7 +181,12 @@ internal sealed class AzureOpenAIChatClientFactory
                 "option.");
         }
 
-        var clientOptions = new OpenAIClientOptions { Endpoint = V1Endpoint(options.Endpoint) };
+        // Same retry policy as the OpenAI package: a Retry-After above a minute is ignored, not obeyed.
+        var clientOptions = new OpenAIClientOptions
+        {
+            Endpoint = V1Endpoint(options.Endpoint),
+            RetryPolicy = new OpenAIBoundedRetryPolicy(),
+        };
 
         // 🚨 Same family as OpenAIClientOptions: the hook is
         // ClientPipelineOptions.Transport, not an HttpClient property.

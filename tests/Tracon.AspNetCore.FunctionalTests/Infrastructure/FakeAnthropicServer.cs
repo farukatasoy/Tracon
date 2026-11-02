@@ -41,6 +41,14 @@ internal sealed class FakeAnthropicServer : IAsyncDisposable
     /// <summary>Every request body received, in order.</summary>
     public List<JsonObject> Bodies { get; } = [];
 
+    /// <summary>
+    /// Answers a <c>/v1/messages</c> request itself: a status, a header, a body that is not a message. The request is
+    /// already counted in <see cref="Bodies"/>; the second argument is its 1-based position. Return
+    /// <see langword="true"/> when the handler wrote the response. Return <see langword="false"/> to let the server
+    /// answer as before, from the queue or with the canned message. Unset, the server answers as before.
+    /// </summary>
+    public Func<HttpContext, int, Task<bool>>? MessagesOverride { get; set; }
+
     /// <summary>Queues a non-streaming answer: a Messages API response body.</summary>
     /// <param name="message">The response JSON.</param>
     /// <returns>This server, for chaining.</returns>
@@ -82,9 +90,17 @@ internal sealed class FakeAnthropicServer : IAsyncDisposable
         {
             var body = (await JsonNode.ParseAsync(context.Request.Body).ConfigureAwait(false))!.AsObject();
 
+            int position;
+
             lock (server!.Bodies)
             {
                 server.Bodies.Add(body);
+                position = server.Bodies.Count;
+            }
+
+            if (server.MessagesOverride is { } custom && await custom(context, position).ConfigureAwait(false))
+            {
+                return Results.Empty;
             }
 
             (string Body, bool Streamed) answer;

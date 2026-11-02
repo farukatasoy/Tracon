@@ -29,6 +29,7 @@ mechanism as `Tracon.Sql.Shared`.
 | `ProviderHealthCheckCore.cs` | The `GET` model-list call, timeout, failure mapping, body parsing | Endpoint, auth headers, body shape |
 | `ModelProviderCore.cs` | Known-model set, BYOK factory and client caches, tenant endpoint guard rule, configuration diagnostic | `BuildCredentialFactory` (each SDK takes different options) |
 | `ProviderRegistrationCore.cs` | Options + validator registration, "already registered" check, configuration readers, `Models` binding | Chat client factory registration, `AddModelProvider` |
+| `ProviderRetryAfter.cs` | The longest `Retry-After` a retry obeys, and the reader that tells an absurd header from a usable one. The Google library does not read the header, so only three adapters call it | The OpenAI retry policy (`Tracon.OpenAI.Shared`) and the Anthropic message handler |
 
 ## Rules
 
@@ -42,6 +43,9 @@ mechanism as `Tracon.Sql.Shared`.
   sample application works around for the public `Tracon.Sql.Shared` types).
 - **A file belongs here only when all four providers use it.** OpenAI-only
   code (live/sideband, OpenAI-compatible providers) stays in `Tracon.OpenAI`.
+  The one exception is a rule that every provider must follow but one SDK
+  already satisfies (`ProviderRetryAfter`): the ceiling is written once, and the
+  adapter whose library needs no help compiles it unused.
 - **No conditional compilation symbols.** The same text compiles the same way
   in all four packages; a provider difference is a delegate or a parameter.
 - **No reference to a provider SDK namespace** (`OpenAI`, `Anthropic`,

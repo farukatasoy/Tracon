@@ -171,6 +171,10 @@ internal sealed class AnthropicChatClientFactory
             ApiKey = options.ApiKey,
             Timeout = options.Timeout,
             MaxRetries = options.MaxRetries,
+
+            // The library obeys a Retry-After of any length (a day-long header held a run for a day); the
+            // handler drops the ones above a minute so its own backoff applies.
+            Handlers = [new AnthropicRetryAfterHandler(TimeProvider.System)],
         };
 
         // BaseUrl does not accept null; when it is not given, the SDK's own default
