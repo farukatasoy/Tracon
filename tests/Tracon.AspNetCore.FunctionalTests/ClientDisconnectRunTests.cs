@@ -85,6 +85,11 @@ public sealed class ClientDisconnectRunTests
         {
             // This is the client going away.
         }
+        catch (HttpRequestException) when (cancellation.IsCancellationRequested)
+        {
+            // The same, when the abort lands while the request body is still being copied to the server: the test
+            // client reports it as a failed copy ("The client aborted the request") instead of a cancellation.
+        }
     }
 
     private static async Task<List<string>> RunStatusesAsync(TraconTestHost host)

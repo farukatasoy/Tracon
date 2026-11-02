@@ -1023,7 +1023,7 @@ public sealed class WorkflowResponseOwnershipTests
 
         public async ValueTask MarkDeliveredAsync(Guid responseRunId, CancellationToken cancellationToken = default)
         {
-            await Task.Delay(delay, CancellationToken.None);
+            await Task.Delay(delay, CancellationToken.None); // delay: simulated
             await inner.MarkDeliveredAsync(responseRunId, cancellationToken);
         }
 

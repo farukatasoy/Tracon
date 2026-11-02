@@ -14540,7 +14540,7 @@ provider is called.
 
 `Preflight.Enabled` is off by default: a wrong estimate stops a run that
 would have succeeded, and that risk needs an explicit opt-in.
-`ReserveRatio` (default `0.2`) sets aside a share of the window for the answer;
+`ReserveRatio` (default `0.2`, from `0` to `1`) sets aside a share of the window for the answer;
 a prompt estimated above the remaining budget returns `400` with the counted
 and allowed token numbers, and no provider is contacted.
 
@@ -15835,7 +15835,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 |---|---:|---|
 | `Observability.Enabled` | `true` | Controls the MAF telemetry decorator and internal span collector; run recording remains separate |
 | `PersistSpans` | `true` | Writes sampled spans to the Tracon trace store |
-| `SuccessSampleRatio` | `0.1` | `0` persists no successful trace; `1` persists all successful traces |
+| `SuccessSampleRatio` | `0.1` | `0` persists no successful trace; `1` persists all successful traces; a value outside 0 to 1 (`10` for ten percent) stops the host at start |
 | `AlwaysPersistFailures` | `true` | Keeps failed traces independent of the success sample |
 | `MaxSpansPerRun` | `200` | Bounds the in-memory trace buffer; excess spans are dropped |
 | `RecordSensitiveData` | `false` | The store keeps no content from a span: prompt, message and completion text, system instructions, tool arguments and results, and workflow executor input and output. Token counts stay |
@@ -17642,7 +17642,7 @@ this setting exists to prevent.
 
 | Setting | Default | Effect |
 |---|---:|---|
-| `ModelConcurrency.MaxConcurrentCallsPerProvider` | `null` (unlimited) | `null` matches today's behavior; the hot path allocates nothing extra |
+| `ModelConcurrency.MaxConcurrentCallsPerProvider` | `null` (unlimited) | `null` matches today's behavior; the hot path allocates nothing extra. A number must be at least `1`: `0` does not mean unlimited, and the host refuses to start with it |
 
 ## Make supported HTTP submissions idempotent
 
@@ -21350,7 +21350,9 @@ easy to miss in a custom store because everything else keeps passing without the
   (`IdempotencyStoreContract.Keys_that_differ_only_in_case_are_two_reservations`), a file path
   (`AgentFileStoreContract.Paths_that_differ_only_in_case_are_two_files`), a workflow
   checkpoint and session id, a run score's author, message id and name, and a rate-limit
-  partition key. Compare them ordinally; do not fold them to lower case, because the identifier
+  partition key. So does the name of a definition: an agent, a workflow, a skill, a schedule and
+  the other definitions each have a contract test that saves `Support` and `support` and expects
+  two records, and so does the agent name on a run or a session. Compare them ordinally; do not fold them to lower case, because the identifier
   you return has to be the one that was written. The shipped SQL Server store does not tell
   `abc` from `abc ` (that engine ignores trailing spaces in every collation); the contract does
   not test it, and your store may keep the two apart.
@@ -22591,7 +22593,7 @@ different database. Use a shared URI such as
 required.
 
 On SQL Server the names of definitions (agents, workflows, skills, schedules and similar), and every column that repeats one
-(the agent of a run or a session, the tool of an invocation), use `Latin1_General_BIN2` too: `Support` and `support` are two agents on
+(the agent of a run or a session, the tool of an invocation, the entity of an audit entry), use `Latin1_General_BIN2` too: `Support` and `support` are two agents on
 every store, and a request that spells a name differently from the definition answers `404`. A query of your own that joins one of these
 columns to a column of another collation fails with "Cannot resolve the collation conflict"; write `COLLATE Latin1_General_BIN2` on your side.
 SQL Server ignores trailing spaces in any collation, so `Support` and `Support ` are one name there.
