@@ -94,6 +94,41 @@ public sealed class QuotaEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    [Theory]
+    [InlineData("10000000000")]
+    [InlineData("9223372036854775808")]
+    public async Task A_cost_limit_beyond_what_every_store_column_holds_is_a_400_not_a_store_failure(string maxCost)
+    {
+        // The cost columns keep ten digits before the point (numeric(20,10) on PostgreSQL, decimal(20,10) on SQL
+        // Server). A larger number is a bad request; sent to the store it was a numeric overflow that the host reported
+        // as "the persistence store is unavailable" (503). The in-memory store accepts any decimal, which is why the
+        // endpoint has to be the one that says no.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var content = new StringContent(
+            $$"""{"agentName":"ozetleyici","period":"Daily","maxCost":{{maxCost}},"enabled":true}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        using var response = await host.Client.PutAsync(Quotas, content);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        ((await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString() ?? string.Empty).ShouldContain("maxCost");
+    }
+
+    [Fact]
+    public async Task The_largest_cost_limit_the_columns_hold_is_still_accepted()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var content = new StringContent(
+            """{"agentName":"ozetleyici","period":"Daily","maxCost":9999999999.9999999999,"enabled":true}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        using var response = await host.Client.PutAsync(Quotas, content);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+    }
+
     [Fact]
     public async Task Usage_endpoint_returns_period_reset_times()
     {

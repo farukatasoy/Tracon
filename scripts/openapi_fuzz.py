@@ -880,12 +880,16 @@ class Seeder:
 
         def workflows() -> str:
             status, payload = self.call("GET", f"{API_PREFIX}/workflows")
-            names = [item["name"] for item in payload] if status == 200 else []
+            listed = payload if status == 200 else []
+            names = [item["name"] for item in listed]
             self.plan.add("workflow", *names)
             started = 0
 
-            for name in names[:3]:
-                run_id = self._first_run_id(f"{API_PREFIX}/workflows/{name}/run", {"message": "go", "parameters": {"productionId": "fuzz"}})
+            # Runs are started on the workflows defined in code, with the one parameter the sample declares.
+            for item in [item for item in listed if item.get("origin") == "Code"][:3]:
+                name = item["name"]
+                parameters = {"productionId": "fuzz"} if any(parameter["name"] == "productionId" for parameter in item.get("parameters", [])) else {}
+                run_id = self._first_run_id(f"{API_PREFIX}/workflows/{name}/run", {"message": "go", "parameters": parameters})
 
                 if run_id:
                     self.plan.add("workflow-run", run_id)
