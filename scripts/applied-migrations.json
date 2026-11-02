@@ -6,6 +6,6 @@
     "src/Tracon.SqlServer/Migrations/0025_provider_name_case.sql": "d78091a4c46b40a1ac8876b557fe0a02ec5eea3e",
     "src/Tracon.SqlServer/Migrations/0050_remove_authorization_configuration_key.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
     "src/Tracon.SqlServer/Migrations/0059_ordinal_key_collation.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
-    "src/Tracon.SqlServer/Migrations/0060_ordinal_definition_names.sql": "d555ffc538c233b84675c9155cd9d72ce21e59dd"
+    "src/Tracon.SqlServer/Migrations/0060_ordinal_definition_names.sql": "558d88d60a0b9280f041bf1784e75d2289187d55"
   }
 }
