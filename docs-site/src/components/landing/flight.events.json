@@ -6,7 +6,7 @@
   "sameSession": true,
   "auditActions": ["tenant.create", "apikey.create", "approval.decision"],
   "verify": { "status": "Valid", "entriesChecked": 3 },
-  "productionProfileOpen": 9,
-  "productionProfileFirstLine": "RequireProductionProfile() was called, and 9 production decisions are still on the permissive default, so the host does not start.",
+  "productionProfileOpen": 10,
+  "productionProfileFirstLine": "RequireProductionProfile() was called, and 10 production decisions are still on the permissive default, so the host does not start.",
   "canonicalSample": "7f0b896120b641c0dcaf4219815cd27f20602182a5157b29c530eccb4dfc249a"
 }

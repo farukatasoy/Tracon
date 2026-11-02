@@ -142,4 +142,12 @@ public enum TraconProductionRisk
     /// look local, because such a connection has no remote address.
     /// </summary>
     UnauthenticatedLocalOperator,
+
+    /// <summary>
+    /// Quota enforcement is on and a run is allowed when the quota store fails
+    /// (<c>Tracon:Quotas:AllowOnStoreFailure</c> is <see langword="true"/>, the default), so a tenant with a spending
+    /// ceiling goes past it for as long as the database is down. Answer it with <see langword="false"/> to refuse
+    /// runs whose quota cannot be read, or accept it when an outage must not stop the service.
+    /// </summary>
+    UnenforcedQuotaOnStoreFailure,
 }

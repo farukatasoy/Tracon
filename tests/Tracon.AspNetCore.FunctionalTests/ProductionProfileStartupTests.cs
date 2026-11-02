@@ -45,6 +45,7 @@ public sealed class ProductionProfileStartupTests
     [InlineData(TraconProductionRisk.UnlimitedTenantWorkflows)]
     [InlineData(TraconProductionRisk.UnkeyedAuditChain)]
     [InlineData(TraconProductionRisk.UnauthenticatedLocalOperator)]
+    [InlineData(TraconProductionRisk.UnenforcedQuotaOnStoreFailure)]
     public async Task One_permissive_decision_stops_the_host_and_is_named(TraconProductionRisk left)
     {
         // Every decision but one is answered, so the failure can only be about
@@ -115,6 +116,50 @@ public sealed class ProductionProfileStartupTests
         exception.Message.ShouldContain(nameof(TraconProductionRisk.UnauthenticatedLocalOperator));
         exception.Message.ShouldContain("TraconEndpointOptions.AuthToken");
         exception.Message.ShouldContain("Unix socket");
+    }
+
+    [Fact]
+    public async Task The_quota_decision_is_asked_with_its_setting_and_the_value_it_is_on()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, TraconProductionRisk.UnenforcedQuotaOnStoreFailure);
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain(nameof(TraconProductionRisk.UnenforcedQuotaOnStoreFailure));
+        exception.Message.ShouldContain("Tracon:Quotas:AllowOnStoreFailure");
+    }
+
+    [Fact]
+    public async Task A_host_with_quota_enforcement_off_is_not_asked_the_quota_decision()
+    {
+        // No run is checked against a quota, so no store failure can let one past it: nothing to decide.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, TraconProductionRisk.UnenforcedQuotaOnStoreFailure);
+                builder.Services.Configure<TraconQuotaOptions>(static options => options.Enabled = false);
+                builder.RequireProductionProfile();
+            });
+
+        (await host.Client.GetAsync("/tracon/api/meta", TestContext.Current.CancellationToken)).EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task Accepting_the_quota_risk_by_name_starts_the_host_and_logs_it()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, TraconProductionRisk.UnenforcedQuotaOnStoreFailure);
+                builder.RequireProductionProfile(static profile =>
+                    profile.Accept(TraconProductionRisk.UnenforcedQuotaOnStoreFailure));
+            });
+
+        host.Logs.AllText.ShouldContain(nameof(TraconProductionRisk.UnenforcedQuotaOnStoreFailure));
     }
 
     [Fact]
@@ -1126,6 +1171,10 @@ public sealed class ProductionProfileStartupTests
             case TraconProductionRisk.UnauthenticatedLocalOperator:
                 // The endpoint options are built by MapTracon, so the answer travels to it through the host.
                 builder.Services.AddSingleton(new TestEndpointOptionsSetup(static options => options.AuthToken = "profile-test-token"));
+                break;
+
+            case TraconProductionRisk.UnenforcedQuotaOnStoreFailure:
+                builder.Services.Configure<TraconQuotaOptions>(static options => options.AllowOnStoreFailure = false);
                 break;
 
             default:
