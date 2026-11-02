@@ -26,7 +26,7 @@ public sealed class ApiKeyScopeCoverageTests
     /// shell never connects at all when the UI provider is not registered —
     /// it is in <see cref="ConditionallyMappedExemptRoutePatterns"/>).
     /// </summary>
-    private static readonly HashSet<string> ExemptRoutePatterns = new(StringComparer.Ordinal)
+    internal static readonly HashSet<string> ExemptRoutePatterns = new(StringComparer.Ordinal)
     {
         // Reachable without authentication; carries no sensitive data.
         "/tracon/api/meta",
@@ -53,7 +53,7 @@ public sealed class ApiKeyScopeCoverageTests
     /// it can, and it enforces the declared scope itself. The first test therefore
     /// maps it, so a socket that loses its scope declaration fails here.
     /// </remarks>
-    private static readonly HashSet<string> ConditionallyMappedExemptRoutePatterns = new(StringComparer.Ordinal)
+    internal static readonly HashSet<string> ConditionallyMappedExemptRoutePatterns = new(StringComparer.Ordinal)
     {
         // SPA shell: <script src> cannot send an Authorization header; the shell carries no data.
         "/tracon/",
