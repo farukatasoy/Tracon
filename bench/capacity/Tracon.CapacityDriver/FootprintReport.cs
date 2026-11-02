@@ -157,7 +157,14 @@ public static class FootprintReport
         text.AppendLine("| Metric | Verdict | Why |");
         text.AppendLine("|---|---|---|");
 
-        foreach (var metric in Judged(analysis))
+        // The per-instrument series counts are dozens of rows that say the same thing; a green one adds nothing here
+        // and is summarised below the table, while a red or inconclusive one stays in it.
+        var instrumentRows = analysis.Metrics.Where(static m => m.Name.StartsWith(FootprintCatalog.SeriesPrefix, StringComparison.Ordinal)).ToList();
+        var shown = Judged(analysis).Where(m =>
+            !m.Name.StartsWith(FootprintCatalog.SeriesPrefix, StringComparison.Ordinal)
+            || !string.Equals(m.Verdict, FootprintVerdict.Green, StringComparison.Ordinal));
+
+        foreach (var metric in shown)
         {
             var why = metric.Reasons.Count == 0
                 ? (string.Equals(metric.Verdict, FootprintVerdict.Inconclusive, StringComparison.Ordinal) ? "not enough points in any plateau" : "")
@@ -166,6 +173,8 @@ public static class FootprintReport
             text.AppendLine(CultureInfo.InvariantCulture, $"| {metric.Label} | {metric.Verdict} | {why.Replace("|", "/", StringComparison.Ordinal)} |");
         }
 
+        text.AppendLine();
+        text.AppendLine(CultureInfo.InvariantCulture, $"{instrumentRows.Count} per-instrument series counts were judged as well; {instrumentRows.Count(static m => string.Equals(m.Verdict, FootprintVerdict.Green, StringComparison.Ordinal))} green, {instrumentRows.Count(static m => string.Equals(m.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))} red, {instrumentRows.Count(static m => string.Equals(m.Verdict, FootprintVerdict.Inconclusive, StringComparison.Ordinal))} inconclusive. Only the ones that are not green are listed above.");
         text.AppendLine();
         text.AppendLine("## Level at each plateau, and what the tenants cost");
         text.AppendLine();
@@ -211,8 +220,8 @@ public static class FootprintReport
         text.AppendLine();
         text.AppendLine("Growth is the Theil-Sen slope carried across the plateau's window. Floor is the smallest growth that would have counted, so a flat row says how small a leak it could not have seen. `-` is a plateau with too few points to judge.");
         text.AppendLine();
-        text.AppendLine("| Metric | Stage | Tenants | Points | First third | Last third | Growth | Floor | tau | p | Verdict |");
-        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|");
+        text.AppendLine("| Metric | Stage | Tenants | Points | First third | Last third | Growth | Per request | Floor | tau | p | Verdict |");
+        text.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|");
 
         foreach (var metric in Judged(analysis).Where(static m => !m.Name.StartsWith(FootprintCatalog.SeriesPrefix, StringComparison.Ordinal)))
         {
@@ -222,7 +231,7 @@ public static class FootprintReport
 
                 text.AppendLine(string.Create(
                     CultureInfo.InvariantCulture,
-                    $"| {metric.Label} | {trend.Stage} | {trend.Tenants} | {trend.Points} | {(judged ? FootprintAnalysis.Format(metric.Kind, trend.FirstThird) : "-")} | {(judged ? FootprintAnalysis.Format(metric.Kind, trend.LastThird) : "-")} | {(judged ? FootprintAnalysis.Format(metric.Kind, trend.Growth) : "-")} | {FootprintAnalysis.Format(metric.Kind, trend.Floor)} | {(judged ? trend.Tau.ToString("0.00", CultureInfo.InvariantCulture) : "-")} | {(judged ? trend.PValue.ToString("0.0000", CultureInfo.InvariantCulture) : "-")} | {trend.Verdict} |"));
+                    $"| {metric.Label} | {trend.Stage} | {trend.Tenants} | {trend.Points} | {(judged ? FootprintAnalysis.Format(metric.Kind, trend.FirstThird) : "-")} | {(judged ? FootprintAnalysis.Format(metric.Kind, trend.LastThird) : "-")} | {(judged ? FootprintAnalysis.Format(metric.Kind, trend.Growth) : "-")} | {(judged && trend.GrowthPerRequest is { } perRequest ? FootprintAnalysis.Format(metric.Kind, perRequest) : "-")} | {FootprintAnalysis.Format(metric.Kind, trend.Floor)} | {(judged ? trend.Tau.ToString("0.00", CultureInfo.InvariantCulture) : "-")} | {(judged ? trend.PValue.ToString("0.0000", CultureInfo.InvariantCulture) : "-")} | {trend.Verdict} |"));
             }
         }
 

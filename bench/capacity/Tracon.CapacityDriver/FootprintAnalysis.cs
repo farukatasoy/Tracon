@@ -197,6 +197,9 @@ public sealed class StageTrend
 
     /// <summary>The window's requests per second, so a growth can be read as a cost per run.</summary>
     public double RequestsPerSecond { get; set; }
+
+    /// <summary>The growth divided by the requests issued across the window, or <see langword="null"/> when the plateau was not judged.</summary>
+    public double? GrowthPerRequest { get; set; }
 }
 
 /// <summary>How one metric moved from one plateau to the next, which is the cost of the tenants added between them.</summary>
@@ -452,7 +455,7 @@ public static class FootprintAnalysis
             {
                 analysis.Reasons.Add(string.Create(
                     CultureInfo.InvariantCulture,
-                    $"stage {hold.Stage} ({hold.Tenants} tenants): grew {Format(metric.Kind, trend.Growth)} inside a plateau with the tenants fixed (tau {trend.Tau:0.00}, p {trend.PValue:0.0000}, floor {Format(metric.Kind, trend.Floor)})"));
+                    $"stage {hold.Stage} ({hold.Tenants} tenants): grew {Format(metric.Kind, trend.Growth)}{PerRequest(metric.Kind, trend)} inside a plateau with the tenants fixed (tau {trend.Tau:0.00}, p {trend.PValue:0.0000}, floor {Format(metric.Kind, trend.Floor)})"));
             }
         }
 
@@ -510,6 +513,11 @@ public static class FootprintAnalysis
         return analysis;
     }
 
+    private static string PerRequest(MetricKind kind, StageTrend trend)
+        => kind != MetricKind.Count && trend.GrowthPerRequest is { } perRequest
+            ? string.Create(CultureInfo.InvariantCulture, $" ({Format(kind, perRequest)} per request)")
+            : "";
+
     private static (double Start, double End) Window(StageMark hold, FootprintAnalysisOptions options)
     {
         var length = Math.Max(0, hold.EndSeconds - hold.StartSeconds);
@@ -559,6 +567,9 @@ public static class FootprintAnalysis
         trend.LastThird = TrendStatistics.Median(values.Skip(values.Count - third).ToList());
         trend.SlopePerSecond = TrendStatistics.TheilSen(times, values);
         trend.Growth = trend.SlopePerSecond * (times[^1] - times[0]);
+
+        var requestsInWindow = requestsPerSecond * (times[^1] - times[0]);
+        trend.GrowthPerRequest = requestsInWindow > 0 ? trend.Growth / requestsInWindow : null;
 
         var test = TrendStatistics.MannKendall(values);
         trend.Tau = test.Tau;
