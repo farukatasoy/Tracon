@@ -20,7 +20,7 @@ internal sealed partial class InMemoryRunStore
             WorkflowName = info.WorkflowName,
             Status = info.Status,
             StartedAt = info.StartedAt,
-            TenantId = info.TenantId ?? _tenantContext.TenantId,
+            TenantId = AmbientTenantScope.NormalizeOrNull(info.TenantId) ?? _tenantContext.TenantId,
             // 🚨 Set BELOW, after the upsert check: on the second StartRunAsync
             // of a queued run the caller (a background worker) usually does not
             // know the user, and overwriting would erase what the first write
@@ -126,6 +126,8 @@ internal sealed partial class InMemoryRunStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.NormalizeOrNull(tenantId);
+
         // If the run was dropped (MaxRuns), the call is silently discarded:
         // this is a maintenance cost and must not interrupt the run.
         // If the EXPECTED tenant does not match, the write is SILENTLY
@@ -185,6 +187,8 @@ internal sealed partial class InMemoryRunStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         // A compare-and-swap loop: a concurrent completion or a concurrent request must
         // not be overwritten by a stale copy of the record.

@@ -15,7 +15,7 @@ internal sealed partial class InMemoryRunStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tenantId = query.TenantId ?? _tenantContext.TenantId;
+        var tenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
         var perVariant = new Dictionary<string, VariantTally>(StringComparer.Ordinal);
 
         // Amounts in two currencies are never added (CurrencyTotals).
@@ -105,6 +105,8 @@ internal sealed partial class InMemoryRunStore
             buckets[cursor] = default;
         }
 
+        var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
+
         foreach (var record in _runs.Values)
         {
             if (record.StartedAt < query.From || record.StartedAt >= query.To)
@@ -112,7 +114,7 @@ internal sealed partial class InMemoryRunStore
                 continue;
             }
 
-            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, effectiveTenantId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -160,6 +162,7 @@ internal sealed partial class InMemoryRunStore
         cancellationToken.ThrowIfCancellationRequested();
 
         var perTool = new Dictionary<string, ToolTally>(StringComparer.Ordinal);
+        var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
 
         foreach (var (runId, log) in _toolInvocations)
         {
@@ -168,7 +171,7 @@ internal sealed partial class InMemoryRunStore
                 continue;
             }
 
-            if (!string.Equals(run.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
+            if (!string.Equals(run.TenantId, effectiveTenantId, StringComparison.Ordinal))
             {
                 continue;
             }

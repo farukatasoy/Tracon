@@ -18,6 +18,8 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var match = Find(tenantId, name);
 
         return new ValueTask<JobSchedule?>(match);
@@ -28,6 +30,8 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var matches = _schedules.Values
             .Where(schedule => string.Equals(schedule.TenantId, tenantId, StringComparison.Ordinal))
@@ -51,6 +55,8 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
                 nameof(schedule));
         }
 
+        schedule = schedule with { TenantId = AmbientTenantScope.Normalize(schedule.TenantId) };
+
         lock (_schedules)
         {
             var existing = Find(schedule.TenantId, schedule.Name);
@@ -72,6 +78,8 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         lock (_schedules)
         {

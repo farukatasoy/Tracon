@@ -287,4 +287,22 @@ public abstract class RunInputStoreContract : StoreCancellationContract<IRunInpu
             kept.Messages.ShouldHaveSingleItem().Text.ShouldStartWith("writer ", Case.Sensitive);
         }
     }
+
+    /// <summary>
+    /// An input written under one spelling of a tenant is read under another, and carries the canonical one.
+    /// </summary>
+    /// <remarks>
+    /// A run's input is the data a queued run restarts from. A store that matches the raw tenant text answers
+    /// "not found" to the worker that picks the run up, and the run fails for want of its input.
+    /// </remarks>
+    [Fact]
+    public async Task A_tenant_spelled_in_another_letter_case_reads_its_own_input()
+    {
+        var runId = await NewRunAsync("Test");
+
+        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "hello")], tenantId: "Test"));
+
+        (await Store.GetAsync(Tenant, runId)).ShouldNotBeNull().TenantId.ShouldBe(Tenant);
+        (await Store.GetAsync("TEST", runId)).ShouldNotBeNull().TenantId.ShouldBe(Tenant);
+    }
 }

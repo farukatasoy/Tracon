@@ -76,7 +76,7 @@ path alike. `AmbientTenantScope.Normalize` is that rule, and a store you write
 yourself must apply it too.
 
 Folding the value, not comparing case-insensitively at query time, is what makes the
-three storage providers agree: a plain `=` means the same thing on PostgreSQL, SQLite
+three storage providers and the in-memory stores agree: a plain `=` means the same thing on PostgreSQL, SQLite
 and SQL Server whatever the database collation, the primary key keeps rejecting
 duplicates, and the index stays usable. SQL Server's default collation is
 case-insensitive and PostgreSQL's and SQLite's are not, so without the fold the same

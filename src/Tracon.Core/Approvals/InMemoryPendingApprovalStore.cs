@@ -18,7 +18,7 @@ internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
     /// </param>
     public InMemoryPendingApprovalStore(ITenantContext? tenantContext = null)
     {
-        _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
     }
 
     /// <inheritdoc />
@@ -27,7 +27,7 @@ internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
         ArgumentNullException.ThrowIfNull(approval);
         cancellationToken.ThrowIfCancellationRequested();
 
-        _approvals[approval.Id] = approval;
+        _approvals[approval.Id] = approval with { TenantId = AmbientTenantScope.Normalize(approval.TenantId) };
 
         return ValueTask.CompletedTask;
     }

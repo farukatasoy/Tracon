@@ -36,6 +36,8 @@ internal sealed class InMemoryRunScoreStore(
 
         RunScoreRules.Validate(score);
 
+        score = score with { TenantId = AmbientTenantScope.Normalize(score.TenantId) };
+
         lock (_gate)
         {
             var id = score.Id == Guid.Empty ? Guid.NewGuid() : score.Id;
@@ -72,6 +74,8 @@ internal sealed class InMemoryRunScoreStore(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         lock (_gate)
         {
             IReadOnlyList<RunScore> matches =
@@ -89,6 +93,8 @@ internal sealed class InMemoryRunScoreStore(
     public ValueTask<bool> DeleteAsync(string tenantId, Guid scoreId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         lock (_gate)
         {
@@ -111,7 +117,7 @@ internal sealed class InMemoryRunScoreStore(
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tenantId = query.TenantId ?? tenantContext?.TenantId ?? throw new ArgumentException(
+        var tenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? CanonicalTenantOf(tenantContext) ?? throw new ArgumentException(
             "RunScoreQuery.TenantId is required: this store was created without an ambient ITenantContext.",
             nameof(query));
 
@@ -234,4 +240,7 @@ internal sealed class InMemoryRunScoreStore(
             .OrderByDescending(static aggregate => aggregate.Count)
             .ThenBy(static aggregate => aggregate.Key, StringComparer.Ordinal)
             .Take(maxRows)];
+
+    private static string? CanonicalTenantOf(ITenantContext? context)
+        => context is null ? null : AmbientTenantScope.Normalize(context.TenantId);
 }

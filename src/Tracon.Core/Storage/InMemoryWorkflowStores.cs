@@ -23,6 +23,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         return new ValueTask<WorkflowDefinition?>(
             _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) ? history.Current() : null);
     }
@@ -34,6 +36,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var definitions = _workflows
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
@@ -55,6 +59,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         return new ValueTask<WorkflowDefinition>(
             HistoryOf(tenantId, definition.Name).Append(definition, tenantId));
     }
@@ -68,6 +74,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         return new ValueTask<bool>(
             _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) && history.Delete());
@@ -84,6 +92,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         return new ValueTask<WorkflowDefinition?>(
             _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) ? history.Find(version) : null);
     }
@@ -97,6 +107,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         return new ValueTask<IReadOnlyList<WorkflowDefinition>>(
             _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) ? history.Newest() : []);
@@ -112,6 +124,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         if (!_workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history))
         {
@@ -237,6 +251,8 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentNullException.ThrowIfNull(record);
         cancellationToken.ThrowIfCancellationRequested();
 
+        record = record with { TenantId = AmbientTenantScope.Normalize(record.TenantId) };
+
         var list = _checkpoints.GetOrAdd(new SessionKey(record.TenantId, record.SessionId), static _ => []);
 
         lock (list)
@@ -263,6 +279,8 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -295,6 +313,8 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (!_checkpoints.TryGetValue(new SessionKey(tenantId, sessionId), out var list))
         {
             return new ValueTask<IReadOnlyList<WorkflowCheckpointRecord>>([]);
@@ -314,6 +334,8 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var matches = new List<WorkflowCheckpointRecord>();
 
@@ -344,6 +366,8 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         return new ValueTask<int>(
             _checkpoints.TryRemove(new SessionKey(tenantId, sessionId), out var removed) ? removed.Count : 0);

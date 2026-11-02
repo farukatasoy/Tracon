@@ -60,7 +60,7 @@ public sealed class JsonFileRunStore : IRunStore
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         _filePath = filePath;
-        _tenantContext = tenantContext ?? new FixedTenantContext("default");
+        _tenantContext = new CanonicalTenantContext(tenantContext ?? new FixedTenantContext("default"));
         Scores = scores ?? new InMemoryRunScoreStore(
             _tenantContext,
             runId =>
@@ -102,7 +102,7 @@ public sealed class JsonFileRunStore : IRunStore
                 WorkflowName = info.WorkflowName,
                 Status = info.Status,
                 StartedAt = info.StartedAt,
-                TenantId = info.TenantId ?? _tenantContext.TenantId,
+                TenantId = AmbientTenantScope.NormalizeOrNull(info.TenantId) ?? _tenantContext.TenantId,
                 UserId = info.UserId,
                 Labels = info.Labels,
                 SessionId = info.SessionId,
@@ -268,6 +268,8 @@ public sealed class JsonFileRunStore : IRunStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.NormalizeOrNull(tenantId);
+
         lock (_gate)
         {
             if (_runs.TryGetValue(runId, out var existing))
@@ -336,6 +338,8 @@ public sealed class JsonFileRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         lock (_gate)
         {
@@ -448,7 +452,7 @@ public sealed class JsonFileRunStore : IRunStore
 
         lock (_gate)
         {
-            var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
+            var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
 
             HashSet<Guid>? sessionRootIds = null;
 
@@ -659,7 +663,7 @@ public sealed class JsonFileRunStore : IRunStore
             // caller only logs the outcome.
             if (!_runs.TryGetValue(completion.RunId, out var run) ||
                 (completion.TenantId is not null &&
-                 !string.Equals(run.TenantId, completion.TenantId, StringComparison.Ordinal)) ||
+                 !string.Equals(run.TenantId, AmbientTenantScope.Normalize(completion.TenantId), StringComparison.Ordinal)) ||
                 !_toolInvocations.TryGetValue(completion.RunId, out var log))
             {
                 return new ValueTask<bool>(false);
@@ -732,7 +736,7 @@ public sealed class JsonFileRunStore : IRunStore
             foreach (var (runId, log) in _toolInvocations)
             {
                 if (!_runs.TryGetValue(runId, out var run)
-                    || !string.Equals(run.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal)
+                    || !string.Equals(run.TenantId, AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId, StringComparison.Ordinal)
                     || (query.StartedAfter is { } after && run.StartedAt <= after))
                 {
                     continue;
@@ -790,7 +794,7 @@ public sealed class JsonFileRunStore : IRunStore
         long runsWithUnknownPricing = 0;
         var currencies = new CurrencySet();
 
-        var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
+        var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
 
         foreach (var record in runs)
         {
@@ -1077,7 +1081,7 @@ public sealed class JsonFileRunStore : IRunStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tenantId = query.TenantId ?? _tenantContext.TenantId;
+        var tenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
         List<RunRecord> runs;
 
         lock (_gate)
@@ -1152,7 +1156,7 @@ public sealed class JsonFileRunStore : IRunStore
                 buckets[cursor] = default;
             }
 
-            var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
+            var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
 
             // A point carries no currency, so the WHOLE series is judged as one.
             var currencies = new CurrencySet();
@@ -1202,6 +1206,8 @@ public sealed class JsonFileRunStore : IRunStore
         {
             return;
         }
+
+        expectedTenantId = AmbientTenantScope.Normalize(expectedTenantId);
 
         if (_runs.TryGetValue(runId, out var run)
             && !string.Equals(run.TenantId, expectedTenantId, StringComparison.Ordinal))

@@ -21,7 +21,7 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var dictionaryKey = (request.TenantId, request.Key);
+        var dictionaryKey = (AmbientTenantScope.Normalize(request.TenantId), request.Key);
 
         while (true)
         {
@@ -83,6 +83,8 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         ArgumentNullException.ThrowIfNull(response);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (_entries.TryGetValue((tenantId, key), out var entry))
         {
             lock (entry)
@@ -108,6 +110,8 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var dictionaryKey = (tenantId, key);
 

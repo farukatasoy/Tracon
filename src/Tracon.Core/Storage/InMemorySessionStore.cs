@@ -25,7 +25,7 @@ internal sealed class InMemorySessionStore : ISessionStore
     /// The current tenant's context. If not given, the store behaves as single-tenant.
     /// </param>
     public InMemorySessionStore(ITenantContext? tenantContext = null)
-        => _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        => _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
 
     /// <inheritdoc />
     /// <remarks>
@@ -41,7 +41,7 @@ internal sealed class InMemorySessionStore : ISessionStore
         // SAME rule as the SQL implementation: if a record carries its own
         // tenant, that one wins (scheduled jobs may write on behalf of
         // another tenant).
-        var tenantId = record.TenantId ?? _tenantContext.TenantId;
+        var tenantId = AmbientTenantScope.NormalizeOrNull(record.TenantId) ?? _tenantContext.TenantId;
 
         _sessions.AddOrUpdate(
             (tenantId, record.Id),
@@ -81,7 +81,7 @@ internal sealed class InMemorySessionStore : ISessionStore
         ArgumentNullException.ThrowIfNull(record);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tenantId = record.TenantId ?? _tenantContext.TenantId;
+        var tenantId = AmbientTenantScope.NormalizeOrNull(record.TenantId) ?? _tenantContext.TenantId;
 
         return new ValueTask<bool>(
             _sessions.TryAdd((tenantId, record.Id), record with { TenantId = tenantId, Version = 1 }));
@@ -102,7 +102,7 @@ internal sealed class InMemorySessionStore : ISessionStore
         ArgumentNullException.ThrowIfNull(record);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tenantId = record.TenantId ?? _tenantContext.TenantId;
+        var tenantId = AmbientTenantScope.NormalizeOrNull(record.TenantId) ?? _tenantContext.TenantId;
         var key = (tenantId, record.Id);
 
         if (!_sessions.TryGetValue(key, out var existing) || existing.Version != expectedVersion)
@@ -149,7 +149,7 @@ internal sealed class InMemorySessionStore : ISessionStore
         cancellationToken.ThrowIfCancellationRequested();
 
         var matches = new List<SessionRecord>();
-        var tenantId = query.TenantId ?? _tenantContext.TenantId;
+        var tenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
 
         foreach (var record in _sessions.Values)
         {

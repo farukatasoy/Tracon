@@ -37,7 +37,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     /// The current tenant context. If omitted, the store behaves as single tenant.
     /// </param>
     public InMemoryAgentDefinitionStore(ITenantContext? tenantContext = null)
-        => _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        => _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
 
     /// <inheritdoc />
     public ValueTask<AgentDefinition?> GetAsync(string name, CancellationToken cancellationToken = default)

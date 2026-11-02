@@ -22,6 +22,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var suites = _suites
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
             .Select(static pair => pair.Value)
@@ -41,6 +43,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         _suites.TryGetValue(new SuiteKey(tenantId, name), out var suite);
         return new ValueTask<EvalSuite?>(suite);
     }
@@ -50,6 +54,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
     {
         ArgumentNullException.ThrowIfNull(suite);
         cancellationToken.ThrowIfCancellationRequested();
+
+        suite = suite with { TenantId = AmbientTenantScope.Normalize(suite.TenantId) };
 
         var key = new SuiteKey(suite.TenantId, suite.Name);
         var saved = _suites.AddOrUpdate(
@@ -70,6 +76,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         if (!_suites.TryRemove(new SuiteKey(tenantId, name), out var suite))
         {
@@ -190,7 +198,11 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(run);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var record = run with { Id = run.Id == Guid.Empty ? TraconId.NewId() : run.Id };
+        var record = run with
+        {
+            Id = run.Id == Guid.Empty ? TraconId.NewId() : run.Id,
+            TenantId = AmbientTenantScope.Normalize(run.TenantId),
+        };
         _runs[record.Id] = record;
 
         return new ValueTask<EvalRun>(record);
@@ -248,6 +260,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (_runs.TryGetValue(evalRunId, out var run) && string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
         {
             return new ValueTask<EvalRun?>(run);
@@ -265,6 +279,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var run = _runs.Values.FirstOrDefault(candidate =>
             candidate.JobId == jobId && string.Equals(candidate.TenantId, tenantId, StringComparison.Ordinal));
 
@@ -279,12 +295,13 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var tenantId = AmbientTenantScope.Normalize(query.TenantId);
         var matches = new List<EvalRun>();
 
         foreach (var run in _runs.Values)
         {
             // EvalRunQuery.TenantId is required, so this filter always runs.
-            if (!string.Equals(run.TenantId, query.TenantId, StringComparison.Ordinal))
+            if (!string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -331,6 +348,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (!_runs.TryGetValue(evalRunId, out var run) || !string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
         {
             return new ValueTask<IReadOnlyList<EvalCaseResult>>([]);
@@ -355,16 +374,18 @@ internal sealed class InMemoryEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var baseline = await GetRunAsync(query.TenantId, query.BaselineRunId, cancellationToken).ConfigureAwait(false);
-        var candidate = await GetRunAsync(query.TenantId, query.CandidateRunId, cancellationToken).ConfigureAwait(false);
+        var tenantId = AmbientTenantScope.Normalize(query.TenantId);
+
+        var baseline = await GetRunAsync(tenantId, query.BaselineRunId, cancellationToken).ConfigureAwait(false);
+        var candidate = await GetRunAsync(tenantId, query.CandidateRunId, cancellationToken).ConfigureAwait(false);
 
         if (baseline is null || candidate is null)
         {
             return null;
         }
 
-        var baselineResults = await ListCaseResultsAsync(query.TenantId, baseline.Id, cancellationToken).ConfigureAwait(false);
-        var candidateResults = await ListCaseResultsAsync(query.TenantId, candidate.Id, cancellationToken).ConfigureAwait(false);
+        var baselineResults = await ListCaseResultsAsync(tenantId, baseline.Id, cancellationToken).ConfigureAwait(false);
+        var candidateResults = await ListCaseResultsAsync(tenantId, candidate.Id, cancellationToken).ConfigureAwait(false);
 
         return EvalRunDiffBuilder.Build(baseline, candidate, baselineResults, candidateResults, query.Skip, query.Take);
     }

@@ -34,7 +34,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
     /// </param>
     public InMemoryAuditLog(ITenantContext? tenantContext = null, AuditChainKeyRing? keys = null)
     {
-        _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
         _keys = keys ?? AuditChainKeyRing.None;
     }
 
@@ -43,6 +43,10 @@ internal sealed class InMemoryAuditLog : IAuditLog
     {
         ArgumentNullException.ThrowIfNull(entry);
         cancellationToken.ThrowIfCancellationRequested();
+
+        // Folded before it keys the chain and before it goes into the hash: the stored entry carries the
+        // canonical tenant, and a verification that recomputes the hash from the stored entry matches.
+        entry = entry with { TenantId = AmbientTenantScope.Normalize(entry.TenantId) };
 
         var chain = _byTenant.GetOrAdd(entry.TenantId, static _ => []);
 
@@ -143,7 +147,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
     /// or missing override tenant resolves to the caller's OWN tenant, never to "every
     /// tenant" — there is no code path in this store that scans across tenants.
     /// </summary>
-    private string ResolveTenantId(string? tenantId) => tenantId is { Length: > 0 } ? tenantId : _tenantContext.TenantId;
+    private string ResolveTenantId(string? tenantId) => tenantId is { Length: > 0 } ? AmbientTenantScope.Normalize(tenantId) : _tenantContext.TenantId;
 
     private List<AuditEntry> SnapshotOne(string tenantId)
     {

@@ -29,6 +29,7 @@ internal sealed class InMemoryVoiceSessionStore : IVoiceSessionStore
         ArgumentNullException.ThrowIfNull(record);
         cancellationToken.ThrowIfCancellationRequested();
 
+        record = record with { TenantId = AmbientTenantScope.Normalize(record.TenantId) };
         _records[record.Id] = record;
 
         if (_records.Count > Capacity)
@@ -48,6 +49,8 @@ internal sealed class InMemoryVoiceSessionStore : IVoiceSessionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         IReadOnlyList<VoiceSessionRecord> result = _records.Values
             .Where(record => string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))

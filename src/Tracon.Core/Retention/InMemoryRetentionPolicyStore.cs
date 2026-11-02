@@ -23,6 +23,8 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         IReadOnlyList<RetentionPolicy> result = _policies.Values
             .Where(policy => Matches(policy.TenantId, tenantId))
             .OrderBy(policy => policy.Target, StringComparer.Ordinal)
@@ -41,6 +43,8 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var tenantSpecific = Find(tenantId, target);
 
         return new ValueTask<RetentionPolicy?>(tenantSpecific ?? Find("*", target));
@@ -53,6 +57,8 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentNullException.ThrowIfNull(policy);
         cancellationToken.ThrowIfCancellationRequested();
+
+        policy = policy with { TenantId = AmbientTenantScope.Normalize(policy.TenantId) };
 
         var existing = Find(policy.TenantId, policy.Target);
 
@@ -77,6 +83,8 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var existing = Find(tenantId, target);
 
         return new ValueTask<bool>(existing is not null && _policies.TryRemove(existing.Id, out _));
@@ -88,6 +96,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentNullException.ThrowIfNull(run);
         cancellationToken.ThrowIfCancellationRequested();
 
+        run = run with { TenantId = AmbientTenantScope.Normalize(run.TenantId) };
         _runs[run.Id] = run;
 
         return new ValueTask<RetentionRun>(run);
@@ -137,6 +146,8 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var matches = _runs.Values.Where(run => Matches(run.TenantId, tenantId));
 

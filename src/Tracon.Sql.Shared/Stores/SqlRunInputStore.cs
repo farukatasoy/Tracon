@@ -82,6 +82,10 @@ internal sealed class SqlRunInputStore : IRunInputStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
+        // Folded here, not only inside AddTenant: the record is built from this value, and it must carry the
+        // canonical form whichever spelling the caller asked with.
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var command = CreateCommand(_sql.SelectRunInput);
         Dialect.AddUuid(command, "run_id", runId);
         DbHelpers.AddTenant(command, tenantId);

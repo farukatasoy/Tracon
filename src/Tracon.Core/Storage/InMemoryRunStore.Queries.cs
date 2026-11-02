@@ -50,7 +50,7 @@ internal sealed partial class InMemoryRunStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
+        var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
 
         // SessionId is set only on the ROOT run; a child
         // run's own SessionId is always null. A direct equality check would

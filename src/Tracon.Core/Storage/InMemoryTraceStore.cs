@@ -29,7 +29,7 @@ internal sealed class InMemoryTraceStore : ITraceStore
     /// The current tenant context. If omitted, the store behaves as single tenant.
     /// </param>
     public InMemoryTraceStore(ITenantContext? tenantContext = null)
-        => _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        => _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
 
     /// <summary>The maximum number of traces to keep in memory.</summary>
     public int MaxTraces { get; init; } = 500;
@@ -86,7 +86,7 @@ internal sealed class InMemoryTraceStore : ITraceStore
             Id = TraconId.NewId(),
             TraceId = traceId,
             RunId = batch.RunId,
-            TenantId = batch.TenantId,
+            TenantId = AmbientTenantScope.Normalize(batch.TenantId),
             StartedAt = spans[0].StartedAt,
             EndedAt = LatestEnd(spans),
             Spans = spans,

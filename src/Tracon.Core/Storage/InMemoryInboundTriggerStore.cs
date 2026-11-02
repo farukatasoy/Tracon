@@ -19,6 +19,8 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         return new ValueTask<InboundTrigger?>(Find(tenantId, name));
     }
 
@@ -27,6 +29,8 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var matches = _triggers.Values
             .Where(trigger => string.Equals(trigger.TenantId, tenantId, StringComparison.Ordinal))
@@ -41,6 +45,8 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
     {
         ArgumentNullException.ThrowIfNull(trigger);
         cancellationToken.ThrowIfCancellationRequested();
+
+        trigger = trigger with { TenantId = AmbientTenantScope.Normalize(trigger.TenantId) };
 
         lock (_triggers)
         {
@@ -64,6 +70,8 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         lock (_triggers)
         {

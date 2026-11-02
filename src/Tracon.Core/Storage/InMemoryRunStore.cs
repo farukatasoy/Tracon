@@ -43,7 +43,7 @@ internal sealed partial class InMemoryRunStore : IRunStore
     public InMemoryRunStore(IRunScoreStore? scores = null, ITenantContext? tenantContext = null)
     {
         _scores = scores ?? new InMemoryRunScoreStore();
-        _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
     }
 
     /// <summary>
@@ -65,6 +65,8 @@ internal sealed partial class InMemoryRunStore : IRunStore
         {
             return;
         }
+
+        expectedTenantId = AmbientTenantScope.Normalize(expectedTenantId);
 
         if (_runs.TryGetValue(runId, out var run)
             && !string.Equals(run.TenantId, expectedTenantId, StringComparison.Ordinal))
@@ -89,5 +91,5 @@ internal sealed partial class InMemoryRunStore : IRunStore
     private bool OwnedByExpectedTenant(Guid runId, string? expectedTenantId)
         => expectedTenantId is null
             || !_runs.TryGetValue(runId, out var run)
-            || string.Equals(run.TenantId, expectedTenantId, StringComparison.Ordinal);
+            || string.Equals(run.TenantId, AmbientTenantScope.Normalize(expectedTenantId), StringComparison.Ordinal);
 }

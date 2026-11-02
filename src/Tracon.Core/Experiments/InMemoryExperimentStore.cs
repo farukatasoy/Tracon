@@ -19,6 +19,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var result = _experiments.Values
             .Where(experiment => string.Equals(experiment.TenantId, tenantId, StringComparison.Ordinal))
             .OrderBy(static experiment => experiment.Name, StringComparer.Ordinal)
@@ -34,6 +36,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         _experiments.TryGetValue((tenantId, name), out var experiment);
         return new ValueTask<Experiment?>(experiment);
     }
@@ -44,6 +48,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(agentName);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var running = _experiments.Values.FirstOrDefault(experiment =>
             experiment.Status == ExperimentStatus.Running
@@ -58,6 +64,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(experiment);
         cancellationToken.ThrowIfCancellationRequested();
+
+        experiment = experiment with { TenantId = AmbientTenantScope.Normalize(experiment.TenantId) };
 
         var key = (experiment.TenantId, experiment.Name);
 
@@ -94,6 +102,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var key = (tenantId, name);
 
         if (_experiments.TryGetValue(key, out var existing) && existing.Status == ExperimentStatus.Running)
@@ -110,6 +120,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var key = (tenantId, name);
 
@@ -153,6 +165,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var key = (tenantId, name);
 
@@ -202,6 +216,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var key = (tenantId, name);
 
         if (!_experiments.TryGetValue(key, out var experiment))
@@ -228,7 +244,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ApplyCanaryVariantsAsync(tenantId, name, variants, stop: false, reason: null);
+        return ApplyCanaryVariantsAsync(AmbientTenantScope.Normalize(tenantId), name, variants, stop: false, reason: null);
     }
 
     /// <inheritdoc />
@@ -242,7 +258,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(reason);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ApplyCanaryVariantsAsync(tenantId, name, variants, stop: true, reason: reason);
+        return ApplyCanaryVariantsAsync(AmbientTenantScope.Normalize(tenantId), name, variants, stop: true, reason: reason);
     }
 
     private ValueTask<Experiment> ApplyCanaryVariantsAsync(
@@ -255,6 +271,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(variants);
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var key = (tenantId, name);
 

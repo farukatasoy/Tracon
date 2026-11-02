@@ -3672,4 +3672,32 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         first.ShouldBe(expected, ignoreOrder: true);
         second.ShouldBe(first, "the same pages in a different order on the second read");
     }
+
+    /// <summary>
+    /// A run's tenant is stored in its canonical form, whichever spelling started it, and the record reads
+    /// back with that form.
+    /// </summary>
+    /// <remarks>
+    /// The run endpoints compare a run's <c>TenantId</c> with the request's tenant as ordinal text. A store
+    /// that hands back the spelling it was given makes a request for the caller's own run look like a request
+    /// for another tenant's.
+    /// </remarks>
+    [Fact]
+    public async Task A_run_started_under_another_letter_case_is_read_back_with_the_canonical_tenant()
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        // The tenant comes from the ambient context.
+        AmbientTenant.TenantId = "Tenant-A";
+        var ambient = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(ambient), token);
+
+        // The start info names its own tenant, which wins over the ambient one.
+        AmbientTenant.TenantId = TenantA;
+        var explicitTenant = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(explicitTenant) with { TenantId = "TENANT-A" }, token);
+
+        (await Store.GetRunAsync(ambient, token)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.GetRunAsync(explicitTenant, token)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+    }
 }

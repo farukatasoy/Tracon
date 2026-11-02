@@ -25,7 +25,7 @@ internal sealed class InMemoryWorkflowRequestStore : IWorkflowRequestStore
     /// </param>
     public InMemoryWorkflowRequestStore(ITenantContext? tenantContext = null)
     {
-        _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
     }
 
     /// <inheritdoc />
@@ -33,6 +33,8 @@ internal sealed class InMemoryWorkflowRequestStore : IWorkflowRequestStore
     {
         ArgumentNullException.ThrowIfNull(records);
         cancellationToken.ThrowIfCancellationRequested();
+
+        var canonical = new List<WorkflowRequestRecord>(records.Count);
 
         foreach (var record in records)
         {
@@ -43,11 +45,13 @@ internal sealed class InMemoryWorkflowRequestStore : IWorkflowRequestStore
             {
                 throw new ArgumentException("A row is written open.", nameof(records));
             }
+
+            canonical.Add(record with { TenantId = AmbientTenantScope.Normalize(record.TenantId) });
         }
 
         lock (_records)
         {
-            foreach (var record in records)
+            foreach (var record in canonical)
             {
                 // The primary key, as in the SQL stores: the same run and request is written once.
                 _records.TryAdd((record.RunId, record.RequestId), record);

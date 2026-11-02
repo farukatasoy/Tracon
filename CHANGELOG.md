@@ -45,6 +45,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   A store must also page runs that started at the same instant without repeating or skipping one (`RunStoreContract.Paging_through_runs_that_started_at_the_same_instant_lists_each_run_once`): break a tie on the timestamp with the run id.
 
+- **A custom store must treat a tenant that differs only in letter case as the same tenant.** `Acme`, `acme` and `ACME` were already one tenant in the HTTP layer and in the
+  SQL stores, but a store that compared the tenant text as written passed every contract. The contract suite now writes a record under one spelling and reads, lists and
+  deletes it under another, both ways round, and a store that does not fold the tenant fails. The tenant is the one identifier that is folded: the names and keys a client
+  chooses stay as written (see above). What to do: pass every tenant you write, query or delete with, from a parameter, from `ITenantContext` or from inside a record,
+  through `AmbientTenantScope.Normalize`; store the folded value, compare it with a bare `=`, and return it in the records you read back. New contract tests, which a store
+  that compares the tenant as written fails: `TenantIsolationContract.Tenant_identifiers_that_differ_only_in_letter_case_are_one_tenant` (every store contract derived from it),
+  `SessionStoreContract.A_session_written_under_another_letter_case_is_read_back_with_the_canonical_tenant`,
+  `RunStoreContract.A_run_started_under_another_letter_case_is_read_back_with_the_canonical_tenant`,
+  `IdempotencyStoreContract.A_tenant_spelled_in_another_letter_case_reaches_the_same_reservation`,
+  `RunInputStoreContract.A_tenant_spelled_in_another_letter_case_reads_its_own_input` and
+  `JobStoreContract.Lease_with_a_tenant_cap_counts_two_spellings_of_one_tenant_together`.
+
 - **Behavioural breaking change: a JSON request body longer than 8 MiB answers `413`.** Nothing bounded a body before: a 32 MB `message` was read,
   parsed, recorded with its run and echoed, about thirty times its size in memory at once, and only the server's own limit (30 MB on Kestrel,
   written nowhere) stood in front of it. `TraconEndpointOptions.MaxJsonBodyBytes` now bounds every JSON body under the endpoints, 8 MiB by default,
@@ -721,6 +733,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The in-memory stores fold the tenant identifier the way the SQL stores do.** `Acme`, `acme` and `ACME` are one tenant in every store now, and the sessions, runs,
+  definitions and other records the in-memory stores keep carry `acme`. Before, 28 in-memory stores compared the tenant as written, so a host that used them (the default of `AddTracon()`, `TraconTestHost`, a local job) saw
+  a different tenant per spelling where the same code on PostgreSQL, SQL Server or SQLite saw one. The HTTP layer already resolved the tenant to the folded form, so a
+  request through the endpoints is unchanged; the difference shows in code that calls a store with a tenant it spelled itself. The in-memory job store counts the leases of
+  a tenant for `TenantCap` by the folded form, and its comparison no longer ignores case, since the stored value is already folded.
+  A custom `ITenantContext` that returns a spelling the rule would change (`Acme`) now gets `acme` back in the records, where the in-memory stores used to return its
+  own spelling; the services that compare a record's tenant with the context's as text (`ConversationBranchService`, `RunReplayService`, `ChildAgentInvoker`) refuse the
+  record, as they already did with the SQL stores. Return the folded form from the context.
 - **The knowledge-base errors name the package that supplies the store.** The `501` answer of the knowledge
   endpoints, the `TraconException` of the knowledge service and the compile error of an agent that asks for semantic
   search now say "the `Tracon.PostgreSql` package, `UsePostgreSql()`". The status code and the title are unchanged. The
@@ -774,6 +794,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`IRunInputStore.GetAsync` on PostgreSQL, SQL Server and SQLite returned the spelling the caller asked with in `RunInputRecord.TenantId`**, not the folded form the row is stored
+  in: a read for `TEST` returned a record that said `TEST`. The row found was the right one, since the query folds the tenant; only the field the record was built from was not.
 - **Options with a fraction or a limit stop the host at start when the value cannot mean what it says.** `Observability:SuccessSampleRatio`, `Preflight:ReserveRatio` and `OnlineEvaluation:SampleRate` refuse a value outside 0 to 1 and NaN (`10` used to persist every span); `ModelConcurrency:MaxConcurrentCallsPerProvider` below 1 is refused instead of being raised to 1, so a `0` meant as "no limit" no longer serialises every provider. Limits that had no range rule now name the key and stop the host: Knowledge (chunk size and overlap, dimensions, results; they used to fail at the first upload), Idempotency, AsyncRun (a `MaxAttempts` of 0 failed every queued run without running it), Approvals, Webhooks (a negative `SignatureTolerance`, `MaxExtraHeaders`), the Voice limits and durations, and `Workflows:MaxSuperSteps` below 1 (every run stopped at step 1 with a message about a loop that did not exist). The Skills limit messages name the key. Checked under the invariant, tr-TR and de-DE cultures: the binder reads numbers invariantly, so `0,5` is refused in every culture and never read as 5.
 - **The workflow editor refuses an hour above 23 and a minute or second above 59 in a timeout field**, as the server does now (`48:00:00` passed the screen and the server then refused it with a message that named a .NET type).
 - **The resource and prompt lists of an MCP server are read page by page too** (see the limits above): a server that never ended either list filled memory, as the tool list did.

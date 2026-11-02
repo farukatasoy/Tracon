@@ -25,11 +25,12 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
         ArgumentNullException.ThrowIfNull(draft);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var generated = ApiKeyGenerator.Generate(draft.TenantId);
+        var tenantId = AmbientTenantScope.Normalize(draft.TenantId);
+        var generated = ApiKeyGenerator.Generate(tenantId);
         var record = new ApiKeyRecord
         {
             Id = TraconId.NewId(),
-            TenantId = draft.TenantId,
+            TenantId = tenantId,
             Name = draft.Name,
             KeyPrefix = generated.KeyPrefix,
             Scopes = draft.Scopes,
@@ -51,6 +52,8 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         IReadOnlyList<ApiKeyRecord> result = _keys.Values
             .Where(stored => string.Equals(stored.Record.TenantId, tenantId, StringComparison.Ordinal))
@@ -82,6 +85,8 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var now = _timeProvider.GetUtcNow();
 

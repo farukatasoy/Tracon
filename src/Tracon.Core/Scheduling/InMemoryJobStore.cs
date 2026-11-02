@@ -49,6 +49,7 @@ internal sealed class InMemoryJobStore : IJobStore
 
         var record = job with
         {
+            TenantId = AmbientTenantScope.Normalize(job.TenantId),
             Lane = lane,
             Status = JobStatus.Pending,
             TotalItems = items.Count,
@@ -177,10 +178,10 @@ internal sealed class InMemoryJobStore : IJobStore
 
     private HashSet<string> TenantsAtCap(JobTenantCap cap, DateTimeOffset now)
     {
-        // Tenant ids are compared the way the stores normalize them on write (AmbientTenantScope.Normalize
-        // lower-cases), so "Acme" and "acme" are one tenant here as they are in the SQL stores.
-        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var atCap = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // A job's tenant is stored in its canonical form (EnqueueAsync folds it), so an ordinal comparison already
+        // counts "Acme" and "acme" as one tenant, as the SQL stores do.
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var atCap = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var job in _jobs.Values)
         {
@@ -322,6 +323,8 @@ internal sealed class InMemoryJobStore : IJobStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         lock (_jobs)
         {
             if (!_jobs.TryGetValue(jobId, out var job)
@@ -353,6 +356,8 @@ internal sealed class InMemoryJobStore : IJobStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (_jobs.TryGetValue(jobId, out var job) && string.Equals(job.TenantId, tenantId, StringComparison.Ordinal))
         {
             return new ValueTask<JobRecord?>(job);
@@ -368,10 +373,11 @@ internal sealed class InMemoryJobStore : IJobStore
         cancellationToken.ThrowIfCancellationRequested();
 
         var matches = new List<JobRecord>();
+        var queryTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId);
 
         foreach (var job in _jobs.Values)
         {
-            if (query.TenantId is { } tenantId && !string.Equals(job.TenantId, tenantId, StringComparison.Ordinal))
+            if (queryTenantId is not null && !string.Equals(job.TenantId, queryTenantId, StringComparison.Ordinal))
             {
                 continue;
             }

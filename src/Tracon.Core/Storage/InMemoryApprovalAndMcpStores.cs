@@ -22,6 +22,8 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var matches = _rules.Values
             .Where(rule => string.Equals(rule.TenantId, tenantId, StringComparison.Ordinal))
             .OrderByDescending(static rule => rule.CreatedAt)
@@ -37,6 +39,8 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
     {
         ArgumentNullException.ThrowIfNull(rule);
         cancellationToken.ThrowIfCancellationRequested();
+
+        rule = rule with { TenantId = AmbientTenantScope.Normalize(rule.TenantId) };
 
         foreach (var existing in _rules.Values)
         {
@@ -59,6 +63,8 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         // Apply tenant validation to deletion too. An identifier guess must not let
         // a tenant delete another tenant's rule.
@@ -101,6 +107,8 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var matches = _servers.Values
             .Where(server => string.Equals(server.TenantId, tenantId, StringComparison.Ordinal))
             .OrderBy(static server => server.Name, StringComparer.Ordinal)
@@ -119,6 +127,8 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         _servers.TryGetValue(Key(tenantId, name), out var server);
 
         return new ValueTask<McpServerDefinition?>(server);
@@ -131,6 +141,8 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
     {
         ArgumentNullException.ThrowIfNull(server);
         cancellationToken.ThrowIfCancellationRequested();
+
+        server = server with { TenantId = AmbientTenantScope.Normalize(server.TenantId) };
 
         var key = Key(server.TenantId, server.Name);
         var now = DateTimeOffset.UtcNow;
@@ -158,6 +170,8 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         return new ValueTask<bool>(_servers.TryRemove(Key(tenantId, name), out _));
     }

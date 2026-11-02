@@ -23,6 +23,8 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         IReadOnlyList<WebhookSubscription> result = _subscriptions.Values
             .Where(subscription => string.Equals(subscription.TenantId, tenantId, StringComparison.Ordinal))
             .OrderBy(subscription => subscription.Name, StringComparer.Ordinal)
@@ -41,6 +43,8 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var found = _subscriptions.Values.FirstOrDefault(subscription =>
             string.Equals(subscription.TenantId, tenantId, StringComparison.Ordinal)
             && string.Equals(subscription.Name, name, StringComparison.Ordinal));
@@ -57,6 +61,8 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         IReadOnlyList<WebhookSubscription> result = _subscriptions.Values
             .Where(subscription =>
@@ -76,6 +82,8 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
     {
         ArgumentNullException.ThrowIfNull(subscription);
         cancellationToken.ThrowIfCancellationRequested();
+
+        subscription = subscription with { TenantId = AmbientTenantScope.Normalize(subscription.TenantId) };
 
         var existing = _subscriptions.Values.FirstOrDefault(candidate =>
             string.Equals(candidate.TenantId, subscription.TenantId, StringComparison.Ordinal)
@@ -101,6 +109,8 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var existing = _subscriptions.Values.FirstOrDefault(candidate =>
             string.Equals(candidate.TenantId, tenantId, StringComparison.Ordinal)
@@ -162,6 +172,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         ArgumentNullException.ThrowIfNull(delivery);
         cancellationToken.ThrowIfCancellationRequested();
 
+        delivery = delivery with { TenantId = AmbientTenantScope.Normalize(delivery.TenantId) };
         _deliveries[delivery.Id] = delivery;
 
         return new ValueTask<WebhookDelivery>(delivery);
@@ -209,8 +220,10 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var tenantId = AmbientTenantScope.Normalize(query.TenantId);
+
         var matches = _deliveries.Values
-            .Where(delivery => string.Equals(delivery.TenantId, query.TenantId, StringComparison.Ordinal));
+            .Where(delivery => string.Equals(delivery.TenantId, tenantId, StringComparison.Ordinal));
 
         if (query.SubscriptionId is { } subscriptionId)
         {

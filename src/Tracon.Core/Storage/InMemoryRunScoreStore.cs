@@ -35,6 +35,7 @@ internal sealed class InMemoryRunScoreStore(
     Func<Guid, CancellationToken, ValueTask<string?>>? agentNameResolver = null) : IRunScoreStore
 {
     private readonly ConcurrentDictionary<Guid, RunScore> _scores = new();
+    private readonly ITenantContext? _tenantContext = tenantContext is null ? null : CanonicalTenantContext.Wrap(tenantContext);
 
     /// <inheritdoc />
     public ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
@@ -43,6 +44,8 @@ internal sealed class InMemoryRunScoreStore(
         cancellationToken.ThrowIfCancellationRequested();
 
         RunScoreRules.Validate(score);
+
+        score = score with { TenantId = AmbientTenantScope.Normalize(score.TenantId) };
 
         // When the same author writes the same NAME onto the same target, run or
         // message, a second time, update the existing row. A different name from the
@@ -77,6 +80,8 @@ internal sealed class InMemoryRunScoreStore(
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         IReadOnlyList<RunScore> result =
         [
             .. _scores.Values.Where(score =>
@@ -95,6 +100,8 @@ internal sealed class InMemoryRunScoreStore(
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (_scores.TryGetValue(scoreId, out var existing)
             && string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
         {
@@ -111,7 +118,7 @@ internal sealed class InMemoryRunScoreStore(
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tenantId = query.TenantId ?? tenantContext?.TenantId ?? throw new ArgumentException(
+        var tenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext?.TenantId ?? throw new ArgumentException(
             "RunScoreQuery.TenantId is required: this store was created without an ambient ITenantContext.",
             nameof(query));
 

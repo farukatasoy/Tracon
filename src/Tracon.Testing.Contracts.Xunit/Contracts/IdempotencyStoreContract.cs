@@ -454,4 +454,29 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
         results.Count(r => r.State == IdempotencyState.Reserved).ShouldBe(1);
         results.Count(r => r.State == IdempotencyState.InProgress).ShouldBe(7);
     }
+
+    /// <summary>
+    /// Two spellings of one tenant reserve, complete and replay the same key.
+    /// </summary>
+    /// <remarks>
+    /// The tenant is matched case-insensitively across the product. A store that keys on the raw text hands a
+    /// retry that arrives under another spelling a fresh slot, and the request runs twice.
+    /// </remarks>
+    [Fact]
+    public async Task A_tenant_spelled_in_another_letter_case_reaches_the_same_reservation()
+    {
+        var key = Key();
+
+        (await Store.ReserveAsync(Request("Test", key))).State.ShouldBe(IdempotencyState.Reserved);
+        (await Store.ReserveAsync(Request(Tenant, key))).State.ShouldBe(
+            IdempotencyState.InProgress,
+            "the retry under the other spelling was given a fresh slot");
+
+        await Store.CompleteAsync("TEST", key, Response(statusCode: 201));
+
+        var replay = await Store.ReserveAsync(Request(Tenant, key));
+
+        replay.State.ShouldBe(IdempotencyState.Completed, "the completion under the other spelling was not found");
+        replay.Response.ShouldNotBeNull().StatusCode.ShouldBe(201);
+    }
 }

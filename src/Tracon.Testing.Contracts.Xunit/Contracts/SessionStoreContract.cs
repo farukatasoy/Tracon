@@ -657,4 +657,39 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         seen.Distinct(StringComparer.Ordinal).Count().ShouldBe(Total, "a session was listed on two pages");
         seen.Order(StringComparer.Ordinal).ShouldBe(expected);
     }
+
+    /// <summary>
+    /// A session's tenant is stored in its canonical form, whichever spelling wrote it, and the record
+    /// reads back with that form.
+    /// </summary>
+    /// <remarks>
+    /// The management and data-subject endpoints compare a session's <c>TenantId</c> with the request's tenant
+    /// as ordinal text. A store that hands back the spelling it was given makes a request for the caller's
+    /// own session look like a request for another tenant's.
+    /// </remarks>
+    [Fact]
+    public async Task A_session_written_under_another_letter_case_is_read_back_with_the_canonical_tenant()
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        // The tenant comes from the ambient context.
+        AmbientTenant.TenantId = "Tenant-A";
+        await Store.SaveAsync(TestData.Session("ambient"), token);
+
+        // The record names its own tenant, which wins over the ambient one.
+        AmbientTenant.TenantId = TenantA;
+        await Store.SaveAsync(TestData.Session("explicit") with { TenantId = "TENANT-A" }, token);
+
+        // The conditional writes take the record's own tenant too.
+        (await Store.TryCreateAsync(TestData.Session("created") with { TenantId = "TENANT-A" }, token)).ShouldBeTrue();
+
+        var created = (await Store.GetAsync("created", token)).ShouldNotBeNull();
+
+        (await Store.TryUpdateAsync(created with { TenantId = "Tenant-A" }, created.Version, token)).ShouldBeTrue(
+            "the update under another spelling of the tenant did not find the record");
+
+        (await Store.GetAsync("ambient", token)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.GetAsync("explicit", token)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.GetAsync("created", token)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+    }
 }

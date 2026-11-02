@@ -20,6 +20,8 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var grants = _grants
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
             .Select(static pair => pair.Value)
@@ -42,6 +44,8 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(skillName);
         ArgumentNullException.ThrowIfNull(scriptName);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -72,6 +76,7 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
 
         var stored = grant with
         {
+            TenantId = AmbientTenantScope.Normalize(grant.TenantId),
             Id = grant.Id == Guid.Empty ? TraconId.NewId() : grant.Id,
             GrantedAt = grant.GrantedAt == default ? DateTimeOffset.UtcNow : grant.GrantedAt,
             RevokedAt = null,
@@ -92,6 +97,8 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(skillName);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         // A grant is never deleted: revoking stamps RevokedAt and the row stays
         // listed, the same as in the SQL stores - "who granted what, and when was

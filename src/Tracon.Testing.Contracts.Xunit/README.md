@@ -61,7 +61,10 @@ One abstract class per `Tracon.Abstractions` store interface:
 `TenantIsolationContract<TStore>`, which supplies the shared lifecycle
 plumbing (`InitializeAsync`/`DisposeAsync`) and the two-directional tenant
 check every store must pass: a tenant reads its own records, and never
-another tenant's.
+another tenant's. A tenant that differs only in letter case is the same
+tenant: the base writes a record under `Tenant-A` and reads, lists and
+deletes it under `tenant-a`, and the other way round, so a store must fold
+the tenant with `AmbientTenantScope.Normalize` on every write and query.
 
 `RateLimitCounterStoreContract` is the one to run if you count rate limits somewhere
 other than the SQL provider's database (Redis, for example): implement

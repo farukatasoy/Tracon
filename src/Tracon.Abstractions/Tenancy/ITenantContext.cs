@@ -12,14 +12,20 @@ public interface ITenantContext
 {
     /// <summary>The current tenant's identifier. Never returns empty.</summary>
     /// <remarks>
+    /// <para>
     /// <strong>The value must be canonical</strong> — the form
     /// <see cref="AmbientTenantScope.Normalize"/> returns. The tenant
     /// identifier is matched case-insensitively across the product, and every
     /// layer achieves that by normalizing the value rather than by comparing
-    /// case-insensitively. An implementation that returns <c>Acme</c> where
-    /// another path resolves <c>acme</c> splits one tenant into two on
-    /// PostgreSQL and SQLite, and merges them on SQL Server's default
-    /// collation — the authorization layer and the storage layer then disagree.
+    /// case-insensitively.
+    /// </para>
+    /// <para>
+    /// Every store folds the value it is given, in memory and in SQL alike, so
+    /// a context that returns <c>Acme</c> does not split the stored data. The
+    /// code that keys on the text it receives does split it: a metric tag or a
+    /// per-tenant cache entry counts <c>Acme</c> and <c>acme</c> as two tenants,
+    /// and an ordinal comparison with a canonical value says they differ.
+    /// </para>
     /// </remarks>
     string TenantId { get; }
 }

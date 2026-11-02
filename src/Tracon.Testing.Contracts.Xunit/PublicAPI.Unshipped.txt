@@ -255,6 +255,7 @@ Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_of_anoth
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_older_than_the_timeout_is_taken_over_by_the_next_request() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_reservation_younger_than_the_timeout_is_still_in_progress() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_taken_over_reservation_belongs_to_the_taker_with_its_own_fingerprint() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_tenant_spelled_in_another_letter_case_reaches_the_same_reservation() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.A_timeout_longer_than_any_reservation_has_been_alive_takes_nothing_over_and_does_not_throw() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_also_returns_the_stored_HTTP_headers() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.IdempotencyStoreContract.Completed_key_returns_an_empty_dictionary_when_there_are_NO_headers() -> System.Threading.Tasks.Task!
@@ -311,6 +312,7 @@ Tracon.Testing.Contracts.Storage.JobStoreContract.Job_can_be_re_leased_once_the_
 Tracon.Testing.Contracts.Storage.JobStoreContract.Job_not_yet_due_cannot_be_leased() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_lane_filter_never_returns_a_job_from_an_unlisted_lane() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_lane_filter_only_returns_a_job_in_that_lane() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_counts_two_spellings_of_one_tenant_together() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_an_empty_lanes_list_applies_no_filter() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_null_lanes_applies_no_filter() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.Leased_job_is_not_given_to_another_worker_before_expiry() -> System.Threading.Tasks.Task!
@@ -433,6 +435,7 @@ Tracon.Testing.Contracts.Storage.RetentionStoreContract.RetentionStoreContract()
 Tracon.Testing.Contracts.Storage.RetentionStoreContract.Row_limit_threshold_counts_only_the_given_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionStoreContract.Unknown_target_throws() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.A_tenant_spelled_in_another_letter_case_reads_its_own_input() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Another_tenants_input_cannot_be_read() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.A_run_with_values_and_no_messages_still_records_the_values() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Missing_parameters_and_empty_parameters_stay_distinct() -> System.Threading.Tasks.Task!
@@ -490,6 +493,7 @@ Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Mon
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_label_key_without_a_value_matches_any_value_of_that_key() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_started_under_another_letter_case_is_read_back_with_the_canonical_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_that_reports_only_a_cache_count_still_produces_a_usage_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_without_attribution_reads_back_as_null_not_as_an_empty_map() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_second_start_without_attribution_does_not_erase_the_first_one() -> System.Threading.Tasks.Task!
@@ -601,6 +605,7 @@ Tracon.Testing.Contracts.Storage.SessionStoreContract
 Tracon.Testing.Contracts.Storage.SessionStoreContract.A_later_write_that_carries_no_owner_does_not_CLEAR_the_stored_one() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_StateMafVersion_reads_back_null() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.A_session_saved_without_an_owner_reads_back_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.A_session_written_under_another_letter_case_is_read_back_with_the_canonical_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.An_owned_session_round_trips_its_owner() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.An_owner_at_the_maximum_allowed_length_round_trips_whole() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.An_unowned_session_can_still_be_given_an_owner() -> System.Threading.Tasks.Task!
@@ -691,6 +696,7 @@ Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TenantIsolation
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_cannot_delete_another_tenants_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_cannot_read_another_tenants_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_does_not_see_another_tenants_record_in_the_list() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_identifiers_that_differ_only_in_letter_case_are_one_tenant(string! writtenAs, string! readAs) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_reads_its_own_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.UseAmbientTenant(Tracon.Testing.Contracts.Storage.MutableTenantContext! tenant) -> void
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract

@@ -53,7 +53,10 @@ public static class AmbientTenantScope
     /// The tenant identifier is the product's primary isolation key, and it is
     /// matched <strong>case-insensitively</strong>. Every layer that compares
     /// or persists one applies this first: the tenant context, the allow-list
-    /// check, the endpoint filter, and every store.
+    /// check, the endpoint filter, and every store, the in-memory ones
+    /// included. A store should return the canonical form in the records it
+    /// reads back, whichever spelling wrote them; the contract tests for
+    /// sessions and runs check it.
     /// </para>
     /// <para>
     /// Normalizing the <em>value</em> (rather than comparing case-insensitively

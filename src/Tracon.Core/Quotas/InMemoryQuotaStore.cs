@@ -38,6 +38,8 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         IReadOnlyList<QuotaDefinition> result = _definitions.Values
             .Where(definition => string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal))
             .OrderBy(definition => definition.AgentName ?? string.Empty, StringComparer.Ordinal)
@@ -56,6 +58,8 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         var found = _definitions.TryGetValue(id, out var definition)
                     && string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal)
             ? definition
@@ -71,6 +75,8 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
     {
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
+
+        definition = definition with { TenantId = AmbientTenantScope.Normalize(definition.TenantId) };
 
         // Scope uniqueness: if a rule exists for the same tenant, agent, and period,
         // preserve its identifier and overwrite it. PostgreSQL enforces the same rule
@@ -100,6 +106,8 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (!_definitions.TryGetValue(id, out var definition)
             || !string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal))
         {
@@ -117,8 +125,10 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var tenantId = AmbientTenantScope.Normalize(query.TenantId);
+
         var matches = _usage.Values
-            .Where(record => string.Equals(record.TenantId, query.TenantId, StringComparison.Ordinal));
+            .Where(record => string.Equals(record.TenantId, tenantId, StringComparison.Ordinal));
 
         if (query.AgentName is { } agentName)
         {
@@ -155,6 +165,8 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         ArgumentNullException.ThrowIfNull(consumption);
         ArgumentNullException.ThrowIfNull(periodStarts);
         cancellationToken.ThrowIfCancellationRequested();
+
+        consumption = consumption with { TenantId = AmbientTenantScope.Normalize(consumption.TenantId) };
 
         foreach (var (period, periodStart) in periodStarts)
         {
@@ -212,6 +224,8 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(agentName);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var usageKey = new UsageKey(tenantId, agentName, period, periodStart);
 

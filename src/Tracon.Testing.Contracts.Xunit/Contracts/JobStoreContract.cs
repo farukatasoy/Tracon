@@ -1032,4 +1032,23 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 
         (await Store.ListItemsAsync(job.Id)).ShouldHaveSingleItem().Input.ShouldBeOneOf("before\0after", "before\uFFFDafter");
     }
+
+    /// <summary>
+    /// Two spellings of one tenant use one share of the cap.
+    /// </summary>
+    /// <remarks>
+    /// The cap exists to stop one tenant from taking every worker. A store that counts the raw text lets a
+    /// tenant that writes its identifier in two spellings take twice its share.
+    /// </remarks>
+    [Fact]
+    public async Task Lease_with_a_tenant_cap_counts_two_spellings_of_one_tenant_together()
+    {
+        await Store.EnqueueAsync(WorkflowJob("Tenant-A", age: 30), ["a"]);
+        await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
+
+        var leased = (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+
+        leased.TenantId.ShouldBe("tenant-a");
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldBeNull();
+    }
 }

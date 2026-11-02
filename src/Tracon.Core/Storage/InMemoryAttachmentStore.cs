@@ -30,12 +30,13 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         cancellationToken.ThrowIfCancellationRequested();
 
         var id = TraconId.NewId();
+        var tenantId = AmbientTenantScope.Normalize(content.TenantId);
         var sha256 = Convert.ToHexString(SHA256.HashData(content.Data.Span));
 
         var descriptor = new AttachmentDescriptor
         {
             Id = id,
-            TenantId = content.TenantId,
+            TenantId = tenantId,
             SessionId = content.SessionId,
             RunId = content.RunId,
             FileName = content.FileName,
@@ -53,7 +54,7 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         {
             using var stream = new MemoryStream(content.Data.ToArray(), writable: false);
             externalUri = await _storage
-                .WriteAsync(content.TenantId, id, stream, content.MediaType, cancellationToken)
+                .WriteAsync(tenantId, id, stream, content.MediaType, cancellationToken)
                 .ConfigureAwait(false);
         }
         else
@@ -74,6 +75,8 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         return new ValueTask<AttachmentDescriptor?>(
             _entries.TryGetValue(id, out var entry) && IsOwnedBy(entry, tenantId)
                 ? entry.Descriptor
@@ -88,6 +91,8 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         if (!_entries.TryGetValue(id, out var entry) || !IsOwnedBy(entry, tenantId))
         {
@@ -110,9 +115,11 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var tenantId = AmbientTenantScope.Normalize(query.TenantId);
+
         var results = _entries.Values
             .Select(static entry => entry.Descriptor)
-            .Where(descriptor => string.Equals(descriptor.TenantId, query.TenantId, StringComparison.Ordinal))
+            .Where(descriptor => string.Equals(descriptor.TenantId, tenantId, StringComparison.Ordinal))
             .Where(descriptor => query.SessionId is null ||
                 string.Equals(descriptor.SessionId, query.SessionId, StringComparison.Ordinal))
             .OrderByDescending(static descriptor => descriptor.CreatedAt)
@@ -137,6 +144,8 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
+        tenantId = AmbientTenantScope.Normalize(tenantId);
+
         if (!_entries.TryGetValue(id, out var entry) || !IsOwnedBy(entry, tenantId))
         {
             return false;
@@ -159,6 +168,8 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(sessionId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var matches = _entries.Values
             .Select(static entry => entry.Descriptor)

@@ -33,6 +33,8 @@ internal sealed class InMemoryRunInputStore : IRunInputStore
         ArgumentNullException.ThrowIfNull(record);
         cancellationToken.ThrowIfCancellationRequested();
 
+        record = record with { TenantId = AmbientTenantScope.Normalize(record.TenantId) };
+
         // Ignore a second write. A queued run can start twice with the same identifier
         // And the input must not change.
         if (_inputs.TryAdd(record.RunId, record))
@@ -52,6 +54,8 @@ internal sealed class InMemoryRunInputStore : IRunInputStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
+
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         if (!_inputs.TryGetValue(runId, out var record))
         {

@@ -26,7 +26,7 @@ internal sealed class InMemoryWorkflowResponseStore : IWorkflowResponseStore
     /// </param>
     public InMemoryWorkflowResponseStore(ITenantContext? tenantContext = null)
     {
-        _tenantContext = tenantContext ?? FixedTenantContext.Default;
+        _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
     }
 
     /// <inheritdoc />
@@ -36,14 +36,16 @@ internal sealed class InMemoryWorkflowResponseStore : IWorkflowResponseStore
         ArgumentException.ThrowIfNullOrWhiteSpace(record.TenantId, nameof(record));
         cancellationToken.ThrowIfCancellationRequested();
 
+        var canonical = record with { TenantId = AmbientTenantScope.Normalize(record.TenantId) };
+
         lock (_records)
         {
-            if (record.ClaimScope is { } scope && FindClaim(record.TenantId, scope, record.RequestId) is { } existing)
+            if (record.ClaimScope is { } scope && FindClaim(canonical.TenantId, scope, record.RequestId) is { } existing)
             {
                 return ValueTask.FromResult(new WorkflowResponseClaim { Claimed = false, Existing = existing });
             }
 
-            Insert(record);
+            Insert(canonical);
         }
 
         return ValueTask.FromResult(new WorkflowResponseClaim { Claimed = true, Existing = null });
@@ -85,7 +87,7 @@ internal sealed class InMemoryWorkflowResponseStore : IWorkflowResponseStore
             }
 
             _records[abandonedResponseRunId] = existing with { Status = WorkflowResponseStatus.Abandoned };
-            Insert(replacement);
+            Insert(replacement with { TenantId = AmbientTenantScope.Normalize(replacement.TenantId) });
         }
 
         return ValueTask.FromResult(true);

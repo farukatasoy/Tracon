@@ -35,6 +35,7 @@ internal sealed partial class InMemoryRunStore
 
         // Amounts in two currencies are never added (CurrencyTotals).
         var currencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
 
         foreach (var record in _runs.Values)
         {
@@ -43,7 +44,7 @@ internal sealed partial class InMemoryRunStore
                 continue;
             }
 
-            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, effectiveTenantId, StringComparison.Ordinal))
             {
                 continue;
             }

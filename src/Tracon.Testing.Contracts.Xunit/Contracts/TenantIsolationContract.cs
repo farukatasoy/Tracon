@@ -4,6 +4,7 @@ namespace Tracon.Testing.Contracts.Storage;
 /// An <see cref="ITenantContext"/> whose tenant can be swapped at run time.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Some stores take the tenant as a method parameter, others read it from
 /// <see cref="ITenantContext"/> (for example <c>IRunStore</c>,
 /// <c>ISessionStore</c>, <c>IAgentDefinitionStore</c>). To write a two-tenant
@@ -11,6 +12,14 @@ namespace Tracon.Testing.Contracts.Storage;
 /// instances or a single context whose tenant can be swapped. The latter was
 /// chosen: the same store instance points at the same backend, and the
 /// question "does B see what A wrote" can be asked against a single store.
+/// </para>
+/// <para>
+/// <see cref="TenantId"/> returns the value exactly as it was set, canonical or
+/// not. That is deliberate: a store must fold the tenant it reads from the
+/// context as well as the one it takes as a parameter, and the letter-case
+/// scenario of <see cref="TenantIsolationContract{TStore}"/> proves it by
+/// setting a spelling the rule would change.
+/// </para>
 /// </remarks>
 /// <param name="tenantId">The initial tenant.</param>
 public sealed class MutableTenantContext(string tenantId) : ITenantContext
@@ -230,6 +239,55 @@ public abstract class TenantIsolationContract<TStore> : StoreCancellationContrac
             "Tenant B writing under the same name overwrote tenant A's record.");
         (await CountAsync(TenantA, token)).ShouldBe(1);
         (await CountAsync(TenantB, token)).ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Checks that a store reads a tenant identifier the way the rest of the product does: two spellings that
+    /// differ only in letter case are one tenant.
+    /// </summary>
+    /// <param name="writtenAs">The spelling the record is written under.</param>
+    /// <param name="readAs">The spelling the record is read, listed and deleted under.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    /// <remarks>
+    /// <para>
+    /// The product matches a tenant identifier case-insensitively by folding the <em>value</em> with
+    /// <see cref="AmbientTenantScope.Normalize"/>. A store that compares the raw text splits one tenant in two:
+    /// the record written as <c>Tenant-A</c> is missing for <c>tenant-a</c>, and the other way round. Both
+    /// directions are checked, because a store may fold only what it writes or only what it reads.
+    /// </para>
+    /// <para>
+    /// The check also asks tenant B for the record and expects nothing, so a store that satisfies the test by
+    /// matching every tenant still fails.
+    /// </para>
+    /// <para>
+    /// A store that takes the tenant from <see cref="ITenantContext"/> sees the spelling this scenario writes
+    /// through <see cref="AmbientTenant"/>, which returns it as given. The store folds it itself.
+    /// </para>
+    /// </remarks>
+    [Theory]
+    [InlineData("Tenant-A", "tenant-a")]
+    [InlineData("tenant-a", "TENANT-A")]
+    public async Task Tenant_identifiers_that_differ_only_in_letter_case_are_one_tenant(string writtenAs, string readAs)
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        // The seed name is "secret" on purpose: a contract whose listing counts only the names the scenarios
+        // above use would otherwise report an empty tenant.
+        var key = await SeedAsync(writtenAs, "secret", token);
+
+        (await ExistsAsync(readAs, key)).ShouldBeTrue(
+            $"A record written under '{writtenAs}' is not visible under '{readAs}'; the store compares the tenant case-sensitively.");
+        (await CountAsync(readAs, token)).ShouldBeGreaterThan(
+            0,
+            $"The listing under '{readAs}' misses a record written under '{writtenAs}'.");
+        (await CountAsync(TenantB, token)).ShouldBe(0, "Folding the tenant merged it with another tenant.");
+
+        // Only the answer is checked, not the record afterwards: for some stores a "delete" revokes or cancels a
+        // record that stays readable.
+        if (await TryDeleteAsync(readAs, key) is { } deleted)
+        {
+            deleted.ShouldBeTrue($"A record written under '{writtenAs}' cannot be deleted under '{readAs}'.");
+        }
     }
 
     /// <summary>

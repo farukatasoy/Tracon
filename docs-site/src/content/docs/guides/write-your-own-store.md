@@ -288,6 +288,18 @@ easy to miss in a custom store because everything else keeps passing without the
   `abc` from `abc ` (that engine ignores trailing spaces in every collation); the contract does
   not test it, and your store may keep the two apart.
 
+- **The tenant is the one identifier that is not compared by its characters.** `Acme`, `acme` and
+  `ACME` are one tenant, and the folded form is `acme`. Pass every tenant you write, query or
+  delete with through `AmbientTenantScope.Normalize`, whichever way it reaches the store: as a
+  parameter, through `ITenantContext`, or inside a record. Store the folded value, compare it with
+  a bare `=`, and return it in the records you read back. Do not reach the same result with a
+  case-insensitive collation, comparer or `LOWER()` index: each engine behaves differently, and the
+  primary key would then differ too. `TenantIsolationContract` writes a record under one spelling and
+  reads, lists and deletes it under another, in both directions, so every store contract in the
+  suite checks it. `SessionStoreContract` and `RunStoreContract` also read the record back and
+  expect the folded `TenantId`; the endpoints compare it with the request's tenant as ordinal
+  text.
+
 - **`SessionQuery.OwnerId` filters before `Skip`/`Take`.** The contract seeds five
   owned and five unowned sessions with the unowned ones newest, then asks for
   `Take = 3`. A store that pages first and filters the page afterwards returns fewer
