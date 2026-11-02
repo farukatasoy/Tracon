@@ -201,11 +201,23 @@ public sealed class WorkflowResponseOwnershipTests
             stored.Add($"stored {storedEvent.Sequence} {storedEvent.Type}");
         }
 
+        var sourceRun = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(sourceId))!;
+        var checkpoints = (await host.Services.GetRequiredService<IWorkflowCheckpointStore>()
+                .ListAsync(sourceRun.TenantId!, sourceRun.SessionId!, TestContext.Current.CancellationToken))
+            .Select(static checkpoint => $"checkpoint {checkpoint.CheckpointId} parent {checkpoint.ParentCheckpointId} run {checkpoint.RunId} at {checkpoint.CreatedAt:HH:mm:ss.fff}")
+            .ToList();
+
         var diagnosis = string.Join(
             Environment.NewLine,
-            (await WorkflowRunsAsync(host)).Select(run => $"run {run.Id} {run.Status} {run.Error?.Type}")
+            checkpoints
+            .Concat((await WorkflowRunsAsync(host)).Select(run => $"run {run.Id} {run.Status} {run.Error?.Type}"))
                 .Concat(frames.Select(static frame => $"{frame.Event} {frame.Data}"))
-                .Concat(stored));
+                .Concat(stored)
+                .Concat(host.Logs.Entries
+                    .Where(static entry => entry.StartsWith("Warning ", StringComparison.Ordinal)
+                        || entry.StartsWith("Error ", StringComparison.Ordinal)
+                        || entry.StartsWith("Critical ", StringComparison.Ordinal))
+                    .Select(static entry => "log " + entry)));
 
         frames.ShouldContain(static frame => frame.Data.Contains("\"WorkflowOutput\"", StringComparison.Ordinal), diagnosis);
         (await host.WaitForTerminalRunAsync(runId)).Status.ShouldBe(RunStatus.Completed);
