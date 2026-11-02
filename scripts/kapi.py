@@ -873,6 +873,15 @@ PROVIDER_TEST_PROJECTS: tuple[str, ...] = (
     "Tracon.Azure.UnitTests",
 )
 
+# tests/Shared/Upgrade yukseltme kapisinin kaynagidir; uc SQL saglayicisinin entegrasyon projesine
+# ve (veri dosyalari icin) Sql.Shared.UnitTests'e baglanir.
+UPGRADE_GATE_TEST_PROJECTS: tuple[str, ...] = (
+    "Tracon.Sqlite.IntegrationTests",
+    "Tracon.PostgreSql.IntegrationTests",
+    "Tracon.SqlServer.IntegrationTests",
+    "Tracon.Sql.Shared.UnitTests",
+)
+
 TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # Tracon.Sql.Shared.UnitTests burada da secilir: kayit paritesi kapisinin
     # (SqlProviderRegistrationParityTests) yakaladigi iki vaka -- uc
@@ -1219,6 +1228,9 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
             continue
         if path.startswith("tests/Shared/TargetFramework/"):
             projects.update(multi_target_test_projects())
+            continue
+        if path.startswith("tests/Shared/Upgrade/"):
+            projects.update(UPGRADE_GATE_TEST_PROJECTS)
             continue
         if path.startswith("tests/Shared/"):
             needs_full = True

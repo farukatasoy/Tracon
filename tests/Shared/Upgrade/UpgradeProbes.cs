@@ -7,6 +7,7 @@ namespace Tracon.UpgradeGate;
 /// <param name="Database">The upgraded database.</param>
 /// <param name="Seed">The rows the database was filled with.</param>
 /// <param name="SeededColumns">The columns each table had when the rows were written; a column the schema of that moment lacked holds no seed value.</param>
+/// <param name="OrdinalKeys">Whether the keys a client chooses compared by their characters when the rows were written.</param>
 /// <param name="Strict">
 /// Whether the value of every column is asserted. It is when the database stopped at the last release or later, so that the
 /// release's schema, which the seed is written for, is complete. A database that stopped earlier lacks columns the seed names,
@@ -16,6 +17,7 @@ internal sealed record ProbeScope(
     IUpgradeDatabase Database,
     UpgradeSeed Seed,
     IReadOnlyDictionary<string, IReadOnlySet<string>> SeededColumns,
+    bool OrdinalKeys,
     bool Strict)
 {
     /// <summary>Gets the shared store context.</summary>
@@ -143,8 +145,13 @@ internal static class UpgradeProbes
 
             seen.Order().ShouldBe(new[] { "run-completed", "run-failed", "run-child", "run-workflow" }.Select(ProbeScope.Id).Order());
 
-            // Costs are read back from the text the release wrote, whichever column type the provider gave them.
-            completed.Cost.ShouldNotBeNull().InputCost.ShouldBe(0.015m);
+            // Costs are read back from the text the release wrote, whichever column type the provider gave them; a schema
+            // from before the cost columns holds none.
+            if (scope.Had("runs", "input_cost"))
+            {
+                completed.Cost.ShouldNotBeNull().InputCost.ShouldBe(0.015m);
+            }
+
             completed.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(1500);
 
             if (!scope.Strict)
@@ -171,7 +178,7 @@ internal static class UpgradeProbes
             usage.CachedInputTokens.ShouldBe(200);
             usage.ReasoningTokens.ShouldBe(50);
 
-            var cost = completed.Cost;
+            var cost = completed.Cost.ShouldNotBeNull();
 
             cost.OutputCost.ShouldBe(0.009m);
             cost.CachedInputCost.ShouldBe(0.0005m);
@@ -843,10 +850,14 @@ internal static class UpgradeProbes
 
             // The key that completed answers with the stored response; the one that did not is still in progress.
             var completed = await keys.ReserveAsync(new IdempotencyRequest { TenantId = scope.TenantId, Key = "Key-One", Fingerprint = "fp-abc", CreatedAt = Never });
-            var pending = await keys.ReserveAsync(new IdempotencyRequest { TenantId = scope.TenantId, Key = "key-one", Fingerprint = "fp-def", CreatedAt = Never.AddYears(-3) });
-
             completed.State.ShouldBe(IdempotencyState.Completed);
-            pending.State.ShouldBe(IdempotencyState.InProgress);
+
+            // The second spelling is a row of its own only where the keys compare by their characters.
+            if (scope.OrdinalKeys)
+            {
+                (await keys.ReserveAsync(new IdempotencyRequest { TenantId = scope.TenantId, Key = "key-one", Fingerprint = "fp-def", CreatedAt = Never.AddYears(-3) }))
+                    .State.ShouldBe(IdempotencyState.InProgress);
+            }
 
             if (!scope.Strict)
             {
@@ -993,7 +1004,7 @@ internal static class UpgradeProbes
     public static async ValueTask<List<string>> RunAsync(IUpgradeDatabase database, UpgradeSeed seed, SeedOutcome outcome, bool strict)
     {
         var seeded = outcome.Rows.Keys.ToHashSet(StringComparer.Ordinal);
-        var scope = new ProbeScope(database, seed, outcome.Columns, strict);
+        var scope = new ProbeScope(database, seed, outcome.Columns, outcome.OrdinalKeys, strict);
         var failures = new List<string>();
 
         foreach (var probe in All.OrderBy(static probe => probe.Mutates))

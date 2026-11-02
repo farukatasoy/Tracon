@@ -24,9 +24,6 @@ public abstract class UpgradeGateTests
 {
     private const string SweepVariable = "TRACON_TEST_UPGRADE_SWEEP";
 
-    /// <summary>Gets whether the sweep covers every migration by default, which only a provider whose database is a file can afford.</summary>
-    protected abstract bool SweepsEveryBoundaryByDefault { get; }
-
     /// <summary>Opens a database with nothing in it.</summary>
     /// <returns>The database.</returns>
     internal abstract ValueTask<IUpgradeDatabase> CreateDatabaseAsync();

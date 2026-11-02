@@ -23,7 +23,11 @@ internal enum SeedProvider
 /// <summary>One row of the seed: the column values in the order the file lists them.</summary>
 /// <param name="Table">The table the row belongs to.</param>
 /// <param name="Values">The column name and value pairs.</param>
-internal sealed record SeedRow(string Table, IReadOnlyList<KeyValuePair<string, SeedValue>> Values)
+/// <param name="NeedsOrdinalKeys">
+/// Whether the row is only valid where the keys a client chooses compare by their characters: it holds a key that differs from another
+/// row's by letter case alone, which a case-insensitive key (SQL Server before its keys were made ordinal) refuses.
+/// </param>
+internal sealed record SeedRow(string Table, IReadOnlyList<KeyValuePair<string, SeedValue>> Values, bool NeedsOrdinalKeys = false)
 {
     /// <summary>Gets the value of a column the row names.</summary>
     /// <param name="column">The column.</param>
@@ -81,9 +85,6 @@ internal sealed record SeedValue(SeedKind Kind, string Text, IReadOnlyList<strin
 {
     /// <summary>The NULL value.</summary>
     public static SeedValue Null { get; } = new(SeedKind.Null, string.Empty);
-
-    /// <summary>Reads the value as a GUID.</summary>
-    public Guid AsGuid => UpgradeSeed.Id(Text);
 
     /// <summary>Reads the value as a point in time.</summary>
     public DateTimeOffset AsTimestamp => DateTimeOffset.Parse(Text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
@@ -152,14 +153,6 @@ internal sealed class UpgradeSeed
         return new Guid(hash.AsSpan(0, 16));
     }
 
-    /// <summary>Gets the first row of a table whose column holds the text.</summary>
-    /// <param name="table">The table.</param>
-    /// <param name="column">The column.</param>
-    /// <param name="text">The text, or the seed name of a GUID.</param>
-    /// <returns>The row.</returns>
-    public SeedRow Row(string table, string column, string text)
-        => Tables[table].Single(row => row.Has(column) && string.Equals(row[column].Text, text, StringComparison.Ordinal));
-
     /// <summary>Renders the INSERT statement for a row, with the columns the table has.</summary>
     /// <param name="provider">The provider.</param>
     /// <param name="qualifiedTable">The table name as the provider addresses it.</param>
@@ -179,7 +172,7 @@ internal sealed class UpgradeSeed
             return null;
         }
 
-        return $"INSERT INTO {qualifiedTable} ({string.Join(", ", present.Select(static pair => pair.Key))}) " +
+        return $"INSERT INTO {qualifiedTable} ({string.Join(", ", present.Select(pair => QuoteIdentifier(provider, pair.Key)))}) " +
             $"VALUES ({string.Join(", ", present.Select(pair => Render(provider, pair.Value)))});";
     }
 
@@ -241,11 +234,21 @@ internal sealed class UpgradeSeed
         }
     }
 
+    // `key` is a reserved word of SQL Server and the name of a column of the idempotency table.
+    private static string QuoteIdentifier(SeedProvider provider, string name)
+        => provider == SeedProvider.SqlServer ? "[" + name + "]" : name;
+
     private static string Quote(string text, bool unicode)
         => (unicode ? "N'" : "'") + text.Replace("'", "''", StringComparison.Ordinal) + "'";
 
+    private const string OrdinalKeysFlag = "$ordinalKeys";
+
     private static SeedRow ReadRow(string table, JsonObject row)
-        => new(table, [.. row.Select(static pair => KeyValuePair.Create(pair.Key, ReadValue(pair.Value)))]);
+        => new(
+            table,
+            [.. row.Where(static pair => !string.Equals(pair.Key, OrdinalKeysFlag, StringComparison.Ordinal))
+                .Select(static pair => KeyValuePair.Create(pair.Key, ReadValue(pair.Value)))],
+            NeedsOrdinalKeys: row[OrdinalKeysFlag]?.GetValue<bool>() ?? false);
 
     private static SeedValue ReadValue(JsonNode? node)
     {

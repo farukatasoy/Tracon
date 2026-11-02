@@ -34,9 +34,11 @@ internal interface IUpgradeDatabase : IAsyncDisposable
 /// <summary>What the seed wrote into a database.</summary>
 /// <param name="Rows">The number of rows written, by table; a table the schema did not have yet is absent.</param>
 /// <param name="Columns">The columns each of those tables had at that moment.</param>
+/// <param name="OrdinalKeys">Whether the keys a client chooses compared by their characters at that moment.</param>
 internal sealed record SeedOutcome(
     IReadOnlyDictionary<string, int> Rows,
-    IReadOnlyDictionary<string, IReadOnlySet<string>> Columns);
+    IReadOnlyDictionary<string, IReadOnlySet<string>> Columns,
+    bool OrdinalKeys);
 
 /// <summary>The steps the gate takes on a database, provider by provider.</summary>
 internal static class UpgradeHarness
@@ -105,7 +107,7 @@ internal static class UpgradeHarness
             }
             catch (DbException exception) when (attempt < DeadlockAttempts && database.StoreContext.Dialect.IsDeadlock(exception))
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(25 * attempt)).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(25 * attempt)).ConfigureAwait(false); // delay: retry
             }
         }
     }
@@ -200,12 +202,14 @@ internal static class UpgradeHarness
     /// <param name="database">The database.</param>
     /// <param name="seed">The seed.</param>
     /// <returns>What was written; a table the schema does not have yet is absent.</returns>
-    /// <exception cref="InvalidOperationException">A row did not fit the table; the message names the table and carries the statement.</exception>
+    /// <exception cref="InvalidOperationException">A row did not fit its table; the message names every such table with the error of the database.</exception>
     public static async ValueTask<SeedOutcome> SeedAsync(IUpgradeDatabase database, UpgradeSeed seed)
     {
         var tables = await TablesAsync(database).ConfigureAwait(false);
         var written = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var seededColumns = new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal);
+        var misfits = new List<string>();
+        var ordinalKeys = await KeysAreOrdinalAsync(database, tables).ConfigureAwait(false);
 
         foreach (var (table, rows) in seed.Tables)
         {
@@ -220,6 +224,11 @@ internal static class UpgradeHarness
 
             foreach (var row in rows)
             {
+                if (row.NeedsOrdinalKeys && !ordinalKeys)
+                {
+                    continue;
+                }
+
                 var statement = UpgradeSeed.RenderInsert(database.Provider, database.Qualify(table), row, columns);
 
                 if (statement is null)
@@ -233,16 +242,41 @@ internal static class UpgradeHarness
                 }
                 catch (DbException exception)
                 {
-                    throw new InvalidOperationException(
-                        $"The seed row does not fit '{table}' (columns now: {string.Join(", ", columns.Order(StringComparer.Ordinal))}): {exception.Message}{Environment.NewLine}{statement}",
-                        exception);
+                    misfits.Add($"  {table} (columns now: {string.Join(", ", columns.Order(StringComparer.Ordinal))}): {exception.Message.ReplaceLineEndings(" ")}");
+
+                    continue;
                 }
 
                 written[table] = written.GetValueOrDefault(table) + 1;
             }
         }
 
-        return new SeedOutcome(written, seededColumns);
+        if (misfits.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"{misfits.Count} seed row(s) do not fit the schema they were written for:{Environment.NewLine}{string.Join(Environment.NewLine, misfits)}");
+        }
+
+        return new SeedOutcome(written, seededColumns, ordinalKeys);
+    }
+
+    /// <summary>
+    /// Whether a key a client chooses compares by its characters here: always on PostgreSQL and SQLite, and on SQL Server
+    /// once its key columns carry a binary collation.
+    /// </summary>
+    private static async ValueTask<bool> KeysAreOrdinalAsync(IUpgradeDatabase database, HashSet<string> tables)
+    {
+        if (database.Provider != SeedProvider.SqlServer || !tables.Contains("idempotency_keys"))
+        {
+            return true;
+        }
+
+        var collation = await QueryColumnAsync(
+            database,
+            "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; " +
+            $"SELECT c.collation_name FROM sys.columns c WHERE c.object_id = OBJECT_ID(N'{database.Schema}.idempotency_keys') AND c.name = N'key';").ConfigureAwait(false);
+
+        return collation.Single().Contains("BIN", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Formats the difference between two row counts, empty when there is none.</summary>

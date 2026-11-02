@@ -472,7 +472,7 @@
     "non_token_cost": "d:0.0020000000",
     "non_token_currency": "USD",
     "non_token_estimated": true,
-    "non_token_unsummed": false,
+    "non_token_unsummed": 0,
     "cache_write_input_tokens": 100,
     "cache_write_long_input_tokens": 0,
     "cache_write_cost": "d:0.0003000000",
@@ -527,7 +527,7 @@
     "non_token_cost": null,
     "non_token_currency": null,
     "non_token_estimated": false,
-    "non_token_unsummed": false,
+    "non_token_unsummed": 0,
     "cache_write_input_tokens": null,
     "cache_write_long_input_tokens": null,
     "cache_write_cost": null,
@@ -582,7 +582,7 @@
     "non_token_cost": null,
     "non_token_currency": null,
     "non_token_estimated": false,
-    "non_token_unsummed": false,
+    "non_token_unsummed": 0,
     "cache_write_input_tokens": null,
     "cache_write_long_input_tokens": null,
     "cache_write_cost": null,
@@ -637,7 +637,7 @@
     "non_token_cost": null,
     "non_token_currency": null,
     "non_token_estimated": false,
-    "non_token_unsummed": false,
+    "non_token_unsummed": 0,
     "cache_write_input_tokens": null,
     "cache_write_long_input_tokens": null,
     "cache_write_cost": null,
@@ -1759,7 +1759,8 @@
     "run_id": null,
     "created_at": "ts:2026-03-01T10:48:00.000000Z",
     "completed_at": null,
-    "headers": null
+    "headers": null,
+    "$ordinalKeys": true
    }
   ],
   "retention_policies": [

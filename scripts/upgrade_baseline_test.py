@@ -65,7 +65,7 @@ class ManifestTestleri(unittest.TestCase):
         previous = self._manifest("1.0.0-preview.6", [{"provider": "sqlite", "name": "0001_initial"}])
 
         with mock.patch.object(ub, "read_tag", return_value={}):
-            manifest = ub.build_manifest(ROOT, "v1.0.0-preview.6", previous)
+            manifest = ub.build_manifest(ROOT, "1.0.0-preview.6", None, previous)
 
         self.assertEqual(manifest["exemptions"], previous["exemptions"])
 
@@ -73,10 +73,17 @@ class ManifestTestleri(unittest.TestCase):
         previous = self._manifest("1.0.0-preview.6", [{"provider": "sqlite", "name": "0001_initial"}])
 
         with mock.patch.object(ub, "read_tag", return_value={}):
-            manifest = ub.build_manifest(ROOT, "v1.0.0-rc.1", previous)
+            manifest = ub.build_manifest(ROOT, "1.0.0-rc.1", None, previous)
 
         self.assertEqual(manifest["version"], "1.0.0-rc.1")
         self.assertEqual(manifest["exemptions"], [])
+
+    def test_kaynak_verilmezse_surumun_etiketi_okunur_verilirse_o_baslangic(self):
+        with mock.patch.object(ub, "read_tag", return_value={}) as read:
+            ub.build_manifest(ROOT, "1.0.0-rc.1", None, None)
+            ub.build_manifest(ROOT, "1.0.0-rc.1", "HEAD", None)
+
+        self.assertEqual([call.args[1] for call in read.call_args_list], ["v1.0.0-rc.1", "HEAD"])
 
     def test_depodaki_manifest_uc_saglayiciyi_ve_ayni_etiketi_tasir(self):
         manifest = json.loads((ROOT / ub.MANIFEST).read_text(encoding="utf-8"))

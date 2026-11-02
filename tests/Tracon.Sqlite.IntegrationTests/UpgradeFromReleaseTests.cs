@@ -19,9 +19,6 @@ public sealed class UpgradeFromReleaseTests(SqliteFixture fixture) : UpgradeGate
         "sqlite",
         sweepsEveryBoundaryByDefault: true)];
 
-    /// <inheritdoc />
-    protected override bool SweepsEveryBoundaryByDefault => true;
-
     /// <summary>A database that stopped at one migration is upgraded and read.</summary>
     /// <param name="lastApplied">The sequence number of the last migration the database holds.</param>
     /// <returns>The completion task.</returns>
@@ -40,8 +37,8 @@ public sealed class UpgradeFromReleaseTests(SqliteFixture fixture) : UpgradeGate
 }
 
 /// <summary>A SQLite file the gate builds, fills and upgrades.</summary>
-/// <param name="Context">The test context that owns the file.</param>
-internal sealed class SqliteUpgradeDatabase(SqliteTestContext Context) : IUpgradeDatabase
+/// <param name="context">The test context that owns the file.</param>
+internal sealed class SqliteUpgradeDatabase(SqliteTestContext context) : IUpgradeDatabase
 {
     /// <inheritdoc />
     public SeedProvider Provider => SeedProvider.Sqlite;
@@ -50,20 +47,20 @@ internal sealed class SqliteUpgradeDatabase(SqliteTestContext Context) : IUpgrad
     public string ProviderDirectory => "sqlite";
 
     /// <inheritdoc />
-    public SqlStoreContext StoreContext => Context.StoreContext;
+    public SqlStoreContext StoreContext => context.StoreContext;
 
     /// <inheritdoc />
-    public ITenantContext TenantContext => Context.TenantContext;
+    public ITenantContext TenantContext => context.TenantContext;
 
     /// <inheritdoc />
-    public MigrationRunner Migrations => Context.Migrations;
+    public MigrationRunner Migrations => context.Migrations;
 
     /// <inheritdoc />
-    public string Schema => Context.TablePrefix;
+    public string Schema => context.TablePrefix;
 
     /// <inheritdoc />
-    public string Qualify(string table) => Context.TablePrefix + table;
+    public string Qualify(string table) => context.TablePrefix + table;
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync() => Context.DisposeAsync();
+    public ValueTask DisposeAsync() => context.DisposeAsync();
 }

@@ -7,14 +7,14 @@ tanımlar: ham sağlama toplamı (veritabanındaki `__migrations` satırı bunu 
 yorumsuz, boşluksuz deyim özeti (yorum düzeltmesi bunu değiştirmez, deyim değişikliği
 değiştirir). Manifest depoda dosyadır; kapı ağa ve git'e ihtiyaç duymaz.
 
-Taban her yayında ilerler:
+Taban her yayında ilerler. Kesim commit'inde etiket henüz yoktur; migration dosyaları
+etiketin işaret edeceği commit'te (`HEAD`) okunur:
 
-    python3 scripts/upgrade_baseline.py --yaz
+    python3 scripts/upgrade_baseline.py --yaz --surum 1.0.0-rc.1 --kaynak HEAD
 
-`--yaz` son yayının etiketini `breaking_changes.resolve_baseline` ile çözer
-(`--etiket v1.0.0-rc.1` ile elle verilir), her sağlayıcının migration dosyalarını etiketten
-okur ve `tests/Shared/Upgrade/UpgradeBaseline.json`'u yeniden yazar. `kapi.py tarama`,
-manifestin sürümü CHANGELOG'daki son yayından farklıysa kırmızıdır.
+Yayından sonra aynı manifest etiketten yeniden üretilebilir (`--kaynak` verilmezse `v<sürüm>`
+etiketi okunur; `--surum` verilmezse son yayın `breaking_changes.resolve_baseline` ile çözülür).
+`kapi.py tarama`, manifestin sürümü CHANGELOG'daki son yayından farklıysa kırmızıdır.
 
 Deyim özetinin algoritması `tests/Shared/Upgrade/UpgradeBaseline.cs` içindeki
 `StatementDigest` ile birebir aynıdır; biri değişirse öteki de değişir (kapı ilk
@@ -32,6 +32,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MANIFEST = pathlib.PurePath("tests", "Shared", "Upgrade", "UpgradeBaseline.json")
+
+TAG_PREFIX = "v"
 
 PROVIDER_DIRECTORIES = {
     "sqlite": "src/Tracon.Sqlite/Migrations",
@@ -101,14 +103,18 @@ def read_tag(root: pathlib.Path, tag: str) -> dict[str, list[dict[str, object]]]
     return providers
 
 
-def build_manifest(root: pathlib.Path, tag: str, previous: dict[str, object] | None) -> dict[str, object]:
-    """Yeni manifest. Aynı sürümün muafiyet listesi korunur; sürüm değişince boşalır."""
-    version = tag[1:] if tag.startswith("v") else tag
+def build_manifest(
+        root: pathlib.Path, version: str, source: str | None, previous: dict[str, object] | None) -> dict[str, object]:
+    """Yeni manifest. Aynı sürümün muafiyet listesi korunur; sürüm değişince boşalır.
+
+    `source` migration dosyalarının okunacağı git başvurusudur (varsayılan: `v<sürüm>` etiketi).
+    """
+    tag = f"{TAG_PREFIX}{version}"
     kept = previous.get("exemptions", []) if previous and previous.get("version") == version else []
     return {
         "version": version,
         "tag": tag,
-        "providers": read_tag(root, tag),
+        "providers": read_tag(root, source or tag),
         "exemptions": kept,
     }
 
@@ -132,26 +138,27 @@ def differing_from_head(root: pathlib.Path, manifest: dict[str, object]) -> list
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--yaz", action="store_true", help="manifesti etiketten yeniden yaz")
-    parser.add_argument("--etiket", help="tabanın etiketi (varsayılan: son yayın, `breaking_changes.resolve_baseline`)")
+    parser.add_argument("--surum", help="tabanın sürümü (varsayılan: son yayın, `breaking_changes.resolve_baseline`)")
+    parser.add_argument("--kaynak", help="migration dosyalarının okunacağı git başvurusu (varsayılan: `v<sürüm>` etiketi)")
     args = parser.parse_args(argv)
     if not args.yaz:
         parser.error("yapılacak işi seç: --yaz")
 
-    tag = args.etiket
-    if tag is None:
+    version = args.surum
+    if version is None:
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
 
-        tag = f"{breaking_changes.TAG_PREFIX}{breaking_changes.resolve_baseline(ROOT)}"
+        version = breaking_changes.resolve_baseline(ROOT)
 
     path = ROOT / MANIFEST
     previous = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
-    manifest = build_manifest(ROOT, tag, previous)
+    manifest = build_manifest(ROOT, version, args.kaynak, previous)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
     counts = ", ".join(f"{provider} {len(entries)}" for provider, entries in manifest["providers"].items())
-    print(f"Taban: {tag} ({counts} migration) -> {MANIFEST}")
+    print(f"Taban: {manifest['tag']} ({counts} migration, kaynak {args.kaynak or manifest['tag']}) -> {MANIFEST}")
 
     changed = differing_from_head(ROOT, manifest)
     if changed:

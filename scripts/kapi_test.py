@@ -478,6 +478,14 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
+    def test_yukseltme_kapisinin_paylasimli_kaynagi_dort_projeyi_secer_tam_kosuma_dusmez(self):
+        for path in ("tests/Shared/Upgrade/UpgradeSeed.json", "tests/Shared/Upgrade/UpgradeProbes.cs"):
+            projects, full = kapi.affected_test_projects([path])
+
+            for project in kapi.UPGRADE_GATE_TEST_PROJECTS:
+                self.assertIn(project, projects, path)
+            self.assertFalse(full, path)
+
     def test_openai_ortak_kaynagi_iki_saglayici_projesini_secer(self):
         # src/Tracon.OpenAI.Shared paket degildir; OpenAI ve Azure
         # paketlerine derlenir. Haritada olmasa her degisiklik tam kosuma duserdi.
