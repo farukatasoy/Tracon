@@ -25,6 +25,11 @@
       builds its own host (same reasoning as Tracon.AspNetCore.FunctionalTests).
     -->
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <!--
+      AGUIClientCompatibilityTests: the protocol's official .NET client reads the stream. It is not a dependency of any
+      shipped package.
+    -->
+    <PackageReference Include="AGUI.Client" />
   </ItemGroup>
 
   <ItemGroup>
