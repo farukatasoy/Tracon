@@ -97,12 +97,20 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
 
     measure = profile.get("measureSeconds", 0)
     runs_per_tenant = profile.get("runsPerTenant", 0)
+    ramp = profile.get("tenantRamp")
 
-    if measure <= 0 and runs_per_tenant <= 0:
-        problems.append("measureSeconds veya runsPerTenant birinden biri sıfırdan büyük olmalı")
+    if ramp is not None:
+        # Tenant rampası ölçümün sınırının KENDİSİDİR: süre ya da run sayısı ayrıca verilirse iki sınır olurdu.
+        if measure > 0 or runs_per_tenant > 0:
+            problems.append("tenantRamp sınırın kendisidir; measureSeconds ve runsPerTenant sıfır olmalı")
 
-    if measure > 0 and runs_per_tenant > 0:
-        problems.append("measureSeconds ve runsPerTenant iki ayrı sınırdır; yalnız birini ver")
+        problems.extend(validate_tenant_ramp(ramp))
+    else:
+        if measure <= 0 and runs_per_tenant <= 0:
+            problems.append("measureSeconds veya runsPerTenant birinden biri sıfırdan büyük olmalı")
+
+        if measure > 0 and runs_per_tenant > 0:
+            problems.append("measureSeconds ve runsPerTenant iki ayrı sınırdır; yalnız birini ver")
 
     if profile.get("warmupSeconds", 0) < 0:
         problems.append("warmupSeconds negatif olamaz")
@@ -130,6 +138,9 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
     if len(axes) > 1:
         problems.append(f"{' ve '.join(axes)} ayrı eksenlerdir; yalnız birini ver")
 
+    if ramp is not None and axes:
+        problems.append(f"tenantRamp tek başına ölçülür; {' ve '.join(axes)} ile birleşmez")
+
     for shape in profile.get("seedShapes", ["empty"]):
         if shape not in ("empty", "full"):
             problems.append(f"bilinmeyen seed şekli: {shape}")
@@ -138,6 +149,54 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
         problems.append("seedRuns negatif olamaz")
 
     return problems
+
+
+def validate_tenant_ramp(ramp: Any) -> list[str]:
+    """Tenant rampasının ölçülemez olmasının her sebebi.
+
+    🚨 Sürücü aynı kuralları kendi tarafında tekrar doğrular; burası yalnız saatler süren bir koşumun
+    paketleme ve derleme adımlarından SONRA, ilk hücrede reddedilmesini önler."""
+    if not isinstance(ramp, dict):
+        return ["tenantRamp bir nesne olmalı"]
+
+    problems: list[str] = []
+    stages = ramp.get("stages")
+
+    if not isinstance(stages, list) or not stages:
+        return ["tenantRamp.stages boş olamaz"]
+
+    previous = 0
+
+    for index, stage in enumerate(stages):
+        stage = stage if isinstance(stage, dict) else {}
+        tenants = stage.get("tenants", 0)
+
+        if not isinstance(tenants, int) or tenants <= previous:
+            problems.append(f"tenantRamp.stages[{index}].tenants öncekinden büyük bir tam sayı olmalı ({previous})")
+        else:
+            previous = tenants
+
+        if stage.get("runsPerNewTenant", 2) <= 0:
+            problems.append(f"tenantRamp.stages[{index}].runsPerNewTenant sıfırdan büyük olmalı")
+
+        if stage.get("holdSeconds", 60) < 0:
+            problems.append(f"tenantRamp.stages[{index}].holdSeconds negatif olamaz")
+
+    if previous > 99_999:
+        problems.append("tenantRamp 99999 tenant'tan fazlasına çıkamaz")
+
+    if ramp.get("idleSeconds", 30) < 0:
+        problems.append("tenantRamp.idleSeconds negatif olamaz")
+
+    return problems
+
+
+def driver_ramp(ramp: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Profildeki rampayı sürücünün `TenantRampSpec`'ine çevirir; host'a ait anahtarlar (`tenantTag`) sürücüye gitmez."""
+    if ramp is None:
+        return None
+
+    return {key: value for key, value in ramp.items() if key not in ("tenantTag",)}
 
 
 def plan_cells(profile: dict[str, Any], run_id: str) -> list[dict[str, Any]]:
@@ -323,6 +382,15 @@ def working_tree_state() -> tuple[str, bool, str | None]:
     return commit, dirty, diff_hash
 
 
+def extra_msbuild_arguments() -> list[str]:
+    """`TRACON_CAPACITY_MSBUILD_ARGS` ortam değişkenindeki ek MSBuild argümanları (boşlukla ayrılmış).
+
+    Paylaşılan bir makinede paketleme ve derleme `-m:3` ile sınırlanır; aparatı geliştirirken ön yüz derlemesi
+    `-p:TraconFrontendEnabled=false` ile atlanır. 🚨 Değer manifest'e yazılır: ön yüzü derlenmemiş bir paketin
+    ölçümü, ön yüzü derlenmiş olandan ayırt edilebilir kalmalı."""
+    return os.environ.get("TRACON_CAPACITY_MSBUILD_ARGS", "").split()
+
+
 def pack(version: str, feed: pathlib.Path, *, dirty: bool) -> None:
     """Exact sürümle paketleri üretir ve izole feed'e koyar."""
     if feed.exists():
@@ -338,8 +406,27 @@ def pack(version: str, feed: pathlib.Path, *, dirty: bool) -> None:
         # yüzden sürüm 'dirty' taşımak ZORUNDADIR ve CI'da hiç üretilemez.
         command.append("-p:TraconAllowDirtyPack=true")
 
+    command.extend(extra_msbuild_arguments())
+
     print(f"$ {' '.join(command)}  (MinVerVersionOverride={version})", flush=True)
     run(command, cwd=ROOT, env=env)
+
+
+def reusable_feed(version: str, reuse_feed: pathlib.Path) -> pathlib.Path:
+    """Daha önce üretilmiş bir feed'i yeniden kullanmanın şartı.
+
+    🚨 Yalnız aparatı geliştirirken: `src/` değişmediyse paketler birebir aynıdır ve her denemede 17 paketi
+    yeniden üretmek dakikalarca sürer. Kirli olmayan bir koşum bunu KULLANAMAZ: yayımlanacak her sayının
+    provenance'ı kendi `pack`'inden gelir."""
+    if "dirty" not in version:
+        raise CapacityError("--hazir-feed yalnız 'dirty' sürümle kullanılır; yayımlanabilir bir koşum kendi pack'ini yapar")
+
+    feed = reuse_feed.resolve()
+
+    if not (feed / f"Tracon.{version}.nupkg").exists():
+        raise CapacityError(f"{feed} içinde Tracon.{version}.nupkg yok")
+
+    return feed
 
 
 def package_hashes(feed: pathlib.Path) -> dict[str, str]:
@@ -388,7 +475,8 @@ def prepare_consumer(workspace: pathlib.Path, feed: pathlib.Path, version: str) 
 
         run(["dotnet", "restore", str(csproj), "--configfile", str(consumer / "NuGet.config"), version_arg],
             cwd=consumer, env=env)
-        run(["dotnet", "build", str(csproj), "-c", "Release", "--no-restore", version_arg],
+        run(["dotnet", "build", str(csproj), "-c", "Release", "--no-restore", version_arg,
+             *extra_msbuild_arguments()],
             cwd=consumer, env=env)
 
     verify_isolation(consumer, cache, version)
@@ -546,7 +634,8 @@ def host_environment(*, connection: str, schema: str, mode: str, name: str,
                      workload: dict[str, Any], executions: pathlib.Path,
                      port: int = 0, worker_axis: bool = False,
                      max_jobs: int = 8, pool: int = 100,
-                     seed_runs: int = 0) -> dict[str, str]:
+                     seed_runs: int = 0, open_tenants: bool = False,
+                     tenant_tag: bool = False) -> dict[str, str]:
     """Bir host process'inin environment'ı.
 
     🚨 Bağlantı dizesi yalnız BURADA, environment ile taşınır. Bir process
@@ -564,6 +653,8 @@ def host_environment(*, connection: str, schema: str, mode: str, name: str,
         "TRACON_CAPACITY_MAX_JOBS": str(max_jobs),
         "TRACON_CAPACITY_POOL": str(pool),
         "TRACON_CAPACITY_SEED_RUNS": str(seed_runs),
+        "TRACON_CAPACITY_OPEN_TENANTS": "1" if open_tenants else "0",
+        "TRACON_CAPACITY_TENANT_TAG": "1" if tenant_tag else "0",
         "DOTNET_ENVIRONMENT": "Production",
     }
 
@@ -715,6 +806,7 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
     executable = host_executable(consumer, HOST_PROJECT)
     worker_count = cell.get("workerCount")
     api_host_count = cell.get("apiHostCount")
+    ramp = profile.get("tenantRamp")
     port = free_port()
 
     host = None
@@ -731,6 +823,8 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
                 worker_axis=worker_count is not None,
                 max_jobs=profile.get("maxConcurrentJobs", 8),
                 pool=profile.get("maxPoolSize", 100),
+                open_tenants=ramp is not None,
+                tenant_tag=bool((ramp or {}).get("tenantTag", False)),
             ),
             "CAPACITY-HOST-READY",
             "host",
@@ -789,6 +883,7 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
             "warmupSeconds": profile.get("warmupSeconds", 0),
             "measureSeconds": profile.get("measureSeconds", 0),
             "runsPerTenant": profile.get("runsPerTenant", 0),
+            "tenantRamp": driver_ramp(ramp),
             "drainTimeoutSeconds": profile.get("drainTimeoutSeconds", 300),
             "requestTimeoutSeconds": profile.get("requestTimeoutSeconds", 120),
             "baseAddress": f"http://127.0.0.1:{port}/tracon",
@@ -933,7 +1028,12 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
             "responseCacheEnabled": "false",
             "recordingEnabled": "true",
             "retentionEnabled": "false",
-            "rateLimitEnabled": "false",
+            "rateLimitEnabled": str(os.environ.get("TRACON_CAPACITY_RATE_LIMIT", "off").lower() == "instance").lower(),
+            "msbuildExtraArguments": " ".join(extra_msbuild_arguments()) or "none",
+            "observability": os.environ.get("TRACON_CAPACITY_OBSERVABILITY", "on"),
+            "openTenancy": str(profile.get("tenantRamp") is not None).lower(),
+            "tenantTag": str(bool((profile.get("tenantRamp") or {}).get("tenantTag", False))).lower(),
+            "tenantRamp": json.dumps(profile.get("tenantRamp")) if profile.get("tenantRamp") else "none",
             "quotaEnabled": "false",
             "telemetryExporters": "none",
             "warmupSeconds": str(profile.get("warmupSeconds", 0)),
@@ -1037,7 +1137,7 @@ def build_report(consumer: pathlib.Path, output: pathlib.Path) -> int:
 # --------------------------------------------------------------------------
 
 def measure(profile_name: str, version: str, output_root: pathlib.Path,
-            *, keep_workspace: bool = False) -> int:
+            *, keep_workspace: bool = False, reuse_feed: pathlib.Path | None = None) -> int:
     profile = load_profile(profile_name)
 
     if not EXACT_VERSION.match(version):
@@ -1068,7 +1168,12 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
     print(f"  commit {commit}{' (kirli)' if dirty else ''}", flush=True)
 
     try:
-        pack(version, feed, dirty=dirty)
+        if reuse_feed is not None:
+            feed = reusable_feed(version, reuse_feed)
+            print(f"  paketler yeniden kullanılıyor: {feed}", flush=True)
+        else:
+            pack(version, feed, dirty=dirty)
+
         consumer = prepare_consumer(workspace, feed, version)
         database.start()
 
@@ -1150,11 +1255,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cikti", default=str(DEFAULT_OUTPUT), help="artifact kökü")
     parser.add_argument("--calisma-alanini-birak", action="store_true",
                         help="geçici tüketici dizinini silme (teşhis için)")
+    parser.add_argument("--hazir-feed", default=None,
+                        help="daha önce üretilmiş paket feed'i (yalnız 'dirty' sürümle; aparat geliştirirken pack'i atlar)")
     args = parser.parse_args(argv)
 
     try:
         return measure(args.profil, args.surum, pathlib.Path(args.cikti),
-                       keep_workspace=args.calisma_alanini_birak)
+                       keep_workspace=args.calisma_alanini_birak,
+                       reuse_feed=pathlib.Path(args.hazir_feed) if args.hazir_feed else None)
     except CapacityError as error:
         print(f"❌ {error}", file=sys.stderr)
         return 1

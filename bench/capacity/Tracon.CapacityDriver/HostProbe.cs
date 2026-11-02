@@ -34,6 +34,13 @@ public sealed record HostTelemetry(
     long RecordingFailures,
     IReadOnlyList<string> Unavailable);
 
+/// <summary>What the host reported about its own footprint at one moment.</summary>
+/// <param name="Values">Every numeric reading, named as the host named it, nested objects flattened with a dot.</param>
+/// <param name="InstrumentSeries">Distinct metric series per instrument, when the host counts them.</param>
+public sealed record HostDiagnostics(
+    IReadOnlyDictionary<string, double> Values,
+    IReadOnlyDictionary<string, long>? InstrumentSeries);
+
 /// <summary>Reads the host's apparatus surface.</summary>
 public sealed class HostProbe
 {
@@ -102,6 +109,53 @@ public sealed class HostProbe
             root.GetProperty("toolInvocations").GetInt64(),
             root.GetProperty("recordingFailures").GetInt64(),
             unavailable);
+    }
+
+    /// <summary>Reads the host process's own footprint.</summary>
+    /// <param name="collect">Ask for a full blocking collection first and the heap that survives it.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The readings.</returns>
+    public async Task<HostDiagnostics> ReadDiagnosticsAsync(bool collect, CancellationToken cancellationToken)
+    {
+        // observe rides with collect: asking every observable instrument to publish is the other thing that costs.
+        var route = collect ? CapacityContract.DiagnosticsRoute + "?collect=1&observe=1" : CapacityContract.DiagnosticsRoute;
+
+        using var document = await GetAsync(route, cancellationToken).ConfigureAwait(false);
+        var values = new Dictionary<string, double>(StringComparer.Ordinal);
+        Dictionary<string, long>? series = null;
+
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            switch (property.Value.ValueKind)
+            {
+                case JsonValueKind.Number:
+                    values["host." + property.Name] = property.Value.GetDouble();
+                    break;
+                case JsonValueKind.Object when string.Equals(property.Name, "meterSeriesByInstrument", StringComparison.Ordinal):
+                    series = new Dictionary<string, long>(StringComparer.Ordinal);
+
+                    foreach (var entry in property.Value.EnumerateObject())
+                    {
+                        series[entry.Name] = entry.Value.GetInt64();
+                    }
+
+                    break;
+                case JsonValueKind.Object:
+                    foreach (var entry in property.Value.EnumerateObject())
+                    {
+                        if (entry.Value.ValueKind == JsonValueKind.Number)
+                        {
+                            values["host." + property.Name + "." + entry.Name] = entry.Value.GetDouble();
+                        }
+                    }
+
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return new HostDiagnostics(values, series);
     }
 
     /// <summary>Resets the host's counters so the warm-up does not leak into the window.</summary>

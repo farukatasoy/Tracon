@@ -46,6 +46,10 @@ if (string.Equals(settings.Mode, CapacityContract.WorkerMode, StringComparison.O
     return await RunWorkerAsync(settings, executions: null).ConfigureAwait(false);
 }
 
+// Started before anything registers a meter so that no instrument is missed; the listener also walks the
+// meters that already exist. It exists to count series, and it costs eight bytes a series (capped).
+using var meters = MeterSeriesCounter.Start();
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
@@ -68,6 +72,34 @@ builder.Services.AddSingleton(counters);
 builder.Services.AddSingleton(settings);
 
 var tracon = builder.Services.AddTracon();
+
+// Off in the product and off here unless the profile asks: the tag multiplies every run, cost and job series by
+// the number of tenants, which is a documented cost the tenant ramp can put a number on.
+if (CapacityEnvironment.TenantTag)
+{
+    builder.Services.Configure<TraconOptions>(options => options.Observability.IncludeTenantTag = true);
+}
+
+// Off in the product. On, the endpoint filter keeps a partition per tenant in this process; the limit is set so high
+// that nothing is ever refused, because the question is what the limiter keeps, not what it does to a caller.
+if (CapacityEnvironment.RateLimitInstance)
+{
+    builder.Services.Configure<TraconRateLimitOptions>(options =>
+    {
+        options.Enabled = true;
+        options.PermitLimit = 1_000_000;
+        options.Window = TimeSpan.FromMinutes(1);
+        options.Scope = RateLimitScope.Instance;
+        options.Partition = RateLimitPartitionKind.Tenant;
+    });
+}
+
+// A diagnosis, not a configuration to measure under: with the product's own telemetry off, whatever a soak still
+// finds growing is not the telemetry path.
+if (CapacityEnvironment.ObservabilityOff)
+{
+    builder.Services.Configure<TraconOptions>(options => options.Observability.Enabled = false);
+}
 
 tracon
     .AddModelProvider(new CapacityModelProvider(settings.Workload, counters, executions, settings.Name))
@@ -105,8 +137,16 @@ tracon.UseTenancy(options =>
     options.Enabled = true;
     options.AllowHeaderResolution = true;
     options.HeaderName = CapacityContract.TenantHeader;
-    options.AllowedTenants.Add(CapacityContract.TenantA);
-    options.AllowedTenants.Add(CapacityContract.TenantB);
+
+    // The ordinary profiles drive two tenants and the allow list is the product's own defence against a made-up
+    // one. A tenant ramp needs thousands of ids, and a host with an empty list is exactly the shape that accepts
+    // any well-formed id, which is the state under test; an allow list of ten thousand entries would be a
+    // different (and linear-scan) cost.
+    if (!CapacityEnvironment.OpenTenants)
+    {
+        options.AllowedTenants.Add(CapacityContract.TenantA);
+        options.AllowedTenants.Add(CapacityContract.TenantB);
+    }
 });
 
 tracon.UseScheduling(options =>
@@ -126,7 +166,7 @@ tracon.UseScheduling(options =>
 var app = builder.Build();
 
 app.MapTracon(CapacityContract.Prefix);
-CapacityApparatus.Map(app, settings, counters);
+CapacityApparatus.Map(app, settings, counters, meters);
 
 await app.StartAsync().ConfigureAwait(false);
 

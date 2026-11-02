@@ -21,6 +21,7 @@ python3 scripts/kapi.py kapasite --profil arrival  --surum 1.0.0-preview.N
 python3 scripts/kapi.py kapasite --profil workers  --surum 1.0.0-preview.N
 python3 scripts/kapi.py kapasite --profil soak     --surum 1.0.0-preview.N
 python3 scripts/kapi.py kapasite --profil nodes    --surum 1.0.0-preview.N
+python3 scripts/kapi.py kapasite --profil tenant-ramp --surum 1.0.0-preview.N
 ```
 
 `--surum` takes an **exact** version. A floating version (`*`, `*-*`) is
@@ -57,7 +58,7 @@ published.
 | `Tracon.CapacityHost/` | The system under measurement. Consumes `Tracon` by `PackageReference` at one exact version. Four modes: `api`, `worker`, `seed`, `migrate` |
 | `Tracon.CapacityDriver/` | A separate process that speaks only HTTP and read-only SQL. Runs one cell, or merges finished cells into a report |
 | `Tracon.Capacity.Acceptance/` | Short checks against a real packed host and a real database. Run only by the `smoke` profile |
-| `profiles/*.json` | The six load shapes |
+| `profiles/*.json` | The load shapes: six capacity profiles, the tenant ramp and its five-minute development form |
 | `Directory.Build.props`, `Directory.Packages.props` | Deliberately cut off from the repository's own MSBuild inheritance |
 
 `tests/Tracon.Capacity.Tests` is the only capacity project the normal suite
@@ -162,6 +163,44 @@ database and one clock; network partition, clock skew and inter-machine latency
 are out of scope.
 
 ---
+
+### The tenant axis
+
+`tenant-ramp` does not ask how fast. It asks what the host process **keeps**: whether its working set, live managed
+heap, thread, timer, descriptor, connection and metric-series counts grow with time, with runs, or with the number of
+tenants.
+
+The load is spread over more and more tenants (2, 20, 200, 2000, 10000 in the shipped profile). Each stage lets its new
+tenants join with a few runs each, then holds steady load across every tenant that has joined, and the cell ends with an
+idle stretch. The two kinds of growth are read apart on purpose:
+
+- **Inside a plateau** the tenants are fixed, so a sustained rise follows time or runs. That is red by any reading.
+- **Between plateaus** the rise is the cost of the tenants added. A rise in bytes is reported as a cost per tenant and is
+  red only if that cost per tenant climbs from one step to the next. A rise in a *count* of threads, timers, descriptors or
+  connections is red at any size: none of them should follow the number of tenants.
+- **At idle** the live heap, measured after a forced compacting collection, minus the first plateau's, divided by the
+  tenants added since, is what the host still holds per tenant when nothing is using it.
+
+The host opens tenancy to any well-formed tenant id for this profile only (an empty allow list, the shape being
+measured) and reports its own thread, timer, descriptor, heap and metric-series counts on `/capacity/diagnostics`; the
+driver reads that once a second, forces a full collection every `collectIntervalSeconds`, and reads the host's
+connection count from `pg_stat_activity`.
+
+`footprint.md` (with `footprint.json` and the per-second `footprint.csv`) is written beside `cell.json`, and again by
+`Tracon.CapacityDriver footprint --cell <cell directory>`. Every plateau row carries the **floor**: the smallest growth
+that would have counted. A flat row is "no growth above the floor", and a short plateau has a high floor.
+`tenant-ramp-short` is the five-minute development form; it proves the apparatus can be red and says nothing about
+slow leaks. `tenant-ramp-features` is a ten-minute ramp to 4 000 tenants for a feature the host leaves off:
+`TRACON_CAPACITY_RATE_LIMIT=instance` turns the per-tenant endpoint limiter on with a limit nothing reaches, and
+`TRACON_CAPACITY_TENANT_TAG=1` (through the profile's `tenantTag`) turns the per-tenant metric tag on. A rise that is one
+jump, level before and after, is written as a note and is never red.
+
+Two conveniences help while developing the apparatus (neither is read by anything shipped):
+
+- `TRACON_CAPACITY_MSBUILD_ARGS` adds MSBuild arguments to the pack and the consumer build, for example
+  `-m:3 -p:TraconFrontendEnabled=false`. The value is written to the manifest.
+- `scripts/capacity.py --hazir-feed <directory>` skips the pack and uses a feed packed earlier at the same
+  `dirty` version. A publishable version refuses it.
 
 ## What the apparatus refuses to do
 

@@ -1,0 +1,54 @@
+{
+  "name": "tenant-ramp-short",
+  "description": "A five-minute tenant ramp (2, 20, 200 tenants) that proves the footprint apparatus can see growth: it is a development profile, not a measurement. Its plateaus are too short to rule out a slow leak, and the report says how slow a leak it could not have seen.",
+  "scenarios": [
+    "buffered",
+    "streaming",
+    "queued"
+  ],
+  "scenarioGrouping": "mixed",
+  "concurrency": [
+    8
+  ],
+  "seedShapes": [
+    "empty"
+  ],
+  "repeats": 1,
+  "warmupSeconds": 30,
+  "measureSeconds": 0,
+  "runsPerTenant": 0,
+  "tenantRamp": {
+    "tenantPrefix": "ramp-",
+    "stages": [
+      { "tenants": 2, "runsPerNewTenant": 3, "holdSeconds": 75 },
+      { "tenants": 20, "runsPerNewTenant": 2, "holdSeconds": 75 },
+      { "tenants": 200, "runsPerNewTenant": 2, "holdSeconds": 75 }
+    ],
+    "idleSeconds": 20,
+    "collectIntervalSeconds": 5,
+    "bucketSeconds": 5,
+    "tenantTag": false
+  },
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 200,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 1610612736,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 2147483648,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "requestTimeoutSeconds": 120,
+  "drainTimeoutSeconds": 120,
+  "maxConcurrentJobs": 8,
+  "maxPoolSize": 100,
+  "resourceSampleIntervalSeconds": 1,
+  "seedRuns": 0
+}

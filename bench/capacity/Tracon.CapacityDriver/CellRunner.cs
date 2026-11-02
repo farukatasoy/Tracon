@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
+using Npgsql;
 using Tracon.Capacity;
 
 namespace Tracon.CapacityDriver;
@@ -39,7 +40,13 @@ public sealed class CellRunner
     {
         _spec = spec;
         _client = client;
-        _connectionString = connectionString;
+
+        // The driver's own sessions carry a name of their own, so the footprint's connection count can say how many
+        // connections the HOST holds without counting the driver's reconciliation and storage reads.
+        _connectionString = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            ApplicationName = FootprintSampler.DriverApplicationName,
+        }.ConnectionString;
         _executionLogDirectory = executionLogDirectory;
         _log = log;
     }
@@ -172,9 +179,36 @@ public sealed class CellRunner
         await probe.ResetAsync(cancellationToken).ConfigureAwait(false);
         var storageBefore = await accountant.ReadAsync(cancellationToken).ConfigureAwait(false);
 
+        // The window clock is shared by the resource sampler, the tenant ramp and the footprint sampler, so a mark
+        // in one can be laid over a reading in another.
+        long windowStarted = 0;
+        double WindowClock() => Stopwatch.GetElapsedTime(windowStarted).TotalSeconds;
+
+        TenantRampSchedule? ramp = _spec.TenantRamp is null ? null : new TenantRampSchedule(_spec.TenantRamp, WindowClock);
+
+        await using var footprintWriter = ramp is null
+            ? null
+            : new BoundedJsonlWriter<FootprintSample>(
+                Path.Combine(_spec.OutputDirectory, FootprintReport.SamplesFile),
+                CapacityJson.Default.FootprintSample,
+                _spec.Limits.MaxRequestSamples);
+
+        await using var footprint = ramp is null || footprintWriter is null
+            ? null
+            : new FootprintSampler(
+                _spec.CellId,
+                probe,
+                _connectionString,
+                footprintWriter,
+                TimeSpan.FromSeconds(_spec.ResourceSampleIntervalSeconds),
+                TimeSpan.FromSeconds(_spec.TenantRamp!.CollectIntervalSeconds),
+                ramp,
+                WindowClock);
+
         result.WindowStartUtc = DateTimeOffset.UtcNow;
         sampler.Start();
-        var windowStarted = Stopwatch.GetTimestamp();
+        windowStarted = Stopwatch.GetTimestamp();
+        footprint?.Start();
 
         var limitBreach = await MeasureAsync(
             client,
@@ -183,6 +217,7 @@ public sealed class CellRunner
             accountant,
             sampler,
             result,
+            ramp,
             cancellationToken).ConfigureAwait(false);
 
         result.MeasuredSeconds = Math.Round(Stopwatch.GetElapsedTime(windowStarted).TotalSeconds, 3);
@@ -195,6 +230,7 @@ public sealed class CellRunner
 
         // Drain. Nothing new enters; what was accepted is followed to a
         // terminal status so the eventual outcome of the cohort is known.
+        ramp?.BeginDrain();
         var drainStarted = Stopwatch.GetTimestamp();
         var drained = await DrainAsync(samples, reconciler, cancellationToken).ConfigureAwait(false);
         result.DrainSeconds = Math.Round(Stopwatch.GetElapsedTime(drainStarted).TotalSeconds, 3);
@@ -202,6 +238,11 @@ public sealed class CellRunner
         if (!drained)
         {
             result.Incomplete(CellStatus.DrainLimit);
+        }
+
+        if (ramp is not null && footprint is not null)
+        {
+            await SettleAsync(ramp, footprint, result, cancellationToken).ConfigureAwait(false);
         }
 
         var processSummaries = await sampler.StopAsync().ConfigureAwait(false);
@@ -244,6 +285,7 @@ public sealed class CellRunner
         StorageAccountant accountant,
         ResourceSampler sampler,
         CellResult result,
+        TenantRampSchedule? ramp,
         CancellationToken cancellationToken)
     {
         using var window = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -277,11 +319,56 @@ public sealed class CellRunner
                 _spec.MeasureSeconds > 0 ? TimeSpan.FromSeconds(_spec.MeasureSeconds) : Timeout.InfiniteTimeSpan,
                 _spec.RunsPerTenant,
                 warmup: false,
-                window.Token).ConfigureAwait(false);
+                window.Token,
+                ramp).ConfigureAwait(false);
         }
 
         await window.CancelAsync().ConfigureAwait(false);
         return await watchdog.ConfigureAwait(false);
+    }
+
+    // After the drain a ramp cell leaves the process alone for its idle phase, takes the closing reading (with a
+    // forced collection) and writes down where every phase fell. What the process still holds now is state that
+    // nothing is using.
+    private async Task SettleAsync(
+        TenantRampSchedule ramp,
+        FootprintSampler footprint,
+        CellResult result,
+        CancellationToken cancellationToken)
+    {
+        var spec = _spec.TenantRamp!;
+
+        ramp.BeginIdle();
+
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(spec.IdleSeconds), cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // An interrupted cell keeps what it has; the caller marks it interrupted.
+        }
+
+        // The closing reading first, then the mark: the sample must fall inside the idle phase it describes.
+        await footprint.StopAsync().ConfigureAwait(false);
+        ramp.End();
+
+        var record = new RampRecord
+        {
+            Spec = spec,
+            Marks = ramp.Marks(),
+            BaselineTenants = _spec.Tenants.Count,
+        };
+
+        await File.WriteAllTextAsync(
+            Path.Combine(_spec.OutputDirectory, FootprintReport.RampFile),
+            JsonSerializer.Serialize(record, CapacityJson.Default.RampRecord),
+            CancellationToken.None).ConfigureAwait(false);
+
+        if (footprint.Gaps > 0)
+        {
+            result.Warnings.Add($"footprint: {footprint.Gaps} of {footprint.Samples} samples lacked a source; the series have holes there, not zeros");
+        }
     }
 
     private async Task<string?> WatchResourcesAsync(
@@ -357,7 +444,8 @@ public sealed class CellRunner
         TimeSpan duration,
         int runsPerTenant,
         bool warmup,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TenantRampSchedule? ramp = null)
     {
         var deadline = duration == Timeout.InfiniteTimeSpan
             ? (long?)null
@@ -392,13 +480,31 @@ public sealed class CellRunner
                         }
 
                         var scenario = _spec.Scenarios[(index + offset) % _spec.Scenarios.Count];
-                        var tenant = _spec.Tenants[index % _spec.Tenants.Count];
+                        string tenant;
+                        int? stage = null;
+
+                        if (ramp is null)
+                        {
+                            tenant = _spec.Tenants[index % _spec.Tenants.Count];
+                        }
+                        else if (ramp.Next() is { } ticket)
+                        {
+                            tenant = ticket.Tenant;
+                            stage = ticket.Stage;
+                        }
+                        else
+                        {
+                            // The ramp has handed out its last request.
+                            return;
+                        }
+
                         var correlation = NewCorrelation();
 
                         var sample = await client
                             .ExecuteAsync(scenario, tenant, correlation, warmup, cancellationToken)
                             .ConfigureAwait(false);
 
+                        sample.Stage = stage;
                         sample.CompletedInWindow = deadline is null || Stopwatch.GetTimestamp() < deadline;
 
                         await requests.WriteAsync(sample).ConfigureAwait(false);
@@ -620,8 +726,9 @@ public sealed class CellRunner
             Complete = true,
         };
 
-        result.Reconciliation.CrossTenantRefusals = await CountCrossTenantRefusalsAsync(
+        var (crossTenantProbed, crossTenantRefused) = await CountCrossTenantRefusalsAsync(
             client, runIdsByTenant, cancellationToken).ConfigureAwait(false);
+        result.Reconciliation.CrossTenantRefusals = crossTenantRefused;
 
         result.QueueWait = LatencyStatistics.From(storeCohort.QueueWaitMilliseconds).ToSummary();
 
@@ -696,7 +803,7 @@ public sealed class CellRunner
         // Both tenants produced runs in a healthy cell, so both cross-tenant
         // reads must have been refused. A cell where one succeeded has lost
         // isolation under load, whatever its latency said.
-        if (runIdsByTenant.Count > 1 && result.Reconciliation.CrossTenantRefusals < runIdsByTenant.Count)
+        if (runIdsByTenant.Count > 1 && result.Reconciliation.CrossTenantRefusals < crossTenantProbed)
         {
             result.Invalidate("a cross-tenant read was answered instead of refused");
         }
@@ -719,15 +826,25 @@ public sealed class CellRunner
         }
     }
 
-    private async Task<long> CountCrossTenantRefusalsAsync(
+    // A ramp has thousands of tenants and the probe is one HTTP call each, after the window, for a fact the ordinary
+    // cells already prove for every tenant they have. A ramp probes an evenly spread sample of its tenants.
+    private const int RampCrossTenantProbes = 200;
+
+    private async Task<(long Probed, long Refusals)> CountCrossTenantRefusalsAsync(
         ScenarioClient client,
         IReadOnlyDictionary<string, IReadOnlyList<Guid>> runIdsByTenant,
         CancellationToken cancellationToken)
     {
+        long probed = 0;
         long refusals = 0;
 
-        foreach (var (tenant, ids) in runIdsByTenant)
+        var tenants = runIdsByTenant.OrderBy(static pair => pair.Key, StringComparer.Ordinal).ToList();
+        var stride = _spec.TenantRamp is null ? 1 : Math.Max(1, tenants.Count / RampCrossTenantProbes);
+
+        for (var index = 0; index < tenants.Count; index += stride)
         {
+            var (tenant, ids) = (tenants[index].Key, tenants[index].Value);
+
             if (ids.Count == 0)
             {
                 continue;
@@ -740,6 +857,8 @@ public sealed class CellRunner
                 continue;
             }
 
+            probed++;
+
             if (await client
                 .ProbeCrossTenantAsync(ids[0].ToString(), foreign, cancellationToken)
                 .ConfigureAwait(false))
@@ -748,7 +867,7 @@ public sealed class CellRunner
             }
         }
 
-        return refusals;
+        return (probed, refusals);
     }
 
     private async Task WriteAsync(CellResult result, CancellationToken cancellationToken)
