@@ -443,8 +443,9 @@ PATH_POOL_RULES: tuple[tuple[str, Mapping[str, str]], ...] = (
     (r"^/tracon/api/triggers/\{name\}$", {"name": "trigger"}),
     (r"^/tracon/api/webhooks/\{name\}", {"name": "webhook"}),
     (r"^/tracon/api/workflows/runs/\{runId\}", {"runId": "workflow-run"}),
-    (r"^/tracon/api/workflows/\{name\}/versions/\{a\}/diff/\{b\}$", {"name": "workflow", "a": "version", "b": "version"}),
-    (r"^/tracon/api/workflows/\{name\}", {"name": "workflow"}),
+    (r"^/tracon/api/workflows/\{name\}/(run|graph)$", {"name": "workflow"}),
+    (r"^/tracon/api/workflows/\{name\}/versions/\{a\}/diff/\{b\}$", {"name": "workflow-def", "a": "version", "b": "version"}),
+    (r"^/tracon/api/workflows/\{name\}", {"name": "workflow-def"}),
     (r"^/tracon/v1/conversations/\{conversationId\}", {"conversationId": "conversation"}),
 )
 
@@ -473,6 +474,7 @@ GOOD_BODIES: Mapping[tuple[str, str], Any] = {
     ("POST", "/tracon/api/runs/{runId}/feedback"): {"kind": "Stars", "value": 4},
     ("PUT", "/tracon/api/skills/{name}"): {"name": "{name}", "description": "A skill.", "instructions": "Do the thing."},
     ("PUT", "/tracon/api/tenants/{slug}"): {"displayName": "Fuzz tenant"},
+    ("PUT", "/tracon/api/workflows/{name}"): {"kind": "Sequential", "agentNames": ["fuzz-agent", "support"], "responseMode": "SingleAnswer"},
     ("PUT", "/tracon/api/tenants/{tenantId}/providers/{provider}"): {"apiKeyConfigurationName": "Tracon:ProviderKeys:fuzz"},
     ("PUT", "/tracon/api/triggers/{name}"): {
         "targetKind": "Agent",
@@ -772,6 +774,24 @@ class Seeder:
 
         self.step("api keys", api_keys)
 
+        def workflow_definitions() -> str:
+            # A workflow defined in code has no editable definition (GET, DELETE, versions answer 404 for it), so the
+            # routes that read or change a definition draw from definitions saved here.
+            body = {"kind": "Sequential", "agentNames": [agent, "support"], "responseMode": "SingleAnswer"}
+            reversed_body = {**body, "agentNames": ["support", agent]}
+            stable = self.named("fuzz-wf")
+            self._expect("workflow", self.call("PUT", f"{API_PREFIX}/workflows/{stable}", body))
+            self._expect("workflow", self.call("PUT", f"{API_PREFIX}/workflows/{stable}", reversed_body))
+            self.plan.add("workflow-def", stable)
+
+            for index in range(DISPOSABLE_COUNT):
+                name = self.named("fuzz-del-wf", index)
+                self._expect("workflow", self.call("PUT", f"{API_PREFIX}/workflows/{name}", body))
+                self.plan.add("workflow-def", name, disposable=True)
+
+            return f"{stable} v2 + {DISPOSABLE_COUNT} disposable"
+
+        self.step("workflow definitions", workflow_definitions)
         self.step("webhooks", lambda: self._put_each("webhook", "webhooks", lambda _: {"url": UNREACHABLE_BASE + "/hook", "events": ["run.completed"], "enabled": True}, "fuzz-hook") or "webhooks")
         self.step(
             "triggers",
