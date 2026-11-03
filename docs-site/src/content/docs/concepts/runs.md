@@ -170,8 +170,9 @@ curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 The stream opens with a `retry: 3000` block, with or without `Last-Event-ID`, and writes
 a `: waiting` comment on every poll (every 250 ms by default) while the run is quiet.
 Neither carries data, so a reader that follows the SSE rules drops both. `retry: 3000`
-is the time in milliseconds a browser's `EventSource` waits before it reconnects, so the
-clients of an instance that restarted come back spread over the delay, not together. The
+is the time in milliseconds a browser's `EventSource` waits before it reconnects, so every
+client of an instance that restarted waits the same, known time instead of the default of its
+own browser. The delay does not spread the clients out: they all come back together. The
 streamed answer of `POST /api/agents/{name}/run` is not resumable and does not send it.
 
 ### Behind a reverse proxy

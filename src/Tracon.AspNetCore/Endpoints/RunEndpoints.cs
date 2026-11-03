@@ -1360,9 +1360,9 @@ internal static class RunEndpoints
             try
             {
                 // First block, before any event: this is the stream a client resumes with Last-Event-ID, and a
-                // browser's EventSource reconnects to it on its own after a restart. A fixed delay spreads that wave
-                // out instead of leaving the spacing to each browser. It is not an option; adding one later does not
-                // break anyone.
+                // browser's EventSource reconnects to it on its own after a restart. A fixed delay does not spread
+                // that wave out: it makes the wait the same, and known, for every client instead of leaving it to
+                // the default of each browser. It is not an option; adding one later does not break anyone.
                 await writer.WriteRetryAsync(ReconnectDelay, cancellationToken).ConfigureAwait(false);
 
                 // 'Queued' is also an EXPECTED intermediate status — the

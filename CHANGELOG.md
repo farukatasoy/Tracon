@@ -803,7 +803,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - **The run event stream tells a client that reconnects on its own how long to wait.** `GET /api/runs/{runId}/events` opens with a `retry: 3000` block, with or without
-  `Last-Event-ID`, so the clients of an instance that restarted do not all come back at the moment their browsers happen to pick. The block carries no data and dispatches no
+  `Last-Event-ID`, so every client of an instance that restarted waits the same, known time instead of the default of its own browser. The block carries no data and dispatches no
   event: `readSse`, the `Tracon.Client` stream readers and every reader that follows the SSE rules drop it. Before this release the `Tracon.Client` raw-frame reader
   (`<operation>StreamAsync`) yielded a block that only sets `retry:` as a frame of its own; it skips it now, like a keep-alive comment. The streamed answer of
   `POST /api/agents/{name}/run` and the workflow follow stream are not resumable and do not send it. The `: waiting` comment on every idle poll is unchanged.
@@ -814,7 +814,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   already did; a host that registers none keeps the system clock. Nothing changes by default. A lease is still stamped and compared with the clock of the node that
   runs the statement, and measurement on PostgreSQL 18 and SQL Server 2022 shows what that costs when two nodes disagree about the time: a single-executor lease is
   taken from its live owner only past two thirds of the lease in skew, and a **running job** is taken (as attempt 2, the first node's completion refused) by a node
-  whose clock is ahead by more than the job lease, five minutes by default. Keep the clocks of every instance that shares a database synchronized.
+  whose clock is ahead by more than the time left on the job lease. The measurement took a freshly leased job (five minutes by default); the owner renews every third of
+  the lease, so the time left is between two thirds of the lease and all of it. Keep the clocks of every instance that shares a database synchronized.
 - **The in-memory stores fold the tenant identifier the way the SQL stores do.** `Acme`, `acme` and `ACME` are one tenant in every store now, and the sessions, runs,
   definitions and other records the in-memory stores keep carry `acme`. Before, 28 in-memory stores compared the tenant as written, so a host that used them (the default of `AddTracon()`, `TraconTestHost`, a local job) saw
   a different tenant per spelling where the same code on PostgreSQL, SQL Server or SQLite saw one. The HTTP layer already resolved the tenant to the folded form, so a
