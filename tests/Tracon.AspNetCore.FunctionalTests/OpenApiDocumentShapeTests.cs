@@ -1,8 +1,8 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Api;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
