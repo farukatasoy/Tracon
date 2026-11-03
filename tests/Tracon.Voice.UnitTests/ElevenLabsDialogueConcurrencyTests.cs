@@ -114,6 +114,28 @@ public sealed class ElevenLabsDialogueConcurrencyTests
         handler.Entered.ShouldBe(2);
     }
 
+    /// <summary>
+    /// The container disposes the client when the host stops; a call still in flight gives its slot back to a limit that
+    /// is gone. The call's own result must come back as it was, not an <see cref="ObjectDisposedException"/> from the
+    /// give-back in its <c>finally</c>.
+    /// </summary>
+    [Fact]
+    public async Task A_client_disposed_while_a_call_is_in_flight_lets_the_call_finish_with_its_result()
+    {
+        var handler = new GatedHandler();
+        var client = Create(handler, maxConcurrent: 1);
+
+        var dialogue = client.SynthesizeDialogueAsync(DialogueTestData.TwoTurns(), TestContext.Current.CancellationToken).AsTask();
+        await handler.WaitForEntriesAsync(1);
+
+        client.Dispose();
+        handler.Release();
+
+        var result = await dialogue.WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        result.Audio.Data.Length.ShouldBeGreaterThan(0);
+    }
+
     private static ElevenLabsSpeechClient Create(HttpMessageHandler handler, int maxConcurrent)
         => new(
             new VoiceOptions { ApiKey = "FAKE-KEY", DefaultVoiceId = "voice-1", MaxConcurrentRequests = maxConcurrent },
