@@ -327,11 +327,6 @@ internal sealed class SurfaceWriter(Assembly[] assemblies, bool aot)
             {
                 var parameter = closedParameters[position];
 
-                if (parameter.IsOptional && !parameter.HasDefaultValue)
-                {
-                    break;
-                }
-
                 if (parameter.IsOptional)
                 {
                     // Optional parameters are left to the compiler: a consumer who passes nothing gets the declared default.
