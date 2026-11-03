@@ -1359,10 +1359,23 @@ internal static class RunEndpoints
 
             try
             {
+                // First block, before any event: this is the stream a client resumes with Last-Event-ID, and a
+                // browser's EventSource reconnects to it on its own after a restart. A fixed delay does not spread
+                // that wave out: it makes the wait the same, and known, for every client instead of leaving it to
+                // the default of each browser. It is not an option; adding one later does not break anyone.
+                await writer.WriteRetryAsync(ReconnectDelay, cancellationToken).ConfigureAwait(false);
+
                 // 'Queued' is also an EXPECTED intermediate status — the
                 // worker may not have picked up the job yet; the tail keeps reading it.
                 // A run whose row is gone ends the stream: the existence check above
                 // already passed.
+                //
+                // The idle comment goes out on EVERY empty poll (RunEventPollInterval), not after a silence: the
+                // console and the client packages size their idle limits from this cadence, so it is part of the
+                // contract. It also hides the writer's own silence-based keep-alive, because every write resets that
+                // timer; it never fires on this stream. Do not "fix" the second by tying the first to it: a longer
+                // gap would break the idle limits, and would leave a proxy that ignores the no-buffering header
+                // holding the first event even longer.
                 await foreach (var (runEvent, _) in RunEventTail
                                    .ReadAsync(
                                        runs,
@@ -1389,6 +1402,9 @@ internal static class RunEndpoints
         }
 
         private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
+
+        /// <summary>How long a client that reconnects on its own waits before it does.</summary>
+        private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(3);
 
         /// <summary>
         /// Translates the event type to an SSE event name. These names are a

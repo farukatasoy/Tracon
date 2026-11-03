@@ -316,6 +316,22 @@ there. It stays silent in two other cases as well: while the property above is o
 because then there is no file to name, and on a file this package generated, because
 a generated map already names it.
 
+### A build that treats warnings as errors fails on TRC0402
+
+`TRC0402` is a warning on purpose: an `Info` diagnostic never reaches the build output,
+and a coding agent cannot act on a diagnostic it cannot read. A project with
+`TreatWarningsAsErrors` therefore fails on it, and so does a CI command line with
+`-warnaserror`. There are three ways out. Take the first one when you can.
+
+| Way out | What it does |
+|---|---|
+| Add the one line above to `AGENTS.md` | Closes the diagnostic. The agent finds the map. |
+| `<TraconWriteLocalReference>false</TraconWriteLocalReference>` | Nothing names the file, so nothing asks. The pointer file is not written. |
+| `<WarningsNotAsErrors>TRC0402</WarningsNotAsErrors>` | The warning stays in the output and no longer fails the build. |
+
+`WarningsNotAsErrors` works with `TreatWarningsAsErrors` and with `-warnaserror`.
+`MSBuildWarningsNotAsErrors` does not: it covers only the CLI switch.
+
 ## The gate skill is out of date (TRC0403)
 
 `tracon agent-skill` stamps the file it writes with the capability map revision
@@ -334,6 +350,63 @@ tracon agent-skill
 Deleting is the refresh step because the file is never overwritten in place: you
 may have added notes to it. A `SKILL.md` without that stamp is treated as yours
 and is never reported.
+
+## A strict build stops on a tree it cannot write to (MSB3021, MSB3491)
+
+With `TraconWriteAgentsFile` on, the build copies the map to `AGENTS.md` and writes
+`Tracon.LocalReference.md` beside the project. On a tree the build user cannot write
+to, such as a read-only CI mount, each write fails and the build reports a warning:
+`MSB3021` for the copy, `MSB3491` for the pointer file. A normal build passes. A build
+that turns MSBuild warnings into errors (`-warnaserror`, or the
+`MSBuildTreatWarningsAsErrors` property) stops on them:
+
+```text
+error MSB3021: Unable to copy file ".../Tracon.AgentMap.md" to "/src/AGENTS.md". Access to the path is denied.
+```
+
+The files are a convenience, so the answer is to switch them off on that tree:
+
+```bash
+dotnet build -warnaserror -p:TraconWriteAgentsFile=false
+```
+
+Put the same property in the project file under a CI condition if you build the same
+project on both kinds of tree. When only the pointer file fails (a project directory
+you cannot write to, with a writable repository root), keep the map and drop the file:
+
+```bash
+dotnet build -warnaserror -p:TraconWriteLocalReference=false
+```
+
+Only the files named above are written to the source tree. `bin` and `obj` stay where
+your build puts them. The properties are off unless you set them; the project template
+sets `TraconWriteAgentsFile` for a generated project.
+
+## The compiler cannot open AGENTS.md (CS2001, CS1504)
+
+The build hands `AGENTS.md` and `.claude/skills/tracon/SKILL.md` to the analyzer when
+they exist. A directory with that name is left out, and a link to a file that exists
+works (`AGENTS.md` pointing to `CLAUDE.md` is fine). The build cannot tell a link that
+points nowhere, or a file the build user cannot read, from a file. The compiler then
+stops with `CS2001` (the source file could not be found) or `CS1504` (it could not be
+opened).
+
+Repair the link or the permissions when you can. When you cannot, turn the usage
+diagnostics off:
+
+```xml
+<PropertyGroup>
+  <TraconUsageDiagnostics>false</TraconUsageDiagnostics>
+</PropertyGroup>
+```
+
+With every rule of the family suppressed the compiler never opens the files. Silencing
+only `TRC0401`, `TRC0402`, and `TRC0403` does not help: the analyzer still runs for its
+other rules and still opens them.
+
+A failed build leaves its compiled output behind, so the next build of the same project
+can pass without reading the file again. The error shows on a clean checkout, which is
+what a CI run is.
 
 ## An ambient write does not survive a streaming loop (TRC0501)
 

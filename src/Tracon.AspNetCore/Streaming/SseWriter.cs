@@ -193,6 +193,23 @@ internal sealed class SseWriter : IAsyncDisposable
     }
 
     /// <summary>
+    /// Tells the client how long to wait before it reconnects after the connection drops.
+    /// </summary>
+    /// <param name="delay">The delay, in whole milliseconds.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// A block that carries only <c>retry</c> dispatches no event, so a reader that follows the SSE rules drops it. The
+    /// field is for a client that reconnects on its own (a browser's <c>EventSource</c>): without it, every client of an
+    /// instance that restarted reconnects after whatever delay its browser picked. A stream that cannot be resumed has
+    /// no use for it and does not send it.
+    /// </remarks>
+    public Task WriteRetryAsync(TimeSpan delay, CancellationToken cancellationToken)
+        => WriteRawAsync(
+            string.Create(CultureInfo.InvariantCulture, $"retry: {(long)delay.TotalMilliseconds}\n\n"),
+            cancellationToken);
+
+    /// <summary>
     /// Writes a comment line. The client ignores it; it keeps the connection and
     /// intermediate proxies alive.
     /// </summary>

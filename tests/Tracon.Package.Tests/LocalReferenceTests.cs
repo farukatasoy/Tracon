@@ -383,6 +383,130 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
     }
 
     /// <summary>
+    /// A consumer who turns MSBuild warnings into errors stops on a copy that cannot succeed, and says no to the file
+    /// to get past it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The target warns and goes on (<see cref="A_copy_that_cannot_succeed_is_not_retried"/>), and a warning is exactly
+    /// what a strict build refuses. Measured: no change that keeps the file and stays silent here is both cheap and
+    /// complete, so the answer for a strict consumer on a tree it cannot write to is the property that switches the
+    /// files off. This pins that answer: it fails now, and a change that makes the write silent has to change this test
+    /// and the page that tells the consumer what to do.
+    /// </para>
+    /// <para>
+    /// Both strictness switches are set, as a CI command line sets them: the CLI switch converts the warnings of the
+    /// build, and the property converts the ones the MSBuild tasks log.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task A_strict_build_stops_on_a_copy_that_cannot_succeed_and_the_property_is_the_way_out()
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(directory.Path, writeAgentsFile: true);
+
+        var notADirectory = Path.Combine(directory.Path, "not-a-directory");
+        await File.WriteAllTextAsync(notADirectory, string.Empty, TestContext.Current.CancellationToken);
+
+        var root = $"-p:_TraconRepositoryRoot=\"{notADirectory}\"";
+
+        var strict = await StrictBuildAsync(projectDirectory, root);
+
+        strict.ExitCode.ShouldNotBe(0, strict.Combined);
+        strict.Combined.ShouldContain("error MSB3021", customMessage: strict.Combined);
+
+        var exit = await StrictBuildAsync(projectDirectory, root, "-p:TraconWriteAgentsFile=false");
+
+        exit.ExitCode.ShouldBe(0, exit.Combined);
+        exit.Combined.ShouldNotContain("MSB3021", Case.Sensitive, exit.Combined);
+    }
+
+    /// <summary>
+    /// The pointer file is the other write a strict build can stop on, and it has its own way out: turning only that
+    /// file off keeps the map.
+    /// </summary>
+    [Fact]
+    public async Task A_strict_build_stops_on_a_write_that_cannot_succeed_and_the_second_property_is_the_way_out()
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(directory.Path, writeAgentsFile: true);
+
+        Directory.CreateDirectory(Path.Combine(projectDirectory, LocalReferenceFileName));
+
+        var strict = await StrictBuildAsync(projectDirectory);
+
+        strict.ExitCode.ShouldNotBe(0, strict.Combined);
+        strict.Combined.ShouldContain("error MSB3491", customMessage: strict.Combined);
+
+        var exit = await StrictBuildAsync(projectDirectory, "-p:TraconWriteLocalReference=false");
+
+        exit.ExitCode.ShouldBe(0, exit.Combined);
+        File.Exists(Path.Combine(directory.Path, "AGENTS.md")).ShouldBeTrue("The map still arrives; only the pointer file is off.\n" + exit.Combined);
+    }
+
+    /// <summary>
+    /// A file the build user cannot open stops the build, and the usage switch is the way out, exactly as for a link
+    /// that points nowhere.
+    /// </summary>
+    /// <remarks>
+    /// Each build gets its own project: the compiler leaves its output behind after a failed build, so a second build
+    /// of the same project passes without reading the file again and would report a way out that is not one.
+    /// </remarks>
+    [Fact]
+    public async Task An_instructions_file_nobody_can_read_stops_the_build_and_the_usage_switch_is_the_way_out()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "File permission bits do not describe access on Windows.");
+        Assert.SkipWhen(Environment.IsPrivilegedProcess, "A privileged user reads a file whatever its mode says.");
+
+        using var blocked = new TempDirectory();
+        await InitialiseRepositoryAsync(blocked.Path);
+        var blockedProject = await CreateConsumerAsync(blocked.Path);
+        await WriteUnreadableInstructionsAsync(blocked.Path);
+
+        var build = await BuildAsync(blockedProject);
+
+        build.ExitCode.ShouldNotBe(0, build.Combined);
+        build.Combined.ShouldContain("CS1504", customMessage: build.Combined);
+
+        using var switched = new TempDirectory();
+        await InitialiseRepositoryAsync(switched.Path);
+        var switchedProject = await CreateConsumerAsync(
+            switched.Path,
+            properties: "<TraconUsageDiagnostics>false</TraconUsageDiagnostics>");
+        await WriteUnreadableInstructionsAsync(switched.Path);
+
+        var exit = await BuildAsync(switchedProject);
+
+        exit.ExitCode.ShouldBe(0, exit.Combined);
+    }
+
+    /// <summary>
+    /// Silencing the three diagnostics that read the instructions files is not a way out: the analyzer still runs for
+    /// its other rules, so the compiler still opens the files. Only the switch that silences every rule of the family
+    /// keeps the compiler from touching them.
+    /// </summary>
+    [Fact]
+    public async Task Silencing_only_the_three_diagnostics_that_read_the_instructions_is_not_a_way_out()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Creating a symbolic link needs a privilege on Windows.");
+
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(
+            directory.Path,
+            properties: "<NoWarn>$(NoWarn);TRC0401;TRC0402;TRC0403</NoWarn>");
+
+        File.CreateSymbolicLink(Path.Combine(directory.Path, "AGENTS.md"), Path.Combine(directory.Path, "missing-target.md"));
+
+        var build = await BuildAsync(projectDirectory);
+
+        build.ExitCode.ShouldNotBe(0, build.Combined);
+        build.Combined.ShouldContain("CS2001", customMessage: build.Combined);
+    }
+
+    /// <summary>
     /// Two projects that reference DIFFERENT Tracon packages - the ordinary
     /// web-host-plus-worker split - each get their own answer.
     /// </summary>
@@ -570,4 +694,24 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
 
     private static Task<ProcessResult> BuildAsync(string projectDirectory)
         => ProcessRunner.RunAsync("dotnet", "build -c Release", projectDirectory, BuildTimeout);
+
+    /// <summary>A build the way a strict CI command line runs it: the CLI switch and the MSBuild property together.</summary>
+    private static Task<ProcessResult> StrictBuildAsync(string projectDirectory, params string[] extraArguments)
+        => ProcessRunner.RunAsync(
+            "dotnet",
+            string.Join(' ', ["build -c Release -warnaserror -p:MSBuildTreatWarningsAsErrors=true", .. extraArguments]),
+            projectDirectory,
+            BuildTimeout);
+
+    private static async Task WriteUnreadableInstructionsAsync(string root)
+    {
+        var path = Path.Combine(root, "AGENTS.md");
+
+        await File.WriteAllTextAsync(path, "# House rules\n", TestContext.Current.CancellationToken);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, UnixFileMode.None);
+        }
+    }
 }

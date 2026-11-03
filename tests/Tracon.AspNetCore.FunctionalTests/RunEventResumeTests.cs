@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Tests.Common;
@@ -144,6 +145,164 @@ public sealed class RunEventResumeTests
 
         seen.ShouldBe(full, "one frame per connection, resumed each time, is the whole stream");
         full.Any(static frame => string.Equals(frame.Event, "run.completed", StringComparison.Ordinal)).ShouldBeTrue("the stream ends with the run's completion");
+    }
+
+    /// <summary>
+    /// The first block of the stream tells the client how long to wait before it reconnects, whether or not it asks to
+    /// resume. A browser's <c>EventSource</c> reconnects on its own after a restart, and without this value every client
+    /// of an instance that went down comes back at the same moment, at whatever delay the browser picked.
+    /// </summary>
+    [Fact]
+    public async Task A_finished_runs_stream_opens_with_the_reconnect_delay_with_or_without_Last_Event_ID()
+    {
+        await using var host = await StartToolHostAsync();
+        var runId = await RunToCompletionAsync(host);
+
+        // 99999 is past the last event: the body is the reconnect delay and nothing else.
+        foreach (var lastEventId in new string?[] { null, "1", "99999" })
+        {
+            var body = await ReadBodyAsync(host, runId, lastEventId);
+
+            body.ShouldStartWith(ReconnectDelayBlock, Case.Sensitive, $"Last-Event-ID {lastEventId ?? "(none)"}\n{body}");
+            CountOf(body, "retry:").ShouldBe(1, $"Last-Event-ID {lastEventId ?? "(none)"}\n{body}");
+        }
+    }
+
+    /// <summary>
+    /// The streamed answer to a run request is not resumable by design, so it does not tell the client when to
+    /// reconnect either.
+    /// </summary>
+    [Fact]
+    public async Task The_streamed_answer_to_a_run_request_sets_no_reconnect_delay()
+    {
+        await using var host = await StartToolHostAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri($"/tracon/api/agents/{Agent}/run", UriKind.Relative),
+            new { message = "where is ORD-1?" },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        body.ShouldContain("event: ", Case.Sensitive, body);
+        body.ShouldNotContain("retry:", Case.Sensitive, body);
+    }
+
+    /// <summary>
+    /// An idle live stream writes a keep-alive comment on every poll, after the reconnect delay and before any event.
+    /// </summary>
+    /// <remarks>
+    /// This pins today's cadence as the contract: the console and the client packages derive their idle limits from it,
+    /// and a reverse proxy that ignores the no-buffering header holds an event back until enough comment bytes have
+    /// filled its buffer. The stream's own silence-based keep-alive (every 15 seconds by default) never fires while the
+    /// poll writes, because every write resets its timer. The wait is counted in comments, not in seconds.
+    /// </remarks>
+    [Fact]
+    public async Task An_idle_live_stream_writes_a_waiting_comment_on_every_poll_after_a_single_reconnect_delay()
+    {
+        var gated = new GatedModelProvider("cadence-gated", "cadence-1");
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddModelProvider(gated)
+                .AddAgent(TestData.Definition() with { Model = new ModelBinding { Provider = "cadence-gated", Model = "cadence-1" } }),
+            configureEndpoints: static options => options.RunEventPollInterval = TimeSpan.FromMilliseconds(25));
+
+        var runTask = Task.CompletedTask;
+
+        try
+        {
+            runTask = Task.Run(
+                async () =>
+                {
+                    using var response = await host.Client.PostAsJsonAsync(
+                        new Uri($"/tracon/api/agents/{Agent}/run", UriKind.Relative),
+                        new { message = "idle while gated" },
+                        TestContext.Current.CancellationToken);
+
+                    response.EnsureSuccessStatusCode();
+                },
+                TestContext.Current.CancellationToken);
+
+            await gated.Started;
+
+            var runs = host.Services.GetRequiredService<IRunStore>();
+            var recorded = await WaitUntil.ValueAsync(
+                async () => await runs.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken),
+                static found => found.Count > 0,
+                "the run to be recorded");
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"/tracon/api/runs/{recorded[0].Id}/events", UriKind.Relative));
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            deadline.CancelAfter(TimeSpan.FromSeconds(30));
+
+            using var response = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
+            await using var body = await response.Content.ReadAsStreamAsync(deadline.Token);
+            using var reader = new StreamReader(body, Encoding.UTF8);
+
+            var seen = new StringBuilder();
+            var waiting = 0;
+
+            while (waiting < 3 && await reader.ReadLineAsync(deadline.Token) is { } line)
+            {
+                seen.Append(line).Append('\n');
+
+                if (string.Equals(line, ": waiting", StringComparison.Ordinal))
+                {
+                    waiting++;
+                }
+            }
+
+            var text = seen.ToString();
+
+            waiting.ShouldBe(3, $"three idle polls write three comments\n{text}");
+            text.ShouldStartWith(ReconnectDelayBlock, Case.Sensitive, text);
+            CountOf(text, "retry:").ShouldBe(1, text);
+        }
+        finally
+        {
+            // The gated provider ignores cancellation; the host cannot stop while the run is still held.
+            gated.Open();
+        }
+
+        await runTask;
+    }
+
+    /// <summary>The block that tells a client how long to wait before it reconnects.</summary>
+    private const string ReconnectDelayBlock = "retry: 3000\n\n";
+
+    private static int CountOf(string text, string value)
+    {
+        var count = 0;
+
+        for (var at = text.IndexOf(value, StringComparison.Ordinal); at >= 0; at = text.IndexOf(value, at + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>Reads the whole event stream of a run that has ended, exactly as it went over the wire.</summary>
+    private static async Task<string> ReadBodyAsync(TraconTestHost host, Guid runId, string? lastEventId)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"/tracon/api/runs/{runId}/events", UriKind.Relative));
+
+        if (lastEventId is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Last-Event-ID", lastEventId);
+        }
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(30));
+
+        using var response = await host.Client.SendAsync(request, deadline.Token);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        return await response.Content.ReadAsStringAsync(deadline.Token);
     }
 
     private static List<SseFrame> Join(List<SseFrame> first, List<SseFrame> resumed) => [.. first, .. resumed];

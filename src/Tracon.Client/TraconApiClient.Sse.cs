@@ -127,7 +127,10 @@ public partial class TraconApiClient
     /// Comment-only blocks are skipped. Tracon sends <c>: keep-alive</c>
     /// comments while a run is still in progress (<c>SseWriter</c>); the SSE
     /// specification says a client ignores them, and surfacing them would make
-    /// every caller filter them out.
+    /// every caller filter them out. A block that only sets the reconnect delay
+    /// (<c>retry: 3000</c>, which the run event stream sends first) is skipped
+    /// the same way: it dispatches no event. Inside a frame that has data, the
+    /// line stays in the raw text like any other.
     /// </para>
     /// <para>
     /// <see cref="StreamReader"/> does the line splitting, so a frame that
@@ -183,8 +186,8 @@ public partial class TraconApiClient
 
             frame.Append(line);
 
-            // A block of nothing but comment lines is a keep-alive, not an event.
-            if (!line.StartsWith(':'))
+            // A block of nothing but comment lines and reconnect delays is a keep-alive, not an event.
+            if (!line.StartsWith(':') && !IsReconnectDelay(line))
             {
                 hasField = true;
             }
@@ -195,4 +198,8 @@ public partial class TraconApiClient
             yield return frame.ToString();
         }
     }
+
+    /// <summary>Whether a line sets the reconnect delay (the <c>retry</c> field).</summary>
+    private static bool IsReconnectDelay(string line)
+        => line.StartsWith("retry:", StringComparison.Ordinal) || string.Equals(line, "retry", StringComparison.Ordinal);
 }

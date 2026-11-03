@@ -29,6 +29,8 @@
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
     <!-- The differential suite: the same generated sequences and model run in every store test project. -->
     <Compile Include="../Shared/Differential/*.cs" LinkBase="Shared/Differential" />
+    <!-- A clock the test moves by hand, for the registration test of the lease stores' clock. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
   </ItemGroup>
 
   <!--

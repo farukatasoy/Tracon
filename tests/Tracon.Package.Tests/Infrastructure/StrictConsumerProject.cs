@@ -30,18 +30,23 @@ internal enum ConsumerShape
 /// stayed silent), so this switch guards the code written in the project, not the generator's output.
 /// </param>
 /// <param name="OldXunit">For <see cref="ConsumerShape.ContractTests"/>: the floor of the xunit.v3 range the contract package declares, instead of the current line.</param>
+/// <param name="LangVersion">
+/// The <c>LangVersion</c> the project pins, or <see langword="null"/> for the SDK default. Only <see cref="ConsumerShape.Web"/>
+/// supports it, and the implicit usings must be off: the SDK writes them as <c>global using</c> directives, which are C# 10.
+/// </param>
 internal sealed record StrictCell(
     ConsumerShape Shape,
     bool CentralPackages,
     bool Nullable,
     bool ImplicitUsings,
     bool Documentation,
-    bool OldXunit = false)
+    bool OldXunit = false,
+    string? LangVersion = null)
 {
     /// <summary>A name for a test report.</summary>
     public string Name => string.Create(
         CultureInfo.InvariantCulture,
-        $"{Shape}-cpm{Flag(CentralPackages)}-nullable{Flag(Nullable)}-usings{Flag(ImplicitUsings)}-docs{Flag(Documentation)}{(OldXunit ? "-xunit3" : string.Empty)}");
+        $"{Shape}-cpm{Flag(CentralPackages)}-nullable{Flag(Nullable)}-usings{Flag(ImplicitUsings)}-docs{Flag(Documentation)}{(OldXunit ? "-xunit3" : string.Empty)}{(LangVersion is null ? string.Empty : "-lang" + LangVersion)}");
 
     private static int Flag(bool value) => value ? 1 : 0;
 }
@@ -128,7 +133,7 @@ internal static class StrictConsumerProject
             await File.WriteAllTextAsync(Path.Combine(directory, "Directory.Packages.props"), CentralPackages(packages));
         }
 
-        foreach (var (name, content) in Sources(cell.Shape))
+        foreach (var (name, content) in Sources(cell))
         {
             await File.WriteAllTextAsync(Path.Combine(directory, name), content);
         }
@@ -157,6 +162,11 @@ internal static class StrictConsumerProject
         if (cell.Documentation)
         {
             properties.Add("<GenerateDocumentationFile>true</GenerateDocumentationFile>");
+        }
+
+        if (cell.LangVersion is not null)
+        {
+            properties.Add("<LangVersion>" + cell.LangVersion + "</LangVersion>");
         }
 
         properties.AddRange(extra);
@@ -207,8 +217,25 @@ internal static class StrictConsumerProject
             """;
     }
 
-    private static IEnumerable<(string Name, string Content)> Sources(ConsumerShape shape)
+    private static IEnumerable<(string Name, string Content)> Sources(StrictCell cell)
     {
+        var shape = cell.Shape;
+
+        if (cell.LangVersion is not null)
+        {
+            if (shape != ConsumerShape.Web)
+            {
+                throw new ArgumentOutOfRangeException(nameof(cell), "A pinned language version is only written for the web shape.");
+            }
+
+            // The same program the guides show, in the syntax of the oldest language version the packages accept: no
+            // file-scoped namespace (C# 10), no primary constructor and no collection expression (C# 12).
+            yield return ("OrderTools.cs", InBlockNamespace(ToolsInternal));
+            yield return ("SupportRunner.cs", SupportRunnerWithConstructor);
+            yield return ("Program.cs", WebProgram.Replace("[\"get_order_status\"]", "new System.Collections.Generic.List<string> { \"get_order_status\" }", StringComparison.Ordinal));
+            yield break;
+        }
+
         switch (shape)
         {
             case ConsumerShape.Web:
@@ -229,7 +256,7 @@ internal static class StrictConsumerProject
                 yield return ("SubmitOrderToolContract.cs", ToolContract);
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(shape));
+                throw new ArgumentOutOfRangeException(nameof(cell));
         }
     }
 
@@ -248,6 +275,65 @@ internal static class StrictConsumerProject
             [TraconTool("get_order_status", "Returns the shipping status of an order.")]
             public static string GetOrderStatus([Description("The order number.")] string orderId)
                 => string.Concat("Order ", orderId, " has shipped.");
+        }
+        """;
+
+    /// <summary>Rewrites <c>namespace Consumer;</c> as the block form, indenting what follows it.</summary>
+    private static string InBlockNamespace(string source)
+    {
+        const string FileScoped = "namespace Consumer;\n";
+
+        var at = source.IndexOf(FileScoped, StringComparison.Ordinal);
+        var body = source[(at + FileScoped.Length)..].TrimEnd('\n');
+        var indented = string.Join('\n', body.Split('\n').Select(static line => line.Length == 0 ? line : "    " + line));
+
+        return string.Concat(source.AsSpan(0, at), "namespace Consumer\n{", indented.Length == 0 ? string.Empty : "\n" + indented, "\n}\n");
+    }
+
+    private const string SupportRunnerWithConstructor = """
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Agents.AI;
+        using Tracon;
+
+        namespace Consumer
+        {
+            /// <summary>Runs the support agent in a durable session.</summary>
+            internal sealed class SupportRunner
+            {
+                private readonly IAgentCatalog _catalog;
+                private readonly AgentSessionManager _sessions;
+
+                /// <summary>Creates the runner.</summary>
+                /// <param name="catalog">The agent catalog.</param>
+                /// <param name="sessions">The session manager.</param>
+                public SupportRunner(IAgentCatalog catalog, AgentSessionManager sessions)
+                {
+                    _catalog = catalog;
+                    _sessions = sessions;
+                }
+
+                /// <summary>Asks one question.</summary>
+                /// <param name="customerId">The session id.</param>
+                /// <param name="question">The question.</param>
+                /// <param name="cancellationToken">The token.</param>
+                /// <returns>The answer text.</returns>
+                public async Task<string> AskAsync(string customerId, string question, CancellationToken cancellationToken)
+                {
+                    var agent = await _catalog.ResolveAsync("support", culture: null, cancellationToken).ConfigureAwait(false);
+
+                    if (agent is null)
+                    {
+                        return string.Empty;
+                    }
+
+                    var session = await _sessions.GetOrCreateSessionAsync(agent, customerId, cancellationToken).ConfigureAwait(false);
+                    var response = await agent.RunAsync(question, session, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await _sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+
+                    return response.Text;
+                }
+            }
         }
         """;
 

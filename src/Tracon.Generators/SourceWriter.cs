@@ -13,9 +13,8 @@ internal static class SourceWriter
     /// <summary>Emits an <c>AIFunction</c>-derived wrapper class for one tool.</summary>
     public static string WriteToolWrapper(ToolEmitModel model)
     {
-        var sb = new StringBuilder(Header);
+        var sb = new StringBuilder();
 
-        sb.Append("namespace Tracon.Generated;\n\n");
         sb.Append("/// <summary>Generated tool wrapper: ")
           .Append(model.ContainingTypeDisplay).Append('.').Append(model.MethodName)
           .Append(".</summary>\n");
@@ -82,7 +81,35 @@ internal static class SourceWriter
 
         sb.Append("    }\n}\n");
 
-        return sb.ToString();
+        return InBlockNamespace("Tracon.Generated", sb.ToString());
+    }
+
+    /// <summary>
+    /// Wraps a type declaration in a block namespace and adds the header.
+    /// </summary>
+    /// <remarks>
+    /// The block form, not the file-scoped one (<c>namespace X;</c>): the file-scoped form is C# 10, while the
+    /// public API compiles from C# 9 (init-only setters). A consumer pinned to C# 9 could build against every
+    /// Tracon package and still fail on this one generated file.
+    /// </remarks>
+    private static string InBlockNamespace(string name, string declaration)
+    {
+        var sb = new StringBuilder(Header);
+
+        sb.Append("namespace ").Append(name).Append("\n{\n");
+
+        foreach (var line in declaration.TrimEnd('\n').Split('\n'))
+        {
+            // An empty line stays empty: trailing whitespace is what the formatter reports first.
+            if (line.Length > 0)
+            {
+                sb.Append("    ").Append(line);
+            }
+
+            sb.Append('\n');
+        }
+
+        return sb.Append("}\n").ToString();
     }
 
     /// <summary>Emits the entry point that gathers all tool registrations and the <c>AddGeneratedTools()</c> extension.</summary>
