@@ -62,6 +62,27 @@ public static partial class TraconServiceCollectionExtensions
             static (o, v) => o.RequireTenantPolicy = v);
     }
 
+    /// <summary>Binds the <c>Tracon:AgentCache</c> section.</summary>
+    private static void BindAgentCache(IConfigurationSection section, TraconAgentCacheOptions options, TraconOptions root)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        var read = ConfigurationValueReader.For(section, options, root);
+
+        read.Int32(
+            nameof(TraconAgentCacheOptions.MaxEntries),
+            static o => o.MaxEntries,
+            static (o, v) => o.MaxEntries = v);
+
+        read.TimeSpan(
+            nameof(TraconAgentCacheOptions.IdleLifetime),
+            static o => o.IdleLifetime,
+            static (o, v) => o.IdleLifetime = v);
+    }
+
     /// <summary>Binds the <c>Tracon:Preflight</c> section.</summary>
     private static void BindPreflight(IConfigurationSection section, TraconPreflightOptions options, TraconOptions root)
     {

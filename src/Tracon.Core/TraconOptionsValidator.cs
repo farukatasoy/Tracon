@@ -23,6 +23,16 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
     private static readonly TimeSpan MaxScriptTimeout =
         TimeSpan.FromMilliseconds(TimerPeriod.MaxMilliseconds) - SandboxedSkillScriptRunner.ExecutorGracePeriod;
 
+    /// <summary>The most entries the compiled agent cache may be set to hold.</summary>
+    /// <remarks>
+    /// At the measured 8 KiB of the smallest compiled agent this is about 8 GiB: a number past it is a typing
+    /// error, not a size.
+    /// </remarks>
+    internal const int MaxAgentCacheEntries = 1_000_000;
+
+    /// <summary>The longest idle lifetime the compiled agent cache may be set to.</summary>
+    internal static readonly TimeSpan MaxAgentCacheIdleLifetime = TimeSpan.FromDays(30);
+
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, TraconOptions options)
     {
@@ -266,9 +276,41 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 "gets a chance to take effect.");
         }
 
+        ValidateAgentCache(options.AgentCache, ref failures);
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>Validates both bounds of the compiled agent cache.</summary>
+    /// <remarks>
+    /// A zero or negative size would keep nothing and a zero lifetime would drop every entry at the next check,
+    /// which is the cache switched off by accident; an operator who wants that has no setting for it on purpose,
+    /// because a cache that holds nothing recompiles every agent on every run.
+    /// </remarks>
+    private static void ValidateAgentCache(TraconAgentCacheOptions? cache, ref List<string>? failures)
+    {
+        if (cache is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconOptions)}.{nameof(TraconOptions.AgentCache)} cannot be empty.");
+            return;
+        }
+
+        if (cache.MaxEntries is < 1 or > MaxAgentCacheEntries)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconAgentCacheOptions)}.{nameof(TraconAgentCacheOptions.MaxEntries)} " +
+                $"must be between 1 and {MaxAgentCacheEntries}. Actual value: {cache.MaxEntries}.");
+        }
+
+        if (cache.IdleLifetime <= TimeSpan.Zero || cache.IdleLifetime > MaxAgentCacheIdleLifetime)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconAgentCacheOptions)}.{nameof(TraconAgentCacheOptions.IdleLifetime)} " +
+                $"must be greater than zero and at most {MaxAgentCacheIdleLifetime}. Actual value: {cache.IdleLifetime}.");
+        }
     }
 
     /// <summary>Validates the refresh interval of every database-backed gauge that is on.</summary>

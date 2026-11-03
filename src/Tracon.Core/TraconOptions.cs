@@ -69,6 +69,9 @@ public sealed class TraconOptions
     /// <summary>Gets or sets tool execution options.</summary>
     public TraconToolOptions Tools { get; set; } = new();
 
+    /// <summary>Gets or sets the bounds of the compiled agent cache.</summary>
+    public TraconAgentCacheOptions AgentCache { get; set; } = new();
+
     /// <summary>
     /// Gets or sets the largest byte count (UTF-8) for one <c>AgentParameter</c> value.
     /// </summary>

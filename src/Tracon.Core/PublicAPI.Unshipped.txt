@@ -255,6 +255,12 @@ Tracon.TextToSpeechClientBinding.TextToSpeechClientBinding() -> void
 Tracon.TextToSpeechClientBinding.Voices.get -> System.Collections.Generic.IReadOnlyList<Tracon.VoiceDescriptor!>!
 Tracon.TextToSpeechClientBinding.Voices.init -> void
 Tracon.TimeoutAIFunction
+Tracon.TraconAgentCacheOptions
+Tracon.TraconAgentCacheOptions.IdleLifetime.get -> System.TimeSpan
+Tracon.TraconAgentCacheOptions.IdleLifetime.set -> void
+Tracon.TraconAgentCacheOptions.MaxEntries.get -> int
+Tracon.TraconAgentCacheOptions.MaxEntries.set -> void
+Tracon.TraconAgentCacheOptions.TraconAgentCacheOptions() -> void
 Tracon.TraconAgentGraphOptions
 Tracon.TraconAgentGraphOptions.ChildDeadline.get -> System.TimeSpan
 Tracon.TraconAgentGraphOptions.ChildDeadline.set -> void
@@ -416,6 +422,8 @@ Tracon.TraconObservabilityOptions.SuccessSampleRatio.set -> void
 Tracon.TraconObservabilityOptions.TraconObservabilityOptions() -> void
 Tracon.TraconOnlineEvaluationBuilderExtensions
 Tracon.TraconOptions
+Tracon.TraconOptions.AgentCache.get -> Tracon.TraconAgentCacheOptions!
+Tracon.TraconOptions.AgentCache.set -> void
 Tracon.TraconOptions.AgentGraph.get -> Tracon.TraconAgentGraphOptions!
 Tracon.TraconOptions.AgentGraph.set -> void
 Tracon.TraconOptions.Attachments.get -> Tracon.TraconAttachmentOptions!
@@ -597,6 +605,7 @@ Tracon.TraconToolOptions.DefaultTimeout.get -> System.TimeSpan
 Tracon.TraconToolOptions.DefaultTimeout.set -> void
 Tracon.TraconToolOptions.MaxToolsPerAgent.get -> int
 Tracon.TraconToolOptions.MaxToolsPerAgent.set -> void
+const Tracon.TraconAgentCacheOptions.DefaultMaxEntries = 4096 -> int
 const Tracon.TraconToolOptions.DefaultMaxToolsPerAgent = 128 -> int
 Tracon.TraconToolOptions.RequireTenantPolicy.get -> bool
 Tracon.TraconToolOptions.RequireTenantPolicy.set -> void

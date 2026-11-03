@@ -329,8 +329,12 @@ public static partial class TraconServiceCollectionExtensions
             static _ => new Microsoft.Agents.AI.InMemoryAgentFileStore());
 #pragma warning restore MAAI001
 
-        // Compiler and cache.
-        services.TryAddSingleton(static _ => new CompiledAgentCache());
+        // Compiler and cache. The cache takes its two bounds from Tracon:AgentCache and the clock from the
+        // container; TimeProvider may not be registered, so it is read with GetService and the
+        // constructor falls back to the system clock.
+        services.TryAddSingleton(static provider => new CompiledAgentCache(
+            provider.GetRequiredService<IOptions<TraconOptions>>().Value.AgentCache,
+            provider.GetService<TimeProvider>()));
 
         // Sub-agent resolver. Requests the catalog on FIRST USE, not in its
         // CONSTRUCTOR; otherwise the IAgentCatalog -> IAgentSource ->

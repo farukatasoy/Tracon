@@ -100,5 +100,6 @@ public static partial class TraconServiceCollectionExtensions
         BindPreflight(section.GetSection(nameof(TraconOptions.Preflight)), options.Preflight, options);
         BindModelConcurrency(section.GetSection(nameof(TraconOptions.ModelConcurrency)), options.ModelConcurrency, options);
         BindTools(section.GetSection(nameof(TraconOptions.Tools)), options.Tools, options);
+        BindAgentCache(section.GetSection(nameof(TraconOptions.AgentCache)), options.AgentCache, options);
     }
 }
