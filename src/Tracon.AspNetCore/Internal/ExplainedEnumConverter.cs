@@ -30,7 +30,16 @@ namespace Tracon;
 /// Parsing is deliberately NOT reimplemented. This converter delegates to the
 /// one <see cref="JsonStringEnumConverter{TEnum}"/> builds and replaces only
 /// the message that converter throws, so naming policy, integer values, and
-/// casing stay exactly what they were.
+/// casing stay what they were.
+/// </para>
+/// <para>
+/// One thing is added to what the framework converter does: a value that names
+/// no member is refused with the same sentence. The framework converter reads an
+/// integer (and a string of digits) as the enum with that number whether or not
+/// the enum has a member for it, so <c>"kind": 0</c> on an enum that starts at
+/// <c>1</c> was accepted, stored, and written back as <c>0</c> where the
+/// published document says the field is one of its names. A <c>[Flags]</c> enum
+/// is exempt: a combination of its members is a number no single member has.
 /// </para>
 /// <para>
 /// <strong>This is attached to the REQUEST-BODY options</strong>
@@ -61,6 +70,8 @@ internal sealed class ExplainedEnumConverter<TEnum> : JsonConverter<TEnum>
     /// </remarks>
     private static readonly string ValidValues = string.Join(", ", Enum.GetNames<TEnum>());
 
+    private static readonly bool IsFlags = typeof(TEnum).IsDefined(typeof(FlagsAttribute), inherit: false);
+
     /// <inheritdoc />
     public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -68,9 +79,11 @@ internal sealed class ExplainedEnumConverter<TEnum> : JsonConverter<TEnum>
         // token wherever the inner converter leaves the live reader.
         var snapshot = reader;
 
+        TEnum value;
+
         try
         {
-            return Resolve(options).Read(ref reader, typeToConvert, options);
+            value = Resolve(options).Read(ref reader, typeToConvert, options);
         }
         catch (JsonException)
         {
@@ -87,6 +100,14 @@ internal sealed class ExplainedEnumConverter<TEnum> : JsonConverter<TEnum>
             throw new JsonException(Explain(ref snapshot));
 #pragma warning restore MA0054
         }
+
+        // A number (or a string of digits) that names no member parses to a value with no name.
+        if (!IsFlags && !Enum.IsDefined(value))
+        {
+            throw new JsonException(Explain(ref snapshot));
+        }
+
+        return value;
     }
 
     /// <inheritdoc />

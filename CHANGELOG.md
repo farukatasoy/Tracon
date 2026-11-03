@@ -560,6 +560,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   The published `tracon.json` is also corrected in three places that a consumer's own document is not: a nullable enum is nullable once, a nullable free-form value is `anyOf` and not
   `oneOf` (a `null` matched both branches), and a dictionary of free-form values names its value schema. The transformer is one file, `samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs`.
 
+- **A request body that writes an enum member as a number no member has is refused with `400`.** The converter that reads the enum fields of a body took any integer (and any string of
+  digits) as the enum with that number, whether or not a member had it. `POST /api/runs/{runId}/feedback` with `"kind": 0` answered `200` and stored a score of kind `0`
+  (`RunScoreKind` starts at `1`); every list that held it then wrote `"kind": 0` where the document says one of four names. It answers `400` now, with the message that lists the members, like an
+  unknown name. A number that is a member (`"kind": 1`) is accepted as before, and a `[Flags]` enum still takes a combination. What to do: nothing, unless a client sends numbers; send the name.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
