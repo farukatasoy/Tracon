@@ -54,6 +54,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Every date and time a caller can send, driven with the instants a date type breaks on. -->
+    <Compile Include="../Shared/DateInputs/*.cs" LinkBase="Shared/DateInputs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

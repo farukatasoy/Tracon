@@ -116,4 +116,9 @@
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Every date and time a caller can send, driven with the instants a date type breaks on; the two-node project runs the same sweep on real servers. -->
+    <Compile Include="../Shared/DateInputs/*.cs" LinkBase="Shared/DateInputs" />
+  </ItemGroup>
+
 </Project>

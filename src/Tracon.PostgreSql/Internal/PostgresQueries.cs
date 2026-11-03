@@ -940,6 +940,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
         static string TruncateUtc(string bucketUnitParam, string column)
             => $"(date_trunc({bucketUnitParam}, {column} AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')";
 
+        // 🚨 Npgsql sends the first and the last instant of DateTimeOffset as -infinity and infinity, and a
+        // generate_series that starts or stops at an infinity never ends: the statement ran until the command
+        // timeout and the endpoint answered "the store is down". The two ends of the series are held inside the
+        // range of a date, the range the other stores have; the WHERE below still compares with the parameter itself.
+        static string FiniteStart(string parameter) => $"GREATEST({parameter}, TIMESTAMPTZ '0001-01-01 00:00:00+00')";
+        static string FiniteEnd(string parameter) => $"LEAST({parameter}, TIMESTAMPTZ '9999-12-31 23:59:59.999999+00')";
+
         // Empty buckets are also returned (generate_series + LEFT JOIN):
         // otherwise a gap in the chart would look like "zero" instead of "no
         // data". Eval/Workflow runs are DELIBERATELY NOT excluded — unlike
@@ -964,8 +971,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 -- the `cursor < To` loop in InMemoryRunStore.
                 SELECT bucket
                 FROM generate_series(
-                    {TruncateUtc("@bucket_unit", "@from_ts")},
-                    {TruncateUtc("@bucket_unit", "@to_ts")},
+                    {TruncateUtc("@bucket_unit", FiniteStart("@from_ts"))},
+                    {TruncateUtc("@bucket_unit", FiniteEnd("@to_ts"))},
                     @bucket_step) AS bucket
                 WHERE bucket < @to_ts
             ),

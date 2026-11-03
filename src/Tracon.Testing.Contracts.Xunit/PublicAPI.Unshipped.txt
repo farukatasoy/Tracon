@@ -477,6 +477,7 @@ Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_authors_score_t
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_kinds_of_the_same_name_are_not_averaged_together() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_messages_are_scored_independently() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Empty_author_makes_EVERY_call_open_a_new_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Hour_and_day_buckets_hold_a_score_from_any_year_a_date_can_hold(Tracon.RunScoreBucket bucket, string! createdAt, string! expectedBucketStart) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Hour_buckets_group_scores_within_the_same_hour() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.MessageId_is_never_a_breakdown_dimension() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
@@ -492,6 +493,7 @@ Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Target_Message_excludes_r
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Target_Run_excludes_message_level_scores() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Updating_ONE_name_leaves_the_authors_other_names_untouched() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Monday_and_group_the_whole_week() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Monday_before_1900_too(string! createdAt, string! expectedWeekStart) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_label_key_without_a_value_matches_any_value_of_that_key() -> System.Threading.Tasks.Task!
@@ -587,6 +589,8 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_sorts_agent_breakdown_
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_charge_round_trips_and_counts_toward_the_total() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_last_event_sequence_is_readable() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_token_breakdown_round_trips_and_stays_null_when_it_was_never_reported() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_answers_a_range_anywhere_in_the_years_a_date_can_hold(string! from, string! to, Tracon.TimeSeriesBucket bucket, int expectedCount, string! expectedFirst, string! expectedLast) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_counts_a_run_that_started_at_either_end_of_the_date_range_in_its_own_bucket(string! startedAt, string! from, string! to, string! expectedBucket) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_does_not_exclude_eval_runs() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_fills_empty_buckets() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_throws_when_the_bucket_limit_is_exceeded() -> System.Threading.Tasks.Task!

@@ -2921,6 +2921,80 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         exception.Message.ShouldContain("500");
     }
 
+    /// <summary>
+    /// An instant is an instant: the year it falls in does not decide whether a series can be read.
+    /// </summary>
+    /// <remarks>
+    /// The ranges sit on the edges of the stores' own date types. SQL Server's <c>datetime</c> starts in 1753 and its
+    /// <c>datetime2</c> stops at the end of 9999, so a bucket that was added to after the last one overflowed;
+    /// PostgreSQL reads the first and the last instant of <see cref="DateTimeOffset"/> as its infinities, and a
+    /// series generated up to infinity never ends. The in-memory store walked past the last bucket of 9999.
+    /// </remarks>
+    [Theory]
+    [InlineData("0441-05-04T00:00:00Z", "0441-05-05T00:00:00Z", TimeSeriesBucket.Hour, 24, "0441-05-04T00:00:00Z", "0441-05-04T23:00:00Z")]
+    [InlineData("0001-01-01T00:00:00Z", "0001-01-02T00:00:00Z", TimeSeriesBucket.Hour, 24, "0001-01-01T00:00:00Z", "0001-01-01T23:00:00Z")]
+    [InlineData("0001-01-01T00:00:00Z", "0001-01-03T00:00:00Z", TimeSeriesBucket.Day, 2, "0001-01-01T00:00:00Z", "0001-01-02T00:00:00Z")]
+    [InlineData("1752-12-31T20:00:00Z", "1753-01-01T04:00:00Z", TimeSeriesBucket.Hour, 8, "1752-12-31T20:00:00Z", "1753-01-01T03:00:00Z")]
+    [InlineData("9999-12-30T00:00:00Z", "9999-12-31T23:59:59.9999999Z", TimeSeriesBucket.Hour, 48, "9999-12-30T00:00:00Z", "9999-12-31T23:00:00Z")]
+    [InlineData("9999-12-30T00:00:00Z", "9999-12-31T23:59:59.9999999Z", TimeSeriesBucket.Day, 2, "9999-12-30T00:00:00Z", "9999-12-31T00:00:00Z")]
+    [InlineData("9999-12-31T22:30:00Z", "9999-12-31T23:30:00Z", TimeSeriesBucket.Hour, 2, "9999-12-31T22:00:00Z", "9999-12-31T23:00:00Z")]
+    public async Task Time_series_answers_a_range_anywhere_in_the_years_a_date_can_hold(
+        string from,
+        string to,
+        TimeSeriesBucket bucket,
+        int expectedCount,
+        string expectedFirst,
+        string expectedLast)
+    {
+        var points = await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery
+        {
+            From = Instant(from),
+            To = Instant(to),
+            Bucket = bucket,
+        });
+
+        points.Count.ShouldBe(expectedCount);
+        points[0].Bucket.ShouldBe(Instant(expectedFirst));
+        points[^1].Bucket.ShouldBe(Instant(expectedLast));
+        points.ShouldAllBe(static point => point.Runs == 0);
+
+        var step = RunTimeSeriesBucketing.StepFor(bucket);
+
+        for (var index = 1; index < points.Count; index++)
+        {
+            (points[index].Bucket - points[index - 1].Bucket).ShouldBe(step);
+        }
+    }
+
+    /// <summary>A run that started in a year the legacy date types cannot hold is counted in its own bucket.</summary>
+    [Theory]
+    [InlineData("0441-05-04T10:30:00Z", "0441-05-04T00:00:00Z", "0441-05-05T00:00:00Z", "0441-05-04T10:00:00Z")]
+    [InlineData("0001-01-01T00:10:00Z", "0001-01-01T00:00:00Z", "0001-01-02T00:00:00Z", "0001-01-01T00:00:00Z")]
+    [InlineData("1752-12-31T23:59:00Z", "1752-12-31T20:00:00Z", "1753-01-01T04:00:00Z", "1752-12-31T23:00:00Z")]
+    [InlineData("9999-12-31T23:30:00Z", "9999-12-31T00:00:00Z", "9999-12-31T23:59:59Z", "9999-12-31T23:00:00Z")]
+    public async Task Time_series_counts_a_run_that_started_at_either_end_of_the_date_range_in_its_own_bucket(
+        string startedAt,
+        string from,
+        string to,
+        string expectedBucket)
+    {
+        await Store.StartRunAsync(TestData.Run(TraconId.NewId()) with { StartedAt = Instant(startedAt) });
+
+        var points = await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery
+        {
+            From = Instant(from),
+            To = Instant(to),
+            Bucket = TimeSeriesBucket.Hour,
+        });
+
+        var counted = points.Where(static point => point.Runs > 0).ShouldHaveSingleItem();
+        counted.Bucket.ShouldBe(Instant(expectedBucket));
+        counted.Runs.ShouldBe(1);
+    }
+
+    private static DateTimeOffset Instant(string value)
+        => DateTimeOffset.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+
     [Fact]
     public async Task Cost_recalculation_updates_the_target_row()
     {
