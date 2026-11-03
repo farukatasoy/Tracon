@@ -2959,6 +2959,42 @@ has the rule in full for a custom implementation.
 curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 ```
 
+The stream opens with a `retry: 3000` block, with or without `Last-Event-ID`, and writes
+a `: waiting` comment on every poll (every 250 ms by default) while the run is quiet.
+Neither carries data, so a reader that follows the SSE rules drops both. `retry: 3000`
+is the time in milliseconds a browser's `EventSource` waits before it reconnects, so every
+client of an instance that restarted waits the same, known time instead of the default of its
+own browser. The delay does not spread the clients out: they all come back together. The
+streamed answer of `POST /api/agents/{name}/run` is not resumable and does not send it.
+
+### Behind a reverse proxy
+
+Every stream carries `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-store,
+no-transform`. A proxy that honours them passes each frame on as it arrives. A proxy
+that ignores the header and buffers the response holds the first events of a quiet run
+until its buffer is full. Measured with nginx 1.27 in front of the sample host, on a run
+that stayed silent:
+
+| nginx configuration | First events reach the client |
+|---|---|
+| Default (honours the header) | At once |
+| `proxy_ignore_headers X-Accel-Buffering;` with the default HTTP/1.0 upstream | After 74 seconds, 4 KB at once |
+| The same, with `proxy_http_version 1.1;` | At once |
+
+Do not ignore the header. If your configuration has to, turn buffering off for the
+location and speak HTTP/1.1 to the application:
+
+```nginx
+location /tracon/ {
+    proxy_pass http://app;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+}
+```
+
+Another proxy or a CDN was not measured. Look for its equivalent of `proxy_buffering off`
+and make sure it does not compress `text/event-stream`.
+
 ### Two SSE contracts, not one
 
 This is a **different** stream from the one `POST /api/agents/{name}/run` returns, and
@@ -7405,7 +7441,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
 | Tenant provider policy | A tenant's data reaching a model, speech, live voice, image or embedding provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
-| Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
+| Secret handling | A secret value reaching storage, a log, or a response. A tenant's own provider key is also replaced in a provider's error text; the shared startup key and a partial quote are not ([limits](/guides/observability/#provider-error-text-in-logs)) | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
 | Audit trail | Eight operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Quotas and rate limits | Spend and request volume above the configured ceiling | [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits) |
@@ -9820,6 +9856,22 @@ there. It stays silent in two other cases as well: while the property above is o
 because then there is no file to name, and on a file this package generated, because
 a generated map already names it.
 
+### A build that treats warnings as errors fails on TRC0402
+
+`TRC0402` is a warning on purpose: an `Info` diagnostic never reaches the build output,
+and a coding agent cannot act on a diagnostic it cannot read. A project with
+`TreatWarningsAsErrors` therefore fails on it, and so does a CI command line with
+`-warnaserror`. There are three ways out. Take the first one when you can.
+
+| Way out | What it does |
+|---|---|
+| Add the one line above to `AGENTS.md` | Closes the diagnostic. The agent finds the map. |
+| `<TraconWriteLocalReference>false</TraconWriteLocalReference>` | Nothing names the file, so nothing asks. The pointer file is not written. |
+| `<WarningsNotAsErrors>TRC0402</WarningsNotAsErrors>` | The warning stays in the output and no longer fails the build. |
+
+`WarningsNotAsErrors` works with `TreatWarningsAsErrors` and with `-warnaserror`.
+`MSBuildWarningsNotAsErrors` does not: it covers only the CLI switch.
+
 ## The gate skill is out of date (TRC0403)
 
 `tracon agent-skill` stamps the file it writes with the capability map revision
@@ -9838,6 +9890,63 @@ tracon agent-skill
 Deleting is the refresh step because the file is never overwritten in place: you
 may have added notes to it. A `SKILL.md` without that stamp is treated as yours
 and is never reported.
+
+## A strict build stops on a tree it cannot write to (MSB3021, MSB3491)
+
+With `TraconWriteAgentsFile` on, the build copies the map to `AGENTS.md` and writes
+`Tracon.LocalReference.md` beside the project. On a tree the build user cannot write
+to, such as a read-only CI mount, each write fails and the build reports a warning:
+`MSB3021` for the copy, `MSB3491` for the pointer file. A normal build passes. A build
+that turns MSBuild warnings into errors (`-warnaserror`, or the
+`MSBuildTreatWarningsAsErrors` property) stops on them:
+
+```text
+error MSB3021: Unable to copy file ".../Tracon.AgentMap.md" to "/src/AGENTS.md". Access to the path is denied.
+```
+
+The files are a convenience, so the answer is to switch them off on that tree:
+
+```bash
+dotnet build -warnaserror -p:TraconWriteAgentsFile=false
+```
+
+Put the same property in the project file under a CI condition if you build the same
+project on both kinds of tree. When only the pointer file fails (a project directory
+you cannot write to, with a writable repository root), keep the map and drop the file:
+
+```bash
+dotnet build -warnaserror -p:TraconWriteLocalReference=false
+```
+
+Only the files named above are written to the source tree. `bin` and `obj` stay where
+your build puts them. The properties are off unless you set them; the project template
+sets `TraconWriteAgentsFile` for a generated project.
+
+## The compiler cannot open AGENTS.md (CS2001, CS1504)
+
+The build hands `AGENTS.md` and `.claude/skills/tracon/SKILL.md` to the analyzer when
+they exist. A directory with that name is left out, and a link to a file that exists
+works (`AGENTS.md` pointing to `CLAUDE.md` is fine). The build cannot tell a link that
+points nowhere, or a file the build user cannot read, from a file. The compiler then
+stops with `CS2001` (the source file could not be found) or `CS1504` (it could not be
+opened).
+
+Repair the link or the permissions when you can. When you cannot, turn the usage
+diagnostics off:
+
+```xml
+<PropertyGroup>
+  <TraconUsageDiagnostics>false</TraconUsageDiagnostics>
+</PropertyGroup>
+```
+
+With every rule of the family suppressed the compiler never opens the files. Silencing
+only `TRC0401`, `TRC0402`, and `TRC0403` does not help: the analyzer still runs for its
+other rules and still opens them.
+
+A failed build leaves its compiled output behind, so the next build of the same project
+can pass without reading the file again. The error shows on a clean checkout, which is
+what a CI run is.
 
 ## An ambient write does not survive a streaming loop (TRC0501)
 
@@ -16050,6 +16159,59 @@ provider added three messages the caller never sent. See [Citations and message 
 input. It applies to the span store. Configure both sections and retention according to
 the data that your agents process.
 
+## Provider error text in logs
+
+A provider that refuses a call says why, and Tracon keeps what it says, because an operator needs
+that text. It reaches five loggers that write the exception with its inner exceptions:
+`Microsoft.Extensions.AI.OpenTelemetryChatClient` (at `Warning`), `Tracon.ModelProvider`,
+`Tracon.RunRecordingAgent`, `Tracon.AgentEndpoints` and `Tracon.OpenAICompat`. It also becomes the
+status description of the `chat` span. With `RecordSensitiveData` on, the trace store keeps that
+status description.
+
+Some providers quote the key they refused inside that text. When the call was made with a
+**tenant's own key** (see [Per-tenant provider credentials](/concepts/governance/#per-tenant-provider-credentials-and-egress)),
+Tracon replaces that key with `[redacted]` in the log lines, in the span status and in the stored
+trace. The match is exact. It finds the key as it is, escaped for JSON and encoded for a URL.
+Everything else the provider wrote stays: the sentence, the HTTP status, the exception types and
+the stack. The one change you may see in a structured log: the `Tracon.ModelProvider` line of such a
+call carries the exception type `Tracon.MaskedFailureView`, and the original type is the first word
+of the exception text.
+
+```text
+Incorrect API key provided: Bearer [redacted]. Find your key at the provider's console.
+```
+
+What this does **not** cover:
+
+| Not replaced | Why | What to do |
+|---|---|---|
+| The shared key you register at startup, such as `UseOpenAI(apiKey)` | Tracon does not hold that value. It lives in the provider's options. | Give the tenant its own key. Keep `RecordSensitiveData` off: a trace store keeps the span status, and a quoted shared key would then reach your database. A logger filter (below) does not touch the span status, which also leaves with every exporter you attach. |
+| A part of the key that the provider quotes itself | The match is exact. It is not a pattern of keys. At the time of writing, OpenAI quotes the first eight and the last four characters of a refused key, and the Anthropic and Google answers quote no part of it. | Nothing: the provider chose to show that part. |
+| A key shorter than eight characters | A value that short is also ordinary text. | Use the key the provider issued. |
+| A log writer that reads inner exceptions property by property | `Message` and `ToString()` are replaced. The original exception stays as the inner exception, because retry, fallback and the circuit breaker decide from it. | Write the exception's text, not its properties. |
+| The error of a speech or live voice provider | These calls do not pass through the model pipeline, and this replacement was not measured on them. | Treat the log line of a failed speech call as readable by anyone who reads the log. |
+
+If a log reader must never see a shared key, filter all five loggers. The first two carry nothing but
+the provider's detail. The other three also carry the run id and the `ref` that an operator uses to
+find a failed run, so filtering them hides those too. Filtering only the first two leaves the key in
+the other three.
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Microsoft.Extensions.AI.OpenTelemetryChatClient": "Error",
+      "Tracon.ModelProvider": "None",
+      "Tracon.RunRecordingAgent": "None",
+      "Tracon.AgentEndpoints": "None",
+      "Tracon.OpenAICompat": "None"
+    }
+  }
+}
+```
+
+This keeps the key out of the log. It does not keep it out of the `chat` span status.
+
 ## Add readiness and provider health
 
 Register Tracon in ASP.NET Core health checks, then choose the route yourself:
@@ -19237,6 +19399,42 @@ indexing into the generated `components` object:
 import type { RunRecord } from '@tracon/client';
 ```
 
+## A request needs only what the schema requires
+
+A body type lists every member, and only the ones the schema marks required have to be
+there:
+
+```ts
+await client.POST('/api/agents', {
+  body: { name: 'support', model: { provider: 'openai', model: 'gpt-5.4-mini' } },
+});
+```
+
+A free-form member — a model's `providerSettings`, the `metadata` of an agent or a skill —
+takes a string-keyed object, `null`, or nothing at all. An eval suite's `checks` takes an
+array of checks, and a schedule's `payload` takes any JSON value (usually an array of
+items); both also take `null` or nothing. The server reads `null` and a missing member the
+same way: as empty.
+
+```ts
+await client.POST('/api/agents', {
+  body: {
+    name: 'support',
+    model: {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5',
+      providerSettings: { 'anthropic.promptCaching': true },
+    },
+    metadata: { owner: 'platform' },
+  },
+});
+```
+
+A member the server fills in when it is left out stays optional in the type, and the
+type's `@default` note says what the server applies: an MCP server's `enabled` and
+`requiresApproval` are both `true`, so `{ endpoint }` alone registers an enabled server
+whose tools still ask for approval.
+
 ## Errors are thrown, not returned
 
 The underlying `openapi-fetch` library returns `{ data, error }` for every
@@ -19315,7 +19513,9 @@ on a run's event stream every `RunEventPollInterval` (250 ms by default), and on
 every other stream - a workflow run, an agent run - whenever it has written
 nothing for `StreamKeepAliveInterval` (15 seconds by default). `readSse` skips
 comments, so a run that is thinking yields no frames at all while it thinks,
-and a frame-based timeout would cut it off. Set the threshold above the
+and a frame-based timeout would cut it off. The run event stream also opens with a
+`retry: 3000` block, the delay a browser's `EventSource` waits before it reconnects;
+it carries no data, so `readSse` drops it the same way. Set the threshold above the
 longer of those intervals, with room for a slow link. Leave the option out
 and the stream waits forever, which is the behavior every existing caller
 already has.
@@ -22069,6 +22269,13 @@ nullable in the schema and still accepts `null`. The same holds inside a list or
 `{"nodes": [null]}` is a `400` when the schema's items are not nullable, and a list of
 `string | null` still takes its nulls.
 
+The free-form members are declared nullable, because they are optional and an empty
+value means nothing: a model's `providerSettings`, the `metadata` of an agent or a
+skill, an eval suite's `checks` and a schedule's `payload`. `null` and a missing member
+read the same way, as empty. A member the server fills in when it is left out (an MCP
+server's `enabled` and `requiresApproval`, a schedule's `timeZone`) carries a `default`
+in the schema; a generated client starts with it.
+
 **Error text is English and is not translated.** The same failure has to read the same
 way in a log, a test, and a support ticket. The console translates its own labels and
 shows server text as it is.
@@ -22084,7 +22291,7 @@ shows server text as it is.
 | `415` | The body has to be JSON and the request carried another `Content-Type`, or none (`Content-Type: application/json`) |
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
-| `501` | The capability is not registered — the workflow engine, voice, or knowledge |
+| `501` | The capability is not registered — the workflow engine, voice, knowledge, or MCP |
 | `502` | The model provider failed or never answered — including a request that timed out |
 | `503` | The store could not answer, or the process is draining in-flight runs before it stops |
 
@@ -22161,6 +22368,17 @@ consumer.
 The consequence: the title, version, and server list in the published snapshot come
 from the host that generated it. In **your** document they come from your application.
 The paths, schemas, and descriptions are the same.
+
+The published snapshot is corrected in three places that your document is not, because the
+correction is a document transformer and a transformer needs the OpenAPI package this
+library does not take on. A nullable enum is written once as nullable instead of twice; a
+nullable free-form value is written as `anyOf` instead of `oneOf` (a `null` matches both of
+its branches, and `oneOf` allows exactly one); a dictionary of free-form values names its
+value schema, so a TypeScript client types it as `{ [key: string]: unknown }` and not as
+`Record<string, never>`. Your own `AddOpenApi()` document shows the raw shapes the .NET
+generator writes. The transformer is a single file in the reference host,
+`samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs`; copy it if you publish the
+document or generate a client from it.
 
 Because Tracon maps plain minimal API endpoints on your own
 `IEndpointRouteBuilder`, they are also picked up by **your** OpenAPI/Swagger
@@ -22300,6 +22518,12 @@ Tracon instance, from a separate application or from a terminal.
 |---|---|
 | `Tracon.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Every endpoint that answers with Server-Sent Events also gets a `...StreamAsync` method yielding one frame at a time. Takes no Tracon package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
 | `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result; `agent-skill` writes the gate skill a coding agent's harness loads before it writes Tracon code; `export` and `import` move the agents, workflows, skills and MCP servers of an installation to another one as a file, with a dry run by default |
+
+A request through `Tracon.Client` that sets only the required members is valid. A free-form
+member (a model's `ProviderSettings`, the `Metadata` of an agent or a skill) is an
+`IDictionary<string, object>?` that starts unset. The client writes a value of the types its
+JSON context knows (booleans, integers, `double`, `string`, `JsonElement`, nested dictionaries
+and `string[]`) and throws `NotSupportedException` for another type, such as `decimal`.
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 
@@ -22618,6 +22842,15 @@ packages build for.
 The packages are still pre-release. Install them with an explicit preview version or
 the CLI's pre-release option. The template package also needs a preview version or
 pre-release selection.
+
+### C# language version
+
+A project that references Tracon compiles with `LangVersion` 9 or later. The public API
+uses init-only setters, which C# 8 does not accept, and the files the source generator
+writes into your project use no syntax newer than C# 9. The default for `net10.0` is far
+above this floor, so the sentence matters only to a project that pins `LangVersion`
+lower. A strict build (warnings as errors, every analyzer on) with `LangVersion` pinned
+to 9, 10, and 11 runs against the packed packages in Tracon's own CI.
 
 ### How long each target framework stays
 
@@ -28069,7 +28302,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Outbound egress | A request to a private network target or a disallowed host |
 | Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own |
 | Content guards | Input or output a configured guard rejects |
-| Secret handling | A secret value reaching storage, a log, or a response |
+| Secret handling | A secret value reaching storage, a log, or a response. A provider's error text can still quote the shared startup key, or part of a tenant's key, into a log line ([limits](/guides/observability/#provider-error-text-in-logs)) |
 | At-rest protection | Readable content in a database you do not fully trust |
 | Audit trail | Eight operations proceeding without their record |
 | Quotas and rate limits | Spend and request volume above the configured ceiling |
