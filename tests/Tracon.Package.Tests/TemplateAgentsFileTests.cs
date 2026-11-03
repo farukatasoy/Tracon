@@ -407,6 +407,97 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         }
     }
 
+    /// <summary>
+    /// TRC0402 is a warning, so a consumer who turns warnings into errors fails the build on it. That is the design: the
+    /// diagnostic is a warning because an Info diagnostic never reaches the build output, and a coding agent cannot act
+    /// on a diagnostic it cannot read.
+    /// </summary>
+    /// <param name="strictness">How warnings become errors: the project property, or the switches of a CI command line.</param>
+    [Theory]
+    [InlineData(PropertyStrictness)]
+    [InlineData(SwitchStrictness)]
+    public async Task A_consumer_who_treats_warnings_as_errors_fails_on_the_request_for_a_pointer(string strictness)
+    {
+        var build = await BuildHandWrittenInstructionsAsync(strictness, HouseRules, extraProperties: null);
+
+        build.ExitCode.ShouldNotBe(0, build.Combined);
+        build.Combined.ShouldContain("error TRC0402", customMessage: build.Combined);
+    }
+
+    /// <summary>
+    /// The three ways to get that consumer past TRC0402, each measured under both kinds of strictness.
+    /// </summary>
+    /// <remarks>
+    /// Naming the file closes the diagnostic. Turning the pointer file off silences it, because there is then nothing
+    /// to name. <c>WarningsNotAsErrors</c> keeps it visible as a warning without failing the build; the MSBuild flavour
+    /// of that property is not an exit on its own (it leaves the property-driven build failing), so it is not offered.
+    /// </remarks>
+    /// <param name="strictness">How warnings become errors.</param>
+    /// <param name="exit">Which way out the consumer takes.</param>
+    [Theory]
+    [InlineData(PropertyStrictness, "names-the-file")]
+    [InlineData(PropertyStrictness, "pointer-file-off")]
+    [InlineData(PropertyStrictness, "warnings-not-as-errors")]
+    [InlineData(SwitchStrictness, "names-the-file")]
+    [InlineData(SwitchStrictness, "pointer-file-off")]
+    [InlineData(SwitchStrictness, "warnings-not-as-errors")]
+    public async Task Each_way_out_of_the_request_for_a_pointer_lets_a_strict_build_pass(string strictness, string exit)
+    {
+        var (instructions, extraProperties) = exit switch
+        {
+            "names-the-file" => ($"{HouseRules}\nExact paths: Tracon.LocalReference.md, beside each project.\n", null),
+            "pointer-file-off" => (HouseRules, "<TraconWriteLocalReference>false</TraconWriteLocalReference>"),
+            "warnings-not-as-errors" => (HouseRules, "<WarningsNotAsErrors>TRC0402</WarningsNotAsErrors>"),
+            _ => throw new ArgumentOutOfRangeException(nameof(exit), exit, null),
+        };
+
+        var build = await BuildHandWrittenInstructionsAsync(strictness, instructions, extraProperties);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+
+        if (string.Equals(exit, "warnings-not-as-errors", StringComparison.Ordinal))
+        {
+            build.Combined.ShouldContain("warning TRC0402", customMessage: "The request stays visible; it only stops failing the build.\n" + build.Combined);
+        }
+        else
+        {
+            build.Combined.ShouldNotContain("TRC0402", customMessage: build.Combined);
+        }
+    }
+
+    private const string PropertyStrictness = "property";
+
+    private const string SwitchStrictness = "switches";
+
+    /// <summary>Builds a fresh consumer with a hand-written <c>AGENTS.md</c> under one kind of strictness.</summary>
+    private async Task<ProcessResult> BuildHandWrittenInstructionsAsync(string strictness, string instructions, string? extraProperties)
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(directory.Path, "AGENTS.md"),
+            instructions,
+            TestContext.Current.CancellationToken);
+
+        var properties = string.Equals(strictness, PropertyStrictness, StringComparison.Ordinal)
+            ? "<TreatWarningsAsErrors>true</TreatWarningsAsErrors>"
+            : string.Empty;
+
+        var projectDirectory = await CreateConsumerAsync(
+            directory.Path,
+            writeAgentsFile: true,
+            CleanProgram,
+            subdirectory: "src/Consumer",
+            extraProperties: properties + extraProperties);
+
+        var arguments = string.Equals(strictness, SwitchStrictness, StringComparison.Ordinal)
+            ? "build -c Release -warnaserror -p:MSBuildTreatWarningsAsErrors=true"
+            : "build -c Release";
+
+        return await ProcessRunner.RunAsync("dotnet", arguments, projectDirectory, BuildTimeout);
+    }
+
     private static readonly string[] DiagnosticIds =
         ["TRC0101", "TRC0102", "TRC0201", "TRC0301", "TRC0302", "TRC0401", "TRC0402", "TRC0403"];
 
