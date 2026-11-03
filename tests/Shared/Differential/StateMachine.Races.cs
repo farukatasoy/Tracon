@@ -118,6 +118,17 @@ internal abstract partial class StateMachine<TPlan, TStep>
         return Walk(0);
     }
 
+    /// <summary>
+    /// Creates the driver the concurrent check uses: the one the sequential check uses unless a machine needs a store
+    /// that tolerates calls under different ambient tenants at the same time.
+    /// </summary>
+    /// <param name="plan">The plan.</param>
+    /// <param name="stores">The stores under test.</param>
+    /// <param name="scope">The tenant namespace of the race.</param>
+    /// <returns>A driver.</returns>
+    public virtual IStepDriver<TStep> NewRaceDriver(TPlan plan, DifferentialStores stores, DifferentialScope scope)
+        => NewDriver(plan, stores, scope);
+
     private async Task RaceOnceAsync(TPlan plan, int setupCount, int taskCount, DifferentialStores stores)
     {
         var all = RaceSteps(plan);
@@ -131,7 +142,7 @@ internal abstract partial class StateMachine<TPlan, TStep>
         }
 
         var scope = DifferentialScope.Next();
-        var driver = NewDriver(plan, stores, scope);
+        var driver = NewRaceDriver(plan, stores, scope);
 
         try
         {

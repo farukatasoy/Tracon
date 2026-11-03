@@ -3730,6 +3730,60 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     /// <summary>
+    /// Writers that start one run at the same time each leave what they know: the user one gave and the labels another
+    /// gave are both on the run, whichever of them wrote last.
+    /// </summary>
+    /// <remarks>
+    /// A run that is started twice (queued, then running) keeps the attribution the first write got right. A store that
+    /// reads the run, merges and writes it back lets two writers that read the same record each write a copy that is
+    /// missing what the other knew.
+    /// </remarks>
+    [Fact]
+    public async Task Writers_that_start_one_run_at_the_same_time_each_leave_what_they_know()
+    {
+        var token = TestContext.Current.CancellationToken;
+        const int Writers = 8;
+
+        AmbientTenant.TenantId = TenantA;
+
+        for (var round = 0; round < 60; round++)
+        {
+            var id = TraconId.NewId();
+
+            await Store.StartRunAsync(TestData.Run(id) with { Status = RunStatus.Queued, UserId = null, Labels = null }, token);
+
+            // Dedicated threads that start the call together: tasks on the pool run one after the other on a busy
+            // machine, and the window two overlapping writers need is a few instructions wide.
+            using var barrier = new Barrier(Writers);
+            var writers = Enumerable.Range(0, Writers)
+                .Select(index => Task.Factory.StartNew(
+                    () =>
+                    {
+                        barrier.SignalAndWait(token);
+
+                        Store.StartRunAsync(
+                            TestData.Run(id) with
+                            {
+                                UserId = index % 2 == 0 ? "alice" : null,
+                                Labels = index % 2 == 1 ? new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" } : null,
+                            },
+                            token).AsTask().GetAwaiter().GetResult();
+                    },
+                    token,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default))
+                .ToList();
+
+            await Task.WhenAll(writers);
+
+            var run = (await Store.GetRunAsync(id, token)).ShouldNotBeNull();
+
+            run.UserId.ShouldBe("alice", $"round {round}: the user one writer gave was lost");
+            run.Labels.ShouldNotBeNull($"round {round}: the labels one writer gave were lost")["team"].ShouldBe("payments");
+        }
+    }
+
+    /// <summary>
     /// A run's tenant is stored in its canonical form, whichever spelling started it, and the record reads
     /// back with that form.
     /// </summary>

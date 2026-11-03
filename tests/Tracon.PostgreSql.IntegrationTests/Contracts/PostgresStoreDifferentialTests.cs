@@ -17,6 +17,7 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
         await schema.ResetAsync();
 
         var clock = new ManualClock();
+        var flow = new FlowTenantContext();
 
         return new DifferentialStores
         {
@@ -37,6 +38,8 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
             Tenant = schema.Tenant,
             Sessions = schema.Context.Sessions,
             Runs = schema.Context.Runs,
+            FlowTenant = flow,
+            FlowRuns = new SqlRunStore(schema.Context.StoreContext, flow),
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
             Clock = clock,

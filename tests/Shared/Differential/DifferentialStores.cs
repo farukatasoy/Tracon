@@ -23,6 +23,18 @@ internal sealed class DifferentialStores
     /// </summary>
     public ManualClock? Clock { get; init; }
 
+    /// <summary>
+    /// Gets the tenant context <see cref="FlowRuns"/> was built with: each asynchronous flow sets its own tenant, so
+    /// tasks that run at the same time call the store under different ambient tenants.
+    /// </summary>
+    internal FlowTenantContext? FlowTenant { get; init; }
+
+    /// <summary>
+    /// Gets a run store built with <see cref="FlowTenant"/>, for the checks that run several calls at once under
+    /// different ambient tenants; <see langword="null"/> when the provider has none.
+    /// </summary>
+    public IRunStore? FlowRuns { get; init; }
+
     /// <summary>Gets the session store.</summary>
     public ISessionStore? Sessions { get; init; }
 

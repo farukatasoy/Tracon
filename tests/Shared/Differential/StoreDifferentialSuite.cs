@@ -60,6 +60,16 @@ public abstract partial class StoreDifferentialSuite
     public async Task Run_store_agrees_with_the_model()
         => await new RunStateMachine().CheckAsync(await CreateStoresAsync(), Iterations);
 
+    /// <summary>
+    /// Runs run starts, event appends, completions and reads at the same time, each under an ambient tenant of its own, and
+    /// checks that some serial order of the model explains every result: one append wins a sequence number, a completion is
+    /// final, and a read never sees half of a write.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Run_store_races_have_a_serial_explanation()
+        => await new RunStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
+
     /// <summary>Checks the API key store against the model.</summary>
     /// <returns>The completion task.</returns>
     [Fact]

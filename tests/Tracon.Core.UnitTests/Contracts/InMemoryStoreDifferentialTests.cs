@@ -18,6 +18,7 @@ public sealed class InMemoryStoreDifferentialTests : StoreDifferentialSuite
     {
         var tenant = new MutableTenantContext("tenant-a");
         var clock = new ManualClock();
+        var flow = new FlowTenantContext();
 
         return ValueTask.FromResult(new DifferentialStores
         {
@@ -26,6 +27,8 @@ public sealed class InMemoryStoreDifferentialTests : StoreDifferentialSuite
             Tenant = tenant,
             Sessions = new InMemorySessionStore(tenant),
             Runs = new InMemoryRunStore(tenantContext: tenant),
+            FlowTenant = flow,
+            FlowRuns = new InMemoryRunStore(tenantContext: flow),
             Idempotency = new InMemoryIdempotencyStore(),
             ApiKeys = new InMemoryApiKeyStore(),
             Clock = clock,

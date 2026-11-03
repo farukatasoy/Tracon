@@ -27,6 +27,7 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
         }
 
         var clock = new ManualClock();
+        var flow = new FlowTenantContext();
 
         return new DifferentialStores
         {
@@ -42,6 +43,8 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
             Tenant = schema.Tenant,
             Sessions = schema.Context.Sessions,
             Runs = schema.Context.Runs,
+            FlowTenant = flow,
+            FlowRuns = new SqlRunStore(schema.Context.StoreContext, flow),
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
             Clock = clock,
