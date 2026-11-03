@@ -243,6 +243,14 @@ the instructions the model is given **and** the scripts that run on your server,
 `skill.create`, `skill.update`, and `skill.delete` are governance changes, not
 content edits.
 
+The actor, action and entity of an entry are stored whole, except on SQL Server, whose columns
+hold 200 characters: a longer label (the entity of an operation on a session with a
+200-character id is `session:` and those 200 characters) is stored as its first 167
+characters, `~` and 32 hexadecimal digits of its SHA-256, so the entry is never refused and
+two long labels that share their start stay two entries. `?entity=`, `?actor=` and `?action=`
+shorten the filter the same way, so asking for the whole label finds the row. The hash chain
+covers the form that is stored.
+
 Runs do **not** — the run history already holds the full record. The one exception is
 a content guard's block decision, which is a governance decision rather than a run
 detail and must stay traceable after retention deletes the run.
@@ -630,7 +638,9 @@ attachments, sessions, and more.
 A database policy takes precedence. When none exists and retention is enabled in
 configuration, Tracon falls back to its target defaults, including 30 days for
 run events and 14 days for spans. With retention disabled, nothing is removed. A
-policy with `enabled: false` is configured but paused.
+policy with `enabled: false` is configured but paused. `maxAgeDays` takes any number from 1
+up; a policy that reaches further back than the calendar (about 739 000 days from today)
+keeps everything, because no row is that old.
 
 When a policy has `archive: true`, cleanup first sends its batch to the registered
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
@@ -707,6 +717,15 @@ builder.Services.AddSingleton<IDataSubjectResolver, MyResolver>();
 
 Without a resolver registered, both endpoints return `409` — never a silent empty
 result that could be misread as "already erased".
+
+Both endpoints find the conversation behind each of the subject's sessions by restoring the
+session through its agent. When a session belongs to an agent that cannot be compiled (a
+tenant provider binding whose configuration key has no value, an egress policy that no longer
+allows the provider), the answer is `400 Agent compilation failed`, as it is for a run of that
+agent, and nothing is exported, deleted or written to the audit trail. The erasure is not
+skipped for that session: skipping it would delete the rest of the subject's rows, leave the
+conversation behind and still answer `200`. Fix the agent's binding and
+repeat the request.
 
 ```bash
 curl 'http://localhost:5081/tracon/api/data-subjects/user-42/export'

@@ -1196,6 +1196,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the first 32 hexadecimal digits of its SHA-256; the hash chain covers the form that is stored, and `GET /api/audit?entity=` (or `actor`, `action`) shortens the filter the same way, so asking for the whole
   label finds the row. PostgreSQL, SQLite and the in-memory store keep the label whole. A custom `IAuditLog` is held to storing the entry and finding it by the whole label, either way:
   new contract tests `AuditLogContract.A_label_longer_than_a_column_is_stored_found_by_the_whole_label_and_verified` and `AuditLogContract.Two_long_labels_that_share_their_start_stay_two_entries`.
+- **`GET /api/data-subjects/{id}/export` and `DELETE /api/data-subjects/{id}` answer `400 Agent compilation failed` when a session of the subject belongs to an agent that cannot be compiled, instead of `500`.**
+  Finding the conversation behind a session restores the session through its agent; a tenant provider binding whose configuration key has no value, or an egress policy that no longer allows the
+  provider, made the catalog refuse the agent, and the three routes (export, erasure preview, erasure) let the exception out. Nothing is exported, deleted or written to the audit trail in that case,
+  as before; the erasure is not skipped for the session, because skipping it would delete the subject's other rows, leave the conversation behind and answer `200`. The MCP server and the A2A
+  endpoint answer a call to such an agent with their protocol's own error and a fixed text that names no configuration; that was already so.
 
 ## [1.0.0-preview.6] - 2026-10-27
 

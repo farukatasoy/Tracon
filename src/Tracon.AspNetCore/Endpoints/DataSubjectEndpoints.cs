@@ -81,9 +81,15 @@ internal static class DataSubjectEndpoints
             return ResolverNotRegistered();
         }
 
-        var scope = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
+        var (scope, refusal) = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
             .ConfigureAwait(false);
-        var export = await store.ExportAsync(tenants.TenantId, scope, cancellationToken).ConfigureAwait(false);
+
+        if (refusal is not null)
+        {
+            return refusal;
+        }
+
+        var export = await store.ExportAsync(tenants.TenantId, scope!, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Content(export.Json, "application/json");
     }
@@ -109,8 +115,15 @@ internal static class DataSubjectEndpoints
             return ResolverNotRegistered();
         }
 
-        var scope = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
+        var (expanded, refusal) = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
             .ConfigureAwait(false);
+
+        if (refusal is not null)
+        {
+            return refusal;
+        }
+
+        var scope = expanded!;
         var isDryRun = dryRun ?? true;
 
         // A run still in progress writes its session and its checkpoints
@@ -220,6 +233,7 @@ internal static class DataSubjectEndpoints
     /// conversation of every resolved session.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A resolver only ever names sessions/runs/conversations in ITS OWN
     /// identity system; the conversation id an ordinary agent session's chat
     /// history is stored under is Tracon's own internal bookkeeping (a
@@ -227,8 +241,16 @@ internal static class DataSubjectEndpoints
     /// know how to read). Without this step, <see cref="DataSubjectScope.SessionIds"/>
     /// alone could erase a session's ROW but never its conversation history —
     /// see <see cref="SessionConversationResolver"/>.
+    /// </para>
+    /// <para>
+    /// Reading that history restores the session through its agent, and an agent the catalog refuses to compile (a tenant
+    /// provider binding whose key has no value, an egress policy that no longer allows the provider) is the same
+    /// <c>400 Agent compilation failed</c> a run of that agent gets. It is an error and not a skip: an erasure that skipped
+    /// the session would delete the rest of the subject's rows, leave its conversation behind and answer <c>200</c>. Only
+    /// the catalog's refusal is answered here; the resolver is the consumer's code and its own failures are not.
+    /// </para>
     /// </remarks>
-    private static async ValueTask<DataSubjectScope> ExpandScopeAsync(
+    private static async ValueTask<(DataSubjectScope? Scope, ProblemHttpResult? Refusal)> ExpandScopeAsync(
         IDataSubjectResolver resolver,
         SessionConversationResolver conversations,
         string subjectId,
@@ -236,22 +258,37 @@ internal static class DataSubjectEndpoints
         CancellationToken cancellationToken)
     {
         var scope = await resolver.ResolveAsync(subjectId, tenantId, cancellationToken).ConfigureAwait(false);
-        var internalConversationIds = await conversations
-            .ResolveAsync(scope.SessionIds, cancellationToken)
-            .ConfigureAwait(false);
+
+        IReadOnlyList<Guid> internalConversationIds;
+
+        try
+        {
+            internalConversationIds = await conversations
+                .ResolveAsync(scope.SessionIds, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (TraconException ex)
+        {
+            return (null, TypedResults.Problem(
+                title: "Agent compilation failed",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest));
+        }
 
         if (internalConversationIds.Count == 0)
         {
-            return scope;
+            return (scope, null);
         }
 
-        return scope with
-        {
-            ConversationIds = scope.ConversationIds
-                .Concat(internalConversationIds)
-                .Distinct()
-                .ToArray(),
-        };
+        return (
+            scope with
+            {
+                ConversationIds = scope.ConversationIds
+                    .Concat(internalConversationIds)
+                    .Distinct()
+                    .ToArray(),
+            },
+            null);
     }
 
     /// <summary>Summarizes an erasure for the audit trail.</summary>
