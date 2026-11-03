@@ -23,6 +23,11 @@ namespace Tracon;
 /// tenant would fall back to the wrong value. The same choice was made for
 /// <see cref="SqlAgentSkillStore"/>.
 /// </para>
+/// <para>
+/// Every method folds the tenant with <see cref="AmbientTenantScope.Normalize"/> first, not only where the
+/// command binds it: the definition a call returns is built from that value (the tenant is not a column the
+/// queries read back), so it must carry the canonical form whichever spelling the caller used.
+/// </para>
 /// </remarks>
 internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
 {
@@ -50,7 +55,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         string name,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectWorkflow);
@@ -73,7 +78,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         string tenantId,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var command = CreateCommand(_sql.SelectWorkflows);
         DbHelpers.AddTenant(command, tenantId);
@@ -100,7 +105,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         WorkflowDefinition definition,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentNullException.ThrowIfNull(definition);
 
         var payload = JsonSerializer.Serialize(
@@ -116,7 +121,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         string name,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.DeleteWorkflow);
@@ -133,7 +138,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         int version,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectWorkflowVersion);
@@ -158,7 +163,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         string name,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectWorkflowVersions);
@@ -183,7 +188,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         int version,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectWorkflowVersion);

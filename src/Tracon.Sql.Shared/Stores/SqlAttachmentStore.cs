@@ -40,6 +40,10 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     {
         ArgumentNullException.ThrowIfNull(content);
 
+        // Folded before anything is written: the external storage receives it, and the descriptor is built from it.
+        // A tenant the store refuses must be refused before the content leaves, not after (the bytes would stay
+        // with no row to find them by).
+        var tenantId = AmbientTenantScope.Normalize(content.TenantId);
         var id = TraconId.NewId();
         var now = DateTimeOffset.UtcNow;
         var sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(content.Data.Span));
@@ -51,7 +55,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         {
             using var stream = new MemoryStream(content.Data.ToArray(), writable: false);
             externalUri = await _storage
-                .WriteAsync(content.TenantId, id, stream, content.MediaType, cancellationToken)
+                .WriteAsync(tenantId, id, stream, content.MediaType, cancellationToken)
                 .ConfigureAwait(false);
         }
         else
@@ -61,7 +65,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
 
         var command = CreateCommand(_sql.InsertAttachment);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, content.TenantId);
+        DbHelpers.AddTenant(command, tenantId);
         Dialect.AddText(command, "session_id", content.SessionId);
         Dialect.AddUuid(command, "run_id", content.RunId);
         DbHelpers.Add(command, "file_name", content.FileName);
@@ -81,7 +85,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         return new AttachmentDescriptor
         {
             Id = id,
-            TenantId = content.TenantId,
+            TenantId = tenantId,
             SessionId = content.SessionId,
             RunId = content.RunId,
             FileName = content.FileName,

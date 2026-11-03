@@ -253,6 +253,37 @@ public sealed class AttachmentByteLifecycleTests(SqliteSchemaFixture schema)
     private static string Iso(DateTimeOffset value)
         => value.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
 
+    [Fact]
+    public async Task The_external_content_is_written_under_the_canonical_tenant()
+    {
+        var saved = await Attachments.SaveAsync(new AttachmentContent
+        {
+            TenantId = "TENANT-A",
+            FileName = "photo.png",
+            MediaType = "image/png",
+            Data = new byte[] { 1, 2, 3 },
+        });
+
+        // The storage addresses content by tenant: two spellings of one tenant must not become two places.
+        saved.TenantId.ShouldBe("tenant-a");
+        _storage.Stored.ShouldHaveSingleItem().Host.ShouldBe("tenant-a");
+    }
+
+    [Fact]
+    public async Task A_tenant_the_store_refuses_leaves_no_content_in_the_external_storage()
+    {
+        await Should.ThrowAsync<ArgumentException>(async () => await Attachments.SaveAsync(new AttachmentContent
+        {
+            TenantId = "caf\u00E9",
+            FileName = "photo.png",
+            MediaType = "image/png",
+            Data = new byte[] { 1, 2, 3 },
+        }));
+
+        // The content was written before the row was refused, and no row names its location.
+        _storage.Stored.ShouldBeEmpty();
+    }
+
     private async Task<AttachmentDescriptor> SaveAsync(string? sessionId)
         => await Attachments.SaveAsync(new AttachmentContent
         {

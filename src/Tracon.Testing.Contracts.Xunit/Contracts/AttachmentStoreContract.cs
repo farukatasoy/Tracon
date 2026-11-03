@@ -69,6 +69,23 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
         buffer.ToArray().ShouldBe(data);
     }
 
+    /// <summary>
+    /// An attachment written under one spelling of a tenant is returned, read and listed under the canonical tenant.
+    /// </summary>
+    /// <remarks>
+    /// The endpoints compare a descriptor's tenant with the request's as ordinal text. A store that returns the
+    /// spelling the caller wrote makes the descriptor of a save differ from the descriptor of the next read.
+    /// </remarks>
+    [Fact]
+    public async Task An_attachment_written_under_another_spelling_is_read_under_the_canonical_tenant()
+    {
+        var saved = await Store.SaveAsync(Content("TENANT-A", sessionId: "s-1"));
+
+        saved.TenantId.ShouldBe("tenant-a");
+        (await Store.GetAsync("Tenant-A", saved.Id)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.ListAsync(new AttachmentQuery { TenantId = "tenant-A" })).ShouldHaveSingleItem().TenantId.ShouldBe("tenant-a");
+    }
+
     [Fact]
     public async Task Another_tenants_attachment_is_not_visible()
     {
