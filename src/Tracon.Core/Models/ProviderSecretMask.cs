@@ -70,17 +70,31 @@ internal sealed class ProviderSecretMask
         }
 
         // A set, longest first: a shape that contains another is replaced before the shorter one can split it.
-        var shapes = new HashSet<string>(StringComparer.Ordinal)
-        {
-            value,
-            JsonEncodedText.Encode(value).Value,
-            JsonEncodedText.Encode(value, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value,
-            JsonEncodedText.Encode(value, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value.Replace("/", "\\/", StringComparison.Ordinal),
-            Uri.EscapeDataString(value),
-            System.Net.WebUtility.UrlEncode(value),
-        };
+        var shapes = new HashSet<string>(StringComparer.Ordinal) { value };
+
+        AddShape(shapes, value, static v => JsonEncodedText.Encode(v).Value);
+        AddShape(shapes, value, static v => JsonEncodedText.Encode(v, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value);
+        AddShape(shapes, value, static v => JsonEncodedText.Encode(v, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value.Replace("/", "\\/", StringComparison.Ordinal));
+        AddShape(shapes, value, static v => Uri.EscapeDataString(v));
+        AddShape(shapes, value, static v => System.Net.WebUtility.UrlEncode(v));
 
         return new([.. shapes.OrderByDescending(static shape => shape.Length).ThenBy(static shape => shape, StringComparer.Ordinal)]);
+    }
+
+    // A value the encoders refuse (an unpaired surrogate) has no escaped form; the raw form is still replaced. The mask is
+    // built while a client is built, outside any handler of a provider failure, so it must not throw.
+    private static void AddShape(HashSet<string> shapes, string value, Func<string, string> encode)
+    {
+        try
+        {
+            shapes.Add(encode(value));
+        }
+        catch (ArgumentException)
+        {
+        }
+        catch (UriFormatException)
+        {
+        }
     }
 
     /// <summary>Replaces every value of the credential in <paramref name="text"/>.</summary>

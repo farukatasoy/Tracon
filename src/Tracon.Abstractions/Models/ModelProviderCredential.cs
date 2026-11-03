@@ -9,9 +9,11 @@ namespace Tracon;
 /// at call time, by resolving a <see cref="TenantProviderBinding"/>'s
 /// configuration key through the application's configuration system; it is
 /// never constructed from a database row and never persisted anywhere.
-/// If a provider's error text quotes <see cref="ApiKey"/> back, Tracon replaces the key
-/// with <c>[redacted]</c> before that text reaches a log line or a span status. The match
-/// is exact: a part of the key the provider quotes on its own is left as the provider wrote it.
+/// When a chat model call is made with this credential and the provider's error text quotes
+/// <see cref="ApiKey"/> back, Tracon replaces the key with <c>[redacted]</c> before that text reaches
+/// a log line or a span status. The match is exact: a part of the key the provider quotes on its own
+/// is left as the provider wrote it. Speech and live voice calls, and the key registered at startup,
+/// are not covered.
 /// </remarks>
 public sealed record ModelProviderCredential
 {

@@ -567,26 +567,32 @@ What this does **not** cover:
 
 | Not replaced | Why | What to do |
 |---|---|---|
-| The shared key you register at startup, such as `UseOpenAI(apiKey)` | Tracon does not hold that value. It lives in the provider's options. | Give the tenant its own key, or filter the loggers (below). Keep `RecordSensitiveData` off: a trace store keeps the span status, and a quoted shared key would then reach your database. |
+| The shared key you register at startup, such as `UseOpenAI(apiKey)` | Tracon does not hold that value. It lives in the provider's options. | Give the tenant its own key. Keep `RecordSensitiveData` off: a trace store keeps the span status, and a quoted shared key would then reach your database. A logger filter (below) does not touch the span status, which also leaves with every exporter you attach. |
 | A part of the key that the provider quotes itself | The match is exact. It is not a pattern of keys. At the time of writing, OpenAI quotes the first eight and the last four characters of a refused key, and the Anthropic and Google answers quote no part of it. | Nothing: the provider chose to show that part. |
 | A key shorter than eight characters | A value that short is also ordinary text. | Use the key the provider issued. |
 | A log writer that reads inner exceptions property by property | `Message` and `ToString()` are replaced. The original exception stays as the inner exception, because retry, fallback and the circuit breaker decide from it. | Write the exception's text, not its properties. |
 | The error of a speech or live voice provider | These calls do not pass through the model pipeline, and this replacement was not measured on them. | Treat the log line of a failed speech call as readable by anyone who reads the log. |
 
-If a log reader must never see a shared key, filter the loggers. The first two carry nothing but the
-provider's detail. The other three also carry the run id and the `ref` that an operator uses to find
-a failed run, so filter them only when the key cannot be allowed in the log at all.
+If a log reader must never see a shared key, filter all five loggers. The first two carry nothing but
+the provider's detail. The other three also carry the run id and the `ref` that an operator uses to
+find a failed run, so filtering them hides those too. Filtering only the first two leaves the key in
+the other three.
 
 ```json
 {
   "Logging": {
     "LogLevel": {
       "Microsoft.Extensions.AI.OpenTelemetryChatClient": "Error",
-      "Tracon.ModelProvider": "None"
+      "Tracon.ModelProvider": "None",
+      "Tracon.RunRecordingAgent": "None",
+      "Tracon.AgentEndpoints": "None",
+      "Tracon.OpenAICompat": "None"
     }
   }
 }
 ```
+
+This keeps the key out of the log. It does not keep it out of the `chat` span status.
 
 ## Add readiness and provider health
 

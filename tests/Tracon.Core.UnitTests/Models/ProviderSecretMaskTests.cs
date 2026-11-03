@@ -36,6 +36,18 @@ public sealed class ProviderSecretMaskTests
         mask.Apply($"{Value} and again {Value}\n{Value}").ShouldBe("[redacted] and again [redacted]\n[redacted]");
     }
 
+    [Fact]
+    public void A_value_that_is_not_valid_text_still_builds_a_mask_and_the_raw_value_is_replaced()
+    {
+        // An unpaired surrogate cannot be escaped for JSON or a URL. Building the mask runs while a client is built,
+        // outside any handler of a provider failure, so it must not throw for a value the encoders refuse.
+        var value = "canary-unpaired-surrogate-\uD800-value";
+
+        var mask = Should.NotThrow(() => ProviderSecretMask.ForValue(value));
+
+        mask.Apply($"key: {value} end").ShouldBe("key: [redacted] end");
+    }
+
     [Theory]
     [InlineData("kd8+Q2/xv0Zp9LmN3wRt5YbE7UaHcJfG")]
     [InlineData("quoted\"and\\slashed-key-value-9981")]
