@@ -40,6 +40,8 @@
   <ItemGroup>
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/TraconTestHost.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/ProductOpenApiDocument.cs" LinkBase="Shared" />
+    <!-- ProductOpenApiDocument registers the document corrections of the reference host; they are one file in the sample. -->
+    <Compile Include="../../samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/HangingModelProvider.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/ManualTimeProvider.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/TestData.cs" LinkBase="Shared" />
