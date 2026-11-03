@@ -1,11 +1,17 @@
 Failing probes of client-roundtrip.mjs that are not fixed. Each is listed in KNOWN_OPEN there, so the sweep stays green
 while they are open and goes red when one of them is fixed and left on the list.
 
-1. Three operations answer a 200 with a body that the document does not list.
+1. Four operations answer a 200 whose media type or body the document does not list.
 
    POST /tracon/a2a/{agent}                          application/json  (the JSON-RPC answer)
    GET  /tracon/a2a/{agent}/.well-known/agent-card.json   application/json  (the agent card)
    GET  /tracon/api/mcp-servers/{name}/oauth/callback     text/html         (the page the browser lands on)
+   GET  /tracon/api/attachments/{id}                 the stored media type (text/plain, application/pdf, ...)
+                                                     where the document lists only application/octet-stream
+
+   The first three list no content at all; the fourth lists one media type and the server answers the one the upload
+   was stored under. Describing the download as "any media type" needs a wildcard response content type, which the
+   document generator refuses to write (it throws on `*/*`), so the fix is a rule in the document corrections.
 
    The document says "200, no content". A client generated from it types the answer as void: openapi-typescript gives
    `content?: never`, NSwag gives a method that returns Task. The body is there and the type says it is not.

@@ -31,6 +31,7 @@ export const KNOWN_OPEN = new Map([
   ['TraconA2A_summarizer', 'answers a JSON-RPC body; the document lists no content for its 200'],
   ['TraconA2AAgentCard_summarizer', 'answers the agent card as JSON; the document lists no content for its 200'],
   ['TraconMcpOAuthCallback', 'answers an HTML page; the document lists no content for its 200'],
+  ['TraconDownloadAttachment', 'answers the stored media type (text/plain for the sample); the document lists only application/octet-stream'],
 ]);
 
 /** The number of operations that must read back as a typed value; it grows when the fixtures improve, never shrinks. */
@@ -73,6 +74,10 @@ function pathValue(parameter, operation, document, fixtures) {
   const schema = resolve(parameter.schema ?? {}, document);
 
   if (schema.format === 'uuid') {
+    if (name === 'id' && operation.path.includes('/attachments/')) {
+      return fixtures.attachmentId;
+    }
+
     return ['runid', 'id', 'a', 'b', 'scoreid', 'ruleid'].includes(name) ? fixtures.runId : FIXTURE_GUID;
   }
 
@@ -248,7 +253,7 @@ export async function sweep(baseUrl, document, mutate) {
   const validator = createValidator(document);
   const { client, capture } = createRecordingClient(baseUrl, mutate);
   const operations = listOperations(document).sort((a, b) => rank(a) - rank(b));
-  const fixtures = { runId: FIXTURE_GUID };
+  const fixtures = { runId: FIXTURE_GUID, attachmentId: FIXTURE_GUID };
   const outcomes = [];
 
   for (const operation of operations) {
@@ -256,6 +261,11 @@ export async function sweep(baseUrl, document, mutate) {
 
     if (operation.operationId === 'TraconRunAgent' && capture.last) {
       fixtures.runId = /"runId":"([0-9a-f-]{36})"/u.exec(capture.last.text)?.[1] ?? fixtures.runId;
+    }
+
+    // The upload is the one operation that makes an attachment to download.
+    if (operation.operationId === 'TraconUploadAttachment' && capture.last) {
+      fixtures.attachmentId = /"id":"([0-9a-f-]{36})"/u.exec(capture.last.text)?.[1] ?? fixtures.attachmentId;
     }
 
     outcomes.push(outcome);
