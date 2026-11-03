@@ -43,6 +43,9 @@ internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator, IDisposable
     /// <inheritdoc />
     public int Order => 10;
 
+    /// <summary>Gets the number of telemetry lanes the decorator holds, which is zero before the first decorated call and after the decorator is disposed.</summary>
+    internal int LaneCount => Volatile.Read(ref _pool)?.LaneCount ?? 0;
+
     /// <inheritdoc />
     public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
     {

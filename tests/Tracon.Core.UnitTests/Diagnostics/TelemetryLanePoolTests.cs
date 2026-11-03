@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Diagnostics;
@@ -314,6 +316,136 @@ public sealed class TelemetryLanePoolTests
         pool.LaneCount.ShouldBe(0, "the lane that came back after the pool closed is disposed");
     }
 
+    [Theory]
+    [InlineData(RunShape.Response)]
+    [InlineData(RunShape.Stream)]
+    [InlineData(RunShape.Failure)]
+    public async Task A_lane_writes_the_tags_a_telemetry_agent_built_over_the_agent_itself_writes(RunShape shape)
+    {
+        using var probe = new TelemetryProbe();
+        using var pool = probe.NewPool();
+        var chatAgent = CreateChatAgent("alpha", "provider-one", "model-1", "https://models.example:8443/v1", fail: shape == RunShape.Failure);
+
+        // The framework's telemetry agent reads the provider, the default model and the endpoint of the chat client
+        // once, when it is built. A lane is built before any run is aimed at it, so it has to be built for those values.
+#pragma warning disable MAAI001
+        using var direct = new OpenTelemetryAgent(new AggregatedResponseGuard(chatAgent), probe.Source, autoWireChatClient: false);
+#pragma warning restore MAAI001
+        var pooled = new PooledOpenTelemetryAgent(chatAgent, pool);
+
+        await RunAsync(direct, shape);
+        await RunAsync(pooled, shape);
+
+        var spans = probe.AgentSpans();
+
+        spans.Count.ShouldBe(2);
+
+        var expected = Describe(spans[0]);
+        var actual = Describe(spans[1]);
+
+        actual.Keys.OrderBy(static key => key, StringComparer.Ordinal).ShouldBe(expected.Keys.OrderBy(static key => key, StringComparer.Ordinal));
+
+        foreach (var key in new[]
+        {
+            "gen_ai.request.model", "gen_ai.provider.name", "server.address", "server.port", "gen_ai.agent.name", "gen_ai.agent.id",
+            "gen_ai.agent.description", "gen_ai.operation.name", "error.type",
+        })
+        {
+            actual.GetValueOrDefault(key).ShouldBe(expected.GetValueOrDefault(key), key);
+        }
+
+        actual["gen_ai.request.model"].ShouldBe("model-1");
+        actual["gen_ai.provider.name"].ShouldBe("provider-one");
+        actual["server.address"].ShouldBe("models.example");
+        actual["server.port"].ShouldBe("8443");
+        spans[1].Status.ShouldBe(spans[0].Status);
+    }
+
+    [Fact]
+    public async Task Agents_that_differ_in_provider_model_or_endpoint_use_lanes_of_their_own_and_keep_their_own_tags()
+    {
+        using var probe = new TelemetryProbe();
+        using var pool = probe.NewPool();
+        var one = new PooledOpenTelemetryAgent(CreateChatAgent("alpha", "provider-one", "model-1", "https://one.example:8443"), pool);
+        var otherModel = new PooledOpenTelemetryAgent(CreateChatAgent("beta", "provider-one", "model-2", "https://one.example:8443"), pool);
+        var otherEndpoint = new PooledOpenTelemetryAgent(CreateChatAgent("gamma", "provider-one", "model-1", "https://two.example"), pool);
+        var sameAsOne = new PooledOpenTelemetryAgent(CreateChatAgent("delta", "provider-one", "model-1", "https://one.example:8443/other/path"), pool);
+
+        foreach (var agent in new[] { one, otherModel, otherEndpoint, sameAsOne, one })
+        {
+            await agent.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+        }
+
+        pool.LaneCount.ShouldBe(3, "the path of the endpoint is not read, so alpha and delta share a lane");
+
+        var spans = probe.AgentSpans().GroupBy(static span => Tag(span, "gen_ai.agent.name")!, StringComparer.Ordinal)
+            .ToDictionary(static group => group.Key, static group => group.First(), StringComparer.Ordinal);
+
+        Tag(spans["beta"], "gen_ai.request.model").ShouldBe("model-2");
+        Tag(spans["gamma"], "server.address").ShouldBe("two.example");
+        Tag(spans["delta"], "gen_ai.request.model").ShouldBe("model-1");
+        Tag(spans["delta"], "server.address").ShouldBe("one.example");
+    }
+
+    [Fact]
+    public async Task One_lane_that_serves_one_agent_after_another_names_each_of_them_on_its_own_span()
+    {
+        using var probe = new TelemetryProbe();
+        using var pool = probe.NewPool();
+        var alpha = new PooledOpenTelemetryAgent(new ScriptedAgent("alpha"), pool);
+        var beta = new PooledOpenTelemetryAgent(new ScriptedAgent("beta"), pool);
+
+        await alpha.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+        await beta.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+        await foreach (var unused in alpha.RunStreamingAsync("hello", cancellationToken: TestContext.Current.CancellationToken))
+        {
+            // Read to the end.
+        }
+
+        await foreach (var unused in beta.RunStreamingAsync("hello", cancellationToken: TestContext.Current.CancellationToken))
+        {
+            // Read to the end.
+        }
+
+        pool.LaneCount.ShouldBe(1, "all four calls ran one after another on the one lane");
+
+        var spans = probe.AgentSpans();
+
+        spans.Select(static span => Tag(span, "gen_ai.agent.name")).ShouldBe(["alpha", "beta", "alpha", "beta"]);
+        spans.Select(static span => Tag(span, "gen_ai.agent.id")).ShouldBe(["alpha-id", "beta-id", "alpha-id", "beta-id"]);
+        spans.Select(static span => Tag(span, "gen_ai.agent.description")).ShouldBe(["about alpha", "about beta", "about alpha", "about beta"]);
+    }
+
+    [Fact]
+    public async Task A_stream_that_is_canceled_hands_its_lane_back_and_a_stream_never_read_takes_none()
+    {
+        using var probe = new TelemetryProbe();
+        using var pool = probe.NewPool();
+        var agent = new PooledOpenTelemetryAgent(new ScriptedAgent("alpha"), pool);
+        using var cancellation = new CancellationTokenSource();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var unused in agent.RunStreamingAsync("hello", cancellationToken: cancellation.Token))
+            {
+                await cancellation.CancelAsync();
+            }
+        });
+
+        pool.LaneCount.ShouldBe(1);
+        pool.IdleCount.ShouldBe(1);
+
+        await using (var enumerator = agent.RunStreamingAsync("hello", cancellationToken: TestContext.Current.CancellationToken)
+            .GetAsyncEnumerator(TestContext.Current.CancellationToken))
+        {
+            // Asking for the enumerator is not asking for an update: the lane is taken when the first update is asked for.
+            pool.IdleCount.ShouldBe(1);
+        }
+
+        pool.LaneCount.ShouldBe(1);
+        pool.IdleCount.ShouldBe(1);
+    }
+
     [Fact]
     public async Task The_decorator_hands_back_an_agent_that_borrows_lanes_and_leaves_a_disabled_one_alone()
     {
@@ -335,12 +467,71 @@ public sealed class TelemetryLanePoolTests
         (await decorated.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken)).Text.ShouldBe(ScriptedAgent.Answer);
     }
 
+    [Fact]
+    public async Task The_container_disposes_the_decorator_and_with_it_the_lanes_when_the_host_stops()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(Options.Create(new TraconOptions()));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
+
+        var provider = services.BuildServiceProvider();
+        var decorator = provider.GetServices<IAgentDecorator>().OfType<OpenTelemetryAgentDecorator>().Single();
+        var descriptor = new AgentDescriptor { Name = "alpha", Origin = AgentDefinitionOrigin.Code, SourceName = "test" };
+        var decorated = decorator.Decorate(new ScriptedAgent("alpha"), descriptor);
+
+        decorator.LaneCount.ShouldBe(0, "no lane exists before the first call");
+
+        await decorated.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+        await decorated.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+
+        decorator.LaneCount.ShouldBe(1);
+
+        await provider.DisposeAsync();
+
+        decorator.LaneCount.ShouldBe(0);
+    }
+
+    public enum RunShape
+    {
+        Response,
+        Stream,
+        Failure,
+    }
+
+    private static ChatClientAgent CreateChatAgent(string name, string provider, string model, string endpoint, bool fail = false)
+        => new(
+            new MetadataChatClient(new ChatClientMetadata(provider, new Uri(endpoint), model), fail),
+            new ChatClientAgentOptions { Id = name + "-id", Name = name, Description = "about " + name });
+
+    private static async Task RunAsync(AIAgent agent, RunShape shape)
+    {
+        switch (shape)
+        {
+            case RunShape.Response:
+                await agent.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+                break;
+            case RunShape.Stream:
+                await foreach (var unused in agent.RunStreamingAsync("hello", cancellationToken: TestContext.Current.CancellationToken))
+                {
+                    // Read to the end.
+                }
+
+                break;
+            default:
+                await Should.ThrowAsync<InvalidOperationException>(
+                    async () => await agent.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken));
+                break;
+        }
+    }
+
+    private static Dictionary<string, string?> Describe(Activity span)
+        => span.TagObjects.ToDictionary(static tag => tag.Key, static tag => tag.Value?.ToString(), StringComparer.Ordinal);
+
     private static string? Tag(Activity span, string key) => span.GetTagItem(key)?.ToString();
 
     /// <summary>Listens to the spans of one source name, and makes pools that write to it.</summary>
     private sealed class TelemetryProbe : IDisposable
     {
-        private readonly string _source = "lane-pool-test-" + Guid.NewGuid().ToString("N");
         private readonly ActivityListener _activities;
         private readonly List<Activity> _spans = [];
         private readonly Lock _gate = new();
@@ -349,7 +540,7 @@ public sealed class TelemetryLanePoolTests
         {
             _activities = new ActivityListener
             {
-                ShouldListenTo = source => string.Equals(source.Name, _source, StringComparison.Ordinal),
+                ShouldListenTo = source => string.Equals(source.Name, Source, StringComparison.Ordinal),
                 Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                 ActivityStopped = activity =>
                 {
@@ -362,7 +553,9 @@ public sealed class TelemetryLanePoolTests
             ActivitySource.AddActivityListener(_activities);
         }
 
-        public TelemetryLanePool NewPool(bool enableSensitiveData = false) => new(_source, enableSensitiveData);
+        public string Source { get; } = "lane-pool-test-" + Guid.NewGuid().ToString("N");
+
+        public TelemetryLanePool NewPool(bool enableSensitiveData = false) => new(Source, enableSensitiveData);
 
         public List<Activity> AgentSpans()
         {
@@ -453,6 +646,8 @@ public sealed class TelemetryLanePoolTests
         {
             for (var index = 0; index < StreamLength; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 await Task.Yield();
 
                 if (index == 1 && Failure is not null)
@@ -462,6 +657,38 @@ public sealed class TelemetryLanePoolTests
 
                 yield return new AgentResponseUpdate(ChatRole.Assistant, "part ");
             }
+        }
+    }
+
+    /// <summary>A chat client that answers with fixed text, names a provider, a default model and an endpoint, and can be made to fail.</summary>
+    private sealed class MetadataChatClient(ChatClientMetadata metadata, bool fail) : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => fail
+                ? Task.FromException<ChatResponse>(new InvalidOperationException("model down"))
+                : Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"))
+                {
+                    Usage = new UsageDetails { InputTokenCount = 3, OutputTokenCount = 2, TotalTokenCount = 5 },
+                });
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "ok");
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null)
+            => serviceKey is null && serviceType.IsInstanceOfType(metadata) ? metadata : null;
+
+        public void Dispose()
+        {
         }
     }
 

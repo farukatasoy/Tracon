@@ -23,7 +23,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// Sits directly inside <see cref="OpenTelemetryAgent"/>
-/// (<see cref="OpenTelemetryAgentDecorator"/>). With the raw representation
+/// (<see cref="TelemetryLane"/>). With the raw representation
 /// cleared, <see cref="OpenTelemetryAgent"/> returns this same response object.
 /// A response whose raw representation still matches it is left alone.
 /// </para>

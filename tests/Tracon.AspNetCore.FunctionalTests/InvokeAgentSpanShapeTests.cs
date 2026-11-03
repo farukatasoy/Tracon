@@ -83,6 +83,41 @@ public sealed class InvokeAgentSpanShapeTests
         Verify("approval-run", trace);
     }
 
+    [Fact]
+    public async Task A_run_over_a_real_provider_client_writes_the_model_the_provider_and_the_endpoint_on_its_agent_span()
+    {
+        // The test double of the other scenarios names no provider, no model and no endpoint, so a span that lost them
+        // would still match its golden file. The framework's telemetry agent reads those from the chat client when it is
+        // built; this run goes through the real OpenAI client, against a local server.
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        await using var host = await TraconTestHost.StartAsync(
+            builder => builder
+                .UseOpenAICompatible("shape-openai", options => options.Endpoint = server.BaseAddress)
+                .AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Instructions = "Reply briefly.",
+                    Model = new ModelBinding { Provider = "shape-openai", Model = "fake-local-model" },
+                    Origin = AgentDefinitionOrigin.Code,
+                }),
+            configureServices: static services => services.Configure<TraconOptions>(static options => options.Observability.SuccessSampleRatio = 1));
+
+        var (_, trace) = await RunTraceReader.RunAsync(host, AgentName, "hello");
+
+        var agentSpan = RunTraceReader.Operations(trace, "invoke_agent")[0];
+        var chatSpan = RunTraceReader.Operations(trace, "chat")[0];
+
+        foreach (var span in new[] { agentSpan, chatSpan })
+        {
+            span.Attributes["gen_ai.request.model"].ShouldBe("fake-local-model", span.Name);
+            span.Attributes["server.address"].ShouldBe(server.BaseAddress.Host, span.Name);
+            span.Attributes["server.port"].ShouldBe(server.BaseAddress.Port.ToString(System.Globalization.CultureInfo.InvariantCulture), span.Name);
+            span.Attributes["gen_ai.provider.name"].ShouldNotBeNullOrWhiteSpace(span.Name);
+        }
+
+        agentSpan.Attributes["gen_ai.provider.name"].ShouldBe(chatSpan.Attributes["gen_ai.provider.name"]);
+    }
+
     private static async Task<RunTrace> RunInOneResponseAsync(TraconTestHost host, string? sessionId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative))

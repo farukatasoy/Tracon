@@ -21,7 +21,7 @@ namespace Tracon;
 internal sealed class PooledOpenTelemetryAgent : DelegatingAIAgent
 {
     private readonly TelemetryLanePool _pool;
-    private readonly string? _providerName;
+    private readonly TelemetryIdentity _identity;
 
     /// <summary>Initializes an agent that runs <paramref name="innerAgent"/> through the lanes of <paramref name="pool"/>.</summary>
     /// <param name="innerAgent">The agent to run.</param>
@@ -32,7 +32,7 @@ internal sealed class PooledOpenTelemetryAgent : DelegatingAIAgent
     {
         ArgumentNullException.ThrowIfNull(pool);
         _pool = pool;
-        _providerName = innerAgent.GetService<AIAgentMetadata>()?.ProviderName;
+        _identity = TelemetryIdentity.Of(innerAgent);
     }
 
     /// <inheritdoc />
@@ -42,7 +42,7 @@ internal sealed class PooledOpenTelemetryAgent : DelegatingAIAgent
         AgentRunOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var lane = _pool.TryRent(_providerName, InnerAgent);
+        var lane = _pool.TryRent(_identity, InnerAgent);
 
         if (lane is null)
         {
@@ -66,7 +66,7 @@ internal sealed class PooledOpenTelemetryAgent : DelegatingAIAgent
         AgentRunOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var lane = _pool.TryRent(_providerName, InnerAgent);
+        var lane = _pool.TryRent(_identity, InnerAgent);
 
         try
         {
