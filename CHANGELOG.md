@@ -1190,6 +1190,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A retention policy of more days than the calendar has keeps everything, and no longer fails the preview.** `PUT /api/retention/{target}` accepts any `maxAgeDays` from 1 up, and the
   cutoff `now - TimeSpan.FromDays(maxAgeDays)` threw for about 739 000 days and more (a result before year 1) and for more than 10.7 million (a `TimeSpan` cannot hold them):
   `GET /api/retention/preview` answered `500` and a run of that target could not compute its cutoff. The cutoff is now the first instant a date can hold, and no row is older.
+- **An audit entry whose actor, action or entity is longer than its SQL Server column is stored shortened, no longer lost.** The entity of an entry is a prefix and the name the caller chose
+  (`session:` and the longest session id the API accepts is 208 characters) and the actor is whatever claim the identity provider sent; the `audit_log` columns hold 200 characters. The write
+  failed, the recorder logged it and carried on, and the operation (the delete of that session, for one) left no entry. A label over the column is now stored as its first 167 characters, `~` and
+  the first 32 hexadecimal digits of its SHA-256; the hash chain covers the form that is stored, and `GET /api/audit?entity=` (or `actor`, `action`) shortens the filter the same way, so asking for the whole
+  label finds the row. PostgreSQL, SQLite and the in-memory store keep the label whole. A custom `IAuditLog` is held to storing the entry and finding it by the whole label, either way:
+  new contract tests `AuditLogContract.A_label_longer_than_a_column_is_stored_found_by_the_whole_label_and_verified` and `AuditLogContract.Two_long_labels_that_share_their_start_stay_two_entries`.
 
 ## [1.0.0-preview.6] - 2026-10-27
 

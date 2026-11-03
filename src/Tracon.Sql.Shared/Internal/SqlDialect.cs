@@ -224,6 +224,15 @@ internal abstract class SqlDialect
     public abstract bool IsNumberOutOfRange(Exception exception);
 
     /// <summary>
+    /// Gets the longest text, in UTF-16 code units, that the actor, action and entity columns of the audit trail hold.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="int.MaxValue"/> where the columns hold text of any length. The audit trail shortens a longer label
+    /// instead of failing the write (see <c>SqlText.Fit</c>): an entry that is refused is an entry that is lost.
+    /// </remarks>
+    public virtual int AuditLabelLimit => int.MaxValue;
+
+    /// <summary>
     /// Gets a value indicating whether this provider's upsert texts are more than one
     /// statement and therefore must run inside a transaction to be atomic.
     /// </summary>
