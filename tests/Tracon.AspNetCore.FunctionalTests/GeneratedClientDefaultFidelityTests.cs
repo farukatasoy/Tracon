@@ -89,12 +89,13 @@ public sealed class GeneratedClientDefaultFidelityTests
             }
         }
 
-        // A walk that found nothing would pass for the wrong reason.
-        examined.ShouldBeGreaterThan(40);
-        declared.ShouldBeGreaterThanOrEqualTo(14);
         undeclared.ShouldBeEmpty("the server fills these in when they are left out, but the document does not say so: " + string.Join("; ", undeclared));
         serverMismatch.ShouldBeEmpty("the document default and the server default differ: " + string.Join("; ", serverMismatch));
         clientMismatch.ShouldBeEmpty("a caller of the generated client sends something else when it leaves these out: " + string.Join("; ", clientMismatch));
+
+        // A walk that found nothing would pass for the wrong reason.
+        examined.ShouldBeGreaterThan(40);
+        declared.ShouldBeGreaterThanOrEqualTo(14);
     }
 
     [Fact]

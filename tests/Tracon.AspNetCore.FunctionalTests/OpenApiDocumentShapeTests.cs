@@ -132,8 +132,7 @@ public sealed class OpenApiDocumentShapeTests
         {
             var property = schemas.GetProperty(schema).GetProperty("properties").GetProperty(member);
 
-            property.GetProperty("type").EnumerateArray().Any(static type => string.Equals(type.GetString(), "null", StringComparison.Ordinal))
-                .ShouldBeTrue($"{schema}.{member} must accept null");
+            AcceptsNull(property, schemas).ShouldBeTrue($"{schema}.{member} must accept null");
             RequiredNames(schemas.GetProperty(schema)).Contains(member, StringComparer.Ordinal).ShouldBeFalse($"{schema}.{member} must be optional");
         }
     }
