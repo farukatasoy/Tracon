@@ -226,6 +226,59 @@ public sealed class RetentionExecutorTests
         preview[0].MatchingRows.ShouldBe(50);
     }
 
+    /// <summary>
+    /// A policy that keeps rows for longer than the calendar has days keeps everything: nothing is older than it.
+    /// </summary>
+    /// <remarks>
+    /// The cutoff was <c>now - TimeSpan.FromDays(days)</c>, which throws once the result lies before the first instant a
+    /// date can hold, and a TimeSpan cannot hold 2 147 483 647 days at all. The API takes any number of days from 1 up, so a
+    /// saved policy made the preview answer <c>500</c> and every run of that target fail, for ever.
+    /// </remarks>
+    [Theory]
+    [InlineData(739_000)]
+    [InlineData(739_500)]
+    [InlineData(10_675_199)]
+    [InlineData(10_675_200)]
+    [InlineData(int.MaxValue)]
+    public async Task A_policy_of_more_days_than_the_calendar_has_keeps_everything(int days)
+    {
+        var now = new DateTimeOffset(2026, 8, 6, 0, 0, 0, TimeSpan.Zero);
+        var (executor, store, dataStore) = Build(now: now);
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: days);
+
+        var preview = await executor.PreviewAsync(Tenant, RetentionTargets.RunEvents);
+
+        var cutoff = preview[0].Cutoff.ShouldNotBeNull();
+        cutoff.ShouldBeLessThan(now);
+        dataStore.LastCutoffUsed.ShouldBe(cutoff);
+
+        var runs = await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
+
+        runs.ShouldHaveSingleItem().Error.ShouldBeNull();
+        dataStore.LastCutoffUsed.ShouldBe(cutoff);
+    }
+
+    [Fact]
+    public async Task A_policy_of_exactly_the_days_back_to_the_first_instant_cuts_off_at_that_instant()
+    {
+        var now = new DateTimeOffset(2026, 8, 6, 12, 0, 0, TimeSpan.Zero);
+        var daysToTheFirstInstant = (int)(now.UtcTicks / TimeSpan.TicksPerDay);
+        var (executor, store, dataStore) = Build(now: now);
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: daysToTheFirstInstant);
+
+        var preview = await executor.PreviewAsync(Tenant, RetentionTargets.RunEvents);
+
+        // The last whole day that fits: its cutoff is noon on January 1 of year 1, not the first instant.
+        preview[0].Cutoff.ShouldBe(new DateTimeOffset(1, 1, 1, 12, 0, 0, TimeSpan.Zero));
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: daysToTheFirstInstant + 1);
+
+        (await executor.PreviewAsync(Tenant, RetentionTargets.RunEvents))[0].Cutoff.ShouldBe(DateTimeOffset.MinValue);
+        dataStore.DeleteCalls.ShouldBe(0);
+    }
+
     private static (RetentionExecutor Executor, IRetentionPolicyStore Store, RecordingRetentionStore DataStore) Build(
         IArchiveSink? archiveSink = null,
         int batchSize = 5000,

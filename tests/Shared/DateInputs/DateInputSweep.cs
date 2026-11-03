@@ -71,10 +71,25 @@ internal static class DateInputSweep
         new("POST", "/definitions/import", "exportedAt", null),
     ];
 
+    /// <summary>
+    /// The numbers of days a retention policy keeps rows for: one that fits, and the ones that put the cutoff before the first
+    /// instant a date can hold or past the length of a <see cref="TimeSpan"/>.
+    /// </summary>
+    public static readonly IReadOnlyList<int> RetentionDays = [1, 739_000, 739_500, 3_652_059, 10_675_199, 10_675_200, int.MaxValue];
+
     /// <summary>Gets every request of the sweep, as a verb, a path with its query, and a body.</summary>
     /// <returns>The requests.</returns>
     public static IEnumerable<SweepRequest> Requests()
     {
+        // A number of days is a date once the server subtracts it from now: the policy is saved, then read through its
+        // preview and run, which is where the cutoff is computed.
+        foreach (var days in RetentionDays)
+        {
+            yield return new SweepRequest("PUT", "/retention/run_events", new Dictionary<string, object?>(StringComparer.Ordinal) { ["maxAgeDays"] = days, ["enabled"] = true });
+            yield return new SweepRequest("GET", "/retention/preview", null);
+            yield return new SweepRequest("POST", "/retention/run", null);
+        }
+
         foreach (var input in Inputs)
         {
             foreach (var instant in Instants)

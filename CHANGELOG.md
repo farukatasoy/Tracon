@@ -1187,6 +1187,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Custom `IRunStore` and `IRunScoreStore` implementations are held to the same: new contract tests `RunStoreContract.Time_series_answers_a_range_anywhere_in_the_years_a_date_can_hold`,
   `RunStoreContract.Time_series_counts_a_run_that_started_at_either_end_of_the_date_range_in_its_own_bucket`, `RunScoreStoreContract.Week_buckets_start_on_Monday_before_1900_too` and
   `RunScoreStoreContract.Hour_and_day_buckets_hold_a_score_from_any_year_a_date_can_hold`.
+- **A retention policy of more days than the calendar has keeps everything, and no longer fails the preview.** `PUT /api/retention/{target}` accepts any `maxAgeDays` from 1 up, and the
+  cutoff `now - TimeSpan.FromDays(maxAgeDays)` threw for about 739 000 days and more (a result before year 1) and for more than 10.7 million (a `TimeSpan` cannot hold them):
+  `GET /api/retention/preview` answered `500` and a run of that target could not compute its cutoff. The cutoff is now the first instant a date can hold, and no row is older.
 
 ## [1.0.0-preview.6] - 2026-10-27
 

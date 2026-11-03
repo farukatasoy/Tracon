@@ -223,6 +223,20 @@ internal sealed class RetentionExecutor(
     }
 
     /// <summary>
+    /// The instant a row has to be older than to be deleted by a policy of <paramref name="days"/> days.
+    /// </summary>
+    /// <remarks>
+    /// A policy that keeps rows for more days than the calendar has behind <paramref name="now"/> keeps all of them: its
+    /// cutoff is the first instant a date can hold, and no row is older. <c>now - TimeSpan.FromDays(days)</c> threw instead,
+    /// for such a number of days (a <see cref="TimeSpan"/> holds fewer than 10.7 million of them) and for a result before
+    /// year 1, and the API takes any number of days from 1 up.
+    /// </remarks>
+    private static DateTimeOffset AgeCutoff(DateTimeOffset now, int days)
+        => days > now.UtcTicks / TimeSpan.TicksPerDay
+            ? DateTimeOffset.MinValue
+            : new DateTimeOffset(now.UtcTicks - ((long)days * TimeSpan.TicksPerDay), TimeSpan.Zero);
+
+    /// <summary>
     /// Resolves age and volume cutoffs together. When both are present, the
     /// newer cutoff, which deletes more, wins. This is the only option that
     /// guarantees both rules are met.
@@ -233,7 +247,7 @@ internal sealed class RetentionExecutor(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var ageCutoff = policy.MaxAgeDays is { } days ? now - TimeSpan.FromDays(days) : (DateTimeOffset?)null;
+        var ageCutoff = policy.MaxAgeDays is { } days ? AgeCutoff(now, days) : (DateTimeOffset?)null;
 
         var rowCutoff = policy.MaxRows is { } maxRows
             ? await dataStore.FindRowLimitCutoffAsync(policy.Target, tenantId, maxRows, cancellationToken).ConfigureAwait(false)
