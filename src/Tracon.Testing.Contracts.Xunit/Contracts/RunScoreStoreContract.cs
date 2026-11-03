@@ -92,6 +92,41 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         loaded.Comment.ShouldBe("updated");
     }
 
+    /// <summary>
+    /// Writers that score the same target under the same name at the same time leave one row: the author's score of a
+    /// target is unique whoever wins.
+    /// </summary>
+    /// <remarks>
+    /// A reviewer who submits twice, or two nodes that replay one event, race on one target. A store that looks for the
+    /// row and then adds one lets both writers add, and the target counts the score twice.
+    /// </remarks>
+    [Fact]
+    public async Task Writers_that_score_one_target_at_the_same_time_leave_one_row()
+    {
+        const int Writers = 32;
+
+        for (var round = 0; round < 20; round++)
+        {
+            var runId = TraconId.NewId();
+            var gate = new TaskCompletionSource();
+            var writers = Enumerable.Range(0, Writers)
+                .Select(index => Task.Run(async () =>
+                {
+                    await gate.Task;
+
+                    return await Store.UpsertAsync(Score(runId) with { Value = index % 2 });
+                }))
+                .ToList();
+
+            gate.SetResult();
+
+            var saved = await Task.WhenAll(writers);
+
+            (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(1, $"round {round}: the target holds two rows of one author and name");
+            saved.Select(static score => score.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different rows");
+        }
+    }
+
     [Fact]
     public async Task Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row()
     {

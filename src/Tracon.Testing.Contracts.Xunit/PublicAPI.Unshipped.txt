@@ -426,6 +426,7 @@ Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Another_tenants_policy_is_not_visible() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Deleted_policy_is_not_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Failed_run_carries_the_error_message() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Writers_that_save_one_target_at_the_same_time_leave_one_policy() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Falls_back_to_the_wildcard_policy_when_no_tenant_specific_record_exists() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.RetentionPolicyStoreContract() -> void
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Run_history_returns_newest_first() -> System.Threading.Tasks.Task!
@@ -489,6 +490,7 @@ Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SA
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Rescoring_with_a_NEWER_evaluator_replaces_the_stored_version() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.RunScoreStoreContract() -> void
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_twice_UPDATES_the_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Writers_that_score_one_target_at_the_same_time_leave_one_row() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Same_author_scoring_the_same_target_under_a_DIFFERENT_name_opens_a_new_row() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Score_is_deleted() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Score_with_no_message_id_belongs_to_the_whole_run() -> System.Threading.Tasks.Task!
@@ -789,8 +791,11 @@ Tracon.Testing.Contracts.Storage.WebhookStoreContract.Headers_are_preserved() ->
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saved_subscription_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saving_a_subscription_again_writes_the_failure_counter_it_carries() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saving_the_same_name_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saving_over_a_subscription_keeps_its_identifier_and_its_creation_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Writers_that_save_one_name_at_the_same_time_leave_one_subscription() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Subscribers_for_an_event_are_found() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_resets_the_counter() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.A_record_written_under_another_spelling_is_returned_and_read_under_the_canonical_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_result_is_recorded() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.WebhookStoreContract() -> void
 Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract

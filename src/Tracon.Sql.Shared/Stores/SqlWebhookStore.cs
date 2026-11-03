@@ -149,10 +149,14 @@ internal sealed class SqlWebhookStore : IWebhookStore
     {
         ArgumentNullException.ThrowIfNull(delivery);
 
+        // Folded here, not only inside AddTenant: the record returned below is built from this value, and it must carry the
+        // form the row holds whichever spelling the caller wrote.
+        var tenantId = AmbientTenantScope.Normalize(delivery.TenantId);
+
         var command = CreateCommand(_sql.InsertWebhookDelivery);
         DbHelpers.Add(command, "id", delivery.Id);
         DbHelpers.Add(command, "subscription_id", delivery.SubscriptionId);
-        DbHelpers.AddTenant(command, delivery.TenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "event_type", delivery.EventType);
         DbHelpers.Add(command, "payload", delivery.Payload);
         DbHelpers.Add(command, "status", (short)delivery.Status);
@@ -164,7 +168,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
 
-        return delivery;
+        return delivery with { TenantId = tenantId };
     }
 
     /// <inheritdoc />

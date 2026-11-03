@@ -76,6 +76,40 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
         all[0].MaxAgeDays.ShouldBe(7);
     }
 
+    /// <summary>
+    /// Writers that save the same target at the same time leave one policy: the target is unique whoever wins.
+    /// </summary>
+    /// <remarks>
+    /// Two nodes that apply one configuration, or an administrator console that saves twice, race on one target. A store
+    /// that looks for the policy and then adds one lets both writers add, and the sweep reads two policies for one target.
+    /// </remarks>
+    [Fact]
+    public async Task Writers_that_save_one_target_at_the_same_time_leave_one_policy()
+    {
+        const int Writers = 32;
+
+        for (var round = 0; round < 20; round++)
+        {
+            var tenant = "racing-" + round;
+            var gate = new TaskCompletionSource();
+            var writers = Enumerable.Range(0, Writers)
+                .Select(index => Task.Run(async () =>
+                {
+                    await gate.Task;
+
+                    return await Store.SavePolicyAsync(Policy(tenantId: tenant, maxAgeDays: index + 1));
+                }))
+                .ToList();
+
+            gate.SetResult();
+
+            var saved = await Task.WhenAll(writers);
+
+            (await Store.ListPoliciesAsync(tenant)).Count.ShouldBe(1, $"round {round}: two policies hold one target");
+            saved.Select(static policy => policy.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different policies");
+        }
+    }
+
     [Fact]
     public async Task Falls_back_to_the_wildcard_policy_when_no_tenant_specific_record_exists()
     {

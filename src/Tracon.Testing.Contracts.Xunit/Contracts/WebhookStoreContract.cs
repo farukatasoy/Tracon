@@ -158,6 +158,68 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
         all[0].Url.ShouldBe("https://two.example.com/hook");
     }
 
+    /// <summary>
+    /// A subscription saved over the one that holds its name keeps the identifier and the creation time of the one it
+    /// replaces; everything else is the new one's.
+    /// </summary>
+    /// <remarks>
+    /// The identifier is what the deliveries of the subscription name, and the creation time says when the name first got
+    /// a subscription. A store that takes the new record's identifier orphans the history, and one that takes its creation
+    /// time moves it forward every time an administrator edits the subscription.
+    /// </remarks>
+    [Fact]
+    public async Task Saving_over_a_subscription_keeps_its_identifier_and_its_creation_time()
+    {
+        var first = await Store.SaveSubscriptionAsync(Subscription(url: "https://one.example.com/hook"));
+        var later = new DateTimeOffset(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+
+        var second = await Store.SaveSubscriptionAsync(Subscription(url: "https://two.example.com/hook") with { CreatedAt = later, UpdatedAt = later });
+
+        second.Id.ShouldBe(first.Id);
+        second.CreatedAt.ShouldBe(first.CreatedAt);
+        second.UpdatedAt.ShouldBe(later);
+        second.Url.ShouldBe("https://two.example.com/hook");
+
+        var read = (await Store.GetSubscriptionAsync(Tenant, "orders")).ShouldNotBeNull();
+
+        read.Id.ShouldBe(first.Id);
+        read.CreatedAt.ShouldBe(first.CreatedAt);
+    }
+
+    /// <summary>
+    /// Writers that save the same name at the same time leave one subscription: the name is unique whoever wins.
+    /// </summary>
+    /// <remarks>
+    /// Two nodes that apply one configuration, or an administrator console that saves twice, race on one name. A store
+    /// that looks for the subscription and then adds one lets both writers add.
+    /// </remarks>
+    [Fact]
+    public async Task Writers_that_save_one_name_at_the_same_time_leave_one_subscription()
+    {
+        const int Writers = 32;
+
+        for (var round = 0; round < 20; round++)
+        {
+            var name = "racing-" + round;
+            var gate = new TaskCompletionSource();
+            var writers = Enumerable.Range(0, Writers)
+                .Select(index => Task.Run(async () =>
+                {
+                    await gate.Task;
+
+                    return await Store.SaveSubscriptionAsync(Subscription(name: name, url: "https://example.com/" + index));
+                }))
+                .ToList();
+
+            gate.SetResult();
+
+            var saved = await Task.WhenAll(writers);
+
+            (await Store.ListSubscriptionsAsync(Tenant)).Count(subscription => string.Equals(subscription.Name, name, StringComparison.Ordinal)).ShouldBe(1, $"round {round}: two subscriptions hold one name");
+            saved.Select(static subscription => subscription.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different subscriptions");
+        }
+    }
+
     [Fact]
     public async Task Subscribers_for_an_event_are_found()
     {
@@ -236,6 +298,29 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
         loaded.EventType.ShouldBe("run.completed");
         loaded.Status.ShouldBe(WebhookDeliveryStatus.Pending);
         loaded.Attempt.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// The records a call returns, and the ones a later read returns, carry the canonical tenant whichever spelling wrote
+    /// them.
+    /// </summary>
+    /// <remarks>
+    /// The caller compares a record's tenant with its own as ordinal text. A store that returns the spelling it was given
+    /// makes the answer of the write differ from the answer of the next read.
+    /// </remarks>
+    [Fact]
+    public async Task A_record_written_under_another_spelling_is_returned_and_read_under_the_canonical_tenant()
+    {
+        var subscription = await Store.SaveSubscriptionAsync(Subscription() with { TenantId = "TEST" });
+
+        subscription.TenantId.ShouldBe(Tenant);
+
+        var created = await Store.CreateDeliveryAsync(Delivery(subscription.Id) with { TenantId = "Test" });
+
+        created.TenantId.ShouldBe(Tenant);
+        (await Store.GetDeliveryAsync(created.Id)).ShouldNotBeNull().TenantId.ShouldBe(Tenant);
+        (await Store.QueryDeliveriesAsync(new WebhookDeliveryQuery { TenantId = "tEST" })).ShouldHaveSingleItem().TenantId.ShouldBe(Tenant);
+        (await Store.GetSubscriptionAsync("TEST", "orders")).ShouldNotBeNull().TenantId.ShouldBe(Tenant);
     }
 
     [Fact]
