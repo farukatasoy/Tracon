@@ -57,6 +57,36 @@ public sealed class StrictConsumerMatrixTests(TemplateFixture fixture)
     }
 
     /// <summary>
+    /// A consumer pinned to an older language version builds without a warning, down to the oldest one the packages
+    /// accept.
+    /// </summary>
+    /// <remarks>
+    /// The public API needs C# 9 (init-only setters: a project on C# 8 stops at its first object initializer), and that
+    /// is the lowest version listed here. What the generator writes into the consumer's project is part of the
+    /// consumer's compilation, so it may not ask for a newer version than the API does: a file-scoped namespace in a
+    /// generated file did, and failed the build of a C# 9 project that every package accepted.
+    /// </remarks>
+    /// <param name="languageVersion">The <c>LangVersion</c> the project pins.</param>
+    [Theory]
+    [InlineData("9")]
+    [InlineData("10")]
+    [InlineData("11")]
+    public async Task A_consumer_pinned_to_an_older_language_version_builds_without_a_warning(string languageVersion)
+    {
+        var cell = new StrictCell(
+            ConsumerShape.Web,
+            CentralPackages: false,
+            Nullable: true,
+            ImplicitUsings: false,
+            Documentation: true,
+            LangVersion: languageVersion);
+
+        var failure = await BuildCellAsync(cell);
+
+        failure.ShouldBeNull();
+    }
+
+    /// <summary>
     /// The shipped contract suite also runs on the oldest xunit line its package declares, which the repository's own
     /// tests (all on the current line) never exercise.
     /// </summary>
