@@ -29,6 +29,15 @@ The packages are still pre-release. Install them with an explicit preview versio
 the CLI's pre-release option. The template package also needs a preview version or
 pre-release selection.
 
+### C# language version
+
+A project that references Tracon compiles with `LangVersion` 9 or later. The public API
+uses init-only setters, which C# 8 does not accept, and the files the source generator
+writes into your project use no syntax newer than C# 9. The default for `net10.0` is far
+above this floor, so the sentence matters only to a project that pins `LangVersion`
+lower. A strict build (warnings as errors, every analyzer on) with `LangVersion` pinned
+to 9, 10, and 11 runs against the packed packages in Tracon's own CI.
+
 ### How long each target framework stays
 
 Tracon follows Microsoft's own .NET support lifecycle and does not extend it. A
