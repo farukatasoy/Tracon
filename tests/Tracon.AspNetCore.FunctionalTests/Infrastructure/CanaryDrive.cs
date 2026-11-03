@@ -83,7 +83,7 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
         {
             return HttpStatusCode.RequestTimeout;
         }
-        catch (Exception exception) when (exception is HttpRequestException or TraconException or InvalidOperationException)
+        catch (Exception exception) when (exception is HttpRequestException or TraconException or InvalidOperationException or System.Net.WebSockets.WebSocketException)
         {
             // The in-process server surfaces a failure that a real server would answer with 500 as an exception of the client,
             // or of the request itself. Its whole text is kept: it is what a caller of that failure would be shown, and more.

@@ -67,6 +67,9 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     /// <summary>The Authorization header values seen on the create call.</summary>
     public List<string?> CreateAuthorizationHeaders { get; } = [];
 
+    /// <summary>What a refused create call says in its body, or <see langword="null"/> for an empty body.</summary>
+    public string? CreateRefusalBody { get; set; }
+
     /// <summary>The Authorization header values seen on the attach handshake.</summary>
     public List<string?> AttachAuthorizationHeaders { get; } = [];
 
@@ -104,7 +107,9 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
 
             if (server.CreateStatusCode != StatusCodes.Status201Created)
             {
-                return Results.StatusCode(server.CreateStatusCode);
+                return server.CreateRefusalBody is { } body
+                    ? Results.Text(body, "application/json", statusCode: server.CreateStatusCode)
+                    : Results.StatusCode(server.CreateStatusCode);
             }
 
             var id = "live_fake_" + Guid.NewGuid().ToString("N")[..12];
