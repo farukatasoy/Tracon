@@ -1,14 +1,11 @@
 using System.Net;
-using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -33,13 +30,12 @@ namespace Tracon.AspNetCore.FunctionalTests;
 public sealed class SseProxyBufferingTests
 {
     private const int BlockSize = 4096;
-    private const string Agent = "kod-agent";
 
     [Fact]
     public async Task The_first_event_passes_a_block_buffering_proxy_while_the_run_is_still_going()
     {
         var gated = new GatedModelProvider("proxy-gated", "proxy-1");
-        await using var origin = await OriginHost.StartAsync(gated);
+        await using var origin = await LoopbackOriginHost.StartAsync(gated);
         await using var proxy = await ProxyHost.StartAsync(origin.Address, honorAccelBuffering: true);
 
         var runId = await origin.StartRunAsync(gated);
@@ -59,7 +55,7 @@ public sealed class SseProxyBufferingTests
     public async Task The_same_proxy_without_the_opt_out_holds_the_first_event_back_so_the_case_can_fail()
     {
         var gated = new GatedModelProvider("proxy-gated-control", "proxy-1");
-        await using var origin = await OriginHost.StartAsync(gated);
+        await using var origin = await LoopbackOriginHost.StartAsync(gated);
         await using var proxy = await ProxyHost.StartAsync(origin.Address, honorAccelBuffering: false);
 
         var runId = await origin.StartRunAsync(gated);
@@ -80,7 +76,7 @@ public sealed class SseProxyBufferingTests
     public async Task The_event_stream_response_carries_the_headers_that_keep_proxies_from_buffering_or_caching_it()
     {
         var gated = new GatedModelProvider("proxy-gated-headers", "proxy-1");
-        await using var origin = await OriginHost.StartAsync(gated);
+        await using var origin = await LoopbackOriginHost.StartAsync(gated);
 
         var runId = await origin.StartRunAsync(gated);
         using var release = new GateRelease(gated);
@@ -157,77 +153,6 @@ public sealed class SseProxyBufferingTests
     private sealed class GateRelease(GatedModelProvider gated) : IDisposable
     {
         public void Dispose() => gated.Open();
-    }
-
-    /// <summary>A Tracon host on a real loopback socket, with a model that answers only when the test lets it.</summary>
-    private sealed class OriginHost : IAsyncDisposable
-    {
-        private readonly WebApplication _app;
-        private readonly GatedModelProvider _gated;
-        private readonly HttpClient _client = new();
-
-        private OriginHost(WebApplication app, Uri address, GatedModelProvider gated)
-        {
-            _app = app;
-            Address = address;
-            _gated = gated;
-        }
-
-        public Uri Address { get; }
-
-        public Task Run { get; private set; } = Task.CompletedTask;
-
-        public static async Task<OriginHost> StartAsync(GatedModelProvider gated)
-        {
-            var builder = WebApplication.CreateSlimBuilder();
-            builder.WebHost.ConfigureKestrel(static options => options.Listen(IPAddress.Loopback, 0));
-            builder.Logging.ClearProviders();
-
-            var tracon = builder.Services.AddTracon();
-            tracon.AddModelProvider(gated);
-            tracon.AddAgent(TestData.Definition() with { Model = new ModelBinding { Provider = gated.Name, Model = gated.Models[0].Name } });
-
-            var app = builder.Build();
-            app.MapTracon("/tracon");
-            await app.StartAsync();
-
-            return new OriginHost(app, new Uri(app.Urls.First()), gated);
-        }
-
-        public async Task<Guid> StartRunAsync(GatedModelProvider gated)
-        {
-            Run = Task.Run(
-                async () =>
-                {
-                    using var response = await _client.PostAsJsonAsync(
-                        new Uri(Address, $"/tracon/api/agents/{Agent}/run"),
-                        new { message = "stream me" },
-                        TestContext.Current.CancellationToken);
-
-                    response.EnsureSuccessStatusCode();
-                },
-                TestContext.Current.CancellationToken);
-
-            await gated.Started;
-
-            var runs = _app.Services.GetRequiredService<IRunStore>();
-            var recorded = await WaitUntil.ValueAsync(
-                async () => await runs.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken),
-                static found => found.Count > 0,
-                "the run to be recorded");
-
-            return recorded[0].Id;
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            // The gated model ignores cancellation, so a case that failed before it opened the gate would otherwise
-            // wait for a run that nobody can finish when the host stops.
-            _gated.Open();
-            _client.Dispose();
-            await _app.StopAsync();
-            await _app.DisposeAsync();
-        }
     }
 
     /// <summary>A test-only forwarder that buffers the response body in blocks unless the upstream opts out.</summary>
