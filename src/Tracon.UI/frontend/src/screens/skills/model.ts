@@ -20,7 +20,7 @@ export interface SkillForm {
   compatibility: string | null;
   license: string | null;
   allowedTools: string | null;
-  metadata?: Record<string, never>;
+  metadata?: Record<string, unknown>;
   enabled: boolean;
   resources: AgentSkillResourceDefinition[];
   scripts: AgentSkillScriptDefinition[];

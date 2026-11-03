@@ -110,7 +110,7 @@ export type McpRefreshResponse = Fix<Generated.McpRefreshResponse, 'toolCount'>;
 export type McpResourceContent = Fix<Generated.McpResourceContent, 'byteSize' | 'isBinary' | 'truncated'>;
 export type McpServerDefinition = Fix<Generated.McpServerDefinition, 'createdAt' | 'enabled' | 'headerConfigurationKeys' | 'headers' | 'oauthAuthorizationMode' | 'oauthEnabled' | 'requiresApproval' | 'transport' | 'updatedAt'>;
 export type MemorySettings = Fix<Generated.MemorySettings, 'conversationMemorySearch' | 'enableConversationMemory' | 'enableFileMemory' | 'enableTextSearch' | 'enableTodo' | 'enableVectorSearch'>;
-export type ModelBinding = Fix<Generated.ModelBinding, 'allowMultipleToolCalls' | 'fallbacks' | 'frequencyPenalty' | 'maxOutputTokens' | 'presencePenalty' | 'providerSettings' | 'reasoningOutput' | 'seed' | 'stopSequences' | 'temperature' | 'toolMode' | 'topK' | 'topP'> & { responseCache: ResponseCacheSettings | null; toolLoop: ToolLoopSettings | null };
+export type ModelBinding = Fix<Generated.ModelBinding, 'allowMultipleToolCalls' | 'fallbacks' | 'frequencyPenalty' | 'maxOutputTokens' | 'presencePenalty' | 'reasoningOutput' | 'seed' | 'stopSequences' | 'temperature' | 'toolMode' | 'topK' | 'topP'> & { responseCache: ResponseCacheSettings | null; toolLoop: ToolLoopSettings | null };
 export type ModelDescriptor = Fix<Generated.ModelDescriptor, 'cacheWriteCostPerMillionTokens' | 'cacheWriteLongCostPerMillionTokens' | 'cachedInputCostPerMillionTokens' | 'contextWindowTokens' | 'inputCostPerMillionTokens' | 'maxOutputTokens' | 'outputCostPerMillionTokens' | 'supportsReasoning' | 'supportsStreaming' | 'supportsStructuredOutput' | 'supportsTools'>;
 export type ModelProviderDescriptor = Fix<Generated.ModelProviderDescriptor, 'status'> & { models: ModelDescriptor[] };
 export type ModelProviderHealth = Fix<Generated.ModelProviderHealth, 'checkedAt' | 'models'>;
@@ -129,13 +129,7 @@ export type RunComparisonSide = Fix<Generated.RunComparisonSide, 'agentVersion' 
 export type RunCost = Fix<Generated.RunCost, 'cacheWriteCost' | 'cacheWriteLongPricePerMillionTokens' | 'cacheWritePricePerMillionTokens' | 'cachedInputCost' | 'cachedInputPricePerMillionTokens' | 'inputCost' | 'inputPricePerMillionTokens' | 'outputCost' | 'outputPricePerMillionTokens'>;
 export type RunCostRecalculationResult = Fix<Generated.RunCostRecalculationResult, 'runsConsidered' | 'runsSkipped' | 'runsStillUnknown' | 'runsUpdated'>;
 export type RunErrorCluster = Fix<Generated.RunErrorCluster, 'count'>;
-// `class` is required and non-nullable on THIS schema, but `RunErrorClass` is
-// ALSO used nullably elsewhere in the document (`errorClass?: null | RunErrorClass`
-// on another schema) — openapi-typescript generates one shared type per schema
-// name, so the alias itself carries `| null` regardless of this field's own
-// (correct) required declaration. Narrowed here, not on the shared alias.
 export type RunErrorStatistics = Fix<Generated.RunErrorStatistics, 'totalRuns'> & {
-  class: Exclude<Generated.RunErrorClass, null>;
   topClusters: RunErrorCluster[];
 };
 export type RunInputResponse = Omit<Generated.RunInputResponse, 'messages'> & { messages: ChatMessage[] };
@@ -186,11 +180,7 @@ export type VoiceHealth = Fix<Generated.VoiceHealth, 'voiceCount'>;
 export type VoiceSessionRecord = Fix<Generated.VoiceSessionRecord, 'inputSeconds' | 'outputChars' | 'turns'>;
 export type WebhookDelivery = Fix<Generated.WebhookDelivery, 'attempt' | 'responseCode'>;
 export type WebhookSubscription = Fix<Generated.WebhookSubscription, 'consecutiveFailures' | 'enabled' | 'headerConfigurationKeys' | 'headers'>;
-// `Generated.WorkflowKind` carries `| null` because `WorkflowDescriptor.kind`
-// uses it nullably elsewhere in the document — narrowed here for call sites
-// (KIND_HINT lookups, the editor's fixed kind list) that only ever see one of
-// the five real values, the same shared-nullable-enum pattern as RunErrorClass.
-export type WorkflowKind = Exclude<Generated.WorkflowKind, null>;
+export type WorkflowKind = Generated.WorkflowKind;
 // `agentVersion` is an int32 like every other number here: the generator widens it to `number | string`,
 // the wire always carries a native number. A node that does not pin its agent carries `null`.
 export type WorkflowNodeReference = Omit<Generated.WorkflowNodeReference, 'agentVersion'> & { agentVersion?: number | null };

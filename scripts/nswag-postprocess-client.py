@@ -150,6 +150,22 @@ optional null check + return), so one pattern matches all seven. The fourth
 pass then still finds its five - the siblings' 200 branches no longer look
 like anything it matches - which `main` asserts.
 
+A seventh pass fixes a DOCUMENTED-DEFAULT class of defect. A request property
+whose server default is not the CLR default (`Enabled = true`, a time zone of
+`"UTC"`, a tool mode that is not the first enum member) carries `default` in the
+document, and the generator is asked to write it into the client
+(`generateDefaultValues`). It does so for a boolean and a string, and misses two
+shapes (measured with NSwag 14.7.1): a property that references an enum
+component keeps `= default!` (the first member, whatever the server default
+is), because the keyword sits next to the `$ref` and is ignored; and an integer
+declared `["integer", "string"]` (the numeric-from-string form) gets the
+default as a STRING LITERAL (`int MinSampleSize = "20"`), which does not
+compile. Either way a caller who sets only the required members would send a
+value the server did not choose. This pass reads `default` from the document and
+writes the integer and the enum member as the right literal. It is matched by
+schema and property name, not by a blind pattern, and a property the document
+gives a default that the file does not contain is refused.
+
 Usage: nswag-postprocess-client.py <generated-client.cs> <openapi-document.json>
 """
 
@@ -408,6 +424,86 @@ def rewrite_null_collection_defaults(source: str) -> tuple[str, int]:
         )
 
     return NULL_COLLECTION_PATTERN.subn(replace, source)
+
+
+def _schema_reference_name(prop: dict) -> str | None:
+    """The component a property schema points at, directly or through a single-branch `allOf`."""
+    reference = prop.get("$ref")
+    if reference is None:
+        branches = prop.get("allOf")
+        if isinstance(branches, list) and len(branches) == 1:
+            reference = branches[0].get("$ref")
+    return reference.rsplit("/", 1)[-1] if isinstance(reference, str) else None
+
+
+def _enum_member(source: str, enum_name: str, wire_value: str) -> str:
+    """The C# member NSwag wrote for a wire value of an enum declaration."""
+    declaration = re.search(
+        rf"public enum {re.escape(enum_name)}\r?\n\s*\{{(?P<body>.*?)\r?\n\s*\}}", source, re.DOTALL
+    )
+    if declaration is None:
+        raise SystemExit(f"The enum '{enum_name}' is not declared in the generated file.")
+    member = re.search(
+        rf'EnumMember\(Value = @"{re.escape(wire_value)}"\)\]\s*(?P<name>\w+) = ', declaration.group("body")
+    )
+    if member is None:
+        raise SystemExit(f"The enum '{enum_name}' has no member for the wire value '{wire_value}'.")
+    return member.group("name")
+
+
+def rewrite_documented_defaults(source: str, document: dict) -> tuple[str, int]:
+    """Writes the document's `default` as the initializer of an integer or enum property; returns the count."""
+    schemas = document.get("components", {}).get("schemas", {})
+    changed = 0
+
+    for schema_name, schema in schemas.items():
+        for wire_name, prop in (schema.get("properties") or {}).items():
+            default = prop.get("default")
+            if default is None:
+                continue
+
+            declared_type = prop.get("type")
+            types = declared_type if isinstance(declared_type, list) else [declared_type]
+            reference = _schema_reference_name(prop)
+            target = schemas.get(reference, {}) if reference else {}
+
+            if isinstance(default, int) and not isinstance(default, bool) and "integer" in types:
+                wanted_literal, expected_type = str(default), None
+            elif isinstance(default, str) and "enum" in target:
+                wanted_literal, expected_type = None, reference
+            else:
+                continue  # a boolean or a string: the generator wrote it itself
+
+            class_match = re.search(
+                rf"public partial class {re.escape(schema_name)}\r?\n\s*\{{(?P<body>.*?)\r?\n    \}}\r?\n",
+                source,
+                re.DOTALL,
+            )
+            if class_match is None:
+                raise SystemExit(f"'{schema_name}' has a default for '{wire_name}' but is not declared in the generated file.")
+
+            property_match = re.search(
+                rf'JsonPropertyName\("{re.escape(wire_name)}"\)\]\s*(?:\[[^\n]*\]\s*)*'
+                rf"public (?P<type>[\w.<>,? ]+?) (?P<name>\w+) \{{ get; set; \}} = (?P<value>[^;\n]+);",
+                class_match.group("body"),
+            )
+            if property_match is None:
+                raise SystemExit(f"'{schema_name}.{wire_name}' has a default but no property in the generated file.")
+
+            if wanted_literal is None:
+                member = _enum_member(source, expected_type, default)
+                wanted_literal = f"{expected_type}.{member}"
+
+            if property_match.group("value") == wanted_literal:
+                continue
+
+            body = class_match.group("body")
+            start, end = property_match.span("value")
+            new_body = body[:start] + wanted_literal + body[end:]
+            source = source[: class_match.start("body")] + new_body + source[class_match.end("body"):]
+            changed += 1
+
+    return source, changed
 
 
 EVENT_STREAM_MEDIA_TYPE = "text/event-stream"
@@ -715,6 +811,11 @@ def main() -> int:
 
     source, null_collection_count = rewrite_null_collection_defaults(source)
 
+    with open(sys.argv[2], encoding="utf-8") as document_file:
+        document = json.load(document_file)
+
+    source, default_count = rewrite_documented_defaults(source, document)
+
     with open(path, "w", encoding="utf-8") as f:
         f.write(source)
 
@@ -726,7 +827,8 @@ def main() -> int:
         f"and guarded {guarded_count} dual JSON/SSE method(s) against the other shape, fixed "
         f"{sse_string_count} pure-SSE 200 response(s) to read plain text instead of JSON, and gave "
         f"{null_collection_count} non-nullable collection property(ies) an empty "
-        f"default instead of null in {path}"
+        f"default instead of null, and wrote the documented default of {default_count} integer/enum "
+        f"property(ies) in {path}"
     )
     return 0
 

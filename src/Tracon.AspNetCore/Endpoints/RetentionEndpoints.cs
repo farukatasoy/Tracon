@@ -399,6 +399,7 @@ internal sealed record RetentionPolicySaveRequest
     public bool Archive { get; init; }
 
     [Description("Whether the policy is enabled.")]
+    [DefaultValue(true)]
     public bool Enabled { get; init; } = true;
 }
 

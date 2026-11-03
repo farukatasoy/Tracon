@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
 /// <summary>
@@ -49,6 +51,7 @@ public sealed record CanaryPolicy
     /// with a small sample. Gradual increases use the same value to advance to
     /// the next step; a second threshold property is not added.
     /// </remarks>
+    [DefaultValue(20)]
     public int MinSampleSize { get; init; } = 20;
 
     /// <summary>
@@ -60,5 +63,6 @@ public sealed record CanaryPolicy
     public IReadOnlyList<int> RampSteps { get; init; } = [];
 
     /// <summary>Gets the minimum time between steps.</summary>
+    [DefaultValue(typeof(TimeSpan), "01:00:00")]
     public TimeSpan RampInterval { get; init; } = TimeSpan.FromHours(1);
 }

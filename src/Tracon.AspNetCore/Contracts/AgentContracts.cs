@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Tracon;
 
@@ -96,12 +97,23 @@ public sealed record AgentDefinitionRequest
     /// Free-form, application-specific metadata. See <c>AgentDefinition.Metadata</c>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Owned by the application, not the server: unlike <c>Origin</c>, <c>Version</c>,
     /// <c>TenantId</c> and <c>UpdatedAt</c>, this travels on the request so that an
     /// update does not erase it. Tracon itself never reads these keys.
+    /// </para>
+    /// <para>
+    /// It is never <see langword="null"/> when read, and it accepts <see langword="null"/> when set:
+    /// <see langword="null"/> is the empty dictionary, so a client that sends <c>"metadata": null</c> is
+    /// not refused.
+    /// </para>
     /// </remarks>
-    public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
-        = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+    [AllowNull]
+    public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata
+    {
+        get;
+        init => field = value ?? new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+    } = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
 
     /// <summary>The parameter schema. See <see cref="AgentDefinition.Parameters"/>.</summary>
     public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
@@ -159,11 +171,16 @@ internal sealed record AgentSkillRequest
     [Description("Allowed-tools declaration from the MAF frontmatter.")]
     public string? AllowedTools { get; init; }
 
-    [Description("Application-specific metadata.")]
-    public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
-        = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+    [Description("Application-specific metadata. A null value is the empty dictionary.")]
+    [AllowNull]
+    public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata
+    {
+        get;
+        init => field = value ?? new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+    } = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
 
     [Description("Whether the skill is enabled.")]
+    [DefaultValue(true)]
     public bool Enabled { get; init; } = true;
 
     [Description("Skill resources.")]

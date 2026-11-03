@@ -389,6 +389,7 @@ internal static class GovernanceEndpoints
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("TraconRefreshMcpTools")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Governance")
             .WithSummary("Refreshes the tool list of remote MCP servers now.")
             .WithDescription(
@@ -423,6 +424,7 @@ internal static class GovernanceEndpoints
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("TraconListMcpPrompts")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Governance")
             .WithSummary("Gets an MCP server's prompt list.")
             .WithDescription("If the server does not advertise the 'prompts' capability, the request is never sent.");
@@ -465,6 +467,7 @@ internal static class GovernanceEndpoints
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("TraconGetMcpPrompt")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Governance")
             .WithSummary("Resolves an MCP prompt's content with arguments.")
             .Accepts<McpPromptArgumentsRequest>(true, "application/json")
@@ -499,6 +502,7 @@ internal static class GovernanceEndpoints
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("TraconListMcpResources")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Governance")
             .WithSummary("Gets an MCP server's resource list.")
             .WithDescription("If the server does not advertise the 'resources' capability, the request is never sent.");
@@ -532,6 +536,7 @@ internal static class GovernanceEndpoints
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("TraconReadMcpResource")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Governance")
             .WithSummary("Reads an MCP resource.")
             .WithDescription(
@@ -573,6 +578,7 @@ internal static class GovernanceEndpoints
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("TraconStartMcpOAuth")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Governance")
             .WithSummary("Starts the OAuth authorization flow for an MCP server.")
             .WithDescription(

@@ -35,6 +35,13 @@ never touched:
    added, plus the function-settings members added later). The text is not new,
    only moved.
 
+4. Rewrite `anyOf: [null, X]` back to `oneOf: [null, X]`. The published document says `anyOf` where `X` accepts
+   null by itself (a nullable `JsonElement`: `oneOf` would make a null match both branches). NSwag reads `oneOf`
+   with a null branch as a nullable reference (`JsonElement?`) but reads `anyOf` as a new anonymous schema and
+   writes a class named after the PROPERTY (measured with NSwag 14.7.1). The generated
+   C# type is therefore decided by this copy, not by the published document. This runs BEFORE the description
+   hoist, which reads `oneOf`.
+
 Usage: nswag-prepare-document.py <input.json> <output.json> [prefix]
 """
 
@@ -63,6 +70,32 @@ def close_schemas(document: dict) -> int:
             schema["additionalProperties"] = False
             closed += 1
     return closed
+
+
+# Keys whose value is data of the document, not a schema: a nested `anyOf` there is not a schema keyword.
+_DATA_KEYS = frozenset({"example", "examples", "default", "enum", "const"})
+
+
+def anyof_null_to_oneof(node: object) -> int:
+    """Rewrites every `anyOf: [{type: null}, X]` into `oneOf: [{type: null}, X]`, in place; returns how many."""
+    rewritten = 0
+    if isinstance(node, dict):
+        branches = node.get("anyOf")
+        if (
+            isinstance(branches, list)
+            and len(branches) == 2
+            and "oneOf" not in node
+            and sum(1 for branch in branches if branch == {"type": "null"}) == 1
+        ):
+            node["oneOf"] = node.pop("anyOf")
+            rewritten += 1
+        for key, value in node.items():
+            if key not in _DATA_KEYS:
+                rewritten += anyof_null_to_oneof(value)
+    elif isinstance(node, list):
+        for value in node:
+            rewritten += anyof_null_to_oneof(value)
+    return rewritten
 
 
 def hoist_nullable_descriptions(document: dict) -> int:
@@ -114,6 +147,7 @@ def main() -> int:
 
     strip_prefix(document, prefix)
     closed = close_schemas(document)
+    restored = anyof_null_to_oneof(document)
     hoisted = hoist_nullable_descriptions(document)
     stripped = strip_null_from_enums(document)
 
@@ -124,7 +158,8 @@ def main() -> int:
     paths = document["paths"]
     print(
         f"Stripped '{prefix}' from {len(paths)} paths, closed {closed} schemas, "
-        f"hoisted {hoisted} descriptions, stripped null from {stripped} enums -> {output_path}"
+        f"rewrote {restored} anyOf to oneOf, hoisted {hoisted} descriptions, "
+        f"stripped null from {stripped} enums -> {output_path}"
     )
     return 0
 

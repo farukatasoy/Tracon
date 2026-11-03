@@ -3095,7 +3095,9 @@ export interface components {
              */
             updatedAt?: null | string;
             /** @description Gets free-form, application-specific metadata. */
-            metadata?: Record<string, never>;
+            metadata?: {
+                [key: string]: unknown;
+            };
             /**
              * @description Gets the schema of named placeholders (`{{name}}`) this definition's
              *     instructions may reference.
@@ -3155,7 +3157,9 @@ export interface components {
             compaction?: null | components["schemas"]["CompactionSettings"];
             memory?: null | components["schemas"]["MemorySettings"];
             /** @description Free-form, application-specific metadata. See `AgentDefinition.Metadata`. */
-            metadata?: Record<string, never>;
+            metadata?: null | {
+                [key: string]: unknown;
+            };
             /** @description The parameter schema. See IReadOnlyList&lt;AgentParameter&gt; AgentDefinition.Parameters. */
             parameters?: components["schemas"]["AgentParameter"][];
             /** @description The referenced shared instructions block. See `AgentDefinition.SharedInstructionsName`. */
@@ -3355,8 +3359,10 @@ export interface components {
             license?: null | string;
             /** @description The allowed-tools declaration in the MAF frontmatter. */
             allowedTools?: null | string;
-            /** @description Application-specific free-form metadata. */
-            metadata?: Record<string, never>;
+            /** @description Application-specific free-form metadata. Reads as the empty dictionary when it was never set. */
+            metadata?: {
+                [key: string]: unknown;
+            };
             /** @description Whether the skill is included in compilation. */
             enabled?: boolean;
             /**
@@ -3404,9 +3410,14 @@ export interface components {
             license?: null | string;
             /** @description Allowed-tools declaration from the MAF frontmatter. */
             allowedTools?: null | string;
-            /** @description Application-specific metadata. */
-            metadata?: Record<string, never>;
-            /** @description Whether the skill is enabled. */
+            /** @description Application-specific metadata. A null value is the empty dictionary. */
+            metadata?: null | {
+                [key: string]: unknown;
+            };
+            /**
+             * @description Whether the skill is enabled.
+             * @default true
+             */
             enabled?: boolean;
             /** @description Skill resources. */
             resources?: components["schemas"]["AgentSkillResourceDefinition"][];
@@ -3419,7 +3430,10 @@ export interface components {
             name: string;
             /** @description The resource description. */
             description?: null | string;
-            /** @description The resource media type. */
+            /**
+             * @description The resource media type.
+             * @default text/plain
+             */
             mediaType?: string;
             /** @description The resource's text content. */
             content: string;
@@ -3969,6 +3983,7 @@ export interface components {
              * Format: int32
              * @description Gets the minimum completed run count that both the canary and control
              *     variants must reach before a decision is made.
+             * @default 20
              */
             minSampleSize?: number | string;
             /**
@@ -3978,7 +3993,10 @@ export interface components {
              *     rollback is evaluated.
              */
             rampSteps?: (number | string)[];
-            /** @description Gets the minimum time between steps. */
+            /**
+             * @description Gets the minimum time between steps.
+             * @default 01:00:00
+             */
             rampInterval?: string;
         };
         ChatChoice: {
@@ -4427,7 +4445,7 @@ export interface components {
             failureReason?: null | string;
         };
         /** @enum {unknown} */
-        EvalCaseSource: "FailedRun" | "NegativeScore" | "ReferenceRun" | null;
+        EvalCaseSource: "FailedRun" | "NegativeScore" | "ReferenceRun";
         /** @description A tool call an EvalCase expects the agent to make. */
         EvalExpectedToolCall: {
             /** @description The tool name. Compared without regard to letter case. */
@@ -4436,7 +4454,9 @@ export interface components {
              * @description The arguments the call must carry, or `null` to check only
              *     that the tool was called.
              */
-            arguments?: null | Record<string, never>;
+            arguments?: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description A single execution record and summary of an EvalSuite. */
         EvalRun: {
@@ -4629,8 +4649,7 @@ export interface components {
             description?: null | string;
             /** @description Name of the agent this suite measures. */
             agentName: string;
-            /** @description Check definitions. See `EvalSuite.Checks`. */
-            checks?: components["schemas"]["JsonElement"];
+            checks?: null | components["schemas"]["JsonElement"];
         };
         /** @description Represents an A/B experiment that splits traffic between two or more definition versions of the same agent. */
         Experiment: {
@@ -4909,7 +4928,7 @@ export interface components {
          * @description The kind of a tool the model provider runs on its own side: a web search, a code interpreter or a file search.
          * @enum {unknown}
          */
-        HostedToolKind: "WebSearch" | "CodeInterpreter" | "FileSearch" | null;
+        HostedToolKind: "WebSearch" | "CodeInterpreter" | "FileSearch";
         /** Format: binary */
         IFormFile: string;
         /** @description The request body for an operator image-generation action. */
@@ -4998,7 +5017,10 @@ export interface components {
             payloadMode?: components["schemas"]["InboundTriggerPayloadMode"];
             /** @description Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path. */
             payloadPath?: null | string;
-            /** @description Gets whether the trigger accepts requests. Default `true`. */
+            /**
+             * @description Gets whether the trigger accepts requests. Default `true`.
+             * @default true
+             */
             enabled?: boolean;
         };
         /**
@@ -5236,7 +5258,10 @@ export interface components {
              *     triggered manually (`POST .../trigger`).
              */
             cron?: null | string;
-            /** @description Time zone the `Cron` expression is interpreted in. */
+            /**
+             * @description Time zone the `Cron` expression is interpreted in.
+             * @default UTC
+             */
             timeZone?: string;
             /**
              * @description The lane the jobs this schedule produces run in. See
@@ -5245,9 +5270,11 @@ export interface components {
              *     HandlerKey to).
              */
             lane?: null | string;
-            /** @description Input set or parameters. */
-            payload?: components["schemas"]["JsonElement"];
-            /** @description Whether the schedule is enabled. */
+            payload?: null | components["schemas"]["JsonElement"];
+            /**
+             * @description Whether the schedule is enabled.
+             * @default true
+             */
             enabled?: boolean;
         };
         /**
@@ -5644,9 +5671,15 @@ export interface components {
             headerConfigurationKeys?: null | {
                 [key: string]: string;
             };
-            /** @description Whether the server is enabled. */
+            /**
+             * @description Whether the server is enabled.
+             * @default true
+             */
             enabled?: boolean;
-            /** @description Whether this server's tools require approval. Default `true`. */
+            /**
+             * @description Whether this server's tools require approval. Default `true`.
+             * @default true
+             */
             requiresApproval?: boolean;
             /**
              * @description Whether OAuth authentication is enabled. While on,
@@ -5744,7 +5777,9 @@ export interface components {
              */
             reasoningEffort?: null | string;
             /** @description Gets the provider-specific extra settings. A key has the form `{provider}.{setting}`. */
-            providerSettings?: Record<string, never>;
+            providerSettings?: null | {
+                [key: string]: unknown;
+            };
             responseFormat?: null | components["schemas"]["AgentResponseFormat"];
             /**
              * @description Gets the ordered fallback chain tried when the primary provider is
@@ -6153,7 +6188,10 @@ export interface components {
              * @description Gets the maximum monetary amount per period.
              */
             maxCost?: null | number | string;
-            /** @description Gets whether the rule is enabled. */
+            /**
+             * @description Gets whether the rule is enabled.
+             * @default true
+             */
             enabled?: boolean;
         };
         /** @description A scope's consumption in the current period. */
@@ -6221,7 +6259,10 @@ export interface components {
         ResponseCacheSettings: {
             /** @description Gets whether the cache ring is added to the pipeline. */
             enabled?: boolean;
-            /** @description Gets how long a cached response stays valid. */
+            /**
+             * @description Gets how long a cached response stays valid.
+             * @default 00:10:00
+             */
             lifetime?: string;
         };
         /** @description The response schema as one model provider's client sends it to the model. */
@@ -6301,7 +6342,10 @@ export interface components {
             maxRows?: null | number | string;
             /** @description Whether to archive rows before deleting them. */
             archive?: boolean;
-            /** @description Whether the policy is enabled. */
+            /**
+             * @description Whether the policy is enabled.
+             * @default true
+             */
             enabled?: boolean;
         };
         /** @description A preview of "how many rows would be deleted if run now" for a target. */
@@ -6550,7 +6594,7 @@ export interface components {
             fingerprint?: null | string;
         };
         /** @enum {unknown} */
-        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | "OutputTruncated" | "TenantProviderRefused" | null;
+        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | "OutputTruncated" | "TenantProviderRefused";
         /** @description The summary of runs sharing the same fingerprint. */
         RunErrorCluster: {
             /** @description The digest of the normalized message. */
@@ -6876,7 +6920,10 @@ export interface components {
             agentVersion?: null | number | string;
             /** @description The model name to override with. The definition's own model is used if not given. */
             modelId?: null | string;
-            /** @description The tool behavior. Defaults to ReplayToolMode.ReplayTools. */
+            /**
+             * @description The tool behavior. Defaults to ReplayToolMode.ReplayTools.
+             * @default ReplayTools
+             */
             toolMode?: components["schemas"]["ReplayToolMode"];
             /**
              * @description Parameter values laid over the ones the source run was bound with.
@@ -7017,7 +7064,7 @@ export interface components {
             truncatedCategoryCount?: number | string;
         };
         /** @enum {unknown} */
-        RunScoreBucket: "Hour" | "Day" | "Week" | null;
+        RunScoreBucket: "Hour" | "Day" | "Week";
         /** @description One time bucket of the trend series (IReadOnlyList&lt;RunScoreBucketAggregate&gt; RunScoreSummary.Series). */
         RunScoreBucketAggregate: {
             /**
@@ -7056,7 +7103,7 @@ export interface components {
             series?: components["schemas"]["RunScoreBucketAggregate"][];
         };
         /** @enum {unknown} */
-        RunScoreTarget: "Any" | "Run" | "Message" | null;
+        RunScoreTarget: "Any" | "Run" | "Message";
         /** @description A summary of the runs in a time range. */
         RunStatistics: {
             /**
@@ -7807,7 +7854,7 @@ export interface components {
             requirePolicy: boolean;
         };
         /** @enum {unknown} */
-        TimeSeriesBucket: "Hour" | "Day" | null;
+        TimeSeriesBucket: "Hour" | "Day";
         /**
          * @description A summary of the runs in a time bucket. The result unit of
          *     `/api/stats/timeseries`; empty buckets are also returned (with zero events).
@@ -8118,7 +8165,9 @@ export interface components {
              * @description The values of the requested fields, by field name. Meaningful only with
              *     ToolInputAction.Accept; sending it with another action is rejected.
              */
-            content?: null | Record<string, never>;
+            content?: null | {
+                [key: string]: unknown;
+            };
         };
         /** @description The summary of a single completed tool call. */
         ToolInvocationRecord: {
@@ -8517,7 +8566,7 @@ export interface components {
             currency?: null | string;
         };
         /** @enum {unknown} */
-        VoiceSessionEndReason: "Client" | "IdleTimeout" | "DurationLimit" | "Error" | "ServerShutdown" | "Abandoned" | "Provider" | null;
+        VoiceSessionEndReason: "Client" | "IdleTimeout" | "DurationLimit" | "Error" | "ServerShutdown" | "Abandoned" | "Provider";
         /** @description The summary record of a real-time voice connection. */
         VoiceSessionRecord: {
             /**
@@ -8662,7 +8711,10 @@ export interface components {
             headerConfigurationKeys?: null | {
                 [key: string]: string;
             };
-            /** @description Whether the subscription is enabled. */
+            /**
+             * @description Whether the subscription is enabled.
+             * @default true
+             */
             enabled?: boolean;
         };
         /** @description An external system's event subscription. */
@@ -9010,7 +9062,7 @@ export interface components {
             reason?: null | string;
         };
         /** @enum {unknown} */
-        WorkflowKind: "Sequential" | "Concurrent" | "Handoff" | "GroupChat" | "Magentic" | null;
+        WorkflowKind: "Sequential" | "Concurrent" | "Handoff" | "GroupChat" | "Magentic";
         /**
          * @description Represents the role of a graph node.
          * @enum {unknown}
@@ -10979,6 +11031,15 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowGraph"];
                 };
             };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconListWorkflowVersions: {
@@ -11363,6 +11424,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13589,6 +13659,15 @@ export interface operations {
                     "application/json": components["schemas"]["VoiceHealth"];
                 };
             };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconVoiceList: {
@@ -14238,6 +14317,15 @@ export interface operations {
                     "application/json": components["schemas"]["McpRefreshResponse"];
                 };
             };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconListMcpPrompts: {
@@ -14258,6 +14346,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["McpPromptSummary"][];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -14287,6 +14384,15 @@ export interface operations {
                     "application/json": components["schemas"]["McpPromptContent"];
                 };
             };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconListMcpResources: {
@@ -14307,6 +14413,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["McpResourceSummary"][];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -14333,6 +14448,15 @@ export interface operations {
                     "application/json": components["schemas"]["McpResourceContent"];
                 };
             };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconStartMcpOAuth: {
@@ -14353,6 +14477,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["McpOAuthStartResponse"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

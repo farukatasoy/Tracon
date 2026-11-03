@@ -164,6 +164,13 @@ nullable in the schema and still accepts `null`. The same holds inside a list or
 `{"nodes": [null]}` is a `400` when the schema's items are not nullable, and a list of
 `string | null` still takes its nulls.
 
+The free-form members are declared nullable, because they are optional and an empty
+value means nothing: a model's `providerSettings`, the `metadata` of an agent or a
+skill, an eval suite's `checks` and a schedule's `payload`. `null` and a missing member
+read the same way, as empty. A member the server fills in when it is left out (an MCP
+server's `enabled` and `requiresApproval`, a schedule's `timeZone`) carries a `default`
+in the schema; a generated client starts with it.
+
 **Error text is English and is not translated.** The same failure has to read the same
 way in a log, a test, and a support ticket. The console translates its own labels and
 shows server text as it is.
@@ -179,7 +186,7 @@ shows server text as it is.
 | `415` | The body has to be JSON and the request carried another `Content-Type`, or none (`Content-Type: application/json`) |
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
-| `501` | The capability is not registered — the workflow engine, voice, or knowledge |
+| `501` | The capability is not registered — the workflow engine, voice, knowledge, or MCP |
 | `502` | The model provider failed or never answered — including a request that timed out |
 | `503` | The store could not answer, or the process is draining in-flight runs before it stops |
 
@@ -256,6 +263,17 @@ consumer.
 The consequence: the title, version, and server list in the published snapshot come
 from the host that generated it. In **your** document they come from your application.
 The paths, schemas, and descriptions are the same.
+
+The published snapshot is corrected in three places that your document is not, because the
+correction is a document transformer and a transformer needs the OpenAPI package this
+library does not take on. A nullable enum is written once as nullable instead of twice; a
+nullable free-form value is written as `anyOf` instead of `oneOf` (a `null` matches both of
+its branches, and `oneOf` allows exactly one); a dictionary of free-form values names its
+value schema, so a TypeScript client types it as `{ [key: string]: unknown }` and not as
+`Record<string, never>`. Your own `AddOpenApi()` document shows the raw shapes the .NET
+generator writes. The transformer is a single file in the reference host,
+`samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs`; copy it if you publish the
+document or generate a client from it.
 
 Because Tracon maps plain minimal API endpoints on your own
 `IEndpointRouteBuilder`, they are also picked up by **your** OpenAPI/Swagger

@@ -39,6 +39,20 @@ response can be typed without indexing into `components`:
 import type { RunRecord } from '@tracon/client';
 ```
 
+## A request needs only what the schema requires
+
+```ts
+await client.POST('/api/agents', {
+  body: { name: 'support', model: { provider: 'openai', model: 'gpt-5.4-mini' } },
+});
+```
+
+A free-form member (`providerSettings`, `metadata`, `checks`, `payload`) takes a
+string-keyed object, `null`, or nothing; the server reads `null` as empty. A member the
+server fills in when it is left out (an MCP server's `enabled` and `requiresApproval`
+are both `true`) stays optional in the type, and its `@default` note says what the server
+applies.
+
 ## Errors are thrown, not returned
 
 `openapi-fetch` on its own returns `{ data, error }`. This package wraps it so

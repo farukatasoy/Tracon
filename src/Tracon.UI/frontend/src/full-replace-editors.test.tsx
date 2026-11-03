@@ -100,7 +100,7 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
     maxOutputTokens: 900,
     topP: 0.8,
     reasoningEffort: 'Low',
-    providerSettings: { 'anthropic.promptCaching': true } as never,
+    providerSettings: { 'anthropic.promptCaching': true },
     responseFormat: { kind: 'JsonSchema', schema: { type: 'object' }, schemaName: 'answer', schemaDescription: 'The answer.' },
     fallbacks: [{ provider: 'openai', model: 'gpt-5.4-mini' }],
     responseCache: { enabled: true, lifetime: '00:05:00' },
@@ -532,10 +532,7 @@ const ROUND_TRIPS: RoundTrip[] = [
         id: '11111111-1111-1111-1111-111111111111',
         query: 'Where is my order?',
         expectedOutput: 'shipped',
-        // The generated type says the arguments are an object without saying what is in it.
-        expectedToolCalls: [
-          { name: 'get_order_status', arguments: { orderId: 'ORD-1001' } as unknown as Record<string, never> },
-        ],
+        expectedToolCalls: [{ name: 'get_order_status', arguments: { orderId: 'ORD-1001' } }],
         context: 'Order 4182 shipped yesterday.',
         parameters: { customer: 'Acme' },
       },

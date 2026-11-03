@@ -90,25 +90,12 @@ public sealed class GeneratedClientRoundTripTests
         listAgents.Detail.ShouldNotBeNull().ShouldContain("deserialize", Case.Sensitive);
     }
 
-    private static int MinimumReturned => 60;
+    private static int MinimumReturned => 85;
 
-    // Operations that fail the sweep and are reported, not fixed here. Each needs a decision (see the reason); the list
-    // only shrinks.
-    private static readonly Dictionary<string, string> KnownOpen = new(StringComparer.Ordinal)
-    {
-        ["TraconSaveEvalSuite"] =
-            "EvalSuiteSaveRequest.Checks is a non-nullable JsonElement in the generated client, optional on the server: a caller that leaves it unset gets InvalidOperationException from the serializer",
-        ["TraconCreateAgent"] =
-            "ModelBinding.ProviderSettings is a non-nullable object the generated client leaves at null and sends as null; the server answers 400",
-        ["TraconUpdateAgent"] =
-            "ModelBinding.ProviderSettings is a non-nullable object the generated client leaves at null and sends as null; the server answers 400",
-        ["TraconValidateAgent"] =
-            "ModelBinding.ProviderSettings is a non-nullable object the generated client leaves at null and sends as null; the server answers 400",
-        ["TraconSaveSkill"] =
-            "AgentSkillRequest.Metadata is a non-nullable object the generated client leaves at null and sends as null; the server answers 400",
-        ["TraconSaveSchedule"] =
-            "JobScheduleSaveRequest.Payload is a non-nullable JsonElement in the generated client, optional on the server: a caller that leaves it unset gets InvalidOperationException from the serializer",
-    };
+    // Operations that fail the sweep and are tolerated, each with the reason. The list only shrinks, and it is empty:
+    // every operation of the document is callable through the generated client with only the members the document
+    // marks required.
+    private static readonly Dictionary<string, string> KnownOpen = new(StringComparer.Ordinal);
 
     private static bool IsProblem(RoundTripOutcome outcome)
         => outcome.Kind switch
@@ -116,10 +103,10 @@ public sealed class GeneratedClientRoundTripTests
             RoundTripKind.ClientFault or RoundTripKind.Timeout or RoundTripKind.NoClientMethod or RoundTripKind.NotConstructible => true,
             // A status the client raised for but the document does not list: a 5xx is a server fault and a 2xx is a
             // success the client was not generated to expect. A 4xx the document leaves out is a documentation gap
-            // that the OpenAPI conformance fuzz covers, not this sweep.
-            // 501 is the answer for a capability that is not registered (MCP, workflows, voice, knowledge); the document
-            // leaves it out for some operations, which is a separate decision from this sweep.
-            RoundTripKind.UndocumentedStatus => outcome.Status is >= 500 and not 501,
+            // that the OpenAPI conformance fuzz covers, not this sweep. A 501 (a capability that is not registered:
+            // MCP, workflows, voice, knowledge) is a status like any other 5xx here: the operation lists it or the
+            // sweep fails.
+            RoundTripKind.UndocumentedStatus => outcome.Status is >= 500,
             RoundTripKind.DocumentedStatus => outcome.Status is >= 500 and not (501 or 502 or 503),
             _ => false,
         };

@@ -8,7 +8,8 @@ This module is loaded by Schemathesis inside the run's own virtual environment t
 * Replaces some generated path parameters and request bodies with ones the seeded host really
   holds, so a request can get past "no such resource" into the code behind it. The rest stay
   generated, because the generated half is what finds the crashes.
-* Drops the one server status per operation that `openapi_fuzz.ACCEPTED_ANSWERS` lists.
+* Drops the one server status per operation that `openapi_fuzz.ACCEPTED_ANSWERS` lists, and the schema failure of
+  an event-stream response (a stream has no schema the document can state).
 * Counts every response and every check outcome per operation and writes the counts at exit.
   Schemathesis reports failures, not the ground it covered; the counts say which operations
   never saw anything but a 404 and which never saw a 2xx.
@@ -31,6 +32,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import openapi_fuzz  # noqa: E402
 import schemathesis  # noqa: E402
 from schemathesis.core.failures import ServerError  # noqa: E402
+from schemathesis.openapi.checks import JsonSchemaError  # noqa: E402
 
 _STATS_PATH = os.environ.get("TRACON_FUZZ_STATS", "")
 _SEED_PATH = os.environ.get("TRACON_FUZZ_SEED_FILE", "")
@@ -82,9 +84,16 @@ def map_case(context, case):  # noqa: ANN001
 
 @schemathesis.hook
 def filter_failure(context, failure, case, response):  # noqa: ANN001
-    """Keeps every failure except a listed operation's listed server status."""
+    """Keeps every failure except a listed operation's listed server status and the shape of an event stream."""
     if isinstance(failure, ServerError):
         return not openapi_fuzz.accepts_answer(case.operation.method, case.operation.path, response.status_code)
+
+    # OpenAPI 3.1 has no way to describe the shape of an event stream: the document says `type: string` for the body,
+    # and Schemathesis checks every event object against it ("SSE event violates schema"). The schema of a stream
+    # cannot hold, so the schema check does not apply to one; the status and the content type of the same response
+    # are still checked. The names of the events are pinned by a test of their own (SseEventNameSnapshotTests).
+    if isinstance(failure, JsonSchemaError) and openapi_fuzz.is_event_stream(response.headers):
+        return False
 
     return True
 

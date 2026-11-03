@@ -68,20 +68,26 @@ ROLE_HEADER = "X-Tracon-Demo-Role"
 ROLES = ("admin", "operator", "reader", "anonymous")
 
 # The checks that fail a leg. Each one has been driven to zero findings on the in-memory store, as the admin
-# role, before it was listed here.
+# role, before it was listed here. The published document is a shipped claim, so a response that departs from its
+# schema is a defect: `response_schema_conformance` gates.
 GATING_CHECKS = (
     "not_a_server_error",
     "unsupported_method",
+    "response_schema_conformance",
 )
-# Measured and printed with a count on every run, never failing a leg. The OpenAPI document is a shipped claim, so
-# a response that departs from it is a defect, but the findings below come from the shape of the document itself
-# (a nullable member written as `oneOf` of null and a schema that also accepts null, a content type the stored
-# file decides, error statuses the document does not list). Fixing them changes the published document and the
-# clients generated from it, which is a decision for the maintainers, so the run reports them until it is taken.
+# Measured and printed with a count on every run, never failing a leg. Each stays here for a reason that is written
+# in the code, not in a flag, and the reason is what has to change before it can gate:
+#   * status_code_conformance: most operations list no 4xx at all (124 of 182 when this was written; the document
+#     names the statuses of a handler's own answers, not the shared ones: 400, 401, 403, 404, 415, 503), so the
+#     check cannot pass without documenting every shared answer on every operation. That is a decision about the published document and about
+#     the generated clients (each listed status becomes a typed exception), and it is not taken yet. A listed
+#     shared 401/403 would also need a body: the real answers of the reference host are empty, not problem details.
+#   * content_type_conformance: the download of an attachment answers with the stored file's own media type, and
+#     the generator refuses a wildcard content type in the endpoint metadata, so the document names
+#     `application/octet-stream` only. The 2 findings of a seeded run are exactly this endpoint.
 REPORT_CHECKS = (
     "status_code_conformance",
     "content_type_conformance",
-    "response_schema_conformance",
 )
 
 # The one kind of server status the run accepts, per operation: an answer that says "this host cannot do that" and is
@@ -97,7 +103,7 @@ ACCEPTED_ANSWERS: Mapping[tuple[str, str], int] = {
     ("POST", "/tracon/api/knowledge/{collection}/documents"): 501,
     ("DELETE", "/tracon/api/knowledge/{collection}/documents/{sourceId}"): 501,
     ("POST", "/tracon/api/knowledge/{collection}/search"): 501,
-    # No speech provider is registered. voices and speak document the 501; health answers it without documenting it.
+    # No speech provider is registered: voices, speak and health all document the 501.
     ("GET", "/tracon/api/voice/voices"): 501,
     ("POST", "/tracon/api/voice/speak"): 501,
     ("GET", "/tracon/api/voice/health"): 501,
@@ -110,6 +116,19 @@ ACCEPTED_ANSWERS: Mapping[tuple[str, str], int] = {
     ("GET", "/tracon/api/mcp-servers/{name}/resources"): 502,
     ("GET", "/tracon/api/mcp-servers/{name}/resources/read"): 502,
 }
+
+
+def is_event_stream(headers: Mapping[str, Any]) -> bool:
+    """Whether a response is a server-sent event stream, from its headers (names in any letter case)."""
+    for name, value in headers.items():
+        if name.lower() != "content-type":
+            continue
+
+        values = value if isinstance(value, (list, tuple)) else [value]
+
+        return any(str(item).split(";", 1)[0].strip().lower() == "text/event-stream" for item in values)
+
+    return False
 
 
 def accepts_answer(method: str, template: str, status: int) -> bool:

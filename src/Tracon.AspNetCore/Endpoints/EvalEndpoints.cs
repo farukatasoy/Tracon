@@ -297,7 +297,7 @@ internal static class EvalEndpoints
         {
             // Checks are validated at save time: an unknown type name is reported
             // immediately, before a run starts.
-            checkRegistry.BuildChecks(request.Checks);
+            checkRegistry.BuildChecks(request.Checks ?? default);
         }
         catch (TraconException exception)
         {
@@ -313,7 +313,7 @@ internal static class EvalEndpoints
             Name = name,
             Description = request.Description,
             AgentName = request.AgentName,
-            Checks = request.Checks,
+            Checks = request.Checks ?? default,
             CreatedAt = existing?.CreatedAt ?? default,
             UpdatedAt = default,
         };

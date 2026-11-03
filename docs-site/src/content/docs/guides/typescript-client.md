@@ -74,6 +74,40 @@ indexing into the generated `components` object:
 import type { RunRecord } from '@tracon/client';
 ```
 
+## A request needs only what the schema requires
+
+A body type lists every member, and only the ones the schema marks required have to be
+there:
+
+```ts
+await client.POST('/api/agents', {
+  body: { name: 'support', model: { provider: 'openai', model: 'gpt-5.4-mini' } },
+});
+```
+
+A free-form member — a model's `providerSettings`, the `metadata` of an agent or a skill,
+an eval suite's `checks`, a schedule's `payload` — takes a string-keyed object, `null`, or
+nothing at all. The server reads `null` and a missing member the same way: as empty.
+
+```ts
+await client.POST('/api/agents', {
+  body: {
+    name: 'support',
+    model: {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5',
+      providerSettings: { 'anthropic.promptCaching': true },
+    },
+    metadata: { owner: 'platform' },
+  },
+});
+```
+
+A member the server fills in when it is left out stays optional in the type, and the
+type's `@default` note says what the server applies: an MCP server's `enabled` and
+`requiresApproval` are both `true`, so `{ endpoint }` alone registers an enabled server
+whose tools still ask for approval.
+
 ## Errors are thrown, not returned
 
 The underlying `openapi-fetch` library returns `{ data, error }` for every

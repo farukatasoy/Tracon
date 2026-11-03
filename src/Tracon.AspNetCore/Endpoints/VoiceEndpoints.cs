@@ -54,6 +54,7 @@ internal static class VoiceEndpoints
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("TraconVoiceHealth")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Voice")
             .WithSummary("Checks the voice provider's availability.")
             .WithDescription("The check does not incur cost: no speech is generated, only the available voices are read.");

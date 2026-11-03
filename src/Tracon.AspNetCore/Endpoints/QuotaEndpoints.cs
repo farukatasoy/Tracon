@@ -334,6 +334,7 @@ internal sealed record QuotaSaveRequest
     public decimal? MaxCost { get; init; }
 
     [Description("Gets whether the rule is enabled.")]
+    [DefaultValue(true)]
     public bool Enabled { get; init; } = true;
 }
 

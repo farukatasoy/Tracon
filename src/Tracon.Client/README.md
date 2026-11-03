@@ -69,6 +69,31 @@ The body is sent exactly as written — the client never rewrites `stream` to ma
 the method. If the two disagree, the call throws `TraconApiException` with a
 message naming the fix, instead of failing obscurely later.
 
+## A request needs only what the document requires
+
+Set the members the document marks required and nothing else; the call is valid.
+
+```csharp
+await client.TraconCreateAgentAsync(new AgentDefinitionRequest
+{
+    Name = "support",
+    Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+});
+
+await client.TraconSaveMcpServerAsync("docs", new McpServerRequest { Endpoint = "https://mcp.example.com/" });
+```
+
+A free-form member (`ModelBinding.ProviderSettings`, the `Metadata` of an agent or a
+skill, `EvalSuiteSaveRequest.Checks`, `JobScheduleSaveRequest.Payload`) is nullable and
+starts unset: the server reads an unset or `null` value as empty. A dictionary is an
+`IDictionary<string, object>?`, and `Checks` and `Payload` are `JsonElement?`.
+
+A member the server fills in when it is left out starts with that value in the type, so
+the call means the same thing from every client. The MCP server above is registered
+enabled and with its approval gate **on**; a schedule runs in `UTC` and is enabled. The
+type shows the value (`Enabled { get; set; } = true`) and the document names it as
+`default`.
+
 ## Why the base address needs the prefix
 
 `MapTracon`'s prefix is a runtime parameter, not a fixed value — the

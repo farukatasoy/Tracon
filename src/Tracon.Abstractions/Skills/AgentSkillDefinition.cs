@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 
 namespace Tracon;
@@ -37,9 +38,12 @@ public sealed record AgentSkillDefinition
     /// <summary>The allowed-tools declaration in the MAF frontmatter.</summary>
     public string? AllowedTools { get; init; }
 
-    /// <summary>Application-specific free-form metadata.</summary>
-    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; }
-        = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+    /// <summary>Application-specific free-form metadata. Reads as the empty dictionary when it was never set.</summary>
+    public IReadOnlyDictionary<string, JsonElement> Metadata
+    {
+        get => field ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        init;
+    }
 
     /// <summary>Whether the skill is included in compilation.</summary>
     public bool Enabled { get; init; } = true;
@@ -104,6 +108,7 @@ public sealed record AgentSkillResourceDefinition
     public string? Description { get; init; }
 
     /// <summary>The resource media type.</summary>
+    [DefaultValue("text/plain")]
     public string MediaType { get; init; } = "text/plain";
 
     /// <summary>The resource's text content.</summary>

@@ -151,7 +151,16 @@ if (demoRolesEnabled)
 // NOT depend on this package; endpoints carry metadata from the shared
 // framework and appear in the document automatically once AddOpenApi() is
 // called.
+//
+// The bare AddOpenApi() call is required: the XML documentation interceptor matches
+// only that exact invocation, so a configuration delegate passed to it would drop
+// every schema description. The correction below is registered by name next to it.
 builder.Services.AddOpenApi();
+
+// This repository publishes its OpenAPI document and generates two clients from it,
+// so the three shapes the generator writes loosely are corrected here. A consumer
+// that only reads the document in Swagger UI does not need this step.
+builder.Services.Configure<Microsoft.AspNetCore.OpenApi.OpenApiOptions>("v1", PublishedDocumentCorrections.Configure);
 
 // Run attribution: who ran this, and for which job. Registered BEFORE
 // AddTracon() so it wins the TryAdd — the consumer's binding to its own

@@ -417,10 +417,31 @@ class PolicyFileTests(unittest.TestCase):
         # The configuration applies only the first of several per-operation entries; the table above does not.
         self.assertFalse((SCRIPTS / "openapi-fuzz.toml").exists())
 
-    def test_the_status_code_check_reports_and_does_not_gate(self):
+    def test_the_schema_check_gates_and_the_two_checks_with_a_written_reason_report(self):
+        # A regression gate, not evidence: the evidence is a run on a tree without the document corrections, which
+        # has to be red. This only pins which checks sit where.
         self.assertIn("not_a_server_error", openapi_fuzz.GATING_CHECKS)
+        self.assertIn("response_schema_conformance", openapi_fuzz.GATING_CHECKS)
         self.assertIn("status_code_conformance", openapi_fuzz.REPORT_CHECKS)
+        self.assertIn("content_type_conformance", openapi_fuzz.REPORT_CHECKS)
         self.assertFalse(set(openapi_fuzz.GATING_CHECKS) & set(openapi_fuzz.REPORT_CHECKS))
+
+    def test_a_response_is_an_event_stream_by_its_content_type_in_any_letter_case(self):
+        self.assertTrue(openapi_fuzz.is_event_stream({"Content-Type": "text/event-stream"}))
+        self.assertTrue(openapi_fuzz.is_event_stream({"content-type": ["text/event-stream; charset=utf-8"]}))
+        self.assertTrue(openapi_fuzz.is_event_stream({"CONTENT-TYPE": ("Text/Event-Stream",)}))
+        self.assertFalse(openapi_fuzz.is_event_stream({"Content-Type": "application/json"}))
+        self.assertFalse(openapi_fuzz.is_event_stream({"Content-Type": "application/problem+json; x=text/event-stream"}))
+        self.assertFalse(openapi_fuzz.is_event_stream({}))
+
+    def test_the_hook_exempts_only_a_schema_failure_of_an_event_stream(self):
+        tree = ast.parse((SCRIPTS / "openapi_fuzz_hooks.py").read_text(encoding="utf-8"))
+        hook = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "filter_failure")
+        source = ast.unparse(hook)
+
+        # The exemption is a conjunction: the failure class AND the stream. Either alone would hide a real finding.
+        self.assertIn("isinstance(failure, JsonSchemaError) and openapi_fuzz.is_event_stream(response.headers)", source)
+        self.assertEqual(1, source.count("is_event_stream"))
 
     def test_the_hooks_define_only_hook_names_schemathesis_knows(self):
         tree = ast.parse((SCRIPTS / "openapi_fuzz_hooks.py").read_text(encoding="utf-8"))

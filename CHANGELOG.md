@@ -529,6 +529,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     succeeds there. Validate the length in your own client when the same code runs on both.
   - **A store you wrote yourself is not covered.** Only the SQL Server, PostgreSQL and SQLite providers recognize a refused value; an exception from another provider is still `503`.
 
+- **`Tracon.Client` and `@tracon/client`: a request that sets only the required members is valid, and the OpenAPI document says what the server does.** The generated client wrote every
+  property it had, so a caller that set only `Name` and `Model` sent `"providerSettings": null` and got `400`, a `JsonElement` left unset threw `InvalidOperationException` in the
+  serializer, and the TypeScript type of a free-form object was `Record<string, never>`, which no key may carry a value. The server now accepts `null` for these members and the document
+  and both clients are regenerated. Nothing changes for a caller of the HTTP API, and an older client that sends the `null` today is accepted.
+  What to do, for the .NET client (`Tracon.Client`; these types are generated, the server packages do not change):
+  - **A free-form dictionary is `IDictionary<string, object>?`, no longer `object`.** `ModelBinding.ProviderSettings`, `AgentDefinitionRequest.Metadata`, `AgentSkillRequest.Metadata`,
+    `EvalExpectedToolCall.Arguments` and `ToolInputResponse.Content` are nullable and take a `Dictionary<string, object>`; assigning another object, such as a boxed `JsonElement`, no
+    longer compiles. `AgentDefinition.Metadata` and `AgentSkillDefinition.Metadata` (what a response returns) are `IDictionary<string, object>`, no longer `object`; read a value with
+    its key.
+  - **`EvalSuiteSaveRequest.Checks` and `JobScheduleSaveRequest.Payload` are `JsonElement?`, no longer `JsonElement`.** Code that reads them needs `.Value` or a null test.
+  - **A request member the server fills in when it is left out starts with that value.** `McpServerRequest.Enabled` and `RequiresApproval`, and the `Enabled` of `AgentSkillRequest`,
+    `InboundTriggerSaveRequest`, `JobScheduleSaveRequest`, `QuotaSaveRequest`, `RetentionPolicySaveRequest` and `WebhookSaveRequest` start at `true`, no longer `false`;
+    `JobScheduleSaveRequest.TimeZone` starts at `"UTC"` (it was `null`, which the server refused); `RunReplayRequest.ToolMode` starts at `ReplayTools` (it was `NoTools`);
+    `AgentSkillResourceDefinition.MediaType`, `CanaryPolicy.MinSampleSize`, `CanaryPolicy.RampInterval` and `ResponseCacheSettings.Lifetime` start at `text/plain`, `20`, `01:00:00`
+    and `00:10:00`. **This changes what a call that did not set the member records.** The one to check first is `TraconSaveMcpServerAsync`: a server saved with only an `Endpoint`
+    used to be saved disabled with its approval gate off; it is saved enabled with the gate on. Set `RequiresApproval = false` on a server you meant to run without approval.
+  - **Nine operations list the `501` they have always answered when the capability is not registered**, so the client raises `TraconApiException<ProblemDetails>` instead of the bare
+    `TraconApiException`: `TraconVoiceHealthAsync`, `TraconRefreshMcpToolsAsync`, `TraconListMcpPromptsAsync`, `TraconGetMcpPromptAsync`, `TraconListMcpResourcesAsync`,
+    `TraconReadMcpResourceAsync`, `TraconStartMcpOAuthAsync`, `TraconGetWorkflowGraphAsync` and `TraconListWorkflowRequestsAsync`. A `catch (TraconApiException)` still catches it.
+  What to do, for `@tracon/client`:
+  - **A free-form object is `{ [key: string]: unknown }`, `null` or absent, no longer `Record<string, never>`.** A cast to `Record<string, never>` that worked around the old type can
+    go; the type also accepts `providerSettings: { 'anthropic.promptCaching': true }` without one. `checks` and `payload` are `unknown | null`, optional.
+  - **An enum alias no longer carries `| null`.** `RunErrorClass`, `WorkflowKind`, `EvalCaseSource`, `HostedToolKind`, `RunScoreBucket`, `RunScoreTarget`, `TimeSeriesBucket` and
+    `VoiceSessionEndReason` were unions that ended in `null` because one member somewhere was nullable. The member that is nullable says so on its own wrapper
+    (`errorClass?: null | RunErrorClass`); a `Exclude<…, null>` written to narrow the alias can go.
+  - **A member with a server default stays optional and gains a `@default` note** (`enabled`, `requiresApproval`, `timeZone`, `lifetime`, `minSampleSize`, ...). Omitting it applies the
+    server default; nothing about the call changes.
+  - The document lists `501` on the nine operations above, so `error` is typed for it.
+  The published `tracon.json` is also corrected in three places that a consumer's own document is not: a nullable enum is nullable once, a nullable free-form value is `anyOf` and not
+  `oneOf` (a `null` matched both branches), and a dictionary of free-form values names its value schema. The transformer is one file, `samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs`.
+
+- **A request body that writes an enum member as a number no member has is refused with `400`.** The converter that reads the enum fields of a body took any integer (and any string of
+  digits) as the enum with that number, whether or not a member had it. `POST /api/runs/{runId}/feedback` with `"kind": 0` answered `200` and stored a score of kind `0`
+  (`RunScoreKind` starts at `1`); every list that held it then wrote `"kind": 0` where the document says one of four names. It answers `400` now, with the message that lists the members, like an
+  unknown name. A number that is a member (`"kind": 1`) is accepted as before, and a `[Flags]` enum still takes a combination. What to do: nothing, unless a client sends numbers; send the name.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then

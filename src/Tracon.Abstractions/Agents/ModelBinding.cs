@@ -61,6 +61,11 @@ public sealed record ModelBinding
     /// Keys are compared with <see cref="StringComparer.OrdinalIgnoreCase"/>. Use the
     /// <see cref="ModelProviderSettings"/> helpers to read them.
     /// </para>
+    /// <para>
+    /// It is never <see langword="null"/> when read, and it accepts <see langword="null"/> when set:
+    /// <see langword="null"/> means no settings, the same as an empty dictionary. A client that
+    /// sends <c>"providerSettings": null</c> is not refused.
+    /// </para>
     /// <example>
     /// <code language="json">
     /// "ProviderSettings": {
@@ -71,6 +76,7 @@ public sealed record ModelBinding
     /// </code>
     /// </example>
     /// </remarks>
+    [AllowNull]
     public IReadOnlyDictionary<string, JsonElement> ProviderSettings
     {
         get => field ?? new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);

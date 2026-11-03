@@ -94,6 +94,105 @@ public sealed class ClientSchemaFieldCoverageTests
                            "src/Tracon.Client/Generated/TraconClientJsonContext.g.cs");
     }
 
+    /// <summary>
+    /// Proves that every member the document calls nullable is nullable on the generated type.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The field test above proves a member EXISTS. A request member the document says accepts <c>null</c> (an optional
+    /// free-form object, a nullable <c>JsonElement</c>) has to be nullable in the generated type too: a non-nullable
+    /// type is a promise the generated code does not keep, so the member starts at <see langword="null"/> or
+    /// <c>default</c> and the first request of a caller that sets only what it needs fails on the server (a
+    /// <c>400</c>) or in the serializer.
+    /// </para>
+    /// <para>
+    /// Reflection with <see cref="NullabilityInfoContext"/>, not a text scan, for the same reason as the test above:
+    /// the generator renames members and the annotation is what the compiler reads.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void Every_member_the_document_calls_nullable_is_nullable_on_the_generated_type()
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(DocumentPath));
+
+        var generated = typeof(TraconApiClient).Assembly.GetTypes()
+            .Where(static type => type.IsClass && type.IsPublic)
+            .GroupBy(static type => type.Name, StringComparer.Ordinal)
+            .ToDictionary(static group => group.Key, static group => group.First(), StringComparer.Ordinal);
+
+        var context = new NullabilityInfoContext();
+        var disagreeing = new List<string>();
+        var checkedMembers = 0;
+
+        foreach (var schema in document.RootElement.GetProperty("components").GetProperty("schemas").EnumerateObject())
+        {
+            if (!schema.Value.TryGetProperty("properties", out var properties) || !generated.TryGetValue(schema.Name, out var type))
+            {
+                continue;
+            }
+
+            foreach (var property in properties.EnumerateObject().Where(static property => IsNullableInDocument(property.Value)))
+            {
+                var member = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(candidate =>
+                    string.Equals(
+                        candidate.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? candidate.Name,
+                        property.Name,
+                        StringComparison.OrdinalIgnoreCase));
+
+                if (member is null)
+                {
+                    continue;
+                }
+
+                checkedMembers++;
+
+                var nullable = member.PropertyType.IsValueType
+                    ? Nullable.GetUnderlyingType(member.PropertyType) is not null
+                    : context.Create(member).ReadState == NullabilityState.Nullable;
+
+                if (!nullable)
+                {
+                    disagreeing.Add($"{schema.Name}.{property.Name} ({member.PropertyType.Name})");
+                }
+            }
+        }
+
+        // A scan that matched no member would pass for the wrong reason.
+        checkedMembers.ShouldBeGreaterThan(100);
+
+        disagreeing.Sort(StringComparer.Ordinal);
+
+        disagreeing.ShouldBeEmpty(
+            customMessage: $"{disagreeing.Count} member(s) the document calls nullable are not nullable on the generated type, " +
+                           "so a caller that leaves them unset sends a null or a default the type said it would not. " +
+                           "The generated client is older than the document, or the document shape is one the generator reads " +
+                           "as non-nullable.");
+    }
+
+    // A member accepts null when its type list names null or one of its alternatives is the null type.
+    private static bool IsNullableInDocument(JsonElement property)
+    {
+        if (property.TryGetProperty("type", out var type))
+        {
+            return type.ValueKind == JsonValueKind.Array
+                ? type.EnumerateArray().Any(static item => string.Equals(item.GetString(), "null", StringComparison.Ordinal))
+                : string.Equals(type.GetString(), "null", StringComparison.Ordinal);
+        }
+
+        foreach (var key in new[] { "oneOf", "anyOf" })
+        {
+            if (property.TryGetProperty(key, out var branches)
+                && branches.EnumerateArray().Any(static branch =>
+                    branch.TryGetProperty("type", out var branchType)
+                    && string.Equals(branchType.GetString(), "null", StringComparison.Ordinal)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 
     private static string DocumentPath { get; } =
