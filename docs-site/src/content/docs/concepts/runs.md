@@ -167,6 +167,41 @@ has the rule in full for a custom implementation.
 curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 ```
 
+The stream opens with a `retry: 3000` block, with or without `Last-Event-ID`, and writes
+a `: waiting` comment on every poll (every 250 ms by default) while the run is quiet.
+Neither carries data, so a reader that follows the SSE rules drops both. `retry: 3000`
+is the time in milliseconds a browser's `EventSource` waits before it reconnects, so the
+clients of an instance that restarted come back spread over the delay, not together. The
+streamed answer of `POST /api/agents/{name}/run` is not resumable and does not send it.
+
+### Behind a reverse proxy
+
+Every stream carries `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-store,
+no-transform`. A proxy that honours them passes each frame on as it arrives. A proxy
+that ignores the header and buffers the response holds the first events of a quiet run
+until its buffer is full. Measured with nginx 1.27 in front of the sample host, on a run
+that stayed silent:
+
+| nginx configuration | First events reach the client |
+|---|---|
+| Default (honours the header) | At once |
+| `proxy_ignore_headers X-Accel-Buffering;` with the default HTTP/1.0 upstream | After 74 seconds, 4 KB at once |
+| The same, with `proxy_http_version 1.1;` | At once |
+
+Do not ignore the header. If your configuration has to, turn buffering off for the
+location and speak HTTP/1.1 to the application:
+
+```nginx
+location /tracon/ {
+    proxy_pass http://app;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+}
+```
+
+Another proxy or a CDN was not measured. Look for its equivalent of `proxy_buffering off`
+and make sure it does not compress `text/event-stream`.
+
 ### Two SSE contracts, not one
 
 This is a **different** stream from the one `POST /api/agents/{name}/run` returns, and
