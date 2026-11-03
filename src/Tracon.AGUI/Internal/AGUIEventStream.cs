@@ -97,6 +97,7 @@ internal static class AGUIEventStream
     {
         var source = opened.RunStreamingAsync(collector.OnApprovalsAsync, collector.OnInputsAsync, onLoopIteration: null, cancellationToken);
         var enumerator = source.GetAsyncEnumerator(cancellationToken);
+        var messageIds = new AGUIMessageIdStabilizer();
 
         await using (enumerator.ConfigureAwait(false))
         {
@@ -120,7 +121,7 @@ internal static class AGUIEventStream
                     throw;
                 }
 
-                yield return collector.Adapt(update.AsChatResponseUpdate());
+                yield return messageIds.Apply(collector.Adapt(update.AsChatResponseUpdate()));
             }
         }
 
