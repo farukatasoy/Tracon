@@ -135,15 +135,23 @@ once:
   what the code expects.
 
 :::caution[Migrations refuse a non-canonical tenant id]
-The tenant identifier is stored in its canonical (lower-case) form — see
+The tenant identifier is stored in its canonical form — lower-case ASCII letters,
+digits, `_`, `.` and `-` — see
 [Multi-tenancy](/concepts/governance/#what-a-tenant-identifier-may-be). Before
 applying anything, the runner checks every table that carries a `tenant_id` and
-**stops, naming the tables**, if any row holds a value that is not canonical.
+**stops, naming the tables**, if any row holds a value that is not canonical. `*` in
+`retention_policies` is the default policy of every tenant and is not a finding.
 
 It does not fold those rows for you. On PostgreSQL and SQLite, which compare
 case-sensitively, `Acme` and `acme` may be two real tenants, and merging two
 tenants cannot be undone. Decide per table whether the rows belong to one
 tenant (lower-case them) or to two (rename one), then start again.
+
+The audit trail is the exception: the tenant of an entry is part of its hash, so a
+renamed entry fails the chain verification. Export the entries of that tenant first,
+then either remove all of them (a chain belongs to one tenant, so the chains of the
+others stay whole) or rename them and accept that the chain of that tenant fails from
+the first renamed entry.
 :::
 
 :::caution[A migration can be one-way]

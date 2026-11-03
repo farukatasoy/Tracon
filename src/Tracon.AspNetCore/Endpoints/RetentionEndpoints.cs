@@ -119,7 +119,9 @@ internal static class RetentionEndpoints
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
-        var policies = await store.ListPoliciesAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false);
+        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
+
+        var policies = await store.ListPoliciesAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(policies);
     }
@@ -130,12 +132,14 @@ internal static class RetentionEndpoints
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
+        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
+
         if (!RetentionTargets.IsKnown(target))
         {
             return UnknownTarget(target);
         }
 
-        var policy = await store.GetPolicyAsync(tenants.TenantId, target, cancellationToken).ConfigureAwait(false);
+        var policy = await store.GetPolicyAsync(tenantId, target, cancellationToken).ConfigureAwait(false);
 
         return policy is null ? NotFound(target) : TypedResults.Ok(policy);
     }
@@ -152,6 +156,8 @@ internal static class RetentionEndpoints
         [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
+        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
+
         var (bound, bindError) = await RequestBodyBinding
             .ReadAsync<RetentionPolicySaveRequest>(httpContext, cancellationToken)
             .ConfigureAwait(false);
@@ -179,13 +185,13 @@ internal static class RetentionEndpoints
         }
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
-        var previous = await store.GetPolicyAsync(tenants.TenantId, target, cancellationToken).ConfigureAwait(false);
+        var previous = await store.GetPolicyAsync(tenantId, target, cancellationToken).ConfigureAwait(false);
 
         var saved = await store.SavePolicyAsync(
             new RetentionPolicy
             {
                 Id = previous?.Id ?? TraconId.NewId(),
-                TenantId = tenants.TenantId,
+                TenantId = tenantId,
                 Target = target,
                 MaxAgeDays = request.MaxAgeDays,
                 MaxRows = request.MaxRows,
@@ -201,7 +207,7 @@ internal static class RetentionEndpoints
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RetentionEndpoints"),
             metrics,
-            tenants.TenantId,
+            tenantId,
             action: previous is null ? "retention.create" : "retention.update",
             entity: $"retention:{target}",
             before: previous is null ? null : Describe(previous),
@@ -221,26 +227,28 @@ internal static class RetentionEndpoints
         [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
+        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
+
         if (!RetentionTargets.IsKnown(target))
         {
             return UnknownTarget(target);
         }
 
-        var existing = await store.GetPolicyAsync(tenants.TenantId, target, cancellationToken).ConfigureAwait(false);
+        var existing = await store.GetPolicyAsync(tenantId, target, cancellationToken).ConfigureAwait(false);
 
         if (existing is null)
         {
             return NotFound(target);
         }
 
-        await store.DeletePolicyAsync(tenants.TenantId, target, cancellationToken).ConfigureAwait(false);
+        await store.DeletePolicyAsync(tenantId, target, cancellationToken).ConfigureAwait(false);
 
         await AuditRecorder.WriteAsync(
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RetentionEndpoints"),
             metrics,
-            tenants.TenantId,
+            tenantId,
             action: "retention.delete",
             entity: $"retention:{target}",
             before: Describe(existing),
@@ -256,12 +264,14 @@ internal static class RetentionEndpoints
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
+        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
+
         if (target is not null && !RetentionTargets.IsKnown(target))
         {
             return UnknownTarget(target);
         }
 
-        var preview = await executor.PreviewAsync(tenants.TenantId, target, cancellationToken).ConfigureAwait(false);
+        var preview = await executor.PreviewAsync(tenantId, target, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(preview);
     }
@@ -273,6 +283,8 @@ internal static class RetentionEndpoints
         [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
+        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
+
         if (target is not null && !RetentionTargets.IsKnown(target))
         {
             return UnknownTarget(target);
@@ -285,7 +297,7 @@ internal static class RetentionEndpoints
             new JobRecord
             {
                 Id = TraconId.NewId(),
-                TenantId = tenants.TenantId,
+                TenantId = tenantId,
                 HandlerKey = JobHandlerKeys.Retention,
                 TargetName = targetName,
                 Status = JobStatus.Pending,
@@ -307,8 +319,10 @@ internal static class RetentionEndpoints
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
+        var tenantId = AmbientTenantScope.Normalize(tenants.TenantId);
+
         var runs = await store.ListRunsAsync(
-            tenants.TenantId,
+            tenantId,
             target,
             Math.Max(skip ?? 0, 0),
             Math.Clamp(take ?? 50, 1, 200),

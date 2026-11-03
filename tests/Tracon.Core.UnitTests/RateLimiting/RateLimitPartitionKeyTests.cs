@@ -58,15 +58,14 @@ public sealed class RateLimitPartitionKeyTests
     public void Two_different_partitions_never_share_a_key()
     {
         // A tenant named "global" must not land on the global partition, and a tenant must not land on
-        // another group's counter. A custom tenant context can return a ':' inside the identifier; the
-        // tenant is the last segment and is taken whole, so it cannot reach into the earlier ones.
+        // another group's counter.
         var keys = new[]
         {
             RateLimitPartitionKey.ForGlobal(RateLimitGroups.Management),
             RateLimitPartitionKey.ForGlobal(RateLimitGroups.AgUi),
             RateLimitPartitionKey.ForTenant(RateLimitGroups.Management, "global"),
             RateLimitPartitionKey.ForTenant(RateLimitGroups.AgUi, "global"),
-            RateLimitPartitionKey.ForTenant(RateLimitGroups.Management, "agui:tenant:global"),
+            RateLimitPartitionKey.ForTenant(RateLimitGroups.Management, "agui"),
             RateLimitPartitionKey.ForTenant(RateLimitGroups.Management, "acme"),
             RateLimitPartitionKey.ForTenant(RateLimitGroups.AgUi, "acme"),
             RateLimitPartitionKey.ForTrigger(TriggerId),
@@ -75,6 +74,11 @@ public sealed class RateLimitPartitionKeyTests
 
         keys.Select(static key => key.Value).Distinct(StringComparer.Ordinal).Count().ShouldBe(keys.Length);
     }
+
+    [Fact]
+    public void A_tenant_that_holds_the_separator_is_refused_so_it_cannot_reach_into_the_earlier_segments()
+        => Should.Throw<ArgumentException>(
+            () => RateLimitPartitionKey.ForTenant(RateLimitGroups.Management, "agui:tenant:global"));
 
     [Fact]
     public void A_blank_tenant_or_group_is_refused()

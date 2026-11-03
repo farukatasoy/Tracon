@@ -64,7 +64,11 @@ check every store must pass: a tenant reads its own records, and never
 another tenant's. A tenant that differs only in letter case is the same
 tenant: the base writes a record under `Tenant-A` and reads, lists and
 deletes it under `tenant-a`, and the other way round, so a store must fold
-the tenant with `AmbientTenantScope.Normalize` on every write and query.
+the tenant with `AmbientTenantScope.Normalize` on every write and query. A tenant is
+made of ASCII letters, digits, `_`, `.` and `-` only: the base hands the store a tenant
+with an accented letter, a full-width letter, a space or a colon and expects an
+`ArgumentException` on a write and on a read, with nothing written. Normalizing the tenant
+as above is enough.
 
 `RateLimitCounterStoreContract` is the one to run if you count rate limits somewhere
 other than the SQL provider's database (Redis, for example): implement

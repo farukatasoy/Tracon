@@ -123,7 +123,7 @@ internal sealed class SessionStateMachine : StateMachine<SessionPlan, SessionSte
             from ids in BoundaryValues.Pool(4, BoundaryValues.Trimmed(SessionIdMaxLength), SessionIdMaxLength, traits.TrailingSpaceInsensitiveKeys)
             from agents in BoundaryValues.Pool(3, BoundaryValues.Trimmed(200), 200)
             from tenants in BoundaryValues.TenantPool(3)
-            from owners in traits.IdentityFilterIgnoresCase ? BoundaryValues.AsciiIdentifierPool(3, 200, withoutLetterI: true) : BoundaryValues.Pool(3, BoundaryValues.Trimmed(200), 200)
+            from owners in BoundaryValues.Pool(3, BoundaryValues.Trimmed(200), 200)
             from states in BoundaryValues.JsonDocument.Array[3]
             from versions in BoundaryValues.Text(40).Array[2]
             select new SessionUniverse(ids, agents, tenants, owners, states, versions);
@@ -416,7 +416,7 @@ internal sealed class SessionModel(SessionUniverse universe, ProviderTraits trai
         var sorted = _rows.Values
             .Where(row => string.Equals(row.Tenant, tenant, StringComparison.Ordinal))
             .Where(row => agent is null || string.Equals(row.Agent, agent, StringComparison.Ordinal))
-            .Where(row => owner is null || string.Equals(row.Owner, owner, traits.IdentityFilterIgnoresCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            .Where(row => owner is null || string.Equals(row.Owner, owner, StringComparison.Ordinal))
             .OrderByDescending(static row => row.Updated)
             .Select(static row => (Key: row.Updated, Rendered: Render(row)))
             .ToList();

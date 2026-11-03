@@ -30,6 +30,100 @@ public sealed class TenantIdNormalizationTests
         AmbientTenantScope.Normalize(once).ShouldBe(once);
     }
 
+    [Fact]
+    public void A_canonical_identifier_comes_back_as_the_same_instance()
+    {
+        // The hot path of every store call: nothing is allocated for a value that is already canonical.
+        var canonical = new string("acme-1.prod_2".AsSpan());
+
+        ReferenceEquals(AmbientTenantScope.Normalize(canonical), canonical).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("m\u00FC\u015Fteri", 1, "U+00FC")]
+    [InlineData("e\u0301cole", 1, "U+0301")]
+    [InlineData("acme\uFF41", 4, "U+FF41")]
+    [InlineData("ac me", 2, "U+0020")]
+    [InlineData("acme*", 4, "U+002A")]
+    [InlineData("acme/ops", 4, "U+002F")]
+    [InlineData("acme:ops", 4, "U+003A")]
+    [InlineData("acme\u0000", 4, "U+0000")]
+    [InlineData("acme\u001Fops", 4, "U+001F")]
+    [InlineData("acme\uD83D\uDE00", 4, "U+1F600")]
+    public void Normalize_refuses_a_character_outside_the_allowed_set_and_names_where(string input, int index, string codePoint)
+    {
+        var failure = Should.Throw<ArgumentException>(() => AmbientTenantScope.Normalize(input));
+
+        failure.ParamName.ShouldBe("tenantId");
+        failure.Message.ShouldContain($"index {index}");
+        failure.Message.ShouldContain(codePoint);
+        failure.Message.ShouldNotContain(input.Trim('\u0000'), Case.Sensitive, "the message must not echo the client's text");
+    }
+
+    [Fact]
+    public void Normalize_does_not_accept_the_retention_wildcard()
+        => Should.Throw<ArgumentException>(() => AmbientTenantScope.Normalize("*"));
+
+    [Theory]
+    [InlineData("acme", "acme")]
+    [InlineData("Acme-1.Prod_2", "acme-1.prod_2")]
+    [InlineData("0", "0")]
+    [InlineData(".", ".")]
+    public void TryNormalize_returns_the_canonical_form_of_a_valid_identifier(string input, string expected)
+    {
+        AmbientTenantScope.TryNormalize(input, out var canonical).ShouldBeTrue();
+
+        canonical.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("m\u00FC\u015Fteri")]
+    [InlineData("e\u0301")]
+    [InlineData("\uFF41")]
+    [InlineData("*")]
+    [InlineData("a b")]
+    public void TryNormalize_answers_false_instead_of_throwing(string? input)
+    {
+        AmbientTenantScope.TryNormalize(input, out var canonical).ShouldBeFalse();
+
+        canonical.ShouldBeNull();
+    }
+
+    [Fact]
+    public void TryNormalize_and_Normalize_agree_on_every_character_of_the_basic_plane()
+    {
+        for (var code = 0; code <= 0xFFFF; code++)
+        {
+            var single = ((char)code).ToString();
+            var accepted = AmbientTenantScope.TryNormalize(single, out var canonical);
+
+            if (accepted)
+            {
+                AmbientTenantScope.Normalize(single).ShouldBe(canonical, $"U+{code:X4}");
+            }
+            else
+            {
+                Should.Throw<ArgumentException>(() => AmbientTenantScope.Normalize(single), $"U+{code:X4}");
+            }
+        }
+    }
+
+    [Fact]
+    public void The_allowed_set_is_exactly_the_ascii_letters_digits_underscore_dot_and_hyphen()
+    {
+        var accepted = Enumerable.Range(0, 0x10000)
+            .Select(static code => (char)code)
+            .Where(static character => AmbientTenantScope.TryNormalize(character.ToString(), out _))
+            .ToHashSet();
+
+        var expected = new HashSet<char>("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-");
+
+        accepted.SetEquals(expected).ShouldBeTrue("the alphabet of a tenant identifier is the one every collation keeps apart");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

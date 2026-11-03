@@ -60,9 +60,9 @@ public sealed class AnchoredPatternTests
             }
         }
 
-        // A scan that found nothing would pass for the wrong reason. 2026-10-29: eight whole-value patterns (the
-        // seven of an earlier fix and the audit chain key id).
-        anchored.ShouldBeGreaterThanOrEqualTo(8);
+        // A scan that found nothing would pass for the wrong reason. Seven whole-value patterns remain: the tenant
+        // identifier rule left the pattern list when it became a character loop in the abstractions assembly.
+        anchored.ShouldBeGreaterThanOrEqualTo(7);
 
         violations.ShouldBeEmpty(
             "A whole-value pattern ends in '$', which also matches before a trailing line feed. End it with '\\z':\n"

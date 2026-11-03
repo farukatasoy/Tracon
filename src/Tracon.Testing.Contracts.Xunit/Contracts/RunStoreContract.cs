@@ -751,6 +751,62 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Users_that_differ_only_in_letter_case_are_two_users()
+    {
+        // 🚨 A user is an opaque identity an identity provider hands out, and providers keep letter case. A store that
+        // compares users the way its database compares text lists the runs of "Alice" for "alice", and the user
+        // breakdown counts the two as one person. The filter, the statistics and the breakdown must not depend on
+        // the engine.
+        await CompleteRunWithAttributionAsync("Alice", labels: null, totalTokens: 10, failed: false);
+        await CompleteRunWithAttributionAsync("alice", labels: null, totalTokens: 20, failed: false);
+
+        foreach (var (user, tokens) in new[] { ("Alice", 10L), ("alice", 20L) })
+        {
+            (await Store.QueryRunsAsync(new RunQuery { UserId = user }))
+                .ShouldHaveSingleItem().UserId.ShouldBe(user, "the user comes back in the spelling it was written in");
+
+            var narrowed = await Store.GetStatisticsAsync(new RunStatisticsQuery { UserId = user });
+
+            narrowed.TotalRuns.ShouldBe(1);
+            narrowed.TotalTokens.ShouldBe(tokens);
+        }
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        statistics.TotalRuns.ShouldBe(2);
+        statistics.ByUser.Select(static user => user.UserId).Order(StringComparer.Ordinal).ShouldBe(["Alice", "alice"]);
+        statistics.ByUser.ShouldAllBe(static user => user.TotalRuns == 1);
+    }
+
+    [Fact]
+    public async Task Experiment_results_of_variants_that_differ_only_in_case_are_listed_apart()
+    {
+        // 🚨 The name of a variant is chosen by whoever defines the experiment. A store that groups the arms by the
+        // comparison its database applies to text reports "A" and "a" as one arm, and a canary decision then reads
+        // the numbers of both as the numbers of one.
+        var experimentId = TraconId.NewId();
+
+        foreach (var variant in new[] { "A", "a" })
+        {
+            var runId = TraconId.NewId();
+
+            await Store.StartRunAsync(TestData.Run(runId) with { ExperimentId = experimentId, Variant = variant });
+            await Store.CompleteRunAsync(new RunCompletion
+            {
+                RunId = runId,
+                Status = RunStatus.Completed,
+                CompletedAt = DateTimeOffset.UtcNow,
+                Usage = new RunUsage { TotalTokens = 10 },
+            });
+        }
+
+        var arms = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId });
+
+        arms.Select(static arm => arm.Variant).Order(StringComparer.Ordinal).ShouldBe(["A", "a"]);
+        arms.ShouldAllBe(static arm => arm.TotalRuns == 1);
+    }
+
+    [Fact]
     public async Task Query_filters_by_a_label_key_and_value_together()
     {
         // 🚨 The key alone is not the filter: asking for team=payments must not

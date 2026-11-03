@@ -8,6 +8,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>Tests for the data retention endpoints.</summary>
 public sealed class RetentionEndpointTests
 {
+    private const string Wildcard = "*";
+
     private static readonly Uri Policies = new("/tracon/api/retention", UriKind.Relative);
     private static readonly Uri RunEventsPolicy = new("/tracon/api/retention/run_events", UriKind.Relative);
     private static readonly Uri Preview = new("/tracon/api/retention/preview", UriKind.Relative);
@@ -188,6 +190,55 @@ public sealed class RetentionEndpointTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await TraconTestHost.ReadJsonAsync(response)).GetArrayLength().ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData("PUT")]
+    [InlineData("DELETE")]
+    public async Task A_custom_context_that_returns_the_wildcard_cannot_reach_the_default_policy(string method)
+    {
+        // "*" names the default policy of every tenant. It is the retention stores' own value, not a tenant, so a
+        // context that returns it must fail where any other value outside the alphabet fails, not write or remove
+        // the default that every tenant falls back on.
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<ITenantContext>(new WildcardTenantContext()));
+
+        var store = host.Services.GetRequiredService<IRetentionPolicyStore>();
+
+        await store.SavePolicyAsync(
+            new RetentionPolicy
+            {
+                Id = Guid.NewGuid(),
+                TenantId = Wildcard,
+                Target = "run_events",
+                MaxAgeDays = 90,
+                Enabled = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            });
+
+        try
+        {
+            using var response = string.Equals(method, "PUT", StringComparison.Ordinal)
+                ? await host.Client.PutAsJsonAsync(RunEventsPolicy, Request(maxAgeDays: 1))
+                : await host.Client.DeleteAsync(RunEventsPolicy);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+        }
+        catch (ArgumentException failure)
+        {
+            failure.ParamName.ShouldBe("tenantId");
+        }
+
+        var kept = await store.GetPolicyAsync(Wildcard, "run_events");
+
+        kept.ShouldNotBeNull();
+        kept.MaxAgeDays.ShouldBe(90);
+    }
+
+    private sealed class WildcardTenantContext : ITenantContext
+    {
+        public string TenantId => Wildcard;
     }
 
     private static RetentionPolicySaveRequest Request(int? maxAgeDays)

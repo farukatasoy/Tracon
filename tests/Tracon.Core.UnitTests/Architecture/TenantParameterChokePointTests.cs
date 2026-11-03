@@ -59,6 +59,16 @@ public sealed class TenantParameterChokePointTests
     ];
 
     /// <summary>
+    /// A form that is accepted in one file only. The retention policy parameter may carry the <c>"*"</c> default
+    /// that no other table holds; that fold lives in one helper, so any other file that names it is a second place
+    /// where a tenant could be bound as the default.
+    /// </summary>
+    private static readonly (string File, string Form)[] FileScopedForms =
+    [
+        ("src/Tracon.Sql.Shared/Internal/DbHelpers.cs", "RetentionPolicyTenant.Normalize("),
+    ];
+
+    /// <summary>
     /// The one construct that names the column without binding a value to it:
     /// the run query's column descriptor, which says which table a column is
     /// read from. Kept as a named exception rather than by narrowing the scan
@@ -93,7 +103,7 @@ public sealed class TenantParameterChokePointTests
                 {
                     var line = lines[i];
 
-                    if (!TenantParameterLine.IsMatch(line) || IsAllowed(line))
+                    if (!TenantParameterLine.IsMatch(line) || IsAllowed(relative, line))
                     {
                         continue;
                     }
@@ -119,7 +129,54 @@ public sealed class TenantParameterChokePointTests
         Assert.Fail(message);
     }
 
-    private static bool IsAllowed(string line)
+    [Fact]
+    public void Only_the_retention_policy_store_binds_the_default_policy_tenant()
+    {
+        // AddPolicyTenant lets "*" through, the default policy of every tenant. A store that binds a tenant with it
+        // would read and write that policy as if "*" were a tenant, and the scan above would not see it: the line
+        // never names the parameter.
+        var allowed = new[]
+        {
+            "src/Tracon.Sql.Shared/Internal/DbHelpers.cs",
+            "src/Tracon.Sql.Shared/Stores/SqlRetentionPolicyStore.cs",
+        };
+
+        var offenders = new List<string>();
+
+        foreach (var root in ScanRoots)
+        {
+            var absoluteRoot = Path.Combine(RepositoryRoot, root);
+
+            if (!Directory.Exists(absoluteRoot))
+            {
+                continue;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(absoluteRoot, "*.cs", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(RepositoryRoot, file).Replace('\\', '/');
+
+                if (allowed.Contains(relative, StringComparer.Ordinal))
+                {
+                    continue;
+                }
+
+                var lines = File.ReadAllLines(file);
+
+                for (var i = 0; i < lines.Length; i++)
+                {
+                    if (lines[i].Contains("AddPolicyTenant(", StringComparison.Ordinal))
+                    {
+                        offenders.Add($"{relative}:{i + 1}: {lines[i].Trim()}");
+                    }
+                }
+            }
+        }
+
+        offenders.ShouldBeEmpty("AddPolicyTenant binds the '*' default policy; only the retention policy store may call it");
+    }
+
+    private static bool IsAllowed(string file, string line)
     {
         // A comment or an XML doc line may name the parameter without binding it.
         var trimmed = line.TrimStart();
@@ -134,6 +191,14 @@ public sealed class TenantParameterChokePointTests
         foreach (var form in AcceptedForms)
         {
             if (line.Contains(form, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        foreach (var (scopedFile, form) in FileScopedForms)
+        {
+            if (string.Equals(file, scopedFile, StringComparison.Ordinal) && line.Contains(form, StringComparison.Ordinal))
             {
                 return true;
             }

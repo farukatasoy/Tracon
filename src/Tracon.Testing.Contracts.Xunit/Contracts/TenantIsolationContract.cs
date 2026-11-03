@@ -291,6 +291,55 @@ public abstract class TenantIsolationContract<TStore> : StoreCancellationContrac
     }
 
     /// <summary>
+    /// Checks that a store refuses a tenant identifier that holds a character outside the allowed set, instead of
+    /// folding it or accepting it as it is.
+    /// </summary>
+    /// <param name="tenantId">A tenant identifier with a character other than an ASCII letter, a digit, <c>_</c>, <c>.</c> or <c>-</c>.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    /// <remarks>
+    /// <para>
+    /// A tenant identifier is made of the ASCII letters, the digits, <c>_</c>, <c>.</c> and <c>-</c>
+    /// (<see cref="AmbientTenantScope.Normalize"/>). The set is closed because a relational engine compares text by
+    /// the collation of its column: a composed accented letter and its decomposed spelling, or a full-width letter
+    /// and its plain one, are one tenant to SQL Server and two to PostgreSQL, SQLite and the in-memory store. A store
+    /// that accepts such a value shares the idempotency keys, the API keys and the runs of two tenants on one engine
+    /// and not on another.
+    /// </para>
+    /// <para>
+    /// The store has to refuse the value on a write and on every read, with an <see cref="ArgumentException"/>, and
+    /// the refused write has to leave nothing behind. A store that satisfies this by refusing every tenant still
+    /// fails the scenarios above.
+    /// </para>
+    /// </remarks>
+    [Theory]
+    [InlineData("caf\u00E9")]
+    [InlineData("cafe\u0301")]
+    [InlineData("\uFF41cme")]
+    [InlineData("ac me")]
+    [InlineData("acme\u0000")]
+    [InlineData("acme:ops")]
+    public async Task Tenant_identifiers_outside_the_allowed_characters_are_refused(string tenantId)
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        var key = await SeedAsync(TenantA, "secret", token);
+        var before = await CountAsync(TenantA, token);
+
+        await Should.ThrowAsync<ArgumentException>(
+            async () => await SeedAsync(tenantId, "refused", token),
+            "A write under a tenant identifier outside the allowed characters was accepted.");
+        await Should.ThrowAsync<ArgumentException>(
+            async () => await ExistsAsync(tenantId, key),
+            "A read under a tenant identifier outside the allowed characters was accepted.");
+        await Should.ThrowAsync<ArgumentException>(
+            async () => await CountAsync(tenantId, token),
+            "A listing under a tenant identifier outside the allowed characters was accepted.");
+
+        (await CountAsync(TenantA, token)).ShouldBe(before, "A refused write left a record behind.");
+        (await ExistsAsync(TenantA, key)).ShouldBeTrue("A refused call damaged the record of a valid tenant.");
+    }
+
+    /// <summary>
     /// Asks a store whose records the caller names whether two names that differ only in letter case are two
     /// records, as they are for an ordinal comparison.
     /// </summary>

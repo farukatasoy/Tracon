@@ -64,6 +64,24 @@ public sealed class YourTenantContext(IYourIdentityService identity) : ITenantCo
 }
 ```
 
+The value you return is a tenant identifier: the ASCII letters, the digits, `_`, `.` and `-`, and
+nothing else. Every store refuses any other character with an `ArgumentException` on the first
+call, so a context that takes the value from a client's text (a header, a claim, a subdomain)
+checks it first with `AmbientTenantScope.TryNormalize` and answers the client with `400`; it must
+not let the request reach a store. The reason is the database: an engine that compares text by a
+collation can join two other spellings (an accented letter composed and decomposed, a full-width
+letter) into one tenant, and the idempotency keys, API keys and runs of two tenants would be
+shared. The same applies to the tenant a job carries into `AmbientTenantScope.Begin`. A context
+that fails closed on a value it cannot vouch for returns `Vouch(identity.CurrentTenantId)` from
+`TenantId`, with this check:
+
+```csharp
+private static string Vouch(string? tenantFromTheIdentityLayer)
+    => AmbientTenantScope.TryNormalize(tenantFromTheIdentityLayer, out var tenant)
+        ? tenant
+        : throw new InvalidOperationException("The identity layer returned a tenant that is not an identifier.");
+```
+
 `YourTenantContext` replaces the built-in resolver entirely — the claim/header
 resolution chain [Governance](/concepts/governance/#multi-tenancy) describes only
 applies when you leave the default in place and turn it on with `UseTenancy()`.

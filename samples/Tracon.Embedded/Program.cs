@@ -132,10 +132,32 @@ if (hasPersistence)
     await scope.ServiceProvider.GetRequiredService<HostDbContext>().Database.EnsureCreatedAsync();
 }
 
+// The tenant header is the host's own identity layer, so the host answers a value no store accepts: a tenant
+// identifier holds only ASCII letters, digits, '_', '.' and '-'.
+app.Use(static async (context, next) =>
+{
+    if (EmbeddedTenantContext.NamesMalformedTenant(context.Request))
+    {
+        await Results.Problem(
+            title: "Tenant key invalid",
+            detail: "The tenant key must contain only letters, digits, dots, underscores, and hyphens.",
+            statusCode: StatusCodes.Status400BadRequest).ExecuteAsync(context).ConfigureAwait(false);
+
+        return;
+    }
+
+    await next(context).ConfigureAwait(false);
+});
+
 // The host's own endpoint, in the host's own style — not part of Tracon.
 // Enqueues background work with no request behind it once it runs.
 app.MapPost("/jobs", (EnqueueJobRequest request, EmbeddedJobQueue queue) =>
 {
+    if (!AmbientTenantScope.TryNormalize(request.TenantId, out _))
+    {
+        return Results.Problem(title: "Tenant key invalid", statusCode: StatusCodes.Status400BadRequest);
+    }
+
     queue.Enqueue(new EmbeddedJob(request.TenantId, request.UserId, request.Message));
 
     return Results.Accepted();
@@ -153,6 +175,11 @@ if (hasPersistence)
     app.MapPost("/tickets", async (
         CreateTicketRequest request, HostDbContext db, IAgentCatalog catalog, CancellationToken cancellationToken) =>
     {
+        if (!AmbientTenantScope.TryNormalize(request.TenantId, out _))
+        {
+            return Results.Problem(title: "Tenant key invalid", statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var agent = await catalog.ResolveAsync("assistant", culture: null, cancellationToken).ConfigureAwait(false);
 
         if (agent is null)

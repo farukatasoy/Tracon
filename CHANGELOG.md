@@ -61,6 +61,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `RunInputStoreContract.A_tenant_spelled_in_another_letter_case_reads_its_own_input` and
   `JobStoreContract.Lease_with_a_tenant_cap_counts_two_spellings_of_one_tenant_together`.
 
+- **On SQL Server, the identity of a user, the name of an experiment variant and the actor of an audit entry are compared by their characters, letter case included. `Alice` and `alice` are two users, as they already were on PostgreSQL and SQLite.** SQL Server compared them by the collation of the database, and its default ignores case, so the session list of `bS7` returned the sessions of `Bs7` (state included), while a read of one session by id compared the owner exactly and refused it; the run list and the per-user breakdown merged two people, the arms `A` and `a` of an experiment were one arm, and the audit list filtered by one actor returned the entries of the other. Migration `0061_ordinal_identity_columns` gives `Latin1_General_BIN2` to `sessions.owner_id`, `runs.user_id`, `runs.variant` and `audit_log.actor`. No value changes and no row is merged: none of the four columns is part of a key (three indexes hold them, all filtered and not unique), so two spellings that were two rows stay two rows. Left alone: the owner of a singleton lease, which is the identity of a node that the library writes.
+  What to do:
+  - **Plan the upgrade window.** The migration is one command in one transaction, and the `runs`, `sessions` and `audit_log` tables are closed to reads and writes until it commits. Measured in an emulated amd64 container on Apple Silicon (slower than native), over rows that carry only their required columns: 0.7 s for 100 000 runs (with 10 000 sessions of 8 KB and 100 000 audit entries), 5.4 s for a million runs (with 100 000 sessions of 8 KB and a million audit entries). That is inside the default `CommandTimeoutSeconds` of 30; raise it for the run that applies the migration if your rows are wider or your storage slower, or apply it in your own deployment step (`AutoApplyMigrations = false`). Apply it before you start the new instances.
+  - **Check the SQL you wrote against these columns.** A comparison of one of them with a column of another collation fails with "Cannot resolve the collation conflict" (error 468): write `COLLATE Latin1_General_BIN2` on your side to keep the match exact, or `COLLATE DATABASE_DEFAULT` on the column's side to ignore case again.
+  - SQL Server still ignores trailing spaces in every collation, so `Alice` and `Alice ` remain one user there.
+  - **Drop what you built over these columns before the migration, and build it again after.** An index, a statistic, a schema-bound view, a foreign key or a computed column of your own over one of the four columns stops the migration (`ALTER COLUMN` refuses a column something depends on): the host does not start while `AutoApplyMigrations` is on. Tracon's own indexes are rebuilt by the migration.
+
+  A custom store must compare these identities by their characters too. New contract tests, which a store that folds case fails: `SessionStoreContract.Owners_that_differ_only_in_letter_case_are_two_owners`, `RunStoreContract.Users_that_differ_only_in_letter_case_are_two_users` and `RunStoreContract.Experiment_results_of_variants_that_differ_only_in_case_are_listed_apart`.
+
+- **A tenant identifier holds only ASCII letters, digits, `_`, `.` and `-`; every other character is refused.** `AmbientTenantScope.Normalize`, `AmbientTenantScope.Begin`, the
+  tenant an `ITenantContext` returns and every store now throw an `ArgumentException` (the message names the index and the code point of the first character, never the value)
+  for a tenant with a space, an accented letter, a full-width letter, `*`, `:`, a control character or anything else outside that set. The HTTP surface already allowed
+  nothing else in a header or a claim (`400` and `403`); the management routes that carry a tenant in the path (`/api/tenants/{tenantId}/…`, `/api/tenants/{slug}`) now answer
+  `400` for it too, where a `GET` or a `DELETE` used to reach the store, and `POST /api/triggers/{tenantId}/{name}` answers the generic `401` of an unknown trigger. The reason is the
+  database: SQL Server compares a tenant column by the collation of the database, which treats an accented letter written as one character and as two (`é` and `e` plus a
+  combining accent) and a full-width letter and its plain one as equal, so two tenants were one on SQL Server and two on PostgreSQL, SQLite and in memory, and they shared
+  idempotency keys, API keys and runs. Over this alphabet no collation joins two identifiers that differ after the lower-case fold (measured on SQL Server 2019 and 2022, with the
+  default collation and with `Turkish_CI_AS`), so the tenant columns stay as they are.
+  What to do:
+  - **A custom `ITenantContext` returns an identifier of that alphabet.** One that returns the text of a header, a claim or a subdomain as it came fails on the first store call
+    with a `500` for a value outside it. Check the text with the new `AmbientTenantScope.TryNormalize(string?, out string?)` (it applies the same rule without throwing) and answer the
+    client yourself with `400`. `samples/Tracon.Embedded` shows it.
+  - **`TraconOptions.DefaultTenantId` and `TraconTenancyOptions.AllowedTenants` are checked at startup.** An entry outside the alphabet stops the host with an options validation failure.
+  - **Rows an earlier release wrote under such a tenant stop the migration runner.** On every start the runner now names the tables that hold a `tenant_id` outside lower-case
+    `a-z`, `0-9`, `_`, `.`, `-`, as it already did for capitals; it changes nothing. `*` in `retention_policies` is the default policy of every tenant and is not a finding. Rename the
+    tenant, per table, to its ASCII spelling, except in `audit_log`: the tenant of an entry is part of its hash, so a renamed entry fails the chain verification
+    (`GET /api/audit/verify` reports it as broken). For that table export the entries of the tenant, then either remove all of them (a chain belongs to one tenant, so the chains of
+    the others stay whole) or rename them and accept that the chain of that tenant fails from the first renamed entry; the runner's message says the same. With `AutoApplyMigrations`
+    off the runner does not run, so look before you upgrade: a retention run that reads the tenant of such a row (attachments, sessions when a content eraser is registered, and the
+    targets whose key holds the tenant) fails on it and records the failure, and it fails again on every run until the row is dealt with (repeat for every table the first query lists):
+
+    ```sql
+    -- PostgreSQL
+    SELECT table_name FROM information_schema.columns WHERE table_schema = 'tracon' AND column_name = 'tenant_id';
+    SELECT count(*) FROM tracon.runs WHERE tenant_id COLLATE "C" ~ '[^a-z0-9_.-]';
+    -- SQL Server
+    SELECT t.name FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE SCHEMA_NAME(t.schema_id) = N'tracon' AND c.name = N'tenant_id';
+    SELECT COUNT(*) FROM tracon.runs WHERE tenant_id COLLATE Latin1_General_BIN2 LIKE N'%[^-a-z0-9_.]%';
+    -- SQLite (the tables carry the prefix, `tracon_` by default)
+    SELECT m.name FROM sqlite_master m JOIN pragma_table_info(m.name) p WHERE m.type = 'table' AND p.name = 'tenant_id';
+    SELECT count(*) FROM tracon_runs WHERE tenant_id GLOB '*[^a-z0-9_.-]*';
+    ```
+  - **A custom store gets one more case.** `TenantIsolationContract.Tenant_identifiers_outside_the_allowed_characters_are_refused` (every store contract derived from it) hands the store
+    such a tenant and expects an `ArgumentException` on a write and on a read, with nothing written. Passing the tenant through `AmbientTenantScope.Normalize`, as above, is enough.
+
 - **Behavioural breaking change: a JSON request body longer than 8 MiB answers `413`.** Nothing bounded a body before: a 32 MB `message` was read,
   parsed, recorded with its run and echoed, about thirty times its size in memory at once, and only the server's own limit (30 MB on Kestrel,
   written nowhere) stood in front of it. `TraconEndpointOptions.MaxJsonBodyBytes` now bounds every JSON body under the endpoints, 8 MiB by default,

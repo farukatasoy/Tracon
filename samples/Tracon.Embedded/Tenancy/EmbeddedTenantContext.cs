@@ -19,6 +19,13 @@ namespace Tracon.Embedded;
 /// Registered <strong>before</strong> <c>AddTracon()</c>: every contract
 /// here uses <c>TryAdd</c>, so a registration made first wins.
 /// </para>
+/// <para>
+/// A tenant identifier holds only ASCII letters, digits, <c>_</c>, <c>.</c> and <c>-</c>, and every Tracon
+/// store refuses anything else. The header is the client's text, so the host answers a malformed value
+/// itself, before the request reaches Tracon (<see cref="NamesMalformedTenant"/>, used by the middleware in
+/// <c>Program.cs</c>); a request that got past that check would fail on its first store call rather than run
+/// as the wrong tenant.
+/// </para>
 /// </remarks>
 internal sealed class EmbeddedTenantContext(IHttpContextAccessor accessor, IOptions<TraconOptions> options)
     : ITenantContext
@@ -39,10 +46,20 @@ internal sealed class EmbeddedTenantContext(IHttpContextAccessor accessor, IOpti
         ?? ResolveFromHeader()
         ?? options.Value.DefaultTenantId;
 
+    /// <summary>Says whether the request names a tenant that no Tracon store accepts.</summary>
+    /// <param name="request">The request.</param>
+    /// <returns><see langword="true"/> when the header is present, not blank, and not a tenant identifier.</returns>
+    public static bool NamesMalformedTenant(HttpRequest request)
+    {
+        var value = request.Headers[TenantHeader].ToString();
+
+        return !string.IsNullOrWhiteSpace(value) && !AmbientTenantScope.TryNormalize(value, out _);
+    }
+
     private string? ResolveFromHeader()
     {
         var value = accessor.HttpContext?.Request.Headers[TenantHeader].ToString();
 
-        return string.IsNullOrWhiteSpace(value) ? null : value;
+        return string.IsNullOrWhiteSpace(value) ? null : AmbientTenantScope.Normalize(value);
     }
 }

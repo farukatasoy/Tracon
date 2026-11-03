@@ -4844,6 +4844,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -4895,6 +4905,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       },
@@ -4927,6 +4947,16 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -4957,6 +4987,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantEgressPolicyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5001,6 +5041,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       },
@@ -5025,6 +5075,16 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -5055,6 +5115,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantToolPolicyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -5099,6 +5169,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       },
@@ -5123,6 +5203,16 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -6679,6 +6769,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       },
@@ -6703,6 +6803,16 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -7965,7 +8075,7 @@
           "Triggers"
         ],
         "summary": "Accepts a signed external event and queues a run.",
-        "description": "No bearer token: the caller authenticates with an HMAC signature over the raw body (\u0027X-Tracon-Timestamp\u0027 \u002B \u0027X-Tracon-Signature\u0027, the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 \u2014 there is no synchronous mode; a long model call would otherwise fail the caller\u0027s own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names. If a registered IRunAuthorizationHandler denies the target run, the response is 403, before the quota check.",
+        "description": "No bearer token: the caller authenticates with an HMAC signature over the raw body (\u0027X-Tracon-Timestamp\u0027 \u002B \u0027X-Tracon-Signature\u0027, the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 \u2014 there is no synchronous mode; a long model call would otherwise fail the caller\u0027s own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names; so does a tenant segment that is not a tenant identifier (ASCII letters, digits, \u0027_\u0027, \u0027.\u0027 and \u0027-\u0027). If a registered IRunAuthorizationHandler denies the target run, the response is 403, before the quota check.",
         "operationId": "TraconAcceptInboundTrigger",
         "parameters": [
           {

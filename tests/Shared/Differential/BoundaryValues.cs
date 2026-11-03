@@ -120,30 +120,6 @@ internal static class BoundaryValues
             });
 
     /// <summary>
-    /// Generates a pool of identifiers made of ASCII letters, digits and a few separators, some of them the letter-case
-    /// twin of another.
-    /// </summary>
-    /// <param name="count">The size of the pool.</param>
-    /// <param name="maxLength">The longest identifier.</param>
-    /// <param name="withoutLetterI">Whether to leave out i and I, which a Turkish collation does not treat as letter-case twins.</param>
-    /// <returns>The generator.</returns>
-    public static Gen<string[]> AsciiIdentifierPool(int count, int maxLength, bool withoutLetterI = false)
-        => Pool(
-            count,
-            Gen.Frequency(
-                (6, Gen.String[Gen.Char[(TenantCharacters + "|").Where(c => !withoutLetterI || c is not ('i' or 'I')).Aggregate(string.Empty, static (text, c) => text + c)], 1, 12]),
-                (1, Gen.String[Gen.Char[TenantCharacters.Where(c => !withoutLetterI || c is not ('i' or 'I')).Aggregate(string.Empty, static (text, c) => text + c)], 1, maxLength])),
-            static identifier =>
-            {
-                var candidates = new[] { identifier.ToUpperInvariant(), identifier.ToLowerInvariant(), Swap(identifier) }
-                    .Where(candidate => !string.Equals(candidate, identifier, StringComparison.Ordinal))
-                    .Distinct(StringComparer.Ordinal)
-                    .ToArray();
-
-                return candidates.Length == 0 ? Gen.Const(identifier) : Gen.OneOf(candidates);
-            });
-
-    /// <summary>
     /// Generates a tenant spelling that is never blank: a text where a blank result is prefixed with a letter, so that
     /// leading white space and the other awkward characters stay.
     /// </summary>

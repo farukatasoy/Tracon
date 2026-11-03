@@ -6,13 +6,14 @@ namespace Tracon.Core.UnitTests.Tenancy;
 
 /// <summary>
 /// Properties of the tenant identifier fold that every store applies: folding twice is folding once, the letter-case
-/// spellings of one identifier become one value, and the result does not depend on the culture of the process.
+/// spellings of one identifier become one value, the result does not depend on the culture of the process, and a text
+/// outside the allowed alphabet never gets as far as a store.
 /// </summary>
 public sealed class TenantNormalizationPropertyTests
 {
     [Fact]
     public void Folding_a_folded_tenant_changes_nothing()
-        => BoundaryValues.NonBlank(200).Sample(
+        => BoundaryValues.TenantId.Sample(
             static tenant =>
             {
                 var once = AmbientTenantScope.Normalize(tenant);
@@ -36,7 +37,7 @@ public sealed class TenantNormalizationPropertyTests
 
     [Fact]
     public void Folding_keeps_the_length_and_leaves_no_ascii_capital()
-        => BoundaryValues.NonBlank(200).Sample(
+        => BoundaryValues.TenantId.Sample(
             static tenant =>
             {
                 var folded = AmbientTenantScope.Normalize(tenant);
@@ -62,7 +63,7 @@ public sealed class TenantNormalizationPropertyTests
             CultureInfo.CurrentCulture = culture;
             CultureInfo.CurrentUICulture = culture;
 
-            BoundaryValues.NonBlank(200).Sample(
+            BoundaryValues.TenantId.Sample(
                 static tenant => AmbientTenantScope.Normalize(tenant).ShouldBe(tenant.ToLowerInvariant(), $"tenant {BoundaryValues.Show(tenant)}"),
                 iter: 2_000);
 
@@ -76,6 +77,28 @@ public sealed class TenantNormalizationPropertyTests
         }
     }
 
+    [Fact]
+    public void A_text_with_a_character_outside_the_allowed_set_is_refused()
+        => BoundaryValues.NonBlank(200)
+            .Where(static tenant => tenant.Any(static character => !IsAllowed(character)))
+            .Sample(
+                static tenant =>
+                {
+                    Should.Throw<ArgumentException>(() => AmbientTenantScope.Normalize(tenant), $"tenant {BoundaryValues.Show(tenant)}");
+                    AmbientTenantScope.TryNormalize(tenant, out _).ShouldBeFalse($"tenant {BoundaryValues.Show(tenant)}");
+                },
+                iter: 5_000);
+
+    [Fact]
+    public void A_text_of_the_allowed_set_folds_the_same_way_through_both_entry_points()
+        => BoundaryValues.TenantId.Sample(
+            static tenant =>
+            {
+                AmbientTenantScope.TryNormalize(tenant, out var canonical).ShouldBeTrue();
+                canonical.ShouldBe(AmbientTenantScope.Normalize(tenant));
+            },
+            iter: 5_000);
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
@@ -83,6 +106,9 @@ public sealed class TenantNormalizationPropertyTests
     [InlineData(null)]
     public void A_blank_tenant_is_rejected(string? tenant)
         => Should.Throw<ArgumentException>(() => AmbientTenantScope.Normalize(tenant!));
+
+    private static bool IsAllowed(char character)
+        => character is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '.' or '-';
 
     private static string Swap(string value)
         => string.Concat(value.Select(static character => char.IsUpper(character) ? char.ToLowerInvariant(character) : char.ToUpperInvariant(character)));

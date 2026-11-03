@@ -211,6 +211,11 @@ Three properties are worth knowing before you turn it on:
   `Tracon.SessionOwnership` category; an unregistered policy writes nothing.
 - **Ownership is drawn under the tenant, never across it.** The same person in
   two tenants still has two independent data spaces.
+- **The owner is an opaque identity and letter case counts.** `Alice` and `alice` are two
+  owners: the session list of one never includes the sessions of the other, whichever store
+  holds them. On SQL Server the owner column compares by code point (`Latin1_General_BIN2`), as
+  the other stores do. SQL Server still ignores trailing spaces, so `Alice` and `Alice ` are one
+  owner there; an identity provider does not hand those out.
 
 `RequireAuthenticatedOwner` (default `true`) is what turns an unresolvable
 identity into a refusal. Turning it off lets unowned sessions be opened again,

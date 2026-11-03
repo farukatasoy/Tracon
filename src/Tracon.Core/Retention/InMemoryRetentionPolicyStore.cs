@@ -23,7 +23,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
-        tenantId = AmbientTenantScope.Normalize(tenantId);
+        tenantId = RetentionPolicyTenant.Normalize(tenantId);
 
         IReadOnlyList<RetentionPolicy> result = _policies.Values
             .Where(policy => Matches(policy.TenantId, tenantId))
@@ -43,11 +43,11 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         cancellationToken.ThrowIfCancellationRequested();
 
-        tenantId = AmbientTenantScope.Normalize(tenantId);
+        tenantId = RetentionPolicyTenant.Normalize(tenantId);
 
         var tenantSpecific = Find(tenantId, target);
 
-        return new ValueTask<RetentionPolicy?>(tenantSpecific ?? Find("*", target));
+        return new ValueTask<RetentionPolicy?>(tenantSpecific ?? Find(RetentionPolicyTenant.AllTenants, target));
     }
 
     /// <inheritdoc />
@@ -58,7 +58,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentNullException.ThrowIfNull(policy);
         cancellationToken.ThrowIfCancellationRequested();
 
-        policy = policy with { TenantId = AmbientTenantScope.Normalize(policy.TenantId) };
+        policy = policy with { TenantId = RetentionPolicyTenant.Normalize(policy.TenantId) };
 
         var existing = Find(policy.TenantId, policy.Target);
 
@@ -83,7 +83,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         cancellationToken.ThrowIfCancellationRequested();
 
-        tenantId = AmbientTenantScope.Normalize(tenantId);
+        tenantId = RetentionPolicyTenant.Normalize(tenantId);
 
         var existing = Find(tenantId, target);
 

@@ -140,6 +140,14 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
+    /// <c>GLOB</c> compares by code point and is case-sensitive, so a capital letter, an accent and a character
+    /// outside the tenant alphabet are all found by the negated bracket.
+    /// </remarks>
+    public override string NonCanonicalTenantIdPredicate =>
+        "tenant_id IS NOT NULL AND tenant_id GLOB '*[^a-z0-9_.-]*'";
+
+    /// <inheritdoc />
+    /// <remarks>
     /// The "views" set is opt-in for the same reason as PostgreSQL's
     /// "knowledge" set — a published view is a permanent data contract, and a
     /// consumer who never opts in should see no surprise object in their

@@ -1801,8 +1801,8 @@ caller who is not authenticated gets `401`, whatever the tenant value.
 one tenant. Tracon reaches that by folding the *value* to invariant lower case
 wherever a tenant enters the system — the resolved context, the allow-list on
 both sides, the admin routes, and every store, on the write path and the query
-path alike. `AmbientTenantScope.Normalize` is that rule, and a store you write
-yourself must apply it too.
+path alike. `AmbientTenantScope.Normalize` is that rule (it throws for a character outside the alphabet, and
+`TryNormalize` checks without throwing), and a store you write yourself must apply it too.
 
 Folding the value, not comparing case-insensitively at query time, is what makes the
 three storage providers and the in-memory stores agree: a plain `=` means the same thing on PostgreSQL, SQLite
@@ -1814,10 +1814,10 @@ pair is one tenant or two depending on the layer asked.
 Two consequences are worth planning for:
 
 - `Tracon:DefaultTenantId` is **rejected at startup** when it is not already lower
-  case: folding it silently would show a value you wrote as `Acme` as `acme` in the
+  case or holds such a character: folding it silently would show a value you wrote as `Acme` as `acme` in the
   audit trail, with nothing to search for.
 - Migrations **refuse to run** against a database that still holds a non-canonical
-  `tenant_id`, and they name the tables. On a case-sensitive engine `Acme` and `acme`
+  `tenant_id` (a capital letter, or a character outside the alphabet), and they name the tables. On a case-sensitive engine `Acme` and `acme`
   may be two real tenants, and merging two tenants cannot be undone: decide per table
   whether the rows are one tenant or two, then start again.
 
@@ -3819,6 +3819,11 @@ Three properties are worth knowing before you turn it on:
   `Tracon.SessionOwnership` category; an unregistered policy writes nothing.
 - **Ownership is drawn under the tenant, never across it.** The same person in
   two tenants still has two independent data spaces.
+- **The owner is an opaque identity and letter case counts.** `Alice` and `alice` are two
+  owners: the session list of one never includes the sessions of the other, whichever store
+  holds them. On SQL Server the owner column compares by code point (`Latin1_General_BIN2`), as
+  the other stores do. SQL Server still ignores trailing spaces, so `Alice` and `Alice ` are one
+  owner there; an identity provider does not hand those out.
 
 `RequireAuthenticatedOwner` (default `true`) is what turns an unresolvable
 identity into a refusal. Turning it off lets unowned sessions be opened again,
@@ -6744,15 +6749,23 @@ once:
   what the code expects.
 
 :::caution[Migrations refuse a non-canonical tenant id]
-The tenant identifier is stored in its canonical (lower-case) form — see
+The tenant identifier is stored in its canonical form — lower-case ASCII letters,
+digits, `_`, `.` and `-` — see
 [Multi-tenancy](/concepts/governance/#what-a-tenant-identifier-may-be). Before
 applying anything, the runner checks every table that carries a `tenant_id` and
-**stops, naming the tables**, if any row holds a value that is not canonical.
+**stops, naming the tables**, if any row holds a value that is not canonical. `*` in
+`retention_policies` is the default policy of every tenant and is not a finding.
 
 It does not fold those rows for you. On PostgreSQL and SQLite, which compare
 case-sensitively, `Acme` and `acme` may be two real tenants, and merging two
 tenants cannot be undone. Decide per table whether the rows belong to one
 tenant (lower-case them) or to two (rename one), then start again.
+
+The audit trail is the exception: the tenant of an entry is part of its hash, so a
+renamed entry fails the chain verification. Export the entries of that tenant first,
+then either remove all of them (a chain belongs to one tenant, so the chains of the
+others stay whole) or rename them and accept that the chain of that tenant fails from
+the first renamed entry.
 :::
 
 :::caution[A migration can be one-way]
@@ -11488,6 +11501,24 @@ public sealed class YourTenantContext(IYourIdentityService identity) : ITenantCo
 {
     public string TenantId => identity.CurrentTenantId;
 }
+```
+
+The value you return is a tenant identifier: the ASCII letters, the digits, `_`, `.` and `-`, and
+nothing else. Every store refuses any other character with an `ArgumentException` on the first
+call, so a context that takes the value from a client's text (a header, a claim, a subdomain)
+checks it first with `AmbientTenantScope.TryNormalize` and answers the client with `400`; it must
+not let the request reach a store. The reason is the database: an engine that compares text by a
+collation can join two other spellings (an accented letter composed and decomposed, a full-width
+letter) into one tenant, and the idempotency keys, API keys and runs of two tenants would be
+shared. The same applies to the tenant a job carries into `AmbientTenantScope.Begin`. A context
+that fails closed on a value it cannot vouch for returns `Vouch(identity.CurrentTenantId)` from
+`TenantId`, with this check:
+
+```csharp
+private static string Vouch(string? tenantFromTheIdentityLayer)
+    => AmbientTenantScope.TryNormalize(tenantFromTheIdentityLayer, out var tenant)
+        ? tenant
+        : throw new InvalidOperationException("The identity layer returned a tenant that is not an identifier.");
 ```
 
 `YourTenantContext` replaces the built-in resolver entirely — the claim/header
@@ -21391,12 +21422,25 @@ easy to miss in a custom store because everything else keeps passing without the
   checkpoint and session id, a run score's author, message id and name, and a rate-limit
   partition key. So does the name of a definition: an agent, a workflow, a skill, a schedule and
   the other definitions each have a contract test that saves `Support` and `support` and expects
-  two records, and so does the agent name on a run or a session. Compare them ordinally; do not fold them to lower case, because the identifier
+  two records, and so does the agent name on a run or a session. The identity of a user is such a
+  key too: `SessionStoreContract.Owners_that_differ_only_in_letter_case_are_two_owners` and
+  `RunStoreContract.Users_that_differ_only_in_letter_case_are_two_users` save `Alice` and `alice` and expect two
+  owners and two users in the lists and the breakdown, and
+  `RunStoreContract.Experiment_results_of_variants_that_differ_only_in_case_are_listed_apart` does the same for
+  the name of an experiment variant. Compare them ordinally; do not fold them to lower case, because the identifier
   you return has to be the one that was written. The shipped SQL Server store does not tell
   `abc` from `abc ` (that engine ignores trailing spaces in every collation); the contract does
   not test it, and your store may keep the two apart.
 
-- **The tenant is the one identifier that is not compared by its characters.** `Acme`, `acme` and
+- **The tenant is the one identifier that is not compared by its characters, and it has a closed
+  alphabet.** A tenant is made of the ASCII letters, the digits, `_`, `.` and `-`, and nothing else:
+  `AmbientTenantScope.Normalize` throws an `ArgumentException` for any other character, because an
+  engine that compares text by a collation may join two other spellings into one tenant (SQL Server
+  treats a composed accented letter and its decomposed form as equal, and a full-width letter as
+  its plain one). `TenantIsolationContract.Tenant_identifiers_outside_the_allowed_characters_are_refused`
+  hands your store such a tenant and expects the same exception on a write and on every read, with
+  nothing written. `AmbientTenantScope.TryNormalize` answers the same question without throwing, for
+  the code that holds a client's text. `Acme`, `acme` and
   `ACME` are one tenant, and the folded form is `acme`. Pass every tenant you write, query or
   delete with through `AmbientTenantScope.Normalize`, whichever way it reaches the store: as a
   parameter, through `ITenantContext`, or inside a record. Store the folded value, compare it with
@@ -22633,7 +22677,8 @@ tests. The registration and provider-specific configuration still change.
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
-| Identifiers and names a client chooses (session id, idempotency key, file path, checkpoint id, score author, the name of an agent, workflow, skill or other definition) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. SQL Server ignores trailing spaces in any collation, so `abc` and `abc ` are one key there; the run, `/v1/responses`, AG-UI and session-branch endpoints refuse a session id that starts or ends with whitespace (`400`) so the stores agree on the ids that open a session | Exact |
+| Identifiers and names a client chooses (session id, idempotency key, file path, checkpoint id, score author, the name of an agent, workflow, skill or other definition, the name of an experiment variant, and the identity of a user: a session owner, a run user, an audit actor) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. SQL Server ignores trailing spaces in any collation, so `abc` and `abc ` are one key there; the run, `/v1/responses`, AG-UI and session-branch endpoints refuse a session id that starts or ends with whitespace (`400`) so the stores agree on the ids that open a session | Exact |
+| Tenant identifier | ASCII letters, digits, `_`, `.` and `-` only, folded to lower case; every store refuses any other character with an `ArgumentException` | Same rule | Same rule. The tenant columns keep the collation of the database, which ignores accents and width: no two different identifiers over that alphabet compare equal there, and that is why the alphabet is closed | Same rule |
 | ORM | None | None | None | None |
 | AOT promise | Yes through Core | Yes | No promise | No |
 

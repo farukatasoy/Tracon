@@ -282,6 +282,10 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// The default tenant is always added to the registered tenants: tenant
     /// registration is not mandatory, and in a single-tenant setup the
     /// <c>tenants</c> table may be empty.
+    /// <para>
+    /// A registered slug outside the tenant alphabet is skipped and logged. A store refuses such a value with an
+    /// exception, and one stale row must not stop discovery for every other tenant.
+    /// </para>
     /// </remarks>
     private async ValueTask<IReadOnlyCollection<string>> ResolveTenantIdsAsync(CancellationToken cancellationToken)
     {
@@ -289,9 +293,26 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
         try
         {
+            var skipped = 0;
+
             foreach (var tenant in await _tenants.ListAsync(cancellationToken).ConfigureAwait(false))
             {
-                ids.Add(tenant.Slug);
+                if (AmbientTenantScope.TryNormalize(tenant.Slug, out var canonicalSlug))
+                {
+                    ids.Add(canonicalSlug);
+                }
+                else
+                {
+                    skipped++;
+                }
+            }
+
+            if (skipped > 0)
+            {
+                // The slug is not logged: it is stored text that may hold control characters.
+                _logger.LogWarning(
+                    "{Skipped} registered tenant slug(s) hold a character outside the tenant alphabet; MCP discovery skips them. The tenant routes refuse such a slug, so correct or remove the rows in the tenants table with SQL.",
+                    skipped);
             }
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))

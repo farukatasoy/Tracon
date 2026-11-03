@@ -126,22 +126,40 @@ internal static class CrossTenantAuthorityEndpointConventionBuilderExtensions
     /// <param name="routeParameterName">The route parameter that names the tenant.</param>
     /// <returns>The same builder, so calls can be chained.</returns>
     /// <remarks>
+    /// <para>
     /// Runs as an endpoint filter, so it runs AFTER the group's
     /// <c>TraconEndpointFilter</c>: the API key and the static token are
     /// already recognized when it asks who the caller is.
+    /// </para>
+    /// <para>
+    /// It also judges the segment itself, before the authority check and before the handler: a value outside the
+    /// tenant alphabet answers <c>400</c> (see <see cref="TenantRouteValidation"/>). A route that names a
+    /// tenant passes through this method, so no handler meets a value the stores would refuse.
+    /// </para>
     /// </remarks>
     public static RouteHandlerBuilder RequirePlatformAuthorityForOtherTenant(
         this RouteHandlerBuilder builder,
         string routeParameterName)
-        => builder.AddEndpointFilter(async (context, next) =>
+    {
+        builder.Add(endpoint => endpoint.Metadata.Add(new TenantRouteValidationMetadata(routeParameterName)));
+        builder.ProducesProblem(StatusCodes.Status400BadRequest);
+
+        return builder.AddEndpointFilter(async (context, next) =>
         {
             var routeValue = context.HttpContext.Request.RouteValues[routeParameterName]?.ToString() ?? string.Empty;
+
+            if (TenantRouteValidation.Check(routeValue) is { } invalid)
+            {
+                return invalid;
+            }
+
             var denied = await CrossTenantAuthority
                 .CheckAsync(context.HttpContext, HttpTenantContext.NormalizeRouteTenantId(routeValue))
                 .ConfigureAwait(false);
 
             return denied ?? await next(context).ConfigureAwait(false);
         });
+    }
 
     /// <summary>Requires platform authority: the endpoint acts on every tenant of the installation.</summary>
     /// <param name="builder">The endpoint builder.</param>

@@ -114,7 +114,9 @@ internal static class TriggerEndpoints
                 "ALWAYS queued and this ALWAYS returns 202 — there is no synchronous mode; a " +
                 "long model call would otherwise fail the caller's own webhook timeout. A missing " +
                 "or wrong signature, an unknown trigger, and a disabled trigger all return the " +
-                "SAME generic response so a caller cannot enumerate trigger names. If a registered " +
+                "SAME generic response so a caller cannot enumerate trigger names; so does a tenant " +
+                "segment that is not a tenant identifier (ASCII letters, digits, '_', '.' and '-'). " +
+                "If a registered " +
                 "IRunAuthorizationHandler denies the target run, the response is 403, before the " +
                 "quota check.")
             .Produces<InboundTriggerAcceptedResponse>(StatusCodes.Status202Accepted)
@@ -287,8 +289,6 @@ internal static class TriggerEndpoints
         string prefix,
         CancellationToken cancellationToken)
     {
-        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
-
         var (body, sizeError) = await ReadBoundedBodyAsync(
             httpContext, options.CurrentValue.MaxBodyBytes, cancellationToken).ConfigureAwait(false);
 
@@ -296,6 +296,17 @@ internal static class TriggerEndpoints
         {
             return sizeError;
         }
+
+        // 🚨 This endpoint has no credential but the signature, so it must not tell a caller which tenants and
+        // triggers exist. A tenant segment outside the tenant alphabet names no tenant and no trigger: it gets the
+        // answer of an unknown trigger, after the same body check, and never reaches a store (which would refuse
+        // the value with an exception, a 500 that tells the caller the segment was malformed).
+        if (!AmbientTenantScope.TryNormalize(tenantId, out var canonicalTenantId))
+        {
+            return DescribeOutcome(new InboundTriggerValidationResult { Outcome = InboundTriggerOutcome.Unauthorized });
+        }
+
+        tenantId = canonicalTenantId;
 
         var timestampHeader = httpContext.Request.Headers.TryGetValue(WebhookSigner.TimestampHeader, out var timestampValues)
             ? timestampValues.ToString()

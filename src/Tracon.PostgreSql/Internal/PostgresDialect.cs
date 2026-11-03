@@ -66,6 +66,15 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
+    /// <c>COLLATE "C"</c> and the regular-expression operator keep the test independent of the locale of the
+    /// database: an ICU locale such as <c>tr-TR</c> changes how <c>lower()</c> and the letter classes behave, and a
+    /// negated bracket of explicit ranges does not use them.
+    /// </remarks>
+    public override string NonCanonicalTenantIdPredicate =>
+        "tenant_id IS NOT NULL AND tenant_id COLLATE \"C\" ~ '[^a-z0-9_.-]'";
+
+    /// <inheritdoc />
+    /// <remarks>
     /// The "knowledge" set needs the <c>pgvector</c> extension and
     /// is therefore opt-in; a consumer without permission to
     /// install extensions on a managed PostgreSQL never sees it.

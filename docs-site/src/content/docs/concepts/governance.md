@@ -72,8 +72,8 @@ caller who is not authenticated gets `401`, whatever the tenant value.
 one tenant. Tracon reaches that by folding the *value* to invariant lower case
 wherever a tenant enters the system — the resolved context, the allow-list on
 both sides, the admin routes, and every store, on the write path and the query
-path alike. `AmbientTenantScope.Normalize` is that rule, and a store you write
-yourself must apply it too.
+path alike. `AmbientTenantScope.Normalize` is that rule (it throws for a character outside the alphabet, and
+`TryNormalize` checks without throwing), and a store you write yourself must apply it too.
 
 Folding the value, not comparing case-insensitively at query time, is what makes the
 three storage providers and the in-memory stores agree: a plain `=` means the same thing on PostgreSQL, SQLite
@@ -85,10 +85,10 @@ pair is one tenant or two depending on the layer asked.
 Two consequences are worth planning for:
 
 - `Tracon:DefaultTenantId` is **rejected at startup** when it is not already lower
-  case: folding it silently would show a value you wrote as `Acme` as `acme` in the
+  case or holds such a character: folding it silently would show a value you wrote as `Acme` as `acme` in the
   audit trail, with nothing to search for.
 - Migrations **refuse to run** against a database that still holds a non-canonical
-  `tenant_id`, and they name the tables. On a case-sensitive engine `Acme` and `acme`
+  `tenant_id` (a capital letter, or a character outside the alphabet), and they name the tables. On a case-sensitive engine `Acme` and `acme`
   may be two real tenants, and merging two tenants cannot be undone: decide per table
   whether the rows are one tenant or two, then start again.
 

@@ -25,7 +25,7 @@ default (every one uses `TryAdd`):
 
 | Contract | This sample's implementation |
 |---|---|
-| `ITenantContext` | `Tenancy/EmbeddedTenantContext.cs` — reads `X-Host-Tenant`, falls back to `AmbientTenantScope` |
+| `ITenantContext` | `Tenancy/EmbeddedTenantContext.cs` — reads `X-Host-Tenant`, falls back to `AmbientTenantScope`; a middleware in `Program.cs` answers `400` for a value that is not a tenant identifier (ASCII letters, digits, `_`, `.`, `-`) |
 | `ITenantStore` | `Tenancy/EmbeddedTenantStore.cs` — in-memory stand-in for the host's own tenant directory |
 | `IRunAttributionContext` | `Attribution/EmbeddedRunAttributionContext.cs` — reads `X-Host-User`, falls back to `AmbientRunAttributionScope` |
 | `IToolAuthorizationHandler` | `Authorization/EmbeddedToolAuthorizationHandler.cs` — a fixed per-tenant permission map |

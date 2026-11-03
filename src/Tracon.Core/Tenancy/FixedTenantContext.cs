@@ -16,6 +16,10 @@ namespace Tracon;
 /// </para>
 /// </remarks>
 /// <param name="tenantId">The tenant identifier to return.</param>
+/// <exception cref="ArgumentException">
+/// <paramref name="tenantId"/> is blank or holds a character outside the tenant alphabet
+/// (see <see cref="AmbientTenantScope.Normalize"/>).
+/// </exception>
 public sealed class FixedTenantContext(string tenantId) : ITenantContext
 {
     /// <summary>

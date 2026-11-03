@@ -58,6 +58,8 @@ public sealed class InMemoryTenantFoldTests
     [
         "AmbientTenantScope.Normalize(tenantId)",
         "AmbientTenantScope.NormalizeOrNull(tenantId)",
+        // The retention policy store folds a tenant and also keeps the "*" default apart from one.
+        "RetentionPolicyTenant.Normalize(tenantId)",
     ];
 
     /// <summary>

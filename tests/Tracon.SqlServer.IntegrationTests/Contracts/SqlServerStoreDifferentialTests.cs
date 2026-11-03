@@ -34,7 +34,6 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
                 ReadEchoesRequestedKey = true,
                 CreateEchoesInputText = true,
                 CostDecimals = 10,
-                IdentityFilterIgnoresCase = true,
             },
             Tenant = schema.Tenant,
             Sessions = schema.Context.Sessions,

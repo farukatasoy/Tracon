@@ -143,7 +143,7 @@ internal static class UpgradeProbes
                 }
             }
 
-            seen.Order().ShouldBe(new[] { "run-completed", "run-failed", "run-child", "run-workflow" }.Select(ProbeScope.Id).Order());
+            seen.Order().ShouldBe(new[] { "run-completed", "run-failed", "run-child", "run-workflow", "run-alice-upper" }.Select(ProbeScope.Id).Order());
 
             // Costs are read back from the text the release wrote, whichever column type the provider gave them; a schema
             // from before the cost columns holds none.
@@ -163,6 +163,12 @@ internal static class UpgradeProbes
             completed.Status.ShouldBe(RunStatus.Completed);
             completed.SessionId.ShouldBe("session-alpha");
             completed.UserId.ShouldBe("alice");
+
+            // 🚨 Two users whose identities differ only in letter case. A SQL Server database that took the older
+            // release's column folds them into one user; the migration that makes the column ordinal has to leave
+            // the rows as they are and make the filter tell them apart.
+            (await runs.QueryRunsAsync(new RunQuery { UserId = "alice" })).Single().Id.ShouldBe(ProbeScope.Id("run-completed"));
+            (await runs.QueryRunsAsync(new RunQuery { UserId = "Alice" })).Single().Id.ShouldBe(ProbeScope.Id("run-alice-upper"));
             completed.Labels.ShouldNotBeNull()["team"].ShouldBe("support");
             completed.AgentVersion.ShouldBe(3);
             completed.ExperimentId.ShouldBe(ProbeScope.Id("exp-1"));
@@ -315,7 +321,7 @@ internal static class UpgradeProbes
 
             (await sessions.GetAsync("Session-Beta")).ShouldNotBeNull().Id.ShouldBe("Session-Beta");
             (await sessions.GetAsync("session-acme")).ShouldBeNull();
-            (await sessions.QueryAsync(new SessionQuery { Take = 10 })).Count.ShouldBe(2);
+            (await sessions.QueryAsync(new SessionQuery { Take = 10 })).Count.ShouldBe(3);
             alpha.StateSchemaVersion.ShouldBe(1);
             alpha.State.GetProperty("stateBag").GetProperty("turns").GetInt32().ShouldBe(4);
 
@@ -330,6 +336,9 @@ internal static class UpgradeProbes
             alpha.StateMafVersion.ShouldBe("1.0.0");
             (await sessions.QueryAsync(new SessionQuery { AgentName = "planner", Take = 10 })).Single().Id.ShouldBe("Session-Beta");
             (await sessions.QueryAsync(new SessionQuery { OwnerId = "alice", Take = 10 })).Single().Id.ShouldBe("session-alpha");
+
+            // The other spelling is another owner (see the runs probe).
+            (await sessions.QueryAsync(new SessionQuery { OwnerId = "Alice", Take = 10 })).Single().Id.ShouldBe("session-alice-upper");
         }),
 
         Read("workflow definitions", ["workflows", "workflow_definition_versions"], async scope =>

@@ -35,10 +35,17 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             (failures ??= []).Add(
                 $"{nameof(TraconOptions)}.{nameof(TraconOptions.DefaultTenantId)} cannot be empty.");
         }
-        else if (!string.Equals(
-            options.DefaultTenantId,
-            AmbientTenantScope.Normalize(options.DefaultTenantId),
-            StringComparison.Ordinal))
+        else if (!AmbientTenantScope.TryNormalize(options.DefaultTenantId, out var canonicalDefaultTenantId))
+        {
+            // Checked before the fold below: Normalize refuses a value outside the tenant alphabet, and a
+            // host that started with one would fail on the first store call instead of here.
+            (failures ??= []).Add(
+                $"{nameof(TraconOptions)}.{nameof(TraconOptions.DefaultTenantId)} may contain only ASCII letters, " +
+                "digits, '_', '.' and '-'. The tenant identifier is the key every store compares, and a relational " +
+                "engine may treat two other spellings (an accented letter composed or decomposed, a full-width " +
+                "letter) as one tenant.");
+        }
+        else if (!string.Equals(options.DefaultTenantId, canonicalDefaultTenantId, StringComparison.Ordinal))
         {
             // Rejected rather than folded silently: an operator who wrote
             // "Acme" here and then reads "acme" in the audit trail has no way
@@ -48,7 +55,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             (failures ??= []).Add(
                 $"{nameof(TraconOptions)}.{nameof(TraconOptions.DefaultTenantId)} must be canonical " +
                 $"(invariant lower-case): '{options.DefaultTenantId}' should be " +
-                $"'{AmbientTenantScope.Normalize(options.DefaultTenantId)}'. The tenant identifier is " +
+                $"'{canonicalDefaultTenantId}'. The tenant identifier is " +
                 "matched case-insensitively by normalizing the value, so a non-canonical default would " +
                 "never match the rows written for it.");
         }

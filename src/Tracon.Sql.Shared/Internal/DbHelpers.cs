@@ -201,6 +201,18 @@ internal static class DbHelpers
         => Add(command, "tenant_id", AmbientTenantScope.Normalize(tenantId));
 
     /// <summary>
+    /// Binds the <c>tenant_id</c> of a retention policy: a tenant identifier, or <c>"*"</c> for the default of every tenant.
+    /// </summary>
+    /// <param name="command">The command.</param>
+    /// <param name="tenantId">The tenant identifier or <c>"*"</c>.</param>
+    /// <remarks>
+    /// Only the retention policy store calls this. Every other table holds a tenant, and <see cref="AddTenant"/>
+    /// refuses <c>"*"</c> there.
+    /// </remarks>
+    public static void AddPolicyTenant(DbCommand command, string tenantId)
+        => Add(command, "tenant_id", RetentionPolicyTenant.Normalize(tenantId));
+
+    /// <summary>
     /// Reads a timestamp column as a UTC-stamped value.
     /// </summary>
     /// <param name="reader">The reader.</param>

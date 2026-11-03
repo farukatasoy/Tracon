@@ -698,6 +698,7 @@ Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TenantIsolation
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_cannot_delete_another_tenants_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_cannot_read_another_tenants_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_does_not_see_another_tenants_record_in_the_list() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_identifiers_outside_the_allowed_characters_are_refused(string! tenantId) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_identifiers_that_differ_only_in_letter_case_are_one_tenant(string! writtenAs, string! readAs) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_reads_its_own_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.UseAmbientTenant(Tracon.Testing.Contracts.Storage.MutableTenantContext! tenant) -> void
@@ -1238,3 +1239,7 @@ Tracon.Testing.Contracts.Storage.ToolInvocationContract.Tool_names_that_differ_o
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Names_that_differ_only_in_case_are_two_subscriptions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Names_that_differ_only_in_case_are_two_servers() -> System.Threading.Tasks.Task!
+
+Tracon.Testing.Contracts.Storage.RunStoreContract.Users_that_differ_only_in_letter_case_are_two_users() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_of_variants_that_differ_only_in_case_are_listed_apart() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.Owners_that_differ_only_in_letter_case_are_two_owners() -> System.Threading.Tasks.Task!

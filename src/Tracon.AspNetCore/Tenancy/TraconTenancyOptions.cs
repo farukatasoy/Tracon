@@ -76,6 +76,11 @@ public sealed class TraconTenancyOptions
     /// reverse. The same fold is what every store persists, so one tenant can
     /// never split into two rows because someone typed a capital letter.
     /// </para>
+    /// <para>
+    /// <strong>An entry holds only ASCII letters, digits, <c>_</c>, <c>.</c> and <c>-</c>.</strong> Any other
+    /// entry stops the host at startup (the alphabet of <see cref="AmbientTenantScope.TryNormalize"/>): no
+    /// request can carry such a tenant, so the entry could only mislead.
+    /// </para>
     /// </remarks>
     public IList<string> AllowedTenants { get; } = [];
 }

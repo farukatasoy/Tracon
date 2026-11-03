@@ -122,6 +122,69 @@ public sealed class EmbeddedSampleTests
     }
 
     /// <summary>
+    /// The tenant header is the host's own identity layer, so the host answers a value that is not a tenant
+    /// identifier. Every Tracon store refuses such a value, and a request that reached one would fail with a
+    /// <c>500</c> instead of a <c>400</c>.
+    /// </summary>
+    [Theory]
+    [InlineData("ac me")]
+    [InlineData("acme:ops")]
+    [InlineData("acme/ops")]
+    public async Task A_tenant_header_that_is_not_a_tenant_identifier_is_answered_400(string tenant)
+    {
+        await using var host = new EmbeddedSampleHost();
+        using var client = host.CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("tracon/api/runs", UriKind.Relative));
+        request.Headers.Add("X-Host-Tenant", tenant);
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task A_tenant_header_with_an_accented_letter_is_answered_400()
+    {
+        await using var host = new EmbeddedSampleHost();
+        using var client = host.CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("tracon/api/runs", UriKind.Relative));
+        request.Headers.Add("X-Host-Tenant", "caf" + (char)0x00E9);
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task A_job_for_a_tenant_that_is_not_a_tenant_identifier_is_answered_400()
+    {
+        await using var host = new EmbeddedSampleHost();
+        using var client = host.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            new Uri("jobs", UriKind.Relative),
+            new { tenantId = "acme:ops", userId = "user-42", message = "hello" });
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task A_well_formed_tenant_header_in_another_letter_case_still_resolves_the_tenant()
+    {
+        await using var host = new EmbeddedSampleHost();
+        using var client = host.CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("tracon/api/runs", UriKind.Relative));
+        request.Headers.Add("X-Host-Tenant", "ACME");
+
+        using var response = await client.SendAsync(request);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>
     /// The event bridge drops under backpressure rather than blocking the run
     /// (the "queue and return" rule). A burst overflows the sink's 8-item
     /// channel; the runs it belongs to still complete in milliseconds.

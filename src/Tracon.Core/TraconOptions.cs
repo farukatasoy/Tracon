@@ -11,7 +11,8 @@ public sealed class TraconOptions
 
     /// <summary>
     /// Gets or sets the tenant identifier used when a request cannot resolve one.
-    /// A single-tenant installation always uses this value.
+    /// A single-tenant installation always uses this value. It holds only ASCII letters, digits, <c>_</c>,
+    /// <c>.</c> and <c>-</c>, in lower case; startup refuses anything else.
     /// </summary>
     public string DefaultTenantId { get; set; } = "default";
 

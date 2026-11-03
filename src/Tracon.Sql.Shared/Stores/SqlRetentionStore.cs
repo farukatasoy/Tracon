@@ -298,6 +298,14 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// <summary>Reads the row's tenant in its canonical form, the form every tenant parameter is bound in.</summary>
     /// <param name="reader">The reader, positioned on a row of a table with its own tenant column.</param>
     /// <returns>The tenant.</returns>
+    /// <exception cref="ArgumentException">The stored tenant holds a character outside the tenant alphabet.</exception>
+    /// <remarks>
+    /// A row like that can only have been written by an earlier release, and the migration runner refuses to start
+    /// against it. With migrations applied by hand the runner does not look, and the read fails here. That is
+    /// deliberate: the other choice, passing the row over, keeps it for good and, once such rows fill a batch, deletes
+    /// nothing for anyone while the run reports success. A failed run is recorded and logged, and it is cured by the
+    /// same fix the runner asks for.
+    /// </remarks>
     private static string ReadTenant(DbDataReader reader)
         => AmbientTenantScope.Normalize(reader.GetString(reader.GetOrdinal("tenant_id")));
 

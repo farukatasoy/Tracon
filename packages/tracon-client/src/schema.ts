@@ -2995,7 +2995,7 @@ export interface paths {
         put?: never;
         /**
          * Accepts a signed external event and queues a run.
-         * @description No bearer token: the caller authenticates with an HMAC signature over the raw body ('X-Tracon-Timestamp' + 'X-Tracon-Signature', the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 — there is no synchronous mode; a long model call would otherwise fail the caller's own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names. If a registered IRunAuthorizationHandler denies the target run, the response is 403, before the quota check.
+         * @description No bearer token: the caller authenticates with an HMAC signature over the raw body ('X-Tracon-Timestamp' + 'X-Tracon-Signature', the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 — there is no synchronous mode; a long model call would otherwise fail the caller's own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names; so does a tenant segment that is not a tenant identifier (ASCII letters, digits, '_', '.' and '-'). If a registered IRunAuthorizationHandler denies the target run, the response is 403, before the quota check.
          */
         post: operations["TraconAcceptInboundTrigger"];
         delete?: never;
@@ -12779,6 +12779,15 @@ export interface operations {
                     "application/json": components["schemas"]["TenantProviderBindingResponse"][];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconSaveTenantProviderBinding: {
@@ -12806,6 +12815,15 @@ export interface operations {
                     "application/json": components["schemas"]["TenantProviderBindingResponse"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconDeleteTenantProviderBinding: {
@@ -12827,6 +12845,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconGetTenantEgressPolicy: {
@@ -12847,6 +12874,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TenantEgressPolicyResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -12875,6 +12911,15 @@ export interface operations {
                     "application/json": components["schemas"]["TenantEgressPolicyResponse"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconDeleteTenantEgressPolicy: {
@@ -12894,6 +12939,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
             };
         };
     };
@@ -12915,6 +12969,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TenantToolPolicyResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -12943,6 +13006,15 @@ export interface operations {
                     "application/json": components["schemas"]["TenantToolPolicyResponse"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconDeleteTenantToolPolicy: {
@@ -12962,6 +13034,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
             };
         };
     };
@@ -14033,6 +14114,15 @@ export interface operations {
                     "application/json": components["schemas"]["TenantDescriptor"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconDeleteTenant: {
@@ -14052,6 +14142,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
             };
         };
     };

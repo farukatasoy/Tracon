@@ -307,6 +307,31 @@ public sealed class TriggerEndpointTests
         missingBody.ShouldBe(wrongSignatureBody);
     }
 
+    [Theory]
+    [InlineData("caf%C3%A9")]
+    [InlineData("cafe%CC%81")]
+    [InlineData("%EF%BD%81cme")]
+    [InlineData("ac%20me")]
+    [InlineData("acme%3Aops")]
+    public async Task A_tenant_segment_outside_the_tenant_alphabet_is_answered_like_an_unknown_trigger(string segment)
+    {
+        // 🚨 The accept endpoint has no credential but the signature, and it must not tell a caller which tenants
+        // and triggers exist. A segment that is not a tenant identifier names no tenant: it gets the same status and
+        // the same body as a tenant that has no such trigger, and it is not a 500 that says the segment was malformed.
+        await using var host = await StartWithSecretAsync();
+        await SaveTriggerAsync(host);
+
+        var timestamp = DateTimeOffset.UtcNow;
+        var signature = WebhookSigner.Sign(Body, timestamp, Secret);
+
+        using var unknown = await SendSignedAsync(host, "nobody", "slack", Body, timestamp, signature);
+        using var malformed = await SendSignedAsync(host, segment, "slack", Body, timestamp, signature);
+
+        unknown.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        malformed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await malformed.Content.ReadAsStringAsync()).ShouldBe(await unknown.Content.ReadAsStringAsync());
+    }
+
     [Fact]
     public async Task A_disabled_trigger_rejects_requests()
     {

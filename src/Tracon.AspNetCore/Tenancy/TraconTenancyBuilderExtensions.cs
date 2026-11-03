@@ -47,8 +47,10 @@ public static class TraconTenancyBuilderExtensions
 
         var services = builder.Services;
 
-        services.AddOptions<TraconTenancyOptions>();
+        services.AddOptions<TraconTenancyOptions>().ValidateOnStart();
         services.Configure(configure);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconTenancyOptions>, TraconTenancyOptionsValidator>());
         services.AddHttpContextAccessor();
 
         // Replace, NOT TryAdd: AddTracon() runs earlier in the chain and has

@@ -99,14 +99,24 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <inheritdoc />
     /// <remarks>
     /// <c>COLLATE Latin1_General_BIN2</c> is load-bearing. SQL Server's
-    /// default collation is case-INsensitive, so without it
-    /// <c>tenant_id &lt;&gt; LOWER(tenant_id)</c> is always false and the guard
-    /// silently reports a clean database. The same trap is written into
-    /// the provider-name migration, where it was met first.
+    /// default collation is case-INsensitive and treats a composed letter and its
+    /// decomposed spelling as equal, so without it neither a capital letter nor an accent
+    /// would be found. The binary collation makes the range <c>a-z</c> the code points a to z.
+    /// The hyphen comes FIRST in the bracket: written last, T-SQL reads
+    /// <c>.-]</c> as the range from a dot to a closing bracket, which takes every capital letter and
+    /// <c>:</c> into the set and drops the hyphen out of it (measured over all 65 535 UTF-16 code units; the
+    /// guard test repeats the measurement).
     /// </remarks>
     public override string NonCanonicalTenantIdPredicate =>
-        "tenant_id IS NOT NULL AND tenant_id COLLATE Latin1_General_BIN2 " +
-        "<> LOWER(tenant_id) COLLATE Latin1_General_BIN2";
+        "tenant_id IS NOT NULL AND tenant_id COLLATE Latin1_General_BIN2 LIKE N'%[^-a-z0-9_.]%'";
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The default collation treats a full-width asterisk (<c>U+FF0A</c>) as equal to <c>*</c>, measured on SQL Server
+    /// 2022, so a plain <c>&lt;&gt;</c> would take a row that holds it for the default policy.
+    /// </remarks>
+    public override string NotTheDefaultPolicyTenantPredicate =>
+        $"tenant_id COLLATE Latin1_General_BIN2 <> N'{RetentionPolicyTenant.AllTenants}'";
 
     /// <inheritdoc />
     /// <remarks>

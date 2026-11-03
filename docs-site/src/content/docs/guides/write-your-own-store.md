@@ -283,12 +283,25 @@ easy to miss in a custom store because everything else keeps passing without the
   checkpoint and session id, a run score's author, message id and name, and a rate-limit
   partition key. So does the name of a definition: an agent, a workflow, a skill, a schedule and
   the other definitions each have a contract test that saves `Support` and `support` and expects
-  two records, and so does the agent name on a run or a session. Compare them ordinally; do not fold them to lower case, because the identifier
+  two records, and so does the agent name on a run or a session. The identity of a user is such a
+  key too: `SessionStoreContract.Owners_that_differ_only_in_letter_case_are_two_owners` and
+  `RunStoreContract.Users_that_differ_only_in_letter_case_are_two_users` save `Alice` and `alice` and expect two
+  owners and two users in the lists and the breakdown, and
+  `RunStoreContract.Experiment_results_of_variants_that_differ_only_in_case_are_listed_apart` does the same for
+  the name of an experiment variant. Compare them ordinally; do not fold them to lower case, because the identifier
   you return has to be the one that was written. The shipped SQL Server store does not tell
   `abc` from `abc ` (that engine ignores trailing spaces in every collation); the contract does
   not test it, and your store may keep the two apart.
 
-- **The tenant is the one identifier that is not compared by its characters.** `Acme`, `acme` and
+- **The tenant is the one identifier that is not compared by its characters, and it has a closed
+  alphabet.** A tenant is made of the ASCII letters, the digits, `_`, `.` and `-`, and nothing else:
+  `AmbientTenantScope.Normalize` throws an `ArgumentException` for any other character, because an
+  engine that compares text by a collation may join two other spellings into one tenant (SQL Server
+  treats a composed accented letter and its decomposed form as equal, and a full-width letter as
+  its plain one). `TenantIsolationContract.Tenant_identifiers_outside_the_allowed_characters_are_refused`
+  hands your store such a tenant and expects the same exception on a write and on every read, with
+  nothing written. `AmbientTenantScope.TryNormalize` answers the same question without throwing, for
+  the code that holds a client's text. `Acme`, `acme` and
   `ACME` are one tenant, and the folded form is `acme`. Pass every tenant you write, query or
   delete with through `AmbientTenantScope.Normalize`, whichever way it reaches the store: as a
   parameter, through `ITenantContext`, or inside a record. Store the folded value, compare it with

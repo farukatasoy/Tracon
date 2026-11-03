@@ -25,6 +25,10 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
 
     private const string Folded = "folded to lower case before it is stored, so no two spellings exist";
 
+    private const string TenantAlphabet =
+        "restricted to the closed tenant alphabet and folded to lower case before it is stored, so no two spellings exist " +
+        "and no collation of the database joins two different ones (TenantAlphabetCollationTests measures it)";
+
     private const string Digest = "a digest the library computes, always in the one case it writes";
 
     private const string LibraryName = "a name the library chooses in its own code";
@@ -33,11 +37,14 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
 
     /// <summary>
     /// The key columns that may keep the collation of the database, each with the reason. Tenant ids are matched
-    /// by column name in every table (<see cref="IsTenantId"/>).
+    /// by column name in every table (<see cref="IsTenantId"/>): the tenant rule admits only the ASCII letters, the
+    /// digits and three separators, folded to lower case, and no collation joins two different identifiers over that
+    /// alphabet (<c>TenantAlphabetCollationTests</c> asks the server on every leg of the matrix). That is why the tenant
+    /// columns, unlike every other client-chosen key, stay as they are.
     /// </summary>
     private static readonly Dictionary<string, string> Allowed = new(StringComparer.Ordinal)
     {
-        ["tenants.slug"] = Folded,
+        ["tenants.slug"] = TenantAlphabet,
         ["tenant_provider_bindings.provider_name"] = Folded,
         ["audit_log.prev_hash"] = Digest,
         ["traces.trace_id"] = TraceId,
@@ -157,6 +164,43 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             .Select(static column => $"{column.Name} ({column.Collation})")
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty("one identity, one collation: every column that holds the name of a definition compares ordinally");
+    }
+
+    [Fact]
+    public async Task Every_column_that_carries_a_user_identity_compares_ordinally()
+    {
+        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+
+        // The owner of a session, the user of a run and the actor of an audit entry are identities an identity provider
+        // hands out, and providers keep letter case. A column that folds it lists the sessions of "Bs7" for "bs7" and
+        // counts two people as one. The pattern finds a column a later migration adds under one of these names, so the
+        // family cannot grow a member the check does not see. The owner of a singleton lease is the identity of a node,
+        // which the library writes itself, and is not a user.
+        var columns = await ColumnsAsync(
+            context,
+            "c.name IN (N'owner_id', N'user_id', N'actor') AND t.name <> N'singleton_leases'");
+
+        columns.Count.ShouldBe(3, "the query has to find the identity columns it guards: sessions.owner_id, runs.user_id and audit_log.actor");
+        columns
+            .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
+            .Select(static column => $"{column.Name} ({column.Collation})")
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty("one identity, one collation: every column that holds the identity of a user compares ordinally");
+    }
+
+    [Fact]
+    public async Task The_name_of_an_experiment_variant_compares_ordinally()
+    {
+        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+
+        // The name of a variant is chosen by whoever defines the experiment; two arms named "A" and "a" are two arms.
+        var columns = await ColumnsAsync(context, "c.name = N'variant'");
+
+        columns.Count.ShouldBe(1, "the query has to find the variant column it guards");
+        columns
+            .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
+            .Select(static column => $"{column.Name} ({column.Collation})")
+            .ShouldBeEmpty("one identity, one collation: the name of a variant compares ordinally");
     }
 
     [Fact]

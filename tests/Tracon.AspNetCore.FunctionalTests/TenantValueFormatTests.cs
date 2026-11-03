@@ -44,6 +44,8 @@ public sealed class TenantValueFormatTests
         "a,b",
         new string('a', 65),
         "tenant\u00e9",
+        "tenant\u00a0x",
+        "tenant\u00c9",
     };
 
     // ---- header -------------------------------------------------------------------

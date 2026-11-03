@@ -83,20 +83,6 @@ internal sealed record ProviderTraits
     public bool CreateEchoesInputText { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether the filters on a user identity ignore letter case.
-    /// </summary>
-    /// <remarks>
-    /// OPEN FINDING, kept visible here until it is fixed: <c>sessions.owner_id</c> and <c>runs.user_id</c> are compared with
-    /// the database collation, which on SQL Server is case-insensitive, so a listing for owner <c>bS7</c> returns the
-    /// sessions of owner <c>Bs7</c>, and a run listing or breakdown for user <c>Alice</c> includes <c>alice</c>. The other
-    /// three stores compare ordinally. Under a Turkish collation the fold also follows Turkish case rules (an
-    /// <c>I</c> pairs with a dotless <c>i</c>, not with <c>i</c>), so the generated identities leave out the letters i
-    /// and I when the trait is set. With the trait off, the SQL Server leg fails on the first sequence that holds two
-    /// identities that differ only in letter case.
-    /// </remarks>
-    public bool IdentityFilterIgnoresCase { get; init; }
-
-    /// <summary>
     /// Gets how many decimal places a cost column keeps, or <see langword="null"/> when the store keeps the amount as
     /// given.
     /// </summary>

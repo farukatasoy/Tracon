@@ -342,17 +342,35 @@ internal abstract class SqlDialect
     public virtual string QualifyCatalogTable(string tableName) => QualifyTable(tableName);
 
     /// <summary>
-    /// The predicate that matches a row whose <c>tenant_id</c> is not canonical.
+    /// The predicate that matches a row whose <c>tenant_id</c> is not canonical: it holds a character other than a
+    /// lower-case ASCII letter, a digit, <c>_</c>, <c>.</c> or <c>-</c>.
     /// </summary>
     /// <remarks>
-    /// A dialect whose default collation is case-INsensitive must override
-    /// this. Under such a collation <c>tenant_id &lt;&gt; lower(tenant_id)</c>
-    /// is always false — the comparison itself ignores the difference it is
-    /// meant to find — and the guard reports a clean database while the
-    /// offending rows sit in it.
+    /// <para>
+    /// Every dialect states the comparison by code point, never by the collation of the database. Under
+    /// SQL Server's case-INsensitive default collation <c>tenant_id &lt;&gt; lower(tenant_id)</c> is always false
+    /// - the comparison itself ignores the difference it is meant to find - and the guard would report a clean
+    /// database while the offending rows sit in it. The same holds for the range <c>a-z</c>: under a collation
+    /// that folds case or accents it would admit a capital letter or a composed one. One expression covers a
+    /// capital letter and a character outside the tenant alphabet, since neither belongs to the lower-case set.
+    /// </para>
+    /// <para>
+    /// A row of <c>retention_policies</c> whose <c>tenant_id</c> is <c>*</c> is the default policy of every tenant and
+    /// is not a finding; the guard adds that exception for that table alone.
+    /// </para>
     /// </remarks>
-    public virtual string NonCanonicalTenantIdPredicate
-        => "tenant_id IS NOT NULL AND tenant_id <> lower(tenant_id)";
+    public abstract string NonCanonicalTenantIdPredicate { get; }
+
+    /// <summary>
+    /// A predicate over <c>tenant_id</c> that is true for every value except the <c>*</c> of the default retention
+    /// policy.
+    /// </summary>
+    /// <remarks>
+    /// Compared by code point for the reason <see cref="NonCanonicalTenantIdPredicate"/> is: under a collation that
+    /// folds the width of a character, a full-width asterisk is equal to <c>*</c>, and a row that holds it would pass
+    /// for the default policy it is not.
+    /// </remarks>
+    public virtual string NotTheDefaultPolicyTenantPredicate => $"tenant_id <> '{RetentionPolicyTenant.AllTenants}'";
 
     // --- Retention: data plane batch queries ---
 

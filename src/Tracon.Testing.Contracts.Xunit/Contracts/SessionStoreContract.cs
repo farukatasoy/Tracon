@@ -468,6 +468,32 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
+    public async Task Owners_that_differ_only_in_letter_case_are_two_owners()
+    {
+        // 🚨 An owner is an opaque identity an identity provider hands out, and providers keep letter case. A store
+        // that compares owners the way its database compares text lists the sessions of "Bs7" for "bs7" and hands
+        // the second person the state of the first, while a single-session read (ordinal) refuses it. The filter,
+        // the paging and the rows each owner gets must not depend on the engine.
+        var now = DateTimeOffset.UtcNow;
+
+        await Store.SaveAsync(TestData.Session("upper-1") with { OwnerId = "Bs7", UpdatedAt = now });
+        await Store.SaveAsync(TestData.Session("lower-1") with { OwnerId = "bs7", UpdatedAt = now.AddMinutes(-1) });
+        await Store.SaveAsync(TestData.Session("upper-2") with { OwnerId = "Bs7", UpdatedAt = now.AddMinutes(-2) });
+        await Store.SaveAsync(TestData.Session("lower-2") with { OwnerId = "bs7", UpdatedAt = now.AddMinutes(-3) });
+
+        (await Store.QueryAsync(new SessionQuery { OwnerId = "Bs7" }))
+            .Select(static session => session.Id).ShouldBe(["upper-1", "upper-2"]);
+        (await Store.QueryAsync(new SessionQuery { OwnerId = "bs7" }))
+            .Select(static session => session.Id).ShouldBe(["lower-1", "lower-2"]);
+
+        // The page is cut from the narrowed set: the second row of the lower-case owner is not a row of the other.
+        var page = await Store.QueryAsync(new SessionQuery { OwnerId = "bs7", Take = 1, Skip = 1 });
+
+        page.ShouldHaveSingleItem().Id.ShouldBe("lower-2");
+        page.ShouldHaveSingleItem().OwnerId.ShouldBe("bs7", "the owner comes back in the spelling it was written in");
+    }
+
+    [Fact]
     public async Task Query_applies_the_owner_filter_BEFORE_paging()
     {
         // 🚨 The assertion this whole field exists for. Five owned rows and

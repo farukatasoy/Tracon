@@ -439,10 +439,12 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             return null;
         }
 
-        // A whitespace-only header names no tenant and cannot be folded; it stays a mismatch.
-        if (!string.IsNullOrWhiteSpace(declared)
+        // A header that is not a tenant identifier (blank, or a character outside the alphabet) names no tenant and
+        // cannot be folded; it stays a mismatch. The format check has already answered 400 for such a header, so this
+        // only keeps the comparison from throwing if the order of the checks ever changes.
+        if (AmbientTenantScope.TryNormalize(declared, out var canonicalDeclared)
             && string.Equals(
-                AmbientTenantScope.Normalize(declared),
+                canonicalDeclared,
                 AmbientTenantScope.Normalize(record.TenantId),
                 StringComparison.Ordinal))
         {

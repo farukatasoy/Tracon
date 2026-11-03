@@ -253,6 +253,44 @@ public abstract partial class StoreDifferentialSuite
         }
     }
 
+    /// <summary>
+    /// Offers every store a tenant identifier that holds a character outside the allowed set, and checks that each
+    /// one refuses it the same way on every engine.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// A relational engine compares text by the collation of its column: SQL Server's default joins a composed accented
+    /// letter with its decomposed spelling and a full-width letter with a plain one, the other engines keep them apart.
+    /// A store that took such a tenant would put two tenants in one on one engine only. The rule that closes it sits in
+    /// front of every store, so the refusal is the same exception before any statement runs.
+    /// </remarks>
+    [Fact]
+    public async Task A_tenant_outside_the_allowed_characters_is_refused_by_every_store()
+    {
+        var stores = await CreateStoresAsync();
+        var sessions = DifferentialStores.Require(stores.Sessions);
+        var runs = DifferentialStores.Require(stores.Runs);
+        var idempotency = DifferentialStores.Require(stores.Idempotency);
+        var tenants = BoundaryValues.NonBlank(100)
+            .Where(static tenant => tenant.Any(static character => !(char.IsAsciiLetterOrDigit(character) || character is '_' or '.' or '-')));
+
+        await tenants.SampleAsync(
+            async tenant =>
+            {
+                stores.Tenant.TenantId = tenant;
+
+                await Should.ThrowAsync<ArgumentException>(
+                    async () => await sessions.QueryAsync(new SessionQuery()),
+                    $"sessions accepted tenant {BoundaryValues.Show(tenant)}");
+                await Should.ThrowAsync<ArgumentException>(
+                    async () => await runs.QueryRunsAsync(new RunQuery()),
+                    $"runs accepted tenant {BoundaryValues.Show(tenant)}");
+                await Should.ThrowAsync<ArgumentException>(
+                    async () => await idempotency.ReserveAsync(new IdempotencyRequest { TenantId = tenant, Key = "key", Fingerprint = "a", CreatedAt = PagingOrigin }),
+                    $"idempotency accepted tenant {BoundaryValues.Show(tenant)}");
+            });
+    }
+
     private static void AssertWholeList(int count, int pageSize, List<string> ids, List<long> keys)
     {
         ids.Count.ShouldBe(count, $"the whole list holds every record (page size {pageSize})");

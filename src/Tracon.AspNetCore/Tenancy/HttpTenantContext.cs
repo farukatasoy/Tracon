@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
@@ -34,7 +33,7 @@ namespace Tracon;
 /// header.
 /// </para>
 /// </remarks>
-public sealed partial class HttpTenantContext : ITenantContext
+public sealed class HttpTenantContext : ITenantContext
 {
     private readonly IHttpContextAccessor _accessor;
     private readonly IOptions<TraconOptions> _coreOptions;
@@ -88,11 +87,11 @@ public sealed partial class HttpTenantContext : ITenantContext
     /// The id is a text column in the database and travels as a query parameter;
     /// SQL injection is not possible. A format constraint still applies: an
     /// unchecked value would be reflected as-is into logs, the audit trail, and the UI.
+    /// The alphabet is the one <see cref="AmbientTenantScope.TryNormalize"/> accepts (ASCII letters,
+    /// digits, <c>_</c>, <c>.</c> and <c>-</c>); the HTTP surface adds a limit of 64 characters.
     /// </remarks>
     public static bool IsValidTenantId(string? tenantId)
-        => !string.IsNullOrWhiteSpace(tenantId)
-            && tenantId.Length <= 64
-            && TenantIdPattern().IsMatch(tenantId);
+        => tenantId is { Length: <= 64 } && AmbientTenantScope.TryNormalize(tenantId, out _);
 
     private string? ResolveFromApiKey()
         => _accessor.HttpContext is { } context && ApiKeyRequestContext.Get(context) is { } record
@@ -185,6 +184,11 @@ public sealed partial class HttpTenantContext : ITenantContext
     /// </summary>
     /// <param name="tenantId">The raw route value.</param>
     /// <returns>The canonical form, or the value unchanged when it is blank.</returns>
+    /// <exception cref="ArgumentException">
+    /// The value holds a character outside the tenant alphabet. A route that carries a tenant segment
+    /// answers <c>400</c> through <see cref="TenantRouteValidation"/> before its handler runs, so the
+    /// handler never meets such a value.
+    /// </exception>
     /// <remarks>
     /// An admin endpoint takes the tenant straight from the URL and writes
     /// it to a store. Without this fold, <c>PUT /api/tenants/Acme/egress</c>
@@ -225,11 +229,10 @@ public sealed partial class HttpTenantContext : ITenantContext
         {
             var allowed = options.AllowedTenants[i];
 
-            if (!string.IsNullOrWhiteSpace(allowed)
-                && string.Equals(
-                    AmbientTenantScope.Normalize(allowed),
-                    canonicalTenantId,
-                    StringComparison.Ordinal))
+            // An entry outside the alphabet matches nothing. Startup validation refuses such an entry, so
+            // this only keeps a context built without the host from throwing on every request.
+            if (AmbientTenantScope.TryNormalize(allowed, out var canonicalAllowed)
+                && string.Equals(canonicalAllowed, canonicalTenantId, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -237,9 +240,6 @@ public sealed partial class HttpTenantContext : ITenantContext
 
         return false;
     }
-
-    [GeneratedRegex("^[a-zA-Z0-9_.-]+\\z", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex TenantIdPattern();
 }
 
 /// <summary>Where a request's tenant value came from.</summary>
