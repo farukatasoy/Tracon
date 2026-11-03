@@ -194,8 +194,15 @@ internal sealed class SqlQuotaStore : IQuotaStore
                     // A run increments BOTH the agent counter AND the
                     // tenant-wide counter, so a tenant-wide rule can be
                     // queried without knowing the agent name.
-                    await IncrementAsync(connection, transaction, consumption, period, periodStart, consumption.AgentName, cancellationToken)
-                        .ConfigureAwait(false);
+                    //
+                    // An empty agent name IS the tenant-wide counter: one row, added to once. Adding to "both" would
+                    // count every run of such a consumption twice.
+                    if (consumption.AgentName.Length > 0)
+                    {
+                        await IncrementAsync(connection, transaction, consumption, period, periodStart, consumption.AgentName, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+
                     await IncrementAsync(connection, transaction, consumption, period, periodStart, string.Empty, cancellationToken)
                         .ConfigureAwait(false);
                 }

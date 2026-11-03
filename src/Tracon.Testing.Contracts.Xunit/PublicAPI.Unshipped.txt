@@ -294,6 +294,7 @@ Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.SaveAsync_round_trips_
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryClaimNextRunAsync_a_second_claim_prevents_the_conflict() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryClaimNextRunAsync_fails_when_the_expected_value_does_not_match() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract
+Tracon.Testing.Contracts.Storage.JobStoreContract.A_job_queued_under_another_spelling_is_returned_and_read_under_the_canonical_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_cancelled_job_is_changed_by_neither_completion_nor_release() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_finished_job_is_not_finalized_a_second_time() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_job_without_a_time_limit_reads_back_none() -> System.Threading.Tasks.Task!
@@ -386,6 +387,7 @@ Tracon.Testing.Contracts.Storage.QuotaStoreContract.Another_tenants_usage_is_not
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Claim_fails_when_the_usage_row_does_not_exist_yet() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Concurrent_claims_of_the_same_threshold_let_only_one_caller_win() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Concurrent_increments_lose_no_increment() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_consumption_that_names_no_agent_is_added_to_the_tenant_wide_counter_once() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Consecutive_usage_accumulates() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Deleted_rule_is_not_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Deleting_a_nonexistent_rule_returns_false() -> System.Threading.Tasks.Task!
@@ -396,6 +398,8 @@ Tracon.Testing.Contracts.Storage.QuotaStoreContract.First_claim_of_a_threshold_s
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.QuotaStoreContract() -> void
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Saved_rule_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Saving_the_same_scope_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Saving_over_a_rule_keeps_its_identifier_and_its_creation_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Writers_that_save_one_scope_at_the_same_time_leave_one_rule() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Separate_period_keeps_a_separate_counter() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_increments_both_the_agent_and_tenant_counters() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_is_filtered_by_agent_name() -> System.Threading.Tasks.Task!

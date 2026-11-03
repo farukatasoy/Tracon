@@ -1052,4 +1052,21 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         leased.TenantId.ShouldBe("tenant-a");
         (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldBeNull();
     }
+
+    /// <summary>
+    /// The job a call returns carries the canonical tenant, as the record a later read returns does.
+    /// </summary>
+    /// <remarks>
+    /// The endpoints compare a job's tenant with the request's as ordinal text. A store that returns the spelling it
+    /// was given makes the answer of the enqueue differ from the answer of the next read.
+    /// </remarks>
+    [Fact]
+    public async Task A_job_queued_under_another_spelling_is_returned_and_read_under_the_canonical_tenant()
+    {
+        var queued = await Store.EnqueueAsync(TestData.Job(tenantId: "TENANT-A"), ["a"]);
+
+        queued.TenantId.ShouldBe("tenant-a");
+        (await Store.GetAsync("Tenant-A", queued.Id)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.QueryAsync(new JobQuery { TenantId = "tenant-A" })).ShouldHaveSingleItem().TenantId.ShouldBe("tenant-a");
+    }
 }

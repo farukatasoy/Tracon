@@ -22,6 +22,11 @@ namespace Tracon;
 internal sealed class InMemoryQuotaStore : IQuotaStore
 {
     private readonly ConcurrentDictionary<Guid, QuotaDefinition> _definitions = new();
+    private readonly Lock _saveGate = new();
+
+    // One call adds to the agent counter and to the tenant-wide counter, and a read must not see one without the other:
+    // the SQL stores do both in one transaction.
+    private readonly Lock _usageGate = new();
     private readonly ConcurrentDictionary<UsageKey, QuotaUsageRecord> _usage = new();
 
     // 🚨 A SEPARATE dictionary, keyed the same way as _usage, not a field on
@@ -80,19 +85,24 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
 
         // Scope uniqueness: if a rule exists for the same tenant, agent, and period,
         // preserve its identifier and overwrite it. PostgreSQL enforces the same rule
-        // with a unique index that uses COALESCE.
-        var existing = _definitions.Values.FirstOrDefault(candidate =>
-            string.Equals(candidate.TenantId, definition.TenantId, StringComparison.Ordinal)
-            && string.Equals(candidate.AgentName ?? string.Empty, definition.AgentName ?? string.Empty, StringComparison.Ordinal)
-            && candidate.Period == definition.Period);
+        // with a unique index that uses COALESCE. The look-up and the write are one step: writers that save one scope
+        // at the same time must not each find none and each add a rule.
+        QuotaDefinition saved;
 
-        if (existing is not null && existing.Id != definition.Id)
+        lock (_saveGate)
         {
-            _definitions.TryRemove(existing.Id, out _);
-        }
+            var existing = _definitions.Values.FirstOrDefault(candidate =>
+                string.Equals(candidate.TenantId, definition.TenantId, StringComparison.Ordinal)
+                && string.Equals(candidate.AgentName ?? string.Empty, definition.AgentName ?? string.Empty, StringComparison.Ordinal)
+                && candidate.Period == definition.Period);
 
-        var saved = definition with { Id = existing?.Id ?? definition.Id };
-        _definitions[saved.Id] = saved;
+            // The rule keeps the identifier and the creation time of the one it replaces, as the SQL upserts do (they
+            // leave created_at out of the update): the creation time says when the scope first got a rule.
+            saved = existing is null
+                ? definition
+                : definition with { Id = existing.Id, CreatedAt = existing.CreatedAt };
+            _definitions[saved.Id] = saved;
+        }
 
         return new ValueTask<QuotaDefinition>(saved);
     }
@@ -127,7 +137,14 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
 
         var tenantId = AmbientTenantScope.Normalize(query.TenantId);
 
-        var matches = _usage.Values
+        QuotaUsageRecord[] snapshot;
+
+        lock (_usageGate)
+        {
+            snapshot = [.. _usage.Values];
+        }
+
+        var matches = snapshot
             .Where(record => string.Equals(record.TenantId, tenantId, StringComparison.Ordinal));
 
         if (query.AgentName is { } agentName)
@@ -168,12 +185,21 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
 
         consumption = consumption with { TenantId = AmbientTenantScope.Normalize(consumption.TenantId) };
 
-        foreach (var (period, periodStart) in periodStarts)
+        lock (_usageGate)
         {
-            // A run increments both the agent counter and tenant-wide counter, so a
-            // tenant-wide rule can be queried without knowing the agent name.
-            Increment(consumption, period, periodStart, consumption.AgentName);
-            Increment(consumption, period, periodStart, string.Empty);
+            foreach (var (period, periodStart) in periodStarts)
+            {
+                // A run increments both the agent counter and tenant-wide counter, so a
+                // tenant-wide rule can be queried without knowing the agent name.
+                //
+                // An empty agent name IS the tenant-wide counter: one row, added to once.
+                if (consumption.AgentName.Length > 0)
+                {
+                    Increment(consumption, period, periodStart, consumption.AgentName);
+                }
+
+                Increment(consumption, period, periodStart, string.Empty);
+            }
         }
 
         return default;
