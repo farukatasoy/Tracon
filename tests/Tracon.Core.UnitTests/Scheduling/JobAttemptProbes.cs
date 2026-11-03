@@ -193,6 +193,7 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
 {
     private int _failures;
     private int _reads;
+    private int _renewals;
 
     /// <summary>Gets how many times <see cref="GetAsync"/> was called.</summary>
     public int Reads => Volatile.Read(ref _reads);
@@ -251,9 +252,24 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         return job;
     }
 
+    /// <summary>Gets how many times the store was asked to renew a lease.</summary>
+    public int Renewals => Volatile.Read(ref _renewals);
+
+    /// <summary>Gets or sets an exception every lease renewal throws, as a store that cannot be reached does.</summary>
+    public Exception? RenewalFailure { get; set; }
+
     /// <inheritdoc />
     public ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
-        => inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+    {
+        Interlocked.Increment(ref _renewals);
+
+        if (RenewalFailure is { } failure)
+        {
+            throw failure;
+        }
+
+        return inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+    }
 
     /// <inheritdoc />
     public ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
