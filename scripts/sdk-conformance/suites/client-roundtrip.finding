@@ -1,0 +1,22 @@
+Failing probes of client-roundtrip.mjs that are not fixed. Each is listed in KNOWN_OPEN there, so the sweep stays green
+while they are open and goes red when one of them is fixed and left on the list.
+
+1. Three operations answer a 200 with a body that the document does not list.
+
+   POST /tracon/a2a/{agent}                          application/json  (the JSON-RPC answer)
+   GET  /tracon/a2a/{agent}/.well-known/agent-card.json   application/json  (the agent card)
+   GET  /tracon/api/mcp-servers/{name}/oauth/callback     text/html         (the page the browser lands on)
+
+   The document says "200, no content". A client generated from it types the answer as void: openapi-typescript gives
+   `content?: never`, NSwag gives a method that returns Task. The body is there and the type says it is not.
+   The three are protocol or browser endpoints, not calls a management client makes, so the right fix may be to take
+   them out of the published document rather than describe them; that is a decision about what the document covers.
+   Describing them is two `Produces` calls for A2A and one for the callback, but the callback is in the published
+   document, so both generated clients and `docs/openapi/tracon.json` change with it (Task becomes Task<string>).
+
+2. RunAgentInput (the AG-UI request) declares no required member.
+
+   POST /tracon/agui/{agentName} with the smallest body the schema accepts ({}) answers 400 "'threadId' is required".
+   The schema lists threadId, runId and messages as properties and none as required, so a generated client builds a
+   request that cannot succeed. Seen as a documented 400 in the sweep (the status is in the document), not as a failing
+   check: the sweep sends a body that names the thread to get past it.
