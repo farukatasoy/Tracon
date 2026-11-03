@@ -69,7 +69,8 @@ internal static class StrictConsumerProject
 
     private const string CurrentXunitVersion = "4.0.2";
 
-    private const string HostingVersion = "10.0.14";
+    /// <summary>The version of <c>Microsoft.Extensions.Hosting</c> a console consumer references.</summary>
+    internal const string HostingVersion = "10.0.14";
 
     private static readonly Dictionary<ConsumerShape, (string Sdk, string? OutputType, string[] Extra)> Shapes = new()
     {
