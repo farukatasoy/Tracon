@@ -42,6 +42,25 @@ describe('SseDecoder', () => {
     expect(decoder.push('event: done\ndata: {}\n\n')).toHaveLength(1);
   });
 
+  it('drops a block that only sets the reconnect delay and loses no event', () => {
+    const decoder = new SseDecoder();
+
+    // The run event stream opens with `retry: 3000`. The SSE rules say a block
+    // with no data dispatches nothing, and this decoder reads the cadence of
+    // the stream, not the browser's reconnect: the field is not an event.
+    expect(decoder.push('retry: 3000\n\n')).toEqual([]);
+    expect(decoder.push(': waiting\n\n')).toEqual([]);
+    expect(decoder.push('id: 0\nevent: run.started\ndata: {}\n\n')).toEqual([
+      { id: '0', event: 'run.started', data: '{}' },
+    ]);
+  });
+
+  it('does not let a reconnect delay change the frame that carries it', () => {
+    const frames = new SseDecoder().push('retry: 3000\nid: 4\nevent: update\ndata: hi\n\n');
+
+    expect(frames).toEqual([{ id: '4', event: 'update', data: 'hi' }]);
+  });
+
   it('handles CRLF line endings', () => {
     const frames = new SseDecoder().push('event: update\r\ndata: hi\r\n\r\n');
 

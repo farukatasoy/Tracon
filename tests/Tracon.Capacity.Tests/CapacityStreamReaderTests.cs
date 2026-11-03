@@ -66,6 +66,24 @@ public sealed class CapacityStreamReaderTests
     }
 
     [Fact]
+    public async Task The_reconnect_delay_the_run_stream_opens_with_is_not_counted_as_content()
+    {
+        // 🚨 The measured time to first content must not start at a block that carries no event.
+        var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());
+        var frames = new List<SseFrame>();
+
+        await foreach (var frame in reader.ReadAsync(Body("retry: 3000\n\n: waiting\n\nid: 0\nevent: update\ndata: one\n\n")))
+        {
+            frames.Add(frame);
+        }
+
+        frames.Count.ShouldBe(1);
+        frames[0].Id.ShouldBe("0");
+        frames[0].EventName.ShouldBe("update");
+        reader.TruncatedFrame.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task Multi_line_data_is_joined_the_way_the_protocol_says()
     {
         var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());

@@ -65,6 +65,25 @@ public sealed class TraconApiClientSseTests
     }
 
     [Fact]
+    public async Task A_block_that_only_sets_the_reconnect_delay_is_skipped_like_a_keep_alive()
+    {
+        // The run event stream opens with "retry: 3000\n\n". The SSE rules say a block with no data dispatches no
+        // event, so it is not a frame; yielding it would hand every caller a "frame" with no event and no data. The
+        // field is also dropped when the block carries nothing else, however many comments sit beside it.
+        var frames = await ReadAllAsync("retry: 3000\n\n: waiting\n\n: note\nretry: 500\n\nid: 0\nevent: run.started\ndata: x\n\n");
+
+        frames.ShouldBe(["id: 0\nevent: run.started\ndata: x"]);
+    }
+
+    [Fact]
+    public async Task A_reconnect_delay_inside_a_real_frame_stays_in_the_raw_text()
+    {
+        var frames = await ReadAllAsync("retry: 3000\nevent: done\ndata: x\n\n");
+
+        frames.ShouldBe(["retry: 3000\nevent: done\ndata: x"]);
+    }
+
+    [Fact]
     public async Task A_comment_inside_a_real_frame_stays_in_the_raw_text()
     {
         var frames = await ReadAllAsync(": note\nevent: done\ndata: x\n\n");
