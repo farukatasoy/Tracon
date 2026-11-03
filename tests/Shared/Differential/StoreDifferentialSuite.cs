@@ -72,6 +72,36 @@ public abstract partial class StoreDifferentialSuite
     public async Task Idempotency_store_agrees_with_the_model()
         => await new IdempotencyStateMachine().CheckAsync(await CreateStoresAsync(), Iterations);
 
+    /// <summary>Checks the job store against the model, with a clock the sequence moves.</summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Job_store_agrees_with_the_model()
+        => await new JobStateMachine().CheckAsync(await CreateStoresAsync(), Iterations);
+
+    /// <summary>
+    /// Runs leases, fenced writes, cancellations and item reports at the same time and checks that some serial order of
+    /// the model explains every result: one worker wins a job, a write with a lease that was replaced loses.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Job_store_races_have_a_serial_explanation()
+        => await new JobStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
+
+    /// <summary>Checks the quota store against the model.</summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Quota_store_agrees_with_the_model()
+        => await new QuotaStateMachine().CheckAsync(await CreateStoresAsync(), Iterations);
+
+    /// <summary>
+    /// Runs counter increments, threshold claims, rule saves and reads at the same time and checks that some serial
+    /// order of the model explains every result: no increment is lost and a threshold is claimed once.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Quota_store_races_have_a_serial_explanation()
+        => await new QuotaStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
+
     /// <summary>Checks the session store against the model.</summary>
     /// <returns>The completion task.</returns>
     [Fact]

@@ -1,4 +1,5 @@
 using Tracon.PostgreSql.IntegrationTests.Infrastructure;
+using Tracon.Tests.Common;
 using Tracon.Tests.Differential;
 
 namespace Tracon.PostgreSql.IntegrationTests.Contracts;
@@ -14,6 +15,8 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
     internal override async ValueTask<DifferentialStores> CreateStoresAsync()
     {
         await schema.ResetAsync();
+
+        var clock = new ManualClock();
 
         return new DifferentialStores
         {
@@ -35,6 +38,9 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
             Runs = schema.Context.Runs,
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
+            Clock = clock,
+            Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
+            Quotas = schema.Context.Quotas,
         };
     }
 }

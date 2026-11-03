@@ -1,4 +1,5 @@
 using Tracon.Testing.Contracts.Storage;
+using Tracon.Tests.Common;
 using Tracon.Tests.Differential;
 
 namespace Tracon.Core.UnitTests.Contracts;
@@ -16,6 +17,7 @@ public sealed class InMemoryStoreDifferentialTests : StoreDifferentialSuite
     internal override ValueTask<DifferentialStores> CreateStoresAsync()
     {
         var tenant = new MutableTenantContext("tenant-a");
+        var clock = new ManualClock();
 
         return ValueTask.FromResult(new DifferentialStores
         {
@@ -26,6 +28,9 @@ public sealed class InMemoryStoreDifferentialTests : StoreDifferentialSuite
             Runs = new InMemoryRunStore(tenantContext: tenant),
             Idempotency = new InMemoryIdempotencyStore(),
             ApiKeys = new InMemoryApiKeyStore(),
+            Clock = clock,
+            Jobs = new InMemoryJobStore(clock),
+            Quotas = new InMemoryQuotaStore(),
         });
     }
 }

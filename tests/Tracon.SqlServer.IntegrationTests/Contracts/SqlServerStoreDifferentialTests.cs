@@ -1,4 +1,5 @@
 using Tracon.SqlServer.IntegrationTests.Infrastructure;
+using Tracon.Tests.Common;
 using Tracon.Tests.Differential;
 
 namespace Tracon.SqlServer.IntegrationTests.Contracts;
@@ -25,6 +26,8 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
             await schema.ResetAsync();
         }
 
+        var clock = new ManualClock();
+
         return new DifferentialStores
         {
             Traits = new ProviderTraits
@@ -40,6 +43,9 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
             Runs = schema.Context.Runs,
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
+            Clock = clock,
+            Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
+            Quotas = schema.Context.Quotas,
         };
     }
 }

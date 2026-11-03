@@ -92,30 +92,41 @@ internal abstract partial class StateMachine<TPlan, TStep>
         var driver = NewDriver(plan, stores, scope);
         var steps = Steps(plan);
 
-        for (var index = 0; index < steps.Count; index++)
+        try
         {
-            var step = model.Concretize(steps[index]);
-            var expected = model.Apply(step);
-            Observation actual;
-
-            try
+            for (var index = 0; index < steps.Count; index++)
             {
-                actual = await driver.ApplyAsync(step);
+                var step = model.Concretize(steps[index]);
+                var expected = model.Apply(step);
+                Observation actual;
+
+                try
+                {
+                    actual = await driver.ApplyAsync(step);
+                }
+                catch (Exception exception) when (exception is not DifferentialMismatchException)
+                {
+                    actual = Observation.Failure(exception);
+                }
+
+                var difference = Observation.Compare(expected, actual);
+
+                if (difference.Length > 0)
+                {
+                    throw new DifferentialMismatchException(
+                        $"{Name} on {stores.Traits.Name}: step {index + 1} of {steps.Count} - {difference}.\n" +
+                        $"  step:     {Describe(step)}\n" +
+                        $"  expected: {expected}\n" +
+                        $"  actual:   {actual}");
+                }
             }
-            catch (Exception exception) when (exception is not DifferentialMismatchException)
+        }
+        finally
+        {
+            // A driver that leaves rows other sequences could reach (a job another sequence could lease) cleans up.
+            if (driver is IAsyncDisposable disposable)
             {
-                actual = Observation.Failure(exception);
-            }
-
-            var difference = Observation.Compare(expected, actual);
-
-            if (difference.Length > 0)
-            {
-                throw new DifferentialMismatchException(
-                    $"{Name} on {stores.Traits.Name}: step {index + 1} of {steps.Count} - {difference}.\n" +
-                    $"  step:     {Describe(step)}\n" +
-                    $"  expected: {expected}\n" +
-                    $"  actual:   {actual}");
+                await disposable.DisposeAsync();
             }
         }
     }

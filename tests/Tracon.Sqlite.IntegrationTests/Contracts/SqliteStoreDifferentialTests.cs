@@ -1,4 +1,5 @@
 using Tracon.Sqlite.IntegrationTests.Infrastructure;
+using Tracon.Tests.Common;
 using Tracon.Tests.Differential;
 
 namespace Tracon.Sqlite.IntegrationTests.Contracts;
@@ -12,6 +13,8 @@ public sealed class SqliteStoreDifferentialTests(SqliteSchemaFixture schema)
     {
         await schema.ResetAsync();
 
+        var clock = new ManualClock();
+
         return new DifferentialStores
         {
             Traits = new ProviderTraits { Name = "SQLite", NulBecomesReplacementCharacter = true, ReadEchoesRequestedKey = true, CreateEchoesInputText = true, CostRelativeTolerance = 0.000000000001m },
@@ -20,6 +23,9 @@ public sealed class SqliteStoreDifferentialTests(SqliteSchemaFixture schema)
             Runs = schema.Context.Runs,
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
+            Clock = clock,
+            Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
+            Quotas = schema.Context.Quotas,
         };
     }
 }

@@ -132,6 +132,23 @@ internal abstract partial class StateMachine<TPlan, TStep>
 
         var scope = DifferentialScope.Next();
         var driver = NewDriver(plan, stores, scope);
+
+        try
+        {
+            await RaceWithDriverAsync(plan, setup, racing, taskCount, stores, driver);
+        }
+        finally
+        {
+            // A driver that leaves rows other sequences could reach (a job another sequence could lease) cleans up.
+            if (driver is IAsyncDisposable disposable)
+            {
+                await disposable.DisposeAsync();
+            }
+        }
+    }
+
+    private async Task RaceWithDriverAsync(TPlan plan, List<TStep> setup, List<TStep> racing, int taskCount, DifferentialStores stores, IStepDriver<TStep> driver)
+    {
         var model = NewModel(plan, stores.Traits);
         var concreteSetup = new List<TStep>();
 
