@@ -149,7 +149,8 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
             using var reply = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
             var runs = await TraconTestHost.ReadJsonAsync(reply);
 
-            if (!runs.EnumerateArray().Any(static run => string.Equals(run.GetProperty("status").GetString(), "running", StringComparison.OrdinalIgnoreCase)))
+            if (!runs.EnumerateArray().Any(static run => run.GetProperty("status").GetString() is { } status
+                && (string.Equals(status, "running", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase))))
             {
                 return;
             }

@@ -32,6 +32,8 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
     private readonly ConcurrentQueue<string> _authorizationHeaders;
     private readonly ConcurrentQueue<TokenRequest> _tokenRequests;
     private readonly Lock _refreshGate = new();
+    private readonly ConcurrentQueue<string> _issuedRefreshTokens = new();
+    private readonly ConcurrentQueue<string> _clientCredentials = new();
     private int _disposed;
     private int _refreshGrants;
     private int _rejectedRefreshes;
@@ -62,6 +64,15 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
 
     /// <summary>Every request that reached the token endpoint.</summary>
     public IReadOnlyCollection<TokenRequest> TokenRequests => [.. _tokenRequests];
+
+    /// <summary>Gets every refresh token the server has issued, in order.</summary>
+    public IReadOnlyCollection<string> IssuedRefreshTokens => [.. _issuedRefreshTokens];
+
+    /// <summary>
+    /// Gets what each token request said about the client: the <c>client_secret</c> form value and the
+    /// <c>Authorization</c> header, as sent. The client's secret reaches the server through one of them.
+    /// </summary>
+    public IReadOnlyCollection<string> ClientCredentials => [.. _clientCredentials];
 
     /// <summary>Gets how many refresh grants the server accepted.</summary>
     public int RefreshGrants => Volatile.Read(ref _refreshGrants);
@@ -140,6 +151,7 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
             var form = await context.Request.ReadFormAsync();
             var grantType = form["grant_type"].ToString();
 
+            self!._clientCredentials.Enqueue($"{form["client_secret"]} | {context.Request.Headers.Authorization}");
             tokenRequests.Enqueue(new TokenRequest(
                 grantType,
                 form["code"].ToString(),
@@ -200,6 +212,7 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
         lock (_refreshGate)
         {
             _currentRefreshToken = $"refresh-{Guid.NewGuid():N}";
+            _issuedRefreshTokens.Enqueue(_currentRefreshToken);
 
             return _currentRefreshToken;
         }
@@ -218,6 +231,7 @@ internal sealed class OAuthProtectedMcpServer : IAsyncDisposable
             }
 
             _currentRefreshToken = $"refresh-{Guid.NewGuid():N}";
+            _issuedRefreshTokens.Enqueue(_currentRefreshToken);
             rotated = _currentRefreshToken;
             Interlocked.Increment(ref _refreshGrants);
 
