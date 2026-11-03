@@ -211,7 +211,7 @@ internal sealed class JobWorkerBackgroundService(
     }
 
     private async Task LeaseLoopAsync(
-        JobSlotPool slotPool,
+        SlotPool slotPool,
         IReadOnlyList<string>? lanes,
         TimeSpan leaseDuration,
         CancellationToken stoppingToken)
@@ -282,7 +282,7 @@ internal sealed class JobWorkerBackgroundService(
     private async Task RunAfterPreviousAttemptAsync(
         JobRecord job,
         long leaseRequestedAt,
-        JobSlotPool slotPool,
+        SlotPool slotPool,
         TaskCompletionSource completion,
         CancellationToken stoppingToken)
     {
@@ -309,7 +309,7 @@ internal sealed class JobWorkerBackgroundService(
     private async Task RunJobAsync(
         JobRecord job,
         long leaseRequestedAt,
-        JobSlotPool slotPool,
+        SlotPool slotPool,
         TaskCompletionSource completion,
         CancellationToken stoppingToken)
     {

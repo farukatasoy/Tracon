@@ -1,20 +1,19 @@
-using static Tracon.Core.UnitTests.Scheduling.JobAttemptProbes;
-
-namespace Tracon.Core.UnitTests.Scheduling;
+namespace Tracon.Core.UnitTests.Hosting;
 
 /// <summary>
-/// The pool a job worker takes its slots from outlives every slot still out.
+/// The pool a worker or a runner takes its slots from outlives every slot still out.
 /// </summary>
 /// <remarks>
-/// The worker's own shutdown races decide whether the failure shows (see
-/// <see cref="JobWorkerStopDropsNoTaskTests"/>); these tests hold the same rules with no race.
+/// The shutdown races decide whether the failure shows (<c>JobWorkerStopDropsNoTaskTests</c> for the job worker, the
+/// disposal test of <c>WorkflowCancellationSweepTests</c> for the workflow runner); these tests hold the same rules with
+/// no race.
 /// </remarks>
-public sealed class JobSlotPoolTests
+public sealed class SlotPoolTests
 {
     [Fact]
     public async Task A_slot_returned_after_the_pool_was_disposed_is_accepted_and_ends_the_pool()
     {
-        var pool = new JobSlotPool(1);
+        var pool = new SlotPool(1);
 
         (await pool.TryAcquireAsync(TestContext.Current.CancellationToken)).ShouldBeTrue();
 
@@ -30,7 +29,7 @@ public sealed class JobSlotPoolTests
     [Fact]
     public async Task The_pool_ends_with_its_last_slot_and_not_with_the_first_one_returned()
     {
-        var pool = new JobSlotPool(2);
+        var pool = new SlotPool(2);
 
         (await pool.TryAcquireAsync(TestContext.Current.CancellationToken)).ShouldBeTrue();
         (await pool.TryAcquireAsync(TestContext.Current.CancellationToken)).ShouldBeTrue();
@@ -48,7 +47,7 @@ public sealed class JobSlotPoolTests
     [Fact]
     public async Task A_disposed_pool_hands_out_no_slot()
     {
-        var pool = new JobSlotPool(1);
+        var pool = new SlotPool(1);
 
         pool.Dispose();
 
@@ -59,7 +58,7 @@ public sealed class JobSlotPoolTests
     [Fact]
     public async Task A_full_pool_refuses_without_waiting_and_a_returned_slot_is_taken_again()
     {
-        var pool = new JobSlotPool(1);
+        var pool = new SlotPool(1);
 
         (await pool.TryAcquireAsync(TestContext.Current.CancellationToken)).ShouldBeTrue();
         (await pool.TryAcquireAsync(TestContext.Current.CancellationToken)).ShouldBeFalse();
@@ -75,7 +74,7 @@ public sealed class JobSlotPoolTests
     [Fact]
     public async Task An_acquire_that_throws_does_not_keep_the_pool_from_ending()
     {
-        var pool = new JobSlotPool(1);
+        var pool = new SlotPool(1);
         using var canceled = new CancellationTokenSource();
         await canceled.CancelAsync();
 
@@ -87,48 +86,48 @@ public sealed class JobSlotPoolTests
     }
 
     [Fact]
-    public async Task The_workers_slots_end_only_when_the_slot_of_every_lane_is_back()
+    public async Task A_waiting_acquire_gets_the_slot_a_release_frees_and_one_that_is_canceled_takes_none()
     {
-        var slots = new JobWorkerSlots(1);
+        var pool = new SlotPool(1);
         var token = TestContext.Current.CancellationToken;
 
-        (await slots.Shared.TryAcquireAsync(token)).ShouldBeTrue();
-        (await slots.ForLane("batch", 1).TryAcquireAsync(token)).ShouldBeTrue();
+        await pool.AcquireAsync(token);
+        pool.IsFull.ShouldBeTrue();
 
-        slots.Close();
-        slots.Shared.Release();
+        var waiting = pool.AcquireAsync(token).AsTask();
 
-        slots.WaitForDrainedAsync().IsCompleted.ShouldBeFalse("the batch lane's slot is still out");
+        waiting.IsCompleted.ShouldBeFalse("the only slot is out");
 
-        slots.ForLane("batch", 1).Release();
+        pool.Release();
+        await waiting.WaitAsync(WaitUntil.DefaultTimeout, token);
 
-        await slots.WaitForDrainedAsync().WaitAsync(WaitUntil.DefaultTimeout, token);
+        using var canceled = new CancellationTokenSource();
+        var abandoned = pool.AcquireAsync(canceled.Token).AsTask();
+
+        await canceled.CancelAsync();
+        await Should.ThrowAsync<OperationCanceledException>(async () => await abandoned);
+
+        pool.Release();
+        pool.Dispose();
+
+        pool.Drained.IsCompletedSuccessfully.ShouldBeTrue("the canceled wait took no slot, so the pool ended with the one it handed out");
     }
 
     [Fact]
-    public async Task A_stop_that_cancels_the_lease_call_still_ends_the_worker()
+    public async Task A_closed_pool_refuses_a_waiting_acquire_and_a_slot_held_at_the_close_ends_it_when_returned()
     {
-        // The slot is taken before the lease call. A stop cancels that call with an exception the
-        // lease loop does not treat as a failure; the slot must go back anyway or the worker
-        // waits for it for ever.
-        var store = new ProbeJobStore(new InMemoryJobStore());
-        var leasing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pool = new SlotPool(1);
+        var token = TestContext.Current.CancellationToken;
 
-        store.BeforeLease = async token =>
-        {
-            leasing.TrySetResult();
-            await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false); // delay: simulated
-        };
+        await pool.AcquireAsync(token);
+        pool.Dispose();
 
-        var (worker, host) = Worker(store, new TokenProbeHandler());
+        await Should.ThrowAsync<ObjectDisposedException>(async () => await pool.AcquireAsync(token));
 
-        using (host)
-        using (worker)
-        {
-            await worker.StartAsync(TestContext.Current.CancellationToken);
-            await leasing.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        pool.Drained.IsCompleted.ShouldBeFalse("a slot is still out");
 
-            await worker.StopAsync(CancellationToken.None).WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
-        }
+        pool.Release();
+
+        pool.Drained.IsCompletedSuccessfully.ShouldBeTrue();
     }
 }

@@ -12,17 +12,17 @@ namespace Tracon;
 /// <param name="maxConcurrentJobs">The size of the shared pool.</param>
 internal sealed class JobWorkerSlots(int maxConcurrentJobs)
 {
-    private readonly ConcurrentDictionary<string, JobSlotPool> _perLane = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SlotPool> _perLane = new(StringComparer.Ordinal);
 
     /// <summary>Gets the pool shared by every lane without a budget of its own.</summary>
-    public JobSlotPool Shared { get; } = new(Math.Max(1, maxConcurrentJobs));
+    public SlotPool Shared { get; } = new(Math.Max(1, maxConcurrentJobs));
 
     /// <summary>Gets the pool of one lane, created on first use.</summary>
     /// <param name="lane">The lane.</param>
     /// <param name="max">The lane's budget; used only when the pool is created.</param>
     /// <returns>The lane's pool.</returns>
-    public JobSlotPool ForLane(string lane, int max)
-        => _perLane.GetOrAdd(lane, static (_, m) => new JobSlotPool(Math.Max(1, m)), max);
+    public SlotPool ForLane(string lane, int max)
+        => _perLane.GetOrAdd(lane, static (_, m) => new SlotPool(Math.Max(1, m)), max);
 
     /// <summary>Closes every pool: no new slot is handed out, and each pool ends with its last returned slot.</summary>
     public void Close()

@@ -49,7 +49,7 @@ public sealed class JobWorkerStopDropsNoTaskTests
         var dropped = UnobservedTaskGuard.Take(static exception =>
             exception.StackTrace is { } stack
             && (stack.Contains(nameof(JobWorkerBackgroundService), StringComparison.Ordinal)
-                || stack.Contains("JobSlotPool", StringComparison.Ordinal)));
+                || stack.Contains("SlotPool", StringComparison.Ordinal)));
 
         dropped.ShouldBeEmpty(
             "a job that held a slot after the slot pool was disposed left a faulted task nobody observed: "
