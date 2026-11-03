@@ -38,7 +38,7 @@ A useful production baseline is:
     },
     "Idempotency": {
       "Enabled": true,
-      "MaxKeyLength": 255,
+      "MaxKeyLength": 200,
       "ReservationTimeout": "01:00:00"
     },
     "SingletonExecution": {
@@ -234,7 +234,7 @@ body buffering and the idempotency-store query.
 | Same key is still in progress | `409 Conflict` |
 | Same key, reserved longer ago than `ReservationTimeout` and never completed (the first process died) | The request takes the key and the endpoint executes |
 | Same key, different path or raw body | `422 Unprocessable Entity` |
-| Key longer than 255 characters by default | `400 Bad Request` |
+| Key longer than `MaxKeyLength` (200 characters by default) | `400 Bad Request` |
 | Key on a request whose body sets `stream:true` | `400 Bad Request` |
 | Key on a workflow run, resume or respond request without `Prefer: respond-async` | `400 Bad Request`; nothing is reserved or run |
 | Idempotency is disabled but the header is present | `501 Not Implemented`; the endpoint does not execute |

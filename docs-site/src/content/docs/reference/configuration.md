@@ -528,7 +528,7 @@ not enable sampling.
 | `RateLimit:Partition` | `Tenant` |
 | `RateLimit:Scope` | `Instance`. `Deployment` counts both rate limiters in the database; it needs `QueueLimit` of `0`, which is checked at startup |
 | `Idempotency:Enabled` | `true` |
-| `Idempotency:MaxKeyLength` | `255` |
+| `Idempotency:MaxKeyLength` | `200`, the width of the narrowest column that stores a key (SQL Server `nvarchar(200)`), so a longer key is a `400` on every store. A higher value is accepted by PostgreSQL and SQLite; SQL Server still refuses a key past 200 |
 | `Idempotency:ReservationTimeout` | 1 hour. A reserved key that no response completed (the process died) is taken over by the next request once it is this old; `00:00:00` never takes one over. Keep it longer than your longest request that carries an `Idempotency-Key` |
 | `ContentGuard:InspectInput` | `true` |
 | `ContentGuard:InspectOutput` | `true` |

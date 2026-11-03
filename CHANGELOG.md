@@ -573,6 +573,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`RunScoreKind` starts at `1`); every list that held it then wrote `"kind": 0` where the document says one of four names. It answers `400` now, with the message that lists the members, like an
   unknown name. A number that is a member (`"kind": 1`) is accepted as before, a nullable enum (`sourceKind` of the eval-case promotion body) is refused the same way and still takes `null`, and a `[Flags]` enum still takes a combination. What to do: nothing, unless a client sends numbers; send the name.
 
+- **Behavioural breaking change: the default `Idempotency-Key` limit is 200 characters, not 255.** `Tracon:Idempotency:MaxKeyLength` defaulted to 255, and SQL Server keeps the key in an
+  `nvarchar(200)` column, so a key of 201 to 255 characters passed the check and was refused by the store. That refusal is a `400` (the SQL data-fault mapping), but the filter said
+  "at most 255" and the other stores took the key, so the same request answered `200` on PostgreSQL, SQLite and the in-memory store and `400` on SQL Server. The default is the width of the
+  narrowest column now, and the answer is the same on every store: `400` with "The key may be at most 200 characters". A client that sends keys of 201 to 255 characters (rare: a UUID is 36)
+  shortens them, or the host sets `Tracon:Idempotency:MaxKeyLength` back; above 200 SQL Server still refuses the key.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then

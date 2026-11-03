@@ -325,8 +325,10 @@ public sealed class IdempotencyTests
         await using var host = await TraconTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
+        // One over the default: the limit is the width of the narrowest column that stores a key, so the answer does
+        // not depend on which store the host uses.
         using var response = await PostWithKeyAsync(
-            host, Run, new AgentRunRequest { Message = "hello" }, new string('a', 300));
+            host, Run, new AgentRunRequest { Message = "hello" }, new string('a', 201));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
@@ -336,8 +338,20 @@ public sealed class IdempotencyTests
         // Both numbers: the limit AND what was received. A detail carrying only
         // one of them leaves the caller guessing which end to change.
         var detail = json.GetProperty("detail").GetString() ?? string.Empty;
-        detail.ShouldContain("255", Case.Sensitive);
-        detail.ShouldContain("300", Case.Sensitive);
+        detail.ShouldContain("200", Case.Sensitive);
+        detail.ShouldContain("201", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_key_exactly_as_long_as_the_default_limit_is_accepted()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        using var response = await PostWithKeyAsync(
+            host, Run, new AgentRunRequest { Message = "hello" }, new string('a', 200));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
