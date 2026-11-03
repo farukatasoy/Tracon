@@ -254,6 +254,24 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
         (await Store.FindForEventAsync(Tenant, "run.completed")).Count.ShouldBe(1);
     }
 
+    /// <summary>
+    /// An event name is matched by its characters: a subscription to <c>run.completed</c> is not found for
+    /// <c>Run.Completed</c>.
+    /// </summary>
+    /// <remarks>
+    /// The event names are fixed identifiers the product publishes. A store that compares them by the collation of its
+    /// column finds a subscription for a spelling nobody publishes, on one engine and not on the others.
+    /// </remarks>
+    [Fact]
+    public async Task Event_name_matches_by_its_characters_letter_case_included()
+    {
+        await Store.SaveSubscriptionAsync(Subscription(events: ["run.completed"]));
+
+        (await Store.FindForEventAsync(Tenant, "Run.Completed")).ShouldBeEmpty();
+        (await Store.FindForEventAsync(Tenant, "RUN.COMPLETED")).ShouldBeEmpty();
+        (await Store.FindForEventAsync(Tenant, "run.completed")).ShouldHaveSingleItem();
+    }
+
     [Fact]
     public async Task Another_tenants_subscription_is_not_visible()
     {

@@ -783,6 +783,7 @@ Tracon.Testing.Contracts.Storage.WebhookStoreContract.Deliveries_are_filtered_by
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Delivery_record_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Disabled_subscription_does_not_appear_in_event_search() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Event_name_matches_exactly() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Event_name_matches_by_its_characters_letter_case_included() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failed_delivery_does_not_record_a_delivery_time() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failure_counter_increments_and_disables_the_subscription_at_the_threshold() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Header_configuration_keys_are_preserved() -> System.Threading.Tasks.Task!
