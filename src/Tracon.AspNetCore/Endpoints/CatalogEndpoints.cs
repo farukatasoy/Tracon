@@ -145,11 +145,6 @@ internal static class CatalogEndpoints
                 [FromServices] TimeProvider? timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                if (EnumQueryParameter.Refuse(nameof(bucket), bucket) is { } undefinedBucket)
-                {
-                    return undefinedBucket;
-                }
-
                 var effectiveTo = to ?? (timeProvider ?? TimeProvider.System).GetUtcNow();
                 var effectiveFrom = from ?? effectiveTo.AddHours(-24);
 

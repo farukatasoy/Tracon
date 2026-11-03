@@ -579,6 +579,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   narrowest column now, and the answer is the same on every store: `400` with "The key may be at most 200 characters". A client that sends keys of 201 to 255 characters (rare: a UUID is 36)
   shortens them, or the host sets `Tracon:Idempotency:MaxKeyLength` back; above 200 SQL Server still refuses the key.
 
+- **A number that names no member of an enum query parameter is refused with `400` on every endpoint.** The binder reads an enum parameter with `Enum.TryParse`, which takes any integer, so `GET /api/runs?status=99`
+  answered `200` with an empty page (text that names no member was already `400`). Seven parameters did: `status` and `kind` of `GET /api/runs`, `status` of `GET /api/jobs` and of
+  `GET /api/webhooks/{name}/deliveries`, `target` of `GET /api/evaluation/scores/summary`, `kind` of `GET /api/stats/timeseries` and `period` of `GET /api/quotas/usage`; `bucket` of `GET /api/evaluation/scores/summary` and of `GET /api/stats/timeseries` answered `400` since the
+  previous release. They answer `400` now, with the message that lists the members, like a name that is not one. One endpoint filter on the endpoint group does it, reading each handler's signature when the endpoint is
+  built, so a parameter added later is covered without anyone remembering to ask (and a `[Flags]` enum takes any combination of its members). A number that is a member (`?status=2`) is accepted as before.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then

@@ -193,6 +193,11 @@ public static class TraconEndpointRouteBuilderExtensions
             group.AddEndpointFilter(rateLimitFilter);
         }
 
+        // A number that names no member of an enum parameter is a bad request for every endpoint of the group,
+        // whether it is read from the query or the route: one check, so an endpoint added later is covered
+        // without anyone remembering to ask. It runs after the caller is known, so it answers nobody who may not call.
+        group.AddEndpointFilterFactory(EnumQueryParameter.Filter);
+
         if (options.AuthorizationPolicy is { Length: > 0 } policy)
         {
             group.RequireAuthorization(policy);

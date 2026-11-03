@@ -20,6 +20,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The host holds one score and one run first: a store that evaluates the value per row only reaches it with a row to
 /// evaluate, which an empty store never does.
 /// </para>
+/// <para>
+/// Not a 5xx is the floor; the answer is the same 400 the binder gives for text that names no member, for every enum
+/// parameter of every operation, so a handler never has to remember to ask.
+/// </para>
 /// </remarks>
 public sealed class UndefinedEnumParameterTests
 {
@@ -72,6 +76,79 @@ public sealed class UndefinedEnumParameterTests
                 {
                     // The test server hands an exception no middleware caught to the caller; a real host answers 500.
                     failures.Add($"GET {path.Name}?{name}={number} -> 500, {exception.GetType().Name}: {exception.Message}");
+                }
+            }
+        }
+
+        failures.ShouldBeEmpty();
+        probed.ShouldBeGreaterThan(5, "the document lists too few enum query parameters for the probe to mean anything");
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("99")]
+    public async Task Every_enum_query_parameter_answers_400_for_a_number_that_names_no_member(string number)
+    {
+        await using var host = await OpenApiSnapshotTests.StartFullSurfaceHostAsync();
+        await SeedRowsAsync(host);
+
+        using var documentResponse = await host.Client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
+        documentResponse.EnsureSuccessStatusCode();
+
+        var document = await TraconTestHost.ReadJsonAsync(documentResponse);
+        var components = document.GetProperty("components").GetProperty("schemas");
+        var failures = new List<string>();
+        var probed = 0;
+
+        foreach (var path in document.GetProperty("paths").EnumerateObject())
+        {
+            foreach (var operation in path.Value.EnumerateObject())
+            {
+                if (operation.Name is not ("get" or "post" or "put" or "patch" or "delete")
+                    || !operation.Value.TryGetProperty("parameters", out var parameters))
+                {
+                    continue;
+                }
+
+                var route = FillPathParameters(path.Name, parameters);
+
+                foreach (var parameter in parameters.EnumerateArray())
+                {
+                    if (!string.Equals(parameter.GetProperty("in").GetString(), "query", StringComparison.Ordinal)
+                        || !IsEnum(parameter.GetProperty("schema"), components))
+                    {
+                        continue;
+                    }
+
+                    probed++;
+                    var name = parameter.GetProperty("name").GetString();
+                    var label = $"{operation.Name.ToUpperInvariant()} {path.Name}?{name}={number}";
+
+                    using var request = new HttpRequestMessage(
+                        new HttpMethod(operation.Name.ToUpperInvariant()),
+                        new Uri($"{route}?{name}={number}", UriKind.Relative));
+
+                    if (operation.Value.TryGetProperty("requestBody", out _))
+                    {
+                        request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+                    }
+
+                    try
+                    {
+                        using var reply = await host.Client.SendAsync(request);
+                        var body = await reply.Content.ReadAsStringAsync();
+
+                        if (reply.StatusCode != HttpStatusCode.BadRequest
+                            || !string.Equals(reply.Content.Headers.ContentType?.MediaType, "application/problem+json", StringComparison.Ordinal)
+                            || !body.Contains($"'{name}'", StringComparison.Ordinal))
+                        {
+                            failures.Add($"{label} -> {(int)reply.StatusCode}");
+                        }
+                    }
+                    catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NullReferenceException)
+                    {
+                        failures.Add($"{label} -> 500, {exception.GetType().Name}: {exception.Message}");
+                    }
                 }
             }
         }
