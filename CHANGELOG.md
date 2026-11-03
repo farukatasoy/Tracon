@@ -838,6 +838,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The job worker's poll and MCP tool discovery wait on the registered `TimeProvider`, and read their interval again on every tick.** Both waited on the system clock whatever `TimeProvider` the host registered, so a test host that registered a fake clock could drive the worker's other timers (a job's time limit, its lease renewal, its cancel watch) but not the poll that leases the job, nor the refresh that lists the MCP tools. A host whose registered provider has manual timers (`FakeTimeProvider`) now advances them by `PollInterval` and `Tracon:Mcp:RefreshInterval`; a host on the system clock sees no difference. The interval is read from the options on every tick and pass, so an options monitor that changes `PollInterval` or `RefreshInterval` applies it to the next wait (a value a timer cannot take is ignored, and the loop keeps the interval it has). Nothing in Tracon reloads these options from configuration on its own.
 - **The run event stream tells a client that reconnects on its own how long to wait.** `GET /api/runs/{runId}/events` opens with a `retry: 3000` block, with or without
   `Last-Event-ID`, so every client of an instance that restarted waits the same, known time instead of the default of its own browser. The block carries no data and dispatches no
   event: `readSse`, the `Tracon.Client` stream readers and every reader that follows the SSE rules drop it. Before this release the `Tracon.Client` raw-frame reader

@@ -32,7 +32,7 @@ public sealed class HostedServiceInventoryTests
 {
     private static readonly Dictionary<string, (Kind Kind, string? LoopTest)> Known = new(StringComparer.Ordinal)
     {
-        ["Tracon.JobWorkerBackgroundService"] = (Kind.TickLoop, "JobWorkerBackgroundServiceTests.cs"),
+        ["Tracon.JobWorkerBackgroundService"] = (Kind.TickLoop, "JobWorkerTickLoopTests.cs"),
         ["Tracon.RunHeartbeatWriter"] = (Kind.TickLoop, "HostedTickLoopTests.cs"),
         ["Tracon.RunReconciliationService"] = (Kind.TickLoop, "HostedTickLoopTests.cs"),
         ["Tracon.CanaryEvaluationService"] = (Kind.TickLoop, "HostedTickLoopTests.cs"),

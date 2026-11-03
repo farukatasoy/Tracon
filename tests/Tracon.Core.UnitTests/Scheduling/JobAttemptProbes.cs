@@ -18,8 +18,9 @@ internal static class JobAttemptProbes
 
     /// <summary>Builds a worker over <paramref name="store"/> running <paramref name="handler"/> for <see cref="JobHandlerKeys.AgentBatch"/>.</summary>
     /// <remarks>
-    /// <paramref name="clock"/> drives the attempt's own timers (the cancel watch, the
-    /// deadline, the lease renewal); the worker's poll for new work keeps the real clock.
+    /// <paramref name="clock"/> drives the worker's poll for new work as well as the attempt's own timers (the
+    /// cancel watch, the deadline, the lease renewal). A manual clock polls only when it is advanced: start such a
+    /// worker with <see cref="StartOnClockAsync"/>.
     /// </remarks>
     public static (JobWorkerBackgroundService Worker, TestJobHandlerHost Host) Worker(
         IJobStore store,
@@ -49,6 +50,18 @@ internal static class JobAttemptProbes
             logger: logger ?? NullLogger<JobWorkerBackgroundService>.Instance);
 
         return (worker, host);
+    }
+
+    /// <summary>Starts a worker that polls on <paramref name="clock"/> and gives it its first tick, which leases what is queued.</summary>
+    /// <param name="worker">A worker built over <paramref name="clock"/>.</param>
+    /// <param name="clock">The worker's clock.</param>
+    /// <returns>The completion task.</returns>
+    public static async Task StartOnClockAsync(JobWorkerBackgroundService worker, ManualClock clock)
+    {
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the worker to arm its poll timer");
+
+        clock.Advance(Poll);
     }
 
     /// <summary>Queues one job for <see cref="JobHandlerKeys.AgentBatch"/>.</summary>

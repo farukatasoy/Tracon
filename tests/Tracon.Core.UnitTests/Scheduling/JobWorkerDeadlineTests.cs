@@ -80,7 +80,7 @@ public sealed class JobWorkerDeadlineTests
         {
             var id = await EnqueueAsync(store, "slow", maxAttempts: 1, maxDuration: limit);
 
-            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await StartOnClockAsync(worker, clock);
             await handler.For("slow").Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
             clock.Pending.ShouldContain(limit);

@@ -28,22 +28,31 @@ public sealed class McpDiscoverySingletonTests
     [Fact]
     public async Task Discovery_runs_on_every_instance()
     {
-        var mcpOptions = Options(new TraconMcpOptions { RefreshInterval = TimeSpan.FromMilliseconds(60) });
+        var interval = TimeSpan.FromSeconds(30);
+        var clock = new ManualClock();
+        var mcpOptions = Options(new TraconMcpOptions { RefreshInterval = interval });
 
         var loggerA = new RecordingLogger<McpDiscoveryService>();
         var loggerB = new RecordingLogger<McpDiscoveryService>();
 
-        var serviceA = BuildService(mcpOptions, loggerA);
-        var serviceB = BuildService(mcpOptions, loggerB);
+        var serviceA = BuildService(mcpOptions, loggerA, clock);
+        var serviceB = BuildService(mcpOptions, loggerB, clock);
 
         await serviceA.StartAsync(CancellationToken.None);
         await serviceB.StartAsync(CancellationToken.None);
 
-        // Neither instance waits for the other: each one completes its own passes. Two passes
-        // on each, not a window of time (removed the fixed delay this test once had).
+        // Neither instance waits for the other: each one completes its own first pass at start, and its second
+        // when the clock reaches its interval. The clock moves only here, so two passes is exactly one interval.
+        await WaitUntil.TrueAsync(
+            () => loggerA.CountContaining(DiscoveryCompleted) >= 1 && loggerB.CountContaining(DiscoveryCompleted) >= 1,
+            "the first MCP discovery pass on each instance");
+        await WaitUntil.TrueAsync(() => clock.Pending.Count(static due => due > TimeSpan.Zero) >= 2, "both instances to wait out their interval");
+
+        clock.Advance(interval);
+
         await WaitUntil.TrueAsync(
             () => loggerA.CountContaining(DiscoveryCompleted) >= 2 && loggerB.CountContaining(DiscoveryCompleted) >= 2,
-            "two MCP discovery passes on each instance");
+            "the second MCP discovery pass on each instance");
 
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
@@ -54,8 +63,9 @@ public sealed class McpDiscoverySingletonTests
     }
 
     private static McpDiscoveryService BuildService(
-        IOptions<TraconMcpOptions> mcpOptions,
-        ILogger<McpDiscoveryService> logger)
+        StaticOptionsMonitor<TraconMcpOptions> mcpOptions,
+        ILogger<McpDiscoveryService> logger,
+        TimeProvider clock)
     {
         var catalog = new McpToolCatalog(
             new InMemoryMcpServerStore(),
@@ -74,7 +84,7 @@ public sealed class McpDiscoverySingletonTests
         // itself, and discovery starts without waiting.
         var schemaReadyGate = new SchemaReadyGate([]);
 
-        return new McpDiscoveryService(catalog, mcpOptions, schemaReadyGate, logger);
+        return new McpDiscoveryService(catalog, mcpOptions, schemaReadyGate, logger, clock);
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);

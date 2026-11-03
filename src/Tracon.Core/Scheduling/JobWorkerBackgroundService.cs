@@ -77,7 +77,7 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
-        using var timer = new PeriodicTimer(options.PollInterval);
+        using var timer = new PeriodicTimer(options.PollInterval, _clock);
         var slots = new JobWorkerSlots(options.MaxConcurrentJobs);
 
         try
@@ -85,6 +85,7 @@ internal sealed class JobWorkerBackgroundService(
             while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
             {
                 await TickAsync(slots, stoppingToken).ConfigureAwait(false);
+                FollowPollInterval(timer);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -100,6 +101,33 @@ internal sealed class JobWorkerBackgroundService(
             slots.Close();
             await slots.WaitForDrainedAsync().ConfigureAwait(false);
             await WaitForRunningJobsAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Gives the poll timer the interval the options hold now, so a change of <c>PollInterval</c> applies from the
+    /// next tick and not from the next start. A value a timer cannot take, or options that cannot be read (a reload
+    /// that failed validation), leave the period the timer already has.
+    /// </summary>
+    /// <param name="timer">The poll timer.</param>
+    private void FollowPollInterval(PeriodicTimer timer)
+    {
+        TimeSpan configured;
+
+        try
+        {
+            configured = optionsMonitor.CurrentValue.PollInterval;
+        }
+        catch (OptionsValidationException)
+        {
+            return;
+        }
+
+        // Only a change is written: setting the period restarts the wait, and a restart on every tick would
+        // push the next tick out by the time the tick itself took.
+        if (configured != timer.Period && TimerPeriod.IsValid(configured))
+        {
+            timer.Period = configured;
         }
     }
 

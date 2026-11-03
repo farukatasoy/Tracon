@@ -70,11 +70,11 @@ public sealed class JobWorkerCancellationTests
         {
             var id = await EnqueueAsync(store, "slow");
 
-            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await StartOnClockAsync(worker, clock);
             await handler.For("slow").Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
-            // The watch is armed one poll interval ahead, on the worker's clock.
-            clock.Pending.ShouldContain(Poll);
+            // The watch is armed one poll interval ahead, on the worker's clock, next to the worker's own poll.
+            clock.Pending.Count(static due => due == Poll).ShouldBe(2, "the worker's poll and the cancel watch");
 
             (await store.CancelAsync(Tenant, id, TestContext.Current.CancellationToken)).ShouldBeTrue();
             var reads = store.Reads;

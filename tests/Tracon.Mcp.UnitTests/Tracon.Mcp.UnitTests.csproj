@@ -7,6 +7,9 @@
   <ItemGroup>
     <!-- Wraps an interface so a test can count, hook, fail or cancel at its Nth call. -->
     <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
+
+    <!-- A clock that moves only when the test advances it: the discovery loop's wait runs on it. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
   </ItemGroup>
 
   <ItemGroup>
