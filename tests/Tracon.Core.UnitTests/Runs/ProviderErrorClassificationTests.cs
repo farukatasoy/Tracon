@@ -42,7 +42,8 @@ public sealed class ProviderErrorClassificationTests
                 "Response status code does not indicate success: 401 (Unauthorized).",
                 inner: null,
                 System.Net.HttpStatusCode.Unauthorized),
-            "openai");
+            "openai",
+            ProviderSecretMask.Empty);
 
         failure.StatusCode.ShouldBe(401);
         failure.Message.ShouldEndWith("(HTTP 401).");

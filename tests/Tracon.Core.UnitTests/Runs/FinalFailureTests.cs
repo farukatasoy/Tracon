@@ -36,7 +36,8 @@ public sealed class FinalFailureTests
     {
         var failure = ProviderInvocationException.UpstreamFailure(
             new HttpRequestException("Response status code does not indicate success.", inner: null, status),
-            "openai");
+            "openai",
+            ProviderSecretMask.Empty);
 
         FinalFailure.IsFinal(failure).ShouldBeTrue();
     }
@@ -49,7 +50,8 @@ public sealed class FinalFailureTests
     {
         var failure = ProviderInvocationException.UpstreamFailure(
             new HttpRequestException("Response status code does not indicate success.", inner: null, status),
-            "openai");
+            "openai",
+            ProviderSecretMask.Empty);
 
         FinalFailure.IsFinal(failure).ShouldBeFalse();
     }

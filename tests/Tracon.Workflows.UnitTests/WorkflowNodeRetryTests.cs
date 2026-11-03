@@ -317,7 +317,7 @@ public sealed class WorkflowNodeRetryTests
 
     private static Exception ProviderFailure(string providerMessage, bool normalized)
         => normalized
-            ? ProviderInvocationException.UpstreamFailure(new InvalidOperationException(providerMessage), "openai")
+            ? ProviderInvocationException.UpstreamFailure(new InvalidOperationException(providerMessage), "openai", ProviderSecretMask.Empty)
             : new FakeClientResultException(providerMessage);
 
     [Fact]

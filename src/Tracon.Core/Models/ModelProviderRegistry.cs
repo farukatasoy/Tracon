@@ -435,6 +435,10 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         ChatClientRings rings,
         Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> resolveFallback)
     {
+        // The values of THIS call's credential, replaced wherever a provider failure quotes them back. The
+        // pipeline of another tenant has its own; a setup-time key has none (see ProviderSecretMask).
+        var secretMask = ProviderSecretMask.For(credential);
+
         // The provider returns the RAW client; the entire pipeline is assembled here.
         IChatClient chatClient;
 
@@ -451,14 +455,17 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
-            ProviderFailureNormalizer.Log(_loggerFactory, binding, exception, "construction");
-            throw ProviderInvocationException.UpstreamFailure(exception, binding.Provider);
+            ProviderFailureNormalizer.Log(_loggerFactory, binding, exception, "construction", secretMask);
+            throw ProviderInvocationException.UpstreamFailure(exception, binding.Provider, secretMask);
         }
 
         // Mark only exceptions that originate in the raw SDK client. The
         // outer normalizer can then mask provider failures without hiding a
-        // bug thrown by a Tracon guard, cache, or attachment wrapper.
-        chatClient = new ProviderFailureTaggingChatClient(chatClient);
+        // bug thrown by a Tracon guard, cache, or attachment wrapper. The tag also
+        // carries the mask: the chat telemetry ring right above copies the
+        // exception's message to the span and logs the exception, and this is the
+        // exception it sees.
+        chatClient = new ProviderFailureTaggingChatClient(chatClient, secretMask);
 
         // A token count below zero is not a measurement. Dropped here, right above the wire, so the limiter, the guard,
         // the cache and every usage tracker above see the same counts and none of them prices a negative one.
@@ -660,6 +667,6 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // The normalization boundary is the outermost model-call ring. Retry,
         // fallback, circuit, guard, and content-filter decisions must see the
         // original exception graph before a public-safe error replaces it.
-        return new ProviderFailureNormalizingChatClient(binding, chatClient, _loggerFactory);
+        return new ProviderFailureNormalizingChatClient(binding, chatClient, _loggerFactory, secretMask);
     }
 }

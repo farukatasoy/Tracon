@@ -268,7 +268,7 @@ public sealed class ModelProviderCircuitBreakerTests
         // The registry puts ProviderFailureTaggingChatClient right above the raw
         // client; the tag is how the breaker knows the provider itself failed.
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
-        using var wrapped = breaker.Wrap(Provider, new ProviderFailureTaggingChatClient(new ThrowingChatClient()));
+        using var wrapped = breaker.Wrap(Provider, new ProviderFailureTaggingChatClient(new ThrowingChatClient(), ProviderSecretMask.Empty));
 
         await Should.ThrowAsync<ForeignProviderInvocationException>(() => wrapped.GetResponseAsync([]));
 

@@ -4,8 +4,8 @@ using System.Diagnostics.Metrics;
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// Collects what a process hands to its telemetry while a test runs: every span name, tag, baggage item and span event,
-/// and every metric tag. A secret search over these two covers what the response and the log do not.
+/// Collects what a process hands to its telemetry while a test runs: every span name, tag, baggage item, span event and
+/// status description, and every metric tag. A secret search over these two covers what the response and the log do not.
 /// </summary>
 /// <remarks>
 /// The listeners are process-wide, so activities and measurements of tests running at the same time are collected
@@ -30,6 +30,14 @@ internal sealed class LeakProbe : IDisposable
                 lock (_spans)
                 {
                     _spans.Add(activity.DisplayName);
+
+                    // The status description is a free-text field of the span, copied to an exporter as it is. The ring that
+                    // sets it for a failed model call writes the exception's message there.
+                    if (activity.Status != ActivityStatusCode.Unset || activity.StatusDescription is not null)
+                    {
+                        _spans.Add($"status={activity.Status}:{activity.StatusDescription}");
+                    }
+
                     _spans.AddRange(activity.TagObjects.Select(static tag => $"{tag.Key}={tag.Value}"));
                     _spans.AddRange(activity.Baggage.Select(static item => $"{item.Key}={item.Value}"));
                     _spans.AddRange(activity.Events.SelectMany(static activityEvent => activityEvent.Tags.Select(static tag => $"{tag.Key}={tag.Value}")));
@@ -50,7 +58,7 @@ internal sealed class LeakProbe : IDisposable
         _meters.Start();
     }
 
-    /// <summary>Gets every span name, tag, baggage item and span event collected so far, one per line.</summary>
+    /// <summary>Gets every span name, tag, baggage item, span event and status description collected so far, one per line.</summary>
     public string Spans
     {
         get

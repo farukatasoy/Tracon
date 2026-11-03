@@ -39,7 +39,8 @@ internal static partial class ProviderFailureNormalizer
     /// name, and a three-digit status. The provider's own message never does —
     /// it can quote the request, an internal URL, a host:port or a partial
     /// credential, and a run record is permanent. The full exception still
-    /// reaches <c>ILogger</c> at the call site through <see cref="Log"/>.
+    /// reaches <c>ILogger</c> at the call site through <see cref="Log"/>, with
+    /// the credential of the call replaced.
     /// </para>
     /// </remarks>
     internal static string DescribeUpstreamFailure(string provider, string faultType, int? status)
@@ -160,20 +161,40 @@ internal static partial class ProviderFailureNormalizer
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex HttpStatusPattern();
 
+    /// <summary>Writes a provider failure to the log with the call's credential replaced.</summary>
+    /// <param name="loggerFactory">The logger factory, or <see langword="null"/> when the host registered none.</param>
+    /// <param name="binding">The model binding of the call.</param>
+    /// <param name="exception">The raw failure. When the call had a credential it is not handed to the logger as it is.</param>
+    /// <param name="operation">What the call was doing.</param>
+    /// <param name="mask">The mask of the credential the call was made with.</param>
+    /// <remarks>
+    /// When the call had a credential the logger gets <see cref="ProviderSecretMask.View"/>, not the exception: a
+    /// provider's error text can quote the key the call sent, and a logger writes the exception with every inner
+    /// exception. The text an operator needs (type names, status, the rest of the provider's message, the stack) stays.
+    /// A call with no credential to hide logs the exception itself, as it always did.
+    /// </remarks>
     internal static void Log(
         ILoggerFactory? loggerFactory,
         ModelBinding binding,
         Exception exception,
-        string operation)
+        string operation,
+        ProviderSecretMask mask)
     {
-        loggerFactory?
-            .CreateLogger("Tracon.ModelProvider")
-            .LogError(
-                exception,
-                "Model provider {Provider} failed during {Operation} for model {Model}.",
-                binding.Provider,
-                operation,
-                binding.Model);
+        ArgumentNullException.ThrowIfNull(mask);
+
+        var logger = loggerFactory?.CreateLogger("Tracon.ModelProvider");
+
+        if (logger is null || !logger.IsEnabled(LogLevel.Error))
+        {
+            return;
+        }
+
+        logger.LogError(
+            mask.IsEmpty ? exception : mask.View(exception),
+            "Model provider {Provider} failed during {Operation} for model {Model}.",
+            binding.Provider,
+            operation,
+            binding.Model);
     }
 
     private static bool IsKnownSafe(Exception exception)
@@ -197,9 +218,54 @@ internal static partial class ProviderFailureNormalizer
 }
 
 /// <summary>Marks an exception that crossed the raw provider boundary.</summary>
-internal sealed class ForeignProviderInvocationException(Exception original) : Exception(original.Message, original)
+/// <remarks>
+/// <para>
+/// The original stays whole in <see cref="Original"/> and as the inner exception: the retry classifier, the circuit
+/// breaker and the status reader decide from it. What this exception SAYS is masked. Its message and its
+/// <see cref="ToString"/> replace the call's credential, so the chat telemetry ring above it (which copies the message
+/// to the span's status and logs the exception) and every logger further up write the provider's text without the key.
+/// </para>
+/// <para>
+/// A writer that ignores <see cref="Exception.Message"/> and <see cref="ToString"/> and serializes the properties of the
+/// inner exception reaches the original. That is the price of keeping the graph for the decisions.
+/// </para>
+/// </remarks>
+internal sealed class ForeignProviderInvocationException : Exception
 {
-    internal Exception Original { get; } = original;
+    private readonly ProviderSecretMask _mask;
+
+    /// <summary>Marks <paramref name="original"/> as thrown by the provider client.</summary>
+    /// <param name="original">The exception the provider client threw.</param>
+    /// <param name="mask">The mask of the credential the client was built with.</param>
+    internal ForeignProviderInvocationException(Exception original, ProviderSecretMask mask)
+        : base(MaskedMessage(original, mask), original)
+    {
+        _mask = mask;
+        Original = original;
+    }
+
+    internal Exception Original { get; }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        try
+        {
+            return _mask.Apply(base.ToString());
+        }
+        catch (Exception)
+        {
+            return ProviderSecretMask.Withheld(this);
+        }
+    }
+
+    private static string MaskedMessage(Exception original, ProviderSecretMask mask)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        ArgumentNullException.ThrowIfNull(mask);
+
+        return mask.MessageOf(original);
+    }
 
     /// <summary>Finds the provider-boundary tag anywhere in an exception graph.</summary>
     /// <param name="exception">The failure to search.</param>
@@ -241,7 +307,7 @@ internal sealed class ForeignProviderInvocationException(Exception original) : E
 /// one; the client's own deadline is marked in <see cref="Exception.Data"/>
 /// instead (<see cref="IsProviderCancellation"/>).
 /// </remarks>
-internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : DelegatingChatClient(inner)
+internal sealed class ProviderFailureTaggingChatClient(IChatClient inner, ProviderSecretMask mask) : DelegatingChatClient(inner)
 {
     private const string ProviderCancellationKey = "Tracon.ProviderCancellation";
 
@@ -275,7 +341,7 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : Dele
         }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
-            throw new ForeignProviderInvocationException(exception);
+            throw new ForeignProviderInvocationException(exception, mask);
         }
     }
 
@@ -299,7 +365,7 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : Dele
         }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
-            throw new ForeignProviderInvocationException(exception);
+            throw new ForeignProviderInvocationException(exception, mask);
         }
 
         await using (enumerator.ConfigureAwait(false))
@@ -320,7 +386,7 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : Dele
                 }
                 catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
                 {
-                    throw new ForeignProviderInvocationException(exception);
+                    throw new ForeignProviderInvocationException(exception, mask);
                 }
 
                 if (!hasNext)
@@ -335,12 +401,21 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : Dele
 }
 
 /// <summary>Internal stable provider failure carried to public protocol adapters.</summary>
+/// <remarks>
+/// The message is a fixed sentence plus facts Tracon chose. The provider's own failure stays as the inner exception, so
+/// a retry decision above this ring (a workflow node, a job) reads the same graph the fallback chain did. What
+/// <see cref="ToString"/> writes is masked: the loggers that take this exception (the run recorder, the endpoints, the
+/// protocol adapters) write the provider's text without the key of the call.
+/// </remarks>
 internal sealed class ProviderInvocationException : TraconException
 {
-    private ProviderInvocationException(string errorType, string message, Exception? innerException = null)
+    private readonly ProviderSecretMask _mask;
+
+    private ProviderInvocationException(string errorType, string message, Exception? innerException, ProviderSecretMask mask)
         : base(message, innerException)
     {
         ErrorType = errorType;
+        _mask = mask;
     }
 
     public override string ErrorType { get; }
@@ -348,8 +423,23 @@ internal sealed class ProviderInvocationException : TraconException
     /// <summary>Gets the HTTP status the provider answered with, or <see langword="null"/> when it carried none.</summary>
     internal int? StatusCode { get; private init; }
 
-    internal static ProviderInvocationException UpstreamFailure(Exception exception, string provider)
+    /// <inheritdoc />
+    public override string ToString()
     {
+        try
+        {
+            return _mask.Apply(base.ToString());
+        }
+        catch (Exception)
+        {
+            return ProviderSecretMask.Withheld(this);
+        }
+    }
+
+    internal static ProviderInvocationException UpstreamFailure(Exception exception, string provider, ProviderSecretMask mask)
+    {
+        ArgumentNullException.ThrowIfNull(mask);
+
         // Read with the reader every retry decision uses, which takes
         // HttpRequestException.StatusCode first. The text reader alone missed it:
         // .NET writes "Response status code does not indicate success: 401
@@ -360,7 +450,8 @@ internal sealed class ProviderInvocationException : TraconException
         return new(
             ProviderFailureNormalizer.UpstreamErrorType,
             ProviderFailureNormalizer.DescribeUpstreamFailure(provider, ProviderFailureNormalizer.ReadFaultType(exception), status),
-            exception)
+            exception,
+            mask)
         {
             StatusCode = status,
         };
@@ -371,7 +462,8 @@ internal sealed class ProviderInvocationException : TraconException
 internal sealed class ProviderFailureNormalizingChatClient(
     ModelBinding binding,
     IChatClient inner,
-    ILoggerFactory? loggerFactory)
+    ILoggerFactory? loggerFactory,
+    ProviderSecretMask mask)
     : DelegatingChatClient(inner)
 {
     public override async Task<ChatResponse> GetResponseAsync(
@@ -385,13 +477,13 @@ internal sealed class ProviderFailureNormalizingChatClient(
         }
         catch (ForeignProviderInvocationException exception)
         {
-            ProviderFailureNormalizer.Log(loggerFactory, binding, exception.Original, "invocation");
-            throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider);
+            ProviderFailureNormalizer.Log(loggerFactory, binding, exception.Original, "invocation", mask);
+            throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider, mask);
         }
         catch (TraconProviderUnavailableException exception)
             when (ForeignProviderInvocationException.Find(exception) is { } foreign)
         {
-            ProviderFailureNormalizer.Log(loggerFactory, binding, foreign.Original, "invocation");
+            ProviderFailureNormalizer.Log(loggerFactory, binding, foreign.Original, "invocation", mask);
             throw;
         }
     }
@@ -410,8 +502,8 @@ internal sealed class ProviderFailureNormalizingChatClient(
         }
         catch (ForeignProviderInvocationException exception)
         {
-            ProviderFailureNormalizer.Log(loggerFactory, binding, exception.Original, "streaming invocation");
-            throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider);
+            ProviderFailureNormalizer.Log(loggerFactory, binding, exception.Original, "streaming invocation", mask);
+            throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider, mask);
         }
 
         await using (enumerator.ConfigureAwait(false))
@@ -426,13 +518,13 @@ internal sealed class ProviderFailureNormalizingChatClient(
                 }
                 catch (ForeignProviderInvocationException exception)
                 {
-                    ProviderFailureNormalizer.Log(loggerFactory, binding, exception.Original, "streaming invocation");
-                    throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider);
+                    ProviderFailureNormalizer.Log(loggerFactory, binding, exception.Original, "streaming invocation", mask);
+                    throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider, mask);
                 }
                 catch (TraconProviderUnavailableException exception)
                     when (ForeignProviderInvocationException.Find(exception) is { } foreign)
                 {
-                    ProviderFailureNormalizer.Log(loggerFactory, binding, foreign.Original, "streaming invocation");
+                    ProviderFailureNormalizer.Log(loggerFactory, binding, foreign.Original, "streaming invocation", mask);
                     throw;
                 }
 

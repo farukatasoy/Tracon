@@ -24,7 +24,7 @@ public sealed class CircuitBreakerFailureCountingTests
     [Fact]
     public async Task A_cancellation_the_provider_client_raised_itself_counts()
     {
-        using var client = new ProviderFailureTaggingChatClient(new TimingOutChatClient());
+        using var client = new ProviderFailureTaggingChatClient(new TimingOutChatClient(), ProviderSecretMask.Empty);
 
         // Caught by hand: Should.ThrowAsync rebuilds a canceled task's exception
         // as a new TaskCanceledException and drops the one that was thrown.
@@ -38,7 +38,7 @@ public sealed class CircuitBreakerFailureCountingTests
     {
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
-        using var client = new ProviderFailureTaggingChatClient(new TimingOutChatClient());
+        using var client = new ProviderFailureTaggingChatClient(new TimingOutChatClient(), ProviderSecretMask.Empty);
 
         var cancellation = await CatchAsync(client, source.Token);
 
@@ -49,7 +49,7 @@ public sealed class CircuitBreakerFailureCountingTests
     public void A_permanent_4xx_with_an_empty_body_does_not_count()
     {
         // System.ClientModel writes "Status: 400" without OpenAI's body.
-        var failure = new ForeignProviderInvocationException(new InvalidOperationException("Service request failed.\nStatus: 400 (Bad Request)\n"));
+        var failure = new ForeignProviderInvocationException(new InvalidOperationException("Service request failed.\nStatus: 400 (Bad Request)\n"), ProviderSecretMask.Empty);
 
         CircuitBreakingChatClient.CountsAgainstProvider(failure).ShouldBeFalse();
     }

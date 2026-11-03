@@ -60,7 +60,7 @@ public sealed class ProviderErrorStatusTests
 
         ProviderHttpStatus.Read(failure).ShouldBe(status, described);
         FallbackRetryClassifier.IsRetryable(failure).ShouldBeFalse($"a permanent {status} must not switch provider: {described}");
-        CircuitBreakingChatClient.CountsAgainstProvider(new ForeignProviderInvocationException(failure))
+        CircuitBreakingChatClient.CountsAgainstProvider(new ForeignProviderInvocationException(failure, ProviderSecretMask.Empty))
             .ShouldBe(status is 401 or 403, $"only an auth failure counts against the shared credential: {described}");
     }
 

@@ -32,6 +32,12 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// not come back out of the validation either.
 /// </para>
 /// <para>
+/// Five loggers and the status of the chat span write the provider's own error text, because an operator needs it. That
+/// text may quote the key the call was made with; the call's own value is replaced in it, so those lines and that status
+/// carry the sentence and not the key. The test asks for the sentence, so a log that vanished cannot pass for a clean one,
+/// and it runs once with the trace content setting on, which makes the trace store keep the status.
+/// </para>
+/// <para>
 /// The search looks for the stem of the value, not only the whole value, so a truncated or masked copy is found too.
 /// A search that finds nothing proves nothing unless the run reached the provider, so the test also asks the provider
 /// what it was sent.
@@ -51,14 +57,33 @@ public sealed class TenantProviderCanaryTests
     private const string TenantHeader = "X-Tracon-Tenant";
 
     /// <summary>
-    /// The sentence the refusing provider puts in front of the credential it quotes. Several loggers (the chat telemetry
-    /// client, the run recorder, the agent endpoint) write a provider's failure with the
-    /// exception object itself, inner exceptions included, and the exception carries the provider's error text. A
-    /// provider that quotes the credential back therefore puts it into those lines. That is an open decision, not a pass:
-    /// see the report of the run that added this test. The lines are set aside by this sentence, not by logger, so a
-    /// line Tracon writes from its own variables is still searched.
+    /// What the refusing provider says, with the credential it quotes replaced. The provider quotes the whole key; the
+    /// text Tracon writes keeps the sentence and replaces the key, so an operator reads what the provider said and the key
+    /// is gone. A search for the key that finds nothing passes just as well when the line is missing, so every place that
+    /// must carry this sentence is asked for it.
     /// </summary>
-    private const string ProviderErrorSentence = "Incorrect API key provided";
+    private const string MaskedQuote = "Incorrect API key provided: Bearer [redacted]";
+
+    /// <summary>
+    /// The lines that write a provider's failure with the exception object itself, inner exceptions included: the chat
+    /// telemetry ring, the model provider boundary, the run recorder and the agent, chat-completions, responses and replay
+    /// endpoints, buffered and streamed. Each one wrote the credential before the call's credential was masked. A line is
+    /// named by its logger and the start of its message, so an endpoint that stops writing its line fails here.
+    /// </summary>
+    private static readonly string[] QuotingLines =
+    [
+        "Microsoft.Extensions.AI.OpenTelemetryChatClient gen_ai.client.operation.exception",
+        "Tracon.ModelProvider Model provider canary-provider failed during invocation",
+        "Tracon.ModelProvider Model provider canary-provider failed during streaming invocation",
+        "Tracon.RunRecordingAgent Run ",
+        "Tracon.AgentEndpoints Agent run ",
+        "Tracon.AgentEndpoints Streaming agent run ",
+        "Tracon.OpenAICompat Chat Completions run for agent",
+        "Tracon.OpenAICompat Streaming Chat Completions run",
+        "Tracon.OpenAICompat Responses run for agent",
+        "Tracon.OpenAICompat Streaming Responses run",
+        "Tracon.RunEndpoints Run replay",
+    ];
 
     [Fact]
     public async Task The_credential_of_a_tenant_binding_reaches_the_provider_and_no_other_output()
@@ -69,18 +94,28 @@ public sealed class TenantProviderCanaryTests
         evidence.Sent.ShouldContain("Bearer " + Canary, StringComparer.Ordinal);
         evidence.AnsweredReads.ShouldBeGreaterThan(40, "the read sweep reached too few operations for an empty search to mean anything");
 
-        // The set-aside lines exist; when the last of them is gone the set-aside has no reason to be there.
-        evidence.QuotedByProvider.ShouldBeGreaterThan(0, "no log line quotes the provider's error any more: remove the set-aside from the search");
+        // The lines are not gone, they carry the provider's sentence with the key replaced: the operator keeps the detail.
+        foreach (var line in QuotingLines)
+        {
+            evidence.LogLines.ShouldContain(
+                entry => entry.Contains(line, StringComparison.Ordinal) && entry.Contains(MaskedQuote, StringComparison.Ordinal),
+                $"no log line starting '{line}' carries the provider's sentence with the key replaced");
+        }
+
+        // The chat span of a failed call carries the exception's message as its status.
+        evidence.Outputs["span names, tags, baggage and events"].ShouldContain(MaskedQuote, Case.Sensitive);
 
         AssertNoLeak(evidence);
     }
 
-    [Fact]
-    public async Task The_credential_of_a_tenant_binding_is_in_no_byte_of_the_database()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_credential_of_a_tenant_binding_is_in_no_byte_of_the_database(bool recordSensitiveData)
     {
         using var database = new TempSqliteDatabase("tenant-provider-canary");
 
-        var evidence = await DriveAsync(database);
+        var evidence = await DriveAsync(database, recordSensitiveData);
         var bytes = database.ReadAllBytes();
 
         evidence.Reached.ShouldBeGreaterThanOrEqualTo(4);
@@ -94,6 +129,14 @@ public sealed class TenantProviderCanaryTests
         {
             ContainsBytes(bytes, Encoding.UTF8.GetBytes(value)).ShouldBeFalse($"the {name} is in the database as UTF-8");
             ContainsBytes(bytes, Encoding.Unicode.GetBytes(value)).ShouldBeFalse($"the {name} is in the database as UTF-16");
+        }
+
+        if (recordSensitiveData)
+        {
+            // With the setting on, the trace store keeps a failed call's span status, which is the provider's message. The
+            // database holds the sentence, and the key in it is replaced.
+            ContainsBytes(bytes, Encoding.UTF8.GetBytes(MaskedQuote)).ShouldBeTrue("the stored trace does not hold the provider's sentence: the scan reads the wrong place");
+            evidence.Outputs["responses and records"].ShouldContain(MaskedQuote, Case.Sensitive);
         }
 
         AssertNoLeak(evidence);
@@ -124,7 +167,7 @@ public sealed class TenantProviderCanaryTests
     private static bool ContainsBytes(byte[] haystack, byte[] needle)
         => haystack.AsSpan().IndexOf(needle) >= 0;
 
-    private static async Task<Evidence> DriveAsync(TempSqliteDatabase? database)
+    private static async Task<Evidence> DriveAsync(TempSqliteDatabase? database, bool recordSensitiveData = false)
     {
         var seen = new StringBuilder();
         using var probe = new LeakProbe();
@@ -155,7 +198,7 @@ public sealed class TenantProviderCanaryTests
                 }
             },
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true,
-            configureServices: static services =>
+            configureServices: services =>
             {
                 services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
                     .AddInMemoryCollection([new(KeyName, Canary)])
@@ -163,6 +206,16 @@ public sealed class TenantProviderCanaryTests
 
                 // The provider is on the loopback interface; the override is the tenant's, so the guard judges it.
                 services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);
+
+                services.Configure<TraconOptions>(options =>
+                {
+                    options.Observability.RecordSensitiveData = recordSensitiveData;
+                    options.Observability.SuccessSampleRatio = 1;
+
+                    // Every refused call has to reach the provider and be quoted. An open circuit answers the later calls
+                    // with its own sentence, and a line that never carried the provider's text proves nothing.
+                    options.CircuitBreaker.FailureThreshold = 1000;
+                });
             });
 
         // A stored agent too, so the export has something of the tenant's to write.
@@ -203,9 +256,12 @@ public sealed class TenantProviderCanaryTests
             var chat = await SendAsync(host, HttpMethod.Post, "/tracon/v1/chat/completions", new { model = AgentName, messages = new[] { new { role = "user", content = "hello" } } }, seen);
             var chatStreamed = await SendAsync(host, HttpMethod.Post, "/tracon/v1/chat/completions", new { model = AgentName, stream = true, messages = new[] { new { role = "user", content = "hello" } } }, seen);
 
+            var responses = await SendAsync(host, HttpMethod.Post, "/tracon/v1/responses", new { model = AgentName, input = "hello" }, seen);
+            var responsesStreamed = await SendAsync(host, HttpMethod.Post, "/tracon/v1/responses", new { model = AgentName, stream = true, input = "hello" }, seen);
+
             if (!refuses)
             {
-                foreach (var status in (HttpStatusCode[])[buffered, streamed, chat, chatStreamed])
+                foreach (var status in (HttpStatusCode[])[buffered, streamed, chat, chatStreamed, responses, responsesStreamed])
                 {
                     status.ShouldBe(HttpStatusCode.OK);
                 }
@@ -218,7 +274,13 @@ public sealed class TenantProviderCanaryTests
         using var runListReply = await host.Client.SendAsync(runList, TestContext.Current.CancellationToken);
         var runs = await TraconTestHost.ReadJsonAsync(runListReply);
 
-        runs.GetArrayLength().ShouldBeGreaterThanOrEqualTo(4);
+        runs.GetArrayLength().ShouldBeGreaterThanOrEqualTo(6);
+
+        // A replay runs a recorded run again against the provider, which refuses by now: one more place that logs the failure.
+        var recorded = runs.EnumerateArray().First(static run => string.Equals(run.GetProperty("status").GetString(), "completed", StringComparison.OrdinalIgnoreCase));
+
+        // The agent is defined in code, which a replay can only run with its tools live; this one has none.
+        await SendAsync(host, HttpMethod.Post, $"/tracon/api/runs/{recorded.GetProperty("id").GetGuid()}/replay", new { toolMode = "LiveTools" }, seen);
 
         foreach (var run in runs.EnumerateArray())
         {
@@ -271,14 +333,12 @@ public sealed class TenantProviderCanaryTests
         var outputs = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["responses and records"] = seen.ToString(),
-            ["log lines"] = string.Join('\n', host.Logs.Entries.Where(static entry => !entry.Contains(ProviderErrorSentence, StringComparison.Ordinal))),
+            ["log lines"] = string.Join('\n', host.Logs.Entries),
             ["span names, tags, baggage and events"] = probe.Spans,
             ["metric tags"] = probe.Measurements,
         };
 
-        var quotedByProvider = host.Logs.Entries.Count(static entry => entry.Contains(ProviderErrorSentence, StringComparison.Ordinal));
-
-        return new Evidence(outputs, provider.ReceivedAuthorization.ToList(), provider.Requests, answered, quotedByProvider);
+        return new Evidence(outputs, provider.ReceivedAuthorization.ToList(), provider.Requests, answered, [.. host.Logs.Entries]);
     }
 
     /// <summary>Sends one request as the tenant (or as the named one) and appends what came back.</summary>
@@ -313,7 +373,7 @@ public sealed class TenantProviderCanaryTests
         return await SecretCanarySweepTests.SendAsync(host, request, seen, readEventStreams);
     }
 
-    private sealed record Evidence(IReadOnlyDictionary<string, string> Outputs, IReadOnlyList<string?> Sent, int Reached, int AnsweredReads, int QuotedByProvider)
+    private sealed record Evidence(IReadOnlyDictionary<string, string> Outputs, IReadOnlyList<string?> Sent, int Reached, int AnsweredReads, IReadOnlyList<string> LogLines)
     {
         public string Text => string.Join('\n', Outputs.Values);
     }
