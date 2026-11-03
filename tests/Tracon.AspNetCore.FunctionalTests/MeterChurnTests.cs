@@ -6,8 +6,9 @@ using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A run must not leave a <see cref="Meter"/> behind: a meter that is never disposed stays in the runtime's
-/// process-wide list for the life of the process, and so does everything it holds.
+/// A run must not make a <see cref="Meter"/> of its own: a meter stays in the runtime's process-wide list until it is
+/// disposed, and so does everything it holds, and a meter disposed after its run splits the series the OpenTelemetry SDK
+/// exports into one series per run.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,7 +17,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <c>System.Diagnostics.Metrics.Meter</c> and <c>ActivitySource</c> instances, each with its four histograms. Counting
 /// the instruments that are published, rather than the memory they take, is the same fact without a heap dump:
 /// a process that creates its meters once publishes a fixed set, and one that creates a meter per run publishes a set
-/// that grows with the runs.
+/// that grows with the runs. Publications are what stays flat only when the meters are shared; a count of live
+/// instruments would also pass for a meter disposed after every run, which is the fix that breaks the exported series.
 /// </para>
 /// <para>
 /// The listener cannot be bound to one <see cref="Meter"/> instance: the meter belongs to the chat client the agent
@@ -80,7 +82,7 @@ public sealed class MeterChurnTests
         created.ShouldBeLessThan(
             MeasuredRuns / 4,
             $"{MeasuredRuns} further runs of one agent for two tenants announced {created} new '{PerClientInstrument}' instruments, "
-            + "which means a telemetry Meter is created per run and never disposed");
+            + "which means a telemetry Meter is created per run");
     }
 
     private static AgentDefinition Definition() => new()
