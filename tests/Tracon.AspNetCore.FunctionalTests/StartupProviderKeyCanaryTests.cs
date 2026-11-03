@@ -69,16 +69,19 @@ public sealed class StartupProviderKeyCanaryTests
         hits.ShouldBeEmpty();
     }
 
-    internal static string Stem(string provider, bool fromConfiguration) => $"canary-setup-{provider}-{(fromConfiguration ? "config" : "code")}-key";
+    /// <summary>The part of a key that identifies its slot; a probe of another scenario gives its own so two runs at once cannot meet.</summary>
+    internal static string Stem(string provider, bool fromConfiguration, string scenario = "")
+        => $"canary-setup-{provider}-{(fromConfiguration ? "config" : "code")}{(scenario.Length == 0 ? string.Empty : "-" + scenario)}-key";
 
-    internal static string Key(string provider, bool fromConfiguration) => Stem(provider, fromConfiguration) + "-5d27c8f0b91e43a6";
+    internal static string Key(string provider, bool fromConfiguration, string scenario = "") => Stem(provider, fromConfiguration, scenario) + "-5d27c8f0b91e43a6";
 
     internal static async Task<Evidence> DriveAsync(
         string provider,
         string key,
         bool fromConfiguration,
         TempSqliteDatabase database,
-        CanaryWireServer.Behavior refusal)
+        CanaryWireServer.Behavior refusal,
+        bool expectSuccess = true)
     {
         using var probe = new LeakProbe();
         var structured = new StructuredLogProbe();
@@ -128,7 +131,10 @@ public sealed class StartupProviderKeyCanaryTests
 
                 foreach (var status in await drive.RunTheSixWaysAsync(AgentName))
                 {
-                    status.ShouldBe(HttpStatusCode.OK);
+                    if (expectSuccess)
+                    {
+                        status.ShouldBe(HttpStatusCode.OK);
+                    }
                 }
 
                 wire.Mode = refusal;

@@ -179,6 +179,77 @@ public sealed class TenantKeyPathsCanaryTests
         hits.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task A_tenant_key_a_header_cannot_carry_is_replaced_in_the_text_of_the_failure_it_causes()
+    {
+        using var database = new TempSqliteDatabase("tenant-key-malformed");
+        using var probe = new LeakProbe();
+        var structured = new StructuredLogProbe();
+
+        await using var wire = await CanaryWireServer.StartAsync();
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseSqlite(database.ConnectionString)
+                .UseTenancy(static options =>
+                {
+                    options.Enabled = true;
+                    options.AllowHeaderResolution = true;
+                })
+                .UseAnthropic("setup-anthropic-key-unrelated-0000", options => options.Endpoint = wire.BaseAddress)
+                .AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Instructions = "Answer briefly.",
+                    Model = new ModelBinding { Provider = "anthropic", Model = "canary-model" },
+                    Origin = AgentDefinitionOrigin.Code,
+                }),
+            configureServices: services =>
+            {
+                services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection([new(KeyName, Stem + "-trailing-newline\n")]).Build());
+                services.AddLogging(logging => logging.AddProvider(structured));
+                services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);
+                services.Configure<TraconOptions>(static options =>
+                {
+                    options.Observability.RecordSensitiveData = true;
+                    options.Observability.SuccessSampleRatio = 1;
+                    options.CircuitBreaker.FailureThreshold = 1000;
+                });
+            });
+
+        var drive = new CanaryDrive(host, Tenant);
+
+        (await drive.SendAsync(
+            HttpMethod.Put,
+            $"/tracon/api/tenants/{Tenant}/providers/anthropic",
+            new { apiKeyConfigurationName = KeyName, endpoint = wire.BaseAddress.ToString() })).ShouldBe(HttpStatusCode.OK);
+
+        wire.Mode = CanaryWireServer.Behavior.Accept;
+        await drive.RunTheSixWaysAsync(AgentName);
+        await drive.ReadEverythingAsync();
+
+        // The SDK refuses the key before a request is made: the failure is the framework's own sentence about the header value,
+        // which quotes the key, and the call's own key is replaced in it. The sentence has to be there for the search to mean anything.
+        drive.Seen.ShouldContain("is invalid", Case.Sensitive, "the key was accepted as it is, so the run did not fail the way this test is about");
+        drive.Seen.ShouldContain("[redacted]", Case.Sensitive);
+
+        var outputs = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["responses and records"] = drive.Seen,
+            ["log lines"] = string.Join('\n', host.Logs.Entries),
+            ["log records (state, scopes, exception parts)"] = structured.Text,
+            ["span names, tags, baggage and events"] = probe.Spans,
+        };
+
+        var hits = SecretHits.Find(outputs, [new("tenant key", Stem)]);
+
+        foreach (var encoding in SecretHits.FindInBytes(database.ReadAllBytes(), Stem))
+        {
+            hits.Add($"the tenant key is in the database as {encoding}");
+        }
+
+        hits.ShouldBeEmpty();
+    }
+
     private static async Task Path(Dictionary<string, int> reached, CanaryWireServer wire, string name, Func<Task<HttpStatusCode>> drive)
     {
         var before = wire.Requests;
