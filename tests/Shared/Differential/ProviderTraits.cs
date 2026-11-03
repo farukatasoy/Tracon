@@ -105,6 +105,19 @@ internal sealed record ProviderTraits
     /// </remarks>
     public decimal CostRelativeTolerance { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether a failed outcome recorded on a subscription that is already off answers
+    /// <see langword="true"/>, as if that call had switched it off.
+    /// </summary>
+    /// <remarks>
+    /// OPEN FINDING, kept visible here until it is fixed: the interface says the call answers "true if the subscription was
+    /// disabled during this call", and the in-memory store does exactly that. The three SQL statements answer
+    /// <c>(NOT enabled) AND failed</c> read after the update, so a failure of a subscription that an administrator
+    /// switched off, or that an earlier failure switched off, answers <see langword="true"/> again and the delivery job
+    /// logs "was disabled" every time.
+    /// </remarks>
+    public bool OutcomeAnswersForASubscriptionThatIsOff { get; init; }
+
     /// <summary>Applies the store's text rule to a value.</summary>
     /// <param name="value">The text as the caller wrote it.</param>
     /// <returns>The text as the store holds it.</returns>

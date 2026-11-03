@@ -17,7 +17,7 @@ public sealed class SqliteStoreDifferentialTests(SqliteSchemaFixture schema)
 
         return new DifferentialStores
         {
-            Traits = new ProviderTraits { Name = "SQLite", NulBecomesReplacementCharacter = true, ReadEchoesRequestedKey = true, CreateEchoesInputText = true, CostRelativeTolerance = 0.000000000001m },
+            Traits = new ProviderTraits { Name = "SQLite", NulBecomesReplacementCharacter = true, ReadEchoesRequestedKey = true, CreateEchoesInputText = true, OutcomeAnswersForASubscriptionThatIsOff = true, CostRelativeTolerance = 0.000000000001m },
             Tenant = schema.Tenant,
             Sessions = schema.Context.Sessions,
             Runs = schema.Context.Runs,
@@ -26,6 +26,7 @@ public sealed class SqliteStoreDifferentialTests(SqliteSchemaFixture schema)
             Clock = clock,
             Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
             Quotas = schema.Context.Quotas,
+            Webhooks = schema.Context.Webhooks,
         };
     }
 }

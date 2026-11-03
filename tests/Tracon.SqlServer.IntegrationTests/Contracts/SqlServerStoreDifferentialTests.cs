@@ -36,6 +36,7 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
                 NulBecomesReplacementCharacter = true,
                 ReadEchoesRequestedKey = true,
                 CreateEchoesInputText = true,
+                OutcomeAnswersForASubscriptionThatIsOff = true,
                 CostDecimals = 10,
             },
             Tenant = schema.Tenant,
@@ -46,6 +47,7 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
             Clock = clock,
             Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
             Quotas = schema.Context.Quotas,
+            Webhooks = schema.Context.Webhooks,
         };
     }
 }

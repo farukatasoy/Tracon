@@ -31,6 +31,7 @@ public sealed class InMemoryStoreDifferentialTests : StoreDifferentialSuite
             Clock = clock,
             Jobs = new InMemoryJobStore(clock),
             Quotas = new InMemoryQuotaStore(),
+            Webhooks = new InMemoryWebhookStore(),
         });
     }
 }

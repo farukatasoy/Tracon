@@ -102,6 +102,21 @@ public abstract partial class StoreDifferentialSuite
     public async Task Quota_store_races_have_a_serial_explanation()
         => await new QuotaStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
 
+    /// <summary>Checks the webhook store against the model.</summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Webhook_store_agrees_with_the_model()
+        => await new WebhookStateMachine().CheckAsync(await CreateStoresAsync(), Iterations);
+
+    /// <summary>
+    /// Runs saves, deletes, outcome records and reads of subscriptions at the same time and checks that some serial order
+    /// of the model explains every result: the failure counter loses no failure and one call disables a subscription.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Webhook_store_races_have_a_serial_explanation()
+        => await new WebhookStateMachine().CheckConcurrentAsync(await CreateStoresAsync(), Iterations, RaceRepeats);
+
     /// <summary>Checks the session store against the model.</summary>
     /// <returns>The completion task.</returns>
     [Fact]

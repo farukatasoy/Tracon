@@ -31,6 +31,7 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
                 MaxInstantIsExact = true,
                 ReadEchoesRequestedKey = true,
                 CreateEchoesInputText = true,
+                OutcomeAnswersForASubscriptionThatIsOff = true,
                 CostDecimals = 10,
             },
             Tenant = schema.Tenant,
@@ -41,6 +42,7 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
             Clock = clock,
             Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
             Quotas = schema.Context.Quotas,
+            Webhooks = schema.Context.Webhooks,
         };
     }
 }
