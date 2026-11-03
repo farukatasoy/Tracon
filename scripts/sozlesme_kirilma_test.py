@@ -308,26 +308,28 @@ class HttpNullKaymasiTestleri(unittest.TestCase):
         self.assertEqual(([], []), (breaks, additions))
 
     def test_gercek_belgede_istegin_ulastigi_her_null_olabilen_ref_yeri_kirmizi_olabilir(self):
-        """Every `oneOf[null, $ref]` property a REQUEST reaches in the real document: making any ONE of them
-        non-null is red. The audit found three that were not (named schemas used a second time)."""
+        """Every `oneOf[null, $ref]` or `anyOf[null, $ref]` property a REQUEST reaches in the real document: making
+        any ONE of them non-null is red. The audit found three that were not (named schemas used a second time).
+        The published document spells a free-form member `anyOf` and every other nullable reference `oneOf`."""
         document = json.loads((ROOT / "docs" / "openapi" / "tracon.json").read_text(encoding="utf-8"))
         reachable = self._request_reachable(document)
         places = [
-            (schema_name, property_name)
+            (schema_name, property_name, keyword)
             for schema_name, schema in document["components"]["schemas"].items()
             if schema_name in reachable
             for property_name, prop in (schema.get("properties") or {}).items()
-            if isinstance(prop.get("oneOf"), list)
-            and any(m.get("type") == "null" for m in prop["oneOf"])
-            and any("$ref" in m for m in prop["oneOf"])
+            for keyword in ("oneOf", "anyOf")
+            if isinstance(prop.get(keyword), list)
+            and any(m.get("type") == "null" for m in prop[keyword])
+            and any("$ref" in m for m in prop[keyword])
         ]
         self.assertGreater(len(places), 15, "istekten ulaşılan null olabilen $ref yeri bulunamadı")
 
         missed = []
-        for schema_name, property_name in places:
+        for schema_name, property_name, keyword in places:
             new = copy.deepcopy(document)
             properties = new["components"]["schemas"][schema_name]["properties"]
-            target = next(m for m in properties[property_name]["oneOf"] if "$ref" in m)
+            target = next(m for m in properties[property_name][keyword] if "$ref" in m)
             properties[property_name] = {"$ref": target["$ref"]}
             breaks, _ = sk.compare_openapi(document, new)
             if not any(change.rule == "istek alanı artık null olamaz" and change.alt == property_name for change in breaks):
