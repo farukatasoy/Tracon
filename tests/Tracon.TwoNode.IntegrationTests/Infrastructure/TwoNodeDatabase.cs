@@ -40,6 +40,14 @@ public abstract class TwoNodeDatabase
     /// <returns>The contents of the database.</returns>
     public abstract Task<string> DumpTextAsync();
 
+    /// <summary>
+    /// Writes a value into a table of its own in the schema, once into a text column, once into a JSON column and once
+    /// into a binary column: what a search of the database is checked against.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    /// <returns>A task that completes when the row is written.</returns>
+    public abstract Task PlantAsync(string value);
+
     /// <summary>Reads the columns of the schema that can hold text and the rows of each.</summary>
     /// <param name="connection">An open connection to the database.</param>
     /// <param name="schema">The schema.</param>
@@ -85,9 +93,18 @@ public abstract class TwoNodeDatabase
                     }
 
                     var value = reader.GetValue(index);
-                    var text = value is byte[] bytes ? Encoding.UTF8.GetString(bytes) : Convert.ToString(value, CultureInfo.InvariantCulture);
+                    var name = table.Key + "." + table.ElementAt(index).Column;
 
-                    dump.Append(table.Key).Append('.').Append(table.ElementAt(index).Column).Append('=').AppendLine(text);
+                    if (value is byte[] bytes)
+                    {
+                        // Bytes are read both ways a text is stored in them: the value is searched as UTF-8 and as UTF-16.
+                        dump.Append(name).Append('=').AppendLine(Encoding.UTF8.GetString(bytes));
+                        dump.Append(name).Append("(utf16)=").AppendLine(Encoding.Unicode.GetString(bytes));
+                    }
+                    else
+                    {
+                        dump.Append(name).Append('=').AppendLine(Convert.ToString(value, CultureInfo.InvariantCulture));
+                    }
                 }
             }
         }
@@ -122,6 +139,19 @@ internal sealed class PostgreSqlTwoNodeDatabase(string connectionString, string 
     /// <inheritdoc />
     public override string Unreachable(string password)
         => new NpgsqlConnectionStringBuilder(connectionString) { Host = "127.0.0.1", Port = 1, Password = password, Timeout = 1 }.ConnectionString;
+
+    /// <inheritdoc />
+    public override async Task PlantAsync(string value)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE TABLE \"{schemaName}\".canary_plant (a text, b jsonb, c bytea); "
+            + $"INSERT INTO \"{schemaName}\".canary_plant VALUES (@v, to_jsonb(@v::text), convert_to(@v, 'UTF8'));";
+        command.Parameters.AddWithValue("v", value);
+        await command.ExecuteNonQueryAsync();
+    }
 
     /// <inheritdoc />
     public override async Task<string> DumpTextAsync()
@@ -159,6 +189,19 @@ internal sealed class SqlServerTwoNodeDatabase(string connectionString, string s
     /// <inheritdoc />
     public override string Unreachable(string password)
         => new SqlConnectionStringBuilder(connectionString) { DataSource = "127.0.0.1,1", Password = password, ConnectTimeout = 1 }.ConnectionString;
+
+    /// <inheritdoc />
+    public override async Task PlantAsync(string value)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE TABLE [{schemaName}].canary_plant (a nvarchar(max), b nvarchar(max), c varbinary(max)); "
+            + $"INSERT INTO [{schemaName}].canary_plant VALUES (@v, N'{{\"v\":\"' + @v + N'\"}}', CAST(@v AS varbinary(max)));";
+        command.Parameters.AddWithValue("@v", value);
+        await command.ExecuteNonQueryAsync();
+    }
 
     /// <inheritdoc />
     public override async Task<string> DumpTextAsync()

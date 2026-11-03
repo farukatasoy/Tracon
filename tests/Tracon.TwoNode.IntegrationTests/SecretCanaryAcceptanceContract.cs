@@ -202,6 +202,35 @@ public abstract class SecretCanaryAcceptanceContract
         SecretHits.Find(outputs, Secrets()).ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// A search that finds nothing proves nothing unless it can read the column a value is in: a value planted in a text,
+    /// a JSON and a binary column of the schema is found in each.
+    /// </summary>
+    [Fact]
+    public async Task The_search_of_the_database_reads_a_text_a_json_and_a_binary_column()
+    {
+        var database = await NewDatabaseAsync(PasswordStem + "-plant-1a2b");
+
+        await using var wire = await CanaryWireServer.StartAsync();
+
+        // A host migrates the schema when it starts; the table is planted in what it made.
+        await using (var host = await StartAsync(database.Use, wire, new StructuredLogProbe()))
+        {
+            host.Services.ShouldNotBeNull();
+        }
+
+        await database.PlantAsync("canary-db-planted-value");
+
+        var dump = await database.DumpTextAsync();
+
+        foreach (var column in (string[])["a", "b", "c"])
+        {
+            dump.ShouldContain($"canary_plant.{column}=", Case.Sensitive, $"the dump did not read the column '{column}' of the planted row");
+        }
+
+        dump.Split('\n').Count(static line => line.Contains("canary-db-planted-value", StringComparison.Ordinal)).ShouldBe(3);
+    }
+
     private static List<KeyValuePair<string, string>> Secrets()
         =>
         [
