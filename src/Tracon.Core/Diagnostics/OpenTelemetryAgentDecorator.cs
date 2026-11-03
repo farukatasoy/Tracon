@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -29,15 +30,18 @@ namespace Tracon;
 internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator, IDisposable
 {
     private readonly IOptions<TraconOptions> _options;
+    private readonly ILogger<OpenTelemetryAgentDecorator>? _logger;
     private TelemetryLanePool? _pool;
 
     /// <summary>Initializes a new telemetry decorator.</summary>
     /// <param name="options">The Tracon options.</param>
+    /// <param name="logger">Where a telemetry lane that could not be built is reported.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    public OpenTelemetryAgentDecorator(IOptions<TraconOptions> options)
+    public OpenTelemetryAgentDecorator(IOptions<TraconOptions> options, ILogger<OpenTelemetryAgentDecorator>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -68,7 +72,7 @@ internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator, IDisposable
 
     private TelemetryLanePool CreatePool(bool recordSensitiveData)
     {
-        var created = new TelemetryLanePool(TraconDiagnostics.ActivitySourceName, recordSensitiveData);
+        var created = new TelemetryLanePool(TraconDiagnostics.ActivitySourceName, recordSensitiveData, _logger);
         var existing = Interlocked.CompareExchange(ref _pool, created, null);
 
         if (existing is null)

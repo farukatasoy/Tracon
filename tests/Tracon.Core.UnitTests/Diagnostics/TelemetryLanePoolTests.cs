@@ -5,6 +5,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Diagnostics;
@@ -491,6 +492,69 @@ public sealed class TelemetryLanePoolTests
         decorator.LaneCount.ShouldBe(0);
     }
 
+    [Theory]
+    [InlineData(RunShape.Response)]
+    [InlineData(RunShape.Stream)]
+    public async Task A_lane_that_cannot_be_built_does_not_fail_the_run_and_the_failure_is_logged(RunShape shape)
+    {
+        // Telemetry is observability: a failure to set it up must cost the run nothing but its spans.
+        using var probe = new TelemetryProbe();
+        var warnings = new WarningLog();
+        using var pool = new TelemetryLanePool(
+            probe.Source,
+            enableSensitiveData: false,
+            warnings,
+            static (_, _, _) => throw new InvalidOperationException("the telemetry agent could not be built (probe)"));
+        var agent = new PooledOpenTelemetryAgent(new ScriptedAgent("alpha"), pool);
+
+        if (shape == RunShape.Response)
+        {
+            (await agent.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken)).Text.ShouldBe(ScriptedAgent.Answer);
+        }
+        else
+        {
+            var updates = 0;
+
+            await foreach (var unused in agent.RunStreamingAsync("hello", cancellationToken: TestContext.Current.CancellationToken))
+            {
+                updates++;
+            }
+
+            updates.ShouldBe(ScriptedAgent.StreamLength);
+        }
+
+        pool.LaneCount.ShouldBe(0, "no lane was made");
+        probe.AgentSpans().ShouldBeEmpty("the run went on without telemetry");
+
+        var warning = warnings.Entries.ShouldHaveSingleItem();
+
+        warning.Exception.ShouldBeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task A_pool_whose_lane_failed_to_build_once_builds_the_next_lane_and_writes_its_spans()
+    {
+        using var probe = new TelemetryProbe();
+        var attempts = 0;
+        using var pool = new TelemetryLanePool(
+            probe.Source,
+            enableSensitiveData: false,
+            logger: null,
+            (identity, source, sensitive) => Interlocked.Increment(ref attempts) == 1
+                ? throw new InvalidOperationException("the first build fails (probe)")
+                : new TelemetryLane(identity, source, sensitive));
+        var agent = new PooledOpenTelemetryAgent(new ScriptedAgent("alpha"), pool);
+
+        await agent.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+
+        probe.AgentSpans().ShouldBeEmpty();
+
+        await agent.RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+
+        pool.LaneCount.ShouldBe(1, "a failure is not remembered");
+        probe.AgentSpans().Count.ShouldBe(1);
+    }
+
     public enum RunShape
     {
         Response,
@@ -566,6 +630,43 @@ public sealed class TelemetryLanePoolTests
         }
 
         public void Dispose() => _activities.Dispose();
+    }
+
+    /// <summary>A logger that keeps the warnings and above it was asked to write.</summary>
+    private sealed class WarningLog : ILogger
+    {
+        private readonly List<(LogLevel Level, string Message, Exception? Exception)> _entries = [];
+        private readonly Lock _gate = new();
+
+        public IReadOnlyList<(LogLevel Level, string Message, Exception? Exception)> Entries
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _entries];
+                }
+            }
+        }
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (!IsEnabled(logLevel))
+            {
+                return;
+            }
+
+            lock (_gate)
+            {
+                _entries.Add((logLevel, formatter(state, exception), exception));
+            }
+        }
     }
 
     /// <summary>An agent that answers with a fixed text and fixed token counts, and can be made to wait or to fail.</summary>
