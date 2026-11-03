@@ -16,16 +16,19 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>Creates a new SQL single-executor lease store.</summary>
     /// <param name="context">The store context.</param>
+    /// <param name="timeProvider">The clock a lease is stamped and compared with. Defaults to <see cref="TimeProvider.System"/> when not given.</param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
-    public SqlSingletonLeaseStore(SqlStoreContext context)
+    public SqlSingletonLeaseStore(SqlStoreContext context, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         _context = context;
         _sql = context.Sql;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     private SqlDialect Dialect => _context.Dialect;
@@ -42,7 +45,7 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
 
         var result = await _context.ExecuteUpsertAsync(
             _sql.AcquireSingletonLease,
@@ -71,7 +74,7 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
 
         var command = CreateCommand(_sql.RenewSingletonLease);
         DbHelpers.Add(command, "name", name);

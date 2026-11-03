@@ -18,20 +18,26 @@ internal sealed class SqlJobStore : IJobStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
     private readonly IOptionsMonitor<TraconSchedulingOptions>? _schedulingOptions;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>Creates a new job store.</summary>
     /// <param name="context">The store context.</param>
     /// <param name="schedulingOptions">
     /// The source for <c>LaneByHandlerKey</c>. <see langword="null"/> disables lane-by-key resolution.
     /// </param>
+    /// <param name="timeProvider">The clock a lease is stamped and compared with. Defaults to <see cref="TimeProvider.System"/> when not given.</param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
-    public SqlJobStore(SqlStoreContext context, IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null)
+    public SqlJobStore(
+        SqlStoreContext context,
+        IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         _context = context;
         _sql = context.Sql;
         _schedulingOptions = schedulingOptions;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>The gateway for provider-specific behavior.</summary>
@@ -126,7 +132,7 @@ internal sealed class SqlJobStore : IJobStore
                 nameof(request));
         }
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
 
         // Without a cap the statement is the one that has always run; the capped statement is a
         // separate text, so the common path pays nothing for the count.
@@ -157,7 +163,7 @@ internal sealed class SqlJobStore : IJobStore
 
         var command = CreateCommand(_sql.RenewJobLease);
         AddLease(command, lease);
-        Dialect.AddTimestamp(command, "lease_until", (DateTimeOffset.UtcNow + leaseDuration));
+        Dialect.AddTimestamp(command, "lease_until", (_timeProvider.GetUtcNow() + leaseDuration));
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -211,7 +217,7 @@ internal sealed class SqlJobStore : IJobStore
         // `scheduled_for <= @now`. GREATEST(...) never brings the wait time
         // forward: an early-running round cannot pull the job back.
         var retryAt = retryAfter is { } delay && delay > TimeSpan.Zero
-            ? DateTimeOffset.UtcNow + delay
+            ? _timeProvider.GetUtcNow() + delay
             : (DateTimeOffset?)null;
 
         Dialect.AddTimestamp(command, "retry_at", retryAt);
@@ -234,7 +240,7 @@ internal sealed class SqlJobStore : IJobStore
         var command = CreateCommand(_sql.CancelJob);
         DbHelpers.Add(command, "id", jobId);
         DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddTimestamp(command, "completed_at", DateTimeOffset.UtcNow);
+        Dialect.AddTimestamp(command, "completed_at", _timeProvider.GetUtcNow());
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
