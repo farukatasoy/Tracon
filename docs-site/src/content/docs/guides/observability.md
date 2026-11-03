@@ -541,6 +541,53 @@ provider added three messages the caller never sent. See [Citations and message 
 input. It applies to the span store. Configure both sections and retention according to
 the data that your agents process.
 
+## Provider error text in logs
+
+A provider that refuses a call says why, and Tracon keeps what it says, because an operator needs
+that text. It reaches five loggers that write the exception with its inner exceptions:
+`Microsoft.Extensions.AI.OpenTelemetryChatClient` (at `Warning`), `Tracon.ModelProvider`,
+`Tracon.RunRecordingAgent`, `Tracon.AgentEndpoints` and `Tracon.OpenAICompat`. It also becomes the
+status description of the `chat` span. With `RecordSensitiveData` on, the trace store keeps that
+status description.
+
+Some providers quote the key they refused inside that text. When the call was made with a
+**tenant's own key** (see [Per-tenant provider credentials](/concepts/governance/#per-tenant-provider-credentials-and-egress)),
+Tracon replaces that key with `[redacted]` in the log lines, in the span status and in the stored
+trace. The match is exact. It finds the key as it is, escaped for JSON and encoded for a URL.
+Everything else the provider wrote stays: the sentence, the HTTP status, the exception types and
+the stack. The one change you may see in a structured log: the `Tracon.ModelProvider` line of such a
+call carries the exception type `Tracon.MaskedFailureView`, and the original type is the first word
+of the exception text.
+
+```text
+Incorrect API key provided: Bearer [redacted]. Find your key at the provider's console.
+```
+
+What this does **not** cover:
+
+| Not replaced | Why | What to do |
+|---|---|---|
+| The shared key you register at startup, such as `UseOpenAI(apiKey)` | Tracon does not hold that value. It lives in the provider's options. | Give the tenant its own key, or filter the loggers (below). Keep `RecordSensitiveData` off: a trace store keeps the span status, and a quoted shared key would then reach your database. |
+| A part of the key that the provider quotes itself | The match is exact. It is not a pattern of keys. At the time of writing, OpenAI quotes the first eight and the last four characters of a refused key, and the Anthropic and Google answers quote no part of it. | Nothing: the provider chose to show that part. |
+| A key shorter than eight characters | A value that short is also ordinary text. | Use the key the provider issued. |
+| A log writer that reads inner exceptions property by property | `Message` and `ToString()` are replaced. The original exception stays as the inner exception, because retry, fallback and the circuit breaker decide from it. | Write the exception's text, not its properties. |
+| The error of a speech or live voice provider | These calls do not pass through the model pipeline, and this replacement was not measured on them. | Treat the log line of a failed speech call as readable by anyone who reads the log. |
+
+If a log reader must never see a shared key, filter the loggers. The first two carry nothing but the
+provider's detail. The other three also carry the run id and the `ref` that an operator uses to find
+a failed run, so filter them only when the key cannot be allowed in the log at all.
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Microsoft.Extensions.AI.OpenTelemetryChatClient": "Error",
+      "Tracon.ModelProvider": "None"
+    }
+  }
+}
+```
+
 ## Add readiness and provider health
 
 Register Tracon in ASP.NET Core health checks, then choose the route yourself:

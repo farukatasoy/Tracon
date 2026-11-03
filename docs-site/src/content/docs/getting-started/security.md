@@ -399,7 +399,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
 | Tenant provider policy | A tenant's data reaching a model, speech, live voice, image or embedding provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
-| Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
+| Secret handling | A secret value reaching storage, a log, or a response. A tenant's own provider key is also replaced in a provider's error text; the shared startup key and a partial quote are not ([limits](/guides/observability/#provider-error-text-in-logs)) | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
 | Audit trail | Eight operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Quotas and rate limits | Spend and request volume above the configured ceiling | [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits) |

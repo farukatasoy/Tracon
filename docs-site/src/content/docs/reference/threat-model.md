@@ -73,7 +73,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Outbound egress | A request to a private network target or a disallowed host |
 | Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own |
 | Content guards | Input or output a configured guard rejects |
-| Secret handling | A secret value reaching storage, a log, or a response |
+| Secret handling | A secret value reaching storage, a log, or a response. A provider's error text can still quote the shared startup key, or part of a tenant's key, into a log line ([limits](/guides/observability/#provider-error-text-in-logs)) |
 | At-rest protection | Readable content in a database you do not fully trust |
 | Audit trail | Eight operations proceeding without their record |
 | Quotas and rate limits | Spend and request volume above the configured ceiling |
