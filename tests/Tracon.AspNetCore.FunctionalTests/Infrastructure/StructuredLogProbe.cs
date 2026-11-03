@@ -23,6 +23,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 internal sealed class StructuredLogProbe : ILoggerProvider, ISupportExternalScope
 {
     private readonly List<string> _records = [];
+    private readonly List<string> _chains = [];
     private IExternalScopeProvider? _scopes;
 
     /// <summary>Gets every record handed to the pipeline, in the order written.</summary>
@@ -33,6 +34,22 @@ internal sealed class StructuredLogProbe : ILoggerProvider, ISupportExternalScop
             lock (_records)
             {
                 return string.Join('\n', _records);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the type, message and data of every exception in the inner chain of every record, the way a writer that walks
+    /// <see cref="Exception.InnerException"/> and sends each one's message reads it (an application performance monitor
+    /// does). An exporter that sends the outermost message and the text of the exception does not read this.
+    /// </summary>
+    public string ChainText
+    {
+        get
+        {
+            lock (_chains)
+            {
+                return string.Join('\n', _chains);
             }
         }
     }
@@ -103,15 +120,23 @@ internal sealed class StructuredLogProbe : ILoggerProvider, ISupportExternalScop
             Describe(state, lines, "attribute ");
             owner._scopes?.ForEachScope((scope, list) => Describe(scope, list, "scope "), lines);
 
-            for (var current = exception; current is not null; current = current.InnerException)
-            {
-                lines.Add($"exception.type={current.GetType().FullName} exception.message={current.Message}");
-                lines.AddRange(current.Data.Cast<DictionaryEntry>().Select(static entry => $"exception.data {entry.Key}={entry.Value}"));
-            }
-
             if (exception is not null)
             {
+                lines.Add($"exception.type={exception.GetType().FullName} exception.message={exception.Message}");
                 lines.Add("exception.stacktrace=" + exception);
+
+                var chain = new List<string>();
+
+                for (var current = exception; current is not null; current = current.InnerException)
+                {
+                    chain.Add($"{category} exception.type={current.GetType().FullName} exception.message={current.Message}");
+                    chain.AddRange(current.Data.Cast<DictionaryEntry>().Select(static entry => $"exception.data {entry.Key}={entry.Value}"));
+                }
+
+                lock (owner._chains)
+                {
+                    owner._chains.AddRange(chain);
+                }
             }
 
             lock (owner._records)
