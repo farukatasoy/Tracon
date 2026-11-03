@@ -28,6 +28,9 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
                 options.Timeout));
         }
 
+        OptionText.AddWhenOnlyWhiteSpace(
+            options.AllowedConfigurationPrefix, nameof(TraconWebhookOptions), nameof(TraconWebhookOptions.AllowedConfigurationPrefix), ref failures);
+
         if (options.MaxResponseBytes < 1)
         {
             (failures ??= []).Add(

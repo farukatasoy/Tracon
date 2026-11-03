@@ -37,97 +37,6 @@ public sealed partial class ConfigurationPermutationTests
 
     private static readonly string[] TimeSpanCultureTexts = ["0,5", "00:00:30,5", "00:00:30.5"];
 
-    /// <summary>
-    /// Scalars whose text is NOT read from configuration on purpose, each with the reason. The probe skips them.
-    /// </summary>
-    private static readonly Dictionary<string, string> NotBoundOnPurpose = new(StringComparer.Ordinal)
-    {
-        ["Tracon:Skills:Scripts:AllowStoredScripts"] = "a security boundary: configuration must not widen the executable surface",
-    };
-
-    /// <summary>
-    /// Limits that accept <c>0</c> because it has a meaning, each with that meaning. A limit that is not here and
-    /// accepts <c>0</c> stops the build: the operator who wrote it may have meant something else.
-    /// </summary>
-    private static readonly Dictionary<string, string> ZeroIsDocumented = new(StringComparer.Ordinal)
-    {
-        ["Tracon:AgentGraph:MaxDepth"] = "no sub-agent call is allowed",
-        ["Tracon:AgentGraph:MaxDuration"] = "documented: zero removes the limit",
-        ["Tracon:AgentGraph:MaxTotalCost"] = "documented: zero removes the limit",
-        ["Tracon:AgentGraph:MaxTotalRuns"] = "documented: zero removes the limit",
-        ["Tracon:AgentGraph:MaxTotalTokens"] = "documented: zero removes the limit",
-        ["Tracon:Attachments:MaxBytes"] = "every attachment is over the limit (fail-closed)",
-        ["Tracon:Idempotency:ReservationTimeout"] = "documented: zero never takes a reserved key over",
-        ["Tracon:Knowledge:ChunkOverlap"] = "no overlap between chunks",
-        ["Tracon:Observability:MaxJobLaneCardinality"] = "clamped to one series where it is read",
-        ["Tracon:Observability:MaxSpansPerRun"] = "every span is dropped and a warning is logged (fail-closed, diagnostics only)",
-        ["Tracon:Observability:SuccessSampleRatio"] = "persists no successful run",
-        ["Tracon:OnlineEvaluation:LowScoreThreshold"] = "marks no score as low",
-        ["Tracon:OnlineEvaluation:MaxScoresPerHour"] = "scores nothing (the cost cap is zero)",
-        ["Tracon:OnlineEvaluation:SampleRate"] = "samples nothing",
-        ["Tracon:Preflight:ReserveRatio"] = "reserves nothing for the answer",
-        ["Tracon:RateLimit:PermitLimit"] = "documented: a value that is not positive keeps the one-permit meaning",
-        ["Tracon:RateLimit:QueueLimit"] = "no waiting line",
-        ["Tracon:RateLimit:Window"] = "documented: a value that is not positive keeps the one-minute meaning",
-        ["Tracon:Retention:BatchDelay"] = "no pause between batches",
-        ["Tracon:RunRecording:MaxPayloadLength"] = "zero is inside the validated range 0 to 1048576",
-        ["Tracon:RunRecording:SinkTimeout"] = "documented: zero waits for the sink for ever",
-        ["Tracon:Voice:Conversation:MaxConcurrentConnectionsPerTenant"] = "refuses every connection (fail-closed)",
-        ["Tracon:Voice:Conversation:MaxSpokenCharactersPerTurn"] = "speaks nothing; the answer still streams as captions",
-        ["Tracon:Voice:Conversation:MaxUtteranceBytes"] = "refuses every utterance (fail-closed)",
-        ["Tracon:Voice:Live:MaxAppendsPerDelegation"] = "a delegation sends no append",
-        ["Tracon:Voice:Live:MaxConcurrentDelegations"] = "refuses every delegation (fail-closed)",
-        ["Tracon:Voice:Live:MaxConcurrentSessionsPerTenant"] = "refuses every session (fail-closed)",
-        ["Tracon:Voice:Live:MaxLedgerEntriesPerDelegation"] = "a delegation carries no transcript",
-        ["Tracon:Voice:Live:MaxTranscriptLedgerCharacters"] = "the ledger keeps nothing",
-        ["Tracon:Webhooks:MaxExtraHeaders"] = "no extra header is allowed",
-        ["Tracon:Webhooks:SignatureTolerance"] = "the recommended tolerance is none",
-    };
-
-    /// <summary>
-    /// Limits that accept <c>-1</c> because it has a meaning, each with that meaning. A limit that is not here and
-    /// accepts <c>-1</c> stops the build.
-    /// </summary>
-    private static readonly Dictionary<string, string> NegativeIsDocumented = new(StringComparer.Ordinal)
-    {
-        ["Tracon:AgentGraph:MaxDepth"] = "no sub-agent call is allowed (fail-closed)",
-        ["Tracon:AgentGraph:MaxDuration"] = "documented: a negative value removes the limit",
-        ["Tracon:AgentGraph:MaxTotalCost"] = "documented: a negative value removes the limit",
-        ["Tracon:AgentGraph:MaxTotalRuns"] = "documented: a negative value removes the limit",
-        ["Tracon:AgentGraph:MaxTotalTokens"] = "documented: a negative value removes the limit",
-        ["Tracon:Attachments:MaxBytes"] = "every attachment is over the limit (fail-closed)",
-        ["Tracon:Idempotency:ReservationTimeout"] = "documented: zero or less never takes a reserved key over",
-        ["Tracon:Observability:MaxJobLaneCardinality"] = "clamped to one series where it is read",
-        ["Tracon:Observability:MaxSpansPerRun"] = "every span is dropped and a warning is logged (fail-closed, diagnostics only)",
-        ["Tracon:RateLimit:PermitLimit"] = "documented: a value that is not positive keeps the one-permit meaning",
-        ["Tracon:RateLimit:QueueLimit"] = "clamped to zero where it is read",
-        ["Tracon:RateLimit:Window"] = "documented: a value that is not positive keeps the one-minute meaning",
-    };
-
-    /// <summary>
-    /// Text options that keep a whitespace-only value as written, where a number option treats it as not given.
-    /// The behaviour is recorded here until it is decided; a key that starts to refuse the text stops the build,
-    /// so the list only shrinks.
-    /// </summary>
-    private static readonly Dictionary<string, string> WhitespaceTextKept = new(StringComparer.Ordinal)
-    {
-        ["Tracon:ContentGuard:Pattern:MaskReplacement"] = "masks with blanks",
-        ["Tracon:Knowledge:EmbeddingProvider"] = "names a provider called blanks; found at the first embedding call",
-        ["Tracon:ContentProtection:ActiveKeyId"] = "refused while the feature is on, kept while it is off",
-        ["Tracon:Images:Provider"] = "refused while the feature is on, kept while it is off",
-        ["Tracon:Images:Model"] = "refused while the feature is on, kept while it is off",
-        ["Tracon:Audit:ActorClaimType"] = "looks for a claim called blanks and finds none",
-        ["Tracon:Audit:ChainKeyId"] = "stops the host through the hosted start check, not the options validation",
-        ["Tracon:Pricing:Currency"] = "reports cost in a currency called blanks",
-        ["Tracon:Voice:Conversation:VoiceId"] = "asks the provider for a voice called blanks",
-        ["Tracon:Voice:Conversation:OutputMediaType"] = "asks for a media type called blanks",
-        ["Tracon:Voice:Live:Instructions"] = "sends blanks as the instructions",
-        ["Tracon:Webhooks:AllowedConfigurationPrefix"] = "allows no configuration key (fail-closed)",
-        ["Tracon:SingletonExecution:OwnerId"] = "names the owner with blanks",
-        ["Tracon:Mcp:AllowedConfigurationPrefix"] = "allows no configuration key (fail-closed)",
-        ["Tracon:SessionOwnership:ManagementPolicy"] = "no policy is satisfied (fail-closed); the empty string is the documented way to say so",
-    };
-
     private static readonly Lazy<IReadOnlyList<OptionScalar>> Scalars = new(OptionScalarCatalog.All);
 
     private static readonly ConcurrentDictionary<CaseKey, Outcome> Outcomes = new();
@@ -137,14 +46,14 @@ public sealed partial class ConfigurationPermutationTests
     {
         Warm(
             from scalar in Scalars.Value
-            where !NotBoundOnPurpose.ContainsKey(scalar.Key)
+            where !SkipsReadingProbe(scalar)
             from enabled in Variants(scalar)
             from text in TextsFor(scalar).Prepend(string.Empty)
             select new CaseKey(scalar.Key, text, enabled, Culture: null));
 
         var failures = new List<string>();
 
-        foreach (var scalar in Scalars.Value.Where(static scalar => !NotBoundOnPurpose.ContainsKey(scalar.Key)))
+        foreach (var scalar in Scalars.Value.Where(static scalar => !SkipsReadingProbe(scalar)))
         {
             foreach (var enabled in Variants(scalar))
             {
@@ -190,14 +99,14 @@ public sealed partial class ConfigurationPermutationTests
     {
         Warm(
             from scalar in Scalars.Value
-            where !NotBoundOnPurpose.ContainsKey(scalar.Key)
+            where !SkipsReadingProbe(scalar)
             from text in CultureTextsFor(scalar)
             from culture in CultureNames.Prepend(null)
             select new CaseKey(scalar.Key, text, Enabled: false, culture));
 
         var failures = new List<string>();
 
-        foreach (var scalar in Scalars.Value.Where(static scalar => !NotBoundOnPurpose.ContainsKey(scalar.Key)))
+        foreach (var scalar in Scalars.Value.Where(static scalar => !SkipsReadingProbe(scalar)))
         {
             foreach (var text in CultureTextsFor(scalar))
             {
@@ -239,7 +148,7 @@ public sealed partial class ConfigurationPermutationTests
         }
 
         // A scan that found no number option would pass for the wrong reason.
-        Scalars.Value.Count(static scalar => scalar.ScalarType == typeof(double) || scalar.ScalarType == typeof(decimal)).ShouldBeGreaterThan(3);
+        Scalars.Value.Count(static scalar => scalar.ScalarType == typeof(double) || scalar.ScalarType == typeof(decimal)).ShouldBeGreaterThanOrEqualTo(MinimumNumberScalars);
         failures.ShouldBeEmpty(customMessage: string.Join(Environment.NewLine, failures));
     }
 
@@ -326,45 +235,64 @@ public sealed partial class ConfigurationPermutationTests
         failures.ShouldBeEmpty(customMessage: string.Join(Environment.NewLine, failures));
     }
 
-    [Theory]
-    [InlineData("Tracon:Observability:SuccessSampleRatio")]
-    [InlineData("Tracon:Preflight:ReserveRatio")]
-    [InlineData("Tracon:OnlineEvaluation:SampleRate")]
-    public void A_ratio_outside_zero_to_one_stops_the_host(string key)
+    [Fact]
+    public void A_ratio_outside_zero_to_one_stops_the_host()
     {
-        var scalar = Scalars.Value.Single(candidate => string.Equals(candidate.Key, key, StringComparison.Ordinal));
-
-        foreach (var enabled in Variants(scalar))
+        foreach (var key in RatioKeys)
         {
-            foreach (var text in new[] { "-0.5", "1.5", "10", "100" })
+            var scalar = Scalars.Value.Single(candidate => string.Equals(candidate.Key, key, StringComparison.Ordinal));
+
+            foreach (var enabled in Variants(scalar))
             {
-                Run(scalar, text, enabled, culture: null).Kind.ShouldBe(
-                    OutcomeKind.StartFailure,
-                    $"{key} = {text}{(enabled ? " with its feature on" : string.Empty)}: a fraction between 0 and 1 was written as a percent or mistyped, and the setting looks applied.");
+                foreach (var text in new[] { "-0.5", "1.5", "10", "100" })
+                {
+                    Run(scalar, text, enabled, culture: null).Kind.ShouldBe(
+                        OutcomeKind.StartFailure,
+                        $"{key} = {text}{(enabled ? " with its feature on" : string.Empty)}: a fraction between 0 and 1 was written as a percent or mistyped, and the setting looks applied.");
+                }
             }
         }
     }
 
     [Fact]
-    public void Whitespace_text_is_kept_only_where_the_record_says_so()
+    public void A_text_that_is_only_white_space_stops_the_host_naming_the_key()
     {
         var failures = new List<string>();
+        var probed = 0;
 
         foreach (var scalar in Scalars.Value.Where(static scalar => scalar.PropertyType == typeof(string)))
         {
-            var kept = Variants(scalar)
-                .Select(enabled => (enabled, Baseline: Run(scalar, string.Empty, enabled, culture: null), Outcome: Run(scalar, "   ", enabled, culture: null)))
-                .Where(static run => run.Baseline.Kind == OutcomeKind.Bound)
-                .Any(static run => run.Outcome.Kind == OutcomeKind.Bound);
+            var kept = false;
 
-            var listed = WhitespaceTextKept.ContainsKey(scalar.Key);
-
-            if (kept && !listed)
+            foreach (var enabled in Variants(scalar))
             {
-                failures.Add($"{scalar.Key} keeps a whitespace-only text as written and is not in {nameof(WhitespaceTextKept)}.");
+                // The variant has to start with the key left out, or there is nothing to compare with.
+                if (Run(scalar, string.Empty, enabled, culture: null).Kind != OutcomeKind.Bound)
+                {
+                    continue;
+                }
+
+                probed++;
+
+                var outcome = Run(scalar, "   ", enabled, culture: null);
+                var describe = $"{scalar.Display} ({scalar.Key}) = '   '{(enabled ? " with its feature on" : string.Empty)}";
+
+                if (outcome.Kind == OutcomeKind.Bound)
+                {
+                    kept = true;
+
+                    if (!WhitespaceTextKept.ContainsKey(scalar.Key))
+                    {
+                        failures.Add($"{describe} is kept as written ({Show(outcome.ValueText)}): a text of blanks is a typing mistake, and the setting looks applied.");
+                    }
+                }
+                else if (outcome.Kind != OutcomeKind.StartFailure || !NamesTheKey(scalar, outcome.Message))
+                {
+                    failures.Add($"{describe}: {outcome.Kind}, and the message does not name the key or the member: {outcome.Message}");
+                }
             }
 
-            if (!kept && listed)
+            if (!kept && WhitespaceTextKept.ContainsKey(scalar.Key))
             {
                 failures.Add($"{scalar.Key} refuses a whitespace-only text now: remove it from {nameof(WhitespaceTextKept)}.");
             }
@@ -375,8 +303,40 @@ public sealed partial class ConfigurationPermutationTests
             failures.Add($"'{key}' is listed in {nameof(WhitespaceTextKept)}, but no scalar has that key.");
         }
 
+        // A scan that found few text options would pass for the wrong reason.
+        probed.ShouldBeGreaterThanOrEqualTo(MinimumTextScalars);
+        failures.ShouldBeEmpty(
+            customMessage: $"A text option kept a value made only of white space. Refuse it in the options validator, or record it in {nameof(WhitespaceTextKept)} until it is decided:{Environment.NewLine}" +
+                           string.Join(Environment.NewLine, failures));
+    }
+
+    [Fact]
+    public void Every_key_a_scope_records_as_read_by_the_framework_binder_still_is()
+    {
+        var failures = new List<string>();
+
+        foreach (var (key, reason) in ReadByFrameworkBinder)
+        {
+            var scalar = Scalars.Value.SingleOrDefault(candidate => string.Equals(candidate.Key, key, StringComparison.Ordinal));
+
+            if (scalar is null)
+            {
+                failures.Add($"'{key}' is recorded as read by the framework binder, but no scalar has that key.");
+
+                continue;
+            }
+
+            if (Run(scalar, "not-readable", enabled: false, culture: null).Kind == OutcomeKind.StartFailure)
+            {
+                failures.Add($"'{key}' ({reason}) stops the host with an options failure now: remove it from {nameof(ReadByFrameworkBinder)}.");
+            }
+        }
+
         failures.ShouldBeEmpty(customMessage: string.Join(Environment.NewLine, failures));
     }
+
+    private static bool SkipsReadingProbe(OptionScalar scalar)
+        => NotBoundOnPurpose.ContainsKey(scalar.Key) || ReadByFrameworkBinder.ContainsKey(scalar.Key);
 
     private static bool IsLimit(OptionScalar scalar)
     {
@@ -604,10 +564,18 @@ public sealed partial class ConfigurationPermutationTests
                 CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
             }
 
-            var values = new Dictionary<string, string?>(enabled ? scalar.EnablingKeys() : new Dictionary<string, string?>(StringComparer.Ordinal), StringComparer.Ordinal)
+            // What the section needs to start at all, then what switches the feature on, then the text under test.
+            var values = new Dictionary<string, string?>(scalar.BaseKeys, StringComparer.Ordinal);
+
+            if (enabled)
             {
-                [scalar.Key] = text,
-            };
+                foreach (var (key, value) in scalar.EnablingKeys())
+                {
+                    values[key] = value;
+                }
+            }
+
+            values[scalar.Key] = text;
 
             return Probe(scalar, values);
         }

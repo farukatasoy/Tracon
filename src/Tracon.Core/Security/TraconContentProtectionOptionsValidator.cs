@@ -55,7 +55,12 @@ internal sealed class TraconContentProtectionOptionsValidator : IValidateOptions
             }
         }
 
-        if (options.Enabled)
+        // Refused while the feature is off too: a key id of blanks is not "not set", and the day the feature is turned
+        // on the message would be about a key that is missing, not about the value that was written.
+        OptionText.AddWhenOnlyWhiteSpace(
+            options.ActiveKeyId, nameof(TraconContentProtectionOptions), nameof(TraconContentProtectionOptions.ActiveKeyId), ref failures);
+
+        if (options.Enabled && !OptionText.IsOnlyWhiteSpace(options.ActiveKeyId))
         {
             AddActiveKeyFailures(options, ref failures);
         }

@@ -585,6 +585,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   previous release. They answer `400` now, with the message that lists the members, like a name that is not one. One endpoint filter on the endpoint group does it, reading each handler's signature when the endpoint is
   built, so a parameter added later is covered without anyone remembering to ask (and a `[Flags]` enum takes any combination of its members). A number that is a member (`?status=2`) is accepted as before.
 
+- **Behavioural breaking change: a text option made only of white space stops the host at start.** A number, flag or duration key that held only white space was "not given" and kept its default, but a text
+  option kept the blanks as its value: `Tracon:Audit:ChainKeyId` of `"   "` named a key called blanks (and stopped the host later, through the hosted start check, with a message about a missing key),
+  `Tracon:ContentGuard:Pattern:MaskReplacement` of blanks masked a match with spaces, `Tracon:Pricing:Currency` reported cost in a currency called blanks, and `Tracon:SingletonExecution:OwnerId`
+  named an instance with blanks. Seventeen options are refused now, each by the validator of its options type, from configuration or from code, and the message names the member and says to write a value or
+  remove the key: `Audit:ActorClaimType`, `Audit:ChainKeyId`, `ContentGuard:Pattern:MaskReplacement`, `ContentProtection:ActiveKeyId`, `Images:Provider`, `Images:Model`, `Knowledge:EmbeddingProvider`,
+  `Pricing:Currency`, `SessionOwnership:ManagementPolicy`, `SingletonExecution:OwnerId`, `Voice:Conversation:VoiceId`, `Voice:Conversation:OutputMediaType`, `Voice:Live:Instructions`,
+  `Webhooks:AllowedConfigurationPrefix`, `Mcp:AllowedConfigurationPrefix`, and the two prefixes `TenantProviders:AllowedConfigurationPrefix` and `InboundTriggers:AllowedConfigurationPrefix`
+  (which the permutation test cannot find by reflection and which have their own test). An empty text is still "not given", and the empty string stays the documented way to say that no policy manages another
+  user's sessions. What to do: a host whose configuration holds such a value (a template that left `"   "` where a value belongs) removes the key or writes the value. `ConfigurationPermutationTests`
+  no longer keeps a list of text options that accept blanks: a new text option that does is a failure.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then

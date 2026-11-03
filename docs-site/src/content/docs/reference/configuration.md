@@ -49,7 +49,11 @@ absolute address such as `https://gateway.example.com/v1/`; `gateway.example.com
 refused. The `Endpoint` keys of the model providers are checked by the provider's own
 validator, which refuses a relative address.
 
-- **Empty means not given.** A key with no text, or only white space, keeps the default.
+- **Empty means not given.** A key with no text keeps the default, and so does a number, flag, duration or
+  address key that holds only white space.
+- **A text option made only of white space stops the host.** `Audit:ChainKeyId` set to `"   "`, a `Provider` or a
+  `Model` of spaces, a mask of blanks: the value would look applied and name nothing, so the message names the member and
+  asks you to write a value or remove the key. This holds for a value assigned in code as well.
 - **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
   one; `EnvironmentAllowList=PATH` is refused, and the message shows the `:0` form. A list
   that is present replaces the default. A JSON `[]` and a key with no text are "not
