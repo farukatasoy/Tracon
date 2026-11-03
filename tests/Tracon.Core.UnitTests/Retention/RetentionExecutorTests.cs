@@ -226,6 +226,114 @@ public sealed class RetentionExecutorTests
         preview[0].MatchingRows.ShouldBe(50);
     }
 
+    /// <summary>
+    /// A sweep over every target stopped at the first target that failed, so the targets after it were never
+    /// swept in that pass and the job that retried the sweep failed on the same target again.
+    /// </summary>
+    [Fact]
+    public async Task A_target_that_fails_does_not_stop_the_targets_after_it_and_its_failure_is_raised_at_the_end()
+    {
+        var (executor, store, dataStore) = Build();
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30);
+        await SavePolicyAsync(store, RetentionTargets.Traces, maxAgeDays: 30);
+        await SavePolicyAsync(store, RetentionTargets.Jobs, maxAgeDays: 30);
+        dataStore.FailingTargets[RetentionTargets.RunEvents] = new InvalidOperationException("The first target fails (probe).");
+        dataStore.DeleteBatchSizes.Enqueue(3);
+        dataStore.DeleteBatchSizes.Enqueue(4);
+
+        var failure = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await executor.RunAsync(Tenant, target: null));
+
+        failure.Message.ShouldBe("The first target fails (probe).", "a single failure is raised as it was, so the job keeps its message and type");
+        dataStore.TargetsSwept.ShouldBe([RetentionTargets.RunEvents, RetentionTargets.Traces, RetentionTargets.Jobs]);
+
+        (await store.ListRunsAsync(Tenant, RetentionTargets.Traces, 0, 10)).Single().DeletedRows.ShouldBe(3);
+        (await store.ListRunsAsync(Tenant, RetentionTargets.Jobs, 0, 10)).Single().DeletedRows.ShouldBe(4);
+        (await store.ListRunsAsync(Tenant, RetentionTargets.RunEvents, 0, 10)).Single().Error.ShouldNotBeNull("the failed target's own run record says it failed");
+    }
+
+    [Fact]
+    public async Task Several_failed_targets_are_raised_together_and_the_others_still_run()
+    {
+        var (executor, store, dataStore) = Build();
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30);
+        await SavePolicyAsync(store, RetentionTargets.Traces, maxAgeDays: 30);
+        await SavePolicyAsync(store, RetentionTargets.Jobs, maxAgeDays: 30);
+        dataStore.FailingTargets[RetentionTargets.RunEvents] = new InvalidOperationException("one (probe)");
+        dataStore.FailingTargets[RetentionTargets.Jobs] = new TimeoutException("two (probe)");
+        dataStore.DeleteBatchSizes.Enqueue(5);
+
+        var failure = await Should.ThrowAsync<AggregateException>(
+            async () => await executor.RunAsync(Tenant, target: null));
+
+        failure.InnerExceptions.Select(static inner => inner.GetType()).ShouldBe([typeof(InvalidOperationException), typeof(TimeoutException)]);
+        failure.Message.ShouldContain(RetentionTargets.RunEvents);
+        failure.Message.ShouldContain(RetentionTargets.Jobs);
+        (await store.ListRunsAsync(Tenant, RetentionTargets.Traces, 0, 10)).Single().DeletedRows.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task A_stop_ends_the_sweep_at_once_and_is_not_counted_as_a_target_failure()
+    {
+        var (executor, store, dataStore) = Build();
+        using var cancellation = new CancellationTokenSource();
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30);
+        await SavePolicyAsync(store, RetentionTargets.Traces, maxAgeDays: 30);
+        dataStore.OnDelete = _ => cancellation.Cancel();
+        dataStore.DeleteBatchSizes.Enqueue(1);
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await executor.RunAsync(Tenant, target: null, cancellation.Token));
+
+        dataStore.TargetsSwept.ShouldBe([RetentionTargets.RunEvents], "the sweep stopped with the stop it was given");
+    }
+
+    [Fact]
+    public async Task The_job_handler_fails_its_item_and_raises_the_failure_only_after_every_target_was_swept()
+    {
+        // A job that failed is retried as a whole, so the handler has to raise the failure; what changed is
+        // that the targets after the failed one were swept in this pass already.
+        var (executor, store, dataStore) = Build();
+        var reported = new List<JobItemResult>();
+        var jobId = Guid.NewGuid();
+        var handler = new RetentionJobHandler(executor);
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30);
+        await SavePolicyAsync(store, RetentionTargets.Traces, maxAgeDays: 30);
+        dataStore.FailingTargets[RetentionTargets.RunEvents] = new InvalidOperationException("The first target fails (probe).");
+        dataStore.DeleteBatchSizes.Enqueue(2);
+
+        var context = new JobContext
+        {
+            Job = new JobRecord
+            {
+                Id = jobId,
+                TenantId = Tenant,
+                HandlerKey = JobHandlerKeys.Retention,
+                TargetName = "*",
+                Status = JobStatus.Running,
+                ScheduledFor = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+            },
+            Items = [new JobItemRecord { Id = Guid.NewGuid(), JobId = jobId, Seq = 0, Input = string.Empty, Status = JobItemStatus.Pending }],
+            ReportItemAsync = (result, _) =>
+            {
+                reported.Add(result);
+
+                return default;
+            },
+            IsCancelledAsync = static _ => new ValueTask<bool>(false),
+        };
+
+        await Should.ThrowAsync<InvalidOperationException>(async () => await handler.ExecuteAsync(context));
+
+        reported.ShouldHaveSingleItem().Status.ShouldBe(JobItemStatus.Failed);
+        (await store.ListRunsAsync(Tenant, RetentionTargets.Traces, 0, 10)).Single().DeletedRows.ShouldBe(2);
+    }
+
     private static (RetentionExecutor Executor, IRetentionPolicyStore Store, RecordingRetentionStore DataStore) Build(
         IArchiveSink? archiveSink = null,
         int batchSize = 5000,
@@ -296,6 +404,15 @@ public sealed class RetentionExecutorTests
 
         public Queue<int> DeleteBatchSizes { get; } = new();
 
+        /// <summary>The targets whose delete fails with the given exception.</summary>
+        public Dictionary<string, Exception> FailingTargets { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>The targets <see cref="DeleteBatchAsync"/> was called for, in order, once each.</summary>
+        public List<string> TargetsSwept { get; } = [];
+
+        /// <summary>A step that runs inside every delete call.</summary>
+        public Action<string>? OnDelete { get; set; }
+
         public IReadOnlyList<ArchiveRow> ArchiveRowsToReturn { get; set; } = [];
 
         public ValueTask<long> CountOlderThanAsync(string target, string? tenantId, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
@@ -337,6 +454,18 @@ public sealed class RetentionExecutorTests
             LastCutoffUsed = cutoff;
 
             DeleteCalls++;
+
+            if (!TargetsSwept.Contains(target))
+            {
+                TargetsSwept.Add(target);
+            }
+
+            OnDelete?.Invoke(target);
+
+            if (FailingTargets.TryGetValue(target, out var failure))
+            {
+                throw failure;
+            }
 
             return new ValueTask<int>(DeleteBatchSizes.Count > 0 ? DeleteBatchSizes.Dequeue() : 0);
         }
